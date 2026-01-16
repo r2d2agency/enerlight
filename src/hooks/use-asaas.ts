@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { getAuthToken } from '@/lib/api';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
@@ -52,27 +52,26 @@ interface NotificationRule {
 }
 
 export function useAsaas(organizationId: string | null) {
-  const { token } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const headers = {
+  const getHeaders = () => ({
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`
-  };
+    'Authorization': `Bearer ${getAuthToken()}`
+  });
 
   const getIntegration = useCallback(async (): Promise<AsaasIntegration | null> => {
     if (!organizationId) return null;
     
     try {
-      const response = await fetch(`${API_URL}/api/asaas/integration/${organizationId}`, { headers });
+      const response = await fetch(`${API_URL}/api/asaas/integration/${organizationId}`, { headers: getHeaders() });
       if (!response.ok) throw new Error('Erro ao buscar integração');
       return response.json();
     } catch (err) {
       console.error('Get integration error:', err);
       return null;
     }
-  }, [organizationId, token]);
+  }, [organizationId]);
 
   const configureIntegration = useCallback(async (apiKey: string, environment: 'sandbox' | 'production') => {
     if (!organizationId) return null;
@@ -83,7 +82,7 @@ export function useAsaas(organizationId: string | null) {
     try {
       const response = await fetch(`${API_URL}/api/asaas/integration/${organizationId}`, {
         method: 'POST',
-        headers,
+        headers: getHeaders(),
         body: JSON.stringify({ api_key: apiKey, environment })
       });
       
@@ -99,7 +98,7 @@ export function useAsaas(organizationId: string | null) {
     } finally {
       setLoading(false);
     }
-  }, [organizationId, token]);
+  }, [organizationId]);
 
   const syncPayments = useCallback(async () => {
     if (!organizationId) return null;
@@ -110,7 +109,7 @@ export function useAsaas(organizationId: string | null) {
     try {
       const response = await fetch(`${API_URL}/api/asaas/sync/${organizationId}`, {
         method: 'POST',
-        headers
+        headers: getHeaders()
       });
       
       if (!response.ok) {
@@ -125,7 +124,7 @@ export function useAsaas(organizationId: string | null) {
     } finally {
       setLoading(false);
     }
-  }, [organizationId, token]);
+  }, [organizationId]);
 
   const getPayments = useCallback(async (filters?: { status?: string; due_date_start?: string; due_date_end?: string }): Promise<AsaasPayment[]> => {
     if (!organizationId) return [];
@@ -136,40 +135,40 @@ export function useAsaas(organizationId: string | null) {
       if (filters?.due_date_start) params.set('due_date_start', filters.due_date_start);
       if (filters?.due_date_end) params.set('due_date_end', filters.due_date_end);
       
-      const response = await fetch(`${API_URL}/api/asaas/payments/${organizationId}?${params}`, { headers });
+      const response = await fetch(`${API_URL}/api/asaas/payments/${organizationId}?${params}`, { headers: getHeaders() });
       if (!response.ok) throw new Error('Erro ao buscar cobranças');
       return response.json();
     } catch (err) {
       console.error('Get payments error:', err);
       return [];
     }
-  }, [organizationId, token]);
+  }, [organizationId]);
 
   const getCustomers = useCallback(async (): Promise<AsaasCustomer[]> => {
     if (!organizationId) return [];
     
     try {
-      const response = await fetch(`${API_URL}/api/asaas/customers/${organizationId}`, { headers });
+      const response = await fetch(`${API_URL}/api/asaas/customers/${organizationId}`, { headers: getHeaders() });
       if (!response.ok) throw new Error('Erro ao buscar clientes');
       return response.json();
     } catch (err) {
       console.error('Get customers error:', err);
       return [];
     }
-  }, [organizationId, token]);
+  }, [organizationId]);
 
   const getRules = useCallback(async (): Promise<NotificationRule[]> => {
     if (!organizationId) return [];
     
     try {
-      const response = await fetch(`${API_URL}/api/asaas/rules/${organizationId}`, { headers });
+      const response = await fetch(`${API_URL}/api/asaas/rules/${organizationId}`, { headers: getHeaders() });
       if (!response.ok) throw new Error('Erro ao buscar regras');
       return response.json();
     } catch (err) {
       console.error('Get rules error:', err);
       return [];
     }
-  }, [organizationId, token]);
+  }, [organizationId]);
 
   const createRule = useCallback(async (rule: Partial<NotificationRule>) => {
     if (!organizationId) return null;
@@ -180,7 +179,7 @@ export function useAsaas(organizationId: string | null) {
     try {
       const response = await fetch(`${API_URL}/api/asaas/rules/${organizationId}`, {
         method: 'POST',
-        headers,
+        headers: getHeaders(),
         body: JSON.stringify(rule)
       });
       
@@ -196,7 +195,7 @@ export function useAsaas(organizationId: string | null) {
     } finally {
       setLoading(false);
     }
-  }, [organizationId, token]);
+  }, [organizationId]);
 
   const updateRule = useCallback(async (ruleId: string, rule: Partial<NotificationRule>) => {
     if (!organizationId) return null;
@@ -207,7 +206,7 @@ export function useAsaas(organizationId: string | null) {
     try {
       const response = await fetch(`${API_URL}/api/asaas/rules/${organizationId}/${ruleId}`, {
         method: 'PATCH',
-        headers,
+        headers: getHeaders(),
         body: JSON.stringify(rule)
       });
       
@@ -223,7 +222,7 @@ export function useAsaas(organizationId: string | null) {
     } finally {
       setLoading(false);
     }
-  }, [organizationId, token]);
+  }, [organizationId]);
 
   const deleteRule = useCallback(async (ruleId: string) => {
     if (!organizationId) return false;
@@ -234,7 +233,7 @@ export function useAsaas(organizationId: string | null) {
     try {
       const response = await fetch(`${API_URL}/api/asaas/rules/${organizationId}/${ruleId}`, {
         method: 'DELETE',
-        headers
+        headers: getHeaders()
       });
       
       if (!response.ok) {
@@ -249,7 +248,7 @@ export function useAsaas(organizationId: string | null) {
     } finally {
       setLoading(false);
     }
-  }, [organizationId, token]);
+  }, [organizationId]);
 
   return {
     loading,
