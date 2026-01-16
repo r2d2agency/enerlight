@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { getAuthToken } from '@/lib/api';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
@@ -22,36 +22,35 @@ interface OrganizationMember {
 }
 
 export function useOrganizations() {
-  const { token } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const headers = {
+  const getHeaders = () => ({
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`
-  };
+    'Authorization': `Bearer ${getAuthToken()}`
+  });
 
   const getOrganizations = useCallback(async (): Promise<Organization[]> => {
     try {
-      const response = await fetch(`${API_URL}/api/organizations`, { headers });
+      const response = await fetch(`${API_URL}/api/organizations`, { headers: getHeaders() });
       if (!response.ok) throw new Error('Erro ao buscar organizações');
       return response.json();
     } catch (err) {
       console.error('Get organizations error:', err);
       return [];
     }
-  }, [token]);
+  }, []);
 
   const getOrganization = useCallback(async (id: string): Promise<Organization | null> => {
     try {
-      const response = await fetch(`${API_URL}/api/organizations/${id}`, { headers });
+      const response = await fetch(`${API_URL}/api/organizations/${id}`, { headers: getHeaders() });
       if (!response.ok) throw new Error('Erro ao buscar organização');
       return response.json();
     } catch (err) {
       console.error('Get organization error:', err);
       return null;
     }
-  }, [token]);
+  }, []);
 
   const createOrganization = useCallback(async (name: string, slug: string): Promise<Organization | null> => {
     setLoading(true);
@@ -60,7 +59,7 @@ export function useOrganizations() {
     try {
       const response = await fetch(`${API_URL}/api/organizations`, {
         method: 'POST',
-        headers,
+        headers: getHeaders(),
         body: JSON.stringify({ name, slug })
       });
       
@@ -76,7 +75,7 @@ export function useOrganizations() {
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, []);
 
   const updateOrganization = useCallback(async (id: string, data: { name?: string; logo_url?: string }): Promise<Organization | null> => {
     setLoading(true);
@@ -85,7 +84,7 @@ export function useOrganizations() {
     try {
       const response = await fetch(`${API_URL}/api/organizations/${id}`, {
         method: 'PATCH',
-        headers,
+        headers: getHeaders(),
         body: JSON.stringify(data)
       });
       
@@ -101,18 +100,18 @@ export function useOrganizations() {
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, []);
 
   const getMembers = useCallback(async (organizationId: string): Promise<OrganizationMember[]> => {
     try {
-      const response = await fetch(`${API_URL}/api/organizations/${organizationId}/members`, { headers });
+      const response = await fetch(`${API_URL}/api/organizations/${organizationId}/members`, { headers: getHeaders() });
       if (!response.ok) throw new Error('Erro ao buscar membros');
       return response.json();
     } catch (err) {
       console.error('Get members error:', err);
       return [];
     }
-  }, [token]);
+  }, []);
 
   const addMember = useCallback(async (organizationId: string, email: string, role: string): Promise<boolean> => {
     setLoading(true);
@@ -121,7 +120,7 @@ export function useOrganizations() {
     try {
       const response = await fetch(`${API_URL}/api/organizations/${organizationId}/members`, {
         method: 'POST',
-        headers,
+        headers: getHeaders(),
         body: JSON.stringify({ email, role })
       });
       
@@ -137,7 +136,7 @@ export function useOrganizations() {
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, []);
 
   const removeMember = useCallback(async (organizationId: string, userId: string): Promise<boolean> => {
     setLoading(true);
@@ -146,7 +145,7 @@ export function useOrganizations() {
     try {
       const response = await fetch(`${API_URL}/api/organizations/${organizationId}/members/${userId}`, {
         method: 'DELETE',
-        headers
+        headers: getHeaders()
       });
       
       if (!response.ok) {
@@ -161,7 +160,7 @@ export function useOrganizations() {
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, []);
 
   return {
     loading,
