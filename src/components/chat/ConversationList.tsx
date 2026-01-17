@@ -41,6 +41,7 @@ import {
   UserCheck,
   MoreVertical,
   Trash2,
+  Sparkles,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -147,6 +148,29 @@ export function ConversationList({
     }
   };
 
+  const handleCleanupDuplicates = async () => {
+    setDeleting(true);
+    try {
+      const result = await api<{ deleted: number; merged: number; message: string }>(
+        '/api/chat/conversations/cleanup-duplicates',
+        { method: 'POST' }
+      );
+      toast({ 
+        title: "Limpeza concluída", 
+        description: result.message 
+      });
+      onRefresh();
+    } catch (error: any) {
+      toast({ 
+        title: "Erro na limpeza", 
+        description: error.message || "Não foi possível limpar duplicatas",
+        variant: "destructive" 
+      });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const getInitials = (name: string | null) => {
     if (!name) return '?';
     return name
@@ -166,14 +190,27 @@ export function ConversationList({
             <MessageSquare className="h-5 w-5 text-primary" />
             Conversas
           </h2>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onRefresh}
-            disabled={loading}
-          >
-            <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
-          </Button>
+          <div className="flex items-center gap-1">
+            {isAdmin && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleCleanupDuplicates}
+                disabled={deleting}
+                title="Limpar conversas duplicadas (@lid)"
+              >
+                <Sparkles className="h-4 w-4 text-amber-500" />
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onRefresh}
+              disabled={loading}
+            >
+              <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+            </Button>
+          </div>
         </div>
 
         {/* Search */}

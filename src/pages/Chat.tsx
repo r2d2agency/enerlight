@@ -76,13 +76,32 @@ const Chat = () => {
     loadConversations();
   }, [filters]);
 
-  // Auto-refresh conversations every 30 seconds
+  // Auto-refresh conversations every 15 seconds
   useEffect(() => {
     const interval = setInterval(() => {
       loadConversations();
-    }, 30000);
+    }, 15000);
     return () => clearInterval(interval);
   }, [filters]);
+
+  // Auto-refresh messages every 5 seconds when conversation is selected
+  useEffect(() => {
+    if (!selectedConversation) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const msgs = await getMessages(selectedConversation.id);
+        setMessages(msgs);
+        
+        // Also refresh conversation list to update unread counts
+        loadConversations();
+      } catch (error) {
+        console.error('Error refreshing messages:', error);
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [selectedConversation?.id, getMessages]);
 
   const loadConversations = useCallback(async () => {
     try {

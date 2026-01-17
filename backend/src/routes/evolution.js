@@ -866,18 +866,40 @@ async function handleMessageUpsert(connection, data) {
       return;
     }
 
+    // Skip @lid messages if we can use normal format
+    const isLidFormat = rawRemoteJid.includes('@lid');
+    
     // Normalize the remoteJid to prevent duplicates
     const remoteJid = normalizeRemoteJid(rawRemoteJid);
     const contactPhone = extractPhoneFromJid(rawRemoteJid);
 
+    // If this is a @lid message, check if we already have a normal conversation for this contact
+    if (isLidFormat && contactPhone) {
+      const existingNormal = await query(
+        `SELECT id FROM conversations 
+         WHERE connection_id = $1 
+         AND contact_phone = $2
+         AND remote_jid LIKE '%@s.whatsapp.net'
+         LIMIT 1`,
+        [connection.id, contactPhone]
+      );
+      
+      if (existingNormal.rows.length > 0) {
+        // Use the existing normal conversation instead of creating @lid
+        console.log('Webhook: Using existing normal conversation instead of @lid:', existingNormal.rows[0].id);
+      }
+    }
+
     console.log('Webhook: Processing message from', rawRemoteJid, '-> normalized:', remoteJid);
 
-    // Find existing conversation by phone number (more flexible)
+    // Find existing conversation by phone number (more flexible) - prioritize @s.whatsapp.net
     let convResult = await query(
       `SELECT * FROM conversations 
        WHERE connection_id = $1 
        AND (remote_jid = $2 OR contact_phone = $3)
-       ORDER BY last_message_at DESC
+       ORDER BY 
+         CASE WHEN remote_jid LIKE '%@s.whatsapp.net' THEN 0 ELSE 1 END,
+         last_message_at DESC
        LIMIT 1`,
       [connection.id, remoteJid, contactPhone]
     );
@@ -885,7 +907,7 @@ async function handleMessageUpsert(connection, data) {
     let conversationId;
 
     if (convResult.rows.length === 0) {
-      // Create new conversation with normalized JID
+      // Only create new conversation with normalized JID (never @lid)
       const newConv = await query(
         `INSERT INTO conversations (connection_id, remote_jid, contact_name, contact_phone, last_message_at, unread_count)
          VALUES ($1, $2, $3, $4, NOW(), $5)

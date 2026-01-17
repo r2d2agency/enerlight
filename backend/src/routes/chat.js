@@ -297,6 +297,105 @@ router.delete('/conversations/:id', authenticate, async (req, res) => {
   }
 });
 
+// Clean up duplicate @lid conversations (Admin only)
+router.post('/conversations/cleanup-duplicates', authenticate, async (req, res) => {
+  try {
+    // Check if user is admin/owner
+    const roleCheck = await query(
+      `SELECT om.role FROM organization_members om WHERE om.user_id = $1`,
+      [req.userId]
+    );
+
+    const userRole = roleCheck.rows[0]?.role;
+    if (!userRole || !['owner', 'admin'].includes(userRole)) {
+      return res.status(403).json({ error: 'Apenas administradores podem executar esta ação' });
+    }
+
+    const connectionIds = await getUserConnections(req.userId);
+    
+    if (connectionIds.length === 0) {
+      return res.json({ deleted: 0, message: 'Nenhuma conexão encontrada' });
+    }
+
+    // Find and delete conversations with @lid that have duplicates with @s.whatsapp.net
+    const duplicates = await query(`
+      WITH lid_conversations AS (
+        SELECT id, contact_phone, connection_id, remote_jid,
+               (SELECT COUNT(*) FROM chat_messages WHERE conversation_id = conversations.id) as msg_count
+        FROM conversations 
+        WHERE connection_id = ANY($1)
+          AND remote_jid LIKE '%@lid'
+      ),
+      normal_conversations AS (
+        SELECT contact_phone, connection_id
+        FROM conversations 
+        WHERE connection_id = ANY($1)
+          AND remote_jid LIKE '%@s.whatsapp.net'
+      )
+      SELECT lc.id, lc.contact_phone, lc.remote_jid, lc.msg_count
+      FROM lid_conversations lc
+      INNER JOIN normal_conversations nc 
+        ON lc.contact_phone = nc.contact_phone 
+        AND lc.connection_id = nc.connection_id
+    `, [connectionIds]);
+
+    const toDelete = duplicates.rows.filter(r => r.msg_count === 0);
+    
+    for (const conv of toDelete) {
+      await query(`DELETE FROM conversation_notes WHERE conversation_id = $1`, [conv.id]);
+      await query(`DELETE FROM conversation_tag_links WHERE conversation_id = $1`, [conv.id]);
+      await query(`DELETE FROM chat_messages WHERE conversation_id = $1`, [conv.id]);
+      await query(`DELETE FROM conversations WHERE id = $1`, [conv.id]);
+    }
+
+    // For @lid conversations that have messages but a normal duplicate exists, merge them
+    const toMerge = duplicates.rows.filter(r => r.msg_count > 0);
+    let merged = 0;
+
+    for (const lidConv of toMerge) {
+      // Find the normal conversation
+      const normalConv = await query(`
+        SELECT id FROM conversations 
+        WHERE connection_id = (SELECT connection_id FROM conversations WHERE id = $1)
+          AND contact_phone = $2
+          AND remote_jid LIKE '%@s.whatsapp.net'
+        LIMIT 1
+      `, [lidConv.id, lidConv.contact_phone]);
+
+      if (normalConv.rows.length > 0) {
+        const normalId = normalConv.rows[0].id;
+        
+        // Move messages to normal conversation
+        await query(`
+          UPDATE chat_messages SET conversation_id = $1 
+          WHERE conversation_id = $2
+        `, [normalId, lidConv.id]);
+        
+        // Move notes
+        await query(`
+          UPDATE conversation_notes SET conversation_id = $1 
+          WHERE conversation_id = $2
+        `, [normalId, lidConv.id]);
+        
+        // Delete the @lid conversation
+        await query(`DELETE FROM conversation_tag_links WHERE conversation_id = $1`, [lidConv.id]);
+        await query(`DELETE FROM conversations WHERE id = $1`, [lidConv.id]);
+        
+        merged++;
+      }
+    }
+
+    res.json({ 
+      deleted: toDelete.length, 
+      merged,
+      message: `${toDelete.length} conversas vazias removidas, ${merged} conversas mescladas` 
+    });
+  } catch (error) {
+    console.error('Cleanup duplicates error:', error);
+    res.status(500).json({ error: 'Erro ao limpar duplicatas' });
+  }
+});
+
 // ==========================================
 // MESSAGES
 // ==========================================
