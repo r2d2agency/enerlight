@@ -31,8 +31,22 @@ function translateError(error) {
   return error;
 }
 
+// Replace variables in message content
+function replaceVariables(text, contact) {
+  if (!text) return text;
+  
+  return text
+    .replace(/\{\{nome\}\}/gi, contact.name || '')
+    .replace(/\{\{telefone\}\}/gi, contact.phone || '')
+    .replace(/\{\{email\}\}/gi, contact.email || '')
+    .replace(/\{\{empresa\}\}/gi, contact.company || '')
+    .replace(/\{\{cargo\}\}/gi, contact.position || '')
+    .replace(/\{\{observacao\}\}/gi, contact.notes || '')
+    .replace(/\{\{obs\}\}/gi, contact.notes || '');
+}
+
 // Helper to send message via Evolution API
-async function sendEvolutionMessage(connection, phone, messageItems) {
+async function sendEvolutionMessage(connection, phone, messageItems, contact) {
   const results = [];
   
   for (const item of messageItems) {
@@ -41,19 +55,30 @@ async function sendEvolutionMessage(connection, phone, messageItems) {
       let body;
       const remoteJid = phone.includes('@') ? phone : `${phone}@s.whatsapp.net`;
 
+      // Replace variables in content
+      const processedContent = replaceVariables(item.content, contact);
+
       if (item.type === 'text') {
         endpoint = `/message/sendText/${connection.instance_name}`;
         body = {
           number: remoteJid,
-          text: item.content,
+          text: processedContent,
         };
-      } else if (item.type === 'image' || item.type === 'video') {
+      } else if (item.type === 'image') {
         endpoint = `/message/sendMedia/${connection.instance_name}`;
         body = {
           number: remoteJid,
-          mediatype: item.type,
+          mediatype: 'image',
           media: item.media_url,
-          caption: item.content || undefined,
+          caption: processedContent || undefined,
+        };
+      } else if (item.type === 'video') {
+        endpoint = `/message/sendMedia/${connection.instance_name}`;
+        body = {
+          number: remoteJid,
+          mediatype: 'video',
+          media: item.media_url,
+          caption: processedContent || undefined,
         };
       } else if (item.type === 'audio') {
         endpoint = `/message/sendWhatsAppAudio/${connection.instance_name}`;
@@ -68,7 +93,7 @@ async function sendEvolutionMessage(connection, phone, messageItems) {
           number: remoteJid,
           mediatype: 'document',
           media: item.media_url,
-          caption: item.content || undefined,
+          caption: processedContent || undefined,
           fileName: item.file_name || 'documento',
         };
       } else {
@@ -76,9 +101,11 @@ async function sendEvolutionMessage(connection, phone, messageItems) {
         endpoint = `/message/sendText/${connection.instance_name}`;
         body = {
           number: remoteJid,
-          text: item.content || '',
+          text: processedContent || '',
         };
       }
+
+      console.log(`  Sending ${item.type} to ${phone}:`, { endpoint, mediaUrl: item.media_url });
 
       const response = await fetch(`${connection.api_url}${endpoint}`, {
         method: 'POST',
@@ -127,6 +154,7 @@ export async function executeCampaignMessages() {
 
   try {
     // Get pending messages that should be sent now (scheduled_at <= now)
+    // Include contact data for variable replacement
     const pendingMessages = await query(`
       SELECT 
         cm.id,
@@ -141,11 +169,17 @@ export async function executeCampaignMessages() {
         conn.api_key,
         conn.instance_name,
         conn.status as connection_status,
-        mt.items as message_items
+        mt.items as message_items,
+        co.name as contact_name,
+        co.email as contact_email,
+        co.company as contact_company,
+        co.position as contact_position,
+        co.notes as contact_notes
       FROM campaign_messages cm
       JOIN campaigns c ON c.id = cm.campaign_id
       JOIN connections conn ON conn.id = c.connection_id
       LEFT JOIN message_templates mt ON mt.id = cm.message_id
+      LEFT JOIN contacts co ON co.id = cm.contact_id
       WHERE cm.status = 'pending'
         AND c.status = 'running'
         AND conn.status = 'connected'
@@ -188,8 +222,18 @@ export async function executeCampaignMessages() {
           instance_name: msg.instance_name,
         };
 
+        // Build contact object for variable replacement
+        const contact = {
+          name: msg.contact_name || '',
+          phone: msg.phone || '',
+          email: msg.contact_email || '',
+          company: msg.contact_company || '',
+          position: msg.contact_position || '',
+          notes: msg.contact_notes || '',
+        };
+
         // Send message
-        const result = await sendEvolutionMessage(connection, msg.phone, messageItems);
+        const result = await sendEvolutionMessage(connection, msg.phone, messageItems, contact);
 
         if (result.success) {
           await query(
@@ -199,7 +243,7 @@ export async function executeCampaignMessages() {
             [msg.id]
           );
           stats.sent++;
-          console.log(`  ✓ [${msg.phone}] Mensagem enviada`);
+          console.log(`  ✓ [${msg.phone}] Mensagem enviada (${messageItems.length} item(s))`);
 
           // Update campaign sent_count
           await query(
