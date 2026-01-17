@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -170,6 +170,9 @@ export function CampaignDetailModal({ campaignId, open, onClose }: CampaignDetai
               <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
             </Button>
           </div>
+          <DialogDescription>
+            Acompanhe o progresso e status das mensagens da campanha.
+          </DialogDescription>
         </DialogHeader>
 
         {loading && !details ? (
