@@ -24,8 +24,10 @@ async function getUserOrganization(userId) {
 router.get('/', authenticate, async (req, res) => {
   try {
     const orgId = await getUserOrganization(req.userId);
+    console.log('Quick replies - userId:', req.userId, 'orgId:', orgId);
     
     if (!orgId) {
+      console.log('Quick replies - no organization found, returning empty array');
       return res.json([]);
     }
 
@@ -59,7 +61,7 @@ router.get('/', authenticate, async (req, res) => {
     res.json(result.rows);
   } catch (error) {
     console.error('Get quick replies error:', error);
-    res.status(500).json({ error: 'Erro ao buscar respostas rápidas' });
+    res.status(500).json({ error: 'Erro ao buscar respostas rápidas', details: error.message });
   }
 });
 
@@ -67,8 +69,10 @@ router.get('/', authenticate, async (req, res) => {
 router.get('/categories', authenticate, async (req, res) => {
   try {
     const orgId = await getUserOrganization(req.userId);
+    console.log('Quick replies categories - userId:', req.userId, 'orgId:', orgId);
     
     if (!orgId) {
+      console.log('Quick replies categories - no organization found, returning empty array');
       return res.json([]);
     }
 
@@ -82,7 +86,7 @@ router.get('/categories', authenticate, async (req, res) => {
     res.json(result.rows.map(r => r.category));
   } catch (error) {
     console.error('Get categories error:', error);
-    res.status(500).json({ error: 'Erro ao buscar categorias' });
+    res.status(500).json({ error: 'Erro ao buscar categorias', details: error.message });
   }
 });
 
