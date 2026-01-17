@@ -68,40 +68,27 @@ async function sendEvolutionMessage(connection, phone, messageItems, contact) {
           number: remoteJid,
           text: processedContent,
         };
-      } else if (item.type === 'image') {
-        endpoint = `/message/sendMedia/${connection.instance_name}`;
-        body = {
-          number: remoteJid,
-          mediatype: 'image',
-          media: mediaUrl,
-          caption: processedContent || undefined,
-        };
-      } else if (item.type === 'video') {
-        endpoint = `/message/sendMedia/${connection.instance_name}`;
-        body = {
-          number: remoteJid,
-          mediatype: 'video',
-          media: mediaUrl,
-          caption: processedContent || undefined,
-        };
-      } else if (item.type === 'audio') {
-        endpoint = `/message/sendWhatsAppAudio/${connection.instance_name}`;
-        body = {
-          number: remoteJid,
-          audio: mediaUrl,
-          delay: 1200,
-        };
-      } else if (item.type === 'document') {
-        endpoint = `/message/sendMedia/${connection.instance_name}`;
-        body = {
-          number: remoteJid,
-          mediatype: 'document',
-          media: mediaUrl,
-          caption: processedContent || undefined,
-          fileName: fileName || 'documento',
-        };
+      } else if (mediaUrl) {
+        // Handle media types similar to test route in evolution.js
+        if (item.type === 'audio') {
+          endpoint = `/message/sendWhatsAppAudio/${connection.instance_name}`;
+          body = {
+            number: remoteJid,
+            audio: mediaUrl,
+            delay: 1200,
+          };
+        } else {
+          endpoint = `/message/sendMedia/${connection.instance_name}`;
+          body = {
+            number: remoteJid,
+            mediatype: item.type, // 'image', 'video', 'document'
+            media: mediaUrl,
+            caption: processedContent || undefined,
+            fileName: fileName || undefined,
+          };
+        }
       } else {
-        // Default to text
+        // Fallback to text if no media
         endpoint = `/message/sendText/${connection.instance_name}`;
         body = {
           number: remoteJid,
@@ -109,7 +96,7 @@ async function sendEvolutionMessage(connection, phone, messageItems, contact) {
         };
       }
 
-      console.log(`  Sending ${item.type} to ${phone}:`, { endpoint, mediaUrl });
+      console.log(`  Sending ${item.type} to ${phone}:`, { endpoint, mediaUrl, body });
 
       const response = await fetch(`${connection.api_url}${endpoint}`, {
         method: 'POST',
