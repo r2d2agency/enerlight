@@ -632,15 +632,23 @@ router.post('/webhook', async (req, res) => {
   try {
     const payload = req.body;
     
-    console.log('Webhook received:', JSON.stringify(payload, null, 2));
+    console.log('=== WEBHOOK RECEIVED ===');
+    console.log('Headers:', JSON.stringify(req.headers, null, 2));
+    console.log('Body:', JSON.stringify(payload, null, 2));
 
-    // Evolution API sends different event types
-    const event = payload.event;
-    const instanceName = payload.instance;
-    const data = payload.data;
+    // Evolution API can send events in different formats
+    // Format 1: { event: "messages.upsert", instance: "name", data: {...} }
+    // Format 2: { instance: "name", data: {...}, event: "messages.upsert" }
+    // Format 3: { apikey: "...", event: "MESSAGES_UPSERT", instance: "name", data: {...} }
+    
+    const event = payload.event?.toLowerCase?.() || payload.event;
+    const instanceName = payload.instance || payload.instanceName;
+    const data = payload.data || payload;
 
-    if (!instanceName || !data) {
-      console.log('Webhook: Missing instance or data');
+    console.log('Parsed - Event:', event, 'Instance:', instanceName);
+
+    if (!instanceName) {
+      console.log('Webhook: Missing instance name');
       return res.status(200).json({ received: true });
     }
 
@@ -656,10 +664,16 @@ router.post('/webhook', async (req, res) => {
     }
 
     const connection = connResult.rows[0];
+    console.log('Webhook: Found connection:', connection.id, connection.name);
+
+    // Normalize event names (Evolution API uses different formats)
+    const normalizedEvent = event?.replace(/_/g, '.').toLowerCase();
+    console.log('Webhook: Normalized event:', normalizedEvent);
 
     // Handle different event types
-    switch (event) {
+    switch (normalizedEvent) {
       case 'messages.upsert':
+      case 'send.message':
         await handleMessageUpsert(connection, data);
         break;
       
@@ -672,20 +686,25 @@ router.post('/webhook', async (req, res) => {
         break;
       
       case 'qrcode.updated':
-        // QR code updated, connection is trying to connect
         console.log('QR Code updated for instance:', instanceName);
         break;
       
       default:
-        console.log('Webhook: Unhandled event type:', event);
+        console.log('Webhook: Event type:', normalizedEvent, '- not handled');
     }
 
-    res.status(200).json({ received: true });
+    res.status(200).json({ received: true, event: normalizedEvent });
   } catch (error) {
     console.error('Webhook error:', error);
     // Always return 200 to acknowledge receipt
     res.status(200).json({ received: true, error: error.message });
   }
+});
+
+// Test webhook endpoint (GET for easy testing)
+router.get('/webhook', async (req, res) => {
+  console.log('Webhook test GET received');
+  res.json({ status: 'ok', message: 'Webhook endpoint is working' });
 });
 
 // Handle incoming/outgoing messages
