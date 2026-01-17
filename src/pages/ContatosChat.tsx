@@ -52,13 +52,13 @@ import { ExcelImportDialog } from "@/components/contatos/ExcelImportDialog";
 
 interface ChatContact {
   id: string;
-  name: string;
-  phone: string;
+  name: string | null;
+  phone: string | null;
   jid: string | null;
   connection_id: string;
-  connection_name: string;
+  connection_name: string | null;
   has_conversation: boolean;
-  created_at: string;
+  created_at: string | null;
 }
 
 interface Connection {
@@ -488,11 +488,14 @@ const ContatosChat = () => {
     }
   };
 
-  const getInitials = (name: string | null | undefined, phone: string | null | undefined) => {
-    if (name) {
-      return name.split(" ").slice(0, 2).map(n => n[0]).join("").toUpperCase();
+  const getInitials = (name: string | null | undefined, phone: string | null | undefined): string => {
+    if (name && typeof name === 'string' && name.trim()) {
+      const parts = name.trim().split(" ").filter(p => p.length > 0);
+      if (parts.length > 0) {
+        return parts.slice(0, 2).map(n => n[0] || '').join("").toUpperCase() || "??";
+      }
     }
-    if (phone) {
+    if (phone && typeof phone === 'string' && phone.length >= 2) {
       return phone.slice(-2);
     }
     return "??";
@@ -716,10 +719,10 @@ const ContatosChat = () => {
                             </div>
                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
                               <Phone className="h-3 w-3" />
-                              <span>{contact.phone}</span>
+                              <span>{contact.phone || "Sem telefone"}</span>
                             </div>
                             <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">
-                              {contact.connection_name}
+                              {contact.connection_name || "Sem conexão"}
                             </span>
                           </div>
 
