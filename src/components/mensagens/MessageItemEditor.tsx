@@ -9,17 +9,19 @@ import {
   Image,
   Video,
   Mic,
+  FileText,
   Trash2,
   GripVertical,
   Variable,
   Upload,
   Loader2,
+  File,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUpload } from "@/hooks/use-upload";
 import { toast } from "sonner";
 
-export type MessageItemType = "text" | "image" | "video" | "audio";
+export type MessageItemType = "text" | "image" | "video" | "audio" | "document";
 
 export interface MessageItem {
   id: string;
@@ -28,6 +30,7 @@ export interface MessageItem {
   mediaUrl?: string;
   caption?: string;
   ptt?: boolean; // Push-to-talk for audio (send as voice message)
+  fileName?: string; // Original file name for documents
 }
 
 interface MessageItemEditorProps {
@@ -68,6 +71,13 @@ const typeConfig = {
     bgColor: "bg-orange-500/10",
     accept: "audio/mpeg,audio/mp3,audio/ogg,audio/wav,audio/webm,audio/aac,audio/m4a",
   },
+  document: {
+    icon: FileText,
+    label: "Documento",
+    color: "text-red-500",
+    bgColor: "bg-red-500/10",
+    accept: ".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.zip,.rar",
+  },
 };
 
 export function MessageItemEditor({
@@ -90,7 +100,7 @@ export function MessageItemEditor({
     try {
       const url = await uploadFile(file);
       if (url) {
-        onUpdate(item.id, { mediaUrl: url });
+        onUpdate(item.id, { mediaUrl: url, fileName: file.name });
         toast.success("Arquivo enviado com sucesso!");
       }
     } catch (error) {
@@ -242,6 +252,31 @@ export function MessageItemEditor({
                 <source src={item.mediaUrl} />
                 Seu navegador não suporta vídeo.
               </video>
+            </div>
+          )}
+
+          {/* Document preview */}
+          {item.type === "document" && item.mediaUrl && (
+            <div className="flex items-center gap-3 rounded-lg bg-muted p-3">
+              <div className="flex items-center justify-center w-10 h-10 bg-red-500 rounded">
+                <File className="h-5 w-5 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">
+                  {item.fileName || 'documento'}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {item.fileName?.split('.').pop()?.toUpperCase() || 'DOC'}
+                </p>
+              </div>
+              <a 
+                href={item.mediaUrl} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-xs text-primary hover:underline"
+              >
+                Abrir
+              </a>
             </div>
           )}
 

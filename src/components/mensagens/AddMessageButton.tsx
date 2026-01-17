@@ -5,7 +5,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plus, Type, Image, Video, Mic } from "lucide-react";
+import { Plus, Type, Image, Video, Mic, FileText } from "lucide-react";
 import { MessageItemType } from "./MessageItemEditor";
 
 interface AddMessageButtonProps {
@@ -40,6 +40,10 @@ export function AddMessageButton({ onAdd }: AddMessageButtonProps) {
         <DropdownMenuItem onClick={() => onAdd("audio")} className="cursor-pointer">
           <Mic className="h-4 w-4 mr-2 text-orange-500" />
           Áudio
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onAdd("document")} className="cursor-pointer">
+          <FileText className="h-4 w-4 mr-2 text-red-500" />
+          Documento
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

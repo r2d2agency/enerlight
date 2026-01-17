@@ -1,5 +1,5 @@
 import { MessageItem } from "./MessageItemEditor";
-import { Image, Video, Mic } from "lucide-react";
+import { Image, Video, Mic, FileText } from "lucide-react";
 
 interface MessagePreviewProps {
   items: MessageItem[];
@@ -9,6 +9,18 @@ interface MessagePreviewProps {
 export function MessagePreview({ items, previewName }: MessagePreviewProps) {
   const replaceVariables = (text: string) => {
     return text.replace(/\{\{nome\}\}/gi, previewName);
+  };
+
+  const getFileExtension = (url?: string, fileName?: string) => {
+    if (fileName) {
+      const ext = fileName.split('.').pop()?.toUpperCase();
+      return ext || 'DOC';
+    }
+    if (url) {
+      const ext = url.split('.').pop()?.split('?')[0]?.toUpperCase();
+      return ext || 'DOC';
+    }
+    return 'DOC';
   };
 
   if (items.length === 0) {
@@ -57,6 +69,22 @@ export function MessagePreview({ items, previewName }: MessagePreviewProps) {
                   <div className="w-1/3 h-full bg-gray-500 rounded-full" />
                 </div>
                 <span className="text-xs text-gray-500">0:00</span>
+              </div>
+            )}
+
+            {item.type === "document" && (
+              <div className="mb-2 flex items-center gap-3 bg-white/80 rounded-lg px-3 py-2 border border-gray-200">
+                <div className="flex items-center justify-center w-10 h-10 bg-red-500 rounded">
+                  <FileText className="h-5 w-5 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-800 truncate">
+                    {item.fileName || 'documento'}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {getFileExtension(item.mediaUrl, item.fileName)}
+                  </p>
+                </div>
               </div>
             )}
 

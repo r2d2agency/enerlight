@@ -407,6 +407,80 @@ router.delete('/:connectionId', authenticate, async (req, res) => {
   }
 });
 
+// Send test message
+router.post('/:connectionId/test', authenticate, async (req, res) => {
+  try {
+    const { connectionId } = req.params;
+    const { phone, message, mediaUrl, mediaType, fileName } = req.body;
+
+    if (!phone) {
+      return res.status(400).json({ error: 'Número de telefone é obrigatório' });
+    }
+
+    // Get connection
+    const connResult = await query(
+      'SELECT * FROM connections WHERE id = $1 AND user_id = $2',
+      [connectionId, req.userId]
+    );
+
+    if (connResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Conexão não encontrada' });
+    }
+
+    const connection = connResult.rows[0];
+
+    // Check if connection is active
+    if (connection.status !== 'connected') {
+      return res.status(400).json({ error: 'Conexão não está ativa. Conecte primeiro.' });
+    }
+
+    // Format phone number
+    const formattedPhone = phone.replace(/\D/g, '');
+    const remoteJid = formattedPhone.includes('@') ? formattedPhone : `${formattedPhone}@s.whatsapp.net`;
+
+    let result;
+
+    // Send media if provided
+    if (mediaUrl) {
+      const endpoint = mediaType === 'audio' 
+        ? `/message/sendWhatsAppAudio/${connection.instance_name}`
+        : `/message/sendMedia/${connection.instance_name}`;
+      
+      const body = {
+        number: remoteJid,
+        mediatype: mediaType || 'document',
+        media: mediaUrl,
+        caption: message || undefined,
+        fileName: fileName || undefined,
+      };
+
+      // For audio, use PTT format
+      if (mediaType === 'audio') {
+        body.audio = mediaUrl;
+        body.delay = 1200;
+        delete body.media;
+        delete body.mediatype;
+        delete body.caption;
+      }
+
+      result = await evolutionRequest(endpoint, 'POST', body);
+    } else if (message) {
+      // Send text message
+      result = await evolutionRequest(`/message/sendText/${connection.instance_name}`, 'POST', {
+        number: remoteJid,
+        text: message,
+      });
+    } else {
+      return res.status(400).json({ error: 'Mensagem ou mídia é obrigatório' });
+    }
+
+    res.json({ success: true, result });
+  } catch (error) {
+    console.error('Send test message error:', error);
+    res.status(500).json({ error: 'Erro ao enviar mensagem de teste' });
+  }
+});
+
 // Get instance info
 router.get('/:connectionId/info', authenticate, async (req, res) => {
   try {
