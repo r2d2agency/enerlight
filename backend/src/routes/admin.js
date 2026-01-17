@@ -69,9 +69,13 @@ router.post('/plans', requireSuperadmin, async (req, res) => {
       name, 
       description, 
       max_connections, 
-      max_monthly_messages, 
+      max_monthly_messages,
+      max_users,
+      max_supervisors,
       has_asaas_integration, 
-      has_chat, 
+      has_chat,
+      has_whatsapp_groups,
+      has_campaigns,
       price, 
       billing_period 
     } = req.body;
@@ -81,9 +85,22 @@ router.post('/plans', requireSuperadmin, async (req, res) => {
     }
 
     const result = await query(
-      `INSERT INTO plans (name, description, max_connections, max_monthly_messages, has_asaas_integration, has_chat, price, billing_period)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-      [name, description, max_connections || 1, max_monthly_messages || 1000, has_asaas_integration || false, has_chat !== false, price || 0, billing_period || 'monthly']
+      `INSERT INTO plans (name, description, max_connections, max_monthly_messages, max_users, max_supervisors, has_asaas_integration, has_chat, has_whatsapp_groups, has_campaigns, price, billing_period)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+      [
+        name, 
+        description, 
+        max_connections || 1, 
+        max_monthly_messages || 1000, 
+        max_users || 5,
+        max_supervisors || 1,
+        has_asaas_integration || false, 
+        has_chat !== false,
+        has_whatsapp_groups || false,
+        has_campaigns !== false,
+        price || 0, 
+        billing_period || 'monthly'
+      ]
     );
 
     res.status(201).json(result.rows[0]);
@@ -97,7 +114,21 @@ router.post('/plans', requireSuperadmin, async (req, res) => {
 router.patch('/plans/:id', requireSuperadmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, max_connections, max_monthly_messages, has_asaas_integration, has_chat, price, billing_period, is_active } = req.body;
+    const { 
+      name, 
+      description, 
+      max_connections, 
+      max_monthly_messages, 
+      max_users,
+      max_supervisors,
+      has_asaas_integration, 
+      has_chat, 
+      has_whatsapp_groups,
+      has_campaigns,
+      price, 
+      billing_period, 
+      is_active 
+    } = req.body;
 
     const result = await query(
       `UPDATE plans 
@@ -105,15 +136,19 @@ router.patch('/plans/:id', requireSuperadmin, async (req, res) => {
            description = COALESCE($2, description),
            max_connections = COALESCE($3, max_connections),
            max_monthly_messages = COALESCE($4, max_monthly_messages),
-           has_asaas_integration = COALESCE($5, has_asaas_integration),
-           has_chat = COALESCE($6, has_chat),
-           price = COALESCE($7, price),
-           billing_period = COALESCE($8, billing_period),
-           is_active = COALESCE($9, is_active),
+           max_users = COALESCE($5, max_users),
+           max_supervisors = COALESCE($6, max_supervisors),
+           has_asaas_integration = COALESCE($7, has_asaas_integration),
+           has_chat = COALESCE($8, has_chat),
+           has_whatsapp_groups = COALESCE($9, has_whatsapp_groups),
+           has_campaigns = COALESCE($10, has_campaigns),
+           price = COALESCE($11, price),
+           billing_period = COALESCE($12, billing_period),
+           is_active = COALESCE($13, is_active),
            updated_at = NOW()
-       WHERE id = $10
+       WHERE id = $14
        RETURNING *`,
-      [name, description, max_connections, max_monthly_messages, has_asaas_integration, has_chat, price, billing_period, is_active, id]
+      [name, description, max_connections, max_monthly_messages, max_users, max_supervisors, has_asaas_integration, has_chat, has_whatsapp_groups, has_campaigns, price, billing_period, is_active, id]
     );
 
     if (result.rows.length === 0) {

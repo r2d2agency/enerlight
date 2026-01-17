@@ -36,8 +36,12 @@ interface Plan {
   description: string | null;
   max_connections: number;
   max_monthly_messages: number;
+  max_users: number;
+  max_supervisors: number;
   has_asaas_integration: boolean;
   has_chat: boolean;
+  has_whatsapp_groups: boolean;
+  has_campaigns: boolean;
   price: number;
   billing_period: string;
   is_active: boolean;
@@ -100,9 +104,13 @@ export default function Admin() {
   const [newPlanDescription, setNewPlanDescription] = useState('');
   const [newPlanConnections, setNewPlanConnections] = useState('1');
   const [newPlanMessages, setNewPlanMessages] = useState('1000');
+  const [newPlanUsers, setNewPlanUsers] = useState('5');
+  const [newPlanSupervisors, setNewPlanSupervisors] = useState('1');
   const [newPlanPrice, setNewPlanPrice] = useState('0');
   const [newPlanAsaas, setNewPlanAsaas] = useState(false);
   const [newPlanChat, setNewPlanChat] = useState(true);
+  const [newPlanGroups, setNewPlanGroups] = useState(false);
+  const [newPlanCampaigns, setNewPlanCampaigns] = useState(true);
   const [newPlanPeriod, setNewPlanPeriod] = useState('monthly');
 
   // Edit plan dialog
@@ -195,8 +203,12 @@ export default function Admin() {
       description: newPlanDescription || undefined,
       max_connections: parseInt(newPlanConnections) || 1,
       max_monthly_messages: parseInt(newPlanMessages) || 1000,
+      max_users: parseInt(newPlanUsers) || 5,
+      max_supervisors: parseInt(newPlanSupervisors) || 1,
       has_asaas_integration: newPlanAsaas,
       has_chat: newPlanChat,
+      has_whatsapp_groups: newPlanGroups,
+      has_campaigns: newPlanCampaigns,
       price: parseFloat(newPlanPrice) || 0,
       billing_period: newPlanPeriod
     });
@@ -216,9 +228,13 @@ export default function Admin() {
     setNewPlanDescription('');
     setNewPlanConnections('1');
     setNewPlanMessages('1000');
+    setNewPlanUsers('5');
+    setNewPlanSupervisors('1');
     setNewPlanPrice('0');
     setNewPlanAsaas(false);
     setNewPlanChat(true);
+    setNewPlanGroups(false);
+    setNewPlanCampaigns(true);
     setNewPlanPeriod('monthly');
   };
 
@@ -230,8 +246,12 @@ export default function Admin() {
       description: editingPlan.description,
       max_connections: editingPlan.max_connections,
       max_monthly_messages: editingPlan.max_monthly_messages,
+      max_users: editingPlan.max_users,
+      max_supervisors: editingPlan.max_supervisors,
       has_asaas_integration: editingPlan.has_asaas_integration,
       has_chat: editingPlan.has_chat,
+      has_whatsapp_groups: editingPlan.has_whatsapp_groups,
+      has_campaigns: editingPlan.has_campaigns,
       price: editingPlan.price,
       billing_period: editingPlan.billing_period,
       is_active: editingPlan.is_active
@@ -515,7 +535,7 @@ export default function Admin() {
                         onChange={(e) => setNewPlanDescription(e.target.value)}
                       />
                     </div>
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-4 gap-4">
                       <div className="space-y-2">
                         <Label className="flex items-center gap-1">
                           <Wifi className="h-3 w-3" />
@@ -531,7 +551,7 @@ export default function Admin() {
                       <div className="space-y-2">
                         <Label className="flex items-center gap-1">
                           <MessageSquare className="h-3 w-3" />
-                          Mensagens/mês
+                          Msgs/mês
                         </Label>
                         <Input
                           type="number"
@@ -541,17 +561,41 @@ export default function Admin() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>Período</Label>
-                        <Select value={newPlanPeriod} onValueChange={setNewPlanPeriod}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="monthly">Mensal</SelectItem>
-                            <SelectItem value="yearly">Anual</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <Label className="flex items-center gap-1">
+                          <Users className="h-3 w-3" />
+                          Usuários
+                        </Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          value={newPlanUsers}
+                          onChange={(e) => setNewPlanUsers(e.target.value)}
+                        />
                       </div>
+                      <div className="space-y-2">
+                        <Label className="flex items-center gap-1">
+                          <Crown className="h-3 w-3" />
+                          Supervisores
+                        </Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          value={newPlanSupervisors}
+                          onChange={(e) => setNewPlanSupervisors(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Período</Label>
+                      <Select value={newPlanPeriod} onValueChange={setNewPlanPeriod}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="monthly">Mensal</SelectItem>
+                          <SelectItem value="yearly">Anual</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="grid grid-cols-2 gap-4 pt-2">
                       <div className="flex items-center justify-between rounded-lg border p-3">
@@ -574,6 +618,28 @@ export default function Admin() {
                           id="chat-switch"
                           checked={newPlanChat}
                           onCheckedChange={setNewPlanChat}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between rounded-lg border p-3">
+                        <div className="flex items-center gap-2">
+                          <Users className="h-4 w-4 text-muted-foreground" />
+                          <Label htmlFor="groups-switch">Grupos WhatsApp</Label>
+                        </div>
+                        <Switch
+                          id="groups-switch"
+                          checked={newPlanGroups}
+                          onCheckedChange={setNewPlanGroups}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between rounded-lg border p-3">
+                        <div className="flex items-center gap-2">
+                          <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                          <Label htmlFor="campaigns-switch">Campanhas/Disparo</Label>
+                        </div>
+                        <Switch
+                          id="campaigns-switch"
+                          checked={newPlanCampaigns}
+                          onCheckedChange={setNewPlanCampaigns}
                         />
                       </div>
                     </div>
@@ -635,13 +701,27 @@ export default function Admin() {
                           <MessageSquare className="h-4 w-4 text-muted-foreground" />
                           <span>{plan.max_monthly_messages.toLocaleString()} msgs</span>
                         </div>
+                        <div className="flex items-center gap-2">
+                          <Users className="h-4 w-4 text-muted-foreground" />
+                          <span>{plan.max_users} usuários</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Crown className="h-4 w-4 text-muted-foreground" />
+                          <span>{plan.max_supervisors} supervisores</span>
+                        </div>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-1">
                         {plan.has_chat && (
                           <Badge variant="secondary" className="text-xs">Chat</Badge>
                         )}
                         {plan.has_asaas_integration && (
                           <Badge variant="secondary" className="text-xs">Asaas</Badge>
+                        )}
+                        {plan.has_whatsapp_groups && (
+                          <Badge variant="secondary" className="text-xs">Grupos</Badge>
+                        )}
+                        {plan.has_campaigns && (
+                          <Badge variant="secondary" className="text-xs">Campanhas</Badge>
                         )}
                       </div>
                       <div className="flex items-center justify-between pt-2 border-t">
@@ -1134,7 +1214,7 @@ export default function Admin() {
                   onChange={(e) => setEditingPlan({ ...editingPlan, description: e.target.value })}
                 />
               </div>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-4 gap-4">
                 <div className="space-y-2">
                   <Label>Conexões</Label>
                   <Input
@@ -1154,20 +1234,38 @@ export default function Admin() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Período</Label>
-                  <Select 
-                    value={editingPlan.billing_period} 
-                    onValueChange={(v) => setEditingPlan({ ...editingPlan, billing_period: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="monthly">Mensal</SelectItem>
-                      <SelectItem value="yearly">Anual</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label>Usuários</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={editingPlan.max_users}
+                    onChange={(e) => setEditingPlan({ ...editingPlan, max_users: parseInt(e.target.value) || 5 })}
+                  />
                 </div>
+                <div className="space-y-2">
+                  <Label>Supervisores</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={editingPlan.max_supervisors}
+                    onChange={(e) => setEditingPlan({ ...editingPlan, max_supervisors: parseInt(e.target.value) || 1 })}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Período</Label>
+                <Select 
+                  value={editingPlan.billing_period} 
+                  onValueChange={(v) => setEditingPlan({ ...editingPlan, billing_period: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="monthly">Mensal</SelectItem>
+                    <SelectItem value="yearly">Anual</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="grid grid-cols-3 gap-4 pt-2">
                 <div className="flex items-center justify-between rounded-lg border p-3">
@@ -1184,6 +1282,22 @@ export default function Admin() {
                     id="edit-chat"
                     checked={editingPlan.has_chat}
                     onCheckedChange={(v) => setEditingPlan({ ...editingPlan, has_chat: v })}
+                  />
+                </div>
+                <div className="flex items-center justify-between rounded-lg border p-3">
+                  <Label htmlFor="edit-groups">Grupos</Label>
+                  <Switch
+                    id="edit-groups"
+                    checked={editingPlan.has_whatsapp_groups}
+                    onCheckedChange={(v) => setEditingPlan({ ...editingPlan, has_whatsapp_groups: v })}
+                  />
+                </div>
+                <div className="flex items-center justify-between rounded-lg border p-3">
+                  <Label htmlFor="edit-campaigns">Campanhas</Label>
+                  <Switch
+                    id="edit-campaigns"
+                    checked={editingPlan.has_campaigns}
+                    onCheckedChange={(v) => setEditingPlan({ ...editingPlan, has_campaigns: v })}
                   />
                 </div>
                 <div className="flex items-center justify-between rounded-lg border p-3">

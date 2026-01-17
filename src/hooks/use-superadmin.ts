@@ -15,8 +15,12 @@ interface Plan {
   description: string | null;
   max_connections: number;
   max_monthly_messages: number;
+  max_users: number;
+  max_supervisors: number;
   has_asaas_integration: boolean;
   has_chat: boolean;
+  has_whatsapp_groups: boolean;
+  has_campaigns: boolean;
   price: number;
   billing_period: string;
   is_active: boolean;
@@ -86,8 +90,12 @@ export function useSuperadmin() {
     description?: string;
     max_connections: number;
     max_monthly_messages: number;
+    max_users: number;
+    max_supervisors: number;
     has_asaas_integration: boolean;
     has_chat: boolean;
+    has_whatsapp_groups: boolean;
+    has_campaigns: boolean;
     price: number;
     billing_period: string;
   }): Promise<Plan | null> => {

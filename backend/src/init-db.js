@@ -40,14 +40,28 @@ CREATE TABLE IF NOT EXISTS plans (
     description TEXT,
     max_connections INTEGER NOT NULL DEFAULT 1,
     max_monthly_messages INTEGER NOT NULL DEFAULT 1000,
+    max_users INTEGER NOT NULL DEFAULT 5,
+    max_supervisors INTEGER NOT NULL DEFAULT 1,
     has_asaas_integration BOOLEAN DEFAULT false,
     has_chat BOOLEAN DEFAULT true,
+    has_whatsapp_groups BOOLEAN DEFAULT false,
+    has_campaigns BOOLEAN DEFAULT true,
     price DECIMAL(10, 2) NOT NULL DEFAULT 0,
     billing_period VARCHAR(20) DEFAULT 'monthly',
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Add new plan columns if not exists (for existing databases)
+DO $$ BEGIN
+    ALTER TABLE plans ADD COLUMN IF NOT EXISTS max_users INTEGER NOT NULL DEFAULT 5;
+    ALTER TABLE plans ADD COLUMN IF NOT EXISTS max_supervisors INTEGER NOT NULL DEFAULT 1;
+    ALTER TABLE plans ADD COLUMN IF NOT EXISTS has_whatsapp_groups BOOLEAN DEFAULT false;
+    ALTER TABLE plans ADD COLUMN IF NOT EXISTS has_campaigns BOOLEAN DEFAULT true;
+EXCEPTION
+    WHEN duplicate_column THEN null;
+END $$;
 `;
 
 // ============================================
