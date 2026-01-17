@@ -1,41 +1,12 @@
-import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
-import { Settings, Shield, Bell, Database, Save, CheckCircle2, XCircle, Loader2, Trash2 } from "lucide-react";
-import { usePostgrest } from "@/hooks/use-postgrest";
+import { Settings, Shield, Bell, Save } from "lucide-react";
 
 const Configuracoes = () => {
-  const { config, isConnected, isLoading, saveConfig, testConnection, clearConfig } = usePostgrest();
-  
-  const [postgrestUrl, setPostgrestUrl] = useState("");
-  const [postgrestApiKey, setPostgrestApiKey] = useState("");
-
-  useEffect(() => {
-    if (config) {
-      setPostgrestUrl(config.url || "");
-      setPostgrestApiKey(config.apiKey || "");
-    }
-  }, [config]);
-
-  const handleSavePostgrest = () => {
-    saveConfig({
-      url: postgrestUrl.trim(),
-      apiKey: postgrestApiKey.trim() || undefined,
-    });
-  };
-
-  const handleTestConnection = async () => {
-    if (!postgrestUrl.trim()) {
-      saveConfig({ url: postgrestUrl.trim(), apiKey: postgrestApiKey.trim() || undefined });
-    }
-    await testConnection();
-  };
-
   return (
     <MainLayout>
       <div className="space-y-8">
@@ -48,104 +19,6 @@ const Configuracoes = () => {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
-          {/* Database Settings - Now with PostgREST */}
-          <Card className="animate-fade-in shadow-card lg:col-span-2">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Database className="h-5 w-5 text-primary" />
-                  <CardTitle>Banco de Dados (PostgREST)</CardTitle>
-                </div>
-                <Badge variant={isConnected ? "default" : "secondary"} className="gap-1">
-                  {isConnected ? (
-                    <>
-                      <CheckCircle2 className="h-3 w-3" />
-                      Conectado
-                    </>
-                  ) : (
-                    <>
-                      <XCircle className="h-3 w-3" />
-                      Desconectado
-                    </>
-                  )}
-                </Badge>
-              </div>
-              <CardDescription>
-                Configure a conexão com o PostgREST para persistir dados
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="postgrestUrl">URL do PostgREST *</Label>
-                  <Input
-                    id="postgrestUrl"
-                    placeholder="https://seu-postgrest.seudominio.com"
-                    value={postgrestUrl}
-                    onChange={(e) => setPostgrestUrl(e.target.value)}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    URL base do PostgREST no Easypanel
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="postgrestApiKey">API Key (JWT - Opcional)</Label>
-                  <Input
-                    id="postgrestApiKey"
-                    type="password"
-                    placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                    value={postgrestApiKey}
-                    onChange={(e) => setPostgrestApiKey(e.target.value)}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Token JWT para autenticação (se configurado)
-                  </p>
-                </div>
-              </div>
-              
-              <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  onClick={handleTestConnection}
-                  disabled={isLoading || !postgrestUrl.trim()}
-                >
-                  {isLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <CheckCircle2 className="h-4 w-4" />
-                  )}
-                  Testar Conexão
-                </Button>
-                <Button 
-                  variant="gradient" 
-                  onClick={handleSavePostgrest}
-                  disabled={!postgrestUrl.trim()}
-                >
-                  <Save className="h-4 w-4" />
-                  Salvar
-                </Button>
-                {config && (
-                  <Button 
-                    variant="ghost" 
-                    onClick={clearConfig}
-                    className="text-destructive hover:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    Limpar
-                  </Button>
-                )}
-              </div>
-
-              <div className="rounded-lg bg-accent/50 p-3">
-                <p className="text-xs text-muted-foreground">
-                  <strong>Dica:</strong> Configure o PostgREST no Easypanel apontando para seu PostgreSQL. 
-                  A URL será algo como <code className="rounded bg-muted px-1">http://postgrest:3000</code> internamente 
-                  ou seu domínio externo.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
           {/* General Settings */}
           <Card className="animate-fade-in shadow-card">
             <CardHeader>
