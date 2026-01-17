@@ -63,6 +63,23 @@ export interface ConversationNote {
   updated_at: string;
 }
 
+export interface ScheduledMessage {
+  id: string;
+  conversation_id: string;
+  connection_id: string;
+  sender_id: string | null;
+  sender_name: string | null;
+  content: string | null;
+  message_type: string;
+  media_url: string | null;
+  scheduled_at: string;
+  timezone: string;
+  status: 'pending' | 'sent' | 'failed' | 'cancelled';
+  sent_at: string | null;
+  error_message: string | null;
+  created_at: string;
+}
+
 export const useChat = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -274,6 +291,35 @@ export const useChat = () => {
     }
   }, []);
 
+  // Scheduled Messages
+  const getScheduledMessages = useCallback(async (conversationId: string): Promise<ScheduledMessage[]> => {
+    const data = await api<ScheduledMessage[]>(`/api/chat/conversations/${conversationId}/scheduled`);
+    return data;
+  }, []);
+
+  const scheduleMessage = useCallback(async (conversationId: string, message: {
+    content?: string;
+    message_type?: string;
+    media_url?: string;
+    scheduled_at: string;
+    timezone?: string;
+  }): Promise<ScheduledMessage> => {
+    const data = await api<ScheduledMessage>(`/api/chat/conversations/${conversationId}/schedule`, {
+      method: 'POST',
+      body: message,
+    });
+    return data;
+  }, []);
+
+  const cancelScheduledMessage = useCallback(async (messageId: string): Promise<void> => {
+    await api(`/api/chat/scheduled/${messageId}`, { method: 'DELETE' });
+  }, []);
+
+  const getScheduledCount = useCallback(async (): Promise<number> => {
+    const data = await api<{ count: number }>(`/api/chat/scheduled/count`);
+    return data.count;
+  }, []);
+
   return {
     loading,
     error,
@@ -303,5 +349,10 @@ export const useChat = () => {
     deleteNote,
     // Typing
     getTypingStatus,
+    // Scheduled Messages
+    getScheduledMessages,
+    scheduleMessage,
+    cancelScheduledMessage,
+    getScheduledCount,
   };
 };

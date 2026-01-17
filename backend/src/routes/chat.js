@@ -759,4 +759,137 @@ router.delete('/conversations/:id/notes/:noteId', authenticate, async (req, res)
   }
 });
 
+// ==========================================
+// SCHEDULED MESSAGES
+// ==========================================
+
+// Get scheduled messages for a conversation
+router.get('/conversations/:id/scheduled', authenticate, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const connectionIds = await getUserConnections(req.userId);
+
+    // Check access
+    const check = await query(
+      `SELECT id FROM conversations WHERE id = $1 AND connection_id = ANY($2)`,
+      [id, connectionIds]
+    );
+
+    if (check.rows.length === 0) {
+      return res.status(404).json({ error: 'Conversa não encontrada' });
+    }
+
+    const result = await query(
+      `SELECT sm.*, u.name as sender_name
+       FROM scheduled_messages sm
+       LEFT JOIN users u ON u.id = sm.sender_id
+       WHERE sm.conversation_id = $1 AND sm.status = 'pending'
+       ORDER BY sm.scheduled_at ASC`,
+      [id]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Get scheduled messages error:', error);
+    res.status(500).json({ error: 'Erro ao buscar mensagens agendadas' });
+  }
+});
+
+// Schedule a message
+router.post('/conversations/:id/schedule', authenticate, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { content, message_type = 'text', media_url, media_mimetype, scheduled_at, timezone = 'America/Sao_Paulo' } = req.body;
+    const connectionIds = await getUserConnections(req.userId);
+
+    if (!scheduled_at) {
+      return res.status(400).json({ error: 'Data/hora de agendamento é obrigatória' });
+    }
+
+    // Check access and get connection_id
+    const convResult = await query(
+      `SELECT id, connection_id FROM conversations WHERE id = $1 AND connection_id = ANY($2)`,
+      [id, connectionIds]
+    );
+
+    if (convResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Conversa não encontrada' });
+    }
+
+    const scheduledDate = new Date(scheduled_at);
+    if (scheduledDate <= new Date()) {
+      return res.status(400).json({ error: 'Data de agendamento deve ser no futuro' });
+    }
+
+    const result = await query(
+      `INSERT INTO scheduled_messages 
+        (conversation_id, connection_id, sender_id, content, message_type, media_url, media_mimetype, scheduled_at, timezone)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       RETURNING *`,
+      [
+        id,
+        convResult.rows[0].connection_id,
+        req.userId,
+        content,
+        message_type,
+        media_url || null,
+        media_mimetype || null,
+        scheduledDate,
+        timezone
+      ]
+    );
+
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Schedule message error:', error);
+    res.status(500).json({ error: 'Erro ao agendar mensagem' });
+  }
+});
+
+// Cancel a scheduled message
+router.delete('/scheduled/:messageId', authenticate, async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const connectionIds = await getUserConnections(req.userId);
+
+    const result = await query(
+      `UPDATE scheduled_messages 
+       SET status = 'cancelled', updated_at = NOW()
+       WHERE id = $1 
+         AND connection_id = ANY($2)
+         AND status = 'pending'
+       RETURNING id`,
+      [messageId, connectionIds]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Mensagem agendada não encontrada' });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Cancel scheduled message error:', error);
+    res.status(500).json({ error: 'Erro ao cancelar mensagem agendada' });
+  }
+});
+
+// Get all pending scheduled messages count for user
+router.get('/scheduled/count', authenticate, async (req, res) => {
+  try {
+    const connectionIds = await getUserConnections(req.userId);
+
+    const result = await query(
+      `SELECT COUNT(*) as count
+       FROM scheduled_messages
+       WHERE connection_id = ANY($1) AND status = 'pending'`,
+      [connectionIds]
+    );
+
+    res.json({ count: parseInt(result.rows[0].count) || 0 });
+  } catch (error) {
+    console.error('Get scheduled count error:', error);
+    res.status(500).json({ error: 'Erro ao buscar contagem' });
+  }
+});
+
 export default router;

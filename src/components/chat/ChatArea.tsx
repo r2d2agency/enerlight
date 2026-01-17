@@ -62,6 +62,7 @@ import {
   ChevronDown,
   Trash2,
   Square,
+  CalendarClock,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -78,7 +79,8 @@ import { AudioWaveform } from "./AudioWaveform";
 import { TypingIndicator } from "./TypingIndicator";
 import { EmojiPicker } from "./EmojiPicker";
 import { MentionSuggestions, useMentions } from "./MentionSuggestions";
-
+import { ScheduleMessageDialog } from "./ScheduleMessageDialog";
+import { ScheduledMessage } from "@/hooks/use-chat";
 interface ChatAreaProps {
   conversation: Conversation | null;
   messages: ChatMessage[];
@@ -156,6 +158,9 @@ export function ChatArea({
   const [currentSearchIndex, setCurrentSearchIndex] = useState(0);
   const [isContactTyping, setIsContactTyping] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showScheduleDialog, setShowScheduleDialog] = useState(false);
+  const [scheduledMessages, setScheduledMessages] = useState<ScheduledMessage[]>([]);
+  const [schedulingMessage, setSchedulingMessage] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -164,7 +169,7 @@ export function ChatArea({
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const { uploadFile, isUploading } = useUpload();
   const { user } = useAuth();
-  const { getNotes, getTypingStatus } = useChat();
+  const { getNotes, getTypingStatus, getScheduledMessages, scheduleMessage, cancelScheduledMessage } = useChat();
   const {
     isRecording,
     duration,
@@ -199,6 +204,13 @@ export function ChatArea({
       setNotesCount(0);
     }
   }, [conversation?.id, showNotes]);
+
+  // Load scheduled messages when dialog opens
+  useEffect(() => {
+    if (showScheduleDialog && conversation?.id) {
+      getScheduledMessages(conversation.id).then(setScheduledMessages);
+    }
+  }, [showScheduleDialog, conversation?.id, getScheduledMessages]);
 
   // Poll for typing status
   useEffect(() => {
@@ -1018,6 +1030,22 @@ export function ChatArea({
                 )}
               </Button>
 
+              {/* Schedule message button */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn("h-10 w-10 flex-shrink-0", scheduledMessages.length > 0 && "text-primary")}
+                onClick={() => setShowScheduleDialog(true)}
+                title="Agendar mensagem"
+              >
+                <CalendarClock className="h-5 w-5" />
+                {scheduledMessages.length > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[10px] rounded-full w-4 h-4 flex items-center justify-center">
+                    {scheduledMessages.length}
+                  </span>
+                )}
+              </Button>
+
               {/* Emoji picker */}
               <EmojiPicker
                 isOpen={showEmojiPicker}
@@ -1085,6 +1113,37 @@ export function ChatArea({
           )}
         </div>
       </div>
+
+      {/* Schedule Message Dialog */}
+      <ScheduleMessageDialog
+        open={showScheduleDialog}
+        onOpenChange={setShowScheduleDialog}
+        scheduledMessages={scheduledMessages}
+        sending={schedulingMessage}
+        onSchedule={async (data) => {
+          if (!conversation?.id) return;
+          setSchedulingMessage(true);
+          try {
+            await scheduleMessage(conversation.id, data);
+            const updated = await getScheduledMessages(conversation.id);
+            setScheduledMessages(updated);
+            toast.success("Mensagem agendada!");
+          } catch (error) {
+            toast.error("Erro ao agendar mensagem");
+          } finally {
+            setSchedulingMessage(false);
+          }
+        }}
+        onCancelScheduled={async (id) => {
+          try {
+            await cancelScheduledMessage(id);
+            setScheduledMessages(prev => prev.filter(m => m.id !== id));
+            toast.success("Agendamento cancelado");
+          } catch (error) {
+            toast.error("Erro ao cancelar agendamento");
+          }
+        }}
+      />
 
       {/* Transfer Dialog */}
       <Dialog open={showTransferDialog} onOpenChange={setShowTransferDialog}>

@@ -19,6 +19,7 @@ import quickRepliesRoutes from './routes/quick-replies.js';
 import { initDatabase } from './init-db.js';
 import { executeNotifications } from './scheduler.js';
 import { executeCampaignMessages } from './campaign-scheduler.js';
+import { executeScheduledMessages } from './scheduled-messages.js';
 
 dotenv.config();
 
@@ -129,7 +130,19 @@ initDatabase().then((ok) => {
       timezone: 'America/Sao_Paulo'
     });
 
+    // Schedule message sender - runs every minute to check for due scheduled messages
+    cron.schedule('* * * * *', async () => {
+      try {
+        await executeScheduledMessages();
+      } catch (error) {
+        console.error('📅 [CRON] Error executing scheduled messages:', error);
+      }
+    }, {
+      timezone: 'America/Sao_Paulo'
+    });
+
     console.log('⏰ Notification scheduler started - checks every hour (timezone: America/Sao_Paulo)');
     console.log('📤 Campaign scheduler started - checks every 30 seconds');
+    console.log('📅 Scheduled messages started - checks every minute');
   });
 });
