@@ -257,6 +257,46 @@ router.post('/conversations/:id/read', authenticate, async (req, res) => {
   }
 });
 
+// Delete conversation (Admin only)
+router.delete('/conversations/:id', authenticate, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const connectionIds = await getUserConnections(req.userId);
+
+    // Check if user is admin/owner in their organization
+    const roleCheck = await query(
+      `SELECT om.role FROM organization_members om WHERE om.user_id = $1`,
+      [req.userId]
+    );
+
+    const userRole = roleCheck.rows[0]?.role;
+    if (!userRole || !['owner', 'admin'].includes(userRole)) {
+      return res.status(403).json({ error: 'Apenas administradores podem excluir conversas' });
+    }
+
+    // Check if conversation belongs to user's connections
+    const check = await query(
+      `SELECT id FROM conversations WHERE id = $1 AND connection_id = ANY($2)`,
+      [id, connectionIds]
+    );
+
+    if (check.rows.length === 0) {
+      return res.status(404).json({ error: 'Conversa não encontrada' });
+    }
+
+    // Delete related records first
+    await query(`DELETE FROM conversation_notes WHERE conversation_id = $1`, [id]);
+    await query(`DELETE FROM conversation_tag_links WHERE conversation_id = $1`, [id]);
+    await query(`DELETE FROM chat_messages WHERE conversation_id = $1`, [id]);
+    await query(`DELETE FROM conversations WHERE id = $1`, [id]);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete conversation error:', error);
+    res.status(500).json({ error: 'Erro ao excluir conversa' });
+  }
+});
+
 // ==========================================
 // MESSAGES
 // ==========================================

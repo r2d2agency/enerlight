@@ -4,6 +4,11 @@ import { ConversationList } from "@/components/chat/ConversationList";
 import { ChatArea } from "@/components/chat/ChatArea";
 import { useChat, Conversation, ChatMessage, ConversationTag, TeamMember } from "@/hooks/use-chat";
 import { toast } from "sonner";
+import { api } from "@/lib/api";
+
+interface UserProfile {
+  role?: string;
+}
 
 const Chat = () => {
   const {
@@ -30,6 +35,7 @@ const Chat = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [tags, setTags] = useState<ConversationTag[]>([]);
   const [team, setTeam] = useState<TeamMember[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
   
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sendingMessage, setSendingMessage] = useState(false);
@@ -48,12 +54,22 @@ const Chat = () => {
     loadConversations();
     loadTags();
     loadTeam();
+    checkUserRole();
     startAlertsPolling();
 
     return () => {
       stopAlertsPolling();
     };
   }, []);
+
+  const checkUserRole = async () => {
+    try {
+      const profile = await api<UserProfile>('/api/auth/me');
+      setIsAdmin(['owner', 'admin'].includes(profile.role || ''));
+    } catch (error) {
+      console.error('Error checking user role:', error);
+    }
+  };
 
   // Reload when filters change
   useEffect(() => {
@@ -296,6 +312,7 @@ const Chat = () => {
             onRefresh={loadConversations}
             filters={filters}
             onFiltersChange={setFilters}
+            isAdmin={isAdmin}
           />
         </div>
 
