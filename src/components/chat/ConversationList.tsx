@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,9 +12,24 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Search,
   Archive,
-  Users,
   Tag,
   MessageSquare,
   Image,
@@ -24,11 +39,15 @@ import {
   RefreshCw,
   Loader2,
   UserCheck,
+  MoreVertical,
+  Trash2,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { Conversation, ConversationTag, TeamMember } from "@/hooks/use-chat";
+import { api } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 
 interface ConversationListProps {
   conversations: Conversation[];
@@ -50,6 +69,7 @@ interface ConversationListProps {
     assigned: string;
     archived: boolean;
   }) => void;
+  isAdmin?: boolean;
 }
 
 const getMessageTypeIcon = (type: string | null) => {
@@ -88,8 +108,13 @@ export function ConversationList({
   onRefresh,
   filters,
   onFiltersChange,
+  isAdmin = false,
 }: ConversationListProps) {
   const [localSearch, setLocalSearch] = useState(filters.search);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [conversationToDelete, setConversationToDelete] = useState<Conversation | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const { toast } = useToast();
 
   // Debounce search
   useEffect(() => {
@@ -100,6 +125,27 @@ export function ConversationList({
     }, 300);
     return () => clearTimeout(timer);
   }, [localSearch, filters, onFiltersChange]);
+
+  const handleDeleteConversation = async () => {
+    if (!conversationToDelete) return;
+    
+    setDeleting(true);
+    try {
+      await api(`/api/chat/conversations/${conversationToDelete.id}`, { method: 'DELETE' });
+      toast({ title: "Conversa excluída com sucesso" });
+      setDeleteDialogOpen(false);
+      setConversationToDelete(null);
+      onRefresh();
+    } catch (error: any) {
+      toast({ 
+        title: "Erro ao excluir", 
+        description: error.message || "Não foi possível excluir a conversa",
+        variant: "destructive" 
+      });
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const getInitials = (name: string | null) => {
     if (!name) return '?';
@@ -218,21 +264,23 @@ export function ConversationList({
             {conversations.map((conv) => (
               <div
                 key={conv.id}
-                onClick={() => onSelect(conv)}
                 className={cn(
-                  "flex items-start gap-3 p-4 cursor-pointer transition-colors hover:bg-accent/50",
+                  "flex items-start gap-3 p-4 cursor-pointer transition-colors hover:bg-accent/50 group",
                   selectedId === conv.id && "bg-accent"
                 )}
               >
                 {/* Avatar */}
-                <Avatar className="h-12 w-12 flex-shrink-0">
+                <Avatar 
+                  className="h-12 w-12 flex-shrink-0"
+                  onClick={() => onSelect(conv)}
+                >
                   <AvatarFallback className="bg-primary/10 text-primary">
                     {getInitials(conv.contact_name)}
                   </AvatarFallback>
                 </Avatar>
 
                 {/* Content */}
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0" onClick={() => onSelect(conv)}>
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-medium truncate">
                       {conv.contact_name || conv.contact_phone || 'Desconhecido'}
@@ -288,11 +336,72 @@ export function ConversationList({
                     )}
                   </div>
                 </div>
+
+                {/* Admin actions */}
+                {isAdmin && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 opacity-0 group-hover:opacity-100 flex-shrink-0"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        className="text-destructive focus:text-destructive"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setConversationToDelete(conv);
+                          setDeleteDialogOpen(true);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Excluir conversa
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
               </div>
             ))}
           </div>
         )}
       </ScrollArea>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir conversa</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir a conversa com{" "}
+              <strong>{conversationToDelete?.contact_name || conversationToDelete?.contact_phone || "este contato"}</strong>?
+              <br /><br />
+              Esta ação irá remover permanentemente todas as mensagens, notas e tags associadas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConversation}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Excluindo...
+                </>
+              ) : (
+                "Excluir"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
