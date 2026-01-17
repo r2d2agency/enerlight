@@ -15,6 +15,8 @@ interface Connection {
   id: string;
   name: string;
   instance_name: string;
+  api_url: string;
+  api_key: string;
   status: string;
   phone_number: string | null;
 }
@@ -76,9 +78,37 @@ const Index = () => {
         sentMessages,
       });
 
-      // Get first connected connection or first connection
-      const activeConnection = connectionsData.find(c => c.status === 'connected') || connectionsData[0];
-      setConnection(activeConnection || null);
+      // Get first connection and check its real-time status
+      const firstConnection = connectionsData[0];
+      if (firstConnection) {
+        // Check real-time status via Evolution API
+        try {
+          const statusResponse = await fetch(
+            `${firstConnection.api_url}/instance/connectionState/${firstConnection.instance_name}`,
+            {
+              headers: {
+                apikey: firstConnection.api_key,
+              },
+            }
+          );
+          
+          if (statusResponse.ok) {
+            const statusData = await statusResponse.json();
+            const isConnected = statusData.instance?.state === "open";
+            setConnection({
+              ...firstConnection,
+              status: isConnected ? 'connected' : 'disconnected',
+              phone_number: isConnected ? (statusData.instance?.phoneNumber || firstConnection.phone_number) : null,
+            });
+          } else {
+            setConnection({ ...firstConnection, status: 'disconnected' });
+          }
+        } catch {
+          setConnection({ ...firstConnection, status: 'disconnected' });
+        }
+      } else {
+        setConnection(null);
+      }
 
       // Recent campaigns (last 5)
       setRecentCampaigns(campaignsData.slice(0, 5));

@@ -38,6 +38,7 @@ import {
 import { useContacts, ContactList, Contact } from "@/hooks/use-contacts";
 import { ExcelImportDialog } from "@/components/contatos/ExcelImportDialog";
 import { evolutionApi } from "@/lib/evolution-api";
+import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -65,6 +66,8 @@ const Contatos = () => {
   const [newListName, setNewListName] = useState("");
   const [newContactName, setNewContactName] = useState("");
   const [newContactPhone, setNewContactPhone] = useState("");
+  const [newContactValidated, setNewContactValidated] = useState<boolean | null>(null);
+  const [isValidatingNewContact, setIsValidatingNewContact] = useState(false);
   const [isLoadingContacts, setIsLoadingContacts] = useState(false);
   const [editingContact, setEditingContact] = useState<string | null>(null);
   const [validatingContact, setValidatingContact] = useState<string | null>(null);
@@ -137,15 +140,61 @@ const Contatos = () => {
     }
 
     try {
-      await addContact(selectedList, newContactName.trim(), phone);
+      // Use the hook's addContact but we need to also pass is_whatsapp
+      const config = evolutionApi.getConfig();
+      await api(`/api/contacts/lists/${selectedList}/contacts`, {
+        method: 'POST',
+        body: { 
+          name: newContactName.trim(), 
+          phone, 
+          is_whatsapp: newContactValidated 
+        },
+      });
       toast.success("Contato adicionado com sucesso!");
       setNewContactName("");
       setNewContactPhone("");
+      setNewContactValidated(null);
       setIsAddContactOpen(false);
       loadContacts(selectedList);
       loadLists();
     } catch (err) {
       toast.error("Erro ao adicionar contato");
+    }
+  };
+
+  const handleValidateNewContact = async () => {
+    if (!newContactPhone.trim()) {
+      toast.error("Digite um telefone para validar");
+      return;
+    }
+
+    const config = evolutionApi.getConfig();
+    if (!config) {
+      toast.error("Configure a conexão Evolution API primeiro");
+      return;
+    }
+
+    // Normalize phone: add 55 if needed
+    let phone = newContactPhone.replace(/\D/g, "");
+    if (phone.length === 10 || phone.length === 11) {
+      phone = "55" + phone;
+    }
+
+    setIsValidatingNewContact(true);
+    try {
+      const isValid = await evolutionApi.checkWhatsAppNumber(config, phone);
+      setNewContactValidated(isValid);
+      setNewContactPhone(phone); // Update with normalized phone
+      if (isValid) {
+        toast.success("Número é WhatsApp válido!");
+      } else {
+        toast.error("Número não é WhatsApp válido");
+      }
+    } catch (err) {
+      toast.error("Erro ao validar número");
+      setNewContactValidated(false);
+    } finally {
+      setIsValidatingNewContact(false);
     }
   };
 
@@ -511,7 +560,14 @@ const Contatos = () => {
         />
 
         {/* Add Contact Dialog */}
-        <Dialog open={isAddContactOpen} onOpenChange={setIsAddContactOpen}>
+        <Dialog open={isAddContactOpen} onOpenChange={(open) => {
+          setIsAddContactOpen(open);
+          if (!open) {
+            setNewContactName("");
+            setNewContactPhone("");
+            setNewContactValidated(null);
+          }
+        }}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
@@ -534,15 +590,48 @@ const Contatos = () => {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="contactPhone">Telefone</Label>
-                <Input
-                  id="contactPhone"
-                  placeholder="Ex: 65999999999"
-                  value={newContactPhone}
-                  onChange={(e) => setNewContactPhone(e.target.value)}
-                />
-                <p className="text-xs text-muted-foreground">
-                  O código 55 será adicionado automaticamente se necessário
-                </p>
+                <div className="flex gap-2">
+                  <Input
+                    id="contactPhone"
+                    placeholder="Ex: 65999999999"
+                    value={newContactPhone}
+                    onChange={(e) => {
+                      setNewContactPhone(e.target.value);
+                      setNewContactValidated(null);
+                    }}
+                    className="flex-1"
+                  />
+                  <Button 
+                    variant="outline" 
+                    size="icon"
+                    onClick={handleValidateNewContact}
+                    disabled={isValidatingNewContact || !newContactPhone.trim()}
+                    title="Validar WhatsApp"
+                  >
+                    {isValidatingNewContact ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Phone className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">
+                    O código 55 será adicionado automaticamente
+                  </p>
+                  {newContactValidated === true && (
+                    <Badge className="bg-green-500/10 text-green-500 border-0">
+                      <Check className="h-3 w-3 mr-1" />
+                      WhatsApp válido
+                    </Badge>
+                  )}
+                  {newContactValidated === false && (
+                    <Badge className="bg-destructive/10 text-destructive border-0">
+                      <X className="h-3 w-3 mr-1" />
+                      WhatsApp inválido
+                    </Badge>
+                  )}
+                </div>
               </div>
             </div>
             <div className="flex justify-end gap-2">
