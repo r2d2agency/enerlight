@@ -138,7 +138,7 @@ const ContatosChat = () => {
     try {
       const [contactsData, connectionsData] = await Promise.all([
         api<ChatContact[]>("/api/chat/contacts"),
-        api<Connection[]>("/api/chat/connections"),
+        api<Connection[]>("/api/connections"),
       ]);
       setChatContacts(contactsData);
       setConnections(connectionsData);
