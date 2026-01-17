@@ -7,7 +7,9 @@ import { toast } from "sonner";
 import { api } from "@/lib/api";
 
 interface UserProfile {
-  role?: string;
+  user?: {
+    role?: string;
+  };
 }
 
 const Chat = () => {
@@ -70,7 +72,8 @@ const Chat = () => {
   const checkUserRole = async () => {
     try {
       const profile = await api<UserProfile>('/api/auth/me');
-      setIsAdmin(['owner', 'admin'].includes(profile.role || ''));
+      const role = profile.user?.role || '';
+      setIsAdmin(['owner', 'admin'].includes(role));
     } catch (error) {
       console.error('Error checking user role:', error);
     }
@@ -359,6 +362,7 @@ const Chat = () => {
           tags={tags}
           team={team}
           syncingHistory={syncingHistory}
+          isAdmin={isAdmin}
           onSyncHistory={handleSyncHistory}
           onSendMessage={handleSendMessage}
           onLoadMore={handleLoadMoreMessages}
@@ -369,6 +373,18 @@ const Chat = () => {
           onArchive={handleArchive}
           onTransfer={handleTransfer}
           onCreateTag={handleCreateTag}
+          onDeleteConversation={async () => {
+            if (!selectedConversation) return;
+            try {
+              await api(`/api/chat/conversations/${selectedConversation.id}`, { method: 'DELETE' });
+              toast.success('Conversa excluída');
+              setSelectedConversation(null);
+              setMessages([]);
+              loadConversations();
+            } catch (error: any) {
+              toast.error(error.message || 'Erro ao excluir conversa');
+            }
+          }}
         />
       </div>
     </MainLayout>

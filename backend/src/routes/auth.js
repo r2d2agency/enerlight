@@ -110,7 +110,25 @@ router.get('/me', async (req, res) => {
       return res.status(404).json({ error: 'Usuário não encontrado' });
     }
 
-    res.json({ user: result.rows[0] });
+    // Role is stored in organization_members (multi-tenant)
+    const roleResult = await query(
+      `SELECT role
+       FROM organization_members
+       WHERE user_id = $1
+       ORDER BY CASE role
+         WHEN 'owner' THEN 1
+         WHEN 'admin' THEN 2
+         WHEN 'manager' THEN 3
+         WHEN 'agent' THEN 4
+         ELSE 5
+       END
+       LIMIT 1`,
+      [decoded.userId]
+    );
+
+    const role = roleResult.rows[0]?.role || null;
+
+    res.json({ user: { ...result.rows[0], role } });
   } catch (error) {
     res.status(401).json({ error: 'Token inválido' });
   }

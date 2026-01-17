@@ -23,6 +23,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -89,6 +99,7 @@ interface ChatAreaProps {
   syncingHistory?: boolean;
   tags: ConversationTag[];
   team: TeamMember[];
+  isAdmin?: boolean;
   onSyncHistory?: (days: number) => Promise<void>;
   onSendMessage: (content: string, type?: string, mediaUrl?: string, quotedMessageId?: string, mediaMimetype?: string) => Promise<void>;
   onLoadMore: () => void;
@@ -99,6 +110,7 @@ interface ChatAreaProps {
   onArchive: () => void;
   onTransfer: (userId: string | null, note?: string) => void;
   onCreateTag: (name: string, color: string) => void;
+  onDeleteConversation?: () => Promise<void>;
 }
 
 const messageStatusIcon = (status: string) => {
@@ -124,6 +136,7 @@ export function ChatArea({
   syncingHistory,
   tags,
   team,
+  isAdmin = false,
   onSyncHistory,
   onSendMessage,
   onLoadMore,
@@ -134,6 +147,7 @@ export function ChatArea({
   onArchive,
   onTransfer,
   onCreateTag,
+  onDeleteConversation,
 }: ChatAreaProps) {
   const [messageText, setMessageText] = useState("");
   const [showTransferDialog, setShowTransferDialog] = useState(false);
@@ -144,6 +158,8 @@ export function ChatArea({
   const [showTagDialog, setShowTagDialog] = useState(false);
   const [newTagName, setNewTagName] = useState("");
   const [newTagColor, setNewTagColor] = useState("#6366f1");
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deletingConversation, setDeletingConversation] = useState(false);
   const [signMessages, setSignMessages] = useState(() => {
     const saved = localStorage.getItem('chat-sign-messages');
     return saved === 'true';
@@ -600,6 +616,18 @@ export function ChatArea({
                 <Archive className="h-4 w-4 mr-2" />
                 {conversation.is_archived ? 'Desarquivar' : 'Arquivar'}
               </DropdownMenuItem>
+              {isAdmin && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={() => setShowDeleteDialog(true)}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Excluir conversa
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -1184,6 +1212,44 @@ export function ChatArea({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Conversation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir conversa</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir esta conversa? Essa ação remove permanentemente mensagens, notas e tags.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingConversation}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (!onDeleteConversation) return;
+                setDeletingConversation(true);
+                try {
+                  await onDeleteConversation();
+                  setShowDeleteDialog(false);
+                } finally {
+                  setDeletingConversation(false);
+                }
+              }}
+              disabled={deletingConversation}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deletingConversation ? (
+                <span className="inline-flex items-center">
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Excluindo...
+                </span>
+              ) : (
+                'Excluir'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Sync Dialog */}
       <Dialog open={showSyncDialog} onOpenChange={setShowSyncDialog}>
