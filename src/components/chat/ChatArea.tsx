@@ -76,6 +76,7 @@ import { QuickRepliesPanel } from "./QuickRepliesPanel";
 import { NotesPanel } from "./NotesPanel";
 import { AudioWaveform } from "./AudioWaveform";
 import { TypingIndicator } from "./TypingIndicator";
+import { EmojiPicker } from "./EmojiPicker";
 
 interface ChatAreaProps {
   conversation: Conversation | null;
@@ -153,7 +154,7 @@ export function ChatArea({
   const [searchResults, setSearchResults] = useState<string[]>([]);
   const [currentSearchIndex, setCurrentSearchIndex] = useState(0);
   const [isContactTyping, setIsContactTyping] = useState(false);
-  
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -370,6 +371,11 @@ export function ChatArea({
       toast.error("Não foi possível acessar o microfone");
     }
   };
+
+  const handleEmojiSelect = useCallback((emoji: string) => {
+    setMessageText(prev => prev + emoji);
+    setShowEmojiPicker(false);
+  }, []);
 
   const handleTransfer = () => {
     const userId = transferTo === "__none__" ? null : (transferTo || null);
@@ -995,6 +1001,14 @@ export function ChatArea({
                   <Upload className="h-5 w-5" />
                 )}
               </Button>
+
+              {/* Emoji picker */}
+              <EmojiPicker
+                isOpen={showEmojiPicker}
+                onToggle={() => setShowEmojiPicker(!showEmojiPicker)}
+                onClose={() => setShowEmojiPicker(false)}
+                onEmojiSelect={handleEmojiSelect}
+              />
 
               {/* Message input */}
               <Textarea
