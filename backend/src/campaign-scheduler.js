@@ -83,9 +83,15 @@ async function sendEvolutionMessage(connection, phone, messageItems, contact) {
             number: remoteJid,
             mediatype: item.type, // 'image', 'video', 'document'
             media: mediaUrl,
-            caption: processedContent || undefined,
-            fileName: fileName || undefined,
           };
+          // Only add caption if it has content
+          if (processedContent) {
+            body.caption = processedContent;
+          }
+          // Only add fileName for documents
+          if (item.type === 'document' && fileName) {
+            body.fileName = fileName;
+          }
         }
       } else {
         // Fallback to text if no media
