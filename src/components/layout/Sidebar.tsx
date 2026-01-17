@@ -179,13 +179,21 @@ function SidebarContentComponent({ isExpanded, isSuperadmin, onNavigate }: Sideb
                 </div>
                 <ChevronDown
                   className={cn(
-                    "h-4 w-4 text-muted-foreground transition-transform",
+                    "h-4 w-4 text-muted-foreground transition-transform duration-200",
                     isOpen && "rotate-180"
                   )}
                 />
               </CollapsibleTrigger>
-              <CollapsibleContent className="space-y-1 pt-1">
-                {section.items.map(item => renderNavItem(item, true))}
+              <CollapsibleContent className="space-y-1 pt-1 data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up overflow-hidden">
+                {section.items.map((item, index) => (
+                  <div 
+                    key={item.name}
+                    className="animate-fade-in"
+                    style={{ animationDelay: `${index * 50}ms` }}
+                  >
+                    {renderNavItem(item, true)}
+                  </div>
+                ))}
               </CollapsibleContent>
             </Collapsible>
           );
