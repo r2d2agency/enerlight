@@ -13,6 +13,10 @@ const typingStatus = new Map(); // Map<conversationId, { isTyping: boolean, time
 // Lightweight in-memory diagnostics: last webhook received per instance
 const lastWebhookByInstance = new Map(); // Map<instanceName, { at: string, event: string|null, dataKeys: string[] }>
 
+// Lightweight in-memory webhook event buffer for debugging (not persisted)
+const WEBHOOK_EVENTS_MAX = 200;
+const webhookEvents = []; // Array<{ at: string, instanceName: string|null, event: string|null, normalizedEvent: string|null, headers: any, preview: string }>
+
 const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL;
 const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY;
 const WEBHOOK_BASE_URL = process.env.WEBHOOK_BASE_URL || process.env.API_BASE_URL || 'https://whastsale-backend.exf0ty.easypanel.host';
@@ -759,7 +763,58 @@ router.post('/webhook', async (req, res) => {
     const instanceName = payload.instance || payload.instanceName;
     const data = payload.data || payload;
 
+    const normalizedEvent = typeof event === 'string'
+      ? event.replace(/_/g, '.').toLowerCase()
+      : null;
+
     console.log('Parsed - Event:', event, 'Instance:', instanceName);
+    console.log('Webhook: Normalized event:', normalizedEvent);
+
+    // Track last webhook received + keep small buffer for UI debugging
+    try {
+      const safeData = payload?.data && typeof payload.data === 'object' ? payload.data : null;
+      const dataKeys = safeData ? Object.keys(safeData).slice(0, 15) : [];
+      lastWebhookByInstance.set(instanceName || 'unknown', {
+        at: new Date().toISOString(),
+        event: normalizedEvent || (typeof event === 'string' ? event : null),
+        dataKeys,
+      });
+
+      const safeHeaders = {
+        'content-type': req.headers['content-type'],
+        'user-agent': req.headers['user-agent'],
+        'x-forwarded-for': req.headers['x-forwarded-for'],
+        'x-real-ip': req.headers['x-real-ip'],
+      };
+
+      let safePayload = payload;
+      if (safePayload && typeof safePayload === 'object') {
+        safePayload = { ...safePayload };
+        delete safePayload.apikey;
+      }
+
+      let preview = '';
+      try {
+        preview = JSON.stringify(safePayload);
+      } catch {
+        preview = '';
+      }
+      if (preview.length > 4000) preview = `${preview.slice(0, 4000)}…`;
+
+      webhookEvents.push({
+        at: new Date().toISOString(),
+        instanceName: instanceName || null,
+        event: typeof event === 'string' ? event : null,
+        normalizedEvent,
+        headers: safeHeaders,
+        preview,
+      });
+      if (webhookEvents.length > WEBHOOK_EVENTS_MAX) {
+        webhookEvents.splice(0, webhookEvents.length - WEBHOOK_EVENTS_MAX);
+      }
+    } catch {
+      // ignore diagnostics errors
+    }
 
     if (!instanceName) {
       console.log('Webhook: Missing instance name');
@@ -780,22 +835,6 @@ router.post('/webhook', async (req, res) => {
     const connection = connResult.rows[0];
     console.log('Webhook: Found connection:', connection.id, connection.name);
 
-    // Normalize event names (Evolution API uses different formats)
-    const normalizedEvent = event?.replace(/_/g, '.').toLowerCase();
-    console.log('Webhook: Normalized event:', normalizedEvent);
-
-    // Track last webhook received (helps debug “webhook healthy but no messages”) 
-    try {
-      const safeData = payload?.data && typeof payload.data === 'object' ? payload.data : null;
-      const dataKeys = safeData ? Object.keys(safeData).slice(0, 15) : [];
-      lastWebhookByInstance.set(instanceName, {
-        at: new Date().toISOString(),
-        event: normalizedEvent || (typeof event === 'string' ? event : null),
-        dataKeys,
-      });
-    } catch {
-      // ignore diagnostics errors
-    }
 
     // Handle different event types
     switch (normalizedEvent) {
@@ -959,6 +998,66 @@ router.get('/:connectionId/webhook-diagnostic', authenticate, async (req, res) =
   } catch (error) {
     console.error('Webhook diagnostic error:', error);
     res.status(500).json({ error: 'Erro ao diagnosticar webhook', details: error.message });
+  }
+});
+
+// View what the backend has received on the webhook (in-memory, debug only)
+router.get('/:connectionId/webhook-events', authenticate, async (req, res) => {
+  try {
+    const { connectionId } = req.params;
+    const limitRaw = Number(req.query.limit);
+    const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 200) : 50;
+
+    const allowedIds = await getUserConnectionIds(req.userId);
+    if (!allowedIds.includes(connectionId)) {
+      return res.status(403).json({ error: 'Sem permissão para acessar esta conexão' });
+    }
+
+    const connResult = await query('SELECT id, instance_name, name FROM connections WHERE id = $1', [connectionId]);
+    if (connResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Conexão não encontrada' });
+    }
+
+    const connection = connResult.rows[0];
+    const events = webhookEvents
+      .filter(e => e.instanceName === connection.instance_name)
+      .slice(-limit)
+      .reverse();
+
+    res.json({
+      connection: { id: connection.id, name: connection.name, instanceName: connection.instance_name },
+      events,
+    });
+  } catch (error) {
+    console.error('Webhook events error:', error);
+    res.status(500).json({ error: 'Erro ao buscar eventos do webhook' });
+  }
+});
+
+router.delete('/:connectionId/webhook-events', authenticate, async (req, res) => {
+  try {
+    const { connectionId } = req.params;
+
+    const allowedIds = await getUserConnectionIds(req.userId);
+    if (!allowedIds.includes(connectionId)) {
+      return res.status(403).json({ error: 'Sem permissão para acessar esta conexão' });
+    }
+
+    const connResult = await query('SELECT id, instance_name FROM connections WHERE id = $1', [connectionId]);
+    if (connResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Conexão não encontrada' });
+    }
+
+    const instanceName = connResult.rows[0].instance_name;
+    for (let i = webhookEvents.length - 1; i >= 0; i--) {
+      if (webhookEvents[i]?.instanceName === instanceName) webhookEvents.splice(i, 1);
+    }
+    lastWebhookByInstance.delete(instanceName);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Webhook events clear error:', error);
+    res.status(500).json({ error: 'Erro ao limpar eventos do webhook' });
   }
 });
 

@@ -7,11 +7,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Plus, QrCode, RefreshCw, Plug, Unplug, Trash2, Phone, Loader2, Wifi, WifiOff, Send, Settings2, AlertTriangle, CheckCircle } from "lucide-react";
+import { Plus, QrCode, RefreshCw, Plug, Unplug, Trash2, Phone, Loader2, Wifi, WifiOff, Send, Settings2, AlertTriangle, CheckCircle, Eye } from "lucide-react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { TestMessageDialog } from "@/components/conexao/TestMessageDialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface Connection {
   id: string;
@@ -50,6 +51,13 @@ const Conexao = () => {
   // Webhook diagnostic state
   const [diagLoading, setDiagLoading] = useState<string | null>(null);
   const [diagResults, setDiagResults] = useState<Record<string, any>>({});
+
+  // Webhook viewer state (shows what the backend is actually receiving)
+  const [webhookViewerOpen, setWebhookViewerOpen] = useState(false);
+  const [webhookViewerConnection, setWebhookViewerConnection] = useState<Connection | null>(null);
+  const [webhookEventsLoading, setWebhookEventsLoading] = useState(false);
+  const [webhookEventsError, setWebhookEventsError] = useState<string | null>(null);
+  const [webhookEvents, setWebhookEvents] = useState<any[]>([]);
 
   useEffect(() => {
     loadConnections();
@@ -224,6 +232,46 @@ const Conexao = () => {
       setDiagLoading(null);
     }
   };
+
+  const fetchWebhookEvents = useCallback(async (connection: Connection) => {
+    setWebhookEventsLoading(true);
+    setWebhookEventsError(null);
+    try {
+      const result = await api<{ events: any[] }>(`/api/evolution/${connection.id}/webhook-events?limit=50`);
+      setWebhookEvents(result.events || []);
+    } catch (error: any) {
+      setWebhookEventsError(error.message || 'Erro ao buscar eventos do webhook');
+    } finally {
+      setWebhookEventsLoading(false);
+    }
+  }, []);
+
+  const handleOpenWebhookViewer = async (connection: Connection) => {
+    setWebhookViewerConnection(connection);
+    setWebhookViewerOpen(true);
+    await fetchWebhookEvents(connection);
+  };
+
+  const handleClearWebhookEvents = async () => {
+    if (!webhookViewerConnection) return;
+    try {
+      await api(`/api/evolution/${webhookViewerConnection.id}/webhook-events`, { method: 'DELETE' });
+      setWebhookEvents([]);
+      toast.success('Eventos limpos');
+    } catch (error: any) {
+      toast.error(error.message || 'Erro ao limpar eventos');
+    }
+  };
+
+  useEffect(() => {
+    if (!webhookViewerOpen || !webhookViewerConnection) return;
+
+    const interval = setInterval(() => {
+      fetchWebhookEvents(webhookViewerConnection);
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [webhookViewerOpen, webhookViewerConnection, fetchWebhookEvents]);
 
   // Auto-check status when QR dialog is open
   useEffect(() => {
@@ -428,6 +476,16 @@ const Conexao = () => {
                         Conectar
                       </Button>
                     )}
+
+                    {/* Webhook Viewer */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleOpenWebhookViewer(connection)}
+                      title="Ver o que o webhook está recebendo"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
                     
                     {/* Webhook Diagnostic */}
                     <Popover>
@@ -503,6 +561,102 @@ const Conexao = () => {
             ))}
           </div>
         )}
+
+        {/* Webhook Viewer Dialog */}
+        <Dialog
+          open={webhookViewerOpen}
+          onOpenChange={(open) => {
+            setWebhookViewerOpen(open);
+            if (!open) {
+              setWebhookViewerConnection(null);
+              setWebhookEvents([]);
+              setWebhookEventsError(null);
+            }
+          }}
+        >
+          <DialogContent className="sm:max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>Monitor do Webhook</DialogTitle>
+              <DialogDescription>
+                Aqui você vê os últimos eventos que o backend recebeu da Evolution para esta instância.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-sm text-muted-foreground">
+                {webhookViewerConnection ? (
+                  <span>
+                    Instância: <span className="text-foreground">{webhookViewerConnection.instance_name}</span>
+                  </span>
+                ) : (
+                  'Selecione uma conexão.'
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => webhookViewerConnection && fetchWebhookEvents(webhookViewerConnection)}
+                  disabled={!webhookViewerConnection || webhookEventsLoading}
+                >
+                  {webhookEventsLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Atualizando...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Atualizar
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleClearWebhookEvents}
+                  disabled={!webhookViewerConnection}
+                >
+                  Limpar
+                </Button>
+              </div>
+            </div>
+
+            {webhookEventsError && (
+              <div className="text-sm text-destructive">{webhookEventsError}</div>
+            )}
+
+            <ScrollArea className="h-[420px] rounded-md border border-border">
+              <div className="p-3 space-y-3">
+                {webhookEvents.length === 0 ? (
+                  <div className="text-sm text-muted-foreground">
+                    Nenhum evento recebido ainda.
+                  </div>
+                ) : (
+                  webhookEvents.map((ev, idx) => (
+                    <div key={idx} className="rounded-md border border-border p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="text-sm font-medium text-foreground">
+                          {ev.normalizedEvent || ev.event || 'evento'}
+                        </div>
+                        <div className="text-xs text-muted-foreground">{ev.at}</div>
+                      </div>
+                      <div className="mt-2 text-xs text-muted-foreground">
+                        <div>Headers: {ev.headers ? Object.keys(ev.headers).filter(Boolean).join(', ') : '-'}</div>
+                      </div>
+                      {ev.preview && (
+                        <pre className="mt-2 whitespace-pre-wrap break-words text-xs text-foreground/90">
+                          {ev.preview}
+                        </pre>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </ScrollArea>
+          </DialogContent>
+        </Dialog>
 
         {/* QR Code Dialog */}
         <Dialog open={qrCodeDialog} onOpenChange={setQrCodeDialog}>
