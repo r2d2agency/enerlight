@@ -874,8 +874,10 @@ router.get('/:connectionId/webhook-diagnostic', authenticate, async (req, res) =
         webhookBase64: webhookResult.webhook?.webhook_base64 ?? webhookResult.webhook_base64 ?? null,
       };
 
-      // Check if URL matches expected
-      const expectedUrl = connection.webhook_url || (WEBHOOK_BASE_URL ? `${WEBHOOK_BASE_URL}/api/evolution/webhook` : null);
+      // Check if URL matches expected - use the actual configured URL or construct from base
+      const baseExpectedUrl = WEBHOOK_BASE_URL ? `${WEBHOOK_BASE_URL}/api/evolution/webhook` : null;
+      // The connection.webhook_url already contains the full URL, so use it directly for comparison
+      const expectedUrl = baseExpectedUrl;
       if (expectedUrl && diagnostics.evolutionWebhook.url !== expectedUrl) {
         diagnostics.errors.push(`Webhook URL mismatch! Evolution has: "${diagnostics.evolutionWebhook.url}", expected: "${expectedUrl}"`);
       }
