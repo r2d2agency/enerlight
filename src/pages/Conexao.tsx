@@ -7,9 +7,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Plus, QrCode, RefreshCw, Plug, Unplug, Trash2, Phone, Loader2, Wifi, WifiOff } from "lucide-react";
+import { Plus, QrCode, RefreshCw, Plug, Unplug, Trash2, Phone, Loader2, Wifi, WifiOff, Send } from "lucide-react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { TestMessageDialog } from "@/components/conexao/TestMessageDialog";
 
 interface Connection {
   id: string;
@@ -40,6 +41,10 @@ const Conexao = () => {
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [loadingQr, setLoadingQr] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState<string | null>(null);
+  
+  // Test message state
+  const [testDialogOpen, setTestDialogOpen] = useState(false);
+  const [testConnection, setTestConnection] = useState<Connection | null>(null);
 
   useEffect(() => {
     loadConnections();
@@ -346,6 +351,17 @@ const Conexao = () => {
                           variant="outline" 
                           size="sm" 
                           className="flex-1"
+                          onClick={() => {
+                            setTestConnection(connection);
+                            setTestDialogOpen(true);
+                          }}
+                        >
+                          <Send className="h-4 w-4 mr-1" />
+                          Testar
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
                           onClick={() => handleCheckStatus(connection)}
                           disabled={checkingStatus === connection.id}
                         >
@@ -358,11 +374,9 @@ const Conexao = () => {
                         <Button 
                           variant="destructive" 
                           size="sm"
-                          className="flex-1"
                           onClick={() => handleLogout(connection)}
                         >
-                          <Unplug className="h-4 w-4 mr-1" />
-                          Desconectar
+                          <Unplug className="h-4 w-4" />
                         </Button>
                       </>
                     ) : (
@@ -479,6 +493,15 @@ const Conexao = () => {
             </div>
           </DialogContent>
         </Dialog>
+        {/* Test Message Dialog */}
+        <TestMessageDialog
+          connection={testConnection}
+          open={testDialogOpen}
+          onClose={() => {
+            setTestDialogOpen(false);
+            setTestConnection(null);
+          }}
+        />
       </div>
     </MainLayout>
   );
