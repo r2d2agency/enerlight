@@ -470,9 +470,83 @@ CREATE TABLE IF NOT EXISTS chat_messages (
     message_type VARCHAR(50) DEFAULT 'text',
     media_url TEXT,
     media_mimetype VARCHAR(100),
-    quoted_message_id VARCHAR(100),
+    quoted_message_id UUID REFERENCES chat_messages(id) ON DELETE SET NULL,
     status VARCHAR(50) DEFAULT 'sent',
     timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Backward compatibility: if older DB has quoted_message_id as VARCHAR, convert to UUID
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'chat_messages'
+      AND column_name = 'quoted_message_id'
+      AND data_type = 'character varying'
+  ) THEN
+    ALTER TABLE chat_messages
+      ALTER COLUMN quoted_message_id TYPE UUID
+      USING NULLIF(quoted_message_id, '')::uuid;
+  END IF;
+EXCEPTION WHEN others THEN
+  -- Ignore conversion errors to avoid blocking startup
+  NULL;
+END $$;
+
+-- Internal Notes (Chat)
+CREATE TABLE IF NOT EXISTS conversation_notes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    conversation_id UUID REFERENCES conversations(id) ON DELETE CASCADE NOT NULL,
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    content TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Scheduled Messages (Chat)
+CREATE TABLE IF NOT EXISTS scheduled_messages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    conversation_id UUID REFERENCES conversations(id) ON DELETE CASCADE NOT NULL,
+    connection_id UUID REFERENCES connections(id) ON DELETE CASCADE NOT NULL,
+    sender_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    content TEXT,
+    message_type VARCHAR(20) DEFAULT 'text',
+    media_url TEXT,
+    media_mimetype VARCHAR(100),
+    scheduled_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    timezone VARCHAR(50) DEFAULT 'America/Sao_Paulo',
+    status VARCHAR(20) DEFAULT 'pending',
+    sent_at TIMESTAMP WITH TIME ZONE,
+    error_message TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Quick Replies (Chat productivity)
+CREATE TABLE IF NOT EXISTS quick_replies (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE NOT NULL,
+    title VARCHAR(100) NOT NULL,
+    content TEXT NOT NULL,
+    shortcut VARCHAR(50),
+    category VARCHAR(100),
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Alerts (for scheduled message sent notifications)
+CREATE TABLE IF NOT EXISTS user_alerts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE NOT NULL,
+    type VARCHAR(50) NOT NULL DEFAULT 'scheduled_message_sent',
+    title VARCHAR(255) NOT NULL,
+    message TEXT,
+    metadata JSONB DEFAULT '{}'::jsonb,
+    is_read BOOLEAN DEFAULT false,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 `;
@@ -528,7 +602,14 @@ CREATE INDEX IF NOT EXISTS idx_conversations_conn ON conversations(connection_id
 CREATE INDEX IF NOT EXISTS idx_conversations_assigned ON conversations(assigned_to);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_conv ON chat_messages(conversation_id);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_timestamp ON chat_messages(timestamp);
+
+CREATE INDEX IF NOT EXISTS idx_conversation_notes_conv ON conversation_notes(conversation_id);
+CREATE INDEX IF NOT EXISTS idx_scheduled_messages_status_time ON scheduled_messages(status, scheduled_at);
+CREATE INDEX IF NOT EXISTS idx_quick_replies_org ON quick_replies(organization_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_quick_replies_shortcut_org ON quick_replies(organization_id, shortcut) WHERE shortcut IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_user_alerts_user_unread ON user_alerts(user_id, is_read) WHERE is_read = false;
 `;
+
 
 // Migration steps in order of execution
 const migrationSteps = [
