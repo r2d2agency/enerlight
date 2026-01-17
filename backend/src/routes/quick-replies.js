@@ -126,7 +126,7 @@ router.post('/', authenticate, async (req, res) => {
     res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error('Create quick reply error:', error);
-    res.status(500).json({ error: 'Erro ao criar resposta rápida' });
+    res.status(500).json({ error: 'Erro ao criar resposta rápida', details: error.message });
   }
 });
 
@@ -172,7 +172,7 @@ router.patch('/:id', authenticate, async (req, res) => {
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Update quick reply error:', error);
-    res.status(500).json({ error: 'Erro ao atualizar resposta rápida' });
+    res.status(500).json({ error: 'Erro ao atualizar resposta rápida', details: error.message });
   }
 });
 
@@ -198,7 +198,7 @@ router.delete('/:id', authenticate, async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     console.error('Delete quick reply error:', error);
-    res.status(500).json({ error: 'Erro ao excluir resposta rápida' });
+    res.status(500).json({ error: 'Erro ao excluir resposta rápida', details: error.message });
   }
 });
 

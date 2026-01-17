@@ -546,6 +546,18 @@ CREATE TABLE IF NOT EXISTS quick_replies (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Backward-compatible column adds (older databases may miss columns)
+DO $$ BEGIN
+    ALTER TABLE quick_replies ADD COLUMN IF NOT EXISTS shortcut VARCHAR(50);
+    ALTER TABLE quick_replies ADD COLUMN IF NOT EXISTS category VARCHAR(100);
+    ALTER TABLE quick_replies ADD COLUMN IF NOT EXISTS created_by UUID;
+    ALTER TABLE quick_replies ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+    ALTER TABLE quick_replies ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+EXCEPTION
+    WHEN duplicate_column THEN null;
+    WHEN others THEN null;
+END $$;
+
 -- Alerts (for scheduled message sent notifications)
 CREATE TABLE IF NOT EXISTS user_alerts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
