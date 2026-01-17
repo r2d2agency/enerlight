@@ -163,6 +163,13 @@ EXCEPTION
     WHEN duplicate_column THEN null;
 END $$;
 
+-- Add webhook_url column if not exists
+DO $$ BEGIN
+    ALTER TABLE connections ADD COLUMN IF NOT EXISTS webhook_url TEXT;
+EXCEPTION
+    WHEN duplicate_column THEN null;
+END $$;
+
 -- Connection Members
 CREATE TABLE IF NOT EXISTS connection_members (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
