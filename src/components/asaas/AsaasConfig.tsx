@@ -12,9 +12,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { useAsaas } from "@/hooks/use-asaas";
+import { useNotifications } from "@/hooks/use-notifications";
 import { 
   RefreshCw, Settings, Receipt, Users, Bell, Plus, Trash2, 
-  CheckCircle, AlertCircle, Clock, Calendar, DollarSign, Link2
+  CheckCircle, AlertCircle, Clock, Calendar, DollarSign, Link2,
+  Send, History, RotateCcw, Play
 } from "lucide-react";
 import { format, parseISO, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -31,6 +33,14 @@ export default function AsaasConfig({ organizationId, connections }: AsaasConfig
     getIntegration, configureIntegration, syncPayments,
     getPayments, getCustomers, getRules, createRule, updateRule, deleteRule
   } = useAsaas(organizationId);
+  
+  const { 
+    loading: notifLoading, 
+    getStats: getNotificationStats, 
+    getHistory: getNotificationHistory,
+    triggerRule,
+    retryNotifications 
+  } = useNotifications(organizationId);
 
   const [integration, setIntegration] = useState<any>(null);
   const [apiKey, setApiKey] = useState("");
@@ -38,10 +48,14 @@ export default function AsaasConfig({ organizationId, connections }: AsaasConfig
   const [payments, setPayments] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [rules, setRules] = useState<any[]>([]);
+  const [notificationHistory, setNotificationHistory] = useState<any[]>([]);
+  const [notificationStats, setNotificationStats] = useState<any>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [historyStatusFilter, setHistoryStatusFilter] = useState<string>("all");
   const [syncing, setSyncing] = useState(false);
   const [showRuleDialog, setShowRuleDialog] = useState(false);
   const [editingRule, setEditingRule] = useState<any>(null);
+  const [triggeringRule, setTriggeringRule] = useState<string | null>(null);
 
   // Form state for new rule
   const [ruleForm, setRuleForm] = useState({
@@ -59,16 +73,56 @@ export default function AsaasConfig({ organizationId, connections }: AsaasConfig
   }, [organizationId]);
 
   const loadData = async () => {
-    const [integ, pays, custs, rls] = await Promise.all([
+    const [integ, pays, custs, rls, stats, history] = await Promise.all([
       getIntegration(),
       getPayments(),
       getCustomers(),
-      getRules()
+      getRules(),
+      getNotificationStats(),
+      getNotificationHistory({ limit: 50 })
     ]);
     setIntegration(integ);
     setPayments(pays);
     setCustomers(custs);
     setRules(rls);
+    setNotificationStats(stats);
+    setNotificationHistory(history);
+  };
+
+  const handleTriggerRule = async (ruleId: string) => {
+    setTriggeringRule(ruleId);
+    const result = await triggerRule(ruleId);
+    setTriggeringRule(null);
+    
+    if (result) {
+      toast({ 
+        title: "Notificações disparadas!", 
+        description: `${result.sent} enviadas, ${result.failed} falharam de ${result.total} total.`
+      });
+      await loadData();
+    } else {
+      toast({ title: "Erro ao disparar notificações", variant: "destructive" });
+    }
+  };
+
+  const handleRetryFailed = async () => {
+    const failedIds = notificationHistory
+      .filter(n => n.status === 'failed')
+      .map(n => n.id);
+    
+    if (failedIds.length === 0) {
+      toast({ title: "Nenhuma notificação com falha para reenviar" });
+      return;
+    }
+
+    const result = await retryNotifications(failedIds);
+    if (result) {
+      toast({ 
+        title: "Reenvio concluído!", 
+        description: `${result.retried} reenviadas, ${result.failed} falharam.`
+      });
+      await loadData();
+    }
   };
 
   const handleConfigure = async () => {
@@ -296,7 +350,11 @@ export default function AsaasConfig({ organizationId, connections }: AsaasConfig
               </TabsTrigger>
               <TabsTrigger value="rules">
                 <Bell className="mr-2 h-4 w-4" />
-                Regras de Notificação
+                Regras
+              </TabsTrigger>
+              <TabsTrigger value="history">
+                <History className="mr-2 h-4 w-4" />
+                Histórico
               </TabsTrigger>
             </TabsList>
 
@@ -581,7 +639,20 @@ export default function AsaasConfig({ organizationId, connections }: AsaasConfig
                             }}
                           />
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="flex gap-1">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleTriggerRule(rule.id)}
+                            disabled={triggeringRule === rule.id || !rule.connection_id}
+                            title="Disparar agora"
+                          >
+                            {triggeringRule === rule.id ? (
+                              <RefreshCw className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Play className="h-4 w-4" />
+                            )}
+                          </Button>
                           <Button 
                             variant="ghost" 
                             size="sm"
@@ -596,6 +667,97 @@ export default function AsaasConfig({ organizationId, connections }: AsaasConfig
                       <TableRow>
                         <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                           Nenhuma regra configurada
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </Card>
+            </TabsContent>
+
+            {/* Notification History Tab */}
+            <TabsContent value="history" className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <Select value={historyStatusFilter} onValueChange={setHistoryStatusFilter}>
+                    <SelectTrigger className="w-48">
+                      <SelectValue placeholder="Filtrar por status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="sent">Enviados</SelectItem>
+                      <SelectItem value="failed">Falhou</SelectItem>
+                      <SelectItem value="pending">Pendente</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {notificationStats && (
+                    <div className="flex gap-4 text-sm">
+                      <span className="text-green-500">✓ {notificationStats.sent_today || 0} hoje</span>
+                      <span className="text-muted-foreground">| {notificationStats.sent_week || 0} na semana</span>
+                      <span className="text-muted-foreground">| {notificationStats.sent_month || 0} no mês</span>
+                    </div>
+                  )}
+                </div>
+                <Button 
+                  variant="outline" 
+                  onClick={handleRetryFailed}
+                  disabled={notifLoading || !notificationHistory.some(n => n.status === 'failed')}
+                >
+                  <RotateCcw className="mr-2 h-4 w-4" />
+                  Reenviar com Falha
+                </Button>
+              </div>
+
+              <Card>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Cliente</TableHead>
+                      <TableHead>Telefone</TableHead>
+                      <TableHead>Regra</TableHead>
+                      <TableHead>Valor</TableHead>
+                      <TableHead>Vencimento</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Enviado em</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {notificationHistory
+                      .filter(n => historyStatusFilter === 'all' || n.status === historyStatusFilter)
+                      .map((notif) => (
+                        <TableRow key={notif.id}>
+                          <TableCell className="font-medium">{notif.customer_name}</TableCell>
+                          <TableCell>{notif.phone}</TableCell>
+                          <TableCell>{notif.rule_name || '-'}</TableCell>
+                          <TableCell>
+                            R$ {Number(notif.payment_value || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                          </TableCell>
+                          <TableCell>
+                            {notif.due_date ? format(parseISO(notif.due_date), "dd/MM/yyyy") : '-'}
+                          </TableCell>
+                          <TableCell>
+                            {notif.status === 'sent' && (
+                              <Badge className="bg-green-500 text-white">Enviado</Badge>
+                            )}
+                            {notif.status === 'failed' && (
+                              <Badge className="bg-red-500 text-white">Falhou</Badge>
+                            )}
+                            {notif.status === 'pending' && (
+                              <Badge className="bg-yellow-500 text-white">Pendente</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {notif.sent_at 
+                              ? format(parseISO(notif.sent_at), "dd/MM HH:mm") 
+                              : '-'
+                            }
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    {notificationHistory.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                          Nenhuma notificação enviada ainda
                         </TableCell>
                       </TableRow>
                     )}

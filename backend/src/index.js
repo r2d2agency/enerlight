@@ -11,6 +11,7 @@ import organizationsRoutes from './routes/organizations.js';
 import asaasRoutes from './routes/asaas.js';
 import adminRoutes from './routes/admin.js';
 import uploadsRoutes from './routes/uploads.js';
+import notificationsRoutes from './routes/notifications.js';
 import { initDatabase } from './init-db.js';
 
 dotenv.config();
@@ -46,6 +47,7 @@ app.use('/api/organizations', organizationsRoutes);
 app.use('/api/asaas', asaasRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/uploads', uploadsRoutes);
+app.use('/api/notifications', notificationsRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
