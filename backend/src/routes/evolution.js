@@ -244,8 +244,7 @@ router.get('/limits', authenticate, async (req, res) => {
   }
 });
 
-// Webhook URL base - should be configured via environment variable
-const WEBHOOK_BASE_URL = process.env.WEBHOOK_BASE_URL || process.env.BACKEND_URL;
+// Webhook URL base - configured at the top of the file
 
 // Configure webhook for an instance
 async function configureInstanceWebhook(instanceName, webhookUrl) {
