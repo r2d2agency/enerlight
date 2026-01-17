@@ -170,12 +170,19 @@ router.post('/', async (req, res) => {
     const pauseAfter = pause_after_messages || 20;
     const pauseDur = (pause_duration || 10) * 60; // Convert to seconds
 
-    // Determine start time
+    // Determine start time using local date/time values
     let currentScheduleTime = new Date();
+    
+    // If a start_date is provided (YYYY-MM-DD format), use it
     if (start_date) {
-      const sd = new Date(start_date);
-      currentScheduleTime = new Date(sd);
+      // Parse as local date
+      const [year, month, day] = start_date.split('-').map(Number);
+      if (year && month && day) {
+        currentScheduleTime = new Date(year, month - 1, day);
+      }
     }
+    
+    // Apply start_time
     if (start_time) {
       const [hours, minutes] = start_time.split(':').map(Number);
       currentScheduleTime.setHours(hours, minutes, 0, 0);
@@ -187,11 +194,33 @@ router.post('/', async (req, res) => {
     const endTimeHours = end_time ? parseInt(end_time.split(':')[0]) : 23;
     const endTimeMinutes = end_time ? parseInt(end_time.split(':')[1]) : 59;
 
-    // If current time is before start_time today, move to start_time
+    // Get current time for comparison
     const now = new Date();
+    
+    // Only adjust if scheduled time is in the past
     if (currentScheduleTime < now) {
-      currentScheduleTime = now;
+      if (start_time) {
+        // Use today with the specified time
+        const [hours, minutes] = start_time.split(':').map(Number);
+        currentScheduleTime = new Date();
+        currentScheduleTime.setHours(hours, minutes, 0, 0);
+        
+        // If that time already passed today, use current time
+        if (currentScheduleTime < now) {
+          currentScheduleTime = now;
+        }
+      } else {
+        currentScheduleTime = now;
+      }
     }
+    
+    console.log('Campaign scheduling:', {
+      start_date,
+      start_time,
+      end_time,
+      scheduledStart: currentScheduleTime.toString(),
+      now: now.toString()
+    });
 
     // Create campaign
     const campaignResult = await query(
