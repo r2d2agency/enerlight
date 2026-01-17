@@ -7,6 +7,9 @@ import crypto from 'crypto';
 
 const router = Router();
 
+// In-memory cache for typing status (cleared after 10 seconds)
+const typingStatus = new Map(); // Map<conversationId, { isTyping: boolean, timestamp: number }>
+
 const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL;
 const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY;
 const UPLOADS_DIR = path.join(process.cwd(), 'uploads');
@@ -786,6 +789,10 @@ router.post('/webhook', async (req, res) => {
         await handleConnectionUpdate(connection, data);
         break;
       
+      case 'presence.update':
+        await handlePresenceUpdate(connection, data);
+        break;
+      
       case 'qrcode.updated':
         console.log('QR Code updated for instance:', instanceName);
         break;
@@ -1122,6 +1129,121 @@ async function handleConnectionUpdate(connection, data) {
   } catch (error) {
     console.error('Handle connection update error:', error);
   }
+}
+
+// Handle presence/typing status updates
+async function handlePresenceUpdate(connection, data) {
+  try {
+    console.log('Webhook: Presence update data:', JSON.stringify(data, null, 2));
+    
+    const remoteJid = data.id || data.remoteJid || data.participant;
+    const presences = data.presences || data.presence || {};
+    
+    if (!remoteJid) {
+      console.log('Webhook: No remoteJid in presence update');
+      return;
+    }
+    
+    // Normalize the JID
+    const normalizedJid = normalizeRemoteJid(remoteJid);
+    const contactPhone = extractPhoneFromJid(remoteJid);
+    
+    // Find conversation
+    const convResult = await query(
+      `SELECT id FROM conversations 
+       WHERE connection_id = $1 
+       AND (remote_jid = $2 OR contact_phone = $3)
+       LIMIT 1`,
+      [connection.id, normalizedJid, contactPhone]
+    );
+    
+    if (convResult.rows.length === 0) {
+      console.log('Webhook: No conversation found for presence update');
+      return;
+    }
+    
+    const conversationId = convResult.rows[0].id;
+    
+    // Check presence state - can be 'composing', 'paused', 'available', 'unavailable'
+    let isTyping = false;
+    
+    // Handle different presence formats from Evolution API
+    if (typeof presences === 'object') {
+      for (const key in presences) {
+        const presence = presences[key];
+        if (presence?.lastKnownPresence === 'composing' || presence === 'composing') {
+          isTyping = true;
+          break;
+        }
+      }
+    } else if (presences === 'composing' || data.status === 'composing') {
+      isTyping = true;
+    }
+    
+    // Update typing status in memory cache
+    typingStatus.set(conversationId, {
+      isTyping,
+      timestamp: Date.now()
+    });
+    
+    console.log('Webhook: Typing status updated for conversation:', conversationId, 'isTyping:', isTyping);
+    
+    // Auto-clear typing status after 10 seconds
+    if (isTyping) {
+      setTimeout(() => {
+        const current = typingStatus.get(conversationId);
+        if (current && Date.now() - current.timestamp >= 10000) {
+          typingStatus.set(conversationId, { isTyping: false, timestamp: Date.now() });
+        }
+      }, 10000);
+    }
+  } catch (error) {
+    console.error('Handle presence update error:', error);
+  }
+}
+
+// Get typing status for a conversation
+router.get('/typing/:conversationId', authenticate, async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    
+    // Verify user has access to this conversation
+    const connectionIds = await getUserConnectionIds(req.userId);
+    
+    const convResult = await query(
+      `SELECT id FROM conversations 
+       WHERE id = $1 AND connection_id = ANY($2)`,
+      [conversationId, connectionIds]
+    );
+    
+    if (convResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Conversa não encontrada' });
+    }
+    
+    const status = typingStatus.get(conversationId);
+    
+    // Clear stale typing status (older than 10 seconds)
+    if (status && Date.now() - status.timestamp > 10000) {
+      typingStatus.set(conversationId, { isTyping: false, timestamp: Date.now() });
+      return res.json({ isTyping: false });
+    }
+    
+    res.json({ isTyping: status?.isTyping || false });
+  } catch (error) {
+    console.error('Get typing status error:', error);
+    res.status(500).json({ error: 'Erro ao buscar status de digitação' });
+  }
+});
+
+// Helper to get user's connection IDs
+async function getUserConnectionIds(userId) {
+  const result = await query(
+    `SELECT c.id FROM connections c
+     LEFT JOIN connection_members cm ON cm.connection_id = c.id
+     WHERE c.user_id = $1 OR cm.user_id = $1`,
+    [userId]
+  );
+  return result.rows.map(r => r.id);
 }
 
 // Configure webhook on Evolution API

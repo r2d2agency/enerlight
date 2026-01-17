@@ -263,6 +263,17 @@ export const useChat = () => {
     }
   }, []);
 
+  // Typing status
+  const getTypingStatus = useCallback(async (conversationId: string): Promise<boolean> => {
+    try {
+      const response = await api<{ isTyping: boolean }>(`/api/evolution/typing/${conversationId}`);
+      return response.isTyping || false;
+    } catch (err: any) {
+      console.error('Error getting typing status:', err);
+      return false;
+    }
+  }, []);
+
   return {
     loading,
     error,
@@ -290,5 +301,7 @@ export const useChat = () => {
     createNote,
     updateNote,
     deleteNote,
+    // Typing
+    getTypingStatus,
   };
 };

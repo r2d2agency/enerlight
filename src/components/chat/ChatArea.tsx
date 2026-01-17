@@ -75,6 +75,7 @@ import { toast } from "sonner";
 import { QuickRepliesPanel } from "./QuickRepliesPanel";
 import { NotesPanel } from "./NotesPanel";
 import { AudioWaveform } from "./AudioWaveform";
+import { TypingIndicator } from "./TypingIndicator";
 
 interface ChatAreaProps {
   conversation: Conversation | null;
@@ -151,6 +152,7 @@ export function ChatArea({
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<string[]>([]);
   const [currentSearchIndex, setCurrentSearchIndex] = useState(0);
+  const [isContactTyping, setIsContactTyping] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -159,7 +161,7 @@ export function ChatArea({
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const { uploadFile, isUploading } = useUpload();
   const { user } = useAuth();
-  const { getNotes } = useChat();
+  const { getNotes, getTypingStatus } = useChat();
   const {
     isRecording,
     duration,
@@ -180,6 +182,27 @@ export function ChatArea({
       setNotesCount(0);
     }
   }, [conversation?.id, showNotes]);
+
+  // Poll for typing status
+  useEffect(() => {
+    if (!conversation?.id) {
+      setIsContactTyping(false);
+      return;
+    }
+
+    const checkTyping = async () => {
+      const isTyping = await getTypingStatus(conversation.id);
+      setIsContactTyping(isTyping);
+    };
+
+    // Check immediately
+    checkTyping();
+
+    // Poll every 2 seconds
+    const interval = setInterval(checkTyping, 2000);
+
+    return () => clearInterval(interval);
+  }, [conversation?.id, getTypingStatus]);
 
   // Save signature preference
   useEffect(() => {
@@ -798,6 +821,16 @@ export function ChatArea({
               )}
             </div>
           )})}
+
+          {/* Typing indicator */}
+          {isContactTyping && (
+            <div className="flex justify-start">
+              <div className="bg-muted rounded-lg p-3">
+                <TypingIndicator contactName={conversation?.contact_name} />
+              </div>
+            </div>
+          )}
+          
           <div ref={messagesEndRef} />
         </div>
       </ScrollArea>
