@@ -534,11 +534,19 @@ CREATE TABLE IF NOT EXISTS chat_messages (
     message_type VARCHAR(50) DEFAULT 'text',
     media_url TEXT,
     media_mimetype VARCHAR(100),
+    wa_media_key TEXT,
     quoted_message_id UUID REFERENCES chat_messages(id) ON DELETE SET NULL,
     status VARCHAR(50) DEFAULT 'sent',
     timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Ensure W-API media key column exists (for existing databases)
+DO $$ BEGIN
+    ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS wa_media_key TEXT;
+EXCEPTION
+    WHEN duplicate_column THEN null;
+END $$;
 
 -- Add unique index on message_id to prevent duplicates (excludes temp_ messages)
 CREATE UNIQUE INDEX IF NOT EXISTS idx_chat_messages_message_id 

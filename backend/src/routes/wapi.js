@@ -301,11 +301,145 @@ function withTimeout(promise, ms, label = 'timeout') {
   return Promise.race([promise, timeout]).finally(() => clearTimeout(t));
 }
 
-async function cacheMedia({ messageId, mediaUrl, messageType, mediaMimetype, connection }) {
+function sniffExtFromBuffer(buf) {
+  if (!buf || buf.length < 12) return null;
+
+  // JPEG
+  if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return 'jpg';
+  // PNG
+  if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) return 'png';
+  // GIF
+  if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x38) return 'gif';
+  // WEBP (RIFF....WEBP)
+  if (
+    buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x46 &&
+    buf[8] === 0x57 && buf[9] === 0x45 && buf[10] === 0x42 && buf[11] === 0x50
+  ) return 'webp';
+  // PDF
+  if (buf[0] === 0x25 && buf[1] === 0x50 && buf[2] === 0x44 && buf[3] === 0x46) return 'pdf';
+  // OGG
+  if (buf[0] === 0x4f && buf[1] === 0x67 && buf[2] === 0x67 && buf[3] === 0x53) return 'ogg';
+  // MP4/QuickTime: ....ftyp
+  if (buf[4] === 0x66 && buf[5] === 0x74 && buf[6] === 0x79 && buf[7] === 0x70) return 'mp4';
+
+  return null;
+}
+
+async function writeBufferToUploads(buf, messageType, hintedMime) {
+  const ext = extFromMime(hintedMime) || sniffExtFromBuffer(buf) || defaultExtByType(messageType);
+  const filename = `${Date.now()}-${crypto.randomBytes(8).toString('hex')}.${ext}`;
+  const filePath = path.join(UPLOADS_DIR, filename);
+  await fs.promises.writeFile(filePath, buf);
+  return { publicUrl: buildUploadsPublicUrl(filename), mime: hintedMime || null };
+}
+
+function downloadToBuffer(url, redirectCount = 0) {
+  return new Promise((resolve, reject) => {
+    const client = url.startsWith('https://') ? https : http;
+
+    const req = client.get(
+      url,
+      {
+        headers: {
+          'User-Agent': 'Whatsale/1.0',
+          'Accept': '*/*',
+        },
+      },
+      (res) => {
+        const status = res.statusCode || 0;
+
+        if (
+          [301, 302, 303, 307, 308].includes(status) &&
+          res.headers.location &&
+          redirectCount < 3
+        ) {
+          const nextUrl = new URL(res.headers.location, url).toString();
+          res.resume();
+          return resolve(downloadToBuffer(nextUrl, redirectCount + 1));
+        }
+
+        if (status < 200 || status >= 300) {
+          res.resume();
+          return reject(new Error(`HTTP ${status}`));
+        }
+
+        const contentType = String(res.headers['content-type'] || '').split(';')[0].trim() || null;
+        const chunks = [];
+
+        res.on('data', (c) => chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c)));
+        res.on('end', () => resolve({ buffer: Buffer.concat(chunks), contentType }));
+        res.on('error', (err) => reject(err));
+      }
+    );
+
+    req.on('error', (err) => reject(err));
+    req.setTimeout(15000, () => req.destroy(new Error('Timeout downloading media')));
+  });
+}
+
+function decryptWhatsAppEncMedia(encBuffer, mediaKeyBase64, messageType) {
+  if (!encBuffer || encBuffer.length < 32) throw new Error('Encrypted buffer too small');
+  if (!mediaKeyBase64) throw new Error('Missing mediaKey');
+
+  const infoByType = {
+    image: 'WhatsApp Image Keys',
+    video: 'WhatsApp Video Keys',
+    audio: 'WhatsApp Audio Keys',
+    document: 'WhatsApp Document Keys',
+    sticker: 'WhatsApp Image Keys',
+  };
+
+  const info = infoByType[messageType] || infoByType.image;
+
+  const mediaKey = Buffer.from(String(mediaKeyBase64).trim(), 'base64');
+  if (!mediaKey || mediaKey.length < 32) throw new Error('Invalid mediaKey');
+
+  // HKDF -> 112 bytes: iv(16) + cipherKey(32) + macKey(32) + refKey(32)
+  const expanded = crypto.hkdfSync(
+    'sha256',
+    mediaKey,
+    Buffer.alloc(32, 0),
+    Buffer.from(info),
+    112
+  );
+
+  const iv = Buffer.from(expanded.slice(0, 16));
+  const cipherKey = Buffer.from(expanded.slice(16, 48));
+  const macKey = Buffer.from(expanded.slice(48, 80));
+
+  const mac = encBuffer.slice(encBuffer.length - 10);
+  const ciphertext = encBuffer.slice(0, encBuffer.length - 10);
+
+  const computedMac = crypto
+    .createHmac('sha256', macKey)
+    .update(Buffer.concat([iv, ciphertext]))
+    .digest()
+    .slice(0, 10);
+
+  if (!crypto.timingSafeEqual(mac, computedMac)) {
+    throw new Error('Media MAC mismatch (encrypted data or wrong key)');
+  }
+
+  const decipher = crypto.createDecipheriv('aes-256-cbc', cipherKey, iv);
+  decipher.setAutoPadding(true);
+  return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+}
+
+async function cacheMedia({ messageId, mediaUrl, messageType, mediaMimetype, connection, waMediaKey }) {
   const raw = mediaUrl;
 
   try {
-    // If it's a WhatsApp CDN URL, we need to use W-API download endpoint
+    // WhatsApp CDN URLs are encrypted .enc; if we have mediaKey, decrypt ourselves.
+    if (isWhatsAppCdnUrl(raw) && waMediaKey) {
+      console.log('[W-API Cache] WhatsApp CDN + mediaKey -> downloading encrypted and decrypting...');
+      const { buffer: encBuf, contentType } = await downloadToBuffer(raw);
+      const decBuf = decryptWhatsAppEncMedia(encBuf, waMediaKey, messageType);
+      const ext = sniffExtFromBuffer(decBuf);
+      console.log('[W-API Cache] Decrypted media ok. ext:', ext, 'encBytes:', encBuf.length, 'decBytes:', decBuf.length, 'encCT:', contentType);
+      return await writeBufferToUploads(decBuf, messageType, mediaMimetype);
+    }
+
+    // If it's a WhatsApp CDN URL and we don't have mediaKey, try W-API download endpoint (best effort)
     if (isWhatsAppCdnUrl(raw) && connection?.instance_id && connection?.wapi_token) {
       console.log('[W-API Cache] WhatsApp CDN URL detected, using W-API download endpoint...');
 
@@ -338,10 +472,10 @@ async function cacheMedia({ messageId, mediaUrl, messageType, mediaMimetype, con
   }
 }
 
-async function cacheMediaAndUpdateMessage({ messageId, mediaUrl, messageType, mediaMimetype, connection }) {
+async function cacheMediaAndUpdateMessage({ messageId, mediaUrl, messageType, mediaMimetype, connection, waMediaKey }) {
   console.log('[W-API Cache] Starting media cache for:', messageId, 'URL:', String(mediaUrl).slice(0, 200));
 
-  const cached = await cacheMedia({ messageId, mediaUrl, messageType, mediaMimetype, connection });
+  const cached = await cacheMedia({ messageId, mediaUrl, messageType, mediaMimetype, connection, waMediaKey });
   if (!cached?.publicUrl) return;
 
   try {
@@ -612,16 +746,17 @@ async function handleIncomingMessage(connection, payload) {
     }
 
     // Extract message content
-    const { messageType, content, mediaUrl: rawMediaUrl, mediaMimetype } = extractMessageContent(payload);
+    const { messageType, content, mediaUrl: rawMediaUrl, mediaMimetype, waMediaKey } = extractMessageContent(payload);
 
     console.log('[W-API] Extracted content:', {
       messageType,
       contentLen: content?.length,
       rawMediaUrl: rawMediaUrl?.slice?.(0, 100),
       mediaMimetype,
+      hasMediaKey: Boolean(waMediaKey),
     });
 
-    // For WhatsApp CDN URLs, the browser can't load them (CORS/auth). Try to cache eagerly (images only)
+    // For WhatsApp CDN URLs, the browser can't load them (encrypted .enc). Try to cache eagerly (images only)
     const normalizedMediaUrl = normalizeUploadsUrl(rawMediaUrl);
     let effectiveMediaUrl = normalizedMediaUrl;
     let effectiveMediaMimetype = mediaMimetype || null;
@@ -634,6 +769,7 @@ async function handleIncomingMessage(connection, payload) {
           messageType,
           mediaMimetype: effectiveMediaMimetype,
           connection,
+          waMediaKey,
         }),
         8000,
         'eager_media_cache_timeout'
@@ -667,9 +803,9 @@ async function handleIncomingMessage(connection, payload) {
 
     // Insert message into chat_messages table
     await query(
-      `INSERT INTO chat_messages (conversation_id, message_id, content, message_type, media_url, media_mimetype, from_me, status, timestamp)
-       VALUES ($1, $2, $3, $4, $5, $6, false, 'received', NOW())`,
-      [conversationId, messageId, content, messageType, effectiveMediaUrl, effectiveMediaMimetype]
+      `INSERT INTO chat_messages (conversation_id, message_id, content, message_type, media_url, media_mimetype, wa_media_key, from_me, status, timestamp)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, false, 'received', NOW())`,
+      [conversationId, messageId, content, messageType, effectiveMediaUrl, effectiveMediaMimetype, waMediaKey]
     );
 
     console.log('[W-API] Message saved. Type:', messageType, 'MediaURL:', effectiveMediaUrl?.slice?.(0, 100));
@@ -677,7 +813,14 @@ async function handleIncomingMessage(connection, payload) {
     // Cache media in background for reliability (CORS/expiração de URL)
     if (effectiveMediaUrl && shouldCacheExternally(effectiveMediaUrl)) {
       console.log('[W-API] Starting background media cache...');
-      cacheMediaAndUpdateMessage({ messageId, mediaUrl: effectiveMediaUrl, messageType, mediaMimetype: effectiveMediaMimetype, connection });
+      cacheMediaAndUpdateMessage({
+        messageId,
+        mediaUrl: effectiveMediaUrl,
+        messageType,
+        mediaMimetype: effectiveMediaMimetype,
+        connection,
+        waMediaKey,
+      });
     } else if (messageType !== 'text' && !effectiveMediaUrl) {
       console.log('[W-API] WARNING: Non-text message without mediaUrl! Type:', messageType);
     }
