@@ -115,6 +115,26 @@ interface WebhookEvent {
   preview: string;
 }
 
+interface WapiWebhookEvent {
+  at: string;
+  connectionId: string | null;
+  instanceId: string | null;
+  eventType: string | null;
+  headers: Record<string, string>;
+  preview: string;
+}
+
+interface WapiSendAttempt {
+  at: string;
+  instanceId: string;
+  phone: string;
+  messageType: string;
+  success: boolean;
+  status: number;
+  error?: string;
+  preview?: string;
+}
+
 interface Props {
   connection: Connection;
   onClose?: () => void;
@@ -138,8 +158,16 @@ export function WebhookDiagnosticPanel({ connection, onClose }: Props) {
   const [reconfiguring, setReconfiguring] = useState(false);
   const [diagnostic, setDiagnostic] = useState<DiagnosticResult | null>(null);
   const [wapiDiagnostic, setWapiDiagnostic] = useState<WapiDiagnosticResult | null>(null);
+
+  // Evolution webhook events (persisted on backend)
   const [events, setEvents] = useState<WebhookEvent[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
+
+  // W-API diagnostics (in-memory on backend)
+  const [wapiEvents, setWapiEvents] = useState<WapiWebhookEvent[]>([]);
+  const [wapiEventsLoading, setWapiEventsLoading] = useState(false);
+  const [wapiSendAttempts, setWapiSendAttempts] = useState<WapiSendAttempt[]>([]);
+  const [wapiSendAttemptsLoading, setWapiSendAttemptsLoading] = useState(false);
 
   const fetchDiagnostic = useCallback(async () => {
     setLoading(true);
@@ -212,8 +240,8 @@ export function WebhookDiagnosticPanel({ connection, onClose }: Props) {
   }, [connection.id, connection.name, connection.instance_id, isWapi]);
 
   const fetchEvents = useCallback(async () => {
-    if (isWapi) return; // W-API events are handled differently
-    
+    if (isWapi) return; // Evolution only
+
     setEventsLoading(true);
     try {
       const result = await api<{ events: WebhookEvent[] }>(`/api/evolution/${connection.id}/webhook-events?limit=100`);
@@ -222,6 +250,34 @@ export function WebhookDiagnosticPanel({ connection, onClose }: Props) {
       console.error("Error fetching events:", error);
     } finally {
       setEventsLoading(false);
+    }
+  }, [connection.id, isWapi]);
+
+  const fetchWapiEvents = useCallback(async () => {
+    if (!isWapi) return;
+
+    setWapiEventsLoading(true);
+    try {
+      const result = await api<{ events: WapiWebhookEvent[] }>(`/api/wapi/${connection.id}/webhook-events?limit=200`);
+      setWapiEvents(result.events || []);
+    } catch (error: any) {
+      console.error('Error fetching W-API events:', error);
+    } finally {
+      setWapiEventsLoading(false);
+    }
+  }, [connection.id, isWapi]);
+
+  const fetchWapiSendAttempts = useCallback(async () => {
+    if (!isWapi) return;
+
+    setWapiSendAttemptsLoading(true);
+    try {
+      const result = await api<{ attempts: WapiSendAttempt[] }>(`/api/wapi/${connection.id}/send-attempts?limit=200`);
+      setWapiSendAttempts(result.attempts || []);
+    } catch (error: any) {
+      console.error('Error fetching W-API send attempts:', error);
+    } finally {
+      setWapiSendAttemptsLoading(false);
     }
   }, [connection.id, isWapi]);
 
@@ -261,6 +317,26 @@ export function WebhookDiagnosticPanel({ connection, onClose }: Props) {
     }
   };
 
+  const handleClearWapiEvents = async () => {
+    try {
+      await api(`/api/wapi/${connection.id}/webhook-events`, { method: 'DELETE' });
+      setWapiEvents([]);
+      toast.success('Eventos W-API limpos');
+    } catch (error: any) {
+      toast.error(error.message || 'Erro ao limpar eventos W-API');
+    }
+  };
+
+  const handleClearWapiSendAttempts = async () => {
+    try {
+      await api(`/api/wapi/${connection.id}/send-attempts`, { method: 'DELETE' });
+      setWapiSendAttempts([]);
+      toast.success('Tentativas de envio limpas');
+    } catch (error: any) {
+      toast.error(error.message || 'Erro ao limpar tentativas de envio');
+    }
+  };
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     toast.success("Copiado!");
@@ -268,17 +344,28 @@ export function WebhookDiagnosticPanel({ connection, onClose }: Props) {
 
   useEffect(() => {
     fetchDiagnostic();
-    if (!isWapi) {
+
+    if (isWapi) {
+      fetchWapiEvents();
+      fetchWapiSendAttempts();
+    } else {
       fetchEvents();
     }
-  }, [fetchDiagnostic, fetchEvents, isWapi]);
+  }, [fetchDiagnostic, fetchEvents, fetchWapiEvents, fetchWapiSendAttempts, isWapi]);
 
-  // Auto-refresh events every 3 seconds (only for Evolution)
+  // Auto-refresh every 3 seconds
   useEffect(() => {
-    if (isWapi) return;
-    const interval = setInterval(fetchEvents, 3000);
+    const interval = setInterval(() => {
+      if (isWapi) {
+        fetchWapiEvents();
+        fetchWapiSendAttempts();
+      } else {
+        fetchEvents();
+      }
+    }, 3000);
+
     return () => clearInterval(interval);
-  }, [fetchEvents, isWapi]);
+  }, [fetchEvents, fetchWapiEvents, fetchWapiSendAttempts, isWapi]);
 
   if (loading) {
     return (
@@ -460,6 +547,111 @@ export function WebhookDiagnosticPanel({ connection, onClose }: Props) {
             <p>1. Se o status mostra "Desconectado", verifique se o QR code foi escaneado no painel da W-API.</p>
             <p>2. Clique em "Configurar Webhooks Automaticamente" para configurar os webhooks via API.</p>
             <p>3. Se a configuração automática falhar, configure manualmente no painel da W-API usando as URLs acima.</p>
+          </CardContent>
+        </Card>
+
+        {/* Monitor */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Activity className="h-4 w-4" />
+              Monitor (W-API)
+            </CardTitle>
+            <CardDescription>
+              Mostra os últimos eventos de webhook recebidos pelo backend e as últimas tentativas de envio do backend para a W-API (buffer em memória).
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Tabs defaultValue="webhooks" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
+                <TabsTrigger value="envios">Envios</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="webhooks" className="mt-4">
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <div className="text-xs text-muted-foreground">
+                    {wapiEvents.length ? `Último: ${new Date(wapiEvents[0].at).toLocaleString()}` : 'Nenhum evento ainda'}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={fetchWapiEvents} disabled={wapiEventsLoading}>
+                      <RefreshCw className={`h-4 w-4 mr-2 ${wapiEventsLoading ? 'animate-spin' : ''}`} />
+                      Atualizar
+                    </Button>
+                    <Button variant="destructive" size="sm" onClick={handleClearWapiEvents}>
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Limpar
+                    </Button>
+                  </div>
+                </div>
+
+                <ScrollArea className="h-[320px] rounded-md border border-border">
+                  <div className="p-3 space-y-3">
+                    {wapiEvents.length === 0 ? (
+                      <div className="text-sm text-muted-foreground">Nenhum webhook recebido ainda.</div>
+                    ) : (
+                      wapiEvents.map((ev, i) => (
+                        <div key={i} className="rounded-md border border-border p-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="text-xs text-muted-foreground">{new Date(ev.at).toLocaleString()}</div>
+                            <Badge variant="outline">{ev.eventType || 'unknown'}</Badge>
+                          </div>
+                          <pre className="mt-2 text-xs whitespace-pre-wrap break-words bg-muted/40 rounded p-2">
+                            {ev.preview}
+                          </pre>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </ScrollArea>
+              </TabsContent>
+
+              <TabsContent value="envios" className="mt-4">
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <div className="text-xs text-muted-foreground">
+                    {wapiSendAttempts.length ? `Última: ${new Date(wapiSendAttempts[0].at).toLocaleString()}` : 'Nenhuma tentativa ainda'}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={fetchWapiSendAttempts} disabled={wapiSendAttemptsLoading}>
+                      <RefreshCw className={`h-4 w-4 mr-2 ${wapiSendAttemptsLoading ? 'animate-spin' : ''}`} />
+                      Atualizar
+                    </Button>
+                    <Button variant="destructive" size="sm" onClick={handleClearWapiSendAttempts}>
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Limpar
+                    </Button>
+                  </div>
+                </div>
+
+                <ScrollArea className="h-[320px] rounded-md border border-border">
+                  <div className="p-3 space-y-3">
+                    {wapiSendAttempts.length === 0 ? (
+                      <div className="text-sm text-muted-foreground">Nenhuma tentativa de envio registrada ainda.</div>
+                    ) : (
+                      wapiSendAttempts.map((a, i) => (
+                        <div key={i} className="rounded-md border border-border p-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="text-xs text-muted-foreground">{new Date(a.at).toLocaleString()}</div>
+                            <Badge variant={a.success ? 'default' : 'destructive'} className={a.success ? 'bg-green-500' : ''}>
+                              {a.success ? `OK (${a.status})` : `Falha (${a.status || '—'})`}
+                            </Badge>
+                          </div>
+                          <div className="mt-2 text-xs text-muted-foreground">
+                            <span className="font-medium">Para:</span> {a.phone} · <span className="font-medium">Tipo:</span> {a.messageType}
+                          </div>
+                          {a.error && <div className="mt-1 text-xs text-destructive">Erro: {a.error}</div>}
+                          {a.preview ? (
+                            <pre className="mt-2 text-xs whitespace-pre-wrap break-words bg-muted/40 rounded p-2">
+                              {a.preview}
+                            </pre>
+                          ) : null}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </ScrollArea>
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
       </div>

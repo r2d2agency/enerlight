@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { query } from '../db.js';
+import { authenticate } from '../middleware/auth.js';
+import { getSendAttempts, clearSendAttempts } from '../lib/wapi-provider.js';
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
@@ -8,6 +10,52 @@ const router = Router();
 
 const UPLOADS_DIR = path.join(process.cwd(), 'uploads');
 const API_BASE_URL = process.env.API_BASE_URL || 'https://whastsale-backend.exf0ty.easypanel.host';
+
+// In-memory webhook event buffer for diagnostics only (not persisted)
+const WEBHOOK_EVENTS_MAX = 200;
+const webhookEvents = []; // { at, connectionId, instanceId, eventType, headers, preview }
+
+function safeHeaders(req) {
+  const h = req.headers || {};
+  const out = {};
+  const pick = (k) => {
+    const v = h?.[k];
+    if (v === undefined || v === null) return;
+    out[k] = Array.isArray(v) ? v.join(', ') : String(v);
+  };
+  // Store only non-sensitive headers
+  pick('user-agent');
+  pick('content-type');
+  pick('x-forwarded-for');
+  pick('x-real-ip');
+  pick('host');
+  return out;
+}
+
+function pushWebhookEvent({ connectionId, instanceId, eventType, req, payload }) {
+  webhookEvents.unshift({
+    at: new Date().toISOString(),
+    connectionId: connectionId || null,
+    instanceId: instanceId || null,
+    eventType: eventType || null,
+    headers: safeHeaders(req),
+    preview: JSON.stringify(payload).slice(0, 900),
+  });
+  if (webhookEvents.length > WEBHOOK_EVENTS_MAX) webhookEvents.length = WEBHOOK_EVENTS_MAX;
+}
+
+async function getAccessibleConnection(connectionId, userId) {
+  const result = await query(
+    `SELECT c.*
+     FROM connections c
+     LEFT JOIN organization_members om
+       ON om.organization_id = c.organization_id AND om.user_id = $2
+     WHERE c.id = $1 AND (c.user_id = $2 OR om.id IS NOT NULL)
+     LIMIT 1`,
+    [connectionId, userId]
+  );
+  return result.rows[0] || null;
+}
 
 // Ensure uploads directory exists
 if (!fs.existsSync(UPLOADS_DIR)) {
@@ -28,17 +76,21 @@ router.post('/webhook', async (req, res) => {
 
     // W-API sends different payload structures depending on event type
     // Common fields: instanceId, phone, message, messageId, etc.
-    
+
     const instanceId = payload.instanceId || payload.instance_id || payload.instance;
-    
+
     if (!instanceId) {
       console.log('[W-API Webhook] No instanceId in payload');
+      pushWebhookEvent({ connectionId: null, instanceId: null, eventType: 'unknown', req, payload });
       return res.status(200).json({ received: true, skipped: 'no instanceId' });
     }
 
+    // Detect event type from payload
+    const eventType = detectEventType(payload);
+
     // Find connection by instance_id
     const connResult = await query(
-      `SELECT c.*, om.organization_id 
+      `SELECT c.*, om.organization_id
        FROM connections c
        LEFT JOIN organization_members om ON om.user_id = c.user_id
        WHERE c.instance_id = $1 AND c.wapi_token IS NOT NULL
@@ -48,13 +100,14 @@ router.post('/webhook', async (req, res) => {
 
     if (connResult.rows.length === 0) {
       console.log('[W-API Webhook] Connection not found for instance:', instanceId);
+      pushWebhookEvent({ connectionId: null, instanceId, eventType, req, payload });
       return res.status(200).json({ received: true, skipped: 'connection not found' });
     }
 
     const connection = connResult.rows[0];
 
-    // Detect event type from payload
-    const eventType = detectEventType(payload);
+    pushWebhookEvent({ connectionId: connection.id, instanceId, eventType, req, payload });
+
     console.log('[W-API Webhook] Event type:', eventType, 'Instance:', instanceId);
 
     switch (eventType) {
@@ -79,6 +132,80 @@ router.post('/webhook', async (req, res) => {
     console.error('[W-API Webhook] Error:', error);
     // Always return 200 to prevent W-API from retrying
     res.status(200).json({ received: true, error: error.message });
+  }
+});
+
+// Diagnostics: view/clear last webhook events received by the backend
+router.get('/:connectionId/webhook-events', authenticate, async (req, res) => {
+  try {
+    const { connectionId } = req.params;
+    const limit = Math.max(1, Math.min(200, Number(req.query.limit) || 100));
+
+    const connection = await getAccessibleConnection(connectionId, req.userId);
+    if (!connection) return res.status(404).json({ error: 'Conexão não encontrada' });
+
+    const instanceId = connection.instance_id;
+    const events = webhookEvents.filter((e) => e.instanceId === instanceId).slice(0, limit);
+
+    res.json({ events });
+  } catch (error) {
+    console.error('[W-API] webhook-events GET error:', error);
+    res.status(500).json({ error: 'Erro ao buscar eventos do webhook' });
+  }
+});
+
+router.delete('/:connectionId/webhook-events', authenticate, async (req, res) => {
+  try {
+    const { connectionId } = req.params;
+
+    const connection = await getAccessibleConnection(connectionId, req.userId);
+    if (!connection) return res.status(404).json({ error: 'Conexão não encontrada' });
+
+    const instanceId = connection.instance_id;
+    let removed = 0;
+    for (let i = webhookEvents.length - 1; i >= 0; i--) {
+      if (webhookEvents[i]?.instanceId === instanceId) {
+        webhookEvents.splice(i, 1);
+        removed++;
+      }
+    }
+
+    res.json({ success: true, removed });
+  } catch (error) {
+    console.error('[W-API] webhook-events DELETE error:', error);
+    res.status(500).json({ error: 'Erro ao limpar eventos do webhook' });
+  }
+});
+
+// Diagnostics: view/clear last send attempts from backend -> W-API
+router.get('/:connectionId/send-attempts', authenticate, async (req, res) => {
+  try {
+    const { connectionId } = req.params;
+    const limit = Math.max(1, Math.min(200, Number(req.query.limit) || 100));
+
+    const connection = await getAccessibleConnection(connectionId, req.userId);
+    if (!connection) return res.status(404).json({ error: 'Conexão não encontrada' });
+
+    const attempts = getSendAttempts({ instanceId: connection.instance_id, limit });
+    res.json({ attempts });
+  } catch (error) {
+    console.error('[W-API] send-attempts GET error:', error);
+    res.status(500).json({ error: 'Erro ao buscar tentativas de envio' });
+  }
+});
+
+router.delete('/:connectionId/send-attempts', authenticate, async (req, res) => {
+  try {
+    const { connectionId } = req.params;
+
+    const connection = await getAccessibleConnection(connectionId, req.userId);
+    if (!connection) return res.status(404).json({ error: 'Conexão não encontrada' });
+
+    clearSendAttempts(connection.instance_id);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[W-API] send-attempts DELETE error:', error);
+    res.status(500).json({ error: 'Erro ao limpar tentativas de envio' });
   }
 });
 

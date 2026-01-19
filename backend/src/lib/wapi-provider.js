@@ -4,6 +4,44 @@
 const W_API_BASE_URL = 'https://api.w-api.app/v1';
 const WEBHOOK_BASE_URL = process.env.WEBHOOK_BASE_URL || process.env.API_BASE_URL || 'https://whastsale-backend.exf0ty.easypanel.host';
 
+// In-memory send attempts buffer (for diagnostics only; not persisted)
+const SEND_ATTEMPTS_MAX = 200;
+const sendAttempts = []; // { at, instanceId, phone, messageType, success, status, error, preview }
+
+function recordSendAttempt(attempt) {
+  try {
+    sendAttempts.unshift(attempt);
+    if (sendAttempts.length > SEND_ATTEMPTS_MAX) sendAttempts.length = SEND_ATTEMPTS_MAX;
+  } catch {
+    // no-op
+  }
+}
+
+export function getSendAttempts({ instanceId, limit = 200 } = {}) {
+  const filtered = instanceId ? sendAttempts.filter((a) => a.instanceId === instanceId) : sendAttempts;
+  return filtered.slice(0, Math.max(1, Math.min(200, Number(limit) || 200)));
+}
+
+export function clearSendAttempts(instanceId) {
+  if (!instanceId) {
+    sendAttempts.length = 0;
+    return;
+  }
+  for (let i = sendAttempts.length - 1; i >= 0; i--) {
+    if (sendAttempts[i]?.instanceId === instanceId) sendAttempts.splice(i, 1);
+  }
+}
+
+async function readJsonResponse(response) {
+  const text = await response.text().catch(() => '');
+  if (!text) return { data: {}, text: '' };
+  try {
+    return { data: JSON.parse(text), text };
+  } catch {
+    throw new Error('Invalid JSON response');
+  }
+}
+
 /**
  * Get headers for W-API requests
  */
@@ -212,6 +250,9 @@ export async function disconnect(instanceId, token) {
  * Send text message
  */
 export async function sendText(instanceId, token, phone, message) {
+  const cleanPhone = phone.replace(/\D/g, '');
+  const at = new Date().toISOString();
+
   try {
     const response = await fetch(
       `${W_API_BASE_URL}/message/send-text?instanceId=${instanceId}`,
@@ -219,26 +260,55 @@ export async function sendText(instanceId, token, phone, message) {
         method: 'POST',
         headers: getHeaders(token),
         body: JSON.stringify({
-          phone: phone.replace(/\D/g, ''),
+          phone: cleanPhone,
           message: message,
         }),
       }
     );
 
-    const data = await response.json();
+    const { data, text } = await readJsonResponse(response);
 
     if (!response.ok) {
-      return {
+      const errorMsg = data?.message || data?.error || 'Failed to send message';
+      recordSendAttempt({
+        at,
+        instanceId,
+        phone: cleanPhone,
+        messageType: 'text',
         success: false,
-        error: data.message || data.error || 'Failed to send message',
-      };
+        status: response.status,
+        error: errorMsg,
+        preview: text.slice(0, 800),
+      });
+      return { success: false, error: errorMsg };
     }
+
+    recordSendAttempt({
+      at,
+      instanceId,
+      phone: cleanPhone,
+      messageType: 'text',
+      success: true,
+      status: response.status,
+      preview: text.slice(0, 800),
+    });
 
     return {
       success: true,
       messageId: data.messageId || data.id || data.key?.id,
     };
   } catch (error) {
+    recordSendAttempt({
+      at,
+      instanceId,
+      phone: cleanPhone,
+      messageType: 'text',
+      success: false,
+      status: 0,
+      error: error.message,
+      preview: '',
+    });
+
     console.error('W-API sendText error:', error);
     return { success: false, error: error.message };
   }
