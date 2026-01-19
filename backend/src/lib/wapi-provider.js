@@ -398,14 +398,13 @@ export async function sendDocument(instanceId, token, phone, documentUrl, filena
  */
 export async function checkNumber(instanceId, token, phone) {
   try {
+    const cleanPhone = phone.replace(/\D/g, '');
+    // W-API uses GET /contacts/phone-exists with phoneNumber as query param
     const response = await fetch(
-      `${W_API_BASE_URL}/contacts/check-number?instanceId=${instanceId}`,
+      `${W_API_BASE_URL}/contacts/phone-exists?instanceId=${encodeURIComponent(instanceId)}&phoneNumber=${cleanPhone}`,
       {
-        method: 'POST',
+        method: 'GET',
         headers: getHeaders(token),
-        body: JSON.stringify({
-          phone: phone.replace(/\D/g, ''),
-        }),
       }
     );
 
@@ -414,7 +413,7 @@ export async function checkNumber(instanceId, token, phone) {
     }
 
     const data = await response.json();
-    return data.exists === true || data.isWhatsApp === true;
+    return data.exists === true || data.isWhatsApp === true || data.result === true;
   } catch (error) {
     console.error('W-API checkNumber error:', error);
     return false;
