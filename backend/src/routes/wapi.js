@@ -211,33 +211,56 @@ router.delete('/:connectionId/send-attempts', authenticate, async (req, res) => 
 
 /**
  * Detect event type from W-API payload
+ * W-API uses specific event names like:
+ * - webhookReceived: incoming message
+ * - webhookDelivery: outgoing message confirmation (fromApi)
+ * - webhookConnected / webhookDisconnected: connection status
  */
 function detectEventType(payload) {
-  // W-API typically sends different structures for different events
-  
-  // Message received (incoming)
-  if (payload.event === 'message' || payload.event === 'messages.upsert') {
+  const event = payload.event;
+
+  // W-API specific event types
+  if (event === 'webhookReceived') {
+    // Incoming message from contact
+    return 'message_received';
+  }
+
+  if (event === 'webhookDelivery') {
+    // Outgoing message confirmation (sent via API)
+    return 'message_sent';
+  }
+
+  if (event === 'webhookConnected') {
+    return 'connection_update';
+  }
+
+  if (event === 'webhookDisconnected') {
+    return 'connection_update';
+  }
+
+  // Legacy/fallback: Evolution-style events
+  if (event === 'message' || event === 'messages.upsert') {
     if (payload.fromMe === false || payload.isFromMe === false) {
       return 'message_received';
     }
     return 'message_sent';
   }
 
-  // Check by presence of message fields
-  if (payload.message || payload.text || payload.body) {
-    if (payload.fromMe === true || payload.isFromMe === true) {
+  // Check by presence of message fields (msgContent is W-API specific)
+  if (payload.msgContent || payload.message || payload.text || payload.body) {
+    if (payload.fromMe === true || payload.isFromMe === true || payload.fromApi === true) {
       return 'message_sent';
     }
     return 'message_received';
   }
 
-  // Status update
-  if (payload.event === 'message.ack' || payload.ack !== undefined) {
+  // Status update (delivery ack)
+  if (event === 'message.ack' || payload.ack !== undefined) {
     return 'status_update';
   }
 
   // Connection status
-  if (payload.event === 'connection.update' || payload.status || payload.connected !== undefined) {
+  if (event === 'connection.update' || payload.status || payload.connected !== undefined) {
     return 'connection_update';
   }
 
@@ -246,20 +269,28 @@ function detectEventType(payload) {
 
 /**
  * Handle incoming message from W-API
+ * W-API payload structure:
+ * {
+ *   event: "webhookReceived",
+ *   instanceId, connectedPhone, messageId, fromMe: false,
+ *   chat: { id: "5517991308048" },
+ *   sender: { id, pushName },
+ *   msgContent: { conversation: "..." } | { imageMessage: {...} } | etc.
+ * }
  */
 async function handleIncomingMessage(connection, payload) {
   try {
-    // Extract message data from W-API payload
-    const phone = payload.phone || payload.from || payload.sender || payload.remoteJid?.split('@')[0];
+    // W-API format: chat.id is the sender phone for incoming
+    const phone = payload.chat?.id || payload.phone || payload.from || payload.sender?.id || payload.remoteJid?.split('@')[0];
     const messageId = payload.messageId || payload.id || payload.key?.id || crypto.randomUUID();
-    
+
     if (!phone) {
-      console.log('[W-API] No phone in incoming message');
+      console.log('[W-API] No phone in incoming message, payload:', JSON.stringify(payload).slice(0, 300));
       return;
     }
 
     // Normalize phone to JID format
-    const cleanPhone = phone.replace(/\D/g, '');
+    const cleanPhone = String(phone).replace(/\D/g, '');
     const remoteJid = cleanPhone.includes('@') ? cleanPhone : `${cleanPhone}@s.whatsapp.net`;
 
     // Get or create conversation
@@ -271,8 +302,8 @@ async function handleIncomingMessage(connection, payload) {
     let conversationId;
     if (conversationResult.rows.length === 0) {
       // Create new conversation
-      const contactName = payload.pushName || payload.name || payload.senderName || cleanPhone;
-      
+      const contactName = payload.sender?.pushName || payload.pushName || payload.name || payload.senderName || cleanPhone;
+
       const newConv = await query(
         `INSERT INTO conversations (connection_id, remote_jid, contact_name, contact_phone, last_message_at, unread_count)
          VALUES ($1, $2, $3, $4, NOW(), 1)
@@ -282,7 +313,7 @@ async function handleIncomingMessage(connection, payload) {
       conversationId = newConv.rows[0].id;
     } else {
       conversationId = conversationResult.rows[0].id;
-      
+
       // Update conversation
       await query(
         `UPDATE conversations 
@@ -290,7 +321,7 @@ async function handleIncomingMessage(connection, payload) {
              unread_count = unread_count + 1,
              contact_name = COALESCE($2, contact_name)
          WHERE id = $1`,
-        [conversationId, payload.pushName || payload.name]
+        [conversationId, payload.sender?.pushName || payload.pushName || payload.name]
       );
     }
 
@@ -313,30 +344,41 @@ async function handleIncomingMessage(connection, payload) {
       return;
     }
 
-    // Insert message into chat_messages table (correct table)
+    // Insert message into chat_messages table
     await query(
       `INSERT INTO chat_messages (conversation_id, message_id, content, message_type, media_url, from_me, status, timestamp)
        VALUES ($1, $2, $3, $4, $5, false, 'received', NOW())`,
       [conversationId, messageId, content, messageType, mediaUrl]
     );
 
-    console.log('[W-API] Message saved:', messageId, 'Type:', messageType);
+    console.log('[W-API] Incoming message saved:', messageId, 'Type:', messageType, 'From:', cleanPhone);
   } catch (error) {
     console.error('[W-API] Error handling incoming message:', error);
   }
 }
 
 /**
- * Handle outgoing message (sent by us)
+ * Handle outgoing message (sent by us, confirmed by W-API webhook)
+ * W-API payload structure for webhookDelivery:
+ * {
+ *   event: "webhookDelivery",
+ *   instanceId, connectedPhone, messageId, fromMe: true, fromApi: true,
+ *   chat: { id: "5517991308048" },  // destination phone
+ *   msgContent: { conversation: "..." }
+ * }
  */
 async function handleOutgoingMessage(connection, payload) {
   try {
-    const phone = payload.phone || payload.to || payload.remoteJid?.split('@')[0];
+    // W-API format: chat.id is the destination phone for outgoing
+    const phone = payload.chat?.id || payload.phone || payload.to || payload.remoteJid?.split('@')[0];
     const messageId = payload.messageId || payload.id || payload.key?.id;
-    
-    if (!phone || !messageId) return;
 
-    const cleanPhone = phone.replace(/\D/g, '');
+    if (!phone || !messageId) {
+      console.log('[W-API] Missing phone or messageId in outgoing:', { phone, messageId });
+      return;
+    }
+
+    const cleanPhone = String(phone).replace(/\D/g, '');
     const remoteJid = cleanPhone.includes('@') ? cleanPhone : `${cleanPhone}@s.whatsapp.net`;
 
     // Find conversation
@@ -345,30 +387,40 @@ async function handleOutgoingMessage(connection, payload) {
       [connection.id, remoteJid]
     );
 
-    if (convResult.rows.length === 0) return;
+    if (convResult.rows.length === 0) {
+      console.log('[W-API] Conversation not found for outgoing message to:', remoteJid);
+      return;
+    }
 
     const conversationId = convResult.rows[0].id;
     const { messageType, content, mediaUrl } = extractMessageContent(payload);
 
     // Check for duplicate or pending message (optimistic UI pattern)
     const existingMsg = await query(
-      `SELECT id FROM chat_messages WHERE message_id = $1 OR 
+      `SELECT id, message_id FROM chat_messages WHERE message_id = $1 OR 
        (message_id LIKE 'temp_%' AND conversation_id = $2 AND from_me = true AND status = 'pending' 
-        AND timestamp > NOW() - INTERVAL '60 seconds')`,
+        AND timestamp > NOW() - INTERVAL '120 seconds')
+       ORDER BY CASE WHEN message_id = $1 THEN 0 ELSE 1 END
+       LIMIT 1`,
       [messageId, conversationId]
     );
 
     if (existingMsg.rows.length > 0) {
+      const existing = existingMsg.rows[0];
+      if (existing.message_id === messageId) {
+        console.log('[W-API] Outgoing message already exists:', messageId);
+        return;
+      }
       // Update the pending message with real message ID
       await query(
         `UPDATE chat_messages SET message_id = $1, status = 'sent' WHERE id = $2`,
-        [messageId, existingMsg.rows[0].id]
+        [messageId, existing.id]
       );
       console.log('[W-API] Updated pending message with real ID:', messageId);
       return;
     }
 
-    // Insert sent message into chat_messages table (correct table)
+    // Insert sent message if not found (e.g., sent from W-API panel directly)
     await query(
       `INSERT INTO chat_messages (conversation_id, message_id, content, message_type, media_url, from_me, status, timestamp)
        VALUES ($1, $2, $3, $4, $5, true, 'sent', NOW())`,
@@ -381,7 +433,7 @@ async function handleOutgoingMessage(connection, payload) {
       [conversationId]
     );
 
-    console.log('[W-API] Outgoing message saved:', messageId);
+    console.log('[W-API] Outgoing message saved:', messageId, 'To:', cleanPhone);
   } catch (error) {
     console.error('[W-API] Error handling outgoing message:', error);
   }
@@ -436,13 +488,76 @@ async function handleConnectionUpdate(connection, payload) {
 
 /**
  * Extract message content from W-API payload
+ * W-API uses msgContent object:
+ * - msgContent.conversation: text message
+ * - msgContent.imageMessage: image with caption
+ * - msgContent.audioMessage: audio
+ * - msgContent.videoMessage: video with caption
+ * - msgContent.documentMessage: document with filename
+ * - msgContent.stickerMessage: sticker
  */
 function extractMessageContent(payload) {
   let messageType = 'text';
   let content = '';
   let mediaUrl = null;
 
-  // Text message
+  const msgContent = payload.msgContent || {};
+
+  // Text message (W-API uses msgContent.conversation)
+  if (msgContent.conversation) {
+    content = msgContent.conversation;
+    messageType = 'text';
+    return { messageType, content, mediaUrl };
+  }
+
+  // Extended text message
+  if (msgContent.extendedTextMessage) {
+    content = msgContent.extendedTextMessage.text || '';
+    messageType = 'text';
+    return { messageType, content, mediaUrl };
+  }
+
+  // Image message
+  if (msgContent.imageMessage) {
+    messageType = 'image';
+    mediaUrl = msgContent.imageMessage.url || payload.mediaUrl;
+    content = msgContent.imageMessage.caption || '';
+    return { messageType, content, mediaUrl };
+  }
+
+  // Audio message
+  if (msgContent.audioMessage) {
+    messageType = 'audio';
+    mediaUrl = msgContent.audioMessage.url || payload.mediaUrl;
+    content = '[Áudio]';
+    return { messageType, content, mediaUrl };
+  }
+
+  // Video message
+  if (msgContent.videoMessage) {
+    messageType = 'video';
+    mediaUrl = msgContent.videoMessage.url || payload.mediaUrl;
+    content = msgContent.videoMessage.caption || '';
+    return { messageType, content, mediaUrl };
+  }
+
+  // Document message
+  if (msgContent.documentMessage) {
+    messageType = 'document';
+    mediaUrl = msgContent.documentMessage.url || payload.mediaUrl;
+    content = msgContent.documentMessage.fileName || '[Documento]';
+    return { messageType, content, mediaUrl };
+  }
+
+  // Sticker message
+  if (msgContent.stickerMessage) {
+    messageType = 'sticker';
+    mediaUrl = msgContent.stickerMessage.url || payload.mediaUrl;
+    content = '[Figurinha]';
+    return { messageType, content, mediaUrl };
+  }
+
+  // Fallback: legacy format (payload.text, payload.body, etc.)
   if (payload.text || payload.body || payload.message) {
     content = payload.text || payload.body || payload.message;
     if (typeof content === 'object') {
@@ -451,35 +566,30 @@ function extractMessageContent(payload) {
     messageType = 'text';
   }
 
-  // Image
   if (payload.image || payload.imageMessage) {
     messageType = 'image';
     mediaUrl = payload.image || payload.imageMessage?.url || payload.mediaUrl;
     content = payload.caption || payload.imageMessage?.caption || '';
   }
 
-  // Audio
   if (payload.audio || payload.audioMessage) {
     messageType = 'audio';
     mediaUrl = payload.audio || payload.audioMessage?.url || payload.mediaUrl;
     content = '[Áudio]';
   }
 
-  // Video
   if (payload.video || payload.videoMessage) {
     messageType = 'video';
     mediaUrl = payload.video || payload.videoMessage?.url || payload.mediaUrl;
     content = payload.caption || payload.videoMessage?.caption || '';
   }
 
-  // Document
   if (payload.document || payload.documentMessage) {
     messageType = 'document';
     mediaUrl = payload.document || payload.documentMessage?.url || payload.mediaUrl;
     content = payload.fileName || payload.documentMessage?.fileName || '[Documento]';
   }
 
-  // Sticker
   if (payload.sticker || payload.stickerMessage) {
     messageType = 'sticker';
     mediaUrl = payload.sticker || payload.stickerMessage?.url || payload.mediaUrl;
