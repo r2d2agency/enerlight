@@ -75,6 +75,7 @@ export async function configureWebhooks(instanceId, token) {
 
 /**
  * Check instance status
+ * W-API returns different response structures, handle all possibilities
  */
 export async function checkStatus(instanceId, token) {
   try {
@@ -83,22 +84,61 @@ export async function checkStatus(instanceId, token) {
       { headers: getHeaders(token) }
     );
 
+    const responseText = await response.text();
+    console.log(`[W-API] Status check for ${instanceId}: HTTP ${response.status}, Body:`, responseText.slice(0, 500));
+
     if (!response.ok) {
-      return { status: 'disconnected', error: 'Failed to check status' };
+      return { status: 'disconnected', error: `HTTP ${response.status}` };
     }
 
-    const data = await response.json();
-    
-    if (data.connected || data.status === 'connected' || data.state === 'open') {
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch {
+      return { status: 'disconnected', error: 'Invalid JSON response' };
+    }
+
+    console.log('[W-API] Parsed status data:', JSON.stringify(data));
+
+    // W-API can return various structures, check all known patterns
+    const isConnected = 
+      data.connected === true ||
+      data.status === 'connected' ||
+      data.status === 'CONNECTED' ||
+      data.state === 'open' ||
+      data.state === 'CONNECTED' ||
+      data.isConnected === true ||
+      data.result?.connected === true ||
+      data.result?.status === 'connected' ||
+      data.data?.connected === true ||
+      data.data?.status === 'connected';
+
+    // Extract phone number from various possible locations
+    const phoneNumber = 
+      data.phoneNumber ||
+      data.phone ||
+      data.number ||
+      data.wid?.split('@')[0] ||
+      data.result?.phoneNumber ||
+      data.result?.phone ||
+      data.data?.phoneNumber ||
+      data.data?.phone ||
+      data.me?.id?.split('@')[0] ||
+      data.me?.user ||
+      null;
+
+    if (isConnected) {
+      console.log('[W-API] Instance is CONNECTED, phone:', phoneNumber);
       return {
         status: 'connected',
-        phoneNumber: data.phoneNumber || data.phone || data.wid?.split('@')[0],
+        phoneNumber,
       };
     }
 
+    console.log('[W-API] Instance is DISCONNECTED');
     return { status: 'disconnected' };
   } catch (error) {
-    console.error('W-API checkStatus error:', error);
+    console.error('[W-API] checkStatus error:', error);
     return { status: 'disconnected', error: error.message };
   }
 }
