@@ -510,69 +510,99 @@ export async function sendMessage(instanceId, token, phone, content, messageType
 
 /**
  * Download media from W-API using messageId
- * This is needed because WhatsApp CDN URLs (mmg.whatsapp.net) require authentication
+ * This is needed because WhatsApp CDN URLs (mmg.whatsapp.net) require authentication.
+ *
+ * NOTE: W-API responses vary by version; this function tries a couple of shapes.
  */
 export async function downloadMedia(instanceId, token, messageId) {
-  try {
-    console.log('[W-API] Downloading media for messageId:', messageId);
-    
-    const response = await fetch(
-      `${W_API_BASE_URL}/message/download-media?instanceId=${encodeURIComponent(instanceId)}&messageId=${encodeURIComponent(messageId)}`,
-      {
-        method: 'GET',
-        headers: getHeaders(token),
-      }
-    );
+  const encodedInstanceId = encodeURIComponent(instanceId || '');
+  const encodedMessageId = encodeURIComponent(messageId || '');
 
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => '');
-      console.error('[W-API] Download media failed:', response.status, errorText.slice(0, 500));
-      return { success: false, error: `HTTP ${response.status}` };
+  const attempts = [
+    {
+      label: 'GET messageId',
+      url: `${W_API_BASE_URL}/message/download-media?instanceId=${encodedInstanceId}&messageId=${encodedMessageId}`,
+      method: 'GET',
+    },
+    {
+      label: 'GET id',
+      url: `${W_API_BASE_URL}/message/download-media?instanceId=${encodedInstanceId}&id=${encodedMessageId}`,
+      method: 'GET',
+    },
+    {
+      label: 'POST {messageId}',
+      url: `${W_API_BASE_URL}/message/download-media?instanceId=${encodedInstanceId}`,
+      method: 'POST',
+      body: { messageId },
+    },
+  ];
+
+  const normalizeJson = (data) => {
+    if (!data || typeof data !== 'object') return null;
+
+    const base64Raw = data.base64 || data.data || data.media || data.file || null;
+    const url = data.url || data.mediaUrl || data.fileUrl || data.downloadUrl || null;
+    const mimetype = data.mimetype || data.mimeType || data.type || data.contentType || null;
+
+    if (typeof base64Raw === 'string' && base64Raw.trim()) {
+      const b = base64Raw.trim();
+      const b64 = b.startsWith('data:') ? b : `data:${mimetype || 'application/octet-stream'};base64,${b}`;
+      return { success: true, base64: b64, mimetype: mimetype || undefined };
     }
 
-    const contentType = response.headers.get('content-type') || '';
-    
-    // Check if response is JSON (error or base64 data)
-    if (contentType.includes('application/json')) {
-      const data = await response.json();
-      
-      // W-API may return base64 in the response
-      if (data.base64 || data.data) {
-        const base64 = data.base64 || data.data;
-        const mimetype = data.mimetype || data.mimeType || 'image/jpeg';
-        return { 
-          success: true, 
-          base64: `data:${mimetype};base64,${base64}`,
-          mimetype 
-        };
-      }
-      
-      // Or a URL to download
-      if (data.url || data.mediaUrl) {
-        return { 
-          success: true, 
-          url: data.url || data.mediaUrl,
-          mimetype: data.mimetype || data.mimeType 
-        };
-      }
-      
-      return { success: false, error: data.message || data.error || 'No media data in response' };
+    if (typeof url === 'string' && url.trim()) {
+      return { success: true, url: url.trim(), mimetype: mimetype || undefined };
     }
-    
-    // Response is binary data
-    const buffer = await response.arrayBuffer();
-    const base64 = Buffer.from(buffer).toString('base64');
-    const mimetype = contentType.split(';')[0].trim() || 'application/octet-stream';
-    
-    console.log('[W-API] Downloaded media successfully, size:', buffer.byteLength, 'type:', mimetype);
-    
-    return { 
-      success: true, 
-      base64: `data:${mimetype};base64,${base64}`,
-      mimetype 
-    };
-  } catch (error) {
-    console.error('[W-API] downloadMedia error:', error);
-    return { success: false, error: error.message };
+
+    return null;
+  };
+
+  for (const a of attempts) {
+    try {
+      console.log('[W-API] downloadMedia attempt:', a.label, 'messageId:', messageId);
+
+      const response = await fetch(a.url, {
+        method: a.method,
+        headers: {
+          ...getHeaders(token),
+          ...(a.method === 'POST' ? { 'Content-Type': 'application/json' } : {}),
+        },
+        body: a.method === 'POST' ? JSON.stringify(a.body || {}) : undefined,
+      });
+
+      const contentType = response.headers.get('content-type') || '';
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => '');
+        console.error('[W-API] Download media failed:', a.label, response.status, errorText.slice(0, 300));
+        continue;
+      }
+
+      // JSON response (may contain base64/url)
+      if (contentType.includes('application/json')) {
+        const data = await response.json().catch(() => null);
+        const normalized = normalizeJson(data);
+        if (normalized) return normalized;
+        return { success: false, error: 'No media data in JSON response' };
+      }
+
+      // Binary response
+      const buffer = await response.arrayBuffer();
+      const base64 = Buffer.from(buffer).toString('base64');
+      const mimetype = contentType.split(';')[0].trim() || 'application/octet-stream';
+
+      console.log('[W-API] Downloaded media successfully, size:', buffer.byteLength, 'type:', mimetype);
+
+      return {
+        success: true,
+        base64: `data:${mimetype};base64,${base64}`,
+        mimetype,
+      };
+    } catch (error) {
+      console.error('[W-API] downloadMedia attempt error:', a.label, error?.message || error);
+      // try next
+    }
   }
+
+  return { success: false, error: 'All downloadMedia attempts failed' };
 }
