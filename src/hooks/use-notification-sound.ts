@@ -11,11 +11,22 @@ export const NOTIFICATION_SOUNDS = [
   { id: 'none', name: 'Sem som', file: null },
 ] as const;
 
+// Sound options specifically for new conversations in waiting queue
+export const NEW_CONVERSATION_SOUNDS = [
+  { id: 'chime', name: 'Sino (duplo)', file: '/sounds/notification-chime.mp3' },
+  { id: 'laser', name: 'Laser', file: '/sounds/notification-laser.mp3' },
+  { id: 'ding', name: 'Ding', file: '/sounds/notification-ding.mp3' },
+  { id: 'default', name: 'Padrão', file: '/sounds/notification-default.mp3' },
+  { id: 'none', name: 'Sem som', file: null },
+] as const;
+
 export type NotificationSoundId = typeof NOTIFICATION_SOUNDS[number]['id'];
+export type NewConversationSoundId = typeof NEW_CONVERSATION_SOUNDS[number]['id'];
 
 interface NotificationSoundSettings {
   soundEnabled: boolean;
   soundId: NotificationSoundId;
+  newConversationSoundId: NewConversationSoundId;
   pushEnabled: boolean;
   volume: number;
 }
@@ -25,6 +36,7 @@ const SETTINGS_KEY = 'notification-sound-settings';
 const defaultSettings: NotificationSoundSettings = {
   soundEnabled: true,
   soundId: 'default',
+  newConversationSoundId: 'chime', // Som diferenciado para novas conversas
   pushEnabled: false,
   volume: 0.7,
 };
@@ -109,6 +121,33 @@ export function useNotificationSound() {
     }
   }, [settings.soundEnabled, settings.soundId, settings.volume]);
 
+  // Play special sound for new conversations entering the waiting queue (plays twice for emphasis)
+  const playNewConversationSound = useCallback(() => {
+    if (!settings.soundEnabled) return;
+    
+    const soundId = settings.newConversationSoundId || 'chime';
+    if (soundId === 'none') return;
+    
+    const sound = NEW_CONVERSATION_SOUNDS.find(s => s.id === soundId);
+    if (!sound?.file) return;
+    
+    // Create fresh audio instance to allow playing twice
+    const audio = new Audio(sound.file);
+    audio.volume = settings.volume;
+    
+    // Play first time
+    audio.play().then(() => {
+      // Play second time after short delay for emphasis
+      setTimeout(() => {
+        const audio2 = new Audio(sound.file!);
+        audio2.volume = settings.volume;
+        audio2.play().catch(() => {});
+      }, 300);
+    }).catch(err => {
+      console.warn('Could not play new conversation sound:', err);
+    });
+  }, [settings.soundEnabled, settings.newConversationSoundId, settings.volume]);
+
   const previewSound = useCallback((soundId: NotificationSoundId) => {
     const audio = getAudio(soundId);
     if (audio) {
@@ -160,6 +199,7 @@ export function useNotificationSound() {
     pushPermission,
     requestPushPermission,
     playSound,
+    playNewConversationSound,
     previewSound,
     showPushNotification,
     notify,
