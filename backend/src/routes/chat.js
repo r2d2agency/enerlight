@@ -194,10 +194,13 @@ router.get('/conversations', authenticate, async (req, res) => {
     }
 
     // Filter by attendance status (waiting/attending)
+    // Note: NULL or 'waiting' = waiting, 'attending' = attending
+    // When filtering for 'attending', also include NULL for backward compatibility with existing conversations
     if (attendance_status === 'waiting') {
       sql += ` AND COALESCE(conv.attendance_status, 'waiting') = 'waiting'`;
     } else if (attendance_status === 'attending') {
-      sql += ` AND conv.attendance_status = 'attending'`;
+      // Show conversations that are explicitly 'attending' OR have no status (legacy conversations)
+      sql += ` AND (conv.attendance_status = 'attending' OR conv.attendance_status IS NULL)`;
     }
 
     // Order by pinned first, then by last_message_at
