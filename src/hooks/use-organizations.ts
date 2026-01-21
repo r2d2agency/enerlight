@@ -124,7 +124,8 @@ export function useOrganizations() {
       
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || 'Erro ao adicionar membro');
+        // Use details if available for more descriptive error
+        throw new Error(data.details || data.error || 'Erro ao adicionar membro');
       }
       
       return true;
