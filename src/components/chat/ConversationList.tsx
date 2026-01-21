@@ -417,8 +417,9 @@ export function ConversationList({
         ) : (
           <div className="divide-y">
             {conversations.map((conv) => {
-              const isWaiting = conv.attendance_status === 'waiting' || filters.attendance_status === 'waiting';
-              const isAttending = conv.attendance_status === 'attending' || filters.attendance_status === 'attending';
+              // Use the actual conversation status, not the filter
+              const isWaiting = conv.attendance_status === 'waiting';
+              const isAttending = conv.attendance_status === 'attending';
               
               const conversationContent = (
                 <div
@@ -525,7 +526,7 @@ export function ConversationList({
                     {/* Swipe hint for mobile */}
                     {isMobile && (isWaiting || isAttending) && (
                       <p className="text-[9px] text-muted-foreground mt-1.5 italic">
-                        {isWaiting ? '← Deslize para aceitar' : '← Deslize para liberar'}
+                        {isWaiting ? '→ Deslize para aceitar' : '→ Deslize para liberar'}
                       </p>
                     )}
                   </div>
