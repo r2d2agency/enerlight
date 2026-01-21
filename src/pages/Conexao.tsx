@@ -671,12 +671,25 @@ const handleGetQRCode = async (connection: Connection) => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {connection.phone_number && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Phone className="h-4 w-4 text-muted-foreground" />
-                      <span>{connection.phone_number}</span>
+                  {/* Quick Status Info */}
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="flex items-center gap-1.5 p-2 rounded bg-muted/50">
+                      <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="truncate">
+                        {connection.phone_number || "Sem telefone"}
+                      </span>
                     </div>
-                  )}
+                    <div className="flex items-center gap-1.5 p-2 rounded bg-muted/50">
+                      <Badge variant="outline" className="text-[10px] px-1.5">
+                        {(connection.provider === 'wapi' || !!connection.instance_id) ? 'W-API' : 'Evolution'}
+                      </Badge>
+                      <code className="text-[10px] truncate flex-1">
+                        {(connection.provider === 'wapi' || !!connection.instance_id) 
+                          ? connection.instance_id 
+                          : connection.instance_name}
+                      </code>
+                    </div>
+                  </div>
 
                   {/* Groups Toggle */}
                   <div className="flex items-center justify-between rounded-lg border p-3 bg-muted/30">
