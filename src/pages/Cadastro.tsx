@@ -114,10 +114,10 @@ const Cadastro = () => {
   const selectedPlanData = plans.find(p => p.id === selectedPlan);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8">
-      <div className="w-full max-w-4xl space-y-6">
-        <Card className="shadow-neon">
-          <CardHeader className="text-center">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4 py-6">
+      <div className="w-full max-w-4xl">
+        <Card className="shadow-neon max-h-[95vh] overflow-y-auto">
+          <CardHeader className="text-center pb-4">
             <div className="flex justify-center mb-4">
               {branding.logo_login ? (
                 <img src={branding.logo_login} alt="Logo" className="h-16 max-w-[200px] object-contain" />
@@ -127,99 +127,63 @@ const Cadastro = () => {
                 </div>
               )}
             </div>
-            <CardTitle className="text-2xl neon-text">Criar Conta</CardTitle>
-            <CardDescription>Preencha seus dados para começar</CardDescription>
+            <CardTitle className="text-xl neon-text">Criar Conta</CardTitle>
+            <CardDescription className="text-sm">Preencha seus dados para começar</CardDescription>
           </CardHeader>
 
           <form onSubmit={handleSubmit}>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-4 pt-0">
               {/* Plan Selection */}
               {loadingPlans ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
                 </div>
               ) : plans.length > 0 && (
-                <div className="space-y-3">
-                  <Label className="text-base font-semibold">Escolha seu plano</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Todos os planos incluem período de teste gratuito
-                  </p>
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold">Escolha seu plano</Label>
                   <div className={cn(
-                    "grid gap-4",
+                    "grid gap-2",
                     plans.length === 1 ? "grid-cols-1" : 
-                    plans.length === 2 ? "grid-cols-1 md:grid-cols-2" :
-                    "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
+                    plans.length === 2 ? "grid-cols-1 sm:grid-cols-2" :
+                    "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
                   )}>
                     {plans.map((plan) => (
                       <div
                         key={plan.id}
                         onClick={() => setSelectedPlan(plan.id)}
                         className={cn(
-                          "relative cursor-pointer rounded-xl border-2 p-4 transition-all hover:border-primary/50",
+                          "relative cursor-pointer rounded-lg border-2 p-3 transition-all hover:border-primary/50",
                           selectedPlan === plan.id 
-                            ? "border-primary bg-primary/5 shadow-md" 
+                            ? "border-primary bg-primary/5" 
                             : "border-muted hover:bg-muted/50"
                         )}
                       >
                         {selectedPlan === plan.id && (
-                          <div className="absolute -top-2 -right-2 rounded-full bg-primary p-1">
-                            <Check className="h-3 w-3 text-primary-foreground" />
+                          <div className="absolute -top-1.5 -right-1.5 rounded-full bg-primary p-0.5">
+                            <Check className="h-2.5 w-2.5 text-primary-foreground" />
                           </div>
                         )}
-                        <div className="space-y-3">
-                          <div className="flex items-start justify-between">
-                            <div>
-                              <h3 className="font-semibold">{plan.name}</h3>
-                              {plan.description && (
-                                <p className="text-xs text-muted-foreground mt-1">{plan.description}</p>
-                              )}
-                            </div>
-                            <Badge variant="secondary" className="flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
-                              {plan.trial_days} dias grátis
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <h3 className="font-medium text-sm">{plan.name}</h3>
+                            <Badge variant="secondary" className="text-xs px-1.5 py-0">
+                              {plan.trial_days}d grátis
                             </Badge>
                           </div>
                           
                           <div className="flex items-baseline gap-1">
-                            <span className="text-2xl font-bold text-primary">
-                              R$ {Number(plan.price).toFixed(2)}
+                            <span className="text-lg font-bold text-primary">
+                              R$ {Number(plan.price).toFixed(0)}
                             </span>
-                            <span className="text-sm text-muted-foreground">
+                            <span className="text-xs text-muted-foreground">
                               /{plan.billing_period === 'monthly' ? 'mês' : 'ano'}
                             </span>
                           </div>
 
-                          <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                            <div className="flex items-center gap-1">
-                              <Wifi className="h-3 w-3" />
-                              <span>{plan.max_connections} conexões</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <MessageSquare className="h-3 w-3" />
-                              <span>{plan.max_monthly_messages.toLocaleString()} msgs</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Users className="h-3 w-3" />
-                              <span>{plan.max_users} usuários</span>
-                            </div>
-                            {plan.has_asaas_integration && (
-                              <div className="flex items-center gap-1">
-                                <Receipt className="h-3 w-3" />
-                                <span>Cobrança</span>
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="flex flex-wrap gap-1">
-                            {plan.has_chat && (
-                              <Badge variant="outline" className="text-xs">Chat</Badge>
-                            )}
-                            {plan.has_campaigns && (
-                              <Badge variant="outline" className="text-xs">Campanhas</Badge>
-                            )}
-                            {plan.has_asaas_integration && (
-                              <Badge variant="outline" className="text-xs">Asaas</Badge>
-                            )}
+                          <div className="flex flex-wrap gap-1 text-xs text-muted-foreground">
+                            <span>{plan.max_connections} conex.</span>
+                            <span>•</span>
+                            <span>{plan.max_users} users</span>
                           </div>
                         </div>
                       </div>
@@ -229,9 +193,9 @@ const Cadastro = () => {
               )}
 
               {/* User Info */}
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Nome</Label>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1">
+                  <Label htmlFor="name" className="text-sm">Nome</Label>
                   <Input
                     id="name"
                     type="text"
@@ -239,11 +203,12 @@ const Cadastro = () => {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     disabled={isLoading}
+                    className="h-9"
                   />
-                  {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
+                  {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                <div className="space-y-1">
+                  <Label htmlFor="email" className="text-sm">Email</Label>
                   <Input
                     id="email"
                     type="email"
@@ -251,11 +216,12 @@ const Cadastro = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     disabled={isLoading}
+                    className="h-9"
                   />
-                  {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
+                  {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="password">Senha</Label>
+                <div className="space-y-1">
+                  <Label htmlFor="password" className="text-sm">Senha</Label>
                   <Input
                     id="password"
                     type="password"
@@ -263,11 +229,12 @@ const Cadastro = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     disabled={isLoading}
+                    className="h-9"
                   />
-                  {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
+                  {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirmar Senha</Label>
+                <div className="space-y-1">
+                  <Label htmlFor="confirmPassword" className="text-sm">Confirmar Senha</Label>
                   <Input
                     id="confirmPassword"
                     type="password"
@@ -275,27 +242,28 @@ const Cadastro = () => {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     disabled={isLoading}
+                    className="h-9"
                   />
-                  {errors.confirmPassword && <p className="text-sm text-destructive">{errors.confirmPassword}</p>}
+                  {errors.confirmPassword && <p className="text-xs text-destructive">{errors.confirmPassword}</p>}
                 </div>
               </div>
 
               {/* Trial info */}
               {selectedPlanData && (
-                <div className="rounded-lg bg-success/10 border border-success/30 p-4 text-center">
-                  <p className="text-sm font-medium text-success">
-                    🎉 Você terá <strong>{selectedPlanData.trial_days} dias grátis</strong> para testar o plano {selectedPlanData.name}!
+                <div className="rounded-md bg-success/10 border border-success/30 p-2 text-center">
+                  <p className="text-xs font-medium text-success">
+                    🎉 <strong>{selectedPlanData.trial_days} dias grátis</strong> do plano {selectedPlanData.name}!
                   </p>
                 </div>
               )}
             </CardContent>
             
-            <CardFooter className="flex flex-col gap-4">
-              <Button type="submit" className="w-full" disabled={isLoading}>
+            <CardFooter className="flex flex-col gap-3 pt-0">
+              <Button type="submit" className="w-full h-9" disabled={isLoading}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {selectedPlanData ? `Começar ${selectedPlanData.trial_days} dias grátis` : 'Criar Conta'}
               </Button>
-              <p className="text-sm text-muted-foreground text-center">
+              <p className="text-xs text-muted-foreground text-center">
                 Já tem uma conta?{' '}
                 <Link to="/login" className="text-primary hover:underline">
                   Entrar
