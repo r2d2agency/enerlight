@@ -473,10 +473,10 @@ export function ConversationList({
                   </div>
 
                   {/* Connection name, Assigned user, and Unread count */}
-                  <div className="flex items-center gap-2 mt-1">
+                  <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                     {/* Connection name */}
                     {conv.connection_name && (
-                      <span className="text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded truncate max-w-[80px]">
+                      <span className="text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded truncate max-w-[70px]">
                         {conv.connection_name}
                       </span>
                     )}
@@ -488,32 +488,29 @@ export function ConversationList({
                       </Badge>
                     )}
 
-                    {/* Spacer */}
-                    <div className="flex-1" />
-
                     {/* Unread count */}
                     {conv.unread_count > 0 && (
                       <Badge className="bg-primary text-primary-foreground text-[10px] px-1.5 py-0 min-w-[20px] justify-center">
                         {conv.unread_count}
                       </Badge>
                     )}
-
-                    {/* Accept button for waiting conversations */}
-                    {filters.attendance_status === 'waiting' && onAcceptConversation && (
-                      <Button
-                        size="sm"
-                        variant="default"
-                        className="h-6 px-2 text-[10px]"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onAcceptConversation(conv.id);
-                        }}
-                      >
-                        <CheckCircle className="h-3 w-3 mr-1" />
-                        Aceitar
-                      </Button>
-                    )}
                   </div>
+
+                  {/* Accept button for waiting conversations - separate row */}
+                  {filters.attendance_status === 'waiting' && onAcceptConversation && (
+                    <Button
+                      size="sm"
+                      variant="default"
+                      className="h-6 px-3 text-[10px] mt-2 w-full"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onAcceptConversation(conv.id);
+                      }}
+                    >
+                      <CheckCircle className="h-3 w-3 mr-1" />
+                      Aceitar Atendimento
+                    </Button>
+                  )}
                 </div>
 
                 {/* Admin actions */}
