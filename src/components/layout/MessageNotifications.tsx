@@ -12,6 +12,7 @@ import { api } from "@/lib/api";
 import { chatEvents } from "@/lib/chat-events";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useNotificationSound } from "@/hooks/use-notification-sound";
 
 interface UnreadConversation {
   id: string;
@@ -22,6 +23,8 @@ interface UnreadConversation {
   last_message_type: string | null;
   last_message_at: string | null;
   connection_name: string;
+  attendance_status?: string | null;
+  created_at?: string | null;
 }
 
 export function MessageNotifications() {
@@ -32,24 +35,10 @@ export function MessageNotifications() {
     return saved !== "false"; // Default to true
   });
   const [isOpen, setIsOpen] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const previousUnreadRef = useRef<number>(0);
-
-  // Initialize audio
-  useEffect(() => {
-    // Create audio element for notification sound
-    audioRef.current = new Audio();
-    // Use a simple beep sound (base64 encoded short beep)
-    audioRef.current.src = "data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdH2Onpehk35wc3Z9g46dmqOah3JiaXqHmKOmoZuQgXJoaXqInpmkoZiPgXVqanqInZelpZePgXZranmHm5ykpZePg3dta3mGmpqjopiQhHlwbXiEmZiioZiRhXtycXeClpagoJeRhnx0c3aAlZSen5aRh3x1dXWAlJKdnZWQhn12dnaAk5GcnJSQhn52d3Z/kpCbm5OPhn93eHZ+kI+amZKOhn94eXd+j46ZmJGNhX94end9jo2Xl5CMhX95e3h9jYyWlpCLhX96fHl8jIuVlI+Kgn97fXp8i4qUk46KgX97fnt7ioiTko2JgX97f3x7iYeSkYyIgH57gH17iIaRkIuHf356gX57h4WQj4qGfn57gn56hoSPjoqFfX18g397hYOOjYmEfX19hH97hIKNjIiDfH1+hX96g4GMi4eCe31/hn96goGLioaCe32Ah396gYCKiYWBen6BiH95gH+JiIWAen6Cinn5f36IhoR/eX6EjHr4fn2HhYN+eH6Fjnv3fXyGhIJ9d36Hj3z2fHuFg4F8dn6Ikn31e3qEgn97dn6Jk372enmDgX56dX6LlX/1eHiCgH15dH6Ml4D0d3eBf3x4c32NmYHzdXaAfnx4cnuPnILyc3V/fnx4cHqRnoPwcnR+fnx4b3mTn4Tub3N9fnx4bniVoYXta3J8fnx4a3eXo4bsanF7fXx4a3WZpYfqaHB6fXx4anObpojpZm95fHx4aXGdqInmZG54fHx4aG+fqorjYm13fHx4Z22hq4vhYGx2e3x4Zmuja4zeXmt1e3x4ZWmlbYvcXGp0e3x4ZGenborfWml0e3x4Y2apboveWGhze3x4Ymanb43cV2dze3x4YWWpb47aVmZyenx4YGOqcI/YVWVyenx4X2GscpDWVGRxeXx4XmCuc5HSU2NxeXx4XV6vc5PQUmJweHx4XF2wdZTOUWFweHx4W1uxdpXMUGBvd3x4Wlqyd5bKT19vd3x4WVi0eJjIT15udnx4WFe1eZnGTl1tdn14V1a3epvETlxsdn14Vla3e5zCTVtsdX14VVS5fJ3ATFprdX14VFO6fZ++S1lqdX14U1K8fp+8SlhpdHx4UlG9gKC6SFdoc3x4UVC+gKG4R1ZncnxUQQAA";
-    audioRef.current.volume = 0.5;
-    
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
-    };
-  }, []);
+  const previousConversationIdsRef = useRef<Set<string>>(new Set());
+  
+  const { playSound, playNewConversationSound, settings } = useNotificationSound();
 
   // Save sound preference
   useEffect(() => {
@@ -63,34 +52,39 @@ export function MessageNotifications() {
       setUnreadConversations(data);
       
       const newTotal = data.reduce((sum, c) => sum + c.unread_count, 0);
+      const currentIds = new Set(data.map(c => c.id));
       
-      // Play sound and emit event if there are new unread messages
-      if (newTotal > previousUnreadRef.current && previousUnreadRef.current >= 0) {
-        if (soundEnabled && previousUnreadRef.current > 0) {
-          playNotificationSound();
-        }
-        // Broadcast to other components to refresh immediately
-        if (emitEvent) {
-          chatEvents.emit('new_message');
+      // Check for brand new conversations (IDs that weren't in previous list)
+      const newConversationIds = [...currentIds].filter(id => !previousConversationIdsRef.current.has(id));
+      const hasNewConversations = newConversationIds.length > 0 && previousConversationIdsRef.current.size > 0;
+      
+      // Check for new messages in existing conversations
+      const hasNewMessagesInExisting = newTotal > previousUnreadRef.current && !hasNewConversations;
+      
+      // Play appropriate sound
+      if (soundEnabled && settings.soundEnabled && previousUnreadRef.current >= 0) {
+        if (hasNewConversations) {
+          // New conversation entering the queue - play special double sound
+          console.log('[Notifications] New conversation detected:', newConversationIds);
+          playNewConversationSound();
+        } else if (hasNewMessagesInExisting && previousUnreadRef.current > 0) {
+          // New message in existing conversation - play regular sound
+          playSound();
         }
       }
       
+      // Broadcast to other components to refresh immediately
+      if (emitEvent && (hasNewConversations || hasNewMessagesInExisting)) {
+        chatEvents.emit('new_message');
+      }
+      
+      previousConversationIdsRef.current = currentIds;
       previousUnreadRef.current = newTotal;
       setTotalUnread(newTotal);
     } catch (error) {
       console.error("Error fetching unread conversations:", error);
     }
-  }, [soundEnabled]);
-
-  // Play notification sound
-  const playNotificationSound = useCallback(() => {
-    if (audioRef.current && soundEnabled) {
-      audioRef.current.currentTime = 0;
-      audioRef.current.play().catch(() => {
-        // Ignore autoplay errors (browser policy)
-      });
-    }
-  }, [soundEnabled]);
+  }, [soundEnabled, settings.soundEnabled, playSound, playNewConversationSound]);
 
   // Poll for unread messages - faster polling (every 3 seconds)
   useEffect(() => {
