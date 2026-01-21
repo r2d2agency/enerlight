@@ -33,15 +33,6 @@ const Configuracoes = () => {
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <Label>Modo Escuro</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Ativar tema escuro na interface
-                  </p>
-                </div>
-                <Switch />
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
                   <Label>Auto-refresh</Label>
                   <p className="text-sm text-muted-foreground">
                     Atualizar dados automaticamente
