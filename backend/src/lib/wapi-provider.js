@@ -140,25 +140,32 @@ export async function checkStatus(instanceId, token) {
   const encodedInstanceId = encodeURIComponent(instanceId || '');
   const startedAt = Date.now();
 
-  try {
-    // W-API uses /instance/status-instance endpoint
-    logInfo('wapi.status_check_started', {
-      instance_id: instanceId,
-    });
+  // Quick validation
+  if (!instanceId || !token) {
+    return { status: 'disconnected', error: 'Instance ID ou Token não configurado' };
+  }
 
+  try {
     const response = await fetch(
       `${W_API_BASE_URL}/instance/status-instance?instanceId=${encodedInstanceId}`,
-      { headers: getHeaders(token) }
+      { 
+        headers: getHeaders(token),
+        signal: AbortSignal.timeout(10000), // 10s timeout
+      }
     );
 
     const responseText = await response.text();
+    const durationMs = Date.now() - startedAt;
 
-    logInfo('wapi.status_check_http', {
-      instance_id: instanceId,
-      status_code: response.status,
-      duration_ms: Date.now() - startedAt,
-      body_preview: String(responseText || '').slice(0, 300),
-    });
+    // Only log if slow or error
+    if (durationMs > 3000 || !response.ok) {
+      logInfo('wapi.status_check', {
+        instance_id: instanceId,
+        status_code: response.status,
+        duration_ms: durationMs,
+        ok: response.ok,
+      });
+    }
 
     if (!response.ok) {
       let errMsg = `HTTP ${response.status}`;
@@ -189,10 +196,7 @@ export async function checkStatus(instanceId, token) {
       return { status: 'disconnected', error: 'Invalid JSON response' };
     }
 
-    logInfo('wapi.status_check_parsed', {
-      instance_id: instanceId,
-      keys: Object.keys(data || {}).slice(0, 50),
-    });
+    // Remove verbose logging for successful parses
 
     const candidates = [
       data,
@@ -237,17 +241,9 @@ export async function checkStatus(instanceId, token) {
     }
 
     if (isConnected) {
-      logInfo('wapi.status_check_connected', {
-        instance_id: instanceId,
-        has_phone: Boolean(phoneNumber),
-      });
       return { status: 'connected', phoneNumber };
     }
 
-    logInfo('wapi.status_check_disconnected', {
-      instance_id: instanceId,
-      has_phone: Boolean(phoneNumber),
-    });
     return { status: 'disconnected', phoneNumber: phoneNumber || undefined };
   } catch (error) {
     logError('wapi.status_check_exception', error, {
