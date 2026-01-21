@@ -114,9 +114,9 @@ const Cadastro = () => {
   const selectedPlanData = plans.find(p => p.id === selectedPlan);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4 py-6">
-      <div className="w-full max-w-4xl">
-        <Card className="shadow-neon max-h-[95vh] overflow-y-auto">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4 py-4 overflow-hidden">
+      <div className="w-full max-w-4xl max-h-[calc(100vh-2rem)]">
+        <Card className="shadow-neon flex flex-col max-h-[calc(100vh-2rem)] overflow-hidden">
           <CardHeader className="text-center pb-4">
             <div className="flex justify-center mb-4">
               {branding.logo_login ? (
@@ -128,11 +128,11 @@ const Cadastro = () => {
               )}
             </div>
             <CardTitle className="text-xl neon-text">Criar Conta</CardTitle>
-            <CardDescription className="text-sm">Preencha seus dados para começar</CardDescription>
+          <CardDescription className="text-sm">Preencha seus dados para começar</CardDescription>
           </CardHeader>
 
-          <form onSubmit={handleSubmit}>
-            <CardContent className="space-y-4 pt-0">
+          <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden">
+            <CardContent className="space-y-4 pt-0 flex-1 overflow-y-auto">
               {/* Plan Selection */}
               {loadingPlans ? (
                 <div className="flex items-center justify-center py-4">
@@ -258,7 +258,7 @@ const Cadastro = () => {
               )}
             </CardContent>
             
-            <CardFooter className="flex flex-col gap-3 pt-0">
+            <CardFooter className="flex flex-col gap-3 pt-4 flex-shrink-0 border-t">
               <Button type="submit" className="w-full h-9" disabled={isLoading}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {selectedPlanData ? `Começar ${selectedPlanData.trial_days} dias grátis` : 'Criar Conta'}

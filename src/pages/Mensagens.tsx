@@ -33,6 +33,7 @@ import {
   Edit,
   Loader2,
   GripVertical,
+  Images,
 } from "lucide-react";
 import { MessageItem, MessageItemType } from "@/components/mensagens/MessageItemEditor";
 import { SortableMessageItem } from "@/components/mensagens/SortableMessageItem";
@@ -259,6 +260,12 @@ const Mensagens = () => {
                             <Badge variant="secondary" className="text-xs">
                               <Mic className="h-3 w-3 mr-1" />
                               {counts.audio} áudio{counts.audio > 1 ? "s" : ""}
+                            </Badge>
+                          )}
+                          {counts.gallery && (
+                            <Badge variant="secondary" className="text-xs">
+                              <Images className="h-3 w-3 mr-1" />
+                              {counts.gallery} galeria{counts.gallery > 1 ? "s" : ""}
                             </Badge>
                           )}
                         </div>
