@@ -21,7 +21,12 @@ import { cn } from "@/lib/utils";
 import { useUpload } from "@/hooks/use-upload";
 import { toast } from "sonner";
 
-export type MessageItemType = "text" | "image" | "video" | "audio" | "document";
+export type MessageItemType = "text" | "image" | "video" | "audio" | "document" | "gallery";
+
+export interface GalleryImage {
+  url: string;
+  fileName?: string;
+}
 
 export interface MessageItem {
   id: string;
@@ -31,6 +36,7 @@ export interface MessageItem {
   caption?: string;
   ptt?: boolean; // Push-to-talk for audio (send as voice message)
   fileName?: string; // Original file name for documents
+  galleryImages?: GalleryImage[]; // For gallery type - up to 10 images
 }
 
 interface MessageItemEditorProps {
@@ -77,6 +83,13 @@ const typeConfig = {
     color: "text-red-500",
     bgColor: "bg-red-500/10",
     accept: ".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.zip,.rar",
+  },
+  gallery: {
+    icon: Image,
+    label: "Galeria",
+    color: "text-teal-500",
+    bgColor: "bg-teal-500/10",
+    accept: "image/jpeg,image/png,image/gif,image/webp",
   },
 };
 

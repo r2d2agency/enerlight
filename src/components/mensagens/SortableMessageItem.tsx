@@ -1,6 +1,7 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { MessageItemEditor, MessageItem } from "./MessageItemEditor";
+import { GalleryEditor } from "./GalleryEditor";
 
 interface SortableMessageItemProps {
   item: MessageItem;
@@ -33,16 +34,29 @@ export function SortableMessageItem({
     zIndex: isDragging ? 1000 : 1,
   };
 
+  const dragHandleProps = { ...attributes, ...listeners };
+
   return (
     <div ref={setNodeRef} style={style}>
-      <MessageItemEditor
-        item={item}
-        index={index}
-        onUpdate={onUpdate}
-        onDelete={onDelete}
-        insertVariable={insertVariable}
-        dragHandleProps={{ ...attributes, ...listeners }}
-      />
+      {item.type === "gallery" ? (
+        <GalleryEditor
+          item={item}
+          index={index}
+          onUpdate={onUpdate}
+          onDelete={onDelete}
+          insertVariable={insertVariable}
+          dragHandleProps={dragHandleProps}
+        />
+      ) : (
+        <MessageItemEditor
+          item={item}
+          index={index}
+          onUpdate={onUpdate}
+          onDelete={onDelete}
+          insertVariable={insertVariable}
+          dragHandleProps={dragHandleProps}
+        />
+      )}
     </div>
   );
 }

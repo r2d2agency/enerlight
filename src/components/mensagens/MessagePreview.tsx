@@ -1,5 +1,5 @@
 import { MessageItem } from "./MessageItemEditor";
-import { Image, Video, Mic, FileText } from "lucide-react";
+import { Image, Video, Mic, FileText, Images } from "lucide-react";
 
 interface MessagePreviewProps {
   items: MessageItem[];
@@ -31,9 +31,29 @@ export function MessagePreview({ items, previewName }: MessagePreviewProps) {
     );
   }
 
+  // Expand gallery items into individual image messages for preview
+  const expandedItems: MessageItem[] = [];
+  for (const item of items) {
+    if (item.type === "gallery" && item.galleryImages && item.galleryImages.length > 0) {
+      // Each gallery image becomes a separate message in the preview
+      item.galleryImages.forEach((img, idx) => {
+        expandedItems.push({
+          id: `${item.id}-gallery-${idx}`,
+          type: "image",
+          content: "",
+          mediaUrl: img.url,
+          caption: idx === 0 ? item.caption : undefined, // Caption only on first image
+          fileName: img.fileName,
+        });
+      });
+    } else {
+      expandedItems.push(item);
+    }
+  }
+
   return (
     <div className="space-y-2">
-      {items.map((item) => (
+      {expandedItems.map((item) => (
         <div key={item.id} className="flex justify-end">
           <div className="max-w-[85%] rounded-lg bg-[#dcf8c6] px-3 py-2 shadow-sm">
             {/* Media content */}
@@ -53,6 +73,33 @@ export function MessagePreview({ items, previewName }: MessagePreviewProps) {
                 <div className={`flex items-center justify-center h-24 bg-gray-200 ${item.mediaUrl ? "hidden" : ""}`}>
                   <Image className="h-8 w-8 text-gray-400" />
                 </div>
+              </div>
+            )}
+
+            {item.type === "gallery" && (
+              <div className="mb-2">
+                {item.galleryImages && item.galleryImages.length > 0 ? (
+                  <div className="grid grid-cols-3 gap-1 rounded overflow-hidden">
+                    {item.galleryImages.slice(0, 6).map((img, idx) => (
+                      <div key={idx} className="aspect-square relative">
+                        <img
+                          src={img.url}
+                          alt={img.fileName || `Imagem ${idx + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                        {idx === 5 && item.galleryImages && item.galleryImages.length > 6 && (
+                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                            <span className="text-white font-bold">+{item.galleryImages.length - 6}</span>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center h-24 bg-gray-200 rounded">
+                    <Images className="h-8 w-8 text-gray-400" />
+                  </div>
+                )}
               </div>
             )}
 

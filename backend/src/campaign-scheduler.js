@@ -49,7 +49,26 @@ function replaceVariables(text, contact) {
 async function sendWhatsAppMessage(connection, phone, messageItems, contact) {
   const results = [];
   
+  // Expand gallery items into individual image messages
+  const expandedItems = [];
   for (const item of messageItems) {
+    if (item.type === 'gallery' && item.galleryImages && item.galleryImages.length > 0) {
+      // Each gallery image becomes a separate image message
+      item.galleryImages.forEach((img, idx) => {
+        expandedItems.push({
+          type: 'image',
+          mediaUrl: img.url,
+          media_url: img.url,
+          caption: idx === 0 ? item.caption : undefined, // Caption only on first image
+          content: idx === 0 ? item.caption : undefined,
+        });
+      });
+    } else {
+      expandedItems.push(item);
+    }
+  }
+
+  for (const item of expandedItems) {
     try {
       const remoteJid = phone.includes('@') ? phone : `${phone}@s.whatsapp.net`;
 
@@ -70,7 +89,7 @@ async function sendWhatsAppMessage(connection, phone, messageItems, contact) {
       results.push({ success: result.success, item, error: result.error });
       
       // Small delay between items of same message
-      if (messageItems.length > 1) {
+      if (expandedItems.length > 1) {
         await new Promise(resolve => setTimeout(resolve, 1500));
       }
     } catch (error) {
