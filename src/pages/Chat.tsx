@@ -70,6 +70,10 @@ const Chat = () => {
   const loadConversationsRef = useRef<() => void>(() => {});
   // Keep a just-created "empty" conversation visible until it has messages
   const stickyConversationRef = useRef<Conversation | null>(null);
+  // Prevent race conditions during conversation loading
+  const isLoadingConversationsRef = useRef(false);
+  // Track the currently selected conversation ID to prevent stale updates
+  const selectedIdRef = useRef<string | null>(null);
 
   // Load initial data and start alerts polling
   useEffect(() => {
@@ -156,6 +160,10 @@ const Chat = () => {
   };
 
   const loadConversations = useCallback(async () => {
+    // Prevent overlapping loads
+    if (isLoadingConversationsRef.current) return;
+    isLoadingConversationsRef.current = true;
+    
     try {
       const filterParams: any = {};
       if (filters.search) filterParams.search = filters.search;
@@ -184,14 +192,24 @@ const Chat = () => {
         stickyConversationRef.current = null;
       }
 
-      // Update selected conversation if it exists (using functional update to avoid stale closure)
-      setSelectedConversation(prev => {
-        if (!prev) return null;
-        const updated = merged.find(c => c.id === prev.id);
-        return updated || prev;
-      });
+      // Update selected conversation if it exists (only if ID matches to avoid race conditions)
+      const currentSelectedId = selectedIdRef.current;
+      if (currentSelectedId) {
+        const updated = merged.find(c => c.id === currentSelectedId);
+        if (updated) {
+          setSelectedConversation(prev => {
+            // Only update if it's still the same conversation
+            if (prev?.id === currentSelectedId) {
+              return updated;
+            }
+            return prev;
+          });
+        }
+      }
     } catch (error) {
       console.error('Error loading conversations:', error);
+    } finally {
+      isLoadingConversationsRef.current = false;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [getConversations, filters.search, filters.tag, filters.assigned, filters.connection, filters.archived, activeTab]);
@@ -227,24 +245,41 @@ const Chat = () => {
   };
 
   const handleSelectConversation = useCallback(async (conversation: Conversation) => {
+    // Update the ref immediately to prevent race conditions
+    selectedIdRef.current = conversation.id;
+    
     setSelectedConversation(conversation);
     setMessages([]);
     setLoadingMessages(true);
 
     try {
+      // Check if we're still looking at the same conversation
+      if (selectedIdRef.current !== conversation.id) {
+        return; // User switched to another conversation
+      }
+      
       const msgs = await getMessages(conversation.id);
+      
+      // Verify again after async call
+      if (selectedIdRef.current !== conversation.id) {
+        return; // User switched to another conversation
+      }
+      
       setMessages(msgs);
       setHasMoreMessages(msgs.length >= 50);
 
       // Mark as read
       if (conversation.unread_count > 0) {
         await markAsRead(conversation.id);
-        loadConversations();
+        // Don't call loadConversations here to avoid loop - it will be refreshed by interval
       }
 
       // For groups without a name, try to sync from W-API
       if (conversation.is_group && !conversation.group_name) {
         syncGroupName(conversation.connection_id, conversation.id).then(result => {
+          // Verify we're still on the same conversation
+          if (selectedIdRef.current !== conversation.id) return;
+          
           if (result.success && result.group_name) {
             // Update the conversation locally
             setSelectedConversation(prev => 
@@ -263,12 +298,18 @@ const Chat = () => {
         }).catch(console.error);
       }
     } catch (error) {
-      console.error('Error loading messages:', error);
-      toast.error('Erro ao carregar mensagens');
+      // Only show error if we're still on the same conversation
+      if (selectedIdRef.current === conversation.id) {
+        console.error('Error loading messages:', error);
+        toast.error('Erro ao carregar mensagens');
+      }
     } finally {
-      setLoadingMessages(false);
+      // Only update loading state if we're still on the same conversation
+      if (selectedIdRef.current === conversation.id) {
+        setLoadingMessages(false);
+      }
     }
-  }, [getMessages, markAsRead, loadConversations, syncGroupName]);
+  }, [getMessages, markAsRead, syncGroupName]);
 
   // If we arrive from the Agenda (or any deep link): /chat?conversation=<id>
   useEffect(() => {
@@ -375,6 +416,7 @@ const Chat = () => {
       const newArchived = !selectedConversation.is_archived;
       await updateConversation(selectedConversation.id, { is_archived: newArchived });
       loadConversations();
+      selectedIdRef.current = null; // Clear ref when archiving
       setSelectedConversation(null);
       setMessages([]);
       toast.success(newArchived ? 'Conversa arquivada' : 'Conversa desarquivada');
@@ -457,6 +499,7 @@ const Chat = () => {
       }
     } catch (error) {
       console.error('Error loading new conversation:', error);
+      selectedIdRef.current = conversation.id;
       setSelectedConversation(conversation);
       setMessages([]);
     }
@@ -472,6 +515,7 @@ const Chat = () => {
         <div className="border-b px-4 py-2 bg-muted/30 flex-shrink-0">
            <Tabs value={activeTab} onValueChange={(v) => {
               setActiveTab(v as 'chats' | 'groups');
+              selectedIdRef.current = null; // Clear ref when switching tabs
               setSelectedConversation(null);
               setMessages([]);
             }}>
