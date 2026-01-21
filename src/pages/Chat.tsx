@@ -95,11 +95,6 @@ const Chat = () => {
     }
   };
 
-  // Reload when filters or activeTab change
-  useEffect(() => {
-    loadConversationsRef.current();
-  }, [filters, activeTab]);
-
   // Auto-refresh conversations every 8 seconds (backup - events handle immediate updates)
   useEffect(() => {
     const interval = setInterval(() => {
@@ -205,6 +200,11 @@ const Chat = () => {
   // Keep ref pointing to the latest loadConversations (used by intervals above)
   useEffect(() => {
     loadConversationsRef.current = loadConversations;
+  }, [loadConversations]);
+
+  // Reload immediately when filters or activeTab change
+  useEffect(() => {
+    loadConversations();
   }, [loadConversations]);
 
   const loadTags = async () => {
@@ -449,15 +449,10 @@ const Chat = () => {
         {/* Tab Header */}
         <div className="border-b px-4 py-2 bg-muted/30 flex-shrink-0">
            <Tabs value={activeTab} onValueChange={(v) => {
-             setActiveTab(v as 'chats' | 'groups');
-             setSelectedConversation(null);
-             setMessages([]);
-
-             // Force immediate reload on tab switch (otherwise user waits for interval)
-             setTimeout(() => {
-               loadConversationsRef.current();
-             }, 0);
-           }}>
+              setActiveTab(v as 'chats' | 'groups');
+              setSelectedConversation(null);
+              setMessages([]);
+            }}>
             <TabsList className="grid w-[260px] grid-cols-2">
               <TabsTrigger value="chats" className="flex items-center gap-2">
                 <MessageSquare className="h-4 w-4" />
