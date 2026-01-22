@@ -83,11 +83,14 @@ router.get('/conversations/attendance-counts', authenticate, async (req, res) =>
     }
 
     // Try to get counts with attendance_status column
+    // NULL = legacy (counts as attending for backward compat)
+    // 'waiting' = new queue system
+    // 'attending' = accepted/in progress
     try {
       const result = await query(`
         SELECT 
-          COUNT(*) FILTER (WHERE COALESCE(conv.attendance_status, 'waiting') = 'waiting') as waiting,
-          COUNT(*) FILTER (WHERE conv.attendance_status = 'attending') as attending
+          COUNT(*) FILTER (WHERE conv.attendance_status = 'waiting') as waiting,
+          COUNT(*) FILTER (WHERE conv.attendance_status = 'attending' OR conv.attendance_status IS NULL) as attending
         FROM conversations conv
         WHERE conv.connection_id = ANY($1)
           AND conv.is_archived = false
@@ -255,14 +258,16 @@ router.get('/conversations', authenticate, async (req, res) => {
       }
 
       // Filter by attendance status (waiting/attending)
-      // Note: NULL or 'waiting' = waiting, 'attending' = attending
-      // When filtering for 'attending', also include NULL for backward compatibility with existing conversations
+      // Note: NULL = legacy (show in attending for backward compat), 'waiting' = in queue, 'attending' = accepted
       if (supportsAttendance) {
         if (attendance_status === 'waiting') {
-          sql += ` AND COALESCE(conv.attendance_status, 'waiting') = 'waiting'`;
+          // Only show explicit 'waiting' status (new queue system)
+          sql += ` AND conv.attendance_status = 'waiting'`;
         } else if (attendance_status === 'attending') {
+          // Show 'attending' + NULL (legacy conversations before queue system)
           sql += ` AND (conv.attendance_status = 'attending' OR conv.attendance_status IS NULL)`;
         }
+        // If no filter, show all
       }
 
       // Order by pinned first, then by last_message_at
