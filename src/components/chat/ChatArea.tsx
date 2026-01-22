@@ -197,6 +197,9 @@ export function ChatArea({
   const [savingContact, setSavingContact] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const isUserScrollingRef = useRef(false);
+  const lastScrollTopRef = useRef(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -272,12 +275,67 @@ export function ChatArea({
     localStorage.setItem('chat-sign-messages', signMessages.toString());
   }, [signMessages]);
 
-  // Auto-scroll to bottom on new messages
+  // Auto-scroll to bottom on new messages ONLY if user is near the bottom
   useEffect(() => {
-    if (!showSearch) {
+    if (showSearch) return;
+    
+    const container = scrollContainerRef.current;
+    if (!container) {
+      // Fallback: scroll if no container ref
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      return;
+    }
+    
+    // Check if user is near the bottom (within 150px)
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+    const isNearBottom = distanceFromBottom < 150;
+    
+    // Only auto-scroll if user is near the bottom (not browsing history)
+    if (isNearBottom && !isUserScrollingRef.current) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages, showSearch]);
+
+  // Track user scroll to detect when they're browsing history
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    let scrollTimeout: NodeJS.Timeout;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+      
+      // User is scrolling up (browsing history)
+      if (scrollTop < lastScrollTopRef.current && distanceFromBottom > 150) {
+        isUserScrollingRef.current = true;
+      }
+      
+      // User scrolled back to bottom
+      if (distanceFromBottom < 50) {
+        isUserScrollingRef.current = false;
+      }
+      
+      lastScrollTopRef.current = scrollTop;
+      
+      // Reset the scrolling flag after user stops scrolling
+      clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(() => {
+        // Keep the flag if user is still away from bottom
+        if (distanceFromBottom < 50) {
+          isUserScrollingRef.current = false;
+        }
+      }, 150);
+    };
+
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+      clearTimeout(scrollTimeout);
+    };
+  }, [conversation?.id]);
 
   // Handle search
   useEffect(() => {
@@ -803,6 +861,7 @@ export function ChatArea({
       {/* Messages */}
       <ScrollArea
         ref={scrollAreaRef}
+        viewportRef={scrollContainerRef}
         className={cn("flex-1 chat-wallpaper", isMobile ? "p-3" : "p-4")}
       >
         {hasMore && (
