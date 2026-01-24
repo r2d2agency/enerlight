@@ -626,16 +626,14 @@ router.post('/conversations/:id/finish', authenticate, async (req, res) => {
       return res.status(404).json({ error: 'Conversa não encontrada' });
     }
 
-    // Update to finished status
+    // Update to finished status (don't use finished_at/finished_by columns - may not exist)
     const result = await query(
       `UPDATE conversations 
        SET attendance_status = 'finished', 
-           finished_at = NOW(),
-           finished_by = $2,
            updated_at = NOW() 
        WHERE id = $1 
        RETURNING *`,
-      [id, req.userId]
+      [id]
     );
 
     res.json({ success: true, conversation: result.rows[0] });
