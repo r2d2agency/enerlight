@@ -511,4 +511,363 @@ router.get('/ai/models', async (req, res) => {
   res.json(models);
 });
 
+// ============================================
+// CONEXÕES DO CHATBOT
+// ============================================
+
+// Listar conexões de um chatbot
+router.get('/:id/connections', async (req, res) => {
+  try {
+    const org = await getUserOrganization(req.userId);
+    if (!org) {
+      return res.status(403).json({ error: 'Sem permissão' });
+    }
+
+    // Verificar se chatbot pertence à organização
+    const chatbot = await query(
+      'SELECT id FROM chatbots WHERE id = $1 AND organization_id = $2',
+      [req.params.id, org.organization_id]
+    );
+
+    if (chatbot.rows.length === 0) {
+      return res.status(404).json({ error: 'Chatbot não encontrado' });
+    }
+
+    const result = await query(
+      `SELECT cc.*, c.name as connection_name, c.phone as connection_phone, c.status as connection_status
+       FROM chatbot_connections cc
+       JOIN connections c ON cc.connection_id = c.id
+       WHERE cc.chatbot_id = $1
+       ORDER BY c.name`,
+      [req.params.id]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Erro ao listar conexões do chatbot:', error);
+    res.status(500).json({ error: 'Erro ao listar conexões' });
+  }
+});
+
+// Atualizar conexões de um chatbot
+router.put('/:id/connections', async (req, res) => {
+  try {
+    const org = await getUserOrganization(req.userId);
+    if (!org || !isAdmin(org.role)) {
+      return res.status(403).json({ error: 'Sem permissão' });
+    }
+
+    const { connection_ids } = req.body;
+    if (!Array.isArray(connection_ids)) {
+      return res.status(400).json({ error: 'connection_ids deve ser um array' });
+    }
+
+    // Verificar se chatbot pertence à organização
+    const chatbot = await query(
+      'SELECT id FROM chatbots WHERE id = $1 AND organization_id = $2',
+      [req.params.id, org.organization_id]
+    );
+
+    if (chatbot.rows.length === 0) {
+      return res.status(404).json({ error: 'Chatbot não encontrado' });
+    }
+
+    // Remover conexões antigas
+    await query('DELETE FROM chatbot_connections WHERE chatbot_id = $1', [req.params.id]);
+
+    // Adicionar novas conexões
+    for (const connectionId of connection_ids) {
+      await query(
+        'INSERT INTO chatbot_connections (chatbot_id, connection_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+        [req.params.id, connectionId]
+      );
+    }
+
+    // Retornar conexões atualizadas
+    const result = await query(
+      `SELECT cc.*, c.name as connection_name, c.phone as connection_phone
+       FROM chatbot_connections cc
+       JOIN connections c ON cc.connection_id = c.id
+       WHERE cc.chatbot_id = $1`,
+      [req.params.id]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Erro ao atualizar conexões:', error);
+    res.status(500).json({ error: 'Erro ao atualizar conexões' });
+  }
+});
+
+// ============================================
+// PERMISSÕES DE USUÁRIO
+// ============================================
+
+// Listar permissões de um chatbot
+router.get('/:id/permissions', async (req, res) => {
+  try {
+    const org = await getUserOrganization(req.userId);
+    if (!org) {
+      return res.status(403).json({ error: 'Sem permissão' });
+    }
+
+    // Verificar se chatbot pertence à organização
+    const chatbot = await query(
+      'SELECT id FROM chatbots WHERE id = $1 AND organization_id = $2',
+      [req.params.id, org.organization_id]
+    );
+
+    if (chatbot.rows.length === 0) {
+      return res.status(404).json({ error: 'Chatbot não encontrado' });
+    }
+
+    const result = await query(
+      `SELECT cp.*, u.name as user_name, u.email as user_email, om.role as org_role
+       FROM chatbot_permissions cp
+       JOIN users u ON cp.user_id = u.id
+       LEFT JOIN organization_members om ON om.user_id = u.id AND om.organization_id = $2
+       WHERE cp.chatbot_id = $1
+       ORDER BY u.name`,
+      [req.params.id, org.organization_id]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Erro ao listar permissões:', error);
+    res.status(500).json({ error: 'Erro ao listar permissões' });
+  }
+});
+
+// Adicionar/atualizar permissão de usuário
+router.post('/:id/permissions', async (req, res) => {
+  try {
+    const org = await getUserOrganization(req.userId);
+    if (!org || !isAdmin(org.role)) {
+      return res.status(403).json({ error: 'Sem permissão para gerenciar permissões' });
+    }
+
+    const { user_id, permission_level } = req.body;
+    if (!user_id || !permission_level) {
+      return res.status(400).json({ error: 'user_id e permission_level são obrigatórios' });
+    }
+
+    const validLevels = ['view', 'edit', 'manage', 'owner'];
+    if (!validLevels.includes(permission_level)) {
+      return res.status(400).json({ error: 'permission_level inválido' });
+    }
+
+    // Verificar se chatbot pertence à organização
+    const chatbot = await query(
+      'SELECT id FROM chatbots WHERE id = $1 AND organization_id = $2',
+      [req.params.id, org.organization_id]
+    );
+
+    if (chatbot.rows.length === 0) {
+      return res.status(404).json({ error: 'Chatbot não encontrado' });
+    }
+
+    // Verificar se usuário pertence à organização
+    const member = await query(
+      'SELECT user_id FROM organization_members WHERE user_id = $1 AND organization_id = $2',
+      [user_id, org.organization_id]
+    );
+
+    if (member.rows.length === 0) {
+      return res.status(400).json({ error: 'Usuário não pertence à organização' });
+    }
+
+    // Inserir ou atualizar
+    const result = await query(
+      `INSERT INTO chatbot_permissions (chatbot_id, user_id, permission_level, created_by)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (chatbot_id, user_id) 
+       DO UPDATE SET permission_level = $3, updated_at = NOW()
+       RETURNING *`,
+      [req.params.id, user_id, permission_level, req.userId]
+    );
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Erro ao adicionar permissão:', error);
+    res.status(500).json({ error: 'Erro ao adicionar permissão' });
+  }
+});
+
+// Remover permissão de usuário
+router.delete('/:id/permissions/:userId', async (req, res) => {
+  try {
+    const org = await getUserOrganization(req.userId);
+    if (!org || !isAdmin(org.role)) {
+      return res.status(403).json({ error: 'Sem permissão' });
+    }
+
+    const result = await query(
+      `DELETE FROM chatbot_permissions 
+       WHERE chatbot_id = $1 AND user_id = $2
+       AND chatbot_id IN (SELECT id FROM chatbots WHERE organization_id = $3)
+       RETURNING id`,
+      [req.params.id, req.params.userId, org.organization_id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Permissão não encontrada' });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Erro ao remover permissão:', error);
+    res.status(500).json({ error: 'Erro ao remover permissão' });
+  }
+});
+
+// ============================================
+// CONFIGURAÇÕES DE PAPEL (ROLE-BASED)
+// ============================================
+
+// Buscar configurações de papel
+router.get('/:id/role-settings', async (req, res) => {
+  try {
+    const org = await getUserOrganization(req.userId);
+    if (!org) {
+      return res.status(403).json({ error: 'Sem permissão' });
+    }
+
+    // Verificar se chatbot pertence à organização
+    const chatbot = await query(
+      'SELECT id FROM chatbots WHERE id = $1 AND organization_id = $2',
+      [req.params.id, org.organization_id]
+    );
+
+    if (chatbot.rows.length === 0) {
+      return res.status(404).json({ error: 'Chatbot não encontrado' });
+    }
+
+    let result = await query(
+      'SELECT * FROM chatbot_role_settings WHERE chatbot_id = $1',
+      [req.params.id]
+    );
+
+    // Se não existir, criar com valores padrão
+    if (result.rows.length === 0) {
+      result = await query(
+        `INSERT INTO chatbot_role_settings (chatbot_id) VALUES ($1) RETURNING *`,
+        [req.params.id]
+      );
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Erro ao buscar config de papéis:', error);
+    res.status(500).json({ error: 'Erro ao buscar configurações' });
+  }
+});
+
+// Atualizar configurações de papel
+router.patch('/:id/role-settings', async (req, res) => {
+  try {
+    const org = await getUserOrganization(req.userId);
+    if (!org || !['owner', 'admin'].includes(org.role)) {
+      return res.status(403).json({ error: 'Apenas Owner/Admin podem alterar permissões de papel' });
+    }
+
+    const chatbot = await query(
+      'SELECT id FROM chatbots WHERE id = $1 AND organization_id = $2',
+      [req.params.id, org.organization_id]
+    );
+
+    if (chatbot.rows.length === 0) {
+      return res.status(404).json({ error: 'Chatbot não encontrado' });
+    }
+
+    const allowedFields = [
+      'owner_can_manage', 'admin_can_manage', 'admin_can_edit',
+      'manager_can_view', 'manager_can_edit', 'agent_can_view'
+    ];
+
+    const updates = [];
+    const values = [];
+    let paramCount = 1;
+
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) {
+        updates.push(`${field} = $${paramCount}`);
+        values.push(req.body[field]);
+        paramCount++;
+      }
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'Nenhum campo para atualizar' });
+    }
+
+    // Upsert
+    await query(
+      `INSERT INTO chatbot_role_settings (chatbot_id) VALUES ($1) ON CONFLICT (chatbot_id) DO NOTHING`,
+      [req.params.id]
+    );
+
+    values.push(req.params.id);
+    const result = await query(
+      `UPDATE chatbot_role_settings SET ${updates.join(', ')}, updated_at = NOW() 
+       WHERE chatbot_id = $${paramCount} RETURNING *`,
+      values
+    );
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Erro ao atualizar config de papéis:', error);
+    res.status(500).json({ error: 'Erro ao atualizar configurações' });
+  }
+});
+
+// ============================================
+// LISTAR USUÁRIOS DA ORGANIZAÇÃO (para seleção)
+// ============================================
+
+router.get('/org/users', async (req, res) => {
+  try {
+    const org = await getUserOrganization(req.userId);
+    if (!org) {
+      return res.status(403).json({ error: 'Sem permissão' });
+    }
+
+    const result = await query(
+      `SELECT u.id, u.name, u.email, om.role
+       FROM users u
+       JOIN organization_members om ON om.user_id = u.id
+       WHERE om.organization_id = $1
+       ORDER BY u.name`,
+      [org.organization_id]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Erro ao listar usuários:', error);
+    res.status(500).json({ error: 'Erro ao listar usuários' });
+  }
+});
+
+// Listar conexões da organização (para seleção)
+router.get('/org/connections', async (req, res) => {
+  try {
+    const org = await getUserOrganization(req.userId);
+    if (!org) {
+      return res.status(403).json({ error: 'Sem permissão' });
+    }
+
+    const result = await query(
+      `SELECT c.id, c.name, c.phone, c.status
+       FROM connections c
+       WHERE c.organization_id = $1
+       ORDER BY c.name`,
+      [org.organization_id]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Erro ao listar conexões:', error);
+    res.status(500).json({ error: 'Erro ao listar conexões' });
+  }
+});
+
 export default router;

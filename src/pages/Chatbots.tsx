@@ -7,13 +7,14 @@ import { Switch } from "@/components/ui/switch";
 import { 
   Bot, Plus, Settings, BarChart3, Trash2, Edit, 
   Clock, MessageSquare, Zap, Users, ArrowRight,
-  Sparkles, GitBranch
+  Sparkles, GitBranch, Shield
 } from "lucide-react";
 import { toast } from "sonner";
 import { useChatbots, Chatbot } from "@/hooks/use-chatbots";
 import { ChatbotEditorDialog } from "@/components/chatbots/ChatbotEditorDialog";
 import { ChatbotStatsDialog } from "@/components/chatbots/ChatbotStatsDialog";
 import { FlowEditorDialog } from "@/components/chatbots/FlowEditorDialog";
+import { ChatbotPermissionsDialog } from "@/components/chatbots/ChatbotPermissionsDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,6 +37,8 @@ const Chatbots = () => {
   const [flowChatbot, setFlowChatbot] = useState<Chatbot | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [chatbotToDelete, setChatbotToDelete] = useState<Chatbot | null>(null);
+  const [permissionsOpen, setPermissionsOpen] = useState(false);
+  const [permissionsChatbot, setPermissionsChatbot] = useState<Chatbot | null>(null);
 
   const loadChatbots = async () => {
     const data = await getChatbots();
@@ -74,6 +77,11 @@ const Chatbots = () => {
   const handleFlowEditor = (chatbot: Chatbot) => {
     setFlowChatbot(chatbot);
     setFlowEditorOpen(true);
+  };
+
+  const handlePermissions = (chatbot: Chatbot) => {
+    setPermissionsChatbot(chatbot);
+    setPermissionsOpen(true);
   };
 
   const handleDeleteClick = (chatbot: Chatbot) => {
@@ -299,6 +307,14 @@ const Chatbots = () => {
                     <Button 
                       variant="outline" 
                       size="sm"
+                      onClick={() => handlePermissions(chatbot)}
+                      title="Permissões"
+                    >
+                      <Shield className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
                       className="text-destructive hover:text-destructive"
                       onClick={() => handleDeleteClick(chatbot)}
                       title="Excluir"
@@ -384,6 +400,16 @@ const Chatbots = () => {
         onClose={() => {
           setFlowEditorOpen(false);
           setFlowChatbot(null);
+        }}
+      />
+
+      {/* Permissions Dialog */}
+      <ChatbotPermissionsDialog
+        open={permissionsOpen}
+        chatbot={permissionsChatbot}
+        onClose={() => {
+          setPermissionsOpen(false);
+          setPermissionsChatbot(null);
         }}
       />
 

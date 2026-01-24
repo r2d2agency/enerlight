@@ -985,6 +985,71 @@ CREATE TABLE IF NOT EXISTS chatbot_stats (
 CREATE INDEX IF NOT EXISTS idx_chatbot_stats_chatbot_date ON chatbot_stats(chatbot_id, date);
 `;
 
+// Step 14: Chatbot Permissions
+const step14ChatbotPermissions = `
+-- Enum para nível de permissão de chatbot
+DO $$ BEGIN
+  CREATE TYPE chatbot_permission_level AS ENUM ('view', 'edit', 'manage', 'owner');
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;
+
+-- Tabela de múltiplas conexões por chatbot
+CREATE TABLE IF NOT EXISTS chatbot_connections (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  chatbot_id UUID NOT NULL REFERENCES chatbots(id) ON DELETE CASCADE,
+  connection_id UUID NOT NULL REFERENCES connections(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  
+  UNIQUE(chatbot_id, connection_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_chatbot_connections_chatbot ON chatbot_connections(chatbot_id);
+CREATE INDEX IF NOT EXISTS idx_chatbot_connections_connection ON chatbot_connections(connection_id);
+
+-- Tabela de permissões de usuário para chatbots
+CREATE TABLE IF NOT EXISTS chatbot_permissions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  chatbot_id UUID NOT NULL REFERENCES chatbots(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  permission_level chatbot_permission_level NOT NULL DEFAULT 'view',
+  created_by UUID REFERENCES users(id),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  
+  UNIQUE(chatbot_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_chatbot_permissions_chatbot ON chatbot_permissions(chatbot_id);
+CREATE INDEX IF NOT EXISTS idx_chatbot_permissions_user ON chatbot_permissions(user_id);
+
+-- Configuração de permissões por papel (role-based)
+CREATE TABLE IF NOT EXISTS chatbot_role_settings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  chatbot_id UUID NOT NULL REFERENCES chatbots(id) ON DELETE CASCADE,
+  
+  -- Quais papéis podem fazer o quê
+  owner_can_manage BOOLEAN DEFAULT true,
+  admin_can_manage BOOLEAN DEFAULT true,
+  admin_can_edit BOOLEAN DEFAULT true,
+  manager_can_view BOOLEAN DEFAULT true,
+  manager_can_edit BOOLEAN DEFAULT false,
+  agent_can_view BOOLEAN DEFAULT false,
+  
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  
+  UNIQUE(chatbot_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_chatbot_role_settings_chatbot ON chatbot_role_settings(chatbot_id);
+
+-- Migrar connection_id existente para chatbot_connections
+INSERT INTO chatbot_connections (chatbot_id, connection_id)
+SELECT id, connection_id FROM chatbots WHERE connection_id IS NOT NULL
+ON CONFLICT DO NOTHING;
+`;
+
 // Migration steps in order of execution
 const migrationSteps = [
   { name: 'Enums', sql: step1Enums, critical: true },
@@ -1000,6 +1065,7 @@ const migrationSteps = [
   { name: 'Indexes', sql: step11Indexes, critical: false },
   { name: 'Attendance Status', sql: step12Attendance, critical: false },
   { name: 'Chatbots System', sql: step13Chatbots, critical: false },
+  { name: 'Chatbot Permissions', sql: step14ChatbotPermissions, critical: false },
 ];
 
 export async function initDatabase() {
