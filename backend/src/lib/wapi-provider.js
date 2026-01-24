@@ -562,42 +562,29 @@ export async function getGroupInfo(instanceId, token, groupJid) {
   const fullGroupJid = groupJid?.includes('@g.us') ? groupJid : `${groupJid}@g.us`;
 
   try {
-    // Try different W-API endpoints for group info with multiple param formats
+    // Try the correct W-API endpoint first: /group/group-metadata
     const endpoints = [
-      // POST endpoints (some W-API versions require POST)
-      { method: 'POST', url: `${W_API_BASE_URL}/group/metadata?instanceId=${encodedInstanceId}`, body: { groupId: fullGroupJid } },
-      { method: 'POST', url: `${W_API_BASE_URL}/group/info?instanceId=${encodedInstanceId}`, body: { groupId: fullGroupJid } },
-      // GET with groupId (no suffix)
-      { method: 'GET', url: `${W_API_BASE_URL}/group/metadata?instanceId=${encodedInstanceId}&groupId=${encodeURIComponent(groupIdWithoutSuffix)}` },
-      { method: 'GET', url: `${W_API_BASE_URL}/group/get-group?instanceId=${encodedInstanceId}&groupId=${encodeURIComponent(groupIdWithoutSuffix)}` },
-      { method: 'GET', url: `${W_API_BASE_URL}/group/info?instanceId=${encodedInstanceId}&groupId=${encodeURIComponent(groupIdWithoutSuffix)}` },
-      // GET with full JID
+      // Primary endpoint (from W-API docs)
+      { method: 'GET', url: `${W_API_BASE_URL}/group/group-metadata?instanceId=${encodedInstanceId}&groupId=${encodeURIComponent(fullGroupJid)}` },
+      { method: 'GET', url: `${W_API_BASE_URL}/group/group-metadata?instanceId=${encodedInstanceId}&groupId=${encodeURIComponent(groupIdWithoutSuffix)}` },
+      // Fallback endpoints
       { method: 'GET', url: `${W_API_BASE_URL}/group/metadata?instanceId=${encodedInstanceId}&groupId=${encodeURIComponent(fullGroupJid)}` },
-      { method: 'GET', url: `${W_API_BASE_URL}/group/metadata?instanceId=${encodedInstanceId}&jid=${encodeURIComponent(fullGroupJid)}` },
-      { method: 'GET', url: `${W_API_BASE_URL}/group/get-group?instanceId=${encodedInstanceId}&jid=${encodeURIComponent(fullGroupJid)}` },
-      // Alternative param name
-      { method: 'GET', url: `${W_API_BASE_URL}/group/metadata?instanceId=${encodedInstanceId}&id=${encodeURIComponent(fullGroupJid)}` },
+      { method: 'GET', url: `${W_API_BASE_URL}/group/metadata?instanceId=${encodedInstanceId}&groupId=${encodeURIComponent(groupIdWithoutSuffix)}` },
+      { method: 'GET', url: `${W_API_BASE_URL}/group/get-group?instanceId=${encodedInstanceId}&groupId=${encodeURIComponent(fullGroupJid)}` },
+      { method: 'GET', url: `${W_API_BASE_URL}/group/info?instanceId=${encodedInstanceId}&groupId=${encodeURIComponent(groupIdWithoutSuffix)}` },
     ];
 
     for (const endpoint of endpoints) {
       try {
-        console.log('[W-API] Trying group info:', endpoint.method, endpoint.url);
+        console.log('[W-API] Trying group info:', endpoint.url);
         
-        const fetchOptions = {
+        const response = await fetch(endpoint.url, {
           method: endpoint.method,
           headers: getHeaders(token),
-        };
-        
-        if (endpoint.method === 'POST' && endpoint.body) {
-          fetchOptions.body = JSON.stringify(endpoint.body);
-        }
-        
-        const response = await fetch(endpoint.url, fetchOptions);
+        });
 
-        if (!response.ok) {
-          console.log('[W-API] Endpoint returned', response.status);
-          continue;
-        }
+        console.log('[W-API] Response status:', response.status);
+        if (!response.ok) continue;
 
         const responseText = await response.text();
         let data;
@@ -608,7 +595,7 @@ export async function getGroupInfo(instanceId, token, groupJid) {
           continue;
         }
         
-        console.log('[W-API] Group info response:', JSON.stringify(data).substring(0, 500));
+        console.log('[W-API] Group metadata response:', JSON.stringify(data).substring(0, 500));
         
         // Extract group name from various possible response formats
         const groupName = data?.subject || data?.name || data?.groupName || data?.title ||
@@ -619,7 +606,7 @@ export async function getGroupInfo(instanceId, token, groupJid) {
                          data?.group?.subject || data?.group?.name || null;
 
         if (groupName) {
-          console.log('[W-API] Got group info for', groupJid, ':', groupName);
+          console.log('[W-API] Got group name for', groupJid, ':', groupName);
           return {
             success: true,
             name: groupName,
@@ -629,7 +616,6 @@ export async function getGroupInfo(instanceId, token, groupJid) {
         }
       } catch (e) {
         console.log('[W-API] Endpoint error:', e.message);
-        // Continue to next endpoint
       }
     }
 
@@ -649,13 +635,13 @@ export async function getGroups(instanceId, token) {
   const encodedInstanceId = encodeURIComponent(instanceId || '');
 
   try {
-    // Try different endpoints to get groups
+    // Try different endpoints to get groups (primary endpoint from W-API docs)
     const endpoints = [
       `${W_API_BASE_URL}/group/fetch-all-groups?instanceId=${encodedInstanceId}`,
+      `${W_API_BASE_URL}/group/list-groups?instanceId=${encodedInstanceId}`,
       `${W_API_BASE_URL}/group/get-groups?instanceId=${encodedInstanceId}`,
       `${W_API_BASE_URL}/group/list?instanceId=${encodedInstanceId}`,
       `${W_API_BASE_URL}/group/all?instanceId=${encodedInstanceId}`,
-      `${W_API_BASE_URL}/groups?instanceId=${encodedInstanceId}`,
     ];
 
     for (const url of endpoints) {
