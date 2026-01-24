@@ -93,6 +93,7 @@ import { api } from "@/lib/api";
 import { QuickRepliesPanel } from "./QuickRepliesPanel";
 import { NotesPanel } from "./NotesPanel";
 import { AudioWaveform } from "./AudioWaveform";
+import { AudioPlayer } from "./AudioPlayer";
 import { TypingIndicator } from "./TypingIndicator";
 import { EmojiPicker } from "./EmojiPicker";
 import { MentionSuggestions, useMentions } from "./MentionSuggestions";
@@ -1108,29 +1109,19 @@ export function ChatArea({
                   </div>
                 )}
 
-                {(msg.message_type === 'audio' || (msg.media_mimetype?.startsWith('audio/') ?? false)) && (
+                {(msg.message_type === 'audio' || msg.message_type === 'ptt' || (msg.media_mimetype?.startsWith('audio/') ?? false)) && (
                   mediaUrl ? (
-                    <div className="mb-2 flex items-center gap-3 w-full min-w-0 p-2 rounded-lg bg-background/30">
-                      <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                        <Mic className="h-5 w-5 text-primary" />
-                      </div>
-                      <audio
-                        controls
-                        preload="auto"
-                        className="flex-1 h-10 w-full"
-                        crossOrigin="anonymous"
-                      >
-                        {msg.media_mimetype && <source src={mediaUrl} type={msg.media_mimetype} />}
-                        <source src={mediaUrl} type="audio/ogg" />
-                        <source src={mediaUrl} type="audio/mpeg" />
-                        <source src={mediaUrl} type="audio/mp4" />
-                        Seu navegador não suporta áudio.
-                      </audio>
+                    <div className="mb-2">
+                      <AudioPlayer 
+                        src={mediaUrl} 
+                        mimetype={msg.media_mimetype || undefined}
+                        isFromMe={msg.from_me}
+                      />
                     </div>
                   ) : (
-                    <div className="flex items-center gap-2 text-sm opacity-70 mb-2">
+                    <div className="flex items-center gap-2 text-sm opacity-70 mb-2 p-3 rounded-lg bg-background/30">
                       <Mic className="h-4 w-4" />
-                      <span>Áudio (mídia não disponível)</span>
+                      <span>Áudio não disponível</span>
                     </div>
                   )
                 )}
