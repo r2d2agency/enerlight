@@ -60,13 +60,13 @@ const navSections: NavSection[] = [
       { name: "Listas", href: "/contatos", icon: Users },
       { name: "Mensagens", href: "/mensagens", icon: MessageSquare },
       { name: "Campanhas", href: "/campanhas", icon: Send },
-      { name: "Ajustes", href: "/configuracoes", icon: Settings },
     ],
   },
   {
     title: "Configurações",
     icon: Settings,
     items: [
+      { name: "Ajustes", href: "/configuracoes", icon: Settings },
       { name: "Cobrança", href: "/cobranca", icon: Receipt, moduleKey: 'billing' },
       { name: "Conexões", href: "/conexao", icon: Plug },
       { name: "Organizações", href: "/organizacoes", icon: Building2 },
