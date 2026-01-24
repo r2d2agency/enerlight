@@ -873,17 +873,15 @@ const handleGetQRCode = async (connection: Connection) => {
                       </Popover>
                     )}
                     
-                    {/* Edit button - W-API connections */}
-                    {(connection.provider === 'wapi' || !!connection.instance_id) && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleOpenEditDialog(connection)}
-                        title="Editar conexão"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                    )}
+                    {/* Edit button - all connections can edit name */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleOpenEditDialog(connection)}
+                      title="Editar conexão"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
                     
                     {/* Delete button - always visible */}
                     <AlertDialog>
@@ -1111,7 +1109,7 @@ const handleGetQRCode = async (connection: Connection) => {
           </DialogContent>
         </Dialog>
 
-        {/* Edit Connection Dialog (W-API) */}
+        {/* Edit Connection Dialog */}
         <Dialog 
           open={editDialogOpen} 
           onOpenChange={(open) => {
@@ -1126,40 +1124,51 @@ const handleGetQRCode = async (connection: Connection) => {
         >
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>Editar Conexão W-API</DialogTitle>
+              <DialogTitle>Editar Conexão</DialogTitle>
               <DialogDescription>
-                Atualize os dados da sua conexão. Deixe o token em branco para manter o atual.
+                {editingConnection && (editingConnection.provider === 'wapi' || !!editingConnection.instance_id)
+                  ? 'Atualize os dados da sua conexão W-API.'
+                  : 'Dê um nome amigável para sua conexão.'}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label>Nome da Conexão</Label>
+                <Label>Nome Amigável</Label>
                 <Input 
-                  placeholder="Ex: WhatsApp Principal"
+                  placeholder="Ex: WhatsApp Principal, Vendas, Suporte..."
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
                 />
-              </div>
-              <div className="space-y-2">
-                <Label>Instance ID</Label>
-                <Input 
-                  placeholder="Seu Instance ID da W-API"
-                  value={editInstanceId}
-                  onChange={(e) => setEditInstanceId(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Token (deixe em branco para manter o atual)</Label>
-                <Input 
-                  type="password"
-                  placeholder="Novo token (opcional)"
-                  value={editWapiToken}
-                  onChange={(e) => setEditWapiToken(e.target.value)}
-                />
                 <p className="text-xs text-muted-foreground">
-                  Por segurança, o token atual não é exibido. Preencha apenas se quiser alterá-lo.
+                  Este nome será exibido no chat e em toda a plataforma
                 </p>
               </div>
+              
+              {/* W-API specific fields */}
+              {editingConnection && (editingConnection.provider === 'wapi' || !!editingConnection.instance_id) && (
+                <>
+                  <div className="space-y-2">
+                    <Label>Instance ID</Label>
+                    <Input 
+                      placeholder="Seu Instance ID da W-API"
+                      value={editInstanceId}
+                      onChange={(e) => setEditInstanceId(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Token (deixe em branco para manter o atual)</Label>
+                    <Input 
+                      type="password"
+                      placeholder="Novo token (opcional)"
+                      value={editWapiToken}
+                      onChange={(e) => setEditWapiToken(e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Por segurança, o token atual não é exibido.
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
