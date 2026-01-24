@@ -679,16 +679,15 @@ export function ChatArea({
           {!isViewOnly && onFinishConversation && (conversation.attendance_status === 'attending' || conversation.attendance_status === 'waiting') && (
             <Button
               variant="outline"
-              size="sm"
+              size="icon"
               className={cn(
                 "text-green-600 border-green-300 hover:bg-green-50 dark:hover:bg-green-950",
-                isMobile ? "h-7 text-[11px] px-2" : "h-8"
+                isMobile ? "h-7 w-7" : "h-8 w-8"
               )}
               onClick={onFinishConversation}
               title="Finalizar atendimento"
             >
-              <CheckCheck className="h-3.5 w-3.5 mr-1" />
-              Finalizar
+              <CheckCheck className="h-3.5 w-3.5" />
             </Button>
           )}
 
