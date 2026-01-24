@@ -4,7 +4,7 @@ import { StatsCard } from "@/components/dashboard/StatsCard";
 import { ConnectionStatus } from "@/components/dashboard/ConnectionStatus";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Users, MessageSquare, Send, CheckCircle2, Loader2, Play, Clock, Calendar as CalendarIcon, Pause, MessageCircle } from "lucide-react";
+import { Users, MessageSquare, Send, CheckCircle2, Loader2, Play, Clock, Calendar as CalendarIcon, Pause, MessageCircle, CheckCheck, Hourglass } from "lucide-react";
 import { useContacts } from "@/hooks/use-contacts";
 import { useMessages } from "@/hooks/use-messages";
 import { useCampaigns, Campaign } from "@/hooks/use-campaigns";
@@ -21,6 +21,9 @@ interface DashboardStats {
   sentMessages: number;
   conversationsAssigned: number;
   conversationsUnassigned: number;
+  conversationsWaiting: number;
+  conversationsAttending: number;
+  conversationsFinished: number;
   totalUsers: number;
 }
 
@@ -48,6 +51,9 @@ const Index = () => {
     sentMessages: 0,
     conversationsAssigned: 0,
     conversationsUnassigned: 0,
+    conversationsWaiting: 0,
+    conversationsAttending: 0,
+    conversationsFinished: 0,
     totalUsers: 0,
   });
   const [recentCampaigns, setRecentCampaigns] = useState<Campaign[]>([]);
@@ -59,11 +65,12 @@ const Index = () => {
   const loadDashboardData = async () => {
     setLoading(true);
     try {
-      const [listsData, messagesData, campaignsData, chatStats, orgs] = await Promise.all([
+      const [listsData, messagesData, campaignsData, chatStats, attendanceCounts, orgs] = await Promise.all([
         getLists(),
         getMessages(),
         getCampaigns(),
         getChatStats().catch(() => null),
+        api<{ waiting: number; attending: number; finished: number }>('/api/chat/conversations/attendance-counts?is_group=false').catch(() => ({ waiting: 0, attending: 0, finished: 0 })),
         api<Array<{ id: string; name: string }>>('/api/organizations').catch(() => []),
       ]);
 
@@ -90,6 +97,9 @@ const Index = () => {
         sentMessages,
         conversationsAssigned: assigned,
         conversationsUnassigned: unassigned,
+        conversationsWaiting: attendanceCounts.waiting,
+        conversationsAttending: attendanceCounts.attending,
+        conversationsFinished: attendanceCounts.finished,
         totalUsers: members.length,
       });
 
@@ -166,18 +176,24 @@ const Index = () => {
           />
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
           <StatsCard
-            title="Conversas Atendidas"
-            value={stats.conversationsAssigned.toLocaleString('pt-BR')}
-            description="Atribuídas a alguém"
-            icon={<MessageCircle className="h-6 w-6 text-primary" />}
+            title="Aguardando"
+            value={stats.conversationsWaiting.toLocaleString('pt-BR')}
+            description="Na fila de espera"
+            icon={<Hourglass className="h-6 w-6 text-amber-500" />}
           />
           <StatsCard
-            title="Conversas não atendidas"
-            value={stats.conversationsUnassigned.toLocaleString('pt-BR')}
-            description="Sem responsável"
-            icon={<MessageCircle className="h-6 w-6 text-primary" />}
+            title="Atendendo"
+            value={stats.conversationsAttending.toLocaleString('pt-BR')}
+            description="Em atendimento ativo"
+            icon={<MessageCircle className="h-6 w-6 text-blue-500" />}
+          />
+          <StatsCard
+            title="Finalizados"
+            value={stats.conversationsFinished.toLocaleString('pt-BR')}
+            description="Atendimentos concluídos"
+            icon={<CheckCheck className="h-6 w-6 text-green-500" />}
           />
           <StatsCard
             title="Usuários"

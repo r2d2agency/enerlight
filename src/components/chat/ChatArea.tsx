@@ -120,6 +120,8 @@ interface ChatAreaProps {
   onCreateTag: (name: string, color: string) => void;
   onDeleteConversation?: () => Promise<void>;
   onReleaseConversation?: () => Promise<void>;
+  onFinishConversation?: () => Promise<void>;
+  onReopenConversation?: () => Promise<void>;
   isMobile?: boolean;
   onMobileBack?: () => void;
 }
@@ -163,6 +165,8 @@ export function ChatArea({
   onCreateTag,
   onDeleteConversation,
   onReleaseConversation,
+  onFinishConversation,
+  onReopenConversation,
   isMobile = false,
   onMobileBack,
 }: ChatAreaProps) {
@@ -668,6 +672,40 @@ export function ChatArea({
             >
               <Undo2 className="h-3.5 w-3.5 mr-1" />
               Liberar
+            </Button>
+          )}
+
+          {/* Finish button - visible when attending or waiting */}
+          {!isViewOnly && onFinishConversation && (conversation.attendance_status === 'attending' || conversation.attendance_status === 'waiting') && (
+            <Button
+              variant="outline"
+              size="sm"
+              className={cn(
+                "text-green-600 border-green-300 hover:bg-green-50 dark:hover:bg-green-950",
+                isMobile ? "h-7 text-[11px] px-2" : "h-8"
+              )}
+              onClick={onFinishConversation}
+              title="Finalizar atendimento"
+            >
+              <CheckCheck className="h-3.5 w-3.5 mr-1" />
+              Finalizar
+            </Button>
+          )}
+
+          {/* Reopen button - visible when finished */}
+          {!isViewOnly && onReopenConversation && conversation.attendance_status === 'finished' && (
+            <Button
+              variant="outline"
+              size="sm"
+              className={cn(
+                "text-blue-600 border-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950",
+                isMobile ? "h-7 text-[11px] px-2" : "h-8"
+              )}
+              onClick={onReopenConversation}
+              title="Reabrir conversa (voltar para aguardando)"
+            >
+              <RotateCcw className="h-3.5 w-3.5 mr-1" />
+              Reabrir
             </Button>
           )}
           

@@ -47,6 +47,8 @@ import {
   Phone,
   CheckCircle,
   Clock,
+  CheckCheck,
+  RotateCcw,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -72,7 +74,7 @@ interface ConversationListProps {
     archived: boolean;
     connection: string;
     is_group: boolean;
-    attendance_status: 'waiting' | 'attending';
+    attendance_status: 'waiting' | 'attending' | 'finished';
   };
   onFiltersChange: (filters: {
     search: string;
@@ -81,7 +83,7 @@ interface ConversationListProps {
     archived: boolean;
     connection: string;
     is_group: boolean;
-    attendance_status: 'waiting' | 'attending';
+    attendance_status: 'waiting' | 'attending' | 'finished';
   }) => void;
   isAdmin?: boolean;
   connections?: Connection[];
@@ -90,7 +92,9 @@ interface ConversationListProps {
   onAcceptConversation?: (id: string) => Promise<void>;
   onReleaseConversation?: (id: string) => Promise<void>;
   onArchiveConversation?: (id: string) => Promise<void>;
-  attendanceCounts?: { waiting: number; attending: number };
+  attendanceCounts?: { waiting: number; attending: number; finished: number };
+  onFinishConversation?: (id: string) => Promise<void>;
+  onReopenConversation?: (id: string) => Promise<void>;
 }
 
 const getMessageTypeIcon = (type: string | null) => {
@@ -134,6 +138,8 @@ export function ConversationList({
   onAcceptConversation,
   onReleaseConversation,
   onArchiveConversation,
+  onFinishConversation,
+  onReopenConversation,
   attendanceCounts,
 }: ConversationListProps) {
   const isMobile = useIsMobile();
@@ -309,14 +315,14 @@ export function ConversationList({
           <button
             onClick={() => onFiltersChange({ ...filters, attendance_status: 'attending' })}
             className={cn(
-              "flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
+              "flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium transition-colors",
               filters.attendance_status === 'attending'
                 ? "bg-background shadow-sm text-foreground"
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
-            <CheckCircle className="h-3.5 w-3.5" />
-            Atendendo
+            <CheckCircle className="h-3 w-3" />
+            <span className="hidden sm:inline">Atendendo</span>
             {attendanceCounts && attendanceCounts.attending > 0 && (
               <Badge variant="secondary" className="h-4 min-w-4 px-1 text-[10px] font-semibold">
                 {attendanceCounts.attending}
@@ -326,17 +332,34 @@ export function ConversationList({
           <button
             onClick={() => onFiltersChange({ ...filters, attendance_status: 'waiting' })}
             className={cn(
-              "flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
+              "flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium transition-colors",
               filters.attendance_status === 'waiting'
                 ? "bg-background shadow-sm text-foreground"
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
-            <Clock className="h-3.5 w-3.5" />
-            Aguardando
+            <Clock className="h-3 w-3" />
+            <span className="hidden sm:inline">Aguardando</span>
             {attendanceCounts && attendanceCounts.waiting > 0 && (
               <Badge variant="destructive" className="h-4 min-w-4 px-1 text-[10px] font-semibold animate-pulse">
                 {attendanceCounts.waiting}
+              </Badge>
+            )}
+          </button>
+          <button
+            onClick={() => onFiltersChange({ ...filters, attendance_status: 'finished' })}
+            className={cn(
+              "flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium transition-colors",
+              filters.attendance_status === 'finished'
+                ? "bg-background shadow-sm text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <CheckCheck className="h-3 w-3" />
+            <span className="hidden sm:inline">Finalizados</span>
+            {attendanceCounts && attendanceCounts.finished > 0 && (
+              <Badge variant="outline" className="h-4 min-w-4 px-1 text-[10px] font-semibold border-green-500 text-green-600">
+                {attendanceCounts.finished}
               </Badge>
             )}
           </button>
@@ -439,6 +462,7 @@ export function ConversationList({
               // Use the actual conversation status, not the filter
               const isWaiting = conv.attendance_status === 'waiting';
               const isAttending = conv.attendance_status === 'attending';
+              const isFinished = conv.attendance_status === 'finished';
               
               const conversationContent = (
                 <div
@@ -526,8 +550,8 @@ export function ConversationList({
                       )}
                     </div>
 
-                    {/* Accept button for waiting conversations - only show on desktop or when swipe not available */}
-                    {!isMobile && filters.attendance_status === 'waiting' && onAcceptConversation && (
+                    {/* Accept button for waiting conversations - only show on desktop */}
+                    {!isMobile && isWaiting && onAcceptConversation && (
                       <Button
                         size="sm"
                         variant="default"
@@ -542,10 +566,26 @@ export function ConversationList({
                       </Button>
                     )}
 
+                    {/* Reopen button for finished conversations - only show on desktop */}
+                    {!isMobile && isFinished && onReopenConversation && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-6 px-2 text-[10px] mt-2 max-w-full truncate text-blue-600 border-blue-300"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onReopenConversation(conv.id);
+                        }}
+                      >
+                        <RotateCcw className="h-3 w-3 mr-1 flex-shrink-0" />
+                        <span className="truncate">Reabrir</span>
+                      </Button>
+                    )}
+
                     {/* Swipe hint for mobile */}
-                    {isMobile && (isWaiting || isAttending) && (
+                    {isMobile && (isWaiting || isAttending || isFinished) && (
                       <p className="text-[9px] text-muted-foreground mt-1.5 italic">
-                        {isWaiting ? '→ Deslize para aceitar' : '→ Deslize para liberar'}
+                        {isWaiting ? '→ Deslize para aceitar' : isFinished ? '→ Deslize para reabrir' : '→ Deslize para liberar/finalizar'}
                       </p>
                     )}
                   </div>

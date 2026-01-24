@@ -35,6 +35,8 @@ const Chat = () => {
     pinConversation,
     acceptConversation,
     releaseConversation,
+    finishConversation,
+    reopenConversation,
     getConnections,
     getMessages,
     sendMessage,
@@ -66,7 +68,7 @@ const Chat = () => {
   const [syncingHistory, setSyncingHistory] = useState(false);
   const [syncingGroups, setSyncingGroups] = useState(false);
   const [newConversationOpen, setNewConversationOpen] = useState(false);
-  const [attendanceCounts, setAttendanceCounts] = useState<{ waiting: number; attending: number }>({ waiting: 0, attending: 0 });
+  const [attendanceCounts, setAttendanceCounts] = useState<{ waiting: number; attending: number; finished: number }>({ waiting: 0, attending: 0, finished: 0 });
   const [filters, setFilters] = useState({
     search: '',
     tag: 'all',
@@ -74,7 +76,7 @@ const Chat = () => {
     archived: false,
     connection: 'all',
     is_group: false, // false = individual chats, true = group chats
-    attendance_status: 'attending' as 'waiting' | 'attending',
+    attendance_status: 'attending' as 'waiting' | 'attending' | 'finished',
   });
   const [activeTab, setActiveTab] = useState<'chats' | 'groups'>('chats');
 
@@ -563,6 +565,40 @@ const Chat = () => {
     }
   };
 
+  const handleFinishConversation = async (conversationId?: string) => {
+    const id = conversationId || selectedConversation?.id;
+    if (!id) return;
+    try {
+      await finishConversation(id);
+      if (id === selectedConversation?.id) {
+        selectedIdRef.current = null;
+        setSelectedConversation(null);
+        setMessages([]);
+      }
+      loadConversations();
+      toast.success('Conversa finalizada');
+    } catch (error: any) {
+      toast.error(error.message || 'Erro ao finalizar conversa');
+    }
+  };
+
+  const handleReopenConversation = async (conversationId?: string) => {
+    const id = conversationId || selectedConversation?.id;
+    if (!id) return;
+    try {
+      await reopenConversation(id);
+      if (id === selectedConversation?.id) {
+        selectedIdRef.current = null;
+        setSelectedConversation(null);
+        setMessages([]);
+      }
+      loadConversations();
+      toast.success('Conversa reaberta para aguardando');
+    } catch (error: any) {
+      toast.error(error.message || 'Erro ao reabrir conversa');
+    }
+  };
+
   const handleNewConversationCreated = async (conversation: Conversation) => {
     // Keep it visible even if it has no messages yet
     stickyConversationRef.current = conversation;
@@ -721,6 +757,12 @@ const Chat = () => {
                     toast.error(error.message || 'Erro ao arquivar conversa');
                   }
                 }}
+                onFinishConversation={async (id) => {
+                  await handleFinishConversation(id);
+                }}
+                onReopenConversation={async (id) => {
+                  await handleReopenConversation(id);
+                }}
                 attendanceCounts={attendanceCounts}
               />
             </div>
@@ -761,6 +803,8 @@ const Chat = () => {
                 }
               }}
               onReleaseConversation={handleReleaseConversation}
+              onFinishConversation={() => handleFinishConversation()}
+              onReopenConversation={() => handleReopenConversation()}
               isMobile={isMobile}
               onMobileBack={handleMobileBack}
             />

@@ -27,7 +27,7 @@ export interface Conversation {
   tags: ConversationTag[];
   last_message: string | null;
   last_message_type: string | null;
-  attendance_status: 'waiting' | 'attending';
+  attendance_status: 'waiting' | 'attending' | 'finished';
   accepted_at: string | null;
   accepted_by: string | null;
   accepted_by_name: string | null;
@@ -216,7 +216,6 @@ export const useChat = () => {
       if (filters?.connection && filters.connection !== 'all') params.append('connection', filters.connection);
       if (filters?.is_group !== undefined) params.append('is_group', String(filters.is_group));
       if (filters?.attendance_status) params.append('attendance_status', filters.attendance_status);
-      
       const url = `/api/chat/conversations${params.toString() ? `?${params}` : ''}`;
       const data = await api<Conversation[]>(url);
       return data;
@@ -262,6 +261,16 @@ export const useChat = () => {
   // Release conversation (move back to waiting)
   const releaseConversation = useCallback(async (id: string): Promise<void> => {
     await api(`/api/chat/conversations/${id}/release`, { method: 'POST' });
+  }, []);
+
+  // Finish conversation (mark as completed)
+  const finishConversation = useCallback(async (id: string): Promise<void> => {
+    await api(`/api/chat/conversations/${id}/finish`, { method: 'POST' });
+  }, []);
+
+  // Reopen conversation (move back to waiting for new flow)
+  const reopenConversation = useCallback(async (id: string): Promise<void> => {
+    await api(`/api/chat/conversations/${id}/reopen`, { method: 'POST' });
   }, []);
 
   const getConversation = useCallback(async (id: string): Promise<Conversation & {
@@ -503,13 +512,13 @@ export const useChat = () => {
   }, []);
 
   // Get attendance counts for tabs
-  const getAttendanceCounts = useCallback(async (isGroup: boolean): Promise<{ waiting: number; attending: number }> => {
+  const getAttendanceCounts = useCallback(async (isGroup: boolean): Promise<{ waiting: number; attending: number; finished: number }> => {
     try {
-      const data = await api<{ waiting: number; attending: number }>(`/api/chat/conversations/attendance-counts?is_group=${isGroup}`);
+      const data = await api<{ waiting: number; attending: number; finished: number }>(`/api/chat/conversations/attendance-counts?is_group=${isGroup}`);
       return data;
     } catch (err) {
       console.error('Error fetching attendance counts:', err);
-      return { waiting: 0, attending: 0 };
+      return { waiting: 0, attending: 0, finished: 0 };
     }
   }, []);
 
@@ -525,6 +534,8 @@ export const useChat = () => {
     pinConversation,
     acceptConversation,
     releaseConversation,
+    finishConversation,
+    reopenConversation,
     // Connections
     getConnections,
     // Stats

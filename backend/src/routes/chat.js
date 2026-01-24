@@ -70,7 +70,7 @@ router.get('/conversations/attendance-counts', authenticate, async (req, res) =>
     const connectionIds = await getUserConnections(req.userId);
     
     if (connectionIds.length === 0) {
-      return res.json({ waiting: 0, attending: 0 });
+      return res.json({ waiting: 0, attending: 0, finished: 0 });
     }
 
     const { is_group } = req.query;
@@ -86,11 +86,13 @@ router.get('/conversations/attendance-counts', authenticate, async (req, res) =>
     // NULL = legacy (counts as attending for backward compat)
     // 'waiting' = new queue system
     // 'attending' = accepted/in progress
+    // 'finished' = completed/finalized
     try {
       const result = await query(`
         SELECT 
           COUNT(*) FILTER (WHERE conv.attendance_status = 'waiting') as waiting,
-          COUNT(*) FILTER (WHERE conv.attendance_status = 'attending' OR conv.attendance_status IS NULL) as attending
+          COUNT(*) FILTER (WHERE conv.attendance_status = 'attending' OR conv.attendance_status IS NULL) as attending,
+          COUNT(*) FILTER (WHERE conv.attendance_status = 'finished') as finished
         FROM conversations conv
         WHERE conv.connection_id = ANY($1)
           AND conv.is_archived = false
@@ -100,7 +102,8 @@ router.get('/conversations/attendance-counts', authenticate, async (req, res) =>
 
       res.json({
         waiting: parseInt(result.rows[0]?.waiting || 0),
-        attending: parseInt(result.rows[0]?.attending || 0)
+        attending: parseInt(result.rows[0]?.attending || 0),
+        finished: parseInt(result.rows[0]?.finished || 0)
       });
     } catch (dbError) {
       // Fallback if attendance_status column doesn't exist
@@ -116,7 +119,7 @@ router.get('/conversations/attendance-counts', authenticate, async (req, res) =>
         `, [connectionIds]);
 
         const total = parseInt(result.rows[0]?.total || 0);
-        res.json({ waiting: 0, attending: total });
+        res.json({ waiting: 0, attending: total, finished: 0 });
       } else {
         throw dbError;
       }
@@ -257,8 +260,8 @@ router.get('/conversations', authenticate, async (req, res) => {
         paramIndex++;
       }
 
-      // Filter by attendance status (waiting/attending)
-      // Note: NULL = legacy (show in attending for backward compat), 'waiting' = in queue, 'attending' = accepted
+      // Filter by attendance status (waiting/attending/finished)
+      // Note: NULL = legacy (show in attending for backward compat), 'waiting' = in queue, 'attending' = accepted, 'finished' = completed
       if (supportsAttendance) {
         if (attendance_status === 'waiting') {
           // Only show explicit 'waiting' status (new queue system)
@@ -266,6 +269,9 @@ router.get('/conversations', authenticate, async (req, res) => {
         } else if (attendance_status === 'attending') {
           // Show 'attending' + NULL (legacy conversations before queue system)
           sql += ` AND (conv.attendance_status = 'attending' OR conv.attendance_status IS NULL)`;
+        } else if (attendance_status === 'finished') {
+          // Only show explicit 'finished' status (completed conversations)
+          sql += ` AND conv.attendance_status = 'finished'`;
         }
         // If no filter, show all
       }
@@ -601,6 +607,80 @@ router.post('/conversations/:id/release', authenticate, async (req, res) => {
   } catch (error) {
     console.error('Release conversation error:', error);
     res.status(500).json({ error: 'Erro ao liberar conversa' });
+  }
+});
+
+// Finish conversation (move to finished status)
+router.post('/conversations/:id/finish', authenticate, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const connectionIds = await getUserConnections(req.userId);
+
+    // Check if conversation belongs to user's connections
+    const check = await query(
+      `SELECT id FROM conversations WHERE id = $1 AND connection_id = ANY($2)`,
+      [id, connectionIds]
+    );
+
+    if (check.rows.length === 0) {
+      return res.status(404).json({ error: 'Conversa não encontrada' });
+    }
+
+    // Update to finished status
+    const result = await query(
+      `UPDATE conversations 
+       SET attendance_status = 'finished', 
+           finished_at = NOW(),
+           finished_by = $2,
+           updated_at = NOW() 
+       WHERE id = $1 
+       RETURNING *`,
+      [id, req.userId]
+    );
+
+    res.json({ success: true, conversation: result.rows[0] });
+  } catch (error) {
+    console.error('Finish conversation error:', error);
+    res.status(500).json({ error: 'Erro ao finalizar conversa' });
+  }
+});
+
+// Reopen finished conversation (move back to waiting for new flow)
+router.post('/conversations/:id/reopen', authenticate, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const connectionIds = await getUserConnections(req.userId);
+
+    // Check if conversation belongs to user's connections
+    const check = await query(
+      `SELECT id FROM conversations WHERE id = $1 AND connection_id = ANY($2)`,
+      [id, connectionIds]
+    );
+
+    if (check.rows.length === 0) {
+      return res.status(404).json({ error: 'Conversa não encontrada' });
+    }
+
+    // Update to waiting status (back to queue for chatbot flow)
+    const result = await query(
+      `UPDATE conversations 
+       SET attendance_status = 'waiting', 
+           accepted_at = NULL, 
+           accepted_by = NULL,
+           assigned_to = NULL,
+           finished_at = NULL,
+           finished_by = NULL,
+           is_archived = false,
+           updated_at = NOW() 
+       WHERE id = $1 
+       RETURNING *`,
+      [id]
+    );
+
+    res.json({ success: true, conversation: result.rows[0] });
+  } catch (error) {
+    console.error('Reopen conversation error:', error);
+    res.status(500).json({ error: 'Erro ao reabrir conversa' });
   }
 });
 
