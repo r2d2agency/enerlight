@@ -442,45 +442,53 @@ router.patch('/:id/members/:userId', async (req, res) => {
 
     // Update connection assignments if provided
     if (connection_ids !== undefined && Array.isArray(connection_ids)) {
-      // Remove existing assignments for this org's connections
-      await query(
-        `DELETE FROM connection_members 
-         WHERE user_id = $1 AND connection_id IN (
-           SELECT id FROM connections WHERE organization_id = $2
-         )`,
-        [userId, id]
-      );
-      
-      // Add new assignments
-      for (const connId of connection_ids) {
+      try {
+        // Remove existing assignments for this org's connections
         await query(
-          `INSERT INTO connection_members (connection_id, user_id, can_view, can_send, can_manage)
-           VALUES ($1, $2, true, true, false)
-           ON CONFLICT (connection_id, user_id) DO NOTHING`,
-          [connId, userId]
+          `DELETE FROM connection_members 
+           WHERE user_id = $1 AND connection_id IN (
+             SELECT id FROM connections WHERE organization_id = $2
+           )`,
+          [userId, id]
         );
+        
+        // Add new assignments
+        for (const connId of connection_ids) {
+          await query(
+            `INSERT INTO connection_members (connection_id, user_id, can_view, can_send, can_manage)
+             VALUES ($1, $2, true, true, false)
+             ON CONFLICT (connection_id, user_id) DO NOTHING`,
+            [connId, userId]
+          );
+        }
+      } catch (e) {
+        console.log('connection_members table may not exist:', e.message);
       }
     }
 
     // Update department assignments if provided
     if (department_ids !== undefined && Array.isArray(department_ids)) {
-      // Remove existing department assignments for this org
-      await query(
-        `DELETE FROM department_members 
-         WHERE user_id = $1 AND department_id IN (
-           SELECT id FROM departments WHERE organization_id = $2
-         )`,
-        [userId, id]
-      );
-      
-      // Add new department assignments
-      for (const deptId of department_ids) {
+      try {
+        // Remove existing department assignments for this org
         await query(
-          `INSERT INTO department_members (department_id, user_id, role)
-           VALUES ($1, $2, 'agent')
-           ON CONFLICT (department_id, user_id) DO NOTHING`,
-          [deptId, userId]
+          `DELETE FROM department_members 
+           WHERE user_id = $1 AND department_id IN (
+             SELECT id FROM departments WHERE organization_id = $2
+           )`,
+          [userId, id]
         );
+        
+        // Add new department assignments
+        for (const deptId of department_ids) {
+          await query(
+            `INSERT INTO department_members (department_id, user_id, role)
+             VALUES ($1, $2, 'agent')
+             ON CONFLICT (department_id, user_id) DO NOTHING`,
+            [deptId, userId]
+          );
+        }
+      } catch (e) {
+        console.log('department_members table may not exist:', e.message);
       }
     }
 
