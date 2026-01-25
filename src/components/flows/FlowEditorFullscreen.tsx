@@ -15,7 +15,7 @@ import ReactFlow, {
   useReactFlow,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -52,7 +52,7 @@ const nodeTypeOptions = [
 function FlowEditorContent({ flow, onClose }: { flow: Flow; onClose: () => void }) {
   const { getCanvas, saveCanvas } = useFlows();
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
-  const { project } = useReactFlow();
+  const { screenToFlowPosition } = useReactFlow();
   
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -155,35 +155,34 @@ function FlowEditorContent({ flow, onClose }: { flow: Flow; onClose: () => void 
   const onDrop = useCallback(
     (event: React.DragEvent) => {
       event.preventDefault();
-      if (!draggedType || !reactFlowWrapper.current) return;
+      if (!draggedType) return;
 
-      const reactFlowBounds = reactFlowWrapper.current.getBoundingClientRect();
-      const position = project({
-        x: event.clientX - reactFlowBounds.left,
-        y: event.clientY - reactFlowBounds.top,
+      // Usar a nova API screenToFlowPosition
+      const position = screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY,
       });
 
+      const newNodeId = `${draggedType}_${Date.now()}`;
       const newNode: Node<FlowNodeData> = {
-        id: `${draggedType}_${Date.now()}`,
+        id: newNodeId,
         type: draggedType,
         position,
         data: {
           label: nodeTypeOptions.find(o => o.type === draggedType)?.label || draggedType,
           content: {},
-          onEdit: (id: string) => handleEditNode(id),
-          onDelete: (id: string) => handleDeleteNode(id),
         },
       };
 
       setNodes((nds) => nds.concat(newNode));
       setDraggedType(null);
       
-      // Auto-open editor for new node
+      // Auto-open editor for new node (buscar o nó atualizado)
       setTimeout(() => {
         setEditingNode(newNode);
-      }, 100);
+      }, 150);
     },
-    [draggedType, project, setNodes, handleEditNode, handleDeleteNode]
+    [draggedType, screenToFlowPosition, setNodes]
   );
 
   const handleSaveNodeContent = (content: Record<string, any>) => {
@@ -198,11 +197,18 @@ function FlowEditorContent({ flow, onClose }: { flow: Flow; onClose: () => void 
     setEditingNode(null);
   };
 
-  const handleNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
+  const handleNodeClick = useCallback((_: React.MouseEvent, node: Node<FlowNodeData>) => {
     if (node.type !== 'start') {
-      handleEditNode(node.id);
+      // Buscar o nó atualizado no estado atual para garantir dados corretos
+      setNodes((currentNodes) => {
+        const updatedNode = currentNodes.find(n => n.id === node.id);
+        if (updatedNode && updatedNode.type !== 'start') {
+          setEditingNode(updatedNode);
+        }
+        return currentNodes;
+      });
     }
-  }, [handleEditNode]);
+  }, [setNodes]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -351,6 +357,10 @@ export function FlowEditorFullscreen({ open, flow, onClose }: FlowEditorFullscre
   return (
     <Dialog open={open} onOpenChange={() => onClose()}>
       <DialogContent className="max-w-[100vw] w-screen h-screen max-h-screen p-0 border-none rounded-none">
+        <DialogTitle className="sr-only">Editor de Fluxo: {flow.name}</DialogTitle>
+        <DialogDescription className="sr-only">
+          Editor visual para criar e editar fluxos de automação
+        </DialogDescription>
         <ReactFlowProvider>
           <FlowEditorContent flow={flow} onClose={onClose} />
         </ReactFlowProvider>
