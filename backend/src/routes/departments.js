@@ -14,7 +14,8 @@ function isDepartmentsSchemaMissing(error) {
   // 42P01 = undefined_table, 42703 = undefined_column
   if (!['42P01', '42703'].includes(code)) return false;
   const msg = String(error?.message || '');
-  return /\bdepartments\b|\bdepartment_members\b|\bdepartment_id\b/i.test(msg);
+  // Inclui colunas usadas pelos endpoints deste arquivo para evitar 500 durante migrações.
+  return /\bdepartments\b|\bdepartment_members\b|\bdepartment_id\b|\battendance_status\b|\bstatus\b/i.test(msg);
 }
 
 // Helper para obter organização do usuário
@@ -479,11 +480,11 @@ router.get('/user/my-departments', async (req, res) => {
         dm.is_available,
         dm.current_chats,
         COUNT(DISTINCT dm2.user_id) as member_count,
-        COUNT(DISTINCT c.id) FILTER (WHERE c.status = 'pending') as pending_chats
+        COUNT(DISTINCT c.id) FILTER (WHERE c.attendance_status = 'waiting') as pending_chats
        FROM department_members dm
        JOIN departments d ON dm.department_id = d.id
        LEFT JOIN department_members dm2 ON d.id = dm2.department_id
-       LEFT JOIN conversations c ON d.id = c.department_id AND c.status = 'pending'
+        LEFT JOIN conversations c ON d.id = c.department_id AND c.attendance_status = 'waiting'
        WHERE dm.user_id = $1 AND d.is_active = true
        GROUP BY d.id, dm.role, dm.is_available, dm.current_chats
        ORDER BY d.name`,
