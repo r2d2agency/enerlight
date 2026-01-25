@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { query } from '../db.js';
 import { authenticate } from '../middleware/auth.js';
+import { executeFlow } from '../lib/flow-executor.js';
 
 const router = Router();
 router.use(authenticate);
@@ -540,11 +541,20 @@ router.post('/conversation/:conversationId/start', async (req, res) => {
       console.log('flow_sessions table may not exist, skipping session creation:', sessionError.message);
     }
 
+    // Execute the flow starting from the start node
+    const execResult = await executeFlow(flow_id, conversationId, 'start');
+    
+    if (!execResult.success) {
+      console.error('Flow execution error:', execResult.error);
+      // Still return success since the session was created, but log the error
+    }
+
     res.json({ 
       success: true, 
       message: `Fluxo "${flow.rows[0].name}" iniciado`,
       flow_id: flow_id,
-      conversation_id: conversationId
+      conversation_id: conversationId,
+      execution: execResult
     });
   } catch (error) {
     console.error('Start flow in conversation error:', error);
