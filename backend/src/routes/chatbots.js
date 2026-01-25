@@ -258,6 +258,19 @@ router.patch('/:id', async (req, res) => {
       return res.status(403).json({ error: 'Sem permissão para editar chatbots' });
     }
 
+    // Verificar colunas disponíveis (evita 500 quando o schema está incompleto/desatualizado)
+    let availableColumns = [];
+    try {
+      const colsResult = await query(`
+        SELECT column_name FROM information_schema.columns
+        WHERE table_name = 'chatbots'
+      `);
+      availableColumns = colsResult.rows.map((r) => r.column_name);
+    } catch (e) {
+      // Se não conseguir checar, mantém comportamento atual (tentará atualizar tudo)
+      console.log('Erro ao verificar colunas de chatbots:', e.message);
+    }
+
     // Verificar se chatbot pertence à organização
     const existing = await query(
       'SELECT id FROM chatbots WHERE id = $1 AND organization_id = $2',
@@ -282,10 +295,24 @@ router.patch('/:id', async (req, res) => {
 
     for (const field of allowedFields) {
       if (req.body[field] !== undefined) {
+        // Se sabemos as colunas existentes, ignorar campos que não existem no DB
+        if (availableColumns.length > 0 && !availableColumns.includes(field)) {
+          continue;
+        }
+
         // Não atualizar api_key se for placeholder
         if (field === 'ai_api_key' && req.body[field] === '••••••••') {
           continue;
         }
+
+        // JSONB: garantir serialização consistente
+        if (field === 'menu_options' && req.body[field] !== null && typeof req.body[field] !== 'string') {
+          updates.push(`${field} = $${paramCount}`);
+          values.push(JSON.stringify(req.body[field]));
+          paramCount++;
+          continue;
+        }
+
         updates.push(`${field} = $${paramCount}`);
         values.push(req.body[field]);
         paramCount++;
@@ -312,7 +339,7 @@ router.patch('/:id', async (req, res) => {
     res.json(chatbot);
   } catch (error) {
     console.error('Erro ao atualizar chatbot:', error);
-    res.status(500).json({ error: 'Erro ao atualizar chatbot' });
+    res.status(500).json({ error: 'Erro ao atualizar chatbot', details: error.message });
   }
 });
 
@@ -976,13 +1003,43 @@ router.get('/org/connections', async (req, res) => {
       return res.status(403).json({ error: 'Sem permissão' });
     }
 
-    const result = await query(
-      `SELECT c.id, c.name, c.phone_number as phone, c.status
-       FROM connections c
-       WHERE c.organization_id = $1
-       ORDER BY c.name`,
-      [org.organization_id]
-    );
+    // Resiliência: alguns bancos antigos possuem connections.user_id (sem organization_id)
+    // então buscamos as conexões por membros da organização.
+    let connCols = [];
+    try {
+      const colsResult = await query(`
+        SELECT column_name FROM information_schema.columns
+        WHERE table_name = 'connections'
+      `);
+      connCols = colsResult.rows.map((r) => r.column_name);
+    } catch (e) {
+      console.log('Erro ao verificar colunas de connections:', e.message);
+    }
+
+    let sql;
+    let params;
+    if (connCols.includes('organization_id')) {
+      sql = `SELECT c.id, c.name, c.phone_number as phone, c.status
+             FROM connections c
+             WHERE c.organization_id = $1
+             ORDER BY c.name`;
+      params = [org.organization_id];
+    } else if (connCols.includes('user_id')) {
+      sql = `SELECT c.id, c.name, c.phone_number as phone, c.status
+             FROM connections c
+             JOIN organization_members om ON om.user_id = c.user_id
+             WHERE om.organization_id = $1
+             ORDER BY c.name`;
+      params = [org.organization_id];
+    } else {
+      // Fallback extremo (evita 500): retorna tudo que existir
+      sql = `SELECT c.id, c.name, c.phone_number as phone, c.status
+             FROM connections c
+             ORDER BY c.name`;
+      params = [];
+    }
+
+    const result = await query(sql, params);
 
     res.json(result.rows);
   } catch (error) {
