@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { query } from '../db.js';
 import { authenticate } from '../middleware/auth.js';
 import { getSendAttempts, clearSendAttempts, downloadMedia as wapiDownloadMedia, getChats as wapiGetChats, getGroupInfo as wapiGetGroupInfo, getGroups as wapiGetGroups } from '../lib/wapi-provider.js';
+import { executeFlow } from '../lib/flow-executor.js';
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
@@ -952,6 +953,90 @@ function detectEventType(payload) {
 }
 
 /**
+ * Check if incoming message matches any flow keywords and trigger flow execution
+ */
+async function checkAndTriggerFlow(connection, conversationId, messageContent) {
+  try {
+    if (!messageContent || typeof messageContent !== 'string') return;
+    
+    const messageLower = messageContent.trim().toLowerCase();
+    if (!messageLower) return;
+
+    console.log('[Flow Trigger] Checking keywords for message:', messageLower.slice(0, 50));
+
+    // Find active flows with trigger enabled for this connection
+    const flowsResult = await query(
+      `SELECT f.id, f.name, f.trigger_keywords, f.trigger_match_mode
+       FROM flows f
+       WHERE f.is_active = true
+         AND f.trigger_enabled = true
+         AND f.trigger_keywords IS NOT NULL
+         AND array_length(f.trigger_keywords, 1) > 0
+         AND (
+           f.connection_ids IS NULL 
+           OR f.connection_ids = '{}'
+           OR $1 = ANY(f.connection_ids)
+         )
+       ORDER BY f.created_at`,
+      [connection.id]
+    );
+
+    if (flowsResult.rows.length === 0) {
+      console.log('[Flow Trigger] No active flows with triggers for this connection');
+      return;
+    }
+
+    // Check each flow for keyword match
+    for (const flow of flowsResult.rows) {
+      const keywords = (flow.trigger_keywords || []).map(k => String(k).toLowerCase().trim());
+      const matchMode = flow.trigger_match_mode || 'exact';
+      
+      let matched = false;
+      
+      for (const keyword of keywords) {
+        if (!keyword) continue;
+        
+        switch (matchMode) {
+          case 'exact':
+            matched = messageLower === keyword;
+            break;
+          case 'contains':
+            matched = messageLower.includes(keyword);
+            break;
+          case 'starts_with':
+            matched = messageLower.startsWith(keyword);
+            break;
+          default:
+            matched = messageLower === keyword;
+        }
+        
+        if (matched) break;
+      }
+
+      if (matched) {
+        console.log('[Flow Trigger] Keyword matched! Starting flow:', flow.name, 'for conversation:', conversationId);
+        
+        // Execute the flow
+        const result = await executeFlow(flow.id, conversationId, 'start');
+        
+        if (result.success) {
+          console.log('[Flow Trigger] Flow executed successfully:', flow.name, 'Nodes processed:', result.nodesProcessed);
+        } else {
+          console.error('[Flow Trigger] Flow execution failed:', result.error);
+        }
+        
+        // Only trigger the first matching flow
+        return;
+      }
+    }
+
+    console.log('[Flow Trigger] No keyword match found');
+  } catch (error) {
+    console.error('[Flow Trigger] Error checking/triggering flow:', error);
+  }
+}
+
+/**
  * Handle incoming message from W-API
  * W-API payload structure:
  * {
@@ -1228,6 +1313,11 @@ async function handleIncomingMessage(connection, payload) {
     );
 
     console.log('[W-API] Message saved. Type:', messageType, 'MediaURL:', effectiveMediaUrl?.slice?.(0, 100));
+
+    // Check for keyword-triggered flows (only for text messages)
+    if (messageType === 'text' && content) {
+      await checkAndTriggerFlow(connection, conversationId, content);
+    }
 
     // Cache media in background for reliability (CORS/expiração de URL)
     if (effectiveMediaUrl && shouldCacheExternally(effectiveMediaUrl)) {

@@ -5,6 +5,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import * as whatsappProvider from '../lib/whatsapp-provider.js';
+import { executeFlow } from '../lib/flow-executor.js';
 import { logError, logInfo } from '../logger.js';
 
 
@@ -1188,6 +1189,92 @@ function isLocalUploadsUrl(url) {
   return typeof url === 'string' && url.includes('/uploads/');
 }
 
+/**
+ * Check if incoming message matches any flow keywords and trigger flow execution
+ */
+async function checkAndTriggerFlow(connection, conversationId, messageContent) {
+  try {
+    if (!messageContent || typeof messageContent !== 'string') return;
+    
+    const messageLower = messageContent.trim().toLowerCase();
+    if (!messageLower) return;
+
+    console.log('[Flow Trigger] Checking keywords for message:', messageLower.slice(0, 50));
+
+    // Find active flows with trigger enabled for this connection
+    const flowsResult = await query(
+      `SELECT f.id, f.name, f.trigger_keywords, f.trigger_match_mode
+       FROM flows f
+       WHERE f.is_active = true
+         AND f.trigger_enabled = true
+         AND f.trigger_keywords IS NOT NULL
+         AND array_length(f.trigger_keywords, 1) > 0
+         AND (
+           f.connection_ids IS NULL 
+           OR f.connection_ids = '{}'
+           OR $1 = ANY(f.connection_ids)
+         )
+       ORDER BY f.created_at`,
+      [connection.id]
+    );
+
+    if (flowsResult.rows.length === 0) {
+      console.log('[Flow Trigger] No active flows with triggers for this connection');
+      return;
+    }
+
+    // Check each flow for keyword match
+    for (const flow of flowsResult.rows) {
+      const keywords = (flow.trigger_keywords || []).map(k => String(k).toLowerCase().trim());
+      const matchMode = flow.trigger_match_mode || 'exact';
+      
+      let matched = false;
+      
+      for (const keyword of keywords) {
+        if (!keyword) continue;
+        
+        switch (matchMode) {
+          case 'exact':
+            matched = messageLower === keyword;
+            break;
+          case 'contains':
+            matched = messageLower.includes(keyword);
+            break;
+          case 'starts_with':
+            matched = messageLower.startsWith(keyword);
+            break;
+          default:
+            matched = messageLower === keyword;
+        }
+        
+        if (matched) break;
+      }
+
+      if (matched) {
+        console.log('[Flow Trigger] Keyword matched! Starting flow:', flow.name, 'for conversation:', conversationId);
+        
+        // Execute the flow (fire-and-forget, don't block webhook)
+        executeFlow(flow.id, conversationId, 'start').then(result => {
+          if (result.success) {
+            console.log('[Flow Trigger] Flow executed successfully:', flow.name, 'Nodes processed:', result.nodesProcessed);
+          } else {
+            console.error('[Flow Trigger] Flow execution failed:', result.error);
+          }
+        }).catch(err => {
+          console.error('[Flow Trigger] Flow execution error:', err);
+        });
+        
+        // Only trigger the first matching flow
+        return;
+      }
+    }
+
+    console.log('[Flow Trigger] No keyword match found');
+  } catch (error) {
+    console.error('[Flow Trigger] Error checking/triggering flow:', error);
+  }
+}
+
 // Handle incoming/outgoing messages
 async function handleMessageUpsert(connection, data) {
   try {
@@ -1640,6 +1727,11 @@ async function handleMessageUpsert(connection, data) {
 
       if (insertResult.rows.length > 0) {
         console.log('Webhook: Message saved/updated:', messageId, 'Type:', messageType, 'FromMe:', fromMe, 'Content:', content?.substring(0, 50));
+        
+        // Check for keyword-triggered flows (only for incoming text messages)
+        if (!fromMe && messageType === 'text' && content) {
+          checkAndTriggerFlow(connection, conversationId, content);
+        }
       }
     } catch (insertError) {
       // Log but don't throw - allow webhook to continue for other messages
