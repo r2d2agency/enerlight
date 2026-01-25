@@ -74,7 +74,8 @@ const Departamentos = () => {
     getMembers,
     addMember,
     removeMember,
-    loading 
+    loading,
+    error,
   } = useDepartments();
 
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -179,6 +180,8 @@ const Departamentos = () => {
           toast.success('Departamento atualizado!');
           loadDepartments();
           setEditorOpen(false);
+        } else {
+          toast.error(error || 'Não foi possível atualizar o departamento');
         }
       } else {
         const result = await createDepartment(formData);
@@ -186,8 +189,12 @@ const Departamentos = () => {
           toast.success('Departamento criado!');
           loadDepartments();
           setEditorOpen(false);
+        } else {
+          toast.error(error || 'Não foi possível criar o departamento');
         }
       }
+    } catch (e: any) {
+      toast.error(e?.message || error || 'Erro ao salvar departamento');
     } finally {
       setSaving(false);
     }

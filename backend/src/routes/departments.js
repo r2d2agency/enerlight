@@ -95,6 +95,10 @@ router.get('/:id', async (req, res) => {
 
     res.json(result.rows[0]);
   } catch (error) {
+    if (isDepartmentsSchemaMissing(error)) {
+      console.warn('Schema de departamentos ausente (get by id):', error.message);
+      return res.status(503).json({ error: 'Módulo de Departamentos não está disponível (schema não instalado)' });
+    }
     console.error('Erro ao buscar departamento:', error);
     res.status(500).json({ error: 'Erro ao buscar departamento' });
   }
@@ -156,6 +160,10 @@ router.post('/', async (req, res) => {
 
     res.status(201).json(result.rows[0]);
   } catch (error) {
+    if (isDepartmentsSchemaMissing(error)) {
+      console.warn('Schema de departamentos ausente (create):', error.message);
+      return res.status(503).json({ error: 'Módulo de Departamentos não está disponível (schema não instalado)' });
+    }
     if (error.code === '23505') {
       return res.status(400).json({ error: 'Já existe um departamento com este nome' });
     }
@@ -216,6 +224,10 @@ router.patch('/:id', async (req, res) => {
 
     res.json(result.rows[0]);
   } catch (error) {
+    if (isDepartmentsSchemaMissing(error)) {
+      console.warn('Schema de departamentos ausente (update):', error.message);
+      return res.status(503).json({ error: 'Módulo de Departamentos não está disponível (schema não instalado)' });
+    }
     if (error.code === '23505') {
       return res.status(400).json({ error: 'Já existe um departamento com este nome' });
     }
@@ -243,6 +255,10 @@ router.delete('/:id', async (req, res) => {
 
     res.json({ success: true });
   } catch (error) {
+    if (isDepartmentsSchemaMissing(error)) {
+      console.warn('Schema de departamentos ausente (delete):', error.message);
+      return res.status(503).json({ error: 'Módulo de Departamentos não está disponível (schema não instalado)' });
+    }
     console.error('Erro ao deletar departamento:', error);
     res.status(500).json({ error: 'Erro ao deletar departamento' });
   }
@@ -285,6 +301,10 @@ router.get('/:id/members', async (req, res) => {
 
     res.json(result.rows);
   } catch (error) {
+    if (isDepartmentsSchemaMissing(error)) {
+      console.warn('Schema de departamentos ausente (members list); retornando vazio:', error.message);
+      return res.json([]);
+    }
     console.error('Erro ao listar membros:', error);
     res.status(500).json({ error: 'Erro ao listar membros' });
   }
@@ -347,6 +367,10 @@ router.post('/:id/members', async (req, res) => {
 
     res.status(201).json(member.rows[0]);
   } catch (error) {
+    if (isDepartmentsSchemaMissing(error)) {
+      console.warn('Schema de departamentos ausente (add member):', error.message);
+      return res.status(503).json({ error: 'Módulo de Departamentos não está disponível (schema não instalado)' });
+    }
     console.error('Erro ao adicionar membro:', error);
     res.status(500).json({ error: 'Erro ao adicionar membro' });
   }
@@ -377,6 +401,10 @@ router.delete('/:id/members/:userId', async (req, res) => {
 
     res.json({ success: true });
   } catch (error) {
+    if (isDepartmentsSchemaMissing(error)) {
+      console.warn('Schema de departamentos ausente (remove member):', error.message);
+      return res.status(503).json({ error: 'Módulo de Departamentos não está disponível (schema não instalado)' });
+    }
     console.error('Erro ao remover membro:', error);
     res.status(500).json({ error: 'Erro ao remover membro' });
   }
@@ -411,6 +439,10 @@ router.patch('/:id/members/:userId/availability', async (req, res) => {
 
     res.json(result.rows[0]);
   } catch (error) {
+    if (isDepartmentsSchemaMissing(error)) {
+      console.warn('Schema de departamentos ausente (availability):', error.message);
+      return res.status(503).json({ error: 'Módulo de Departamentos não está disponível (schema não instalado)' });
+    }
     console.error('Erro ao atualizar disponibilidade:', error);
     res.status(500).json({ error: 'Erro ao atualizar disponibilidade' });
   }
@@ -464,6 +496,10 @@ router.patch('/user/availability', async (req, res) => {
 
     res.json({ success: true, is_available });
   } catch (error) {
+    if (isDepartmentsSchemaMissing(error)) {
+      console.warn('Schema de departamentos ausente (user availability):', error.message);
+      return res.status(503).json({ error: 'Módulo de Departamentos não está disponível (schema não instalado)' });
+    }
     console.error('Erro ao atualizar disponibilidade:', error);
     res.status(500).json({ error: 'Erro ao atualizar disponibilidade' });
   }
@@ -519,6 +555,10 @@ router.post('/transfer/:conversationId', async (req, res) => {
       department: dept.rows[0]
     });
   } catch (error) {
+    if (isDepartmentsSchemaMissing(error)) {
+      console.warn('Schema de departamentos ausente (transfer):', error.message);
+      return res.status(503).json({ error: 'Módulo de Departamentos não está disponível (schema não instalado)' });
+    }
     console.error('Erro ao transferir conversa:', error);
     res.status(500).json({ error: 'Erro ao transferir conversa' });
   }
