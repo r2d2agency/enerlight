@@ -141,7 +141,7 @@ router.post('/login', async (req, res) => {
 
     // Find user
     const result = await query(
-      'SELECT id, email, name, password_hash FROM users WHERE email = $1',
+      'SELECT id, email, name, password_hash, is_superadmin FROM users WHERE email = $1',
       [email]
     );
 
@@ -150,6 +150,7 @@ router.post('/login', async (req, res) => {
     }
 
     const user = result.rows[0];
+    const isSuperadmin = user.is_superadmin === true;
 
     // Check password
     const validPassword = await bcrypt.compare(password, user.password_hash);
@@ -177,15 +178,19 @@ router.post('/login', async (req, res) => {
     const role = orgResult.rows[0]?.role || null;
     const organizationId = orgResult.rows[0]?.organization_id || null;
     
-    // Default modules if null
-    const defaultModules = {
+    // Superadmin/owner/admin always has all modules enabled
+    const allModulesEnabled = {
       campaigns: true,
       billing: true,
       groups: true,
       scheduled_messages: true,
       chatbots: true,
     };
-    const modulesEnabled = orgResult.rows[0]?.modules_enabled || defaultModules;
+    
+    let modulesEnabled = allModulesEnabled;
+    if (!isSuperadmin && !['owner', 'admin'].includes(role)) {
+      modulesEnabled = orgResult.rows[0]?.modules_enabled || allModulesEnabled;
+    }
 
     // Generate token
     const token = jwt.sign(
@@ -199,6 +204,7 @@ router.post('/login', async (req, res) => {
         id: user.id, 
         email: user.email, 
         name: user.name,
+        is_superadmin: isSuperadmin,
         role,
         organization_id: organizationId,
         modules_enabled: modulesEnabled,
@@ -224,13 +230,16 @@ router.get('/me', async (req, res) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
     const result = await query(
-      'SELECT id, email, name, created_at FROM users WHERE id = $1',
+      'SELECT id, email, name, is_superadmin, created_at FROM users WHERE id = $1',
       [decoded.userId]
     );
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Usuário não encontrado' });
     }
+
+    const user = result.rows[0];
+    const isSuperadmin = user.is_superadmin === true;
 
     // Role and organization info (multi-tenant)
     const orgResult = await query(
@@ -252,19 +261,27 @@ router.get('/me', async (req, res) => {
     const role = orgResult.rows[0]?.role || null;
     const organizationId = orgResult.rows[0]?.organization_id || null;
     
-    // Default modules if null
-    const defaultModules = {
+    // Superadmin always has all modules enabled
+    const allModulesEnabled = {
       campaigns: true,
       billing: true,
       groups: true,
       scheduled_messages: true,
       chatbots: true,
     };
-    const modulesEnabled = orgResult.rows[0]?.modules_enabled || defaultModules;
+    
+    // Use all modules for superadmin/owner/admin, otherwise use org settings
+    let modulesEnabled = allModulesEnabled;
+    if (!isSuperadmin && !['owner', 'admin'].includes(role)) {
+      modulesEnabled = orgResult.rows[0]?.modules_enabled || allModulesEnabled;
+    }
 
     res.json({ 
       user: { 
-        ...result.rows[0], 
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        is_superadmin: isSuperadmin,
         role,
         organization_id: organizationId,
         modules_enabled: modulesEnabled,

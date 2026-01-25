@@ -253,7 +253,14 @@ router.get('/:id/members', async (req, res) => {
            JOIN connections c ON c.id = cm.connection_id
            WHERE cm.user_id = om.user_id AND c.organization_id = $1
           ), '[]'::json
-        ) as assigned_connections
+        ) as assigned_connections,
+        COALESCE(
+          (SELECT json_agg(json_build_object('id', d.id, 'name', d.name, 'role', dm.role))
+           FROM department_members dm
+           JOIN departments d ON d.id = dm.department_id
+           WHERE dm.user_id = om.user_id AND d.organization_id = $1
+          ), '[]'::json
+        ) as assigned_departments
        FROM organization_members om
        JOIN users u ON u.id = om.user_id
        WHERE om.organization_id = $1
@@ -366,11 +373,11 @@ router.post('/:id/members', async (req, res) => {
   }
 });
 
-// Update member's connection assignments
+// Update member's role, connection and department assignments
 router.patch('/:id/members/:userId', async (req, res) => {
   try {
     const { id, userId } = req.params;
-    const { role, connection_ids } = req.body;
+    const { role, connection_ids, department_ids } = req.body;
 
     // Check if user is admin/owner
     const memberCheck = await query(
@@ -383,8 +390,18 @@ router.patch('/:id/members/:userId', async (req, res) => {
       return res.status(403).json({ error: 'Apenas admins podem editar membros' });
     }
 
-    // Update role if provided
-    if (role) {
+    // Check if target is owner (can't change owner's role)
+    const targetCheck = await query(
+      `SELECT role FROM organization_members WHERE organization_id = $1 AND user_id = $2`,
+      [id, userId]
+    );
+    
+    if (targetCheck.rows[0]?.role === 'owner' && role && role !== 'owner') {
+      return res.status(400).json({ error: 'Não é possível alterar o cargo do proprietário' });
+    }
+
+    // Update role if provided and not owner
+    if (role && targetCheck.rows[0]?.role !== 'owner') {
       await query(
         `UPDATE organization_members SET role = $1 WHERE organization_id = $2 AND user_id = $3`,
         [role, id, userId]
@@ -413,10 +430,62 @@ router.patch('/:id/members/:userId', async (req, res) => {
       }
     }
 
+    // Update department assignments if provided
+    if (department_ids !== undefined && Array.isArray(department_ids)) {
+      // Remove existing department assignments for this org
+      await query(
+        `DELETE FROM department_members 
+         WHERE user_id = $1 AND department_id IN (
+           SELECT id FROM departments WHERE organization_id = $2
+         )`,
+        [userId, id]
+      );
+      
+      // Add new department assignments
+      for (const deptId of department_ids) {
+        await query(
+          `INSERT INTO department_members (department_id, user_id, role)
+           VALUES ($1, $2, 'agent')
+           ON CONFLICT (department_id, user_id) DO NOTHING`,
+          [deptId, userId]
+        );
+      }
+    }
+
     res.json({ success: true });
   } catch (error) {
     console.error('Update member error:', error);
     res.status(500).json({ error: 'Erro ao atualizar membro' });
+  }
+});
+
+// Get organization departments (for member assignment)
+router.get('/:id/departments', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Check if user is member
+    const memberCheck = await query(
+      `SELECT role FROM organization_members WHERE organization_id = $1 AND user_id = $2`,
+      [id, req.userId]
+    );
+    
+    if (memberCheck.rows.length === 0) {
+      return res.status(403).json({ error: 'Acesso negado' });
+    }
+    
+    const result = await query(
+      `SELECT id, name, color, icon, is_active
+       FROM departments 
+       WHERE organization_id = $1 
+       ORDER BY name`,
+      [id]
+    );
+    
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Get org departments error:', error);
+    res.status(500).json({ error: 'Erro ao buscar departamentos' });
   }
 });
 

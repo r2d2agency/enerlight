@@ -16,7 +16,7 @@ import { useOrganizations } from '@/hooks/use-organizations';
 import { useSuperadmin } from '@/hooks/use-superadmin';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
-import { Building2, Plus, Users, Trash2, UserPlus, Crown, Shield, User, Briefcase, Loader2, Pencil, Link2, Settings, KeyRound, Megaphone, Receipt, UsersRound, CalendarClock, Bot } from 'lucide-react';
+import { Building2, Plus, Users, Trash2, UserPlus, Crown, Shield, User, Briefcase, Loader2, Pencil, Link2, Settings, KeyRound, Megaphone, Receipt, UsersRound, CalendarClock, Bot, Layers } from 'lucide-react';
 
 interface Organization {
   id: string;
@@ -32,6 +32,12 @@ interface AssignedConnection {
   name: string;
 }
 
+interface AssignedDepartment {
+  id: string;
+  name: string;
+  role: string;
+}
+
 interface OrganizationMember {
   id: string;
   user_id: string;
@@ -39,6 +45,7 @@ interface OrganizationMember {
   email: string;
   role: 'owner' | 'admin' | 'manager' | 'agent';
   assigned_connections: AssignedConnection[];
+  assigned_departments: AssignedDepartment[];
   created_at: string;
 }
 
@@ -47,6 +54,14 @@ interface OrgConnection {
   name: string;
   phone_number: string | null;
   status: string;
+}
+
+interface OrgDepartment {
+  id: string;
+  name: string;
+  color: string;
+  icon: string;
+  is_active: boolean;
 }
 
 const roleLabels = {
@@ -61,6 +76,7 @@ export default function Organizacoes() {
   const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null);
   const [members, setMembers] = useState<OrganizationMember[]>([]);
   const [connections, setConnections] = useState<OrgConnection[]>([]);
+  const [departments, setDepartments] = useState<OrgDepartment[]>([]);
   const [loadingOrgs, setLoadingOrgs] = useState(true);
   const [loadingMembers, setLoadingMembers] = useState(false);
   const [isSuperadmin, setIsSuperadmin] = useState(false);
@@ -81,11 +97,14 @@ export default function Organizacoes() {
   const [newMemberPassword, setNewMemberPassword] = useState('');
   const [newMemberRole, setNewMemberRole] = useState<string>('agent');
   const [newMemberConnectionIds, setNewMemberConnectionIds] = useState<string[]>([]);
+  const [newMemberDepartmentIds, setNewMemberDepartmentIds] = useState<string[]>([]);
 
   // Edit member dialog
   const [editMemberDialogOpen, setEditMemberDialogOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<OrganizationMember | null>(null);
+  const [editMemberRole, setEditMemberRole] = useState<string>('agent');
   const [editMemberConnectionIds, setEditMemberConnectionIds] = useState<string[]>([]);
+  const [editMemberDepartmentIds, setEditMemberDepartmentIds] = useState<string[]>([]);
 
   // Edit password dialog
   const [editPasswordDialogOpen, setEditPasswordDialogOpen] = useState(false);
@@ -111,6 +130,7 @@ export default function Organizacoes() {
     updateOrganization,
     getMembers, 
     getConnections,
+    getDepartments,
     addMember, 
     updateMember,
     removeMember,
@@ -128,6 +148,7 @@ export default function Organizacoes() {
     if (selectedOrg) {
       loadMembers(selectedOrg.id);
       loadConnections(selectedOrg.id);
+      loadDepartments(selectedOrg.id);
       loadModules(selectedOrg.id);
     }
   }, [selectedOrg]);
@@ -152,6 +173,11 @@ export default function Organizacoes() {
   const loadConnections = async (orgId: string) => {
     const conns = await getConnections(orgId);
     setConnections(conns);
+  };
+
+  const loadDepartments = async (orgId: string) => {
+    const depts = await getDepartments(orgId);
+    setDepartments(depts);
   };
 
   const loadModules = async (orgId: string) => {
@@ -238,7 +264,8 @@ export default function Organizacoes() {
       role: newMemberRole,
       name: newMemberName,
       password: newMemberPassword,
-      connection_ids: newMemberConnectionIds.length > 0 ? newMemberConnectionIds : undefined
+      connection_ids: newMemberConnectionIds.length > 0 ? newMemberConnectionIds : undefined,
+      department_ids: newMemberDepartmentIds.length > 0 ? newMemberDepartmentIds : undefined
     });
 
     if (result.success) {
@@ -257,23 +284,34 @@ export default function Organizacoes() {
     setNewMemberPassword('');
     setNewMemberRole('agent');
     setNewMemberConnectionIds([]);
+    setNewMemberDepartmentIds([]);
   };
 
   const handleOpenEditMember = (member: OrganizationMember) => {
     setEditingMember(member);
+    setEditMemberRole(member.role);
     setEditMemberConnectionIds(member.assigned_connections?.map(c => c.id) || []);
+    setEditMemberDepartmentIds(member.assigned_departments?.map(d => d.id) || []);
     setEditMemberDialogOpen(true);
   };
 
   const handleUpdateMember = async () => {
     if (!selectedOrg || !editingMember) return;
 
-    const success = await updateMember(selectedOrg.id, editingMember.user_id, {
-      connection_ids: editMemberConnectionIds
-    });
+    const updateData: { role?: string; connection_ids?: string[]; department_ids?: string[] } = {
+      connection_ids: editMemberConnectionIds,
+      department_ids: editMemberDepartmentIds,
+    };
+    
+    // Only include role if it's different and member is not owner
+    if (editingMember.role !== 'owner' && editMemberRole !== editingMember.role) {
+      updateData.role = editMemberRole;
+    }
+
+    const success = await updateMember(selectedOrg.id, editingMember.user_id, updateData);
 
     if (success) {
-      toast.success('Conexões atualizadas!');
+      toast.success('Membro atualizado!');
       setEditMemberDialogOpen(false);
       setEditingMember(null);
       loadMembers(selectedOrg.id);
@@ -656,6 +694,7 @@ export default function Organizacoes() {
                                 <TableHead>Usuário</TableHead>
                                 <TableHead>Função</TableHead>
                                 <TableHead>Conexões</TableHead>
+                                <TableHead>Departamentos</TableHead>
                                 <TableHead>Desde</TableHead>
                                 {canManageOrg && <TableHead className="w-[120px]">Ações</TableHead>}
                               </TableRow>
@@ -664,6 +703,7 @@ export default function Organizacoes() {
                               {members.map((member) => {
                                 const RoleIcon = roleLabels[member.role].icon;
                                 const assignedConns = member.assigned_connections || [];
+                                const assignedDepts = member.assigned_departments || [];
                                 return (
                                   <TableRow key={member.id}>
                                     <TableCell>
@@ -701,6 +741,24 @@ export default function Organizacoes() {
                                         </div>
                                       )}
                                     </TableCell>
+                                    <TableCell>
+                                      {assignedDepts.length === 0 ? (
+                                        <span className="text-muted-foreground text-sm">-</span>
+                                      ) : (
+                                        <div className="flex flex-wrap gap-1">
+                                          {assignedDepts.slice(0, 2).map((d) => (
+                                            <Badge key={d.id} variant="secondary" className="text-xs">
+                                              {d.name}
+                                            </Badge>
+                                          ))}
+                                          {assignedDepts.length > 2 && (
+                                            <Badge variant="secondary" className="text-xs">
+                                              +{assignedDepts.length - 2}
+                                            </Badge>
+                                          )}
+                                        </div>
+                                      )}
+                                    </TableCell>
                                     <TableCell className="text-muted-foreground">
                                       {new Date(member.created_at).toLocaleDateString('pt-BR')}
                                     </TableCell>
@@ -712,9 +770,9 @@ export default function Organizacoes() {
                                               <Button 
                                                 variant="ghost" 
                                                 size="icon"
-                                                onClick={() => handleOpenEditMember(member)}
-                                                title="Gerenciar conexões"
-                                              >
+                                              onClick={() => handleOpenEditMember(member)}
+                                              title="Editar membro"
+                                            >
                                                 <Settings className="h-4 w-4" />
                                               </Button>
                                               <Button 
@@ -911,47 +969,118 @@ export default function Organizacoes() {
 
         {/* Edit Member Dialog */}
         <Dialog open={editMemberDialogOpen} onOpenChange={setEditMemberDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Gerenciar Conexões</DialogTitle>
+          <DialogContent className="max-w-lg max-h-[90vh] flex flex-col">
+            <DialogHeader className="shrink-0">
+              <DialogTitle>Editar Membro</DialogTitle>
               <DialogDescription>
-                Selecione quais conexões {editingMember?.name} pode acessar
+                Gerenciar cargo, conexões e departamentos de {editingMember?.name}
               </DialogDescription>
             </DialogHeader>
-            <div className="py-4">
-              {connections.length === 0 ? (
-                <p className="text-muted-foreground text-center py-4">
-                  Nenhuma conexão disponível nesta organização
-                </p>
-              ) : (
-                <div className="space-y-2 border rounded-md p-3 max-h-60 overflow-y-auto">
-                  {connections.map((conn) => (
-                    <div key={conn.id} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`edit-conn-${conn.id}`}
-                        checked={editMemberConnectionIds.includes(conn.id)}
-                        onCheckedChange={() => toggleConnection(conn.id, editMemberConnectionIds, setEditMemberConnectionIds)}
-                      />
-                      <label
-                        htmlFor={`edit-conn-${conn.id}`}
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1"
-                      >
-                        {conn.name}
-                        {conn.phone_number && (
-                          <span className="text-muted-foreground ml-2 text-xs">
-                            ({conn.phone_number})
-                          </span>
-                        )}
-                      </label>
-                    </div>
-                  ))}
+            <div className="py-4 space-y-6 overflow-y-auto flex-1 pr-2">
+              {/* Role - only if not owner */}
+              {editingMember?.role !== 'owner' && (
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Shield className="h-4 w-4" />
+                    Cargo
+                  </Label>
+                  <Select value={editMemberRole} onValueChange={setEditMemberRole}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="admin">Admin - Gerencia tudo</SelectItem>
+                      <SelectItem value="manager">Supervisor - Visualização avançada</SelectItem>
+                      <SelectItem value="agent">Agente - Acesso básico</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               )}
-              <p className="text-xs text-muted-foreground mt-2">
-                Se nenhuma conexão for selecionada, o usuário terá acesso a todas as conexões da organização.
-              </p>
+
+              {/* Connections */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Link2 className="h-4 w-4" />
+                  Conexões permitidas
+                </Label>
+                {connections.length === 0 ? (
+                  <p className="text-muted-foreground text-sm py-2">
+                    Nenhuma conexão disponível
+                  </p>
+                ) : (
+                  <div className="space-y-2 border rounded-md p-3 max-h-40 overflow-y-auto">
+                    {connections.map((conn) => (
+                      <div key={conn.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`edit-conn-${conn.id}`}
+                          checked={editMemberConnectionIds.includes(conn.id)}
+                          onCheckedChange={() => toggleConnection(conn.id, editMemberConnectionIds, setEditMemberConnectionIds)}
+                        />
+                        <label
+                          htmlFor={`edit-conn-${conn.id}`}
+                          className="text-sm font-medium leading-none cursor-pointer flex-1"
+                        >
+                          {conn.name}
+                          {conn.phone_number && (
+                            <span className="text-muted-foreground ml-2 text-xs">
+                              ({conn.phone_number})
+                            </span>
+                          )}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Sem seleção = acesso a todas as conexões
+                </p>
+              </div>
+
+              {/* Departments */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Layers className="h-4 w-4" />
+                  Departamentos (Filas)
+                </Label>
+                {departments.length === 0 ? (
+                  <p className="text-muted-foreground text-sm py-2">
+                    Nenhum departamento cadastrado
+                  </p>
+                ) : (
+                  <div className="space-y-2 border rounded-md p-3 max-h-40 overflow-y-auto">
+                    {departments.filter(d => d.is_active).map((dept) => (
+                      <div key={dept.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`edit-dept-${dept.id}`}
+                          checked={editMemberDepartmentIds.includes(dept.id)}
+                          onCheckedChange={() => {
+                            if (editMemberDepartmentIds.includes(dept.id)) {
+                              setEditMemberDepartmentIds(prev => prev.filter(id => id !== dept.id));
+                            } else {
+                              setEditMemberDepartmentIds(prev => [...prev, dept.id]);
+                            }
+                          }}
+                        />
+                        <label
+                          htmlFor={`edit-dept-${dept.id}`}
+                          className="text-sm font-medium leading-none cursor-pointer flex-1 flex items-center gap-2"
+                        >
+                          <span 
+                            className="w-3 h-3 rounded-full" 
+                            style={{ backgroundColor: dept.color || '#6366f1' }}
+                          />
+                          {dept.name}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Selecione os departamentos que este usuário pode atender
+                </p>
+              </div>
             </div>
-            <DialogFooter>
+            <DialogFooter className="shrink-0">
               <Button variant="outline" onClick={() => setEditMemberDialogOpen(false)}>
                 Cancelar
               </Button>

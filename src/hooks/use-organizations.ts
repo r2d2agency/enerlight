@@ -15,6 +15,12 @@ interface AssignedConnection {
   name: string;
 }
 
+interface AssignedDepartment {
+  id: string;
+  name: string;
+  role: string;
+}
+
 interface OrganizationMember {
   id: string;
   user_id: string;
@@ -22,7 +28,16 @@ interface OrganizationMember {
   email: string;
   role: 'owner' | 'admin' | 'manager' | 'agent';
   assigned_connections: AssignedConnection[];
+  assigned_departments: AssignedDepartment[];
   created_at: string;
+}
+
+interface OrgDepartment {
+  id: string;
+  name: string;
+  color: string;
+  icon: string;
+  is_active: boolean;
 }
 
 interface OrgConnection {
@@ -39,6 +54,13 @@ interface AddMemberParams {
   name?: string;
   password?: string;
   connection_ids?: string[];
+  department_ids?: string[];
+}
+
+interface UpdateMemberParams {
+  role?: string;
+  connection_ids?: string[];
+  department_ids?: string[];
 }
 
 interface AddMemberResult {
@@ -185,7 +207,7 @@ export function useOrganizations() {
     }
   }, []);
 
-  const updateMember = useCallback(async (organizationId: string, userId: string, data: { role?: string; connection_ids?: string[] }): Promise<boolean> => {
+  const updateMember = useCallback(async (organizationId: string, userId: string, data: UpdateMemberParams): Promise<boolean> => {
     setLoading(true);
     setError(null);
     
@@ -207,6 +229,17 @@ export function useOrganizations() {
       return false;
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  const getDepartments = useCallback(async (organizationId: string): Promise<OrgDepartment[]> => {
+    try {
+      const response = await fetch(`${API_URL}/api/organizations/${organizationId}/departments`, { headers: getHeaders() });
+      if (!response.ok) throw new Error('Erro ao buscar departamentos');
+      return response.json();
+    } catch (err) {
+      console.error('Get org departments error:', err);
+      return [];
     }
   }, []);
 
@@ -268,6 +301,7 @@ export function useOrganizations() {
     updateOrganization,
     getMembers,
     getConnections,
+    getDepartments,
     addMember,
     updateMember,
     removeMember,
