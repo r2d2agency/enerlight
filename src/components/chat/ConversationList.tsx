@@ -160,19 +160,25 @@ export function ConversationList({
   const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
   const [profilePictures, setProfilePictures] = useState<Record<string, string>>({});
   const [myDepartments, setMyDepartments] = useState<Department[]>([]);
+  const [allDepartments, setAllDepartments] = useState<Department[]>([]);
   const { toast } = useToast();
 
-  // Load user's departments
+  // Load departments
   useEffect(() => {
-    const loadMyDepartments = async () => {
+    const loadDepartments = async () => {
       try {
-        const data = await api<Department[]>('/api/departments/user/my-departments');
-        setMyDepartments(data);
+        // Load all departments for display/filter
+        const all = await api<Department[]>('/api/departments');
+        setAllDepartments(all);
+        
+        // Load user's departments for "my departments" filter
+        const my = await api<Department[]>('/api/departments/user/my-departments');
+        setMyDepartments(my);
       } catch (error) {
         console.debug('Failed to load departments:', error);
       }
     };
-    loadMyDepartments();
+    loadDepartments();
   }, []);
 
   // Debounce search
@@ -494,8 +500,8 @@ export function ConversationList({
             </SelectContent>
           </Select>
 
-          {/* Department filter - only show if user belongs to departments */}
-          {myDepartments.length > 0 && (
+          {/* Department filter - show if there are any departments */}
+          {allDepartments.length > 0 && (
             <Select
               value={filters.department}
               onValueChange={(v) => onFiltersChange({ ...filters, department: v })}
@@ -506,8 +512,10 @@ export function ConversationList({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="my">Meus deptos</SelectItem>
-                {myDepartments.map(dept => (
+                {myDepartments.length > 0 && (
+                  <SelectItem value="my">Meus deptos</SelectItem>
+                )}
+                {allDepartments.map(dept => (
                   <SelectItem key={dept.id} value={dept.id}>
                     <div className="flex items-center gap-2">
                       <div 
@@ -630,8 +638,20 @@ export function ConversationList({
                       </span>
                     </div>
 
-                    {/* Tags row */}
+                    {/* Tags and Department row */}
                     <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                      {/* Department badge */}
+                      {conv.department_name && (
+                        <Badge
+                          variant="secondary"
+                          className="text-[10px] px-1.5 py-0 bg-primary/10 text-primary"
+                        >
+                          <Building2 className="h-2.5 w-2.5 mr-0.5" />
+                          {conv.department_name}
+                        </Badge>
+                      )}
+                      
+                      {/* Tags */}
                       {conv.tags.slice(0, 2).map(tag => (
                         <Badge
                           key={tag.id}
