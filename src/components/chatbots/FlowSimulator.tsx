@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Node, Edge } from "reactflow";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import {
   Play, RotateCcw, Send, Bot, User, Sparkles,
-  ArrowRight, Clock, CheckCircle2, XCircle, Loader2
+  ArrowRight, Clock, CheckCircle2, XCircle, Loader2,
+  Image as ImageIcon, FileText, Film, Mic
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FlowNodeData } from "./FlowNodes";
@@ -19,10 +20,19 @@ interface FlowSimulatorProps {
   welcomeMessage?: string;
 }
 
+interface MediaContent {
+  type: "image" | "gallery" | "video" | "audio" | "document";
+  url?: string;
+  urls?: { url: string; fileName?: string }[];
+  caption?: string;
+  fileName?: string;
+}
+
 interface SimMessage {
   id: string;
   type: "bot" | "user" | "system";
   content: string;
+  media?: MediaContent;
   nodeId?: string;
   nodeType?: string;
   timestamp: Date;
@@ -57,6 +67,14 @@ export function FlowSimulator({
   const [isTyping, setIsTyping] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  
+  // Use ref to avoid stale closure in processNode
+  const variablesRef = useRef<Record<string, string>>({});
+  
+  // Keep ref in sync with state
+  useEffect(() => {
+    variablesRef.current = state.variables;
+  }, [state.variables]);
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -69,7 +87,8 @@ export function FlowSimulator({
     type: SimMessage["type"],
     content: string,
     nodeId?: string,
-    nodeType?: string
+    nodeType?: string,
+    media?: MediaContent
   ) => {
     setMessages((prev) => [
       ...prev,
@@ -77,6 +96,7 @@ export function FlowSimulator({
         id: `msg-${Date.now()}-${Math.random()}`,
         type,
         content,
+        media,
         nodeId,
         nodeType,
         timestamp: new Date(),
@@ -125,8 +145,50 @@ export function FlowSimulator({
         break;
 
       case "message":
-        const text = replaceVariables(content.text as string || "Mensagem vazia");
-        addMessage("bot", text, nodeId, "message");
+        const mediaType = content.media_type as string;
+        const mediaUrl = content.media_url as string;
+        const galleryImages = content.gallery_images as { url: string; fileName?: string }[];
+        const caption = content.caption as string;
+        const text = replaceVariables(content.text as string || "");
+        
+        // Handle different media types
+        if (mediaType === "gallery" && galleryImages && galleryImages.length > 0) {
+          // Send gallery as multiple image messages
+          for (let i = 0; i < galleryImages.length; i++) {
+            const img = galleryImages[i];
+            const isFirst = i === 0;
+            await new Promise((r) => setTimeout(r, isFirst ? 0 : 300));
+            addMessage(
+              "bot",
+              isFirst && caption ? replaceVariables(caption) : "",
+              nodeId,
+              "message",
+              { type: "image", url: img.url, caption: isFirst ? replaceVariables(caption || "") : undefined }
+            );
+          }
+        } else if (mediaType === "image" && mediaUrl) {
+          addMessage("bot", caption ? replaceVariables(caption) : "", nodeId, "message", {
+            type: "image",
+            url: mediaUrl,
+            caption: replaceVariables(caption || "")
+          });
+        } else if (mediaType === "video" && mediaUrl) {
+          addMessage("bot", caption ? replaceVariables(caption) : "", nodeId, "message", {
+            type: "video",
+            url: mediaUrl,
+            caption: replaceVariables(caption || "")
+          });
+        } else if (mediaType === "audio" && mediaUrl) {
+          addMessage("bot", "", nodeId, "message", {
+            type: "audio",
+            url: mediaUrl
+          });
+        } else if (text) {
+          addMessage("bot", replaceVariables(text), nodeId, "message");
+        } else {
+          addMessage("bot", "[Mensagem sem conteúdo]", nodeId, "message");
+        }
+        
         const nextFromMessage = findNextNode(nodeId);
         if (nextFromMessage) {
           processNode(nextFromMessage);
@@ -274,20 +336,21 @@ export function FlowSimulator({
     }
   };
 
-  const replaceVariables = (text: string): string => {
+  const replaceVariables = useCallback((text: string): string => {
     if (!text) return text;
-    // Support both {{var}} and {var} syntax
+    // Support both {{var}} and {var} syntax - use ref for current values
     return text
       .replace(/\{\{(\w+)\}\}/g, (match, varName) => {
-        return state.variables[varName] || match;
+        return variablesRef.current[varName] || match;
       })
       .replace(/\{(\w+)\}/g, (match, varName) => {
-        return state.variables[varName] || match;
+        return variablesRef.current[varName] || match;
       });
-  };
+  }, []);
 
   const startSimulation = () => {
     setMessages([]);
+    variablesRef.current = {};
     setState({
       currentNodeId: null,
       variables: {},
@@ -350,11 +413,12 @@ export function FlowSimulator({
         addMessage("bot", "Por favor, escolha uma opção válida.");
       }
     } else if (state.inputVariable) {
-      // Text input
+      // Text input - update ref immediately before processing next node
       addMessage("user", inputValue);
+      variablesRef.current = { ...variablesRef.current, [state.inputVariable!]: inputValue };
       setState((s) => ({
         ...s,
-        variables: { ...s.variables, [state.inputVariable!]: inputValue },
+        variables: { ...variablesRef.current },
         waitingForInput: false,
         inputVariable: undefined,
       }));
@@ -450,7 +514,38 @@ export function FlowSimulator({
                     {msg.type === "bot" && (
                       <Bot className="h-4 w-4 mt-0.5 text-primary shrink-0" />
                     )}
-                    <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                    <div className="flex-1">
+                      {/* Media content */}
+                      {msg.media && (
+                        <div className="mb-2">
+                          {msg.media.type === "image" && msg.media.url && (
+                            <img 
+                              src={msg.media.url} 
+                              alt="Imagem" 
+                              className="max-w-full max-h-48 rounded-lg object-cover"
+                              onError={(e) => {
+                                e.currentTarget.style.display = "none";
+                              }}
+                            />
+                          )}
+                          {msg.media.type === "video" && msg.media.url && (
+                            <div className="flex items-center gap-2 bg-muted/50 rounded-lg p-3">
+                              <Film className="h-5 w-5 text-muted-foreground" />
+                              <span className="text-sm text-muted-foreground">Vídeo</span>
+                            </div>
+                          )}
+                          {msg.media.type === "audio" && msg.media.url && (
+                            <div className="flex items-center gap-2 bg-muted/50 rounded-lg p-3">
+                              <Mic className="h-5 w-5 text-muted-foreground" />
+                              <span className="text-sm text-muted-foreground">Áudio</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {msg.content && (
+                        <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                      )}
+                    </div>
                     {msg.type === "user" && (
                       <User className="h-4 w-4 mt-0.5 shrink-0" />
                     )}
