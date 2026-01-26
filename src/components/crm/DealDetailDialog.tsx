@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -9,10 +9,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { CRMDeal, CRMTask, useCRMDeal, useCRMDealMutations, useCRMTaskMutations } from "@/hooks/use-crm";
-import { Building2, User, Phone, Mail, Calendar, Clock, CheckCircle, Plus, Trash2, X } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { CRMDeal, CRMTask, CRMStage, useCRMDeal, useCRMDealMutations, useCRMTaskMutations, useCRMFunnel } from "@/hooks/use-crm";
+import { Building2, User, Phone, Calendar as CalendarIcon, Clock, CheckCircle, Plus, Trash2, Paperclip, MessageSquare, ChevronRight, Edit2, Save, X, FileText, Image, Loader2, Upload } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { cn } from "@/lib/utils";
+import { useUpload } from "@/hooks/use-upload";
+import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 interface DealDetailDialogProps {
   deal: CRMDeal | null;
@@ -20,19 +26,49 @@ interface DealDetailDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+interface DealAttachment {
+  id: string;
+  name: string;
+  url: string;
+  mimetype: string;
+  size: number;
+  created_at: string;
+}
+
 export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogProps) {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("details");
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskType, setNewTaskType] = useState<string>("task");
   const [newTaskDueDate, setNewTaskDueDate] = useState("");
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [description, setDescription] = useState("");
+  const [attachments, setAttachments] = useState<DealAttachment[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Scheduling states
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [scheduleDate, setScheduleDate] = useState<Date | undefined>(undefined);
+  const [scheduleTime, setScheduleTime] = useState("09:00");
+  const [scheduleNote, setScheduleNote] = useState("");
 
   const { data: fullDeal, isLoading } = useCRMDeal(deal?.id || null);
-  const { updateDeal } = useCRMDealMutations();
+  const { data: funnelData } = useCRMFunnel(deal?.funnel_id || null);
+  const { updateDeal, moveDeal } = useCRMDealMutations();
   const { createTask, completeTask, deleteTask } = useCRMTaskMutations();
-
-  if (!deal) return null;
+  const { uploadFile, isUploading } = useUpload();
 
   const currentDeal = fullDeal || deal;
+  const stages = funnelData?.stages || [];
+
+  // Sync description with deal
+  useEffect(() => {
+    if (currentDeal?.description) {
+      setDescription(currentDeal.description);
+    }
+  }, [currentDeal?.description]);
+
+  if (!deal) return null;
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
@@ -46,6 +82,19 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
       id: deal.id, 
       status: status as 'open' | 'won' | 'lost'
     });
+  };
+
+  const handleStageChange = (stageId: string) => {
+    if (stageId !== currentDeal?.stage_id) {
+      moveDeal.mutate({ id: deal.id, stage_id: stageId });
+      toast.success("Etapa alterada com sucesso!");
+    }
+  };
+
+  const handleSaveDescription = () => {
+    updateDeal.mutate({ id: deal.id, description });
+    setIsEditingDescription(false);
+    toast.success("Descrição salva!");
   };
 
   const handleAddTask = () => {
@@ -63,6 +112,73 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
     setNewTaskDueDate("");
   };
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const url = await uploadFile(file);
+      if (url) {
+        const newAttachment: DealAttachment = {
+          id: crypto.randomUUID(),
+          name: file.name,
+          url,
+          mimetype: file.type,
+          size: file.size,
+          created_at: new Date().toISOString(),
+        };
+        setAttachments(prev => [...prev, newAttachment]);
+        toast.success("Arquivo anexado!");
+      }
+    } catch (error) {
+      toast.error("Erro ao anexar arquivo");
+    }
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleRemoveAttachment = (id: string) => {
+    setAttachments(prev => prev.filter(a => a.id !== id));
+  };
+
+  const handleScheduleReturn = () => {
+    if (!scheduleDate || !currentDeal?.contacts?.length) {
+      toast.error("Selecione uma data e certifique-se de que há contatos vinculados");
+      return;
+    }
+
+    // Create a follow-up task
+    const [hours, minutes] = scheduleTime.split(":").map(Number);
+    const scheduledDate = new Date(scheduleDate);
+    scheduledDate.setHours(hours, minutes, 0, 0);
+
+    createTask.mutate({
+      deal_id: deal.id,
+      title: scheduleNote || "Retorno agendado",
+      type: "follow_up",
+      due_date: scheduledDate.toISOString(),
+    });
+
+    toast.success("Retorno agendado!");
+    setScheduleOpen(false);
+    setScheduleDate(undefined);
+    setScheduleTime("09:00");
+    setScheduleNote("");
+  };
+
+  const handleOpenChat = () => {
+    const primaryContact = currentDeal?.contacts?.find(c => c.is_primary) || currentDeal?.contacts?.[0];
+    if (primaryContact?.phone) {
+      // Navigate to chat with the contact
+      onOpenChange(false);
+      navigate(`/chat?phone=${primaryContact.phone}`);
+    } else {
+      toast.error("Nenhum contato vinculado");
+    }
+  };
+
   const taskTypeLabels: Record<string, string> = {
     task: "Tarefa",
     call: "Ligação",
@@ -71,24 +187,39 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
     follow_up: "Follow-up",
   };
 
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+  };
+
+  const getFileIcon = (mimetype: string) => {
+    if (mimetype.startsWith("image/")) return <Image className="h-4 w-4" />;
+    return <FileText className="h-4 w-4" />;
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
+      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col" aria-describedby={undefined}>
         <DialogHeader>
           <div className="flex items-start justify-between">
             <div>
-              <DialogTitle className="text-xl">{currentDeal.title}</DialogTitle>
+              <DialogTitle className="text-xl">{currentDeal?.title}</DialogTitle>
               <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
                 <Building2 className="h-4 w-4" />
-                <span>{currentDeal.company_name}</span>
+                <span>{currentDeal?.company_name}</span>
                 <span>•</span>
                 <span className="font-semibold text-foreground">
-                  {formatCurrency(currentDeal.value)}
+                  {formatCurrency(currentDeal?.value || 0)}
                 </span>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Select value={currentDeal.status} onValueChange={handleStatusChange}>
+              <Button variant="outline" size="sm" onClick={handleOpenChat}>
+                <MessageSquare className="h-4 w-4 mr-2" />
+                Chat
+              </Button>
+              <Select value={currentDeal?.status} onValueChange={handleStatusChange}>
                 <SelectTrigger className="w-32">
                   <SelectValue />
                 </SelectTrigger>
@@ -102,6 +233,40 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
           </div>
         </DialogHeader>
 
+        {/* Stage Pipeline */}
+        <div className="py-4 border-b">
+          <Label className="text-xs text-muted-foreground mb-2 block">Etapa do Funil</Label>
+          <div className="flex items-center gap-1 overflow-x-auto pb-2">
+            {stages.map((stage, index) => {
+              const isActive = stage.id === currentDeal?.stage_id;
+              const isPast = stages.findIndex(s => s.id === currentDeal?.stage_id) > index;
+              
+              return (
+                <div key={stage.id} className="flex items-center">
+                  <button
+                    onClick={() => handleStageChange(stage.id!)}
+                    className={cn(
+                      "px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
+                      isActive && "ring-2 ring-offset-2",
+                      isPast && "opacity-60"
+                    )}
+                    style={{
+                      backgroundColor: isActive ? stage.color : `${stage.color}20`,
+                      color: isActive ? "#fff" : stage.color,
+                      borderColor: stage.color,
+                    }}
+                  >
+                    {stage.name}
+                  </button>
+                  {index < stages.length - 1 && (
+                    <ChevronRight className="h-4 w-4 mx-1 text-muted-foreground flex-shrink-0" />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
           <TabsList>
             <TabsTrigger value="details">Detalhes</TabsTrigger>
@@ -114,6 +279,14 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
               )}
             </TabsTrigger>
             <TabsTrigger value="contacts">Contatos</TabsTrigger>
+            <TabsTrigger value="attachments">
+              Arquivos
+              {attachments.length > 0 && (
+                <Badge variant="secondary" className="ml-1 text-xs">
+                  {attachments.length}
+                </Badge>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="history">Histórico</TabsTrigger>
           </TabsList>
 
@@ -125,17 +298,17 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
                   <div className="space-y-3 text-sm">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Probabilidade</span>
-                      <Badge variant="outline">{currentDeal.probability}%</Badge>
+                      <Badge variant="outline">{currentDeal?.probability}%</Badge>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Etapa</span>
-                      <span>{currentDeal.stage_name}</span>
+                      <span>{currentDeal?.stage_name}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Responsável</span>
-                      <span>{currentDeal.owner_name || "Não definido"}</span>
+                      <span>{currentDeal?.owner_name || "Não definido"}</span>
                     </div>
-                    {currentDeal.expected_close_date && (
+                    {currentDeal?.expected_close_date && (
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Fechamento previsto</span>
                         <span>{format(parseISO(currentDeal.expected_close_date), "dd/MM/yyyy")}</span>
@@ -143,17 +316,42 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
                     )}
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Criado em</span>
-                      <span>{format(parseISO(currentDeal.created_at), "dd/MM/yyyy", { locale: ptBR })}</span>
+                      <span>{format(parseISO(currentDeal?.created_at || new Date().toISOString()), "dd/MM/yyyy", { locale: ptBR })}</span>
                     </div>
                   </div>
                 </Card>
 
                 <Card className="p-4">
-                  <h4 className="font-medium mb-3">Descrição</h4>
-                  <p className="text-sm text-muted-foreground">
-                    {currentDeal.description || "Nenhuma descrição"}
-                  </p>
-                  {currentDeal.tags && currentDeal.tags.length > 0 && (
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-medium">Descrição</h4>
+                    {!isEditingDescription ? (
+                      <Button variant="ghost" size="sm" onClick={() => setIsEditingDescription(true)}>
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                    ) : (
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="sm" onClick={() => setIsEditingDescription(false)}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={handleSaveDescription}>
+                          <Save className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                  {isEditingDescription ? (
+                    <Textarea
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      placeholder="Adicione uma descrição..."
+                      rows={4}
+                    />
+                  ) : (
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                      {currentDeal?.description || "Clique para adicionar uma descrição"}
+                    </p>
+                  )}
+                  {currentDeal?.tags && currentDeal.tags.length > 0 && (
                     <div className="mt-3 flex flex-wrap gap-1">
                       {currentDeal.tags.map((tag, i) => (
                         <Badge key={i} variant="secondary" className="text-xs">
@@ -162,6 +360,51 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
                       ))}
                     </div>
                   )}
+                </Card>
+
+                {/* Schedule Return Card */}
+                <Card className="p-4 col-span-2">
+                  <h4 className="font-medium mb-3 flex items-center gap-2">
+                    <CalendarIcon className="h-4 w-4" />
+                    Agendar Retorno
+                  </h4>
+                  <div className="flex gap-3 flex-wrap">
+                    <Popover open={scheduleOpen} onOpenChange={setScheduleOpen}>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className={cn(!scheduleDate && "text-muted-foreground")}>
+                          <CalendarIcon className="h-4 w-4 mr-2" />
+                          {scheduleDate ? format(scheduleDate, "dd/MM/yyyy", { locale: ptBR }) : "Selecionar data"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0 z-[100]" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={scheduleDate}
+                          onSelect={(d) => {
+                            setScheduleDate(d);
+                          }}
+                          disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                          locale={ptBR}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <Input
+                      type="time"
+                      value={scheduleTime}
+                      onChange={(e) => setScheduleTime(e.target.value)}
+                      className="w-28"
+                    />
+                    <Input
+                      placeholder="Nota do retorno..."
+                      value={scheduleNote}
+                      onChange={(e) => setScheduleNote(e.target.value)}
+                      className="flex-1 min-w-[200px]"
+                    />
+                    <Button onClick={handleScheduleReturn} disabled={!scheduleDate}>
+                      Agendar
+                    </Button>
+                  </div>
                 </Card>
               </div>
             </TabsContent>
@@ -173,12 +416,12 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
                   <Plus className="h-4 w-4" />
                   Nova Tarefa
                 </h4>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                   <Input
                     placeholder="Título da tarefa"
                     value={newTaskTitle}
                     onChange={(e) => setNewTaskTitle(e.target.value)}
-                    className="flex-1"
+                    className="flex-1 min-w-[200px]"
                   />
                   <Select value={newTaskType} onValueChange={setNewTaskType}>
                     <SelectTrigger className="w-32">
@@ -234,7 +477,7 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
                             </Badge>
                             {task.due_date && (
                               <span className="flex items-center gap-1">
-                                <Calendar className="h-3 w-3" />
+                                <CalendarIcon className="h-3 w-3" />
                                 {format(parseISO(task.due_date), "dd/MM HH:mm")}
                               </span>
                             )}
@@ -261,6 +504,16 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
             </TabsContent>
 
             <TabsContent value="contacts" className="m-0">
+              <Card className="p-4 mb-4">
+                <h4 className="font-medium mb-3 flex items-center gap-2">
+                  <Plus className="h-4 w-4" />
+                  Vincular Contato
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  Os contatos são vinculados através da empresa. Acesse os dados da empresa para gerenciar contatos.
+                </p>
+              </Card>
+
               <div className="space-y-2">
                 {fullDeal?.contacts?.map((contact: any) => (
                   <Card key={contact.id} className="p-3">
@@ -282,12 +535,96 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
                           </p>
                         </div>
                       </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          onOpenChange(false);
+                          navigate(`/chat?phone=${contact.phone}`);
+                        }}
+                      >
+                        <MessageSquare className="h-4 w-4 mr-2" />
+                        Chat
+                      </Button>
                     </div>
                   </Card>
                 ))}
                 {(!fullDeal?.contacts || fullDeal.contacts.length === 0) && (
                   <p className="text-center text-muted-foreground py-8">
                     Nenhum contato vinculado
+                  </p>
+                )}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="attachments" className="m-0">
+              <Card className="p-4 mb-4">
+                <h4 className="font-medium mb-3 flex items-center gap-2">
+                  <Upload className="h-4 w-4" />
+                  Anexar Arquivo
+                </h4>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+                <Button
+                  variant="outline"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading}
+                  className="w-full"
+                >
+                  {isUploading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Carregando...
+                    </>
+                  ) : (
+                    <>
+                      <Paperclip className="h-4 w-4 mr-2" />
+                      Selecionar arquivo
+                    </>
+                  )}
+                </Button>
+              </Card>
+
+              <div className="space-y-2">
+                {attachments.map((attachment) => (
+                  <Card key={attachment.id} className="p-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                          {getFileIcon(attachment.mimetype)}
+                        </div>
+                        <div>
+                          <a
+                            href={attachment.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-medium text-sm hover:underline"
+                          >
+                            {attachment.name}
+                          </a>
+                          <p className="text-xs text-muted-foreground">
+                            {formatFileSize(attachment.size)} • {format(parseISO(attachment.created_at), "dd/MM/yyyy HH:mm")}
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        onClick={() => handleRemoveAttachment(attachment.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </Card>
+                ))}
+                {attachments.length === 0 && (
+                  <p className="text-center text-muted-foreground py-8">
+                    Nenhum arquivo anexado
                   </p>
                 )}
               </div>
