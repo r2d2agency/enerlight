@@ -49,9 +49,10 @@ export default function CRMProspects() {
   const [showImport, setShowImport] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showConvertDialog, setShowConvertDialog] = useState(false);
+  const [showBulkConvertDialog, setShowBulkConvertDialog] = useState(false);
   const [convertingProspect, setConvertingProspect] = useState<Prospect | null>(null);
   
-  const { prospects, isLoading, createProspect, deleteProspect, convertToDeal, bulkDelete } = useProspects();
+  const { prospects, isLoading, createProspect, deleteProspect, convertToDeal, bulkDelete, bulkConvert } = useProspects();
   const { data: funnels } = useCRMFunnels();
 
   // New prospect form
@@ -59,6 +60,7 @@ export default function CRMProspects() {
   
   // Convert form
   const [convertForm, setConvertForm] = useState({ funnel_id: "", title: "" });
+  const [bulkConvertFunnelId, setBulkConvertFunnelId] = useState("");
 
   const filteredProspects = useMemo(() => {
     if (!search.trim()) return prospects;
@@ -137,6 +139,38 @@ export default function CRMProspects() {
     const params = new URLSearchParams();
     params.set("prospect_ids", selectedIds.join(","));
     window.location.href = `/campanhas?${params.toString()}`;
+  };
+
+  const handleBulkConvert = async () => {
+    if (!bulkConvertFunnelId) {
+      toast.error("Selecione um funil");
+      return;
+    }
+    // Filter only non-converted prospects
+    const unconvertedIds = selectedIds.filter(id => {
+      const prospect = prospects.find(p => p.id === id);
+      return prospect && !prospect.converted_at;
+    });
+    if (unconvertedIds.length === 0) {
+      toast.error("Nenhum prospect selecionado está pendente");
+      return;
+    }
+    await bulkConvert.mutateAsync({
+      prospect_ids: unconvertedIds,
+      funnel_id: bulkConvertFunnelId,
+    });
+    setShowBulkConvertDialog(false);
+    setSelectedIds([]);
+    setBulkConvertFunnelId("");
+  };
+
+  const openBulkConvertDialog = () => {
+    if (selectedIds.length === 0) {
+      toast.error("Selecione pelo menos um prospect");
+      return;
+    }
+    setBulkConvertFunnelId(funnels?.[0]?.id || "");
+    setShowBulkConvertDialog(true);
   };
 
   return (
@@ -220,11 +254,15 @@ export default function CRMProspects() {
 
         {/* Bulk Actions */}
         {selectedIds.length > 0 && (
-          <div className="flex gap-2 p-3 bg-muted rounded-lg">
+          <div className="flex gap-2 p-3 bg-muted rounded-lg flex-wrap">
             <span className="text-sm text-muted-foreground self-center">
               {selectedIds.length} selecionados
             </span>
             <div className="flex-1" />
+            <Button variant="outline" size="sm" onClick={openBulkConvertDialog}>
+              <ArrowRight className="h-4 w-4 mr-2" />
+              Converter para Negociação
+            </Button>
             <Button variant="outline" size="sm" onClick={handleExportToCampaign}>
               <Send className="h-4 w-4 mr-2" />
               Criar Campanha
@@ -427,6 +465,46 @@ export default function CRMProspects() {
               </Button>
               <Button onClick={handleConvert} disabled={convertToDeal.isPending}>
                 {convertToDeal.isPending ? "Convertendo..." : "Converter"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Convert Dialog */}
+      <Dialog open={showBulkConvertDialog} onOpenChange={setShowBulkConvertDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Converter Prospects Selecionados</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="p-3 bg-muted rounded-lg">
+              <p className="text-sm">
+                <strong>{selectedIds.length}</strong> prospects selecionados serão convertidos em negociações.
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Prospects já convertidos serão ignorados.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label>Funil de Destino *</Label>
+              <select
+                className="w-full p-2 border rounded-md bg-background"
+                value={bulkConvertFunnelId}
+                onChange={(e) => setBulkConvertFunnelId(e.target.value)}
+              >
+                <option value="">Selecione um funil</option>
+                {funnels?.map((f) => (
+                  <option key={f.id} value={f.id}>{f.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowBulkConvertDialog(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleBulkConvert} disabled={bulkConvert.isPending}>
+                {bulkConvert.isPending ? "Convertendo..." : `Converter ${selectedIds.length}`}
               </Button>
             </div>
           </div>

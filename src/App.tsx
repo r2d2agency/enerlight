@@ -32,6 +32,7 @@ import CRMTarefas from "./pages/CRMTarefas";
 import CRMAgenda from "./pages/CRMAgenda";
 import CRMConfiguracoes from "./pages/CRMConfiguracoes";
 import CRMRelatorios from "./pages/CRMRelatorios";
+import Mapa from "./pages/Mapa";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -91,6 +92,7 @@ const App = () => (
             <Route path="/crm/agenda" element={<ProtectedRoute><CRMAgenda /></ProtectedRoute>} />
             <Route path="/crm/configuracoes" element={<ProtectedRoute><CRMConfiguracoes /></ProtectedRoute>} />
             <Route path="/crm/relatorios" element={<ProtectedRoute><CRMRelatorios /></ProtectedRoute>} />
+            <Route path="/mapa" element={<ProtectedRoute><Mapa /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

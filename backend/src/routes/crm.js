@@ -1978,4 +1978,222 @@ router.post('/prospects/:id/convert', async (req, res) => {
   }
 });
 
+// Bulk convert prospects to deals
+router.post('/prospects/bulk-convert', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const { prospect_ids, funnel_id } = req.body;
+    if (!Array.isArray(prospect_ids) || prospect_ids.length === 0 || !funnel_id) {
+      return res.status(400).json({ error: 'prospect_ids array and funnel_id are required' });
+    }
+
+    // Get funnel first stage
+    const stageResult = await query(
+      `SELECT id FROM crm_stages WHERE funnel_id = $1 ORDER BY position LIMIT 1`,
+      [funnel_id]
+    );
+    if (stageResult.rows.length === 0) {
+      return res.status(400).json({ error: 'Funnel has no stages' });
+    }
+    const stage_id = stageResult.rows[0].id;
+
+    let converted = 0;
+    let skipped = 0;
+
+    for (const prospect_id of prospect_ids) {
+      try {
+        // Get prospect
+        const prospectResult = await query(
+          `SELECT * FROM crm_prospects WHERE id = $1 AND organization_id = $2 AND converted_at IS NULL`,
+          [prospect_id, org.organization_id]
+        );
+        if (prospectResult.rows.length === 0) {
+          skipped++;
+          continue;
+        }
+        const prospect = prospectResult.rows[0];
+
+        // Find or create contact
+        let contactId = null;
+        const existingContact = await query(
+          `SELECT id FROM contacts WHERE organization_id = $1 AND phone = $2`,
+          [org.organization_id, prospect.phone]
+        );
+        if (existingContact.rows.length > 0) {
+          contactId = existingContact.rows[0].id;
+        } else {
+          const newContact = await query(
+            `INSERT INTO contacts (organization_id, name, phone, created_by)
+             VALUES ($1, $2, $3, $4) RETURNING id`,
+            [org.organization_id, prospect.name, prospect.phone, req.userId]
+          );
+          contactId = newContact.rows[0].id;
+        }
+
+        // Create deal
+        const dealResult = await query(
+          `INSERT INTO crm_deals (organization_id, funnel_id, stage_id, title, contact_id, source, responsible_id)
+           VALUES ($1, $2, $3, $4, $5, 'prospect', $6)
+           RETURNING id`,
+          [org.organization_id, funnel_id, stage_id, prospect.name, contactId, req.userId]
+        );
+
+        // Mark prospect as converted
+        await query(
+          `UPDATE crm_prospects SET converted_at = NOW(), converted_deal_id = $1 WHERE id = $2`,
+          [dealResult.rows[0].id, prospect_id]
+        );
+
+        converted++;
+      } catch (err) {
+        console.error(`Error converting prospect ${prospect_id}:`, err);
+        skipped++;
+      }
+    }
+
+    res.json({ converted, skipped });
+  } catch (error) {
+    console.error('Error bulk converting prospects:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// =============================================================================
+// MAP DATA
+// =============================================================================
+
+// Get map data (deals, prospects, companies with location info)
+router.get('/map-data', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const locations = [];
+
+    // State capitals for approximate positioning
+    const STATE_CAPITALS = {
+      AC: { lat: -9.9753, lng: -67.8243 },
+      AL: { lat: -9.6499, lng: -35.7089 },
+      AM: { lat: -3.1190, lng: -60.0217 },
+      AP: { lat: 0.0356, lng: -51.0705 },
+      BA: { lat: -12.9714, lng: -38.5014 },
+      CE: { lat: -3.7172, lng: -38.5433 },
+      DF: { lat: -15.8267, lng: -47.9218 },
+      ES: { lat: -20.3155, lng: -40.3128 },
+      GO: { lat: -16.6864, lng: -49.2643 },
+      MA: { lat: -2.5387, lng: -44.2826 },
+      MG: { lat: -19.9167, lng: -43.9345 },
+      MS: { lat: -20.4697, lng: -54.6201 },
+      MT: { lat: -15.5989, lng: -56.0949 },
+      PA: { lat: -1.4558, lng: -48.4902 },
+      PB: { lat: -7.1195, lng: -34.8450 },
+      PE: { lat: -8.0476, lng: -34.8770 },
+      PI: { lat: -5.0892, lng: -42.8019 },
+      PR: { lat: -25.4195, lng: -49.2646 },
+      RJ: { lat: -22.9068, lng: -43.1729 },
+      RN: { lat: -5.7945, lng: -35.2110 },
+      RO: { lat: -8.7612, lng: -63.9039 },
+      RR: { lat: 2.8235, lng: -60.6758 },
+      RS: { lat: -30.0346, lng: -51.2177 },
+      SC: { lat: -27.5954, lng: -48.5480 },
+      SE: { lat: -10.9472, lng: -37.0731 },
+      SP: { lat: -23.5505, lng: -46.6333 },
+      TO: { lat: -10.1689, lng: -48.3317 },
+    };
+
+    const getCoords = (city, state) => {
+      if (state && STATE_CAPITALS[state.toUpperCase()]) {
+        const cap = STATE_CAPITALS[state.toUpperCase()];
+        const offset = () => (Math.random() - 0.5) * 0.1;
+        return { lat: cap.lat + offset(), lng: cap.lng + offset() };
+      }
+      return null;
+    };
+
+    // Get deals with contact/company info
+    const dealsResult = await query(
+      `SELECT d.id, d.title, d.value,
+              c.phone, c.city, c.state,
+              co.city as company_city, co.state as company_state
+       FROM crm_deals d
+       LEFT JOIN contacts c ON d.contact_id = c.id
+       LEFT JOIN crm_companies co ON d.company_id = co.id
+       WHERE d.organization_id = $1 AND d.status = 'active'`,
+      [org.organization_id]
+    );
+    for (const deal of dealsResult.rows) {
+      const city = deal.city || deal.company_city;
+      const state = deal.state || deal.company_state;
+      const coords = getCoords(city, state);
+      if (coords) {
+        locations.push({
+          id: deal.id,
+          type: 'deal',
+          name: deal.title,
+          phone: deal.phone,
+          city,
+          state,
+          lat: coords.lat,
+          lng: coords.lng,
+          value: deal.value,
+        });
+      }
+    }
+
+    // Get prospects with city/state
+    try {
+      const prospectsResult = await query(
+        `SELECT id, name, phone, city, state FROM crm_prospects WHERE organization_id = $1 AND converted_at IS NULL`,
+        [org.organization_id]
+      );
+      for (const p of prospectsResult.rows) {
+        const coords = getCoords(p.city, p.state);
+        if (coords) {
+          locations.push({
+            id: p.id,
+            type: 'prospect',
+            name: p.name,
+            phone: p.phone,
+            city: p.city,
+            state: p.state,
+            lat: coords.lat,
+            lng: coords.lng,
+          });
+        }
+      }
+    } catch (e) {
+      // Ignore if columns don't exist yet
+      if (e.code !== '42703') throw e;
+    }
+
+    // Get companies with location
+    const companiesResult = await query(
+      `SELECT id, name, phone, city, state FROM crm_companies WHERE organization_id = $1`,
+      [org.organization_id]
+    );
+    for (const company of companiesResult.rows) {
+      const coords = getCoords(company.city, company.state);
+      if (coords) {
+        locations.push({
+          id: company.id,
+          type: 'company',
+          name: company.name,
+          phone: company.phone,
+          city: company.city,
+          state: company.state,
+          lat: coords.lat,
+          lng: coords.lng,
+        });
+      }
+    }
+
+    res.json(locations);
+  } catch (error) {
+    console.error('Error fetching map data:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

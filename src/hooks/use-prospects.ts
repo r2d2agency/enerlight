@@ -88,6 +88,22 @@ async function convertToDeal(data: { prospect_id: string; funnel_id: string; tit
   return res.json();
 }
 
+async function bulkConvert(data: { prospect_ids: string[]; funnel_id: string }): Promise<{ converted: number; skipped: number }> {
+  const res = await fetch(`${API_URL}/api/crm/prospects/bulk-convert`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${getAuthToken()}`,
+    },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || "Failed to bulk convert prospects");
+  }
+  return res.json();
+}
+
 export function useProspects() {
   const queryClient = useQueryClient();
 
@@ -152,6 +168,18 @@ export function useProspects() {
     },
   });
 
+  const bulkConvertMutation = useMutation({
+    mutationFn: bulkConvert,
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["crm-prospects"] });
+      queryClient.invalidateQueries({ queryKey: ["crm-deals"] });
+      toast.success(`${data.converted} prospects convertidos. ${data.skipped} ignorados.`);
+    },
+    onError: (err: Error) => {
+      toast.error(err.message);
+    },
+  });
+
   return {
     prospects,
     isLoading,
@@ -161,5 +189,6 @@ export function useProspects() {
     deleteProspect: deleteMutation,
     bulkDelete: bulkDeleteMutation,
     convertToDeal: convertMutation,
+    bulkConvert: bulkConvertMutation,
   };
 }
