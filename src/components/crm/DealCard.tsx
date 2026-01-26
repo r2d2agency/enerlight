@@ -22,7 +22,7 @@ export function DealCard({ deal, isDragging, onClick }: DealCardProps) {
     transition,
   } = useSortable({ id: deal.id });
 
-  const style = {
+  const baseStyle = {
     transform: CSS.Transform.toString(transform),
     transition,
   };
@@ -41,10 +41,16 @@ export function DealCard({ deal, isDragging, onClick }: DealCardProps) {
 
   const primaryContact = deal.contacts?.find((c) => c.is_primary);
 
+  // Merge styles
+  const cardStyle = {
+    ...baseStyle,
+    borderLeftColor: isInactive ? deal.inactivity_color : undefined,
+  };
+
   return (
     <Card
       ref={setNodeRef}
-      style={style}
+      style={cardStyle}
       {...attributes}
       {...listeners}
       onClick={onClick}
@@ -53,10 +59,6 @@ export function DealCard({ deal, isDragging, onClick }: DealCardProps) {
         isDragging && "opacity-50 shadow-lg rotate-2",
         isInactive && "border-l-4"
       )}
-      style={{
-        ...style,
-        borderLeftColor: isInactive ? deal.inactivity_color : undefined,
-      }}
     >
       {/* Title & Value */}
       <div className="flex items-start justify-between gap-2 mb-2">

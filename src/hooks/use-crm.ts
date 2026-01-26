@@ -132,8 +132,7 @@ export function useCRMGroups() {
   return useQuery({
     queryKey: ["crm-groups"],
     queryFn: async () => {
-      const response = await api.get("/api/crm/groups");
-      return response.data as CRMGroup[];
+      return api<CRMGroup[]>("/api/crm/groups");
     },
   });
 }
@@ -143,8 +142,7 @@ export function useCRMGroupMembers(groupId: string | null) {
     queryKey: ["crm-group-members", groupId],
     queryFn: async () => {
       if (!groupId) return [];
-      const response = await api.get(`/api/crm/groups/${groupId}/members`);
-      return response.data as CRMGroupMember[];
+      return api<CRMGroupMember[]>(`/api/crm/groups/${groupId}/members`);
     },
     enabled: !!groupId,
   });
@@ -156,8 +154,7 @@ export function useCRMGroupMutations() {
 
   const createGroup = useMutation({
     mutationFn: async (data: { name: string; description?: string }) => {
-      const response = await api.post("/api/crm/groups", data);
-      return response.data;
+      return api<CRMGroup>("/api/crm/groups", { method: "POST", body: data });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["crm-groups"] });
@@ -167,8 +164,7 @@ export function useCRMGroupMutations() {
 
   const updateGroup = useMutation({
     mutationFn: async ({ id, ...data }: { id: string; name: string; description?: string }) => {
-      const response = await api.put(`/api/crm/groups/${id}`, data);
-      return response.data;
+      return api<CRMGroup>(`/api/crm/groups/${id}`, { method: "PUT", body: data });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["crm-groups"] });
@@ -178,7 +174,7 @@ export function useCRMGroupMutations() {
 
   const deleteGroup = useMutation({
     mutationFn: async (id: string) => {
-      await api.delete(`/api/crm/groups/${id}`);
+      return api<void>(`/api/crm/groups/${id}`, { method: "DELETE" });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["crm-groups"] });
@@ -188,8 +184,10 @@ export function useCRMGroupMutations() {
 
   const addMember = useMutation({
     mutationFn: async ({ groupId, userId, isSupervisor }: { groupId: string; userId: string; isSupervisor: boolean }) => {
-      const response = await api.post(`/api/crm/groups/${groupId}/members`, { user_id: userId, is_supervisor: isSupervisor });
-      return response.data;
+      return api<CRMGroupMember>(`/api/crm/groups/${groupId}/members`, { 
+        method: "POST", 
+        body: { user_id: userId, is_supervisor: isSupervisor } 
+      });
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["crm-group-members", variables.groupId] });
@@ -199,7 +197,7 @@ export function useCRMGroupMutations() {
 
   const removeMember = useMutation({
     mutationFn: async ({ groupId, userId }: { groupId: string; userId: string }) => {
-      await api.delete(`/api/crm/groups/${groupId}/members/${userId}`);
+      return api<void>(`/api/crm/groups/${groupId}/members/${userId}`, { method: "DELETE" });
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["crm-group-members", variables.groupId] });
@@ -215,8 +213,7 @@ export function useCRMFunnels() {
   return useQuery({
     queryKey: ["crm-funnels"],
     queryFn: async () => {
-      const response = await api.get("/api/crm/funnels");
-      return response.data as CRMFunnel[];
+      return api<CRMFunnel[]>("/api/crm/funnels");
     },
   });
 }
@@ -226,8 +223,7 @@ export function useCRMFunnel(id: string | null) {
     queryKey: ["crm-funnel", id],
     queryFn: async () => {
       if (!id) return null;
-      const response = await api.get(`/api/crm/funnels/${id}`);
-      return response.data as CRMFunnel & { stages: CRMStage[] };
+      return api<CRMFunnel & { stages: CRMStage[] }>(`/api/crm/funnels/${id}`);
     },
     enabled: !!id,
   });
@@ -239,8 +235,7 @@ export function useCRMFunnelMutations() {
 
   const createFunnel = useMutation({
     mutationFn: async (data: { name: string; description?: string; color?: string; stages?: Partial<CRMStage>[] }) => {
-      const response = await api.post("/api/crm/funnels", data);
-      return response.data;
+      return api<CRMFunnel>("/api/crm/funnels", { method: "POST", body: data });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["crm-funnels"] });
@@ -250,8 +245,7 @@ export function useCRMFunnelMutations() {
 
   const updateFunnel = useMutation({
     mutationFn: async ({ id, ...data }: { id: string; name?: string; description?: string; color?: string; is_active?: boolean; stages?: CRMStage[] }) => {
-      const response = await api.put(`/api/crm/funnels/${id}`, data);
-      return response.data;
+      return api<{ success: boolean }>(`/api/crm/funnels/${id}`, { method: "PUT", body: data });
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["crm-funnels"] });
@@ -262,7 +256,7 @@ export function useCRMFunnelMutations() {
 
   const deleteFunnel = useMutation({
     mutationFn: async (id: string) => {
-      await api.delete(`/api/crm/funnels/${id}`);
+      return api<void>(`/api/crm/funnels/${id}`, { method: "DELETE" });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["crm-funnels"] });
@@ -279,8 +273,7 @@ export function useCRMCompanies(search?: string) {
     queryKey: ["crm-companies", search],
     queryFn: async () => {
       const params = search ? `?search=${encodeURIComponent(search)}` : "";
-      const response = await api.get(`/api/crm/companies${params}`);
-      return response.data as CRMCompany[];
+      return api<CRMCompany[]>(`/api/crm/companies${params}`);
     },
   });
 }
@@ -290,8 +283,7 @@ export function useCRMCompany(id: string | null) {
     queryKey: ["crm-company", id],
     queryFn: async () => {
       if (!id) return null;
-      const response = await api.get(`/api/crm/companies/${id}`);
-      return response.data as CRMCompany;
+      return api<CRMCompany>(`/api/crm/companies/${id}`);
     },
     enabled: !!id,
   });
@@ -303,8 +295,7 @@ export function useCRMCompanyMutations() {
 
   const createCompany = useMutation({
     mutationFn: async (data: Partial<CRMCompany>) => {
-      const response = await api.post("/api/crm/companies", data);
-      return response.data;
+      return api<CRMCompany>("/api/crm/companies", { method: "POST", body: data });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["crm-companies"] });
@@ -314,8 +305,7 @@ export function useCRMCompanyMutations() {
 
   const updateCompany = useMutation({
     mutationFn: async ({ id, ...data }: Partial<CRMCompany> & { id: string }) => {
-      const response = await api.put(`/api/crm/companies/${id}`, data);
-      return response.data;
+      return api<CRMCompany>(`/api/crm/companies/${id}`, { method: "PUT", body: data });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["crm-companies"] });
@@ -325,7 +315,7 @@ export function useCRMCompanyMutations() {
 
   const deleteCompany = useMutation({
     mutationFn: async (id: string) => {
-      await api.delete(`/api/crm/companies/${id}`);
+      return api<void>(`/api/crm/companies/${id}`, { method: "DELETE" });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["crm-companies"] });
@@ -335,8 +325,7 @@ export function useCRMCompanyMutations() {
 
   const importCompanies = useMutation({
     mutationFn: async (companies: Partial<CRMCompany>[]) => {
-      const response = await api.post("/api/crm/companies/import", { companies });
-      return response.data;
+      return api<{ success: boolean; imported: number }>("/api/crm/companies/import", { method: "POST", body: { companies } });
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["crm-companies"] });
@@ -353,8 +342,7 @@ export function useCRMDeals(funnelId: string | null) {
     queryKey: ["crm-deals", funnelId],
     queryFn: async () => {
       if (!funnelId) return {};
-      const response = await api.get(`/api/crm/funnels/${funnelId}/deals`);
-      return response.data as Record<string, CRMDeal[]>;
+      return api<Record<string, CRMDeal[]>>(`/api/crm/funnels/${funnelId}/deals`);
     },
     enabled: !!funnelId,
   });
@@ -365,8 +353,7 @@ export function useCRMDeal(id: string | null) {
     queryKey: ["crm-deal", id],
     queryFn: async () => {
       if (!id) return null;
-      const response = await api.get(`/api/crm/deals/${id}`);
-      return response.data;
+      return api<CRMDeal & { contacts: any[]; history: any[]; tasks: CRMTask[] }>(`/api/crm/deals/${id}`);
     },
     enabled: !!id,
   });
@@ -378,8 +365,7 @@ export function useCRMDealMutations() {
 
   const createDeal = useMutation({
     mutationFn: async (data: Partial<CRMDeal> & { contact_ids?: string[] }) => {
-      const response = await api.post("/api/crm/deals", data);
-      return response.data;
+      return api<CRMDeal>("/api/crm/deals", { method: "POST", body: data });
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["crm-deals", variables.funnel_id] });
@@ -389,8 +375,7 @@ export function useCRMDealMutations() {
 
   const updateDeal = useMutation({
     mutationFn: async ({ id, ...data }: Partial<CRMDeal> & { id: string }) => {
-      const response = await api.put(`/api/crm/deals/${id}`, data);
-      return response.data;
+      return api<CRMDeal>(`/api/crm/deals/${id}`, { method: "PUT", body: data });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["crm-deals"] });
@@ -401,8 +386,7 @@ export function useCRMDealMutations() {
 
   const moveDeal = useMutation({
     mutationFn: async ({ id, stage_id }: { id: string; stage_id: string }) => {
-      const response = await api.post(`/api/crm/deals/${id}/move`, { stage_id });
-      return response.data;
+      return api<{ success: boolean }>(`/api/crm/deals/${id}/move`, { method: "POST", body: { stage_id } });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["crm-deals"] });
@@ -411,8 +395,7 @@ export function useCRMDealMutations() {
 
   const addContact = useMutation({
     mutationFn: async ({ dealId, contactId, role, isPrimary }: { dealId: string; contactId: string; role?: string; isPrimary?: boolean }) => {
-      const response = await api.post(`/api/crm/deals/${dealId}/contacts`, { contact_id: contactId, role, is_primary: isPrimary });
-      return response.data;
+      return api<any>(`/api/crm/deals/${dealId}/contacts`, { method: "POST", body: { contact_id: contactId, role, is_primary: isPrimary } });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["crm-deal"] });
@@ -421,7 +404,7 @@ export function useCRMDealMutations() {
 
   const removeContact = useMutation({
     mutationFn: async ({ dealId, contactId }: { dealId: string; contactId: string }) => {
-      await api.delete(`/api/crm/deals/${dealId}/contacts/${contactId}`);
+      return api<void>(`/api/crm/deals/${dealId}/contacts/${contactId}`, { method: "DELETE" });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["crm-deal"] });
@@ -442,8 +425,7 @@ export function useCRMTasks(filters?: { period?: string; status?: string; assign
   return useQuery({
     queryKey: ["crm-tasks", filters],
     queryFn: async () => {
-      const response = await api.get(`/api/crm/tasks?${params.toString()}`);
-      return response.data as CRMTask[];
+      return api<CRMTask[]>(`/api/crm/tasks?${params.toString()}`);
     },
   });
 }
@@ -452,8 +434,7 @@ export function useCRMTaskCounts() {
   return useQuery({
     queryKey: ["crm-task-counts"],
     queryFn: async () => {
-      const response = await api.get("/api/crm/tasks/counts");
-      return response.data as TaskCounts;
+      return api<TaskCounts>("/api/crm/tasks/counts");
     },
   });
 }
@@ -464,8 +445,7 @@ export function useCRMTaskMutations() {
 
   const createTask = useMutation({
     mutationFn: async (data: Partial<CRMTask>) => {
-      const response = await api.post("/api/crm/tasks", data);
-      return response.data;
+      return api<CRMTask>("/api/crm/tasks", { method: "POST", body: data });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["crm-tasks"] });
@@ -477,8 +457,7 @@ export function useCRMTaskMutations() {
 
   const updateTask = useMutation({
     mutationFn: async ({ id, ...data }: Partial<CRMTask> & { id: string }) => {
-      const response = await api.put(`/api/crm/tasks/${id}`, data);
-      return response.data;
+      return api<CRMTask>(`/api/crm/tasks/${id}`, { method: "PUT", body: data });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["crm-tasks"] });
@@ -489,8 +468,7 @@ export function useCRMTaskMutations() {
 
   const completeTask = useMutation({
     mutationFn: async (id: string) => {
-      const response = await api.post(`/api/crm/tasks/${id}/complete`);
-      return response.data;
+      return api<CRMTask>(`/api/crm/tasks/${id}/complete`, { method: "POST" });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["crm-tasks"] });
@@ -501,7 +479,7 @@ export function useCRMTaskMutations() {
 
   const deleteTask = useMutation({
     mutationFn: async (id: string) => {
-      await api.delete(`/api/crm/tasks/${id}`);
+      return api<void>(`/api/crm/tasks/${id}`, { method: "DELETE" });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["crm-tasks"] });

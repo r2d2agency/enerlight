@@ -6,8 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CRMTask, useCRMTaskMutations } from "@/hooks/use-crm";
-import { useOrganizationMembers } from "@/hooks/use-organizations";
 import { useAuth } from "@/contexts/AuthContext";
+import { api } from "@/lib/api";
+import { useQuery } from "@tanstack/react-query";
 
 interface TaskDialogProps {
   task: CRMTask | null;
@@ -15,6 +16,18 @@ interface TaskDialogProps {
   companyId?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+}
+
+// Fetch organization members for assignment
+function useOrgMembers(orgId: string | null) {
+  return useQuery({
+    queryKey: ["org-members", orgId],
+    queryFn: async () => {
+      if (!orgId) return [];
+      return api<Array<{ user_id: string; user_name: string; role: string }>>(`/api/organizations/${orgId}/members`);
+    },
+    enabled: !!orgId,
+  });
 }
 
 export function TaskDialog({ task, dealId, companyId, open, onOpenChange }: TaskDialogProps) {
@@ -26,7 +39,7 @@ export function TaskDialog({ task, dealId, companyId, open, onOpenChange }: Task
   const [dueDate, setDueDate] = useState("");
   const [assignedTo, setAssignedTo] = useState("");
 
-  const { data: members } = useOrganizationMembers(user?.organization_id || null);
+  const { data: members } = useOrgMembers(user?.organization_id || null);
   const { createTask, updateTask } = useCRMTaskMutations();
 
   useEffect(() => {

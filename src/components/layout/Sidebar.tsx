@@ -3,9 +3,12 @@ import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
   Bot,
+  Briefcase,
   Building2,
   ChevronDown,
+  ClipboardList,
   GitBranch,
+  Kanban,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -33,7 +36,7 @@ interface NavItem {
   name: string;
   href: string;
   icon: any;
-  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat';
+  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm';
   adminOnly?: boolean; // Requires owner, admin, or manager role
 }
 
@@ -41,7 +44,7 @@ interface NavSection {
   title: string;
   icon: any;
   items: NavItem[];
-  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat';
+  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm';
   adminOnly?: boolean; // Entire section requires admin role
 }
 
@@ -57,6 +60,15 @@ const navSections: NavSection[] = [
       { name: "Agendamentos", href: "/agendamentos", icon: Bell, moduleKey: 'scheduled_messages' },
       { name: "Tags", href: "/tags", icon: Receipt },
       { name: "Contatos", href: "/contatos-chat", icon: Users },
+    ],
+  },
+  {
+    title: "CRM",
+    icon: Briefcase,
+    items: [
+      { name: "Negociações", href: "/crm/negociacoes", icon: Kanban },
+      { name: "Empresas", href: "/crm/empresas", icon: Building2 },
+      { name: "Tarefas", href: "/crm/tarefas", icon: ClipboardList },
     ],
   },
   {
