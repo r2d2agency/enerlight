@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -6,8 +6,8 @@ import { KanbanBoard } from "@/components/crm/KanbanBoard";
 import { DealDetailDialog } from "@/components/crm/DealDetailDialog";
 import { DealFormDialog } from "@/components/crm/DealFormDialog";
 import { FunnelEditorDialog } from "@/components/crm/FunnelEditorDialog";
-import { useCRMFunnels, useCRMFunnel, useCRMDeals, CRMDeal, CRMFunnel } from "@/hooks/use-crm";
-import { Plus, Settings, Loader2 } from "lucide-react";
+import { useCRMFunnels, useCRMFunnel, useCRMDeals, useCRMGroups, useCRMGroupMembers, CRMDeal, CRMFunnel } from "@/hooks/use-crm";
+import { Plus, Settings, Loader2, Filter, User, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function CRMNegociacoes() {
@@ -18,16 +18,49 @@ export default function CRMNegociacoes() {
   const [newDealOpen, setNewDealOpen] = useState(false);
   const [funnelEditorOpen, setFunnelEditorOpen] = useState(false);
   const [editingFunnel, setEditingFunnel] = useState<CRMFunnel | null>(null);
+  
+  // Filters
+  const [ownerFilter, setOwnerFilter] = useState<string>("all"); // "all" | "mine" | user_id
+  const [groupFilter, setGroupFilter] = useState<string>("all"); // "all" | group_id
 
   const { data: funnels, isLoading: loadingFunnels } = useCRMFunnels();
-  const { data: funnelData } = useCRMFunnel(selectedFunnelId);
-  const { data: dealsByStage, isLoading: loadingDeals } = useCRMDeals(selectedFunnelId);
-
-  // Select first funnel by default
+  const { data: groups } = useCRMGroups();
+  
+  // Auto-select first funnel
   const currentFunnelId = selectedFunnelId || funnels?.[0]?.id || null;
-  const currentFunnel = funnels?.find((f) => f.id === currentFunnelId) || null;
+  
+  useEffect(() => {
+    if (!selectedFunnelId && funnels?.[0]?.id) {
+      setSelectedFunnelId(funnels[0].id);
+    }
+  }, [funnels, selectedFunnelId]);
 
+  const { data: funnelData } = useCRMFunnel(currentFunnelId);
+  const { data: dealsByStage, isLoading: loadingDeals } = useCRMDeals(currentFunnelId);
+  const { data: groupMembers } = useCRMGroupMembers(groupFilter !== "all" ? groupFilter : null);
+
+  const currentFunnel = funnels?.find((f) => f.id === currentFunnelId) || null;
   const canManage = user?.role && ['owner', 'admin', 'manager'].includes(user.role);
+
+  // Apply filters to deals
+  const filteredDealsByStage = dealsByStage ? Object.entries(dealsByStage).reduce((acc, [stageId, deals]) => {
+    let filtered = deals as CRMDeal[];
+    
+    // Filter by owner
+    if (ownerFilter === "mine") {
+      filtered = filtered.filter(d => d.owner_id === user?.id);
+    } else if (ownerFilter !== "all") {
+      filtered = filtered.filter(d => d.owner_id === ownerFilter);
+    }
+    
+    // Filter by group
+    if (groupFilter !== "all") {
+      filtered = filtered.filter(d => d.group_id === groupFilter);
+    }
+    
+    acc[stageId] = filtered;
+    return acc;
+  }, {} as Record<string, CRMDeal[]>) : {};
 
   const handleDealClick = (deal: CRMDeal) => {
     setSelectedDeal(deal);
@@ -48,51 +81,107 @@ export default function CRMNegociacoes() {
     <MainLayout>
       <div className="flex flex-col h-full">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b">
+        <div className="flex flex-col gap-4 p-4 border-b">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <h1 className="text-2xl font-bold">Negociações</h1>
+              
+              {/* Funnel Selector */}
+              <Select 
+                value={currentFunnelId || ""} 
+                onValueChange={(val) => setSelectedFunnelId(val)}
+              >
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Selecione um funil" />
+                </SelectTrigger>
+                <SelectContent>
+                  {funnels?.map((funnel) => (
+                    <SelectItem key={funnel.id} value={funnel.id}>
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-3 h-3 rounded-full" 
+                          style={{ backgroundColor: funnel.color }} 
+                        />
+                        {funnel.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {canManage && currentFunnel && (
+                <Button variant="ghost" size="icon" onClick={handleEditFunnel}>
+                  <Settings className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              {canManage && (
+                <Button variant="outline" onClick={handleNewFunnel}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Novo Funil
+                </Button>
+              )}
+              <Button onClick={() => setNewDealOpen(true)} disabled={!currentFunnelId}>
+                <Plus className="h-4 w-4 mr-2" />
+                Nova Negociação
+              </Button>
+            </div>
+          </div>
+
+          {/* Filters Row */}
           <div className="flex items-center gap-4">
-            <h1 className="text-2xl font-bold">Negociações</h1>
-            
-            {/* Funnel Selector */}
-            <Select 
-              value={currentFunnelId || ""} 
-              onValueChange={(val) => setSelectedFunnelId(val)}
-            >
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Selecione um funil" />
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Filter className="h-4 w-4" />
+              <span>Filtros:</span>
+            </div>
+
+            {/* Owner Filter */}
+            <Select value={ownerFilter} onValueChange={setOwnerFilter}>
+              <SelectTrigger className="w-[180px]">
+                <User className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Responsável" />
               </SelectTrigger>
               <SelectContent>
-                {funnels?.map((funnel) => (
-                  <SelectItem key={funnel.id} value={funnel.id}>
-                    <div className="flex items-center gap-2">
-                      <div 
-                        className="w-3 h-3 rounded-full" 
-                        style={{ backgroundColor: funnel.color }} 
-                      />
-                      {funnel.name}
-                    </div>
+                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="mine">Minhas negociações</SelectItem>
+                {groupMembers?.map((member) => (
+                  <SelectItem key={member.user_id} value={member.user_id}>
+                    {member.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
 
-            {canManage && currentFunnel && (
-              <Button variant="ghost" size="icon" onClick={handleEditFunnel}>
-                <Settings className="h-4 w-4" />
-              </Button>
-            )}
-          </div>
+            {/* Group Filter */}
+            <Select value={groupFilter} onValueChange={setGroupFilter}>
+              <SelectTrigger className="w-[180px]">
+                <Users className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Grupo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os grupos</SelectItem>
+                {groups?.map((group) => (
+                  <SelectItem key={group.id} value={group.id}>
+                    {group.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-          <div className="flex items-center gap-2">
-            {canManage && (
-              <Button variant="outline" onClick={handleNewFunnel}>
-                <Plus className="h-4 w-4 mr-2" />
-                Novo Funil
+            {(ownerFilter !== "all" || groupFilter !== "all") && (
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => {
+                  setOwnerFilter("all");
+                  setGroupFilter("all");
+                }}
+              >
+                Limpar filtros
               </Button>
             )}
-            <Button onClick={() => setNewDealOpen(true)} disabled={!currentFunnelId}>
-              <Plus className="h-4 w-4 mr-2" />
-              Nova Negociação
-            </Button>
           </div>
         </div>
 
@@ -115,13 +204,26 @@ export default function CRMNegociacoes() {
                 </Button>
               )}
             </div>
-          ) : funnelData?.stages ? (
+          ) : funnelData?.stages && funnelData.stages.length > 0 ? (
             <KanbanBoard
               stages={funnelData.stages}
-              dealsByStage={dealsByStage || {}}
+              dealsByStage={filteredDealsByStage}
               onDealClick={handleDealClick}
             />
-          ) : null}
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full text-center">
+              <h3 className="text-lg font-medium mb-2">Nenhuma etapa configurada</h3>
+              <p className="text-muted-foreground mb-4">
+                Configure as etapas do funil para visualizar o Kanban
+              </p>
+              {canManage && (
+                <Button onClick={handleEditFunnel}>
+                  <Settings className="h-4 w-4 mr-2" />
+                  Configurar Etapas
+                </Button>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
