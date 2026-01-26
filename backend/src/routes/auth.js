@@ -77,7 +77,7 @@ router.post('/register', async (req, res) => {
 
       // Get plan modules for organization
       const planModulesResult = await query(
-        `SELECT has_campaigns, has_asaas_integration, has_whatsapp_groups, has_scheduled_messages, has_chatbots, has_chat FROM plans WHERE id = $1`,
+         `SELECT has_campaigns, has_asaas_integration, has_whatsapp_groups, has_scheduled_messages, has_chatbots, has_chat, has_crm FROM plans WHERE id = $1`,
         [selectedPlan.id]
       );
       
@@ -87,7 +87,8 @@ router.post('/register', async (req, res) => {
         groups: true,
         scheduled_messages: true,
         chatbots: true,
-        chat: true
+         chat: true,
+         crm: true
       };
       
       if (planModulesResult.rows.length > 0) {
@@ -98,7 +99,8 @@ router.post('/register', async (req, res) => {
           groups: plan.has_whatsapp_groups ?? true,
           scheduled_messages: plan.has_scheduled_messages ?? true,
           chatbots: plan.has_chatbots ?? true,
-          chat: plan.has_chat ?? true
+           chat: plan.has_chat ?? true,
+           crm: plan.has_crm ?? true
         };
       }
 
@@ -187,6 +189,8 @@ router.post('/login', async (req, res) => {
       groups: true,
       scheduled_messages: true,
       chatbots: true,
+       chat: true,
+       crm: true
     };
     
     let modulesEnabled = allModulesEnabled;
@@ -270,6 +274,8 @@ router.get('/me', async (req, res) => {
       groups: true,
       scheduled_messages: true,
       chatbots: true,
+       chat: true,
+       crm: true
     };
     
     // Use all modules for superadmin/owner/admin, otherwise use org settings
