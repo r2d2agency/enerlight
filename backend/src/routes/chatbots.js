@@ -305,10 +305,18 @@ router.patch('/:id', async (req, res) => {
           continue;
         }
 
-        // JSONB: garantir serialização consistente
+        // JSONB fields: garantir serialização consistente
         if (field === 'menu_options' && req.body[field] !== null && typeof req.body[field] !== 'string') {
           updates.push(`${field} = $${paramCount}`);
           values.push(JSON.stringify(req.body[field]));
+          paramCount++;
+          continue;
+        }
+
+        // Array fields (business_days is integer[])
+        if (field === 'business_days' && Array.isArray(req.body[field])) {
+          updates.push(`${field} = $${paramCount}`);
+          values.push(req.body[field]);
           paramCount++;
           continue;
         }

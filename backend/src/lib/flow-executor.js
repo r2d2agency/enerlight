@@ -104,7 +104,7 @@ export async function executeFlow(flowId, conversationId, startNodeId = 'start')
       console.log(`Flow executor: Processing node ${node.node_id} (${node.node_type}) - content:`, JSON.stringify(node.content).substring(0, 200));
 
       // Process the node based on its type
-      const result = await processNode(node, connection, conversation.contact_phone, variables);
+      const result = await processNode(node, connection, conversation.contact_phone, variables, conversationId);
 
       if (!result.success && result.error) {
         console.error('Flow executor: Node processing failed:', result.error);
@@ -149,7 +149,7 @@ export async function executeFlow(flowId, conversationId, startNodeId = 'start')
 /**
  * Process a single node
  */
-async function processNode(node, connection, phone, variables) {
+async function processNode(node, connection, phone, variables, conversationId) {
   const content = typeof node.content === 'string' 
     ? JSON.parse(node.content) 
     : (node.content || {});
@@ -164,16 +164,16 @@ async function processNode(node, connection, phone, variables) {
       return { success: true };
 
     case 'message':
-      return await processMessageNode(content, connection, phone, variables);
+      return await processMessageNode(content, connection, phone, variables, conversationId);
 
     case 'menu':
       // Menu requires user input
-      await processMenuNode(content, connection, phone, variables);
+      await processMenuNode(content, connection, phone, variables, conversationId);
       return { success: true, waitForInput: true };
 
     case 'input':
       // Input requires user input
-      await processInputNode(content, connection, phone, variables);
+      await processInputNode(content, connection, phone, variables, conversationId);
       return { success: true, waitForInput: true };
 
     case 'delay':
@@ -194,9 +194,36 @@ async function processNode(node, connection, phone, variables) {
 }
 
 /**
+ * Helper to save sent message to database
+ */
+async function saveSentMessage(conversationId, content, messageType, mediaUrl = null, messageId = null) {
+  try {
+    const dbMessageId = messageId || `flow_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    await query(
+      `INSERT INTO chat_messages 
+        (conversation_id, message_id, from_me, content, message_type, media_url, status, timestamp)
+       VALUES ($1, $2, true, $3, $4, $5, 'sent', NOW())`,
+      [conversationId, dbMessageId, content, messageType, mediaUrl]
+    );
+    
+    // Update conversation last_message
+    await query(
+      `UPDATE conversations SET last_message_at = NOW() WHERE id = $1`,
+      [conversationId]
+    );
+    
+    console.log(`Flow executor: Message saved to database - type: ${messageType}, content: ${content?.substring(0, 30) || 'N/A'}`);
+    return dbMessageId;
+  } catch (error) {
+    console.error('Flow executor: Error saving message to database:', error);
+    return null;
+  }
+}
+
+/**
  * Process message node - send text/media
  */
-async function processMessageNode(content, connection, phone, variables) {
+async function processMessageNode(content, connection, phone, variables, conversationId) {
   const mediaType = content.media_type || 'text';
 
   console.log(`Flow executor: processMessageNode - mediaType: ${mediaType}`, JSON.stringify(content).substring(0, 300));
@@ -210,7 +237,10 @@ async function processMessageNode(content, connection, phone, variables) {
         const caption = i === 0 && content.caption ? replaceVariables(content.caption, variables) : '';
         
         console.log(`Flow executor: Sending gallery image ${i + 1}: ${img.url?.substring(0, 50)}`);
-        await whatsappProvider.sendMessage(connection, phone, caption, 'image', img.url);
+        const result = await whatsappProvider.sendMessage(connection, phone, caption, 'image', img.url);
+        
+        // Save to database
+        await saveSentMessage(conversationId, caption || null, 'image', img.url, result?.messageId);
         
         // Delay between images (1.5s)
         if (i < content.gallery_images.length - 1) {
@@ -220,19 +250,23 @@ async function processMessageNode(content, connection, phone, variables) {
     } else if (mediaType === 'image' && content.media_url) {
       const caption = content.caption ? replaceVariables(content.caption, variables) : '';
       console.log(`Flow executor: Sending image: ${content.media_url?.substring(0, 50)}`);
-      await whatsappProvider.sendMessage(connection, phone, caption, 'image', content.media_url);
+      const result = await whatsappProvider.sendMessage(connection, phone, caption, 'image', content.media_url);
+      await saveSentMessage(conversationId, caption || null, 'image', content.media_url, result?.messageId);
     } else if (mediaType === 'video' && content.media_url) {
       const caption = content.caption ? replaceVariables(content.caption, variables) : '';
       console.log(`Flow executor: Sending video: ${content.media_url?.substring(0, 50)}`);
-      await whatsappProvider.sendMessage(connection, phone, caption, 'video', content.media_url);
+      const result = await whatsappProvider.sendMessage(connection, phone, caption, 'video', content.media_url);
+      await saveSentMessage(conversationId, caption || null, 'video', content.media_url, result?.messageId);
     } else if (mediaType === 'audio' && content.media_url) {
       console.log(`Flow executor: Sending audio: ${content.media_url?.substring(0, 50)}`);
-      await whatsappProvider.sendMessage(connection, phone, '', 'audio', content.media_url);
+      const result = await whatsappProvider.sendMessage(connection, phone, '', 'audio', content.media_url);
+      await saveSentMessage(conversationId, null, 'audio', content.media_url, result?.messageId);
     } else if (content.message || content.text) {
       // Text message
       const text = replaceVariables(content.message || content.text, variables);
       console.log(`Flow executor: Sending text: ${text?.substring(0, 50)}`);
-      await whatsappProvider.sendMessage(connection, phone, text, 'text');
+      const result = await whatsappProvider.sendMessage(connection, phone, text, 'text');
+      await saveSentMessage(conversationId, text, 'text', null, result?.messageId);
     } else {
       console.log('Flow executor: processMessageNode - no content to send');
     }
@@ -247,7 +281,7 @@ async function processMessageNode(content, connection, phone, variables) {
 /**
  * Process menu node - send menu message
  */
-async function processMenuNode(content, connection, phone, variables) {
+async function processMenuNode(content, connection, phone, variables, conversationId) {
   let menuText = content.prompt || content.message || 'Selecione uma opção:';
   menuText = replaceVariables(menuText, variables);
 
@@ -259,17 +293,19 @@ async function processMenuNode(content, connection, phone, variables) {
     });
   }
 
-  await whatsappProvider.sendMessage(connection, phone, menuText, 'text');
+  const result = await whatsappProvider.sendMessage(connection, phone, menuText, 'text');
+  await saveSentMessage(conversationId, menuText, 'text', null, result?.messageId);
 }
 
 /**
  * Process input node - send prompt for user input
  */
-async function processInputNode(content, connection, phone, variables) {
+async function processInputNode(content, connection, phone, variables, conversationId) {
   let promptText = content.prompt || content.message || 'Digite sua resposta:';
   promptText = replaceVariables(promptText, variables);
 
-  await whatsappProvider.sendMessage(connection, phone, promptText, 'text');
+  const result = await whatsappProvider.sendMessage(connection, phone, promptText, 'text');
+  await saveSentMessage(conversationId, promptText, 'text', null, result?.messageId);
 }
 
 /**
@@ -629,7 +665,7 @@ async function resumeFlowFromNode(flowId, conversationId, startNodeId, variables
       console.log(`Flow executor: Processing node ${node.node_id} (${node.node_type})`);
 
       // Process the node
-      const result = await processNode(node, connection, conversation.contact_phone, variables);
+      const result = await processNode(node, connection, conversation.contact_phone, variables, conversationId);
 
       if (!result.success && result.error) {
         console.error('Flow executor: Node processing failed:', result.error);
