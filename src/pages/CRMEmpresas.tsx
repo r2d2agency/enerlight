@@ -9,7 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { CompanyDialog } from "@/components/crm/CompanyDialog";
 import { CompanyImportDialog } from "@/components/crm/CompanyImportDialog";
 import { useCRMCompanies, useCRMCompanyMutations, CRMCompany } from "@/hooks/use-crm";
-import { Plus, Search, MoreHorizontal, Building2, Phone, Mail, Trash2, Edit, Loader2, FileSpreadsheet } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Building2, Phone, Mail, Trash2, Edit, Loader2, FileSpreadsheet, Tag } from "lucide-react";
 import { format, parseISO } from "date-fns";
 
 export default function CRMEmpresas() {
@@ -94,6 +94,7 @@ export default function CRMEmpresas() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Empresa</TableHead>
+                    <TableHead>Segmento</TableHead>
                     <TableHead>CNPJ</TableHead>
                     <TableHead>Contato</TableHead>
                     <TableHead>Negociações</TableHead>
@@ -118,6 +119,26 @@ export default function CRMEmpresas() {
                             )}
                           </div>
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        {company.segment_name ? (
+                          <Badge 
+                            variant="outline" 
+                            className="flex items-center gap-1 w-fit"
+                            style={{ 
+                              borderColor: company.segment_color,
+                              color: company.segment_color 
+                            }}
+                          >
+                            <div 
+                              className="w-2 h-2 rounded-full" 
+                              style={{ backgroundColor: company.segment_color }} 
+                            />
+                            {company.segment_name}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         <span className="font-mono text-sm">

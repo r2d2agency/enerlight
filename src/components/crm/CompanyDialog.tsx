@@ -5,7 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CRMCompany, useCRMCompanyMutations } from "@/hooks/use-crm";
+import { useCRMSegments } from "@/hooks/use-crm-config";
+import { Tag } from "lucide-react";
 
 interface CompanyDialogProps {
   company: CRMCompany | null;
@@ -25,9 +28,11 @@ export function CompanyDialog({ company, open, onOpenChange }: CompanyDialogProp
     state: "",
     zip_code: "",
     notes: "",
+    segment_id: "",
   });
 
   const { createCompany, updateCompany } = useCRMCompanyMutations();
+  const { data: segments } = useCRMSegments();
 
   useEffect(() => {
     if (company) {
@@ -42,6 +47,7 @@ export function CompanyDialog({ company, open, onOpenChange }: CompanyDialogProp
         state: company.state || "",
         zip_code: company.zip_code || "",
         notes: company.notes || "",
+        segment_id: company.segment_id || "",
       });
     } else {
       setFormData({
@@ -55,6 +61,7 @@ export function CompanyDialog({ company, open, onOpenChange }: CompanyDialogProp
         state: "",
         zip_code: "",
         notes: "",
+        segment_id: "",
       });
     }
   }, [company, open]);
@@ -64,23 +71,27 @@ export function CompanyDialog({ company, open, onOpenChange }: CompanyDialogProp
   };
 
   const handleSave = () => {
+    const data = {
+      ...formData,
+      segment_id: formData.segment_id || undefined,
+    };
     if (company) {
-      updateCompany.mutate({ id: company.id, ...formData });
+      updateCompany.mutate({ id: company.id, ...data });
     } else {
-      createCompany.mutate(formData);
+      createCompany.mutate(data);
     }
     onOpenChange(false);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] flex flex-col">
-        <DialogHeader>
+      <DialogContent className="max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>{company ? "Editar Empresa" : "Nova Empresa"}</DialogTitle>
         </DialogHeader>
 
-        <ScrollArea className="flex-1">
-          <div className="space-y-4 p-1">
+        <ScrollArea className="flex-1 min-h-0 max-h-[calc(90vh-140px)]">
+          <div className="space-y-4 p-1 pr-4">
             <div className="space-y-2">
               <Label>Nome da empresa *</Label>
               <Input
@@ -88,6 +99,36 @@ export function CompanyDialog({ company, open, onOpenChange }: CompanyDialogProp
                 onChange={(e) => handleChange("name", e.target.value)}
                 placeholder="Nome da empresa"
               />
+            </div>
+
+            {/* Segmento */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <Tag className="h-4 w-4" />
+                Segmento
+              </Label>
+              <Select
+                value={formData.segment_id}
+                onValueChange={(value) => handleChange("segment_id", value === "none" ? "" : value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um segmento" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Nenhum</SelectItem>
+                  {segments?.map((segment) => (
+                    <SelectItem key={segment.id} value={segment.id}>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: segment.color }}
+                        />
+                        {segment.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -178,7 +219,7 @@ export function CompanyDialog({ company, open, onOpenChange }: CompanyDialogProp
           </div>
         </ScrollArea>
 
-        <DialogFooter>
+        <DialogFooter className="flex-shrink-0 border-t pt-4">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>

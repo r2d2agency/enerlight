@@ -55,6 +55,9 @@ export interface CRMCompany {
   state?: string;
   zip_code?: string;
   notes?: string;
+  segment_id?: string;
+  segment_name?: string;
+  segment_color?: string;
   custom_fields?: Record<string, any>;
   deals_count: number;
   created_by_name?: string;
