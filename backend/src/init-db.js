@@ -1557,6 +1557,9 @@ CREATE TABLE IF NOT EXISTS crm_prospects (
     name VARCHAR(255) NOT NULL,
     phone VARCHAR(50) NOT NULL,
     source VARCHAR(100),
+    city VARCHAR(100),
+    state VARCHAR(50),
+    custom_fields JSONB DEFAULT '{}',
     converted_at TIMESTAMP WITH TIME ZONE,
     converted_deal_id UUID REFERENCES crm_deals(id) ON DELETE SET NULL,
     created_by UUID REFERENCES users(id) ON DELETE SET NULL,
@@ -1565,10 +1568,32 @@ CREATE TABLE IF NOT EXISTS crm_prospects (
     UNIQUE(organization_id, phone)
 );
 
+-- Add custom_fields column if not exists
+DO $$ BEGIN
+    ALTER TABLE crm_prospects ADD COLUMN IF NOT EXISTS custom_fields JSONB DEFAULT '{}';
+    ALTER TABLE crm_prospects ADD COLUMN IF NOT EXISTS city VARCHAR(100);
+    ALTER TABLE crm_prospects ADD COLUMN IF NOT EXISTS state VARCHAR(50);
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
 -- Indexes for prospects
 CREATE INDEX IF NOT EXISTS idx_crm_prospects_org ON crm_prospects(organization_id);
 CREATE INDEX IF NOT EXISTS idx_crm_prospects_phone ON crm_prospects(phone);
 CREATE INDEX IF NOT EXISTS idx_crm_prospects_converted ON crm_prospects(converted_at);
+
+-- Prospect custom field definitions per organization
+CREATE TABLE IF NOT EXISTS crm_prospect_fields (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE NOT NULL,
+    field_key VARCHAR(100) NOT NULL,
+    field_label VARCHAR(255) NOT NULL,
+    field_type VARCHAR(50) DEFAULT 'text',
+    is_required BOOLEAN DEFAULT false,
+    display_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(organization_id, field_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_crm_prospect_fields_org ON crm_prospect_fields(organization_id);
 `;
 
 // Migration steps in order of execution

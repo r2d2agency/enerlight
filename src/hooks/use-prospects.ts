@@ -36,19 +36,39 @@ async function createProspect(data: { name: string; phone: string; source?: stri
   return res.json();
 }
 
-async function bulkCreateProspects(prospects: Array<{ name: string; phone: string; source?: string }>): Promise<{ created: number; duplicates: number }> {
+interface BulkCreateData {
+  prospects: Array<Record<string, string>>;
+  createFields?: Array<{ field_key: string; field_label: string; field_type?: string }>;
+}
+
+async function bulkCreateProspects(data: BulkCreateData): Promise<{ created: number; duplicates: number }> {
   const res = await fetch(`${API_URL}/api/crm/prospects/bulk`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${getAuthToken()}`,
     },
-    body: JSON.stringify({ prospects }),
+    body: JSON.stringify(data),
   });
   if (!res.ok) {
     const err = await res.json();
     throw new Error(err.error || "Failed to import prospects");
   }
+  return res.json();
+}
+
+export interface ProspectField {
+  id: string;
+  field_key: string;
+  field_label: string;
+  field_type: string;
+}
+
+async function fetchProspectFields(): Promise<ProspectField[]> {
+  const res = await fetch(`${API_URL}/api/crm/prospect-fields`, {
+    headers: { Authorization: `Bearer ${getAuthToken()}` },
+  });
+  if (!res.ok) return [];
   return res.json();
 }
 
@@ -112,6 +132,11 @@ export function useProspects() {
     queryFn: fetchProspects,
   });
 
+  const { data: customFields = [] } = useQuery({
+    queryKey: ["crm-prospect-fields"],
+    queryFn: fetchProspectFields,
+  });
+
   const createMutation = useMutation({
     mutationFn: createProspect,
     onSuccess: () => {
@@ -127,6 +152,7 @@ export function useProspects() {
     mutationFn: bulkCreateProspects,
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["crm-prospects"] });
+      queryClient.invalidateQueries({ queryKey: ["crm-prospect-fields"] });
       toast.success(`${data.created} prospects importados. ${data.duplicates} duplicados ignorados.`);
     },
     onError: (err: Error) => {
@@ -184,6 +210,7 @@ export function useProspects() {
     prospects,
     isLoading,
     error,
+    customFields,
     createProspect: createMutation,
     bulkCreate: bulkCreateMutation,
     deleteProspect: deleteMutation,

@@ -1826,11 +1826,29 @@ router.post('/prospects/bulk', async (req, res) => {
         continue;
       }
 
+      // Extract custom fields (everything except reserved keys)
+      const customFields = {};
+      const reservedKeys = ['name', 'phone', 'source', 'city', 'state'];
+      Object.keys(p).forEach(key => {
+        if (!reservedKeys.includes(key) && p[key]) {
+          customFields[key] = p[key];
+        }
+      });
+
       try {
         await query(
-          `INSERT INTO crm_prospects (organization_id, name, phone, source, created_by)
-           VALUES ($1, $2, $3, $4, $5)`,
-          [org.organization_id, p.name.trim(), normalizedPhone, p.source?.trim() || null, req.userId]
+          `INSERT INTO crm_prospects (organization_id, name, phone, source, city, state, custom_fields, created_by)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [
+            org.organization_id, 
+            p.name.trim(), 
+            normalizedPhone, 
+            p.source?.trim() || null, 
+            p.city?.trim() || null,
+            p.state?.trim() || null,
+            JSON.stringify(customFields),
+            req.userId
+          ]
         );
         existingPhones.add(normalizedPhone);
         created++;
@@ -1846,6 +1864,50 @@ router.post('/prospects/bulk', async (req, res) => {
     res.json({ created, duplicates });
   } catch (error) {
     console.error('Error bulk creating prospects:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get prospect custom fields for organization
+router.get('/prospect-fields', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const result = await query(
+      `SELECT * FROM crm_prospect_fields WHERE organization_id = $1 ORDER BY display_order, field_label`,
+      [org.organization_id]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    if (error.code === '42P01') return res.json([]);
+    console.error('Error fetching prospect fields:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create prospect custom field
+router.post('/prospect-fields', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const { field_key, field_label, field_type } = req.body;
+    if (!field_key || !field_label) {
+      return res.status(400).json({ error: 'field_key and field_label are required' });
+    }
+
+    const result = await query(
+      `INSERT INTO crm_prospect_fields (organization_id, field_key, field_label, field_type)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [org.organization_id, field_key.toLowerCase().replace(/\s+/g, '_'), field_label, field_type || 'text']
+    );
+    res.json(result.rows[0]);
+  } catch (error) {
+    if (error.code === '23505') {
+      return res.status(400).json({ error: 'Campo já existe' });
+    }
+    console.error('Error creating prospect field:', error);
     res.status(500).json({ error: error.message });
   }
 });
