@@ -502,7 +502,58 @@ router.post('/companies/import', async (req, res) => {
 // DEALS
 // ============================================
 
-// Get deals for kanban (by funnel)
+// Search deals (for linking)
+router.get('/deals', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const { search } = req.query;
+    if (!search || search.length < 2) {
+      return res.json([]);
+    }
+
+    const userGroups = await getUserGroupIds(req.userId);
+    const supervisorGroupIds = userGroups.filter(g => g.is_supervisor).map(g => g.group_id);
+
+    // Build visibility filter based on role
+    let visibilityFilter = '';
+    const params = [org.organization_id, `%${search}%`];
+    
+    if (canManage(org.role)) {
+      visibilityFilter = '';
+    } else if (supervisorGroupIds.length > 0) {
+      visibilityFilter = ` AND (d.owner_id = $3 OR d.group_id = ANY($4))`;
+      params.push(req.userId, supervisorGroupIds);
+    } else {
+      visibilityFilter = ` AND d.owner_id = $3`;
+      params.push(req.userId);
+    }
+
+    const result = await query(
+      `SELECT d.*, 
+        c.name as company_name,
+        u.name as owner_name,
+        s.name as stage_name,
+        s.color as stage_color
+       FROM crm_deals d
+       LEFT JOIN crm_companies c ON c.id = d.company_id
+       LEFT JOIN users u ON u.id = d.owner_id
+       LEFT JOIN crm_stages s ON s.id = d.stage_id
+       WHERE d.organization_id = $1 
+         AND (d.title ILIKE $2 OR c.name ILIKE $2)
+         ${visibilityFilter}
+       ORDER BY d.updated_at DESC
+       LIMIT 20`,
+      params
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error searching deals:', error);
+    res.status(500).json({ error: error.message });
+  });
+});
 router.get('/funnels/:funnelId/deals', async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);

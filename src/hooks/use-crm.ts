@@ -340,6 +340,17 @@ export function useCRMCompanyMutations() {
 }
 
 // Deals
+export function useCRMDealsSearch(search?: string) {
+  return useQuery({
+    queryKey: ["crm-deals-search", search],
+    queryFn: async () => {
+      const params = search ? `?search=${encodeURIComponent(search)}` : "";
+      return api<CRMDeal[]>(`/api/crm/deals${params}`);
+    },
+    enabled: !!search && search.length >= 2,
+  });
+}
+
 export function useCRMDeals(funnelId: string | null) {
   return useQuery({
     queryKey: ["crm-deals", funnelId],
