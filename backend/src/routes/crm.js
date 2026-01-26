@@ -1728,4 +1728,254 @@ router.get('/reports/conversion', async (req, res) => {
   }
 });
 
+// =============================================================================
+// PROSPECTS
+// =============================================================================
+
+// List all prospects
+router.get('/prospects', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const result = await query(
+      `SELECT id, name, phone, source, converted_at, converted_deal_id, created_at
+       FROM crm_prospects
+       WHERE organization_id = $1
+       ORDER BY created_at DESC`,
+      [org.organization_id]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    if (error.code === '42P01') return res.json([]);
+    console.error('Error fetching prospects:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create single prospect
+router.post('/prospects', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const { name, phone, source } = req.body;
+    if (!name || !phone) {
+      return res.status(400).json({ error: 'Name and phone are required' });
+    }
+
+    // Normalize phone
+    let normalizedPhone = phone.replace(/\D/g, '').replace(/^0+/, '');
+    if (normalizedPhone.length <= 11) {
+      normalizedPhone = '55' + normalizedPhone;
+    }
+
+    // Check duplicate
+    const existing = await query(
+      `SELECT id FROM crm_prospects WHERE organization_id = $1 AND phone = $2`,
+      [org.organization_id, normalizedPhone]
+    );
+    if (existing.rows.length > 0) {
+      return res.status(409).json({ error: 'Prospect com este telefone já existe' });
+    }
+
+    const result = await query(
+      `INSERT INTO crm_prospects (organization_id, name, phone, source, created_by)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING *`,
+      [org.organization_id, name.trim(), normalizedPhone, source?.trim() || null, req.userId]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Error creating prospect:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Bulk create prospects
+router.post('/prospects/bulk', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const { prospects } = req.body;
+    if (!Array.isArray(prospects) || prospects.length === 0) {
+      return res.status(400).json({ error: 'Prospects array is required' });
+    }
+
+    // Get existing phones
+    const existingResult = await query(
+      `SELECT phone FROM crm_prospects WHERE organization_id = $1`,
+      [org.organization_id]
+    );
+    const existingPhones = new Set(existingResult.rows.map(r => r.phone));
+
+    let created = 0;
+    let duplicates = 0;
+
+    for (const p of prospects) {
+      if (!p.name || !p.phone) continue;
+
+      let normalizedPhone = p.phone.replace(/\D/g, '').replace(/^0+/, '');
+      if (normalizedPhone.length <= 11) {
+        normalizedPhone = '55' + normalizedPhone;
+      }
+
+      if (existingPhones.has(normalizedPhone)) {
+        duplicates++;
+        continue;
+      }
+
+      try {
+        await query(
+          `INSERT INTO crm_prospects (organization_id, name, phone, source, created_by)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [org.organization_id, p.name.trim(), normalizedPhone, p.source?.trim() || null, req.userId]
+        );
+        existingPhones.add(normalizedPhone);
+        created++;
+      } catch (err) {
+        if (err.code === '23505') {
+          duplicates++;
+        } else {
+          console.error('Error inserting prospect:', err);
+        }
+      }
+    }
+
+    res.json({ created, duplicates });
+  } catch (error) {
+    console.error('Error bulk creating prospects:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete single prospect
+router.delete('/prospects/:id', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    await query(
+      `DELETE FROM crm_prospects WHERE id = $1 AND organization_id = $2`,
+      [req.params.id, org.organization_id]
+    );
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting prospect:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Bulk delete prospects
+router.post('/prospects/bulk-delete', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'IDs array is required' });
+    }
+
+    await query(
+      `DELETE FROM crm_prospects WHERE id = ANY($1::uuid[]) AND organization_id = $2`,
+      [ids, org.organization_id]
+    );
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error bulk deleting prospects:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Convert prospect to deal
+router.post('/prospects/:id/convert', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const { funnel_id, title } = req.body;
+    if (!funnel_id) {
+      return res.status(400).json({ error: 'Funnel ID is required' });
+    }
+
+    // Get prospect
+    const prospectResult = await query(
+      `SELECT * FROM crm_prospects WHERE id = $1 AND organization_id = $2`,
+      [req.params.id, org.organization_id]
+    );
+    if (prospectResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Prospect not found' });
+    }
+    const prospect = prospectResult.rows[0];
+
+    if (prospect.converted_at) {
+      return res.status(400).json({ error: 'Prospect already converted' });
+    }
+
+    // Get first stage of funnel
+    const stageResult = await query(
+      `SELECT id FROM crm_stages WHERE funnel_id = $1 ORDER BY position ASC LIMIT 1`,
+      [funnel_id]
+    );
+    if (stageResult.rows.length === 0) {
+      return res.status(400).json({ error: 'Funnel has no stages' });
+    }
+    const stage_id = stageResult.rows[0].id;
+
+    // Create or find contact
+    let contact_id = null;
+    const existingContact = await query(
+      `SELECT c.id FROM contacts c
+       JOIN contact_lists cl ON cl.id = c.list_id
+       WHERE c.phone = $1 AND cl.organization_id = $2
+       LIMIT 1`,
+      [prospect.phone, org.organization_id]
+    );
+
+    if (existingContact.rows.length > 0) {
+      contact_id = existingContact.rows[0].id;
+    } else {
+      // Create CRM contacts list if needed
+      let crmListResult = await query(
+        `SELECT id FROM contact_lists WHERE organization_id = $1 AND name = 'CRM Contacts' LIMIT 1`,
+        [org.organization_id]
+      );
+      if (crmListResult.rows.length === 0) {
+        crmListResult = await query(
+          `INSERT INTO contact_lists (organization_id, user_id, name) VALUES ($1, $2, 'CRM Contacts') RETURNING id`,
+          [org.organization_id, req.userId]
+        );
+      }
+
+      const newContact = await query(
+        `INSERT INTO contacts (list_id, name, phone) VALUES ($1, $2, $3) RETURNING id`,
+        [crmListResult.rows[0].id, prospect.name, prospect.phone]
+      );
+      contact_id = newContact.rows[0].id;
+    }
+
+    // Create deal
+    const dealResult = await query(
+      `INSERT INTO crm_deals (organization_id, funnel_id, stage_id, title, contact_id, assigned_to, source)
+       VALUES ($1, $2, $3, $4, $5, $6, 'prospect')
+       RETURNING id`,
+      [org.organization_id, funnel_id, stage_id, title || prospect.name, contact_id, req.userId]
+    );
+    const deal_id = dealResult.rows[0].id;
+
+    // Mark prospect as converted
+    await query(
+      `UPDATE crm_prospects SET converted_at = NOW(), converted_deal_id = $1 WHERE id = $2`,
+      [deal_id, req.params.id]
+    );
+
+    res.json({ deal_id });
+  } catch (error) {
+    console.error('Error converting prospect:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

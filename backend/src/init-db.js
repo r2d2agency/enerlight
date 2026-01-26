@@ -1548,6 +1548,29 @@ END $$;
 CREATE INDEX IF NOT EXISTS idx_crm_companies_segment ON crm_companies(segment_id);
 `;
 
+// Step 21: CRM Prospects
+const step21Prospects = `
+-- Prospects table for simple lead management before conversion to deals
+CREATE TABLE IF NOT EXISTS crm_prospects (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    phone VARCHAR(50) NOT NULL,
+    source VARCHAR(100),
+    converted_at TIMESTAMP WITH TIME ZONE,
+    converted_deal_id UUID REFERENCES crm_deals(id) ON DELETE SET NULL,
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(organization_id, phone)
+);
+
+-- Indexes for prospects
+CREATE INDEX IF NOT EXISTS idx_crm_prospects_org ON crm_prospects(organization_id);
+CREATE INDEX IF NOT EXISTS idx_crm_prospects_phone ON crm_prospects(phone);
+CREATE INDEX IF NOT EXISTS idx_crm_prospects_converted ON crm_prospects(converted_at);
+`;
+
 // Migration steps in order of execution
 const migrationSteps = [
   { name: 'Enums', sql: step1Enums, critical: true },
@@ -1571,6 +1594,7 @@ const migrationSteps = [
   { name: 'CRM System', sql: step18CRM, critical: false },
   { name: 'CRM Config', sql: step19CRMConfig, critical: false },
   { name: 'CRM Migrations', sql: step20CRMMigrations, critical: false },
+  { name: 'CRM Prospects', sql: step21Prospects, critical: false },
 ];
 
 export async function initDatabase() {
