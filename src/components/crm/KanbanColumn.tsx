@@ -4,15 +4,20 @@ import { CRMDeal, CRMStage } from "@/hooks/use-crm";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { MoreHorizontal, Trophy, XCircle, Pause, Play } from "lucide-react";
 
 interface KanbanColumnProps {
   stage: CRMStage;
   deals: CRMDeal[];
   totalValue: number;
   onDealClick: (deal: CRMDeal) => void;
+  onStatusChange?: (dealId: string, status: 'won' | 'lost' | 'paused' | 'open') => void;
+  newWinDealId?: string | null;
 }
 
-export function KanbanColumn({ stage, deals, totalValue, onDealClick }: KanbanColumnProps) {
+export function KanbanColumn({ stage, deals, totalValue, onDealClick, onStatusChange, newWinDealId }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: stage.id!,
   });
@@ -57,11 +62,56 @@ export function KanbanColumn({ stage, deals, totalValue, onDealClick }: KanbanCo
             </div>
           ) : (
             deals.map((deal) => (
-              <DealCard
-                key={deal.id}
-                deal={deal}
-                onClick={() => onDealClick(deal)}
-              />
+              <div key={deal.id} className="relative group">
+                <DealCard
+                  deal={deal}
+                  onClick={() => onDealClick(deal)}
+                  isNewWin={newWinDealId === deal.id}
+                />
+                {/* Quick actions menu */}
+                {onStatusChange && (
+                  <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button 
+                          variant="secondary" 
+                          size="icon" 
+                          className="h-6 w-6"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <MoreHorizontal className="h-3 w-3" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                        {deal.status !== 'won' && (
+                          <DropdownMenuItem onClick={() => onStatusChange(deal.id, 'won')}>
+                            <Trophy className="h-4 w-4 mr-2 text-green-500" />
+                            Marcar como Ganho
+                          </DropdownMenuItem>
+                        )}
+                        {deal.status !== 'lost' && (
+                          <DropdownMenuItem onClick={() => onStatusChange(deal.id, 'lost')}>
+                            <XCircle className="h-4 w-4 mr-2 text-red-500" />
+                            Marcar como Perdido
+                          </DropdownMenuItem>
+                        )}
+                        {deal.status !== 'paused' && deal.status !== 'won' && deal.status !== 'lost' && (
+                          <DropdownMenuItem onClick={() => onStatusChange(deal.id, 'paused')}>
+                            <Pause className="h-4 w-4 mr-2 text-gray-500" />
+                            Pausar Negociação
+                          </DropdownMenuItem>
+                        )}
+                        {(deal.status === 'paused' || deal.status === 'won' || deal.status === 'lost') && (
+                          <DropdownMenuItem onClick={() => onStatusChange(deal.id, 'open')}>
+                            <Play className="h-4 w-4 mr-2 text-blue-500" />
+                            Reabrir Negociação
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                )}
+              </div>
             ))
           )}
         </div>

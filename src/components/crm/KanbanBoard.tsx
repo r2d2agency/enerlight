@@ -10,9 +10,11 @@ interface KanbanBoardProps {
   stages: CRMStage[];
   dealsByStage: Record<string, CRMDeal[]>;
   onDealClick: (deal: CRMDeal) => void;
+  onStatusChange?: (dealId: string, status: 'won' | 'lost' | 'paused' | 'open') => void;
+  newWinDealId?: string | null;
 }
 
-export function KanbanBoard({ stages, dealsByStage, onDealClick }: KanbanBoardProps) {
+export function KanbanBoard({ stages, dealsByStage, onDealClick, onStatusChange, newWinDealId }: KanbanBoardProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const { moveDeal } = useCRMDealMutations();
 
@@ -89,6 +91,8 @@ export function KanbanBoard({ stages, dealsByStage, onDealClick }: KanbanBoardPr
                   deals={deals}
                   totalValue={stageValue}
                   onDealClick={onDealClick}
+                  onStatusChange={onStatusChange}
+                  newWinDealId={newWinDealId}
                 />
               </SortableContext>
             );

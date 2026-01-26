@@ -1,19 +1,23 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { KanbanBoard } from "@/components/crm/KanbanBoard";
+import { PipelineView } from "@/components/crm/PipelineView";
 import { DealDetailDialog } from "@/components/crm/DealDetailDialog";
 import { DealFormDialog } from "@/components/crm/DealFormDialog";
 import { FunnelEditorDialog } from "@/components/crm/FunnelEditorDialog";
-import { useCRMFunnels, useCRMFunnel, useCRMDeals, useCRMGroups, useCRMGroupMembers, CRMDeal, CRMFunnel } from "@/hooks/use-crm";
-import { Plus, Settings, Loader2, Filter, User, Users, ArrowUpDown, CalendarIcon, X } from "lucide-react";
+import { WinCelebration } from "@/components/crm/WinCelebration";
+import { useCRMFunnels, useCRMFunnel, useCRMDeals, useCRMGroups, useCRMGroupMembers, useCRMDealMutations, CRMDeal, CRMFunnel } from "@/hooks/use-crm";
+import { Plus, Settings, Loader2, Filter, User, Users, ArrowUpDown, CalendarIcon, X, LayoutGrid, List, Trophy, XCircle, Pause } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { parseISO, format, startOfDay, endOfDay, isWithinInterval } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { toast } from "sonner";
 
 export default function CRMNegociacoes() {
   const { user } = useAuth();
@@ -24,15 +28,25 @@ export default function CRMNegociacoes() {
   const [funnelEditorOpen, setFunnelEditorOpen] = useState(false);
   const [editingFunnel, setEditingFunnel] = useState<CRMFunnel | null>(null);
   
+  // View mode
+  const [viewMode, setViewMode] = useState<"kanban" | "pipeline">("kanban");
+  
+  // Celebration state
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [newWinDealId, setNewWinDealId] = useState<string | null>(null);
+  
   // Filters
-  const [ownerFilter, setOwnerFilter] = useState<string>("all"); // "all" | "mine" | user_id
-  const [groupFilter, setGroupFilter] = useState<string>("all"); // "all" | group_id
-  const [sortOrder, setSortOrder] = useState<string>("recent"); // "recent" | "oldest" | "last_activity"
-  const [dateFilterType, setDateFilterType] = useState<string>("created"); // "created" | "last_activity"
+  const [ownerFilter, setOwnerFilter] = useState<string>("all");
+  const [groupFilter, setGroupFilter] = useState<string>("all");
+  const [sortOrder, setSortOrder] = useState<string>("recent");
+  const [dateFilterType, setDateFilterType] = useState<string>("created");
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  
   const { data: funnels, isLoading: loadingFunnels } = useCRMFunnels();
   const { data: groups } = useCRMGroups();
+  const { updateDeal } = useCRMDealMutations();
   
   // Auto-select first funnel
   const currentFunnelId = selectedFunnelId || funnels?.[0]?.id || null;
@@ -49,6 +63,25 @@ export default function CRMNegociacoes() {
 
   const currentFunnel = funnels?.find((f) => f.id === currentFunnelId) || null;
   const canManage = user?.role && ['owner', 'admin', 'manager'].includes(user.role);
+  
+  // Handle status change with celebration
+  const handleStatusChange = useCallback((dealId: string, status: 'won' | 'lost' | 'paused' | 'open') => {
+    updateDeal.mutate({ id: dealId, status } as any, {
+      onSuccess: () => {
+        if (status === 'won') {
+          setNewWinDealId(dealId);
+          setShowCelebration(true);
+          toast.success("🎉 Negócio fechado com sucesso!");
+        } else if (status === 'lost') {
+          toast.error("Negociação marcada como perdida");
+        } else if (status === 'paused') {
+          toast.info("Negociação pausada");
+        } else {
+          toast.success("Negociação reaberta");
+        }
+      }
+    });
+  }, [updateDeal]);
 
   // Sort function
   const sortDeals = (deals: CRMDeal[]): CRMDeal[] => {
@@ -84,6 +117,11 @@ export default function CRMNegociacoes() {
         filtered = filtered.filter(d => d.group_id === groupFilter);
       }
       
+      // Filter by status
+      if (statusFilter !== "all") {
+        filtered = filtered.filter(d => d.status === statusFilter);
+      }
+      
       // Filter by date range
       if (startDate || endDate) {
         filtered = filtered.filter(d => {
@@ -111,7 +149,7 @@ export default function CRMNegociacoes() {
       acc[stageId] = filtered;
       return acc;
     }, {} as Record<string, CRMDeal[]>);
-  }, [dealsByStage, ownerFilter, groupFilter, sortOrder, user?.id, startDate, endDate, dateFilterType]);
+  }, [dealsByStage, ownerFilter, groupFilter, sortOrder, user?.id, startDate, endDate, dateFilterType, statusFilter]);
 
   const handleDealClick = (deal: CRMDeal) => {
     setSelectedDeal(deal);
@@ -168,6 +206,18 @@ export default function CRMNegociacoes() {
             </div>
 
             <div className="flex items-center gap-2">
+              {/* View Toggle */}
+              <ToggleGroup type="single" value={viewMode} onValueChange={(v) => v && setViewMode(v as "kanban" | "pipeline")}>
+                <ToggleGroupItem value="kanban" aria-label="Kanban" className="gap-1">
+                  <LayoutGrid className="h-4 w-4" />
+                  <span className="hidden sm:inline">Kanban</span>
+                </ToggleGroupItem>
+                <ToggleGroupItem value="pipeline" aria-label="Pipeline" className="gap-1">
+                  <List className="h-4 w-4" />
+                  <span className="hidden sm:inline">Pipeline</span>
+                </ToggleGroupItem>
+              </ToggleGroup>
+
               {canManage && (
                 <Button variant="outline" onClick={handleNewFunnel}>
                   <Plus className="h-4 w-4 mr-2" />
@@ -231,6 +281,37 @@ export default function CRMNegociacoes() {
                 <SelectItem value="recent">Mais recentes</SelectItem>
                 <SelectItem value="oldest">Mais antigas</SelectItem>
                 <SelectItem value="last_activity">Último contato</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Status Filter */}
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[150px]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos status</SelectItem>
+                <SelectItem value="open">
+                  <span className="flex items-center gap-2">Em aberto</span>
+                </SelectItem>
+                <SelectItem value="won">
+                  <span className="flex items-center gap-2">
+                    <Trophy className="h-3 w-3 text-green-500" />
+                    Ganhos
+                  </span>
+                </SelectItem>
+                <SelectItem value="lost">
+                  <span className="flex items-center gap-2">
+                    <XCircle className="h-3 w-3 text-red-500" />
+                    Perdidos
+                  </span>
+                </SelectItem>
+                <SelectItem value="paused">
+                  <span className="flex items-center gap-2">
+                    <Pause className="h-3 w-3 text-gray-500" />
+                    Pausados
+                  </span>
+                </SelectItem>
               </SelectContent>
             </Select>
 
@@ -309,7 +390,7 @@ export default function CRMNegociacoes() {
               )}
             </div>
 
-            {(ownerFilter !== "all" || groupFilter !== "all" || sortOrder !== "recent" || startDate || endDate) && (
+            {(ownerFilter !== "all" || groupFilter !== "all" || sortOrder !== "recent" || startDate || endDate || statusFilter !== "all") && (
               <Button 
                 variant="ghost" 
                 size="sm"
@@ -319,6 +400,7 @@ export default function CRMNegociacoes() {
                   setSortOrder("recent");
                   setStartDate(undefined);
                   setEndDate(undefined);
+                  setStatusFilter("all");
                 }}
               >
                 Limpar filtros
@@ -347,11 +429,23 @@ export default function CRMNegociacoes() {
               )}
             </div>
           ) : funnelData?.stages && funnelData.stages.length > 0 ? (
-            <KanbanBoard
-              stages={funnelData.stages}
-              dealsByStage={filteredDealsByStage}
-              onDealClick={handleDealClick}
-            />
+            viewMode === "kanban" ? (
+              <KanbanBoard
+                stages={funnelData.stages}
+                dealsByStage={filteredDealsByStage}
+                onDealClick={handleDealClick}
+                onStatusChange={handleStatusChange}
+                newWinDealId={newWinDealId}
+              />
+            ) : (
+              <PipelineView
+                stages={funnelData.stages}
+                dealsByStage={filteredDealsByStage}
+                onDealClick={handleDealClick}
+                onStatusChange={handleStatusChange}
+                newWinDealId={newWinDealId}
+              />
+            )
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-center">
               <h3 className="text-lg font-medium mb-2">Nenhuma etapa configurada</h3>
@@ -386,6 +480,15 @@ export default function CRMNegociacoes() {
         funnel={editingFunnel}
         open={funnelEditorOpen}
         onOpenChange={setFunnelEditorOpen}
+      />
+
+      {/* Win Celebration */}
+      <WinCelebration 
+        show={showCelebration} 
+        onComplete={() => {
+          setShowCelebration(false);
+          setNewWinDealId(null);
+        }} 
       />
     </MainLayout>
   );
