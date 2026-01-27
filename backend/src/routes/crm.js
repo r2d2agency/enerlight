@@ -753,11 +753,12 @@ router.post('/deals', async (req, res) => {
       // Normalize phone
       const normalizedPhone = contact_phone.replace(/\D/g, '');
       
-      // Try to find existing contact via contact_lists
+      // Try to find existing contact via contact_lists (join via user membership in organization)
       let contactResult = await query(
         `SELECT c.id FROM contacts c 
          JOIN contact_lists cl ON cl.id = c.list_id 
-         WHERE c.phone LIKE $1 AND cl.organization_id = $2 
+         JOIN organization_members om ON om.user_id = cl.user_id AND om.organization_id = $2
+         WHERE c.phone LIKE $1 
          LIMIT 1`,
         [`%${normalizedPhone.slice(-9)}%`, org.organization_id]
       );
@@ -961,7 +962,8 @@ router.post('/deals/:id/contacts', async (req, res) => {
       const existingContact = await query(
         `SELECT c.id FROM contacts c 
          JOIN contact_lists cl ON cl.id = c.list_id 
-         WHERE c.phone = $1 AND cl.organization_id = $2 
+         JOIN organization_members om ON om.user_id = cl.user_id AND om.organization_id = $2
+         WHERE c.phone = $1 
          LIMIT 1`,
         [cc.phone, org.organization_id]
       );
@@ -970,16 +972,18 @@ router.post('/deals/:id/contacts', async (req, res) => {
         finalContactId = existingContact.rows[0].id;
       } else {
         // Create contact in a default CRM list
-        // First, ensure there's a CRM contacts list
+        // First, ensure there's a CRM contacts list for this user
         let crmList = await query(
-          `SELECT id FROM contact_lists WHERE organization_id = $1 AND name = 'CRM Contacts' LIMIT 1`,
+          `SELECT cl.id FROM contact_lists cl
+           JOIN organization_members om ON om.user_id = cl.user_id AND om.organization_id = $1
+           WHERE cl.name = 'CRM Contacts' LIMIT 1`,
           [org.organization_id]
         );
         
         if (crmList.rows.length === 0) {
           crmList = await query(
-            `INSERT INTO contact_lists (organization_id, user_id, name) VALUES ($1, $2, 'CRM Contacts') RETURNING id`,
-            [org.organization_id, req.userId]
+            `INSERT INTO contact_lists (user_id, name) VALUES ($1, 'CRM Contacts') RETURNING id`,
+            [req.userId]
           );
         }
         
@@ -995,7 +999,8 @@ router.post('/deals/:id/contacts', async (req, res) => {
       const contactCheck = await query(
         `SELECT c.id FROM contacts c 
          JOIN contact_lists cl ON cl.id = c.list_id 
-         WHERE c.id = $1 AND cl.organization_id = $2`,
+         JOIN organization_members om ON om.user_id = cl.user_id AND om.organization_id = $2
+         WHERE c.id = $1`,
         [contact_id, org.organization_id]
       );
       
@@ -2061,7 +2066,8 @@ router.post('/prospects/:id/convert', async (req, res) => {
     const existingContact = await query(
       `SELECT c.id FROM contacts c
        JOIN contact_lists cl ON cl.id = c.list_id
-       WHERE c.phone = $1 AND cl.organization_id = $2
+       JOIN organization_members om ON om.user_id = cl.user_id AND om.organization_id = $2
+       WHERE c.phone = $1
        LIMIT 1`,
       [prospect.phone, org.organization_id]
     );
@@ -2071,13 +2077,15 @@ router.post('/prospects/:id/convert', async (req, res) => {
     } else {
       // Create CRM contacts list if needed
       let crmListResult = await query(
-        `SELECT id FROM contact_lists WHERE organization_id = $1 AND name = 'CRM Contacts' LIMIT 1`,
+        `SELECT cl.id FROM contact_lists cl
+         JOIN organization_members om ON om.user_id = cl.user_id AND om.organization_id = $1
+         WHERE cl.name = 'CRM Contacts' LIMIT 1`,
         [org.organization_id]
       );
       if (crmListResult.rows.length === 0) {
         crmListResult = await query(
-          `INSERT INTO contact_lists (organization_id, user_id, name) VALUES ($1, $2, 'CRM Contacts') RETURNING id`,
-          [org.organization_id, req.userId]
+          `INSERT INTO contact_lists (user_id, name) VALUES ($1, 'CRM Contacts') RETURNING id`,
+          [req.userId]
         );
       }
 
@@ -2147,19 +2155,37 @@ router.post('/prospects/bulk-convert', async (req, res) => {
         }
         const prospect = prospectResult.rows[0];
 
-        // Find or create contact
+        // Find or create contact using contact_lists via organization membership
         let contactId = null;
         const existingContact = await query(
-          `SELECT id FROM contacts WHERE organization_id = $1 AND phone = $2`,
+          `SELECT c.id FROM contacts c 
+           JOIN contact_lists cl ON cl.id = c.list_id
+           JOIN organization_members om ON om.user_id = cl.user_id AND om.organization_id = $1
+           WHERE c.phone = $2
+           LIMIT 1`,
           [org.organization_id, prospect.phone]
         );
         if (existingContact.rows.length > 0) {
           contactId = existingContact.rows[0].id;
         } else {
+          // Ensure CRM contacts list exists
+          let crmListResult = await query(
+            `SELECT cl.id FROM contact_lists cl
+             JOIN organization_members om ON om.user_id = cl.user_id AND om.organization_id = $1
+             WHERE cl.name = 'CRM Contacts' LIMIT 1`,
+            [org.organization_id]
+          );
+          if (crmListResult.rows.length === 0) {
+            crmListResult = await query(
+              `INSERT INTO contact_lists (user_id, name) VALUES ($1, 'CRM Contacts') RETURNING id`,
+              [req.userId]
+            );
+          }
+          
           const newContact = await query(
-            `INSERT INTO contacts (organization_id, name, phone, created_by)
-             VALUES ($1, $2, $3, $4) RETURNING id`,
-            [org.organization_id, prospect.name, prospect.phone, req.userId]
+            `INSERT INTO contacts (list_id, name, phone)
+             VALUES ($1, $2, $3) RETURNING id`,
+            [crmListResult.rows[0].id, prospect.name, prospect.phone]
           );
           contactId = newContact.rows[0].id;
         }
