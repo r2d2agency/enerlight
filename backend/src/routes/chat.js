@@ -1475,10 +1475,10 @@ router.post('/conversations/:id/messages', authenticate, async (req, res) => {
         }
       } catch (bgError) {
         console.error('Background send error:', bgError.message);
-        // Mark as failed so UI can show error state
+        // Mark as failed so UI can show error state, include error message for diagnostics
         await query(
-          `UPDATE chat_messages SET status = 'failed' WHERE id = $1`,
-          [savedMessage.id]
+          `UPDATE chat_messages SET status = 'failed', error_message = $2 WHERE id = $1`,
+          [savedMessage.id, bgError.message || 'Erro desconhecido']
         ).catch(() => {});
       }
     })();

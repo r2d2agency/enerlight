@@ -1425,37 +1425,44 @@ export function ChatArea({
 
                 {/* Failed message indicator with retry */}
                 {msg.status === 'failed' && msg.from_me && (
-                  <div className="flex items-center justify-end gap-2 mt-2 pt-2 border-t border-destructive/30">
-                    <span className="text-[10px] text-destructive font-medium">
-                      Falha no envio
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-5 px-2 text-[10px] text-destructive hover:text-destructive hover:bg-destructive/10"
-                      onClick={async () => {
-                        try {
-                          const retryContent =
-                            msg.content ||
-                            (msg.message_type === 'document'
-                              ? getDocumentDisplayName(msg, mediaUrl)
-                              : '');
-                          await onSendMessage(
-                            retryContent,
-                            msg.message_type,
-                            msg.media_url || undefined,
-                            msg.quoted_message_id || undefined,
-                            msg.media_mimetype || undefined
-                          );
-                          toast.success("Mensagem reenviada!");
-                        } catch (error) {
-                          toast.error("Falha ao reenviar");
-                        }
-                      }}
-                    >
-                      <RotateCcw className="h-3 w-3 mr-1" />
-                      Reenviar
-                    </Button>
+                  <div className="flex flex-col gap-1 mt-2 pt-2 border-t border-destructive/30">
+                    {msg.error_message && (
+                      <span className="text-[10px] text-destructive/80 break-words">
+                        {msg.error_message}
+                      </span>
+                    )}
+                    <div className="flex items-center justify-end gap-2">
+                      <span className="text-[10px] text-destructive font-medium">
+                        Falha no envio
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-5 px-2 text-[10px] text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={async () => {
+                          try {
+                            const retryContent =
+                              msg.content ||
+                              (msg.message_type === 'document'
+                                ? getDocumentDisplayName(msg, mediaUrl)
+                                : '');
+                            await onSendMessage(
+                              retryContent,
+                              msg.message_type,
+                              msg.media_url || undefined,
+                              msg.quoted_message_id || undefined,
+                              msg.media_mimetype || undefined
+                            );
+                            toast.success("Mensagem reenviada!");
+                          } catch (error) {
+                            toast.error("Falha ao reenviar");
+                          }
+                        }}
+                      >
+                        <RotateCcw className="h-3 w-3 mr-1" />
+                        Reenviar
+                      </Button>
+                    </div>
                   </div>
                 )}
               </div>

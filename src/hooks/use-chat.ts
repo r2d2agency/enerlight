@@ -71,6 +71,7 @@ export interface ChatMessage {
   quoted_from_me: boolean | null;
   quoted_sender_name: string | null;
   status: string;
+  error_message: string | null;
   timestamp: string;
 }
 

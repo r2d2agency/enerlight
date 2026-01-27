@@ -2,6 +2,8 @@
 // https://api.w-api.app/v1/
 
 import { logError, logInfo, logWarn } from '../logger.js';
+import http from 'http';
+import https from 'https';
 
 const W_API_BASE_URL = 'https://api.w-api.app/v1';
 const WEBHOOK_BASE_URL = process.env.WEBHOOK_BASE_URL || process.env.API_BASE_URL || 'https://whastsale-backend.exf0ty.easypanel.host';
@@ -42,6 +44,65 @@ async function readJsonResponse(response) {
   } catch {
     throw new Error('Invalid JSON response');
   }
+}
+
+/**
+ * Verify that a media URL is accessible (HEAD request with timeout)
+ * Returns { accessible: true, contentType, contentLength } or { accessible: false, error }
+ */
+async function verifyMediaUrl(url, timeoutMs = 8000) {
+  if (!url || typeof url !== 'string') {
+    return { accessible: false, error: 'URL vazia ou inválida' };
+  }
+
+  return new Promise((resolve) => {
+    try {
+      const client = url.startsWith('https://') ? https : http;
+      const req = client.request(
+        url,
+        { method: 'HEAD', timeout: timeoutMs },
+        (res) => {
+          const status = res.statusCode || 0;
+          const contentType = res.headers['content-type'] || '';
+          const contentLength = parseInt(res.headers['content-length'] || '0', 10);
+
+          if (status >= 200 && status < 400) {
+            // Check if it's HTML (error page) instead of actual file
+            if (contentType.includes('text/html')) {
+              resolve({
+                accessible: false,
+                error: `URL retorna HTML ao invés do arquivo (status ${status}). Verifique se a URL é pública.`,
+                status,
+                contentType,
+              });
+            } else {
+              resolve({ accessible: true, contentType, contentLength, status });
+            }
+          } else {
+            resolve({
+              accessible: false,
+              error: `URL não acessível (HTTP ${status})`,
+              status,
+              contentType,
+            });
+          }
+        }
+      );
+
+      req.on('error', (err) => {
+        resolve({ accessible: false, error: `Erro de conexão: ${err.message}` });
+      });
+
+      req.on('timeout', () => {
+        req.destroy();
+        resolve({ accessible: false, error: `Timeout ao acessar URL (${timeoutMs}ms)` });
+      });
+
+      req.end();
+    } catch (err) {
+      resolve({ accessible: false, error: `Exceção: ${err.message}` });
+    }
+  });
 }
 
 /**
@@ -498,6 +559,36 @@ export async function sendDocument(instanceId, token, phone, documentUrl, filena
     phone_preview: cleanPhone.substring(0, 15),
     document_url_preview: documentUrl ? documentUrl.substring(0, 100) : null,
     filename,
+  });
+
+  // Pre-check: verify URL is accessible before sending to W-API
+  const urlCheck = await verifyMediaUrl(documentUrl, 10000);
+  if (!urlCheck.accessible) {
+    const errorMsg = `URL do arquivo não acessível: ${urlCheck.error}`;
+    logError('wapi.send_document_url_check_failed', new Error(errorMsg), {
+      instance_id: instanceId,
+      document_url_preview: documentUrl ? documentUrl.substring(0, 200) : null,
+      url_check_result: urlCheck,
+    });
+
+    recordSendAttempt({
+      at,
+      instanceId,
+      phone: cleanPhone,
+      messageType: 'document',
+      success: false,
+      status: 0,
+      error: errorMsg,
+      preview: JSON.stringify(urlCheck).slice(0, 800),
+    });
+
+    return { success: false, error: errorMsg };
+  }
+
+  logInfo('wapi.send_document_url_verified', {
+    instance_id: instanceId,
+    content_type: urlCheck.contentType,
+    content_length: urlCheck.contentLength,
   });
   
   try {
