@@ -672,9 +672,9 @@ export function ChatArea({
   }
 
   return (
-    <div className="flex-1 flex h-full">
+    <div className="flex-1 flex h-full min-w-0 overflow-x-hidden">
       {/* Main chat area */}
-      <div className="flex-1 flex flex-col h-full overflow-x-hidden">
+      <div className="flex-1 flex flex-col h-full min-w-0 overflow-x-hidden">
       {/* Archived Banner */}
       {conversation.is_archived && (
         <div className="flex items-center justify-center gap-2 px-4 py-2 bg-amber-500/10 border-b border-amber-500/30 text-amber-600 dark:text-amber-400">
@@ -1045,7 +1045,7 @@ export function ChatArea({
       <ScrollArea
         ref={scrollAreaRef}
         viewportRef={scrollContainerRef}
-        className={cn("flex-1 chat-wallpaper", isMobile ? "p-3" : "p-4")}
+        className={cn("flex-1 chat-wallpaper min-w-0", isMobile ? "p-3" : "p-4")}
       >
         {hasMore && (
           <div className="flex justify-center mb-4">
@@ -1073,7 +1073,7 @@ export function ChatArea({
                 if (el) messageRefs.current.set(msg.id, el);
               }}
               className={cn(
-                "flex group",
+                "flex w-full min-w-0 group",
                 msg.from_me ? "justify-end" : "justify-start"
               )}
             >
@@ -1092,7 +1092,7 @@ export function ChatArea({
 
               <div
                 className={cn(
-                  "rounded-lg transition-all overflow-hidden",
+                  "rounded-lg transition-all overflow-hidden min-w-0",
                   isMobile ? "max-w-[85%] p-2.5" : "max-w-[70%] p-3",
                   msg.from_me
                     ? "message-sent"

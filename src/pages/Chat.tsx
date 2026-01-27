@@ -732,7 +732,7 @@ const Chat = () => {
           </div>
         )}
 
-        <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-1 overflow-hidden min-w-0">
           {/* Conversation List - Hide on mobile when chat is open */}
           {(!isMobile || !selectedConversation) && (
             <div className={cn(
