@@ -41,6 +41,10 @@ interface QueueItem {
   payments_count: number;
   total_value: number;
   payments: Payment[];
+  min_delay?: number | null;
+  max_delay?: number | null;
+  pause_after_messages?: number | null;
+  pause_duration?: number | null;
 }
 
 interface Payment {
@@ -173,6 +177,33 @@ export default function BillingQueue({ organizationId }: BillingQueueProps) {
 
   const formatCurrency = (value: number) => {
     return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  };
+
+  const formatDuration = (totalSeconds: number) => {
+    const s = Math.max(0, Math.floor(totalSeconds));
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    if (h <= 0) return `${m}m`;
+    return `${h}h ${m.toString().padStart(2, '0')}m`;
+  };
+
+  const estimateSecondsForItem = (item: QueueItem) => {
+    // Same defaults used in backend executor
+    const minDelay = Number(item.min_delay ?? 120);
+    const maxDelay = Number(item.max_delay ?? 300);
+    const pauseAfter = Number(item.pause_after_messages ?? 20);
+    const pauseDuration = Number(item.pause_duration ?? 600);
+
+    const avgDelay = (minDelay + maxDelay) / 2;
+    const pauses = pauseAfter > 0 ? Math.floor(item.payments_count / pauseAfter) : 0;
+    return item.payments_count * avgDelay + pauses * pauseDuration;
+  };
+
+  const estimateFinishTime = (dayDate: string, sendTime: string, durationSeconds: number) => {
+    // sendTime is HH:mm
+    const dt = new Date(`${dayDate}T${sendTime}:00`);
+    const end = new Date(dt.getTime() + durationSeconds * 1000);
+    return end;
   };
 
   const triggerManualSend = async (ruleId: string, ruleName: string, hasConnection: boolean) => {
@@ -426,6 +457,10 @@ export default function BillingQueue({ organizationId }: BillingQueueProps) {
                             <Badge variant="outline">
                               {day.items.reduce((sum, item) => sum + item.payments_count, 0)} cobranças
                             </Badge>
+                            <Badge variant="outline" className="hidden md:inline-flex">
+                              <Clock className="h-3 w-3 mr-1" />
+                              {formatDuration(day.items.reduce((sum, item) => sum + estimateSecondsForItem(item), 0))}
+                            </Badge>
                             <span className="text-sm font-medium text-primary">
                               {formatCurrency(day.items.reduce((sum, item) => sum + item.total_value, 0))}
                             </span>
@@ -457,6 +492,15 @@ export default function BillingQueue({ organizationId }: BillingQueueProps) {
                                     <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
                                       <Clock className="h-3 w-3" />
                                       {item.send_time}
+                                      <span className="mx-1">•</span>
+                                      <span className="inline-flex items-center gap-1">
+                                        <Calendar className="h-3 w-3" />
+                                        {formatDuration(estimateSecondsForItem(item))}
+                                      </span>
+                                      <span className="mx-1">•</span>
+                                      <span>
+                                        termina ~ {format(estimateFinishTime(day.date, item.send_time, estimateSecondsForItem(item)), 'HH:mm')}
+                                      </span>
                                       <span className="mx-1">•</span>
                                       <MessageSquare className="h-3 w-3" />
                                       {item.connection_name || 'Sem conexão'}

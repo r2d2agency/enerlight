@@ -1,32 +1,76 @@
 import { Router } from 'express';
 import { query } from '../db.js';
 import { authenticate } from '../middleware/auth.js';
+import * as whatsappProvider from '../lib/whatsapp-provider.js';
 
 const router = Router();
 
-// Helper to send message via Evolution API
-async function sendEvolutionMessage(connection, phone, message) {
+// Helper to send message via the unified WhatsApp provider (Evolution API or W-API)
+async function sendWhatsAppText(connection, phone, message) {
   try {
-    const response = await fetch(
-      `${connection.api_url}/message/sendText/${connection.instance_name}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          apikey: connection.api_key,
-        },
-        body: JSON.stringify({
-          number: phone,
-          text: message,
-        }),
-      }
-    );
-    
-    return response.ok;
+    const result = await whatsappProvider.sendMessage(connection, phone, message, 'text');
+    return result?.success === true;
   } catch (error) {
-    console.error('Evolution API error:', error);
+    console.error('WhatsApp sendMessage error:', error);
     return false;
   }
+}
+
+function buildConnectionFromRow(row) {
+  return {
+    id: row.connection_id,
+    provider: row.connection_provider || null,
+    api_url: row.api_url || null,
+    api_key: row.api_key || null,
+    instance_name: row.instance_name || null,
+    instance_id: row.connection_instance_id || null,
+    wapi_token: row.connection_wapi_token || null,
+    status: row.connection_status || null,
+    name: row.connection_name || null,
+  };
+}
+
+function validateConnectionForProvider(connection) {
+  const provider = whatsappProvider.detectProvider(connection);
+
+  if (provider === 'wapi') {
+    if (!connection.instance_id || !connection.wapi_token) {
+      return {
+        ok: false,
+        error: `A conexão "${connection.name || 'sem nome'}" (W-API) está incompleta (sem Instance ID/Token).`,
+      };
+    }
+    return { ok: true, provider };
+  }
+
+  // evolution
+  if (!connection.api_url || !connection.api_key || !connection.instance_name) {
+    return {
+      ok: false,
+      error: `A conexão "${connection.name || 'sem nome'}" não está configurada corretamente (URL/API Key/Instância).`,
+    };
+  }
+  return { ok: true, provider };
+}
+
+async function ensureConnected(connection) {
+  const statusResult = await whatsappProvider.checkStatus(connection);
+  const newStatus = statusResult?.status || 'disconnected';
+  const phoneNumber = statusResult?.phoneNumber || null;
+
+  // Best-effort: keep DB in sync
+  if (connection?.id) {
+    await query(
+      'UPDATE connections SET status = $1, phone_number = COALESCE($2, phone_number), updated_at = NOW() WHERE id = $3',
+      [newStatus, phoneNumber, connection.id]
+    ).catch(() => null);
+  }
+
+  return {
+    connected: newStatus === 'connected',
+    status: newStatus,
+    error: statusResult?.error || null,
+  };
 }
 
 // Replace message variables
@@ -74,8 +118,15 @@ router.post('/execute', async (req, res) => {
       stats.organizations++;
 
       // Get active rules for this organization
-      const rulesResult = await query(
-        `SELECT r.*, c.api_url, c.api_key, c.instance_name
+         const rulesResult = await query(
+        `SELECT r.*, 
+                c.id as connection_id,
+                c.name as connection_name,
+                c.status as connection_status,
+                c.api_url, c.api_key, c.instance_name,
+                c.provider as connection_provider,
+                c.instance_id as connection_instance_id,
+                c.wapi_token as connection_wapi_token
          FROM billing_notification_rules r
          LEFT JOIN connections c ON c.id = r.connection_id
          WHERE r.organization_id = $1 AND r.is_active = true`,
@@ -83,11 +134,18 @@ router.post('/execute', async (req, res) => {
       );
 
       for (const rule of rulesResult.rows) {
-        // Skip if no connection configured
-        if (!rule.api_url) {
-          console.log(`    ⚠ Rule "${rule.name}" has no connection, skipping`);
-          continue;
-        }
+         // Skip if no connection configured or invalid
+         if (!rule.connection_id) {
+           console.log(`    ⚠ Rule "${rule.name}" has no connection, skipping`);
+           continue;
+         }
+
+         const connection = buildConnectionFromRow(rule);
+         const validation = validateConnectionForProvider(connection);
+         if (!validation.ok) {
+           console.log(`    ⚠ Rule "${rule.name}" invalid connection: ${validation.error}`);
+           continue;
+         }
 
         // Build query based on trigger type
         const today = new Date().toISOString().split('T')[0];
@@ -202,14 +260,7 @@ router.post('/execute', async (req, res) => {
           );
           const notificationId = notificationResult.rows[0].id;
 
-          // Send via Evolution API
-          const connection = {
-            api_url: rule.api_url,
-            api_key: rule.api_key,
-            instance_name: rule.instance_name
-          };
-
-          const sent = await sendEvolutionMessage(connection, payment.customer_phone, message);
+           const sent = await sendWhatsAppText(connection, payment.customer_phone, message);
 
           // Update notification status
           if (sent) {
@@ -341,8 +392,15 @@ router.post('/trigger/:organizationId/:ruleId', authenticate, async (req, res) =
     }
 
     // Get rule with connection
-    const ruleResult = await query(
-      `SELECT r.*, c.api_url, c.api_key, c.instance_name, c.name as connection_name, c.status as connection_status
+     const ruleResult = await query(
+       `SELECT r.*, 
+               c.id as connection_id,
+               c.name as connection_name,
+               c.status as connection_status,
+               c.api_url, c.api_key, c.instance_name,
+               c.provider as connection_provider,
+               c.instance_id as connection_instance_id,
+               c.wapi_token as connection_wapi_token
        FROM billing_notification_rules r
        LEFT JOIN connections c ON c.id = r.connection_id
        WHERE r.id = $1 AND r.organization_id = $2`,
@@ -356,29 +414,30 @@ router.post('/trigger/:organizationId/:ruleId', authenticate, async (req, res) =
 
     const rule = ruleResult.rows[0];
     
-    if (!rule.connection_id) {
+     if (!rule.connection_id) {
       console.log(`  ⚠ Rule "${rule.name}" has no connection_id`);
       return res.status(400).json({ 
         success: false, 
         error: `A regra "${rule.name}" não tem conexão WhatsApp configurada. Acesse a aba "Regras" e configure uma conexão.` 
       });
     }
-    
-    if (!rule.api_url) {
-      console.log(`  ⚠ Rule "${rule.name}" connection has no api_url`);
-      return res.status(400).json({ 
-        success: false, 
-        error: `A conexão "${rule.connection_name || 'sem nome'}" não está configurada corretamente (sem URL da API).` 
-      });
-    }
-    
-    if (rule.connection_status !== 'connected') {
-      console.log(`  ⚠ Connection "${rule.connection_name}" is not connected (status: ${rule.connection_status})`);
-      return res.status(400).json({ 
-        success: false, 
-        error: `A conexão "${rule.connection_name}" está desconectada. Reconecte antes de disparar.` 
-      });
-    }
+
+     const connection = buildConnectionFromRow(rule);
+     const validation = validateConnectionForProvider(connection);
+     if (!validation.ok) {
+       console.log(`  ⚠ Invalid connection for rule "${rule.name}": ${validation.error}`);
+       return res.status(400).json({ success: false, error: validation.error });
+     }
+
+     // Check connection status in real-time (DB can be stale)
+     const status = await ensureConnected(connection);
+     if (!status.connected) {
+       console.log(`  ⚠ Connection "${connection.name}" is not connected (status: ${status.status})`);
+       return res.status(400).json({ 
+         success: false,
+         error: `A conexão "${connection.name || 'sem nome'}" está desconectada (${status.status}). ${status.error ? `Detalhe: ${status.error}` : 'Reconecte antes de disparar.'}`
+       });
+     }
 
     // Build proper query based on trigger type (same logic as queue)
     const today = new Date();
@@ -432,41 +491,42 @@ router.post('/trigger/:organizationId/:ruleId', authenticate, async (req, res) =
       paymentsParams = [organizationId, todayStr, ruleId];
       console.log(`  📅 On due: looking for due_date = ${todayStr}`);
     }
-    else if (rule.trigger_type === 'after_due') {
-      // For "X days after due", we look for payments due X days ago
-      const dueDate = new Date(today);
-      dueDate.setDate(dueDate.getDate() - Math.abs(rule.days_offset));
-      const dueDateStr = dueDate.toISOString().split('T')[0];
-      
-      const maxDaysClause = rule.max_days_overdue 
-        ? `AND p.due_date >= $4`
-        : '';
-      const maxDaysDate = rule.max_days_overdue
-        ? new Date(today.getTime() - (rule.max_days_overdue * 24 * 60 * 60 * 1000)).toISOString().split('T')[0]
-        : null;
+     else if (rule.trigger_type === 'after_due') {
+       // Overdue window: between min_days_overdue (= abs(days_offset)) and max_days_overdue (if set)
+       const minDaysOverdue = Math.abs(Number(rule.days_offset || 0));
+       const maxDaysOverdue = Math.max(
+         minDaysOverdue,
+         Math.abs(Number(rule.max_days_overdue || minDaysOverdue))
+       );
 
-      paymentsQuery = `
-        SELECT p.*, c.name as customer_name, c.phone as customer_phone, c.email as customer_email
-        FROM asaas_payments p
-        JOIN asaas_customers c ON c.id = p.customer_id
-        WHERE p.organization_id = $1 
-          AND p.status = 'OVERDUE'
-          AND p.due_date = $2
-          AND c.phone IS NOT NULL
-          AND (c.is_blacklisted = false OR c.is_blacklisted IS NULL)
-          AND (c.billing_paused = false OR c.billing_paused IS NULL OR c.billing_paused_until < CURRENT_DATE)
-          ${maxDaysClause}
-          AND NOT EXISTS (
-            SELECT 1 FROM billing_notifications bn 
-            WHERE bn.payment_id = p.id AND bn.rule_id = $3 AND bn.status = 'sent'
-          )
-        ORDER BY c.name
-        LIMIT 100`;
-      paymentsParams = maxDaysDate 
-        ? [organizationId, dueDateStr, ruleId, maxDaysDate]
-        : [organizationId, dueDateStr, ruleId];
-      console.log(`  📅 After due: looking for due_date = ${dueDateStr}`);
-    }
+       // due_date between today - maxDaysOverdue and today - minDaysOverdue
+       const fromDate = new Date(today);
+       fromDate.setDate(fromDate.getDate() - maxDaysOverdue);
+       const toDate = new Date(today);
+       toDate.setDate(toDate.getDate() - minDaysOverdue);
+
+       const fromDateStr = fromDate.toISOString().split('T')[0];
+       const toDateStr = toDate.toISOString().split('T')[0];
+
+       paymentsQuery = `
+         SELECT p.*, c.name as customer_name, c.phone as customer_phone, c.email as customer_email
+         FROM asaas_payments p
+         JOIN asaas_customers c ON c.id = p.customer_id
+         WHERE p.organization_id = $1 
+           AND p.status = 'OVERDUE'
+           AND p.due_date BETWEEN $2 AND $3
+           AND c.phone IS NOT NULL
+           AND (c.is_blacklisted = false OR c.is_blacklisted IS NULL)
+           AND (c.billing_paused = false OR c.billing_paused IS NULL OR c.billing_paused_until < CURRENT_DATE)
+           AND NOT EXISTS (
+             SELECT 1 FROM billing_notifications bn 
+             WHERE bn.payment_id = p.id AND bn.rule_id = $4 AND bn.status = 'sent'
+           )
+         ORDER BY p.due_date DESC, c.name
+         LIMIT 200`;
+       paymentsParams = [organizationId, fromDateStr, toDateStr, ruleId];
+       console.log(`  📅 After due: looking for due_date between ${fromDateStr} and ${toDateStr}`);
+     }
     else {
       // Fallback: all pending/overdue
       paymentsQuery = `
@@ -507,13 +567,7 @@ router.post('/trigger/:organizationId/:ruleId', authenticate, async (req, res) =
         [organizationId, payment.id, rule.id, payment.customer_phone, message]
       );
 
-      const connection = {
-        api_url: rule.api_url,
-        api_key: rule.api_key,
-        instance_name: rule.instance_name
-      };
-
-      const success = await sendEvolutionMessage(connection, payment.customer_phone, message);
+       const success = await sendWhatsAppText(connection, payment.customer_phone, message);
 
       if (success) {
         await query(
@@ -555,7 +609,14 @@ router.post('/retry/:organizationId', authenticate, async (req, res) => {
 
     for (const notifId of notification_ids) {
       const notifResult = await query(
-        `SELECT bn.*, r.connection_id, c.api_url, c.api_key, c.instance_name
+        `SELECT bn.*, 
+                r.connection_id as connection_id,
+                c.name as connection_name,
+                c.status as connection_status,
+                c.api_url, c.api_key, c.instance_name,
+                c.provider as connection_provider,
+                c.instance_id as connection_instance_id,
+                c.wapi_token as connection_wapi_token
          FROM billing_notifications bn
          LEFT JOIN billing_notification_rules r ON r.id = bn.rule_id
          LEFT JOIN connections c ON c.id = r.connection_id
@@ -567,18 +628,26 @@ router.post('/retry/:organizationId', authenticate, async (req, res) => {
 
       const notif = notifResult.rows[0];
 
-      if (!notif.api_url) {
+      if (!notif.connection_id) {
         failed++;
         continue;
       }
 
-      const connection = {
-        api_url: notif.api_url,
-        api_key: notif.api_key,
-        instance_name: notif.instance_name
-      };
+      const connection = buildConnectionFromRow(notif);
+      const validation = validateConnectionForProvider(connection);
+      if (!validation.ok) {
+        failed++;
+        continue;
+      }
 
-      const success = await sendEvolutionMessage(connection, notif.phone, notif.message);
+      // Best-effort check (avoid retry storm on disconnected instances)
+      const status = await ensureConnected(connection);
+      if (!status.connected) {
+        failed++;
+        continue;
+      }
+
+      const success = await sendWhatsAppText(connection, notif.phone, notif.message);
 
       if (success) {
         await query(
@@ -608,7 +677,10 @@ router.get('/queue/:organizationId', authenticate, async (req, res) => {
 
     // Get organization's active rules
     const rulesResult = await query(
-      `SELECT r.*, c.name as connection_name, c.status as connection_status
+      `SELECT r.*, 
+              c.id as connection_id,
+              c.name as connection_name, 
+              c.status as connection_status
        FROM billing_notification_rules r
        LEFT JOIN connections c ON c.id = r.connection_id
        WHERE r.organization_id = $1 AND r.is_active = true
@@ -684,17 +756,20 @@ router.get('/queue/:organizationId', authenticate, async (req, res) => {
           paymentsParams = [organizationId, dateStr, rule.id];
         }
         else if (rule.trigger_type === 'after_due') {
-          // X days after due date
-          const dueDate = new Date(targetDate);
-          dueDate.setDate(dueDate.getDate() - Math.abs(rule.days_offset));
-          const dueDateStr = dueDate.toISOString().split('T')[0];
-          
-          const maxDaysClause = rule.max_days_overdue 
-            ? `AND p.due_date >= $4`
-            : '';
-          const maxDaysDate = rule.max_days_overdue
-            ? new Date(targetDate.getTime() - (rule.max_days_overdue * 24 * 60 * 60 * 1000)).toISOString().split('T')[0]
-            : null;
+          // Overdue window: between min_days_overdue (= abs(days_offset)) and max_days_overdue (if set)
+          const minDaysOverdue = Math.abs(Number(rule.days_offset || 0));
+          const maxDaysOverdue = Math.max(
+            minDaysOverdue,
+            Math.abs(Number(rule.max_days_overdue || minDaysOverdue))
+          );
+
+          const fromDate = new Date(targetDate);
+          fromDate.setDate(fromDate.getDate() - maxDaysOverdue);
+          const toDate = new Date(targetDate);
+          toDate.setDate(toDate.getDate() - minDaysOverdue);
+
+          const fromDateStr = fromDate.toISOString().split('T')[0];
+          const toDateStr = toDate.toISOString().split('T')[0];
 
           paymentsQuery = `
             SELECT p.id, p.value, p.due_date, p.status, p.description,
@@ -704,19 +779,17 @@ router.get('/queue/:organizationId', authenticate, async (req, res) => {
             JOIN asaas_customers c ON c.id = p.customer_id
             WHERE p.organization_id = $1 
               AND p.status = 'OVERDUE'
-              AND p.due_date = $2
+              AND p.due_date BETWEEN $2 AND $3
               AND c.phone IS NOT NULL
               AND (c.is_blacklisted = false OR c.is_blacklisted IS NULL)
               AND (c.billing_paused = false OR c.billing_paused IS NULL OR c.billing_paused_until < CURRENT_DATE)
-              ${maxDaysClause}
               AND NOT EXISTS (
                 SELECT 1 FROM billing_notifications bn 
-                WHERE bn.payment_id = p.id AND bn.rule_id = $3 AND bn.status = 'sent'
+                WHERE bn.payment_id = p.id AND bn.rule_id = $4 AND bn.status = 'sent'
               )
-            ORDER BY c.name`;
-          paymentsParams = maxDaysDate 
-            ? [organizationId, dueDateStr, rule.id, maxDaysDate]
-            : [organizationId, dueDateStr, rule.id];
+            ORDER BY p.due_date DESC, c.name`;
+
+          paymentsParams = [organizationId, fromDateStr, toDateStr, rule.id];
         }
 
         if (paymentsQuery) {
@@ -732,6 +805,10 @@ router.get('/queue/:organizationId', authenticate, async (req, res) => {
                 send_time: rule.send_time || '09:00',
                 connection_name: rule.connection_name,
                 connection_status: rule.connection_status,
+               min_delay: rule.min_delay,
+               max_delay: rule.max_delay,
+               pause_after_messages: rule.pause_after_messages,
+               pause_duration: rule.pause_duration,
                 payments_count: paymentsResult.rows.length,
                 total_value: paymentsResult.rows.reduce((sum, p) => sum + Number(p.value), 0),
                 payments: paymentsResult.rows.map(p => ({
