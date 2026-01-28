@@ -222,9 +222,18 @@ router.post('/integration/:organizationId', async (req, res) => {
 });
 
 // Sync payments from Asaas
+// NOTE: This endpoint can take a long time with many records. 
+// We set CORS headers upfront so even if proxy times out, browser gets headers.
+// We also limit to a max of 500 items per sync to avoid timeout.
 router.post('/sync/:organizationId', async (req, res) => {
+  // Set CORS headers IMMEDIATELY before any async work
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
   try {
     const { organizationId } = req.params;
+    const maxItemsPerSync = 500; // Limit to avoid timeout
 
     const access = await checkOrgAccess(req.userId, organizationId);
     if (!access) {
@@ -254,7 +263,6 @@ router.post('/sync/:organizationId', async (req, res) => {
         try {
           body = await resp.json();
         } catch (e) {
-          // fall back to text if JSON parsing fails
           body = await resp.text().catch(() => null);
         }
       } else {
@@ -266,7 +274,6 @@ router.post('/sync/:organizationId', async (req, res) => {
           ? body.slice(0, 300)
           : JSON.stringify(body ?? {}).slice(0, 300);
         const err = new Error(`Asaas ${resp.status}: ${snippet}`);
-        // @ts-ignore
         err.httpStatus = resp.status;
         throw err;
       }
@@ -278,22 +285,25 @@ router.post('/sync/:organizationId', async (req, res) => {
       return body;
     };
 
-    // Sync customers
+    let totalItemsSynced = 0;
+    let hasMoreData = true;
+
+    // Sync customers (limited)
     let customerOffset = 0;
-    let hasMoreCustomers = true;
     let customersCount = 0;
 
-    while (hasMoreCustomers) {
+    while (hasMoreData && totalItemsSynced < maxItemsPerSync) {
       const customersData = await fetchAsaasJson(
         `${baseUrl}/customers?limit=100&offset=${customerOffset}`
       );
 
       if (!customersData.data || customersData.data.length === 0) {
-        hasMoreCustomers = false;
         break;
       }
 
       for (const customer of customersData.data) {
+        if (totalItemsSynced >= maxItemsPerSync) break;
+        
         await query(
           `INSERT INTO asaas_customers (organization_id, asaas_id, name, email, phone, cpf_cnpj, external_reference)
            VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -307,32 +317,35 @@ router.post('/sync/:organizationId', async (req, res) => {
           [organizationId, customer.id, customer.name, customer.email, customer.phone, customer.cpfCnpj, customer.externalReference]
         );
         customersCount++;
+        totalItemsSynced++;
       }
 
       customerOffset += 100;
-      if (customersData.data.length < 100) hasMoreCustomers = false;
+      if (customersData.data.length < 100) break;
     }
 
-    // Sync payments (pending and overdue)
+    // Sync payments (pending and overdue) - limited
     const statuses = ['PENDING', 'OVERDUE'];
     let paymentsCount = 0;
     const statusCounts = { PENDING: 0, OVERDUE: 0 };
 
     for (const status of statuses) {
+      if (totalItemsSynced >= maxItemsPerSync) break;
+      
       let paymentOffset = 0;
-      let hasMorePayments = true;
 
-      while (hasMorePayments) {
+      while (totalItemsSynced < maxItemsPerSync) {
         const paymentsData = await fetchAsaasJson(
           `${baseUrl}/payments?status=${status}&limit=100&offset=${paymentOffset}`
         );
 
         if (!paymentsData.data || paymentsData.data.length === 0) {
-          hasMorePayments = false;
           break;
         }
 
         for (const payment of paymentsData.data) {
+          if (totalItemsSynced >= maxItemsPerSync) break;
+
           // Get customer UUID
           const customerResult = await query(
             `SELECT id FROM asaas_customers WHERE organization_id = $1 AND asaas_id = $2`,
@@ -364,7 +377,7 @@ router.post('/sync/:organizationId', async (req, res) => {
               payment.invoiceUrl,
               payment.invoiceUrl,
               payment.bankSlipUrl,
-              null, // PIX data requires separate API call
+              null,
               null,
               payment.description,
               payment.externalReference
@@ -372,10 +385,11 @@ router.post('/sync/:organizationId', async (req, res) => {
           );
           paymentsCount++;
           statusCounts[status]++;
+          totalItemsSynced++;
         }
 
         paymentOffset += 100;
-        if (paymentsData.data.length < 100) hasMorePayments = false;
+        if (paymentsData.data.length < 100) break;
       }
     }
 
@@ -385,20 +399,22 @@ router.post('/sync/:organizationId', async (req, res) => {
       [organizationId]
     );
 
+    const needsMoreSync = totalItemsSynced >= maxItemsPerSync;
+    
     res.json({ 
       success: true, 
       customers_synced: customersCount,
       payments_synced: paymentsCount,
       pending_synced: statusCounts.PENDING,
-      overdue_synced: statusCounts.OVERDUE
+      overdue_synced: statusCounts.OVERDUE,
+      partial: needsMoreSync,
+      message: needsMoreSync 
+        ? `Sincronizados ${totalItemsSynced} itens. Clique novamente para continuar.`
+        : `Sincronização completa: ${customersCount} clientes, ${paymentsCount} cobranças.`
     });
   } catch (error) {
     console.error('Sync error:', error);
-    // Ensure CORS headers are always set, even on errors
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    
+    // CORS headers already set at start of handler
     const message = error?.message || 'Erro ao sincronizar com Asaas';
     if (String(message).startsWith('Asaas')) {
       return res.status(502).json({ error: message });
@@ -409,6 +425,11 @@ router.post('/sync/:organizationId', async (req, res) => {
 
 // Check Asaas API directly - compare what's in Asaas vs what's synced
 router.get('/check/:organizationId', async (req, res) => {
+  // Set CORS headers IMMEDIATELY before any async work
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
   try {
     const { organizationId } = req.params;
 

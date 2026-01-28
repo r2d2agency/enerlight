@@ -181,7 +181,14 @@ export function useAsaas(organizationId: string | null) {
     setError(null);
     
     try {
-      const result = await api<{ customers_synced: number; payments_synced: number }>(`/api/asaas/sync/${organizationId}`, {
+      const result = await api<{ 
+        customers_synced: number; 
+        payments_synced: number;
+        pending_synced?: number;
+        overdue_synced?: number;
+        partial?: boolean;
+        message?: string;
+      }>(`/api/asaas/sync/${organizationId}`, {
         method: 'POST'
       });
       return result;

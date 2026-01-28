@@ -320,17 +320,40 @@ export default function AsaasConfig({ organizationId, connections }: AsaasConfig
     }
   };
 
+  const doCheckSync = async () => {
+    setCheckingSync(true);
+    const result = await checkSync();
+    if (!result) {
+      toast({ title: "Erro ao verificar Asaas", variant: "destructive" });
+    }
+    setSyncStatus(result);
+    setCheckingSync(false);
+    return result;
+  };
+
   const handleSync = async () => {
     setSyncing(true);
     const result = await syncPayments();
     setSyncing(false);
     
     if (result) {
-      toast({ 
-        title: "Sincronização concluída!", 
-        description: `${result.customers_synced} clientes e ${result.payments_synced} cobranças sincronizados.`
-      });
+      // Check if it was a partial sync
+      if (result.partial) {
+        toast({ 
+          title: "Sincronização parcial", 
+          description: result.message || `${result.customers_synced} clientes e ${result.payments_synced} cobranças sincronizados. Clique novamente para continuar.`
+        });
+      } else {
+        toast({ 
+          title: "Sincronização concluída!", 
+          description: result.message || `${result.customers_synced} clientes e ${result.payments_synced} cobranças sincronizados.`
+        });
+      }
       await loadData();
+      // If partial, automatically check sync status
+      if (result.partial) {
+        await doCheckSync();
+      }
     } else if (error) {
       toast({ title: error, variant: "destructive" });
     }
@@ -464,15 +487,7 @@ export default function AsaasConfig({ organizationId, connections }: AsaasConfig
             </div>
             <div className="flex gap-2">
               <Button 
-                onClick={async () => {
-                  setCheckingSync(true);
-                  const result = await checkSync();
-                  if (!result) {
-                    toast({ title: "Erro ao verificar Asaas", variant: "destructive" });
-                  }
-                  setSyncStatus(result);
-                  setCheckingSync(false);
-                }} 
+                onClick={doCheckSync} 
                 disabled={checkingSync} 
                 variant="outline"
                 size="sm"
