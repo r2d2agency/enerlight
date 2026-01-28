@@ -328,6 +328,8 @@ router.post('/trigger/:organizationId/:ruleId', authenticate, async (req, res) =
   try {
     const { organizationId, ruleId } = req.params;
     
+    console.log(`🔔 Manual trigger requested for rule ${ruleId} in org ${organizationId}`);
+    
     // Verify access
     const accessResult = await query(
       `SELECT role FROM organization_members WHERE user_id = $1 AND organization_id = $2`,
@@ -335,12 +337,12 @@ router.post('/trigger/:organizationId/:ruleId', authenticate, async (req, res) =
     );
     
     if (accessResult.rows.length === 0) {
-      return res.status(403).json({ error: 'Acesso negado' });
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
     // Get rule with connection
     const ruleResult = await query(
-      `SELECT r.*, c.api_url, c.api_key, c.instance_name
+      `SELECT r.*, c.api_url, c.api_key, c.instance_name, c.name as connection_name, c.status as connection_status
        FROM billing_notification_rules r
        LEFT JOIN connections c ON c.id = r.connection_id
        WHERE r.id = $1 AND r.organization_id = $2`,
@@ -348,13 +350,34 @@ router.post('/trigger/:organizationId/:ruleId', authenticate, async (req, res) =
     );
 
     if (ruleResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Regra não encontrada' });
+      console.log(`  ⚠ Rule ${ruleId} not found`);
+      return res.status(404).json({ success: false, error: 'Regra não encontrada' });
     }
 
     const rule = ruleResult.rows[0];
     
+    if (!rule.connection_id) {
+      console.log(`  ⚠ Rule "${rule.name}" has no connection_id`);
+      return res.status(400).json({ 
+        success: false, 
+        error: `A regra "${rule.name}" não tem conexão WhatsApp configurada. Acesse a aba "Regras" e configure uma conexão.` 
+      });
+    }
+    
     if (!rule.api_url) {
-      return res.status(400).json({ error: 'Regra sem conexão configurada' });
+      console.log(`  ⚠ Rule "${rule.name}" connection has no api_url`);
+      return res.status(400).json({ 
+        success: false, 
+        error: `A conexão "${rule.connection_name || 'sem nome'}" não está configurada corretamente (sem URL da API).` 
+      });
+    }
+    
+    if (rule.connection_status !== 'connected') {
+      console.log(`  ⚠ Connection "${rule.connection_name}" is not connected (status: ${rule.connection_status})`);
+      return res.status(400).json({ 
+        success: false, 
+        error: `A conexão "${rule.connection_name}" está desconectada. Reconecte antes de disparar.` 
+      });
     }
 
     // Similar logic as execute but for single rule
@@ -416,10 +439,11 @@ router.post('/trigger/:organizationId/:ruleId', authenticate, async (req, res) =
       await new Promise(resolve => setTimeout(resolve, 2000));
     }
 
+    console.log(`🔔 Manual trigger complete: sent=${sent}, failed=${failed}, total=${paymentsResult.rows.length}`);
     res.json({ success: true, sent, failed, total: paymentsResult.rows.length });
   } catch (error) {
     console.error('Manual trigger error:', error);
-    res.status(500).json({ error: 'Erro ao disparar notificações' });
+    res.status(500).json({ success: false, error: 'Erro interno ao disparar notificações' });
   }
 });
 

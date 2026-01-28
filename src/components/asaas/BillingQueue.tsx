@@ -8,13 +8,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { 
   Calendar, Clock, ChevronDown, ChevronRight, RefreshCw, 
   CheckCircle, XCircle, AlertCircle, Pause, Ban, 
   MessageSquare, Phone, DollarSign, Filter, Search,
-  Loader2, CalendarDays, ListChecks, FileText
+  Loader2, CalendarDays, ListChecks, FileText, Play, TriangleAlert
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -91,6 +92,8 @@ export default function BillingQueue({ organizationId }: BillingQueueProps) {
   const [logDateFrom, setLogDateFrom] = useState("");
   const [logDateTo, setLogDateTo] = useState("");
   const [activeTab, setActiveTab] = useState("queue");
+  const [triggeringRule, setTriggeringRule] = useState<string | null>(null);
+  const [rulesWithoutConnection, setRulesWithoutConnection] = useState<string[]>([]);
 
   useEffect(() => {
     loadQueue();
@@ -108,6 +111,18 @@ export default function BillingQueue({ organizationId }: BillingQueueProps) {
       const data = await api<any>(`/api/notifications/queue/${organizationId}?days=${daysRange}`);
       setQueue(data.queue || []);
       setIntegrationStatus(data.integration_status);
+      
+      // Identify rules without connection
+      const noConnection: string[] = [];
+      for (const day of data.queue || []) {
+        for (const item of day.items) {
+          if (!item.connection_name || item.connection_status !== 'connected') {
+            noConnection.push(item.rule_id);
+          }
+        }
+      }
+      setRulesWithoutConnection([...new Set(noConnection)]);
+      
       // Auto-expand first day
       if (data.queue?.length > 0) {
         setExpandedDays(new Set([data.queue[0].date]));
@@ -158,6 +173,38 @@ export default function BillingQueue({ organizationId }: BillingQueueProps) {
 
   const formatCurrency = (value: number) => {
     return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  };
+
+  const triggerManualSend = async (ruleId: string, ruleName: string, hasConnection: boolean) => {
+    if (!hasConnection) {
+      toast.error(`A regra "${ruleName}" não tem conexão WhatsApp configurada. Configure uma conexão antes de disparar.`);
+      return;
+    }
+    
+    setTriggeringRule(ruleId);
+    try {
+      const result = await api<{ success: boolean; sent: number; failed: number; total: number; error?: string }>(
+        `/api/notifications/trigger/${organizationId}/${ruleId}`,
+        { method: 'POST' }
+      );
+      
+      if (result.success) {
+        toast.success(`Disparo concluído: ${result.sent} enviados, ${result.failed} falhas de ${result.total} total`);
+        loadQueue();
+        if (activeTab === 'logs') loadLogs();
+      } else {
+        toast.error(result.error || 'Erro ao disparar notificações');
+      }
+    } catch (err: any) {
+      const errorMsg = err?.message || 'Erro desconhecido';
+      if (errorMsg.includes('conexão')) {
+        toast.error(`Regra sem conexão configurada. Vá em "Regras" e associe uma conexão WhatsApp.`);
+      } else {
+        toast.error(`Erro ao disparar: ${errorMsg}`);
+      }
+    } finally {
+      setTriggeringRule(null);
+    }
   };
 
   const getTriggerLabel = (type: string, offset: number) => {
@@ -250,6 +297,19 @@ export default function BillingQueue({ organizationId }: BillingQueueProps) {
 
         {/* Queue Tab */}
         <TabsContent value="queue" className="space-y-4">
+          {/* Alert for rules without connection */}
+          {rulesWithoutConnection.length > 0 && (
+            <Alert variant="destructive">
+              <TriangleAlert className="h-4 w-4" />
+              <AlertTitle>Atenção: Regras sem conexão</AlertTitle>
+              <AlertDescription>
+                Existem {rulesWithoutConnection.length} regra(s) sem conexão WhatsApp configurada. 
+                As notificações dessas regras <strong>não serão enviadas</strong>. 
+                Acesse a aba "Regras" para configurar a conexão.
+              </AlertDescription>
+            </Alert>
+          )}
+          
           <Card>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
@@ -352,9 +412,26 @@ export default function BillingQueue({ organizationId }: BillingQueueProps) {
                                     </div>
                                   </div>
                                 </div>
-                                <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-3">
                                   <Badge>{item.payments_count} clientes</Badge>
                                   <span className="font-medium">{formatCurrency(item.total_value)}</span>
+                                  <Button
+                                    size="sm"
+                                    variant={item.connection_name && item.connection_status === 'connected' ? "default" : "outline"}
+                                    disabled={triggeringRule === item.rule_id || !item.connection_name}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      triggerManualSend(item.rule_id, item.rule_name, !!item.connection_name && item.connection_status === 'connected');
+                                    }}
+                                    title={!item.connection_name ? 'Configure uma conexão primeiro' : 'Disparar agora'}
+                                  >
+                                    {triggeringRule === item.rule_id ? (
+                                      <Loader2 className="h-3 w-3 animate-spin" />
+                                    ) : (
+                                      <Play className="h-3 w-3" />
+                                    )}
+                                    <span className="ml-1">Disparar</span>
+                                  </Button>
                                 </div>
                               </div>
                             </CollapsibleTrigger>
