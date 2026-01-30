@@ -31,8 +31,6 @@ import { executeScheduledMessages } from './scheduled-messages.js';
 import { syncTodaysDueBoletos, checkPaymentStatusUpdates } from './asaas-auto-sync.js';
 import { requestContext } from './request-context.js';
 import { log, logError } from './logger.js';
-import { requestContext } from './request-context.js';
-import { log, logError } from './logger.js';
 
 dotenv.config();
 
