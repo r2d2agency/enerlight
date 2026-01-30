@@ -348,9 +348,26 @@ DO $$ BEGIN
     ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS pause_after_messages INTEGER DEFAULT 20;
     ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS pause_duration INTEGER DEFAULT 10;
     ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS random_order BOOLEAN DEFAULT false;
+    ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS flow_id UUID;
 EXCEPTION
     WHEN duplicate_column THEN null;
 END $$;
+
+-- Add foreign key for flow_id if flows table exists
+DO $$ BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'flows') THEN
+        BEGIN
+            ALTER TABLE campaigns 
+            ADD CONSTRAINT campaigns_flow_id_fkey 
+            FOREIGN KEY (flow_id) REFERENCES flows(id) ON DELETE SET NULL;
+        EXCEPTION 
+            WHEN duplicate_object THEN null;
+        END;
+    END IF;
+END $$;
+
+-- Create index for flow-based campaigns
+CREATE INDEX IF NOT EXISTS idx_campaigns_flow_id ON campaigns(flow_id);
 
 -- Campaign Messages Log
 CREATE TABLE IF NOT EXISTS campaign_messages (
