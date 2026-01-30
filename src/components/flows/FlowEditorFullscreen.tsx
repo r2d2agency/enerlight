@@ -126,6 +126,7 @@ function FlowEditorContent({ flow, onClose }: { flow: Flow; onClose: () => void 
         targetHandle: e.target_handle || undefined,
         label: e.label || undefined,
         animated: true,
+        deletable: true,
         style: { stroke: 'hsl(var(--primary))' },
       }));
 
@@ -155,8 +156,15 @@ function FlowEditorContent({ flow, onClose }: { flow: Flow; onClose: () => void 
     setEdges((eds) => addEdge({
       ...params,
       animated: true,
+      deletable: true,
       style: { stroke: 'hsl(var(--primary))' },
     }, eds));
+  }, [setEdges]);
+
+  // Delete edge when clicked
+  const onEdgeClick = useCallback((_: React.MouseEvent, edge: Edge) => {
+    setEdges((eds) => eds.filter((e) => e.id !== edge.id));
+    toast.info('Conexão removida');
   }, [setEdges]);
 
   const onDragStart = (event: React.DragEvent, nodeType: string) => {
@@ -331,10 +339,12 @@ function FlowEditorContent({ flow, onClose }: { flow: Flow; onClose: () => void 
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
+          onEdgeClick={onEdgeClick}
           onDragOver={onDragOver}
           onDrop={onDrop}
           onNodeClick={handleNodeClick}
           nodeTypes={nodeTypes}
+          deleteKeyCode={['Backspace', 'Delete']}
           fitView
           snapToGrid
           snapGrid={[15, 15]}
