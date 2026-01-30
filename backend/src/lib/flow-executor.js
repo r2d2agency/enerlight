@@ -744,19 +744,35 @@ export async function continueFlowWithInput(conversationId, userInput) {
       }
     }
 
-    // Get all edges to find the next node
-    const edgesResult = await query(
-      'SELECT * FROM flow_edges WHERE flow_id = $1 AND source_node_id = $2',
-      [flowId, currentNodeId]
-    );
+    // Get all edges AND nodes to find the next node with proper ordering
+    const [edgesResult, nodesResult] = await Promise.all([
+      query('SELECT * FROM flow_edges WHERE flow_id = $1 AND source_node_id = $2', [flowId, currentNodeId]),
+      query('SELECT node_id, position_x, position_y FROM flow_nodes WHERE flow_id = $1', [flowId]),
+    ]);
 
     const edges = edgesResult.rows;
+    const nodePositions = new Map();
+    nodesResult.rows.forEach(n => nodePositions.set(n.node_id, { x: n.position_x || 0, y: n.position_y || 0 }));
     
     if (edges.length === 0) {
       console.log('Flow executor: No outgoing edges from current node, flow complete');
+      addExecutionLog(conversationId, {
+        type: 'flow_complete',
+        flowId,
+        nodeId: currentNodeId,
+        message: 'Fluxo finalizado - sem mais conexões',
+      });
       await completeFlowSession(conversationId);
       return { success: true, flowComplete: true };
     }
+
+    // Sort edges by target node Y position (top to bottom = execution order)
+    edges.sort((a, b) => {
+      const posA = nodePositions.get(a.target_node_id) || { x: 0, y: 0 };
+      const posB = nodePositions.get(b.target_node_id) || { x: 0, y: 0 };
+      if (posA.y !== posB.y) return posA.y - posB.y;
+      return posA.x - posB.x;
+    });
 
     // Find the next edge based on handle (for menu) or just take the first one (for input)
     const nextEdge = nextHandle 
@@ -767,11 +783,27 @@ export async function continueFlowWithInput(conversationId, userInput) {
 
     if (!nextNodeId) {
       console.log('Flow executor: No next node found, flow complete');
+      addExecutionLog(conversationId, {
+        type: 'flow_complete',
+        flowId,
+        nodeId: currentNodeId,
+        message: 'Fluxo finalizado - próximo nó não encontrado',
+      });
       await completeFlowSession(conversationId);
       return { success: true, flowComplete: true };
     }
 
     console.log(`Flow executor: Moving to next node: ${nextNodeId}`);
+    
+    addExecutionLog(conversationId, {
+      type: 'transition',
+      flowId,
+      fromNodeId: currentNodeId,
+      toNodeId: nextNodeId,
+      message: `Após input: ${currentNodeId} → ${nextNodeId}`,
+      userInput: userInput?.substring(0, 50),
+      variables: { ...variables },
+    });
 
     // Update session with new variables
     await query(
