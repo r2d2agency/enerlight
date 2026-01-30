@@ -592,6 +592,7 @@ router.get('/deals/by-phone/:phone', async (req, res) => {
     // Use last 11 digits for matching (handles country code variations)
     const phonePattern = `%${phone.slice(-11)}%`;
 
+    // Search in both contacts table (CRM contacts) AND chat_contacts table
     const result = await query(
       `SELECT DISTINCT d.*, 
         c.name as company_name,
@@ -605,9 +606,10 @@ router.get('/deals/by-phone/:phone', async (req, res) => {
        LEFT JOIN crm_stages s ON s.id = d.stage_id
        LEFT JOIN crm_funnels f ON f.id = d.funnel_id
        JOIN crm_deal_contacts dc ON dc.deal_id = d.id
-       JOIN contacts cnt ON cnt.id = dc.contact_id
+       LEFT JOIN contacts cnt ON cnt.id = dc.contact_id
+       LEFT JOIN chat_contacts cc ON cc.id = dc.contact_id
        WHERE d.organization_id = $1 
-         AND cnt.phone LIKE $2
+         AND (cnt.phone LIKE $2 OR cc.phone LIKE $2)
        ORDER BY d.status = 'open' DESC, d.updated_at DESC
        LIMIT 10`,
       [org.organization_id, phonePattern]
