@@ -178,15 +178,6 @@ const Conexao = () => {
   };
 
 const handleGetQRCode = async (connection: Connection) => {
-  const isWapi = connection.provider === 'wapi' || !!connection.instance_id;
-
-  // W-API connects inside the W-API panel; here we just sync status.
-  if (isWapi) {
-    toast.info('W-API: o QR Code é gerado no painel da W-API. Vou apenas verificar o status aqui.');
-    await handleCheckStatus(connection);
-    return;
-  }
-
   setSelectedConnection(connection);
   setQrCodeDialog(true);
   setLoadingQr(true);
@@ -755,22 +746,7 @@ const handleGetQRCode = async (connection: Connection) => {
                         </Button>
                       </>
                     ) : (
-                      (connection.provider === 'wapi' || !!connection.instance_id) ? (
-                        <Button 
-                          variant="default" 
-                          size="sm"
-                          className="flex-1"
-                          onClick={() => handleCheckStatus(connection)}
-                          disabled={checkingStatus === connection.id}
-                        >
-                          {checkingStatus === connection.id ? (
-                            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                          ) : (
-                            <RefreshCw className="h-4 w-4 mr-1" />
-                          )}
-                          Verificar
-                        </Button>
-                      ) : (
+                      <>
                         <Button 
                           variant="default" 
                           size="sm"
@@ -780,7 +756,20 @@ const handleGetQRCode = async (connection: Connection) => {
                           <QrCode className="h-4 w-4 mr-1" />
                           Conectar
                         </Button>
-                      )
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleCheckStatus(connection)}
+                          disabled={checkingStatus === connection.id}
+                          title="Verificar status"
+                        >
+                          {checkingStatus === connection.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <RefreshCw className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </>
                     )}
 
                     {/* Full Diagnostic Panel */}

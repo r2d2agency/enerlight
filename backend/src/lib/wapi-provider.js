@@ -317,22 +317,31 @@ export async function checkStatus(instanceId, token) {
 
 /**
  * Get QR Code for connection
+ * Using /instance/qr-code endpoint with image=enable to get base64 PNG
  */
 export async function getQRCode(instanceId, token) {
   try {
+    // W-API uses qr-code (with hyphen) and &image=enable for base64 image
     const response = await fetch(
-      `${W_API_BASE_URL}/instance/qrcode?instanceId=${instanceId}`,
+      `${W_API_BASE_URL}/instance/qr-code?instanceId=${instanceId}&image=enable`,
       { headers: getHeaders(token) }
     );
 
     if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      logWarn('wapi.qrcode_failed', {
+        instance_id: instanceId,
+        status: response.status,
+        body_preview: text.slice(0, 300),
+      });
       return null;
     }
 
     const data = await response.json();
-    return data.qrcode || data.base64 || data.qr || null;
+    // W-API returns the base64 image in different possible fields
+    return data.qrcode || data.base64 || data.qr || data.image || null;
   } catch (error) {
-    console.error('W-API getQRCode error:', error);
+    logError('wapi.qrcode_error', error, { instance_id: instanceId });
     return null;
   }
 }
