@@ -16,6 +16,7 @@ import { useNotifications } from "@/hooks/use-notifications";
 import BillingQueue from "./BillingQueue";
 import QueueManager from "./QueueManager";
 import SyncStatusPanel from "./SyncStatusPanel";
+import { PaymentsDuePanel } from "./PaymentsDuePanel";
 import { 
   RefreshCw, Settings, Receipt, Users, Bell, Plus, Trash2, 
   CheckCircle, AlertCircle, Clock, Calendar, Link2,
@@ -602,6 +603,9 @@ export default function AsaasConfig({ organizationId, connections }: AsaasConfig
 
           {/* Sync Status Panel - Always Visible */}
           <SyncStatusPanel organizationId={organizationId} onSyncComplete={loadData} />
+
+          {/* Payments Due Panel - Today, Tomorrow, Week, Overdue */}
+          <PaymentsDuePanel organizationId={organizationId} />
 
           <div className="grid gap-4 md:grid-cols-4">
             <Card>
