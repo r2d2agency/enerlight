@@ -32,8 +32,16 @@ DO $$ BEGIN
     'suggest_actions',       -- Sugerir próximos passos
     'generate_content',      -- Gerar emails/mensagens
     'summarize_history',     -- Resumir histórico
-    'qualify_leads'          -- Qualificar leads
+    'qualify_leads',         -- Qualificar leads
+    'call_agent'             -- Chamar outro agente para consulta
   );
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;
+
+-- Migration: Add 'call_agent' to existing enum if needed
+DO $$ BEGIN
+  ALTER TYPE agent_capability ADD VALUE IF NOT EXISTS 'call_agent';
 EXCEPTION
   WHEN duplicate_object THEN null;
 END $$;

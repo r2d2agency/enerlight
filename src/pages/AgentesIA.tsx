@@ -9,13 +9,14 @@ import { Input } from '@/components/ui/input';
 import { 
   Bot, Plus, Search, Settings, Database, Zap, 
   MessageSquare, BarChart3, Trash2, Copy, MoreVertical,
-  Brain, Globe, FileText, Sparkles, Loader2
+  Brain, Globe, FileText, Sparkles, Loader2, Play
 } from 'lucide-react';
 import { useAIAgents, AIAgent } from '@/hooks/use-ai-agents';
 import { toast } from 'sonner';
 import { AgentEditorDialog } from '@/components/ai-agents/AgentEditorDialog';
 import { AgentStatsDialog } from '@/components/ai-agents/AgentStatsDialog';
 import { KnowledgeBaseDialog } from '@/components/ai-agents/KnowledgeBaseDialog';
+import { AgentTestChatDialog } from '@/components/ai-agents/AgentTestChatDialog';
 import { API_URL, getAuthToken } from '@/lib/api';
 import {
   DropdownMenu,
@@ -47,6 +48,8 @@ export default function AgentesIA() {
   const [knowledgeAgent, setKnowledgeAgent] = useState<AIAgent | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [agentToDelete, setAgentToDelete] = useState<AIAgent | null>(null);
+  const [testChatOpen, setTestChatOpen] = useState(false);
+  const [testChatAgent, setTestChatAgent] = useState<AIAgent | null>(null);
   const [isSuperadmin, setIsSuperadmin] = useState(false);
   const [checkingAccess, setCheckingAccess] = useState(true);
 
@@ -149,11 +152,14 @@ export default function AgentesIA() {
       respond_messages: 'Responder',
       read_files: 'Ler Arquivos',
       schedule_meetings: 'Agendar',
+      google_calendar: 'Google Calendar',
+      manage_tasks: 'Tarefas',
       create_deals: 'Criar Deals',
       suggest_actions: 'Sugestões',
       generate_content: 'Gerar Conteúdo',
       summarize_history: 'Resumir',
       qualify_leads: 'Qualificar',
+      call_agent: 'Chamar Agente',
     };
     return labels[cap] || cap;
   };
@@ -328,6 +334,11 @@ export default function AgentesIA() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => { setTestChatAgent(agent); setTestChatOpen(true); }}>
+                          <Play className="h-4 w-4 mr-2" />
+                          Testar Agente
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={() => { setSelectedAgent(agent); setEditorOpen(true); }}>
                           <Settings className="h-4 w-4 mr-2" />
                           Configurar
@@ -426,6 +437,12 @@ export default function AgentesIA() {
         open={knowledgeOpen}
         onOpenChange={setKnowledgeOpen}
         agent={knowledgeAgent}
+      />
+
+      <AgentTestChatDialog
+        open={testChatOpen}
+        onOpenChange={setTestChatOpen}
+        agent={testChatAgent}
       />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

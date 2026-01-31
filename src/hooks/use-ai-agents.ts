@@ -33,12 +33,26 @@ function normalizePgArray<T extends string>(value: unknown, defaultValue: T[] = 
   return defaultValue;
 }
 
+// PostgreSQL sometimes returns numeric fields as strings
+function normalizeNumber(value: unknown, defaultValue: number): number {
+  if (typeof value === 'number' && !isNaN(value)) return value;
+  if (typeof value === 'string') {
+    const parsed = parseFloat(value);
+    return isNaN(parsed) ? defaultValue : parsed;
+  }
+  return defaultValue;
+}
+
 function normalizeAgent(agent: AIAgent): AIAgent {
   return {
     ...agent,
     capabilities: normalizePgArray<AgentCapability>(agent.capabilities, ['respond_messages']),
     handoff_keywords: normalizePgArray<string>(agent.handoff_keywords, ['humano', 'atendente', 'pessoa']),
     personality_traits: normalizePgArray<string>(agent.personality_traits, []),
+    temperature: normalizeNumber(agent.temperature, 0.7),
+    max_tokens: normalizeNumber(agent.max_tokens, 1000),
+    context_window: normalizeNumber(agent.context_window, 10),
+    auto_handoff_after_failures: normalizeNumber(agent.auto_handoff_after_failures, 3),
   };
 }
 
@@ -56,7 +70,8 @@ export type AgentCapability =
   | 'suggest_actions'
   | 'generate_content'
   | 'summarize_history'
-  | 'qualify_leads';
+  | 'qualify_leads'
+  | 'call_agent';
 
 export interface AIAgent {
   id: string;

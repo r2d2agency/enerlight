@@ -47,6 +47,7 @@ const ALL_CAPABILITIES: { id: AgentCapability; label: string; description: strin
   { id: 'generate_content', label: 'Gerar Conteúdo', description: 'Cria rascunhos de emails e mensagens' },
   { id: 'summarize_history', label: 'Resumir Histórico', description: 'Resume interações anteriores com o cliente' },
   { id: 'qualify_leads', label: 'Qualificar Leads', description: 'Scoring automático baseado em dados' },
+  { id: 'call_agent', label: 'Chamar Outro Agente', description: 'Consulta outro agente especialista para informações' },
 ];
 
 const DEFAULT_SYSTEM_PROMPT = `Você é um assistente virtual profissional e prestativo. Seu objetivo é ajudar os clientes de forma clara, objetiva e amigável.
@@ -75,6 +76,16 @@ function normalizeArray<T>(value: unknown, defaultValue: T[] = []): T[] {
     } catch {
       return defaultValue;
     }
+  }
+  return defaultValue;
+}
+
+// Helper to normalize numeric fields from PostgreSQL (may come as strings)
+function normalizeNumber(value: unknown, defaultValue: number): number {
+  if (typeof value === 'number' && !isNaN(value)) return value;
+  if (typeof value === 'string') {
+    const parsed = parseFloat(value);
+    return isNaN(parsed) ? defaultValue : parsed;
   }
   return defaultValue;
 }
@@ -121,15 +132,15 @@ export function AgentEditorDialog({ open, onOpenChange, agent, onSaved }: AgentE
           system_prompt: agent.system_prompt,
           personality_traits: normalizeArray<string>(agent.personality_traits, []),
           language: agent.language,
-          temperature: agent.temperature,
-          max_tokens: agent.max_tokens,
-          context_window: agent.context_window,
+          temperature: normalizeNumber(agent.temperature, 0.7),
+          max_tokens: normalizeNumber(agent.max_tokens, 1000),
+          context_window: normalizeNumber(agent.context_window, 10),
           capabilities: normalizeArray<AgentCapability>(agent.capabilities, ['respond_messages']),
           greeting_message: agent.greeting_message || '',
           fallback_message: agent.fallback_message,
           handoff_message: agent.handoff_message,
           handoff_keywords: normalizeArray<string>(agent.handoff_keywords, ['humano', 'atendente', 'pessoa']),
-          auto_handoff_after_failures: agent.auto_handoff_after_failures,
+          auto_handoff_after_failures: normalizeNumber(agent.auto_handoff_after_failures, 3),
         });
       } else {
         // Reset para valores padrão

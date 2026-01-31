@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -11,15 +11,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
 import { 
   Database, FileText, Globe, Type, Plus, Trash2, 
   RefreshCw, Upload, Loader2, CheckCircle, XCircle, Clock,
-  ExternalLink
+  ExternalLink, File, X
 } from 'lucide-react';
 import { useAIAgents, AIAgent, KnowledgeSource } from '@/hooks/use-ai-agents';
+import { useUpload } from '@/hooks/use-upload';
 import { toast } from 'sonner';
 import {
   AlertDialog,
@@ -40,11 +40,25 @@ interface KnowledgeBaseDialogProps {
 
 type AddMode = 'file' | 'url' | 'text';
 
+const ACCEPTED_FILE_TYPES = [
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'text/plain',
+  'text/markdown',
+  'text/csv',
+];
+
+const FILE_EXTENSIONS = '.pdf,.docx,.txt,.md,.csv';
+
 export function KnowledgeBaseDialog({ open, onOpenChange, agent }: KnowledgeBaseDialogProps) {
   const [sources, setSources] = useState<KnowledgeSource[]>([]);
   const [loading, setLoading] = useState(false);
   const [addMode, setAddMode] = useState<AddMode | null>(null);
   const [deleteSource, setDeleteSource] = useState<KnowledgeSource | null>(null);
+
+  // Drag and drop
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -62,6 +76,8 @@ export function KnowledgeBaseDialog({ open, onOpenChange, agent }: KnowledgeBase
     reprocessKnowledgeSource 
   } = useAIAgents();
 
+  const { uploadFile, isUploading, progress, resetProgress } = useUpload();
+
   useEffect(() => {
     if (open && agent) {
       loadSources();
@@ -76,6 +92,51 @@ export function KnowledgeBaseDialog({ open, onOpenChange, agent }: KnowledgeBase
     setLoading(false);
   };
 
+  // Drag and drop handlers
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      const file = files[0];
+      if (ACCEPTED_FILE_TYPES.includes(file.type) || file.name.match(/\.(pdf|docx|txt|md|csv)$/i)) {
+        setSelectedFile(file);
+        setAddMode('file');
+        setFormData(prev => ({
+          ...prev,
+          name: file.name.replace(/\.[^/.]+$/, ''), // Remove extension
+        }));
+      } else {
+        toast.error('Formato não suportado. Use PDF, DOCX, TXT, MD ou CSV.');
+      }
+    }
+  }, []);
+
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      setFormData(prev => ({
+        ...prev,
+        name: file.name.replace(/\.[^/.]+$/, ''),
+      }));
+    }
+  }, []);
+
   const handleAdd = async () => {
     if (!agent || !addMode) return;
 
@@ -83,6 +144,46 @@ export function KnowledgeBaseDialog({ open, onOpenChange, agent }: KnowledgeBase
       toast.error('Nome é obrigatório');
       return;
     }
+
+    // For file mode, we need to upload first
+    if (addMode === 'file') {
+      if (!selectedFile) {
+        toast.error('Selecione um arquivo');
+        return;
+      }
+
+      setSaving(true);
+      try {
+        const fileUrl = await uploadFile(selectedFile);
+        if (!fileUrl) {
+          toast.error('Erro ao fazer upload do arquivo');
+          return;
+        }
+
+        const result = await addKnowledgeSource(agent.id, {
+          source_type: 'file',
+          name: formData.name,
+          description: formData.description,
+          source_content: fileUrl,
+          priority: formData.priority,
+          file_type: selectedFile.type,
+          file_size: selectedFile.size,
+          original_filename: selectedFile.name,
+        });
+
+        if (result) {
+          setSources(prev => [result, ...prev]);
+          toast.success('Arquivo adicionado com sucesso');
+          resetForm();
+        }
+      } catch (err) {
+        toast.error('Erro ao fazer upload do arquivo');
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
+
     if (!formData.source_content.trim()) {
       toast.error('Conteúdo é obrigatório');
       return;
@@ -133,6 +234,8 @@ export function KnowledgeBaseDialog({ open, onOpenChange, agent }: KnowledgeBase
 
   const resetForm = () => {
     setAddMode(null);
+    setSelectedFile(null);
+    resetProgress();
     setFormData({
       name: '',
       description: '',
@@ -211,34 +314,59 @@ export function KnowledgeBaseDialog({ open, onOpenChange, agent }: KnowledgeBase
           </DialogHeader>
 
           <div className="p-6 pt-4">
-            {/* Add Buttons */}
+            {/* Drag and Drop Zone when no mode selected */}
             {!addMode && (
-              <div className="grid grid-cols-3 gap-3 mb-6">
-                <Button
-                  variant="outline"
-                  className="h-20 flex-col gap-2"
-                  onClick={() => setAddMode('file')}
+              <>
+                <div
+                  className={`border-2 border-dashed rounded-lg p-8 mb-6 transition-colors ${
+                    isDragOver 
+                      ? 'border-primary bg-primary/5' 
+                      : 'border-muted-foreground/25 hover:border-muted-foreground/50'
+                  }`}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
                 >
-                  <FileText className="h-6 w-6" />
-                  <span>Arquivo</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-20 flex-col gap-2"
-                  onClick={() => setAddMode('url')}
-                >
-                  <Globe className="h-6 w-6" />
-                  <span>URL/Site</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-20 flex-col gap-2"
-                  onClick={() => setAddMode('text')}
-                >
-                  <Type className="h-6 w-6" />
-                  <span>Texto</span>
-                </Button>
-              </div>
+                  <div className="flex flex-col items-center justify-center text-center">
+                    <Upload className={`h-10 w-10 mb-3 ${isDragOver ? 'text-primary' : 'text-muted-foreground'}`} />
+                    <h3 className="font-medium mb-1">Arraste arquivos aqui</h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      ou clique nos botões abaixo para adicionar fontes
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Formatos suportados: PDF, DOCX, TXT, MD, CSV
+                    </p>
+                  </div>
+                </div>
+
+                {/* Add Buttons */}
+                <div className="grid grid-cols-3 gap-3 mb-6">
+                  <Button
+                    variant="outline"
+                    className="h-16 flex-col gap-1"
+                    onClick={() => setAddMode('file')}
+                  >
+                    <FileText className="h-5 w-5" />
+                    <span className="text-xs">Arquivo</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="h-16 flex-col gap-1"
+                    onClick={() => setAddMode('url')}
+                  >
+                    <Globe className="h-5 w-5" />
+                    <span className="text-xs">URL/Site</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="h-16 flex-col gap-1"
+                    onClick={() => setAddMode('text')}
+                  >
+                    <Type className="h-5 w-5" />
+                    <span className="text-xs">Texto</span>
+                  </Button>
+                </div>
+              </>
             )}
 
             {/* Add Form */}
@@ -252,11 +380,84 @@ export function KnowledgeBaseDialog({ open, onOpenChange, agent }: KnowledgeBase
                     {addMode === 'text' && 'Adicionar Texto'}
                   </h3>
                   <Button variant="ghost" size="sm" onClick={resetForm}>
-                    Cancelar
+                    <X className="h-4 w-4" />
                   </Button>
                 </div>
 
                 <div className="grid gap-4">
+                  {addMode === 'file' && (
+                    <>
+                      {/* File Upload Area */}
+                      {!selectedFile ? (
+                        <div
+                          className={`border-2 border-dashed rounded-lg p-6 transition-colors cursor-pointer ${
+                            isDragOver 
+                              ? 'border-primary bg-primary/5' 
+                              : 'border-muted-foreground/25 hover:border-primary/50'
+                          }`}
+                          onDragOver={handleDragOver}
+                          onDragLeave={handleDragLeave}
+                          onDrop={handleDrop}
+                          onClick={() => document.getElementById('file-input')?.click()}
+                        >
+                          <div className="flex flex-col items-center justify-center text-center">
+                            <Upload className="h-8 w-8 mb-2 text-muted-foreground" />
+                            <p className="text-sm font-medium">Clique ou arraste um arquivo</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              PDF, DOCX, TXT, MD ou CSV (máx. 20MB)
+                            </p>
+                          </div>
+                          <input
+                            id="file-input"
+                            type="file"
+                            className="hidden"
+                            accept={FILE_EXTENSIONS}
+                            onChange={handleFileSelect}
+                          />
+                        </div>
+                      ) : (
+                        <div className="border rounded-lg p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-3">
+                              <div className="p-2 rounded-lg bg-primary/10">
+                                <File className="h-5 w-5 text-primary" />
+                              </div>
+                              <div>
+                                <p className="font-medium text-sm truncate max-w-[200px]">
+                                  {selectedFile.name}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {formatBytes(selectedFile.size)}
+                                </p>
+                              </div>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                setSelectedFile(null);
+                                resetProgress();
+                              }}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+
+                          {/* Upload Progress */}
+                          {(isUploading || progress > 0) && (
+                            <div className="space-y-2">
+                              <div className="flex justify-between text-xs">
+                                <span>{isUploading ? 'Fazendo upload...' : 'Pronto'}</span>
+                                <span>{progress}%</span>
+                              </div>
+                              <Progress value={progress} className="h-2" />
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
+
                   <div className="grid gap-2">
                     <Label>Nome *</Label>
                     <Input
@@ -274,20 +475,6 @@ export function KnowledgeBaseDialog({ open, onOpenChange, agent }: KnowledgeBase
                       onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                     />
                   </div>
-
-                  {addMode === 'file' && (
-                    <div className="grid gap-2">
-                      <Label>URL do Arquivo *</Label>
-                      <Input
-                        placeholder="https://exemplo.com/arquivo.pdf"
-                        value={formData.source_content}
-                        onChange={(e) => setFormData(prev => ({ ...prev, source_content: e.target.value }))}
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Suporta PDF, DOCX, TXT. Faça upload em um storage e cole a URL aqui.
-                      </p>
-                    </div>
-                  )}
 
                   {addMode === 'url' && (
                     <div className="grid gap-2">
@@ -315,11 +502,11 @@ export function KnowledgeBaseDialog({ open, onOpenChange, agent }: KnowledgeBase
                     </div>
                   )}
 
-                  <Button onClick={handleAdd} disabled={saving}>
-                    {saving ? (
+                  <Button onClick={handleAdd} disabled={saving || isUploading}>
+                    {saving || isUploading ? (
                       <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Adicionando...
+                        {isUploading ? 'Enviando arquivo...' : 'Adicionando...'}
                       </>
                     ) : (
                       <>
@@ -333,7 +520,7 @@ export function KnowledgeBaseDialog({ open, onOpenChange, agent }: KnowledgeBase
             )}
 
             {/* Sources List */}
-            <ScrollArea className="h-[350px]">
+            <ScrollArea className="h-[300px]">
               {loading ? (
                 <div className="flex items-center justify-center py-12">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
