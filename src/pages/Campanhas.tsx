@@ -124,8 +124,8 @@ const Campanhas = () => {
   const [endTime, setEndTime] = useState("18:00");
   
   // Form state - Delays
-  const [minDelay, setMinDelay] = useState("120");
-  const [maxDelay, setMaxDelay] = useState("300");
+  const [minDelay, setMinDelay] = useState("30");
+  const [maxDelay, setMaxDelay] = useState("60");
   const [pauseAfterMessages, setPauseAfterMessages] = useState("20");
   const [pauseDuration, setPauseDuration] = useState("10");
   const [randomOrder, setRandomOrder] = useState(true);
@@ -313,13 +313,8 @@ const Campanhas = () => {
     const minDelayNum = parseInt(minDelay);
     const maxDelayNum = parseInt(maxDelay);
     
-    if (minDelayNum < 120) {
-      toast.error("Delay mínimo deve ser de pelo menos 120 segundos");
-      return;
-    }
-    
-    if (maxDelayNum > 300) {
-      toast.error("Delay máximo não pode exceder 300 segundos");
+    if (minDelayNum < 5) {
+      toast.error("Delay mínimo deve ser de pelo menos 5 segundos");
       return;
     }
 
@@ -1083,24 +1078,22 @@ const Campanhas = () => {
                         <Input
                           id="minDelay"
                           type="number"
-                          min="120"
-                          max="300"
+                          min="5"
                           value={minDelay}
                           onChange={(e) => setMinDelay(e.target.value)}
                         />
-                        <p className="text-xs text-muted-foreground">Mínimo: 120s</p>
+                        <p className="text-xs text-muted-foreground">Mínimo: 5s</p>
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="maxDelay">Delay Máximo (seg)</Label>
                         <Input
                           id="maxDelay"
                           type="number"
-                          min="120"
-                          max="300"
+                          min="5"
                           value={maxDelay}
                           onChange={(e) => setMaxDelay(e.target.value)}
                         />
-                        <p className="text-xs text-muted-foreground">Máximo: 300s</p>
+                        <p className="text-xs text-muted-foreground">Sem limite máximo</p>
                       </div>
                     </div>
 
