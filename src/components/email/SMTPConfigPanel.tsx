@@ -368,12 +368,33 @@ function OrgSMTPForm() {
         </div>
       </div>
 
-      <div className="flex items-center space-x-2">
-        <Switch
-          checked={form.secure}
-          onCheckedChange={(v) => setForm({ ...form, secure: v })}
-        />
-        <Label>Conexão segura (TLS/SSL)</Label>
+      <div className="space-y-2">
+        <div className="flex items-center space-x-2">
+          <Switch
+            checked={form.secure}
+            onCheckedChange={(v) => setForm({ ...form, secure: v })}
+          />
+          <Label>Conexão segura (TLS/SSL)</Label>
+        </div>
+        {/* Port-based hint */}
+        {form.port === 587 && form.secure && (
+          <p className="text-xs text-yellow-600 bg-yellow-500/10 p-2 rounded flex items-start gap-1">
+            <span>⚠️</span>
+            <span>
+              A porta <strong>587</strong> usa STARTTLS. Para a maioria dos servidores, 
+              desative "Conexão segura" aqui (a conexão será criptografada automaticamente via STARTTLS).
+              Use <strong>porta 465</strong> se quiser SSL/TLS direto.
+            </span>
+          </p>
+        )}
+        {form.port === 465 && !form.secure && (
+          <p className="text-xs text-yellow-600 bg-yellow-500/10 p-2 rounded flex items-start gap-1">
+            <span>⚠️</span>
+            <span>
+              A porta <strong>465</strong> requer SSL/TLS. Ative "Conexão segura" ou use <strong>porta 587</strong> com STARTTLS.
+            </span>
+          </p>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-4">
@@ -559,12 +580,33 @@ function UserSMTPForm() {
         </div>
       </div>
 
-      <div className="flex items-center space-x-2">
-        <Switch
-          checked={form.secure}
-          onCheckedChange={(v) => setForm({ ...form, secure: v })}
-        />
-        <Label>Conexão segura (TLS/SSL)</Label>
+      <div className="space-y-2">
+        <div className="flex items-center space-x-2">
+          <Switch
+            checked={form.secure}
+            onCheckedChange={(v) => setForm({ ...form, secure: v })}
+          />
+          <Label>Conexão segura (TLS/SSL)</Label>
+        </div>
+        {/* Port-based hint */}
+        {form.port === 587 && form.secure && (
+          <p className="text-xs text-yellow-600 bg-yellow-500/10 p-2 rounded flex items-start gap-1">
+            <span>⚠️</span>
+            <span>
+              A porta <strong>587</strong> usa STARTTLS. Para a maioria dos servidores, 
+              desative "Conexão segura" aqui (a conexão será criptografada automaticamente via STARTTLS).
+              Use <strong>porta 465</strong> se quiser SSL/TLS direto.
+            </span>
+          </p>
+        )}
+        {form.port === 465 && !form.secure && (
+          <p className="text-xs text-yellow-600 bg-yellow-500/10 p-2 rounded flex items-start gap-1">
+            <span>⚠️</span>
+            <span>
+              A porta <strong>465</strong> requer SSL/TLS. Ative "Conexão segura" ou use <strong>porta 587</strong> com STARTTLS.
+            </span>
+          </p>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-4">
