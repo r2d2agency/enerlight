@@ -40,6 +40,8 @@ const ALL_CAPABILITIES: { id: AgentCapability; label: string; description: strin
   { id: 'respond_messages', label: 'Responder Mensagens', description: 'Responde automaticamente baseado no contexto' },
   { id: 'read_files', label: 'Ler Arquivos', description: 'Analisa imagens, PDFs enviados pelo cliente' },
   { id: 'schedule_meetings', label: 'Agendar Reuniões', description: 'Integra com calendário para marcar compromissos' },
+  { id: 'google_calendar', label: 'Google Calendar', description: 'Gerencia eventos: criar, editar, remover reuniões' },
+  { id: 'manage_tasks', label: 'Gerenciar Tarefas', description: 'Cria e atualiza tarefas com responsável definido' },
   { id: 'create_deals', label: 'Criar Negociações', description: 'Cria deals automaticamente no CRM' },
   { id: 'suggest_actions', label: 'Sugerir Ações', description: 'Analisa e sugere próximos passos' },
   { id: 'generate_content', label: 'Gerar Conteúdo', description: 'Cria rascunhos de emails e mensagens' },

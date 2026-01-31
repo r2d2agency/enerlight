@@ -1915,6 +1915,256 @@ CREATE INDEX IF NOT EXISTS idx_google_calendar_events_user ON google_calendar_ev
 CREATE INDEX IF NOT EXISTS idx_google_calendar_events_task ON google_calendar_events(crm_task_id);
 `;
 
+// ============================================
+// STEP 25: AI AGENTS MODULE
+// ============================================
+const step25AIAgents = `
+-- Enum for AI provider
+DO $$ BEGIN
+  CREATE TYPE agent_ai_provider AS ENUM ('openai', 'gemini');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+-- Enum for knowledge source type
+DO $$ BEGIN
+  CREATE TYPE knowledge_source_type AS ENUM ('file', 'url', 'text');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+-- Enum for processing status
+DO $$ BEGIN
+  CREATE TYPE processing_status AS ENUM ('pending', 'processing', 'completed', 'failed');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+-- Enum for agent capabilities
+DO $$ BEGIN
+  CREATE TYPE agent_capability AS ENUM (
+    'respond_messages',
+    'read_files',
+    'schedule_meetings',
+    'create_deals',
+    'suggest_actions',
+    'generate_content',
+    'summarize_history',
+    'qualify_leads',
+    'manage_tasks',
+    'google_calendar'
+  );
+EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+-- Add new enum values if they don't exist
+DO $$ BEGIN
+  ALTER TYPE agent_capability ADD VALUE IF NOT EXISTS 'manage_tasks';
+EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+DO $$ BEGIN
+  ALTER TYPE agent_capability ADD VALUE IF NOT EXISTS 'google_calendar';
+EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+-- AI Agents main table
+CREATE TABLE IF NOT EXISTS ai_agents (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  name VARCHAR(255) NOT NULL,
+  description TEXT,
+  avatar_url TEXT,
+  is_active BOOLEAN DEFAULT true,
+  ai_provider agent_ai_provider NOT NULL DEFAULT 'openai',
+  ai_model VARCHAR(100) NOT NULL DEFAULT 'gpt-4o-mini',
+  ai_api_key TEXT,
+  system_prompt TEXT NOT NULL DEFAULT 'Você é um assistente virtual prestativo e profissional.',
+  personality_traits JSONB DEFAULT '[]',
+  language VARCHAR(10) DEFAULT 'pt-BR',
+  temperature DECIMAL(2,1) DEFAULT 0.7,
+  max_tokens INTEGER DEFAULT 1000,
+  context_window INTEGER DEFAULT 10,
+  capabilities agent_capability[] DEFAULT ARRAY['respond_messages']::agent_capability[],
+  greeting_message TEXT,
+  fallback_message TEXT DEFAULT 'Desculpe, não consegui entender. Pode reformular sua pergunta?',
+  handoff_message TEXT DEFAULT 'Vou transferir você para um atendente humano.',
+  handoff_keywords TEXT[] DEFAULT ARRAY['humano', 'atendente', 'pessoa'],
+  auto_handoff_after_failures INTEGER DEFAULT 3,
+  default_department_id UUID REFERENCES departments(id) ON DELETE SET NULL,
+  default_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  lead_scoring_criteria JSONB DEFAULT '{}',
+  auto_create_deal_funnel_id UUID,
+  auto_create_deal_stage_id UUID,
+  total_conversations INTEGER DEFAULT 0,
+  total_messages INTEGER DEFAULT 0,
+  avg_response_time_ms INTEGER,
+  satisfaction_score DECIMAL(3,2),
+  created_by UUID REFERENCES users(id),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Google Calendar connection for agents (which user's calendar to use)
+DO $$ BEGIN
+  ALTER TABLE ai_agents ADD COLUMN IF NOT EXISTS google_calendar_user_id UUID REFERENCES users(id) ON DELETE SET NULL;
+EXCEPTION WHEN duplicate_column THEN null; END $$;
+
+-- Knowledge sources
+CREATE TABLE IF NOT EXISTS ai_knowledge_sources (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  agent_id UUID NOT NULL REFERENCES ai_agents(id) ON DELETE CASCADE,
+  source_type knowledge_source_type NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  description TEXT,
+  source_content TEXT NOT NULL,
+  file_type VARCHAR(50),
+  file_size INTEGER,
+  original_filename VARCHAR(255),
+  status processing_status DEFAULT 'pending',
+  error_message TEXT,
+  processed_at TIMESTAMP WITH TIME ZONE,
+  chunk_count INTEGER DEFAULT 0,
+  total_tokens INTEGER DEFAULT 0,
+  is_active BOOLEAN DEFAULT true,
+  priority INTEGER DEFAULT 0,
+  created_by UUID REFERENCES users(id),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Knowledge chunks for RAG
+CREATE TABLE IF NOT EXISTS ai_knowledge_chunks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  source_id UUID NOT NULL REFERENCES ai_knowledge_sources(id) ON DELETE CASCADE,
+  content TEXT NOT NULL,
+  chunk_index INTEGER NOT NULL,
+  metadata JSONB DEFAULT '{}',
+  token_count INTEGER,
+  char_count INTEGER,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Agent sessions
+CREATE TABLE IF NOT EXISTS ai_agent_sessions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  agent_id UUID NOT NULL REFERENCES ai_agents(id) ON DELETE CASCADE,
+  conversation_id UUID REFERENCES conversations(id) ON DELETE SET NULL,
+  contact_phone VARCHAR(50),
+  contact_name VARCHAR(255),
+  is_active BOOLEAN DEFAULT true,
+  context_variables JSONB DEFAULT '{}',
+  lead_score INTEGER,
+  qualification_data JSONB DEFAULT '{}',
+  handoff_requested BOOLEAN DEFAULT false,
+  handoff_at TIMESTAMP WITH TIME ZONE,
+  handoff_to_user_id UUID REFERENCES users(id),
+  handoff_reason TEXT,
+  message_count INTEGER DEFAULT 0,
+  failure_count INTEGER DEFAULT 0,
+  started_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  last_interaction_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  ended_at TIMESTAMP WITH TIME ZONE
+);
+
+-- Agent messages
+CREATE TABLE IF NOT EXISTS ai_agent_messages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id UUID NOT NULL REFERENCES ai_agent_sessions(id) ON DELETE CASCADE,
+  role VARCHAR(20) NOT NULL CHECK (role IN ('user', 'assistant', 'system', 'tool')),
+  content TEXT,
+  media_type VARCHAR(50),
+  media_url TEXT,
+  knowledge_sources_used UUID[],
+  context_chunks JSONB,
+  prompt_tokens INTEGER,
+  completion_tokens INTEGER,
+  total_tokens INTEGER,
+  tool_calls JSONB,
+  tool_results JSONB,
+  feedback_rating INTEGER CHECK (feedback_rating >= 1 AND feedback_rating <= 5),
+  feedback_comment TEXT,
+  processing_time_ms INTEGER,
+  model_used VARCHAR(100),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Prompt templates
+CREATE TABLE IF NOT EXISTS ai_prompt_templates (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  name VARCHAR(255) NOT NULL,
+  description TEXT,
+  category VARCHAR(100),
+  template TEXT NOT NULL,
+  variables JSONB DEFAULT '[]',
+  is_system BOOLEAN DEFAULT false,
+  usage_count INTEGER DEFAULT 0,
+  created_by UUID REFERENCES users(id),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Agent connections (WhatsApp)
+CREATE TABLE IF NOT EXISTS ai_agent_connections (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  agent_id UUID NOT NULL REFERENCES ai_agents(id) ON DELETE CASCADE,
+  connection_id UUID NOT NULL REFERENCES connections(id) ON DELETE CASCADE,
+  mode VARCHAR(50) DEFAULT 'always',
+  trigger_keywords TEXT[] DEFAULT ARRAY[]::TEXT[],
+  business_hours_start TIME DEFAULT '08:00',
+  business_hours_end TIME DEFAULT '18:00',
+  business_days INTEGER[] DEFAULT ARRAY[1,2,3,4,5],
+  is_active BOOLEAN DEFAULT true,
+  priority INTEGER DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(agent_id, connection_id)
+);
+
+-- Agent statistics
+CREATE TABLE IF NOT EXISTS ai_agent_stats (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  agent_id UUID NOT NULL REFERENCES ai_agents(id) ON DELETE CASCADE,
+  date DATE NOT NULL,
+  total_sessions INTEGER DEFAULT 0,
+  total_messages INTEGER DEFAULT 0,
+  total_tokens_used INTEGER DEFAULT 0,
+  handoff_count INTEGER DEFAULT 0,
+  avg_response_time_ms INTEGER,
+  positive_feedback_count INTEGER DEFAULT 0,
+  negative_feedback_count INTEGER DEFAULT 0,
+  deals_created INTEGER DEFAULT 0,
+  meetings_scheduled INTEGER DEFAULT 0,
+  leads_qualified INTEGER DEFAULT 0,
+  tasks_created INTEGER DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(agent_id, date)
+);
+
+-- Add tasks_created column if not exists
+DO $$ BEGIN
+  ALTER TABLE ai_agent_stats ADD COLUMN IF NOT EXISTS tasks_created INTEGER DEFAULT 0;
+EXCEPTION WHEN duplicate_column THEN null; END $$;
+
+-- Indexes for AI Agents
+CREATE INDEX IF NOT EXISTS idx_ai_agents_organization ON ai_agents(organization_id);
+CREATE INDEX IF NOT EXISTS idx_ai_agents_active ON ai_agents(is_active);
+CREATE INDEX IF NOT EXISTS idx_ai_knowledge_sources_agent ON ai_knowledge_sources(agent_id);
+CREATE INDEX IF NOT EXISTS idx_ai_knowledge_sources_status ON ai_knowledge_sources(status);
+CREATE INDEX IF NOT EXISTS idx_ai_knowledge_chunks_source ON ai_knowledge_chunks(source_id);
+CREATE INDEX IF NOT EXISTS idx_ai_agent_sessions_agent ON ai_agent_sessions(agent_id);
+CREATE INDEX IF NOT EXISTS idx_ai_agent_sessions_conversation ON ai_agent_sessions(conversation_id);
+CREATE INDEX IF NOT EXISTS idx_ai_agent_sessions_active ON ai_agent_sessions(is_active);
+CREATE INDEX IF NOT EXISTS idx_ai_agent_messages_session ON ai_agent_messages(session_id);
+CREATE INDEX IF NOT EXISTS idx_ai_prompt_templates_organization ON ai_prompt_templates(organization_id);
+CREATE INDEX IF NOT EXISTS idx_ai_agent_connections_agent ON ai_agent_connections(agent_id);
+CREATE INDEX IF NOT EXISTS idx_ai_agent_connections_connection ON ai_agent_connections(connection_id);
+CREATE INDEX IF NOT EXISTS idx_ai_agent_stats_agent_date ON ai_agent_stats(agent_id, date);
+
+-- Add has_ai_agents to plans if not exists
+DO $$ BEGIN
+  ALTER TABLE plans ADD COLUMN IF NOT EXISTS has_ai_agents BOOLEAN DEFAULT true;
+EXCEPTION WHEN duplicate_column THEN null; END $$;
+
+-- Add ai_agents to organizations modules_enabled
+UPDATE organizations 
+SET modules_enabled = modules_enabled || '{"ai_agents": true}'::jsonb
+WHERE modules_enabled IS NOT NULL 
+  AND NOT (modules_enabled ? 'ai_agents');
+`;
+
 // Migration steps in order of execution
 const migrationSteps = [
   { name: 'Enums', sql: step1Enums, critical: true },
@@ -1942,6 +2192,7 @@ const migrationSteps = [
   { name: 'CRM Automation', sql: step22CRMAutomation, critical: false },
   { name: 'Email System', sql: step23Email, critical: false },
   { name: 'Google Calendar', sql: step24GoogleCalendar, critical: false },
+  { name: 'AI Agents', sql: step25AIAgents, critical: false },
 ];
 
 export async function initDatabase() {

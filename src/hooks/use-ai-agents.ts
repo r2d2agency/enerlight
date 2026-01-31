@@ -9,6 +9,8 @@ export type AgentCapability =
   | 'respond_messages'
   | 'read_files'
   | 'schedule_meetings'
+  | 'google_calendar'
+  | 'manage_tasks'
   | 'create_deals'
   | 'suggest_actions'
   | 'generate_content'
