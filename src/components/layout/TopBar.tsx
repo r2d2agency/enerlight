@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useBranding } from "@/hooks/use-branding";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Clock, Sun, Sunset, Moon } from "lucide-react";
+import { Clock, Sun, Sunset, Moon, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MessageNotifications } from "./MessageNotifications";
 import { ConnectionStatusIndicator } from "./ConnectionStatusIndicator";
@@ -19,6 +20,7 @@ function getGreeting(hour: number): { text: string; icon: typeof Sun } {
 
 export function TopBar() {
   const { user } = useAuth();
+  const { branding } = useBranding();
   const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
@@ -34,18 +36,40 @@ export function TopBar() {
   const firstName = user?.name?.split(" ")[0] || "Usuário";
 
   return (
-    <div className="hidden lg:flex fixed top-0 right-0 left-16 h-14 items-center justify-end gap-4 px-6 bg-background/80 backdrop-blur-sm border-b border-border/50 z-40">
-      {/* Connection Status Indicator */}
-      <ConnectionStatusIndicator />
+    <div className="hidden lg:flex fixed top-0 right-0 left-16 h-14 items-center justify-between gap-4 px-6 bg-background/80 backdrop-blur-sm border-b border-border/50 z-40">
+      {/* Company Name/Logo - Left Side */}
+      <div className="flex items-center gap-3">
+        {branding.logo_topbar ? (
+          <img 
+            src={branding.logo_topbar} 
+            alt="Logo" 
+            className="h-8 w-8 object-contain rounded"
+          />
+        ) : (
+          <div className="h-8 w-8 rounded bg-primary/10 flex items-center justify-center">
+            <Building2 className="h-4 w-4 text-primary" />
+          </div>
+        )}
+        {branding.company_name && (
+          <span className="text-base font-semibold text-foreground">
+            {branding.company_name}
+          </span>
+        )}
+      </div>
 
-      {/* Divider */}
-      <div className="h-6 w-px bg-border" />
+      {/* Right Side Controls */}
+      <div className="flex items-center gap-4">
+        {/* Connection Status Indicator */}
+        <ConnectionStatusIndicator />
 
-      {/* Message Notifications */}
-      <MessageNotifications />
+        {/* Divider */}
+        <div className="h-6 w-px bg-border" />
 
-      {/* Divider */}
-      <div className="h-6 w-px bg-border" />
+        {/* Message Notifications */}
+        <MessageNotifications />
+
+        {/* Divider */}
+        <div className="h-6 w-px bg-border" />
 
       {/* Date and Time */}
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -70,9 +94,10 @@ export function TopBar() {
           greeting.text === "Boa noite" && "text-indigo-400"
         )} />
         <span className="text-sm">
-          <span className="text-muted-foreground">{greeting.text},</span>
+        <span className="text-muted-foreground">{greeting.text},</span>
           <span className="font-semibold text-foreground ml-1">{firstName}</span>
         </span>
+        </div>
       </div>
     </div>
   );

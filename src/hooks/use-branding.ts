@@ -4,14 +4,18 @@ import { API_URL, getAuthToken } from '@/lib/api';
 export interface BrandingSettings {
   logo_login: string | null;
   logo_sidebar: string | null;
+  logo_topbar: string | null;
   favicon: string | null;
+  company_name: string | null;
 }
 
 export function useBranding() {
   const [branding, setBranding] = useState<BrandingSettings>({
     logo_login: null,
     logo_sidebar: null,
+    logo_topbar: null,
     favicon: null,
+    company_name: null,
   });
   const [loading, setLoading] = useState(true);
 
