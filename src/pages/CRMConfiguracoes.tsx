@@ -357,7 +357,7 @@ export default function CRMConfiguracoes() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid grid-cols-6 w-full max-w-4xl">
+          <TabsList className="grid grid-cols-7 w-full max-w-5xl">
             <TabsTrigger value="funnels" className="flex items-center gap-2">
               <GitBranch className="h-4 w-4" />
               <span className="hidden sm:inline">Funis</span>
