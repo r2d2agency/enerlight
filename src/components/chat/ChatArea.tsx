@@ -243,7 +243,7 @@ export function ChatArea({
   const [pendingFile, setPendingFile] = useState<{ file: File; preview?: string } | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const dragCounterRef = useRef(0);
-  const { user } = useAuth();
+  const { user, modulesEnabled } = useAuth();
   const { getNotes, getTypingStatus, getScheduledMessages, scheduleMessage, cancelScheduledMessage } = useChat();
   
   // Fetch CRM deals for this contact
@@ -1104,7 +1104,7 @@ export function ChatArea({
           )}
 
           {/* CRM Deal Shortcut - Shows if contact has open deals (hidden on mobile, available in menu) */}
-          {!isMobile && !conversation.is_group && openDeals.length > 0 && (
+          {!isMobile && !conversation.is_group && openDeals.length > 0 && modulesEnabled.crm && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -1359,10 +1359,12 @@ export function ChatArea({
               {!isViewOnly && (
                 <>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => setShowDealDialog(true)}>
-                    <Briefcase className="h-4 w-4 mr-2" />
-                    Negociações (CRM)
-                  </DropdownMenuItem>
+                  {modulesEnabled.crm && (
+                    <DropdownMenuItem onClick={() => setShowDealDialog(true)}>
+                      <Briefcase className="h-4 w-4 mr-2" />
+                      Negociações (CRM)
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem onClick={() => setShowStartFlowDialog(true)}>
                     <Bot className="h-4 w-4 mr-2" />
                     Iniciar fluxo de chatbot

@@ -15,6 +15,7 @@ import { MessageSquare, Users, Bell, RefreshCw } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { useNotificationSound } from "@/hooks/use-notification-sound";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface UserProfile {
   user?: {
@@ -25,6 +26,7 @@ interface UserProfile {
 const Chat = () => {
   const location = useLocation();
   const isMobile = useIsMobile();
+  const { modulesEnabled } = useAuth();
 
   const {
     loading,
@@ -855,8 +857,8 @@ const Chat = () => {
             />
           )}
 
-          {/* CRM Side Panel - Desktop only, when conversation selected */}
-          {!isMobile && selectedConversation && (
+          {/* CRM Side Panel - Desktop only, when conversation selected and CRM module enabled */}
+          {!isMobile && selectedConversation && modulesEnabled.crm && (
             <CRMSidePanel
               conversationId={selectedConversation.id}
               contactPhone={selectedConversation.remote_jid?.replace('@s.whatsapp.net', '').replace('@g.us', '') || null}
