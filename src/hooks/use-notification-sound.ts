@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 
-// Notification sound options
+// Notification sound options - including nostalgic retro sounds
 export const NOTIFICATION_SOUNDS = [
   { id: 'default', name: 'Padrão', file: '/sounds/notification-default.mp3' },
   { id: 'chime', name: 'Sino', file: '/sounds/notification-chime.mp3' },
@@ -8,12 +8,19 @@ export const NOTIFICATION_SOUNDS = [
   { id: 'ding', name: 'Ding', file: '/sounds/notification-ding.mp3' },
   { id: 'message', name: 'Mensagem', file: '/sounds/notification-message.mp3' },
   { id: 'laser', name: 'Laser', file: '/sounds/notification-laser.mp3' },
+  // Nostalgic retro sounds
+  { id: 'classic', name: 'Clássico (ICQ style)', file: '/sounds/notification-classic.mp3' },
+  { id: 'retro', name: 'Retrô (MSN style)', file: '/sounds/notification-retro.mp3' },
+  { id: 'bubble', name: 'Bolha', file: '/sounds/notification-bubble.mp3' },
+  { id: 'beep', name: 'Bip Nostálgico', file: '/sounds/notification-beep.mp3' },
   { id: 'none', name: 'Sem som', file: null },
 ] as const;
 
 // Sound options specifically for new conversations in waiting queue
 export const NEW_CONVERSATION_SOUNDS = [
   { id: 'chime', name: 'Sino (duplo)', file: '/sounds/notification-chime.mp3' },
+  { id: 'classic', name: 'Clássico (ICQ style)', file: '/sounds/notification-classic.mp3' },
+  { id: 'retro', name: 'Retrô (MSN style)', file: '/sounds/notification-retro.mp3' },
   { id: 'laser', name: 'Laser', file: '/sounds/notification-laser.mp3' },
   { id: 'ding', name: 'Ding', file: '/sounds/notification-ding.mp3' },
   { id: 'default', name: 'Padrão', file: '/sounds/notification-default.mp3' },
