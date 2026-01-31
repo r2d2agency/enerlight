@@ -1755,6 +1755,123 @@ CREATE INDEX IF NOT EXISTS idx_crm_deal_automations_phone ON crm_deal_automation
 CREATE INDEX IF NOT EXISTS idx_crm_automation_logs_deal ON crm_automation_logs(deal_id);
 `;
 
+// ============================================
+// STEP 23: EMAIL SYSTEM
+// ============================================
+const step23Email = `
+-- Email SMTP configs (organization level)
+CREATE TABLE IF NOT EXISTS email_smtp_configs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE NOT NULL UNIQUE,
+    host VARCHAR(255) NOT NULL,
+    port INTEGER NOT NULL DEFAULT 587,
+    secure BOOLEAN DEFAULT true,
+    username VARCHAR(255) NOT NULL,
+    password_encrypted TEXT NOT NULL,
+    from_name VARCHAR(255) NOT NULL,
+    from_email VARCHAR(255) NOT NULL,
+    reply_to VARCHAR(255),
+    is_active BOOLEAN DEFAULT true,
+    is_verified BOOLEAN DEFAULT false,
+    last_verified_at TIMESTAMP WITH TIME ZONE,
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Email SMTP configs (user level - overrides org)
+CREATE TABLE IF NOT EXISTS email_user_smtp_configs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE NOT NULL,
+    organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE NOT NULL,
+    host VARCHAR(255) NOT NULL,
+    port INTEGER NOT NULL DEFAULT 587,
+    secure BOOLEAN DEFAULT true,
+    username VARCHAR(255) NOT NULL,
+    password_encrypted TEXT NOT NULL,
+    from_name VARCHAR(255) NOT NULL,
+    from_email VARCHAR(255) NOT NULL,
+    reply_to VARCHAR(255),
+    is_active BOOLEAN DEFAULT true,
+    is_verified BOOLEAN DEFAULT false,
+    last_verified_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(user_id, organization_id)
+);
+
+-- Email templates
+CREATE TABLE IF NOT EXISTS email_templates (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    category VARCHAR(100) DEFAULT 'general',
+    subject VARCHAR(500) NOT NULL,
+    body_html TEXT NOT NULL,
+    body_text TEXT,
+    available_variables TEXT[] DEFAULT ARRAY['nome', 'email', 'telefone', 'empresa'],
+    is_active BOOLEAN DEFAULT true,
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Email queue
+CREATE TABLE IF NOT EXISTS email_queue (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE NOT NULL,
+    sender_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    template_id UUID REFERENCES email_templates(id) ON DELETE SET NULL,
+    to_email VARCHAR(255) NOT NULL,
+    to_name VARCHAR(255),
+    cc TEXT[],
+    bcc TEXT[],
+    subject VARCHAR(500) NOT NULL,
+    body_html TEXT NOT NULL,
+    body_text TEXT,
+    context_type VARCHAR(50),
+    context_id UUID,
+    variables JSONB DEFAULT '{}',
+    status VARCHAR(20) DEFAULT 'pending',
+    priority INTEGER DEFAULT 5,
+    sent_at TIMESTAMP WITH TIME ZONE,
+    error_message TEXT,
+    retry_count INTEGER DEFAULT 0,
+    max_retries INTEGER DEFAULT 3,
+    scheduled_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Email history
+CREATE TABLE IF NOT EXISTS email_history (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE NOT NULL,
+    queue_id UUID REFERENCES email_queue(id) ON DELETE SET NULL,
+    sender_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    to_email VARCHAR(255) NOT NULL,
+    subject VARCHAR(500) NOT NULL,
+    context_type VARCHAR(50),
+    context_id UUID,
+    status VARCHAR(20) NOT NULL,
+    error_message TEXT,
+    opened_at TIMESTAMP WITH TIME ZONE,
+    clicked_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Indexes for email system
+CREATE INDEX IF NOT EXISTS idx_email_smtp_configs_org ON email_smtp_configs(organization_id);
+CREATE INDEX IF NOT EXISTS idx_email_user_smtp_configs_user ON email_user_smtp_configs(user_id);
+CREATE INDEX IF NOT EXISTS idx_email_templates_org ON email_templates(organization_id);
+CREATE INDEX IF NOT EXISTS idx_email_templates_category ON email_templates(category);
+CREATE INDEX IF NOT EXISTS idx_email_queue_status ON email_queue(status);
+CREATE INDEX IF NOT EXISTS idx_email_queue_scheduled ON email_queue(scheduled_at);
+CREATE INDEX IF NOT EXISTS idx_email_history_org ON email_history(organization_id);
+CREATE INDEX IF NOT EXISTS idx_email_history_context ON email_history(context_type, context_id);
+`;
+
 // Migration steps in order of execution
 const migrationSteps = [
   { name: 'Enums', sql: step1Enums, critical: true },
@@ -1780,6 +1897,7 @@ const migrationSteps = [
   { name: 'CRM Migrations', sql: step20CRMMigrations, critical: false },
   { name: 'CRM Prospects', sql: step21Prospects, critical: false },
   { name: 'CRM Automation', sql: step22CRMAutomation, critical: false },
+  { name: 'Email System', sql: step23Email, critical: false },
 ];
 
 export async function initDatabase() {
