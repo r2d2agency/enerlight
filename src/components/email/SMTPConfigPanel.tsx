@@ -6,8 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useOrgSMTPConfig, useUserSMTPConfig, useSMTPConfigMutations, useSMTPStatus } from "@/hooks/use-email";
-import { Mail, Server, CheckCircle, XCircle, Loader2, Send, Eye, EyeOff } from "lucide-react";
+import { Mail, Server, CheckCircle, XCircle, Loader2, Send, Eye, EyeOff, HelpCircle, ChevronDown, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 
 export function SMTPConfigPanel() {
@@ -44,8 +45,125 @@ export function SMTPConfigPanel() {
             <UserSMTPForm />
           </TabsContent>
         </Tabs>
+
+        {/* Gmail Help Section */}
+        <GmailHelpSection />
       </CardContent>
     </Card>
+  );
+}
+
+function GmailHelpSection() {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const fillGmailDefaults = () => {
+    // This will dispatch a custom event that forms can listen to
+    window.dispatchEvent(new CustomEvent('fill-gmail-defaults', {
+      detail: {
+        host: 'smtp.gmail.com',
+        port: 587,
+        secure: true
+      }
+    }));
+  };
+
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="mt-6">
+      <CollapsibleTrigger asChild>
+        <Button variant="ghost" className="w-full justify-between p-4 h-auto border rounded-lg hover:bg-accent">
+          <div className="flex items-center gap-2">
+            <HelpCircle className="h-5 w-5 text-primary" />
+            <span className="font-medium">Como usar Gmail como SMTP?</span>
+          </div>
+          <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        </Button>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="mt-3">
+        <div className="rounded-lg border bg-accent/30 p-4 space-y-4">
+          <div className="space-y-3">
+            <h4 className="font-semibold text-sm flex items-center gap-2">
+              <span className="flex items-center justify-center w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs">1</span>
+              Ative a verificação em 2 etapas
+            </h4>
+            <p className="text-sm text-muted-foreground pl-7">
+              Acesse sua conta Google e ative a verificação em duas etapas se ainda não estiver ativada.
+            </p>
+            <a 
+              href="https://myaccount.google.com/security" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-sm text-primary hover:underline flex items-center gap-1 pl-7"
+            >
+              Acessar configurações de segurança do Google
+              <ExternalLink className="h-3 w-3" />
+            </a>
+          </div>
+
+          <div className="space-y-3">
+            <h4 className="font-semibold text-sm flex items-center gap-2">
+              <span className="flex items-center justify-center w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs">2</span>
+              Crie uma Senha de App
+            </h4>
+            <p className="text-sm text-muted-foreground pl-7">
+              Gere uma senha específica para este aplicativo. Esta senha tem 16 caracteres (sem espaços).
+            </p>
+            <a 
+              href="https://myaccount.google.com/apppasswords" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-sm text-primary hover:underline flex items-center gap-1 pl-7"
+            >
+              Criar senha de app no Google
+              <ExternalLink className="h-3 w-3" />
+            </a>
+          </div>
+
+          <div className="space-y-3">
+            <h4 className="font-semibold text-sm flex items-center gap-2">
+              <span className="flex items-center justify-center w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs">3</span>
+              Configure no sistema
+            </h4>
+            <div className="pl-7 space-y-2">
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="bg-background rounded px-3 py-2">
+                  <span className="text-muted-foreground">Servidor:</span>
+                  <code className="ml-2 font-mono">smtp.gmail.com</code>
+                </div>
+                <div className="bg-background rounded px-3 py-2">
+                  <span className="text-muted-foreground">Porta:</span>
+                  <code className="ml-2 font-mono">587</code>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="bg-background rounded px-3 py-2">
+                  <span className="text-muted-foreground">TLS:</span>
+                  <code className="ml-2 font-mono">Ativado</code>
+                </div>
+                <div className="bg-background rounded px-3 py-2">
+                  <span className="text-muted-foreground">Usuário:</span>
+                  <code className="ml-2 font-mono text-xs">seu@gmail.com</code>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-2 border-t">
+            <Button variant="outline" size="sm" onClick={fillGmailDefaults} className="w-full">
+              <Mail className="h-4 w-4 mr-2" />
+              Preencher configurações do Gmail automaticamente
+            </Button>
+          </div>
+
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+            <span className="text-yellow-600 text-lg">⚠️</span>
+            <p className="text-sm text-muted-foreground">
+              <strong className="text-foreground">Importante:</strong> Use a <em>Senha de App</em> gerada, não sua senha normal do Gmail. 
+              A senha de app tem 16 caracteres sem espaços.
+            </p>
+          </div>
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
@@ -87,6 +205,20 @@ function OrgSMTPForm() {
     from_email: "",
     reply_to: "",
   });
+
+  // Listen for Gmail defaults event
+  useEffect(() => {
+    const handleGmailDefaults = (e: CustomEvent) => {
+      setForm(prev => ({
+        ...prev,
+        host: e.detail.host,
+        port: e.detail.port,
+        secure: e.detail.secure,
+      }));
+    };
+    window.addEventListener('fill-gmail-defaults', handleGmailDefaults as EventListener);
+    return () => window.removeEventListener('fill-gmail-defaults', handleGmailDefaults as EventListener);
+  }, []);
 
   useEffect(() => {
     if (config) {
@@ -251,6 +383,20 @@ function UserSMTPForm() {
     from_email: "",
     reply_to: "",
   });
+
+  // Listen for Gmail defaults event
+  useEffect(() => {
+    const handleGmailDefaults = (e: CustomEvent) => {
+      setForm(prev => ({
+        ...prev,
+        host: e.detail.host,
+        port: e.detail.port,
+        secure: e.detail.secure,
+      }));
+    };
+    window.addEventListener('fill-gmail-defaults', handleGmailDefaults as EventListener);
+    return () => window.removeEventListener('fill-gmail-defaults', handleGmailDefaults as EventListener);
+  }, []);
 
   useEffect(() => {
     if (config) {
