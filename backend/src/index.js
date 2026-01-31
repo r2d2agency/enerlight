@@ -22,6 +22,7 @@ import chatbotsRoutes from './routes/chatbots.js';
 import departmentsRoutes from './routes/departments.js';
 import flowsRoutes from './routes/flows.js';
 import crmRoutes from './routes/crm.js';
+import crmAutomationRoutes from './routes/crm-automation.js';
 import billingQueueRoutes from './routes/billing-queue.js';
 import transcribeRoutes from './routes/transcribe.js';
 import { initDatabase } from './init-db.js';
@@ -29,6 +30,7 @@ import { executeNotifications } from './scheduler.js';
 import { executeCampaignMessages } from './campaign-scheduler.js';
 import { executeScheduledMessages } from './scheduled-messages.js';
 import { syncTodaysDueBoletos, checkPaymentStatusUpdates } from './asaas-auto-sync.js';
+import { executeCRMAutomations } from './crm-automation-scheduler.js';
 import { requestContext } from './request-context.js';
 import { log, logError } from './logger.js';
 
@@ -155,6 +157,7 @@ app.use('/api/chatbots', chatbotsRoutes);
 app.use('/api/departments', departmentsRoutes);
 app.use('/api/flows', flowsRoutes);
 app.use('/api/crm', crmRoutes);
+app.use('/api/crm/automation', crmAutomationRoutes);
 app.use('/api/billing-queue', billingQueueRoutes);
 app.use('/api/transcribe-audio', transcribeRoutes);
 
@@ -257,10 +260,26 @@ initDatabase().then((ok) => {
       timezone: 'America/Sao_Paulo'
     });
 
+    // ============================================
+    // CRM FUNNEL AUTOMATION
+    // ============================================
+
+    // Schedule CRM automations - runs every 2 minutes to process flows and timeouts
+    cron.schedule('*/2 * * * *', async () => {
+      try {
+        await executeCRMAutomations();
+      } catch (error) {
+        console.error('🤖 [CRON] Error executing CRM automations:', error);
+      }
+    }, {
+      timezone: 'America/Sao_Paulo'
+    });
+
     console.log('⏰ Notification scheduler started - checks every hour (timezone: America/Sao_Paulo)');
     console.log('📤 Campaign scheduler started - checks every 30 seconds');
     console.log('📅 Scheduled messages started - checks every minute');
     console.log('🌙 Asaas auto-sync started - runs at 2:00 AM daily');
     console.log('☀️ Asaas status check started - runs at 8:00 AM daily');
+    console.log('🤖 CRM automation started - checks every 2 minutes');
   });
 });

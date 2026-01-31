@@ -1697,6 +1697,64 @@ CREATE TABLE IF NOT EXISTS crm_prospect_fields (
 CREATE INDEX IF NOT EXISTS idx_crm_prospect_fields_org ON crm_prospect_fields(organization_id);
 `;
 
+// ============================================
+// STEP 22: CRM AUTOMATION
+// ============================================
+const step22CRMAutomation = `
+-- CRM Stage Automations (one per stage)
+CREATE TABLE IF NOT EXISTS crm_stage_automations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    stage_id UUID REFERENCES crm_stages(id) ON DELETE CASCADE NOT NULL UNIQUE,
+    flow_id UUID REFERENCES flows(id) ON DELETE SET NULL,
+    wait_hours INTEGER NOT NULL DEFAULT 24,
+    next_stage_id UUID REFERENCES crm_stages(id) ON DELETE SET NULL,
+    fallback_funnel_id UUID REFERENCES crm_funnels(id) ON DELETE SET NULL,
+    fallback_stage_id UUID REFERENCES crm_stages(id) ON DELETE SET NULL,
+    is_active BOOLEAN DEFAULT true,
+    execute_immediately BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- CRM Deal Automations (active automation per deal)
+CREATE TABLE IF NOT EXISTS crm_deal_automations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    deal_id UUID REFERENCES crm_deals(id) ON DELETE CASCADE NOT NULL,
+    stage_id UUID REFERENCES crm_stages(id) ON DELETE CASCADE NOT NULL,
+    automation_id UUID REFERENCES crm_stage_automations(id) ON DELETE SET NULL,
+    status VARCHAR(20) DEFAULT 'pending',
+    flow_id UUID REFERENCES flows(id) ON DELETE SET NULL,
+    flow_session_id UUID,
+    flow_sent_at TIMESTAMP WITH TIME ZONE,
+    wait_until TIMESTAMP WITH TIME ZONE,
+    responded_at TIMESTAMP WITH TIME ZONE,
+    moved_at TIMESTAMP WITH TIME ZONE,
+    next_stage_id UUID REFERENCES crm_stages(id) ON DELETE SET NULL,
+    contact_phone VARCHAR(50),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- CRM Automation Logs
+CREATE TABLE IF NOT EXISTS crm_automation_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    deal_automation_id UUID REFERENCES crm_deal_automations(id) ON DELETE CASCADE,
+    deal_id UUID REFERENCES crm_deals(id) ON DELETE CASCADE NOT NULL,
+    action VARCHAR(50) NOT NULL,
+    details JSONB DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Indexes for CRM Automation
+CREATE INDEX IF NOT EXISTS idx_crm_stage_automations_stage ON crm_stage_automations(stage_id);
+CREATE INDEX IF NOT EXISTS idx_crm_stage_automations_flow ON crm_stage_automations(flow_id);
+CREATE INDEX IF NOT EXISTS idx_crm_deal_automations_deal ON crm_deal_automations(deal_id);
+CREATE INDEX IF NOT EXISTS idx_crm_deal_automations_status ON crm_deal_automations(status);
+CREATE INDEX IF NOT EXISTS idx_crm_deal_automations_wait ON crm_deal_automations(wait_until);
+CREATE INDEX IF NOT EXISTS idx_crm_deal_automations_phone ON crm_deal_automations(contact_phone);
+CREATE INDEX IF NOT EXISTS idx_crm_automation_logs_deal ON crm_automation_logs(deal_id);
+`;
+
 // Migration steps in order of execution
 const migrationSteps = [
   { name: 'Enums', sql: step1Enums, critical: true },
@@ -1721,6 +1779,7 @@ const migrationSteps = [
   { name: 'CRM Config', sql: step19CRMConfig, critical: false },
   { name: 'CRM Migrations', sql: step20CRMMigrations, critical: false },
   { name: 'CRM Prospects', sql: step21Prospects, critical: false },
+  { name: 'CRM Automation', sql: step22CRMAutomation, critical: false },
 ];
 
 export async function initDatabase() {

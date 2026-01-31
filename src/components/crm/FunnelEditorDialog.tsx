@@ -6,11 +6,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Card } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CRMFunnel, CRMStage, useCRMFunnelMutations } from "@/hooks/use-crm";
-import { Plus, Trash2, GripVertical } from "lucide-react";
+import { Plus, Trash2, GripVertical, Zap } from "lucide-react";
 import { DndContext, closestCenter, DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { StageAutomationEditor } from "./StageAutomationEditor";
 
 interface FunnelEditorDialogProps {
   funnel: CRMFunnel | null;
@@ -21,11 +23,14 @@ interface FunnelEditorDialogProps {
 interface StageItemProps {
   stage: CRMStage;
   index: number;
+  allStages: CRMStage[];
+  funnelId?: string;
+  showAutomation?: boolean;
   onChange: (index: number, field: keyof CRMStage, value: any) => void;
   onDelete: (index: number) => void;
 }
 
-function SortableStageItem({ stage, index, onChange, onDelete }: StageItemProps) {
+function SortableStageItem({ stage, index, allStages, funnelId, showAutomation, onChange, onDelete }: StageItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
     id: stage.id || `new-${index}`,
   });
@@ -92,6 +97,15 @@ function SortableStageItem({ stage, index, onChange, onDelete }: StageItemProps)
               </div>
             </div>
           </div>
+
+          {/* Automation Editor - only for saved stages */}
+          {showAutomation && stage.id && !stage.is_final && (
+            <StageAutomationEditor 
+              stage={stage} 
+              allStages={allStages}
+              funnelId={funnelId}
+            />
+          )}
         </div>
 
         <Button
@@ -261,6 +275,9 @@ export function FunnelEditorDialog({ funnel, open, onOpenChange }: FunnelEditorD
                         key={stage.id || `new-${index}`}
                         stage={stage}
                         index={index}
+                        allStages={stages}
+                        funnelId={funnel?.id}
+                        showAutomation={!!funnel?.id}
                         onChange={handleStageChange}
                         onDelete={handleDeleteStage}
                       />

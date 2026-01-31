@@ -963,6 +963,8 @@ router.post('/deals/:id/move', async (req, res) => {
     const current = await query(`SELECT stage_id FROM crm_deals WHERE id = $1`, [req.params.id]);
     if (!current.rows[0]) return res.status(404).json({ error: 'Deal not found' });
 
+    const oldStageId = current.rows[0].stage_id;
+
     // Update stage
     await query(
       `UPDATE crm_deals SET stage_id = $1, last_activity_at = NOW(), updated_at = NOW() 
@@ -971,12 +973,62 @@ router.post('/deals/:id/move', async (req, res) => {
     );
 
     // Log history
-    const oldStage = await query(`SELECT name FROM crm_stages WHERE id = $1`, [current.rows[0].stage_id]);
+    const oldStage = await query(`SELECT name FROM crm_stages WHERE id = $1`, [oldStageId]);
     const newStage = await query(`SELECT name FROM crm_stages WHERE id = $1`, [stage_id]);
     await query(
       `INSERT INTO crm_deal_history (deal_id, user_id, action, from_value, to_value) VALUES ($1, $2, 'stage_changed', $3, $4)`,
       [req.params.id, req.userId, oldStage.rows[0]?.name, newStage.rows[0]?.name]
     );
+
+    // Trigger automation for new stage (if configured)
+    if (oldStageId !== stage_id) {
+      try {
+        // Check if new stage has automation
+        const automationConfig = await query(
+          `SELECT sa.* FROM crm_stage_automations sa
+           WHERE sa.stage_id = $1 AND sa.is_active = true AND sa.execute_immediately = true`,
+          [stage_id]
+        );
+
+        if (automationConfig.rows[0]) {
+          const config = automationConfig.rows[0];
+
+          // Get contact phone for the deal
+          const contactResult = await query(
+            `SELECT c.phone FROM crm_deal_contacts dc
+             JOIN contacts c ON c.id = dc.contact_id
+             WHERE dc.deal_id = $1 AND dc.is_primary = true`,
+            [req.params.id]
+          );
+
+          const contactPhone = contactResult.rows[0]?.phone;
+
+          // Cancel existing automations
+          await query(
+            `UPDATE crm_deal_automations 
+             SET status = 'cancelled', updated_at = NOW()
+             WHERE deal_id = $1 AND status IN ('pending', 'flow_sent', 'waiting')`,
+            [req.params.id]
+          );
+
+          // Create new automation
+          const waitUntil = new Date();
+          waitUntil.setHours(waitUntil.getHours() + (config.wait_hours || 24));
+
+          await query(
+            `INSERT INTO crm_deal_automations 
+             (deal_id, stage_id, automation_id, status, flow_id, wait_until, contact_phone, next_stage_id)
+             VALUES ($1, $2, $3, 'pending', $4, $5, $6, $7)`,
+            [req.params.id, stage_id, config.id, config.flow_id, waitUntil, contactPhone, config.next_stage_id]
+          );
+
+          logInfo(`Automation queued for deal ${req.params.id} in stage ${stage_id}`);
+        }
+      } catch (automationError) {
+        // Don't fail the move if automation fails
+        logError('Failed to trigger automation:', automationError);
+      }
+    }
 
     res.json({ success: true });
   } catch (error) {
