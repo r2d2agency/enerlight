@@ -11,9 +11,10 @@ import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { Checkbox } from "@/components/ui/checkbox";
 import { CRMDeal, CRMTask, CRMStage, useCRMDeal, useCRMDealMutations, useCRMTaskMutations, useCRMFunnel, useCRMCompanies } from "@/hooks/use-crm";
 import { api } from "@/lib/api";
-import { Building2, User, Phone, Calendar as CalendarIcon, Clock, CheckCircle, Plus, Trash2, Paperclip, MessageSquare, ChevronRight, Edit2, Save, X, FileText, Image, Loader2, Upload, Search, UserPlus, Building, Mail } from "lucide-react";
+import { Building2, User, Phone, Calendar as CalendarIcon, Clock, CheckCircle, Plus, Trash2, Paperclip, MessageSquare, ChevronRight, Edit2, Save, X, FileText, Image, Loader2, Upload, Search, UserPlus, Building, Mail, Video } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -23,6 +24,8 @@ import { useNavigate } from "react-router-dom";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { CompanyDialog } from "./CompanyDialog";
 import { SendEmailDialog } from "@/components/email/SendEmailDialog";
+import { useAuth } from "@/contexts/AuthContext";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 interface ChatContact {
   id: string;
@@ -63,7 +66,11 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [scheduleDate, setScheduleDate] = useState<Date | undefined>(undefined);
   const [scheduleTime, setScheduleTime] = useState("09:00");
+  const [scheduleEndTime, setScheduleEndTime] = useState("10:00");
   const [scheduleNote, setScheduleNote] = useState("");
+  const [addMeetToSchedule, setAddMeetToSchedule] = useState(false);
+  const [sendWhatsAppAfter, setSendWhatsAppAfter] = useState(false);
+  const [isScheduling, setIsScheduling] = useState(false);
 
   // Company edit states
   const [isEditingCompany, setIsEditingCompany] = useState(false);
@@ -189,29 +196,79 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
     setAttachments(prev => prev.filter(a => a.id !== id));
   };
 
-  const handleScheduleReturn = () => {
-    if (!scheduleDate || !currentDeal?.contacts?.length) {
-      toast.error("Selecione uma data e certifique-se de que há contatos vinculados");
+  const handleScheduleReturn = async () => {
+    if (!scheduleDate || !deal) {
+      toast.error("Selecione uma data");
       return;
     }
 
-    // Create a follow-up task
-    const [hours, minutes] = scheduleTime.split(":").map(Number);
-    const scheduledDate = new Date(scheduleDate);
-    scheduledDate.setHours(hours, minutes, 0, 0);
+    setIsScheduling(true);
+    
+    try {
+      const [hours, minutes] = scheduleTime.split(":").map(Number);
+      const scheduledDate = new Date(scheduleDate);
+      scheduledDate.setHours(hours, minutes, 0, 0);
 
-    createTask.mutate({
-      deal_id: deal.id,
-      title: scheduleNote || "Retorno agendado",
-      type: "follow_up",
-      due_date: scheduledDate.toISOString(),
-    });
+      // If adding to Google Meet
+      if (addMeetToSchedule) {
+        const [endHours, endMinutes] = scheduleEndTime.split(":").map(Number);
+        const endDate = new Date(scheduleDate);
+        endDate.setHours(endHours, endMinutes, 0, 0);
 
-    toast.success("Retorno agendado!");
-    setScheduleOpen(false);
-    setScheduleDate(undefined);
-    setScheduleTime("09:00");
-    setScheduleNote("");
+        // Create meeting with Google Meet
+        await api<{ success: boolean; meetLink?: string }>(
+          "/api/google-calendar/events-with-meet",
+          {
+            method: "POST",
+            body: {
+              title: scheduleNote || `Retorno - ${currentDeal?.title}`,
+              description: `Retorno agendado para a negociação: ${currentDeal?.title}`,
+              startDateTime: scheduledDate.toISOString(),
+              endDateTime: endDate.toISOString(),
+              addMeet: true,
+              attendees: [],
+              dealId: deal.id,
+            },
+          }
+        );
+        
+        toast.success("Reunião agendada no Google Calendar!");
+      } else {
+        // Create a follow-up task only
+        createTask.mutate({
+          deal_id: deal.id,
+          title: scheduleNote || "Retorno agendado",
+          type: "follow_up",
+          due_date: scheduledDate.toISOString(),
+        });
+        
+        toast.success("Retorno agendado!");
+      }
+
+      // Reset form
+      setScheduleOpen(false);
+      setScheduleDate(undefined);
+      setScheduleTime("09:00");
+      setScheduleEndTime("10:00");
+      setScheduleNote("");
+      setAddMeetToSchedule(false);
+      
+      // If user wants to send WhatsApp, navigate to chat
+      if (sendWhatsAppAfter) {
+        const primaryContact = currentDeal?.contacts?.find(c => c.is_primary) || currentDeal?.contacts?.[0];
+        if (primaryContact?.phone) {
+          onOpenChange(false);
+          navigate(`/chat?phone=${primaryContact.phone}`);
+        } else {
+          toast.info("Nenhum contato vinculado para enviar WhatsApp");
+        }
+        setSendWhatsAppAfter(false);
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao agendar retorno");
+    } finally {
+      setIsScheduling(false);
+    }
   };
 
   const handleOpenChat = () => {
@@ -489,42 +546,100 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
                     <CalendarIcon className="h-4 w-4" />
                     Agendar Retorno
                   </h4>
-                  <div className="flex gap-3 flex-wrap">
-                    <Popover open={scheduleOpen} onOpenChange={setScheduleOpen}>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" className={cn(!scheduleDate && "text-muted-foreground")}>
-                          <CalendarIcon className="h-4 w-4 mr-2" />
-                          {scheduleDate ? format(scheduleDate, "dd/MM/yyyy", { locale: ptBR }) : "Selecionar data"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0 z-[100]" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={scheduleDate}
-                          onSelect={(d) => {
-                            setScheduleDate(d);
-                          }}
-                          disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
-                          locale={ptBR}
-                          initialFocus
+                  <div className="space-y-4">
+                    {/* Date and Time Row */}
+                    <div className="flex gap-3 flex-wrap items-center">
+                      <Popover open={scheduleOpen} onOpenChange={setScheduleOpen}>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className={cn(!scheduleDate && "text-muted-foreground")}>
+                            <CalendarIcon className="h-4 w-4 mr-2" />
+                            {scheduleDate ? format(scheduleDate, "dd/MM/yyyy", { locale: ptBR }) : "Selecionar data"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0 z-[100]" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={scheduleDate}
+                            onSelect={(d) => {
+                              setScheduleDate(d);
+                            }}
+                            disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                            locale={ptBR}
+                            initialFocus
+                            className="p-3 pointer-events-auto"
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="time"
+                          value={scheduleTime}
+                          onChange={(e) => setScheduleTime(e.target.value)}
+                          className="w-24"
                         />
-                      </PopoverContent>
-                    </Popover>
-                    <Input
-                      type="time"
-                      value={scheduleTime}
-                      onChange={(e) => setScheduleTime(e.target.value)}
-                      className="w-28"
-                    />
-                    <Input
-                      placeholder="Nota do retorno..."
-                      value={scheduleNote}
-                      onChange={(e) => setScheduleNote(e.target.value)}
-                      className="flex-1 min-w-[200px]"
-                    />
-                    <Button onClick={handleScheduleReturn} disabled={!scheduleDate}>
-                      Agendar
-                    </Button>
+                        {addMeetToSchedule && (
+                          <>
+                            <span className="text-muted-foreground text-sm">até</span>
+                            <Input
+                              type="time"
+                              value={scheduleEndTime}
+                              onChange={(e) => setScheduleEndTime(e.target.value)}
+                              className="w-24"
+                            />
+                          </>
+                        )}
+                      </div>
+                      
+                      <Input
+                        placeholder="Nota do retorno..."
+                        value={scheduleNote}
+                        onChange={(e) => setScheduleNote(e.target.value)}
+                        className="flex-1 min-w-[180px]"
+                      />
+                    </div>
+                    
+                    {/* Options Row */}
+                    <div className="flex flex-wrap items-center gap-6">
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id="add-meet"
+                          checked={addMeetToSchedule}
+                          onCheckedChange={(checked) => setAddMeetToSchedule(checked as boolean)}
+                        />
+                        <label htmlFor="add-meet" className="flex items-center gap-1.5 text-sm cursor-pointer">
+                          <Video className="h-4 w-4 text-green-600" />
+                          Criar reunião no Google Meet
+                        </label>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id="send-whats"
+                          checked={sendWhatsAppAfter}
+                          onCheckedChange={(checked) => setSendWhatsAppAfter(checked as boolean)}
+                        />
+                        <label htmlFor="send-whats" className="flex items-center gap-1.5 text-sm cursor-pointer">
+                          <MessageSquare className="h-4 w-4 text-green-600" />
+                          Enviar WhatsApp após agendar
+                        </label>
+                      </div>
+                      
+                      <Button 
+                        onClick={handleScheduleReturn} 
+                        disabled={!scheduleDate || isScheduling}
+                        className="ml-auto"
+                      >
+                        {isScheduling ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        ) : addMeetToSchedule ? (
+                          <Video className="h-4 w-4 mr-2" />
+                        ) : (
+                          <CalendarIcon className="h-4 w-4 mr-2" />
+                        )}
+                        {addMeetToSchedule ? "Agendar com Meet" : "Agendar"}
+                      </Button>
+                    </div>
                   </div>
                 </Card>
               </div>
