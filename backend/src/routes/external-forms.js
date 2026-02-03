@@ -504,6 +504,7 @@ router.post('/public/:slug/submit', async (req, res) => {
         logError('Error creating prospect from form:', prospectError);
         // Don't fail the submission, just log the error
       }
+    }
 
     // Increment submission count
     await query(
