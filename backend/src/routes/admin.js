@@ -11,12 +11,23 @@ router.get('/branding', async (req, res) => {
   try {
     const result = await query(
       `SELECT key, value FROM system_settings 
-       WHERE key IN ('logo_login', 'logo_sidebar', 'favicon')`
+       WHERE key IN ('logo_login', 'logo_sidebar', 'logo_topbar', 'favicon', 'company_name')`
     );
 
-    const branding = {};
+    const branding = {
+      logo_login: null,
+      logo_sidebar: null,
+      logo_topbar: null,
+      favicon: null,
+      company_name: null,
+    };
     for (const row of result.rows) {
       branding[row.key] = row.value;
+    }
+
+    // Fallback: use logo_sidebar as logo_topbar if not set
+    if (!branding.logo_topbar && branding.logo_sidebar) {
+      branding.logo_topbar = branding.logo_sidebar;
     }
 
     res.json(branding);
