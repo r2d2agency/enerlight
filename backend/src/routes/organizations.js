@@ -783,14 +783,56 @@ router.post('/ai-config/test', async (req, res) => {
     }
 
     if (!testResponse.ok) {
-      const errorText = await testResponse.text();
-      console.error('AI test failed:', testResponse.status, errorText);
-      return res.status(400).json({ 
-        error: testResponse.status === 401 
-          ? 'API Key inválida' 
-          : testResponse.status === 429 
-            ? 'Rate limit excedido, tente novamente'
-            : 'Falha na conexão com a IA'
+      const upstreamStatus = testResponse.status;
+      const errorText = await testResponse.text().catch(() => '');
+
+      let parsedError = null;
+      try {
+        parsedError = JSON.parse(errorText);
+      } catch {
+        parsedError = null;
+      }
+
+      const upstreamMessageRaw =
+        parsedError?.error?.message || // OpenAI + Gemini
+        parsedError?.message ||
+        parsedError?.error?.status ||
+        (typeof errorText === 'string' ? errorText : '');
+
+      const upstreamMessage = String(upstreamMessageRaw || '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 400);
+
+      console.error('AI test failed:', {
+        provider: ai_provider,
+        model: ai_model,
+        upstreamStatus,
+        upstreamMessage,
+      });
+
+      // Human-friendly message + preserve upstream details for the UI
+      let friendly = 'Falha na conexão com a IA';
+      if (upstreamStatus === 401 || upstreamStatus === 403) {
+        friendly = 'API Key inválida ou sem permissão';
+      } else if (upstreamStatus === 404) {
+        friendly = 'Modelo não encontrado (verifique o modelo selecionado)';
+      } else if (upstreamStatus === 429) {
+        friendly = 'Rate limit excedido, tente novamente';
+      } else if (upstreamStatus === 400) {
+        // Common Gemini/OpenAI cases are returned as 400 with a helpful message
+        if (/api key|apikey|invalid.*key|key.*invalid/i.test(upstreamMessage)) {
+          friendly = 'API Key inválida';
+        } else {
+          friendly = 'Requisição inválida para o provedor (verifique modelo e se a API está habilitada)';
+        }
+      }
+
+      return res.status(upstreamStatus >= 400 && upstreamStatus <= 599 ? upstreamStatus : 400).json({
+        error: friendly,
+        details: upstreamMessage || undefined,
+        provider: ai_provider,
+        model: ai_model || undefined,
       });
     }
 
