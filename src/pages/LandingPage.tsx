@@ -244,7 +244,7 @@ const pricingPlans = [
   {
     name: "Starter",
     description: "Para pequenos negócios começando no WhatsApp Business",
-    price: "R$ 197",
+    price: "R$ 249",
     period: "/mês",
     popular: false,
     cta: "Começar Grátis",
@@ -266,13 +266,13 @@ const pricingPlans = [
   {
     name: "Professional",
     description: "Para equipes de vendas que precisam escalar",
-    price: "R$ 397",
+    price: "R$ 480",
     period: "/mês",
     popular: true,
     cta: "Testar 3 Dias Grátis",
     features: [
       { text: "3 conexões WhatsApp", included: true },
-      { text: "5 usuários", included: true },
+      { text: "6 usuários", included: true },
       { text: "Tudo do Starter +", included: true },
       { text: "CRM Kanban completo", included: true },
       { text: "Campanhas em massa", included: true },
@@ -288,13 +288,13 @@ const pricingPlans = [
   {
     name: "Business",
     description: "Para operações avançadas com IA e integrações",
-    price: "R$ 697",
+    price: "R$ 750",
     period: "/mês",
     popular: false,
     cta: "Testar 3 Dias Grátis",
     features: [
-      { text: "5 conexões WhatsApp", included: true },
-      { text: "10 usuários", included: true },
+      { text: "6 conexões WhatsApp", included: true },
+      { text: "12 usuários", included: true },
       { text: "Tudo do Professional +", included: true },
       { text: "Agentes de IA ilimitados", included: true },
       { text: "Lead Scoring automático", included: true },
