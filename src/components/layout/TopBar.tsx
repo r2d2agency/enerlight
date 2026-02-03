@@ -6,6 +6,7 @@ import { ptBR } from "date-fns/locale";
 import { Clock, Sun, Sunset, Moon, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MessageNotifications } from "./MessageNotifications";
+import { CRMAlerts } from "./CRMAlerts";
 import { ConnectionStatusIndicator } from "./ConnectionStatusIndicator";
 
 function getGreeting(hour: number): { text: string; icon: typeof Sun } {
@@ -67,6 +68,9 @@ export function TopBar() {
 
         {/* Message Notifications */}
         <MessageNotifications />
+
+        {/* CRM Lead Alerts */}
+        <CRMAlerts />
 
         {/* Divider */}
         <div className="h-6 w-px bg-border" />

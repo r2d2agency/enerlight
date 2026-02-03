@@ -474,11 +474,36 @@ router.post('/public/:slug/submit', async (req, res) => {
           [form.organization_id, phone, name, `form:${form.slug}`]
         );
 
+        // Create notification alert for the form creator
+        if (prospectId && form.created_by) {
+          try {
+            await query(
+              `INSERT INTO user_alerts (user_id, type, title, message, metadata)
+               VALUES ($1, 'new_lead', $2, $3, $4)`,
+              [
+                form.created_by,
+                '📝 Novo Lead via Formulário',
+                `${name || 'Novo lead'} preencheu o formulário "${form.name}"`,
+                JSON.stringify({
+                  prospect_id: prospectId,
+                  source: 'form',
+                  form_name: form.name,
+                  form_slug: form.slug,
+                  lead_name: name,
+                  lead_phone: phone,
+                  lead_email: email
+                })
+              ]
+            );
+          } catch (alertError) {
+            logError('Error creating alert for form submission:', alertError);
+          }
+        }
+
       } catch (prospectError) {
         logError('Error creating prospect from form:', prospectError);
         // Don't fail the submission, just log the error
       }
-    }
 
     // Increment submission count
     await query(

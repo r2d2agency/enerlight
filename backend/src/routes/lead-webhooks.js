@@ -235,6 +235,33 @@ router.post('/receive/:token', async (req, res) => {
         [dealId, webhook.owner_id || webhook.created_by, `Via webhook: ${webhook.name}`]
       );
 
+      // Create notification alert for the deal owner
+      if (assignedOwnerId) {
+        try {
+          await query(
+            `INSERT INTO user_alerts (user_id, type, title, message, metadata)
+             VALUES ($1, 'new_lead', $2, $3, $4)`,
+            [
+              assignedOwnerId,
+              '🎯 Novo Lead no CRM',
+              `${mappedData.name || 'Novo lead'} foi atribuído a você via ${webhook.name}`,
+              JSON.stringify({
+                deal_id: dealId,
+                source: 'webhook',
+                webhook_name: webhook.name,
+                lead_name: mappedData.name,
+                lead_phone: cleanPhone,
+                lead_email: mappedData.email
+              })
+            ]
+          );
+          logInfo(`[Lead Webhook] Alert created for user ${assignedOwnerId}`, { dealId });
+        } catch (alertError) {
+          logError('[Lead Webhook] Error creating alert', alertError);
+          // Don't fail the webhook, just log the error
+        }
+      }
+
       responseMessage = `Lead criado como negociação: ${dealId}`;
     } else {
       // Create as prospect if no funnel configured
