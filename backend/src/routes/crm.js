@@ -2767,4 +2767,337 @@ router.post('/config/loss-reasons/reset-defaults', async (req, res) => {
   }
 });
 
+// ============================================
+// REVENUE INTELLIGENCE
+// ============================================
+
+// Revenue forecast
+router.get('/intelligence/revenue-forecast', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const { months = 6 } = req.query;
+
+    // Get current pipeline value by probability
+    const pipelineData = await query(
+      `SELECT 
+        f.name as funnel_name,
+        s.name as stage_name,
+        s.position,
+        s.is_final,
+        COUNT(d.id) as deal_count,
+        COALESCE(SUM(d.value), 0) as total_value,
+        COALESCE(SUM(ls.score), 0) / NULLIF(COUNT(d.id), 0) as avg_lead_score
+       FROM crm_deals d
+       JOIN crm_stages s ON s.id = d.stage_id
+       JOIN crm_funnels f ON f.id = d.funnel_id
+       LEFT JOIN crm_lead_scores ls ON ls.deal_id = d.id
+       WHERE d.organization_id = $1 AND d.status = 'open'
+       GROUP BY f.id, f.name, s.id, s.name, s.position, s.is_final
+       ORDER BY f.name, s.position`,
+      [org.organization_id]
+    );
+
+    // Calculate weighted pipeline (value * probability based on stage position)
+    // Get total stages per funnel for probability calculation
+    const stagesCounts = await query(
+      `SELECT f.id as funnel_id, COUNT(s.id) as total_stages
+       FROM crm_funnels f
+       JOIN crm_stages s ON s.funnel_id = f.id
+       WHERE f.organization_id = $1
+       GROUP BY f.id`,
+      [org.organization_id]
+    );
+
+    const stageTotals = {};
+    stagesCounts.rows.forEach(r => { stageTotals[r.funnel_id] = parseInt(r.total_stages); });
+
+    // Historical win rates by month
+    const historicalWins = await query(
+      `SELECT 
+        DATE_TRUNC('month', closed_at) as month,
+        COUNT(*) as won_count,
+        COALESCE(SUM(value), 0) as won_value
+       FROM crm_deals
+       WHERE organization_id = $1 AND status = 'won' AND closed_at IS NOT NULL
+         AND closed_at >= NOW() - INTERVAL '12 months'
+       GROUP BY DATE_TRUNC('month', closed_at)
+       ORDER BY month DESC`,
+      [org.organization_id]
+    );
+
+    // Average deal value
+    const avgDeal = await query(
+      `SELECT 
+        AVG(value) as avg_value,
+        AVG(EXTRACT(EPOCH FROM (closed_at - created_at)) / 86400) as avg_days_to_close
+       FROM crm_deals
+       WHERE organization_id = $1 AND status = 'won' AND value > 0`,
+      [org.organization_id]
+    );
+
+    // Monthly projection based on current pipeline and historical conversion
+    const avgMonthlyWon = historicalWins.rows.length > 0
+      ? historicalWins.rows.reduce((sum, r) => sum + parseFloat(r.won_value || 0), 0) / historicalWins.rows.length
+      : 0;
+
+    // Generate forecast for next N months
+    const forecast = [];
+    const currentPipelineValue = pipelineData.rows.reduce((sum, r) => sum + parseFloat(r.total_value || 0), 0);
+    
+    for (let i = 0; i < parseInt(months); i++) {
+      const date = new Date();
+      date.setMonth(date.getMonth() + i);
+      const monthStr = date.toISOString().substring(0, 7);
+      
+      // Weighted forecast: blend of historical average and current pipeline probability
+      const historicalWeight = 0.6;
+      const pipelineWeight = 0.4;
+      const pipelineMonthlyProjection = currentPipelineValue / 3; // Assume 3-month avg cycle
+      
+      const projectedValue = (avgMonthlyWon * historicalWeight) + (pipelineMonthlyProjection * pipelineWeight);
+      const confidenceFactor = Math.max(0.5, 1 - (i * 0.1)); // Lower confidence further out
+      
+      forecast.push({
+        month: monthStr,
+        projected: Math.round(projectedValue * confidenceFactor),
+        optimistic: Math.round(projectedValue * confidenceFactor * 1.3),
+        pessimistic: Math.round(projectedValue * confidenceFactor * 0.7),
+        confidence: Math.round(confidenceFactor * 100)
+      });
+    }
+
+    res.json({
+      pipeline: pipelineData.rows,
+      historical_wins: historicalWins.rows,
+      avg_deal_value: parseFloat(avgDeal.rows[0]?.avg_value || 0),
+      avg_days_to_close: parseFloat(avgDeal.rows[0]?.avg_days_to_close || 0),
+      current_pipeline_value: currentPipelineValue,
+      forecast
+    });
+  } catch (error) {
+    console.error('Revenue forecast error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Pipeline velocity
+router.get('/intelligence/pipeline-velocity', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const { funnel_id } = req.query;
+
+    let funnelFilter = '';
+    const params = [org.organization_id];
+    if (funnel_id) {
+      funnelFilter = 'AND d.funnel_id = $2';
+      params.push(funnel_id);
+    }
+
+    // Velocity metrics
+    const velocityMetrics = await query(
+      `SELECT 
+        COUNT(*) FILTER (WHERE status = 'won') as won_deals,
+        COUNT(*) FILTER (WHERE status = 'open') as open_deals,
+        AVG(value) FILTER (WHERE status = 'won') as avg_deal_value,
+        AVG(EXTRACT(EPOCH FROM (closed_at - created_at)) / 86400) FILTER (WHERE status = 'won' AND closed_at IS NOT NULL) as avg_cycle_days,
+        (COUNT(*) FILTER (WHERE status = 'won')::decimal / NULLIF(COUNT(*) FILTER (WHERE status IN ('won', 'lost')), 0)) * 100 as win_rate
+       FROM crm_deals d
+       WHERE d.organization_id = $1 ${funnelFilter}`,
+      params
+    );
+
+    // Stage conversion rates
+    const stageConversion = await query(
+      `WITH stage_moves AS (
+        SELECT 
+          s.id as stage_id,
+          s.name as stage_name,
+          s.position,
+          COUNT(DISTINCT d.id) as deals_entered,
+          COUNT(DISTINCT CASE WHEN d.status = 'won' THEN d.id END) as deals_won
+        FROM crm_stages s
+        LEFT JOIN crm_deals d ON d.stage_id = s.id AND d.organization_id = $1 ${funnelFilter.replace('d.funnel_id', 's.funnel_id')}
+        WHERE s.organization_id = $1 ${funnel_id ? 'AND s.funnel_id = $2' : ''}
+        GROUP BY s.id, s.name, s.position
+      )
+      SELECT *, 
+        ROUND((deals_won::decimal / NULLIF(deals_entered, 0)) * 100, 1) as conversion_rate
+      FROM stage_moves
+      ORDER BY position`,
+      params
+    );
+
+    // Time in each stage (avg days)
+    const stageTime = await query(
+      `SELECT 
+        s.name as stage_name,
+        s.position,
+        AVG(EXTRACT(EPOCH FROM (
+          COALESCE(d.closed_at, NOW()) - d.updated_at
+        )) / 86400) as avg_days_in_stage
+       FROM crm_deals d
+       JOIN crm_stages s ON s.id = d.stage_id
+       WHERE d.organization_id = $1 ${funnelFilter}
+       GROUP BY s.id, s.name, s.position
+       ORDER BY s.position`,
+      params
+    );
+
+    // Pipeline velocity = (# of deals * avg deal value * win rate) / avg cycle length
+    const metrics = velocityMetrics.rows[0];
+    const velocity = metrics.avg_cycle_days > 0
+      ? ((parseFloat(metrics.open_deals) * parseFloat(metrics.avg_deal_value || 0) * (parseFloat(metrics.win_rate || 0) / 100)) / parseFloat(metrics.avg_cycle_days))
+      : 0;
+
+    res.json({
+      velocity: Math.round(velocity),
+      metrics: {
+        won_deals: parseInt(metrics.won_deals || 0),
+        open_deals: parseInt(metrics.open_deals || 0),
+        avg_deal_value: parseFloat(metrics.avg_deal_value || 0),
+        avg_cycle_days: Math.round(parseFloat(metrics.avg_cycle_days || 0)),
+        win_rate: Math.round(parseFloat(metrics.win_rate || 0))
+      },
+      stage_conversion: stageConversion.rows,
+      stage_time: stageTime.rows
+    });
+  } catch (error) {
+    console.error('Pipeline velocity error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Win/Loss analysis
+router.get('/intelligence/win-loss-analysis', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const { start_date, end_date, funnel_id } = req.query;
+
+    let dateFilter = '';
+    let funnelFilter = '';
+    const params = [org.organization_id];
+    let paramIndex = 2;
+
+    if (start_date && end_date) {
+      dateFilter = `AND d.closed_at BETWEEN $${paramIndex} AND $${paramIndex + 1}`;
+      params.push(start_date, end_date);
+      paramIndex += 2;
+    }
+    if (funnel_id) {
+      funnelFilter = `AND d.funnel_id = $${paramIndex}`;
+      params.push(funnel_id);
+    }
+
+    // Win/Loss summary
+    const summary = await query(
+      `SELECT 
+        status,
+        COUNT(*) as count,
+        COALESCE(SUM(value), 0) as total_value,
+        AVG(value) as avg_value,
+        AVG(EXTRACT(EPOCH FROM (closed_at - created_at)) / 86400) as avg_days
+       FROM crm_deals d
+       WHERE d.organization_id = $1 AND d.status IN ('won', 'lost') ${dateFilter} ${funnelFilter}
+       GROUP BY status`,
+      params
+    );
+
+    // Loss reasons breakdown
+    const lossReasons = await query(
+      `SELECT 
+        lr.name as reason,
+        COUNT(d.id) as count,
+        COALESCE(SUM(d.value), 0) as lost_value
+       FROM crm_deals d
+       JOIN crm_loss_reasons lr ON lr.id = d.loss_reason_id
+       WHERE d.organization_id = $1 AND d.status = 'lost' ${dateFilter} ${funnelFilter}
+       GROUP BY lr.id, lr.name
+       ORDER BY count DESC`,
+      params
+    );
+
+    // Win/Loss by owner
+    const byOwner = await query(
+      `SELECT 
+        u.id as user_id,
+        u.name as user_name,
+        COUNT(*) FILTER (WHERE d.status = 'won') as won_count,
+        COUNT(*) FILTER (WHERE d.status = 'lost') as lost_count,
+        COALESCE(SUM(d.value) FILTER (WHERE d.status = 'won'), 0) as won_value,
+        ROUND((COUNT(*) FILTER (WHERE d.status = 'won')::decimal / NULLIF(COUNT(*), 0)) * 100, 1) as win_rate
+       FROM crm_deals d
+       JOIN users u ON u.id = d.owner_id
+       WHERE d.organization_id = $1 AND d.status IN ('won', 'lost') ${dateFilter} ${funnelFilter}
+       GROUP BY u.id, u.name
+       ORDER BY won_count DESC`,
+      params
+    );
+
+    // Win/Loss by company segment
+    const bySegment = await query(
+      `SELECT 
+        COALESCE(c.segment, 'Sem segmento') as segment,
+        COUNT(*) FILTER (WHERE d.status = 'won') as won_count,
+        COUNT(*) FILTER (WHERE d.status = 'lost') as lost_count,
+        COALESCE(SUM(d.value) FILTER (WHERE d.status = 'won'), 0) as won_value
+       FROM crm_deals d
+       LEFT JOIN crm_companies c ON c.id = d.company_id
+       WHERE d.organization_id = $1 AND d.status IN ('won', 'lost') ${dateFilter} ${funnelFilter}
+       GROUP BY c.segment
+       ORDER BY won_count DESC`,
+      params
+    );
+
+    // Win/Loss trend by month
+    const trend = await query(
+      `SELECT 
+        DATE_TRUNC('month', closed_at) as month,
+        COUNT(*) FILTER (WHERE status = 'won') as won_count,
+        COUNT(*) FILTER (WHERE status = 'lost') as lost_count,
+        COALESCE(SUM(value) FILTER (WHERE status = 'won'), 0) as won_value,
+        COALESCE(SUM(value) FILTER (WHERE status = 'lost'), 0) as lost_value
+       FROM crm_deals d
+       WHERE d.organization_id = $1 AND d.status IN ('won', 'lost') AND closed_at IS NOT NULL
+         AND closed_at >= NOW() - INTERVAL '12 months'
+       GROUP BY DATE_TRUNC('month', closed_at)
+       ORDER BY month ASC`,
+      [org.organization_id]
+    );
+
+    const wonData = summary.rows.find(r => r.status === 'won') || { count: 0, total_value: 0, avg_value: 0, avg_days: 0 };
+    const lostData = summary.rows.find(r => r.status === 'lost') || { count: 0, total_value: 0, avg_value: 0, avg_days: 0 };
+
+    res.json({
+      summary: {
+        won: {
+          count: parseInt(wonData.count || 0),
+          total_value: parseFloat(wonData.total_value || 0),
+          avg_value: parseFloat(wonData.avg_value || 0),
+          avg_days: Math.round(parseFloat(wonData.avg_days || 0))
+        },
+        lost: {
+          count: parseInt(lostData.count || 0),
+          total_value: parseFloat(lostData.total_value || 0),
+          avg_value: parseFloat(lostData.avg_value || 0),
+          avg_days: Math.round(parseFloat(lostData.avg_days || 0))
+        },
+        win_rate: Math.round((parseInt(wonData.count || 0) / Math.max(1, parseInt(wonData.count || 0) + parseInt(lostData.count || 0))) * 100)
+      },
+      loss_reasons: lossReasons.rows,
+      by_owner: byOwner.rows,
+      by_segment: bySegment.rows,
+      trend: trend.rows
+    });
+  } catch (error) {
+    console.error('Win/Loss analysis error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

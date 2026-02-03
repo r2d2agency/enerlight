@@ -92,3 +92,135 @@ export function useCRMConversionReport(params: {
     enabled: !!params.funnelId,
   });
 }
+
+// ============================================
+// REVENUE INTELLIGENCE HOOKS
+// ============================================
+
+export interface RevenueForecast {
+  pipeline: Array<{
+    funnel_name: string;
+    stage_name: string;
+    position: number;
+    is_final: boolean;
+    deal_count: number;
+    total_value: number;
+    avg_lead_score: number;
+  }>;
+  historical_wins: Array<{
+    month: string;
+    won_count: number;
+    won_value: number;
+  }>;
+  avg_deal_value: number;
+  avg_days_to_close: number;
+  current_pipeline_value: number;
+  forecast: Array<{
+    month: string;
+    projected: number;
+    optimistic: number;
+    pessimistic: number;
+    confidence: number;
+  }>;
+}
+
+export interface PipelineVelocity {
+  velocity: number;
+  metrics: {
+    won_deals: number;
+    open_deals: number;
+    avg_deal_value: number;
+    avg_cycle_days: number;
+    win_rate: number;
+  };
+  stage_conversion: Array<{
+    stage_id: string;
+    stage_name: string;
+    position: number;
+    deals_entered: number;
+    deals_won: number;
+    conversion_rate: number;
+  }>;
+  stage_time: Array<{
+    stage_name: string;
+    position: number;
+    avg_days_in_stage: number;
+  }>;
+}
+
+export interface WinLossAnalysis {
+  summary: {
+    won: {
+      count: number;
+      total_value: number;
+      avg_value: number;
+      avg_days: number;
+    };
+    lost: {
+      count: number;
+      total_value: number;
+      avg_value: number;
+      avg_days: number;
+    };
+    win_rate: number;
+  };
+  loss_reasons: Array<{
+    reason: string;
+    count: number;
+    lost_value: number;
+  }>;
+  by_owner: Array<{
+    user_id: string;
+    user_name: string;
+    won_count: number;
+    lost_count: number;
+    won_value: number;
+    win_rate: number;
+  }>;
+  by_segment: Array<{
+    segment: string;
+    won_count: number;
+    lost_count: number;
+    won_value: number;
+  }>;
+  trend: Array<{
+    month: string;
+    won_count: number;
+    lost_count: number;
+    won_value: number;
+    lost_value: number;
+  }>;
+}
+
+export function useRevenueForecast(months?: number) {
+  return useQuery({
+    queryKey: ["revenue-forecast", months],
+    queryFn: () => api<RevenueForecast>(`/api/crm/intelligence/revenue-forecast?months=${months || 6}`),
+  });
+}
+
+export function usePipelineVelocity(funnelId?: string) {
+  const params = new URLSearchParams();
+  if (funnelId) params.set("funnel_id", funnelId);
+
+  return useQuery({
+    queryKey: ["pipeline-velocity", funnelId],
+    queryFn: () => api<PipelineVelocity>(`/api/crm/intelligence/pipeline-velocity?${params.toString()}`),
+  });
+}
+
+export function useWinLossAnalysis(params?: {
+  startDate?: string;
+  endDate?: string;
+  funnelId?: string;
+}) {
+  const searchParams = new URLSearchParams();
+  if (params?.startDate) searchParams.set("start_date", params.startDate);
+  if (params?.endDate) searchParams.set("end_date", params.endDate);
+  if (params?.funnelId) searchParams.set("funnel_id", params.funnelId);
+
+  return useQuery({
+    queryKey: ["win-loss-analysis", params],
+    queryFn: () => api<WinLossAnalysis>(`/api/crm/intelligence/win-loss-analysis?${searchParams.toString()}`),
+  });
+}
