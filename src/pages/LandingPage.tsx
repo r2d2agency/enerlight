@@ -794,19 +794,19 @@ export default function LandingPage() {
       <footer className="py-12 px-4 sm:px-6 lg:px-8 border-t">
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               {branding.logo_topbar ? (
                 <img
                   src={branding.logo_topbar}
                   alt={branding.company_name || "Logo"}
-                  className="h-6 object-contain"
+                  className="h-8 object-contain"
                 />
               ) : (
                 <>
-                  <div className="w-6 h-6 rounded bg-primary flex items-center justify-center">
-                    <MessageSquare className="h-4 w-4 text-primary-foreground" />
+                  <div className="w-8 h-8 rounded bg-primary flex items-center justify-center">
+                    <MessageSquare className="h-5 w-5 text-primary-foreground" />
                   </div>
-                  <span className="font-semibold">{branding.company_name || "Whatsale"}</span>
+                  <span className="font-semibold text-lg">{branding.company_name || "Whatsale"}</span>
                 </>
               )}
             </div>
@@ -824,8 +824,12 @@ export default function LandingPage() {
             </div>
           </div>
           
-          <div className="mt-8 pt-8 border-t text-center text-sm text-muted-foreground">
-            © {new Date().getFullYear()} {branding.company_name || "Whatsale"}. Todos os direitos reservados.
+          <div className="mt-8 pt-8 border-t flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <Building2 className="h-4 w-4" />
+              <span>CNPJ: 04.609.030/0001-29</span>
+            </div>
+            <span>© {new Date().getFullYear()} {branding.company_name || "Whatsale"}. Todos os direitos reservados.</span>
           </div>
         </div>
       </footer>
