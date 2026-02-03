@@ -1338,6 +1338,8 @@ CREATE TABLE IF NOT EXISTS crm_deals (
     organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE NOT NULL,
     funnel_id UUID REFERENCES crm_funnels(id) ON DELETE CASCADE NOT NULL,
     stage_id UUID REFERENCES crm_stages(id) ON DELETE SET NULL,
+    -- Ordering within a stage (Kanban drag & drop)
+    position INTEGER NOT NULL DEFAULT 0,
     company_id UUID REFERENCES crm_companies(id) ON DELETE CASCADE NOT NULL,
     owner_id UUID REFERENCES users(id) ON DELETE SET NULL,
     group_id UUID REFERENCES crm_user_groups(id) ON DELETE SET NULL,
@@ -1358,6 +1360,39 @@ CREATE TABLE IF NOT EXISTS crm_deals (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Ensure position exists for older databases (and backfill a stable order)
+DO $$ BEGIN
+    ALTER TABLE crm_deals ADD COLUMN IF NOT EXISTS position INTEGER NOT NULL DEFAULT 0;
+EXCEPTION
+    WHEN duplicate_column THEN null;
+END $$;
+
+DO $$
+DECLARE
+  total_count BIGINT;
+  zero_count BIGINT;
+BEGIN
+  -- If the column is newly added, all rows will be 0. Backfill a deterministic order.
+  SELECT COUNT(*) INTO total_count FROM crm_deals;
+  SELECT COUNT(*) INTO zero_count FROM crm_deals WHERE position = 0;
+
+  IF total_count > 0 AND zero_count = total_count THEN
+    WITH ranked AS (
+      SELECT id,
+             ROW_NUMBER() OVER (
+               PARTITION BY organization_id, stage_id
+               ORDER BY created_at ASC, id ASC
+             ) - 1 AS new_pos
+      FROM crm_deals
+      WHERE stage_id IS NOT NULL
+    )
+    UPDATE crm_deals d
+    SET position = r.new_pos
+    FROM ranked r
+    WHERE d.id = r.id;
+  END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS crm_deal_contacts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1415,6 +1450,7 @@ CREATE INDEX IF NOT EXISTS idx_crm_deals_company ON crm_deals(company_id);
 CREATE INDEX IF NOT EXISTS idx_crm_deals_owner ON crm_deals(owner_id);
 CREATE INDEX IF NOT EXISTS idx_crm_deals_status ON crm_deals(status);
 CREATE INDEX IF NOT EXISTS idx_crm_deals_activity ON crm_deals(last_activity_at);
+CREATE INDEX IF NOT EXISTS idx_crm_deals_stage_position ON crm_deals(organization_id, stage_id, position);
 CREATE INDEX IF NOT EXISTS idx_crm_deal_contacts_deal ON crm_deal_contacts(deal_id);
 CREATE INDEX IF NOT EXISTS idx_crm_deal_history_deal ON crm_deal_history(deal_id);
 CREATE INDEX IF NOT EXISTS idx_crm_tasks_org ON crm_tasks(organization_id);
