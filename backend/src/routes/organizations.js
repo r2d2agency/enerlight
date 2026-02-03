@@ -628,9 +628,12 @@ router.delete('/:id/members/:userId', async (req, res) => {
 // Get AI config for user's current organization
 router.get('/ai-config', async (req, res) => {
   try {
-    // Get user's organization
+    // First check if columns exist, if not return defaults
     const orgResult = await query(
-      `SELECT o.id, o.ai_provider, o.ai_model, o.ai_api_key
+      `SELECT o.id, 
+              COALESCE(o.ai_provider, 'none') as ai_provider,
+              o.ai_model,
+              o.ai_api_key
        FROM organizations o
        JOIN organization_members om ON om.organization_id = o.id
        WHERE om.user_id = $1
@@ -640,7 +643,12 @@ router.get('/ai-config', async (req, res) => {
     );
 
     if (orgResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Organização não encontrada' });
+      // Return defaults if no organization found
+      return res.json({
+        ai_provider: 'none',
+        ai_model: '',
+        ai_api_key: '',
+      });
     }
 
     const org = orgResult.rows[0];
@@ -650,6 +658,15 @@ router.get('/ai-config', async (req, res) => {
       ai_api_key: org.ai_api_key ? '••••••••' + org.ai_api_key.slice(-4) : '',
     });
   } catch (error) {
+    // If columns don't exist, return defaults instead of error
+    if (error.message && error.message.includes('column') && error.message.includes('does not exist')) {
+      console.warn('AI config columns not found in organizations table, returning defaults');
+      return res.json({
+        ai_provider: 'none',
+        ai_model: '',
+        ai_api_key: '',
+      });
+    }
     console.error('Get AI config error:', error);
     res.status(500).json({ error: 'Erro ao buscar configurações de IA' });
   }
