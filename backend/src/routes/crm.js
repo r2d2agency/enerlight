@@ -665,8 +665,7 @@ router.get('/funnels/:funnelId/deals', async (req, res) => {
       params.push(req.userId);
     }
 
-    const result = await query(
-      `SELECT d.*, 
+    const baseSql = `SELECT d.*, 
         c.name as company_name,
         u.name as owner_name,
         s.name as stage_name,
@@ -697,10 +696,17 @@ router.get('/funnels/:funnelId/deals', async (req, res) => {
        LEFT JOIN users u ON u.id = d.owner_id
        LEFT JOIN crm_stages s ON s.id = d.stage_id
        LEFT JOIN crm_user_groups g ON g.id = d.group_id
-       WHERE d.funnel_id = $1 AND d.organization_id = $2${visibilityFilter}
-       ORDER BY d.created_at DESC`,
-      params
-    );
+       WHERE d.funnel_id = $1 AND d.organization_id = $2${visibilityFilter}`;
+
+    let result;
+    try {
+      // Prefer Kanban ordering if the 'position' column exists
+      result = await query(`${baseSql}\n       ORDER BY d.position ASC NULLS LAST, d.created_at DESC`, params);
+    } catch (err) {
+      if (!isMissingSchemaError(err)) throw err;
+      // Fallback while migrations are catching up
+      result = await query(`${baseSql}\n       ORDER BY d.created_at DESC`, params);
+    }
 
     // Group by stage
     const dealsByStage = {};
@@ -801,12 +807,26 @@ router.post('/deals', async (req, res) => {
     }
 
     const resolvedCompanyId = company_id || (await ensureDefaultCompanyId(org.organization_id, req.userId));
-    
+
+    // Determine next position inside the stage (Kanban ordering). Keep compatibility during migrations.
+    let nextPosition = 0;
+    try {
+      const maxPosResult = await query(
+        `SELECT COALESCE(MAX(position), -1) + 1 AS new_position
+         FROM crm_deals
+         WHERE stage_id = $1 AND organization_id = $2`,
+        [stage_id, org.organization_id]
+      );
+      nextPosition = Number(maxPosResult.rows[0]?.new_position ?? 0);
+    } catch (err) {
+      if (!isMissingSchemaError(err)) throw err;
+    }
+
     const result = await query(
-      `INSERT INTO crm_deals (organization_id, funnel_id, stage_id, company_id, title, value, probability, 
+      `INSERT INTO crm_deals (organization_id, funnel_id, stage_id, position, company_id, title, value, probability, 
        expected_close_date, description, tags, owner_id, group_id, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
-      [org.organization_id, funnel_id, stage_id, resolvedCompanyId, title, value || 0, probability || 50,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *`,
+      [org.organization_id, funnel_id, stage_id, nextPosition, resolvedCompanyId, title, value || 0, probability || 50,
        expected_close_date, description, tags || [], owner_id || req.userId, group_id, req.userId]
     );
     const deal = result.rows[0];
@@ -982,8 +1002,28 @@ router.post('/deals/:id/move', async (req, res) => {
 
     const { stage_id, position, over_deal_id } = req.body;
 
-    // Get current deal info
-    const current = await query(`SELECT stage_id, position FROM crm_deals WHERE id = $1`, [req.params.id]);
+    // Get current deal info (compatibility: older DBs may not have 'position' yet)
+    let current;
+    try {
+      current = await query(
+        `SELECT stage_id, position FROM crm_deals WHERE id = $1 AND organization_id = $2`,
+        [req.params.id, org.organization_id]
+      );
+    } catch (err) {
+      if (!isMissingSchemaError(err)) throw err;
+
+      // Stage-only move while migrations are catching up (no reorder)
+      if (stage_id) {
+        await query(
+          `UPDATE crm_deals
+           SET stage_id = $1, last_activity_at = NOW(), updated_at = NOW()
+           WHERE id = $2 AND organization_id = $3`,
+          [stage_id, req.params.id, org.organization_id]
+        );
+      }
+      return res.json({ success: true, migrated: false });
+    }
+
     if (!current.rows[0]) return res.status(404).json({ error: 'Deal not found' });
 
     const oldStageId = current.rows[0].stage_id;
@@ -995,8 +1035,8 @@ router.post('/deals/:id/move', async (req, res) => {
     if (isSameColumn && over_deal_id && over_deal_id !== req.params.id) {
       // Get position of the target deal
       const targetDeal = await query(
-        `SELECT position FROM crm_deals WHERE id = $1`,
-        [over_deal_id]
+        `SELECT position FROM crm_deals WHERE id = $1 AND organization_id = $2`,
+        [over_deal_id, org.organization_id]
       );
       
       if (targetDeal.rows[0]) {

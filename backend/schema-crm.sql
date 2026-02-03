@@ -86,6 +86,8 @@ CREATE TABLE IF NOT EXISTS crm_deals (
     organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE NOT NULL,
     funnel_id UUID REFERENCES crm_funnels(id) ON DELETE CASCADE NOT NULL,
     stage_id UUID REFERENCES crm_stages(id) ON DELETE SET NULL,
+    -- Ordering within a stage (Kanban drag & drop)
+    position INTEGER NOT NULL DEFAULT 0,
     company_id UUID REFERENCES crm_companies(id) ON DELETE CASCADE NOT NULL,
     
     -- Responsável
@@ -194,6 +196,7 @@ CREATE INDEX IF NOT EXISTS idx_crm_companies_name ON crm_companies(organization_
 CREATE INDEX IF NOT EXISTS idx_crm_deals_org ON crm_deals(organization_id);
 CREATE INDEX IF NOT EXISTS idx_crm_deals_funnel ON crm_deals(funnel_id);
 CREATE INDEX IF NOT EXISTS idx_crm_deals_stage ON crm_deals(stage_id);
+CREATE INDEX IF NOT EXISTS idx_crm_deals_stage_position ON crm_deals(organization_id, stage_id, position);
 CREATE INDEX IF NOT EXISTS idx_crm_deals_company ON crm_deals(company_id);
 CREATE INDEX IF NOT EXISTS idx_crm_deals_owner ON crm_deals(owner_id);
 CREATE INDEX IF NOT EXISTS idx_crm_deals_group ON crm_deals(group_id);
