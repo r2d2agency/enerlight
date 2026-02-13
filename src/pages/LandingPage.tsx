@@ -19,7 +19,6 @@ import {
   Shield,
   Headphones,
   Bot,
-  Workflow,
   CheckCircle2,
   ArrowRight,
   Menu,
@@ -27,152 +26,139 @@ import {
   Loader2,
   Building2,
   Brain,
-  Webhook,
   Target,
   Calendar,
-  CreditCard,
   TrendingUp,
   Star,
   Sparkles,
-  LineChart,
   FileText,
   Globe,
-  Mail,
   Bell,
   RefreshCw,
+  Scale,
+  Gavel,
+  Briefcase,
+  FolderOpen,
+  ClipboardList,
+  UserCheck,
+  AlertTriangle,
+  Lock,
+  Search,
+  Layers,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import systemPreviewChat from "@/assets/system-preview-chat.png";
-import systemPreviewCRM from "@/assets/system-preview-crm.png";
-import systemPreviewFlows from "@/assets/system-preview-flows.png";
+import heroImage from "@/assets/hero-lawtech.jpg";
 
-const systemScreenshots = [
-  {
-    id: "chat",
-    title: "Chat Unificado",
-    description: "Gerencie todas as conversas em um único lugar",
-    image: systemPreviewChat,
-  },
-  {
-    id: "crm",
-    title: "CRM Kanban",
-    description: "Visualize seu funil de vendas completo",
-    image: systemPreviewCRM,
-  },
-  {
-    id: "flows",
-    title: "Construtor de Fluxos",
-    description: "Crie automações visuais com drag-and-drop",
-    image: systemPreviewFlows,
-  },
-];
-
-// Feature categories for better organization
 const featureCategories = [
   {
+    category: "Gestão Processual",
+    icon: Scale,
+    color: "text-amber-500",
+    bgColor: "bg-amber-500/10",
+    features: [
+      {
+        icon: FolderOpen,
+        title: "Kanban de Processos",
+        description: "Acompanhe cada processo por etapa: petição inicial, audiência, recurso e sentença em painel visual.",
+      },
+      {
+        icon: ClipboardList,
+        title: "Tarefas & Prazos",
+        description: "Controle prazos processuais, audiências e diligências com alertas automáticos.",
+      },
+      {
+        icon: Calendar,
+        title: "Agenda Jurídica",
+        description: "Audiências, reuniões com clientes e prazos integrados ao Google Calendar.",
+      },
+      {
+        icon: FileText,
+        title: "Documentos & Petições",
+        description: "Anexe documentos, petições e pareceres diretamente no processo.",
+      },
+    ],
+  },
+  {
     category: "Atendimento",
-    icon: Headphones,
+    icon: MessageSquare,
     color: "text-blue-500",
     bgColor: "bg-blue-500/10",
     features: [
       {
         icon: MessageSquare,
-        title: "Chat Multicanal",
-        description: "Gerencie conversas de múltiplos WhatsApps em uma interface unificada com histórico completo.",
+        title: "WhatsApp Unificado",
+        description: "Centralize conversas de clientes, parceiros e tribunais em uma única interface.",
       },
       {
         icon: Users,
-        title: "Multi-Atendentes",
-        description: "Distribua conversas entre sua equipe com filas inteligentes e transferências.",
+        title: "Multi-Advogados",
+        description: "Distribua atendimentos entre sócios e associados com filas e transferências.",
       },
       {
         icon: Building2,
-        title: "Departamentos",
-        description: "Organize atendentes por setores com horários e regras específicas.",
+        title: "Áreas de Atuação",
+        description: "Organize por áreas: cível, trabalhista, criminal, tributário e família.",
       },
       {
         icon: Bell,
-        title: "Notificações",
-        description: "Alertas em tempo real por som, push e indicadores visuais.",
+        title: "Notificações de Solicitações",
+        description: "Alertas instantâneos quando clientes enviam documentos ou fazem solicitações.",
       },
     ],
   },
   {
     category: "Automação",
     icon: Zap,
-    color: "text-amber-500",
-    bgColor: "bg-amber-500/10",
+    color: "text-emerald-500",
+    bgColor: "bg-emerald-500/10",
     features: [
       {
         icon: Bot,
-        title: "Chatbots Visuais",
-        description: "Crie fluxos de atendimento com menu, coleta de dados e condições.",
+        title: "Chatbot Jurídico",
+        description: "Atenda clientes 24h com triagem automática, coleta de dados e agendamento.",
       },
       {
         icon: Brain,
-        title: "Agentes de IA",
-        description: "Assistentes virtuais que respondem com base na sua base de conhecimento.",
-      },
-      {
-        icon: Workflow,
-        title: "Fluxos Automáticos",
-        description: "Automações por gatilhos, webhooks e eventos do sistema.",
+        title: "IA para Advocacia",
+        description: "Assistente que responde dúvidas sobre andamento processual e agenda.",
       },
       {
         icon: Clock,
-        title: "Agendamentos",
-        description: "Mensagens programadas para datas específicas ou recorrentes.",
-      },
-    ],
-  },
-  {
-    category: "Marketing",
-    icon: Send,
-    color: "text-green-500",
-    bgColor: "bg-green-500/10",
-    features: [
-      {
-        icon: Send,
-        title: "Campanhas em Massa",
-        description: "Dispare mensagens para milhares de contatos com personalização.",
+        title: "Mensagens Agendadas",
+        description: "Lembretes automáticos de audiências, prazos e pagamentos de honorários.",
       },
       {
         icon: RefreshCw,
-        title: "Sequências Nurturing",
-        description: "Séries automáticas de mensagens para nutrição de leads.",
-      },
-      {
-        icon: Target,
-        title: "Segmentação",
-        description: "Filtre contatos por tags, comportamento e dados do CRM.",
-      },
-      {
-        icon: Mail,
-        title: "E-mail Marketing",
-        description: "Dispare e-mails integrados com templates personalizados.",
+        title: "Follow-up Automático",
+        description: "Sequências de contato para acompanhamento de clientes e prospects.",
       },
     ],
   },
   {
-    category: "CRM & Vendas",
-    icon: TrendingUp,
-    color: "text-purple-500",
-    bgColor: "bg-purple-500/10",
+    category: "Grupos & Equipe",
+    icon: Users,
+    color: "text-violet-500",
+    bgColor: "bg-violet-500/10",
     features: [
       {
-        icon: Building2,
-        title: "Kanban de Vendas",
-        description: "Gerencie negociações em funis visuais com drag-and-drop.",
+        icon: Users,
+        title: "Gestão de Grupos",
+        description: "Organize grupos por caso, área ou cliente para comunicação interna eficiente.",
       },
       {
-        icon: FileText,
-        title: "Gestão de Leads",
-        description: "Cadastre prospects, empresas e acompanhe o ciclo de vendas.",
+        icon: UserCheck,
+        title: "Distribuição de Casos",
+        description: "Round-robin automático de novos casos entre advogados disponíveis.",
       },
       {
-        icon: Calendar,
-        title: "Agenda Integrada",
-        description: "Reuniões, tarefas e follow-ups com Google Calendar.",
+        icon: AlertTriangle,
+        title: "Alertas Internos",
+        description: "Notificações de urgência para prazos críticos e audiências iminentes.",
+      },
+      {
+        icon: Lock,
+        title: "Permissões por Cargo",
+        description: "Controle de acesso para sócios, associados, estagiários e secretaria.",
       },
     ],
   },
@@ -184,23 +170,23 @@ const featureCategories = [
     features: [
       {
         icon: Target,
-        title: "Lead Scoring",
-        description: "Pontuação automática de leads (Frio, Morno, Quente) por IA.",
-      },
-      {
-        icon: LineChart,
-        title: "Análise Preditiva",
-        description: "Probabilidade de fechamento e risco de churn por negociação.",
+        title: "Scoring de Clientes",
+        description: "Classifique clientes por potencial de fidelização e valor de causa.",
       },
       {
         icon: BarChart3,
-        title: "Revenue Intelligence",
-        description: "Previsões de receita e análise de pipeline velocity.",
+        title: "Relatórios Gerenciais",
+        description: "Dashboards de produtividade, processos ganhos e receita por área.",
       },
       {
         icon: TrendingUp,
-        title: "Relatórios Avançados",
-        description: "Dashboards de performance, conversão e gargalos.",
+        title: "Análise de Performance",
+        description: "Métricas de tempo médio por etapa processual e taxa de êxito.",
+      },
+      {
+        icon: Search,
+        title: "Busca Inteligente",
+        description: "Encontre processos, clientes e documentos em segundos com busca avançada.",
       },
     ],
   },
@@ -211,135 +197,142 @@ const featureCategories = [
     bgColor: "bg-cyan-500/10",
     features: [
       {
-        icon: Webhook,
-        title: "Webhooks",
-        description: "Receba leads de Meta Ads, Zapier, Make e qualquer fonte.",
-      },
-      {
-        icon: FileText,
-        title: "Formulários Externos",
-        description: "Landing pages com formulários integrados ao CRM.",
-      },
-      {
-        icon: Users,
-        title: "Distribuição de Leads",
-        description: "Round-robin automático entre vendedores.",
-      },
-      {
         icon: Globe,
-        title: "API Completa",
-        description: "Integre com qualquer sistema externo.",
+        title: "Formulários de Captação",
+        description: "Landing pages para captar clientes com formulários integrados ao sistema.",
+      },
+      {
+        icon: Layers,
+        title: "Webhooks & APIs",
+        description: "Integre com sistemas de tribunais, Zapier, Make e ferramentas externas.",
+      },
+      {
+        icon: Send,
+        title: "Campanhas Informativas",
+        description: "Dispare informativos jurídicos e newsletters para sua base de clientes.",
+      },
+      {
+        icon: Briefcase,
+        title: "Gestão Financeira",
+        description: "Controle honorários, custas processuais e cobranças automatizadas.",
       },
     ],
   },
 ];
 
-// Pricing plans
 const pricingPlans = [
   {
-    name: "Starter",
-    description: "Para pequenos negócios começando no WhatsApp Business",
-    price: "R$ 249",
+    name: "Solo",
+    description: "Para advogados autônomos e pequenos escritórios",
+    price: "R$ 197",
     period: "/mês",
     popular: false,
-    cta: "Começar Grátis",
+    cta: "Começar Agora",
     features: [
       { text: "1 conexão WhatsApp", included: true },
       { text: "2 usuários", included: true },
-      { text: "Chat unificado", included: true },
-      { text: "Respostas rápidas", included: true },
-      { text: "Chatbots básicos", included: true },
-      { text: "Webhooks e integrações", included: true },
-      { text: "500 mensagens/mês", included: true },
-      { text: "CRM Kanban básico", included: true },
-      { text: "Campanhas em massa", included: false },
-      { text: "Agentes de IA", included: false },
-      { text: "Lead Scoring", included: false },
+      { text: "Chat unificado com clientes", included: true },
+      { text: "Kanban de processos", included: true },
+      { text: "Chatbot de triagem", included: true },
+      { text: "Agendamentos e lembretes", included: true },
+      { text: "100 processos ativos", included: true },
+      { text: "IA jurídica", included: false },
+      { text: "Gestão de grupos", included: false },
     ],
     color: "border-border",
   },
   {
-    name: "Professional",
-    description: "Para equipes de vendas que precisam escalar",
-    price: "R$ 480",
+    name: "Escritório",
+    description: "Para escritórios em crescimento com equipe",
+    price: "R$ 397",
     period: "/mês",
     popular: true,
-    cta: "Testar 3 Dias Grátis",
+    cta: "Testar 7 Dias Grátis",
     features: [
       { text: "3 conexões WhatsApp", included: true },
-      { text: "6 usuários", included: true },
-      { text: "Tudo do Starter +", included: true },
-      { text: "CRM Kanban completo", included: true },
-      { text: "Campanhas em massa", included: true },
-      { text: "Agendamentos", included: true },
-      { text: "Departamentos", included: true },
-      { text: "Webhooks e integrações", included: true },
-      { text: "2.000 mensagens/mês", included: true },
-      { text: "Agentes de IA", included: false },
-      { text: "Lead Scoring", included: false },
+      { text: "8 usuários", included: true },
+      { text: "Tudo do Solo +", included: true },
+      { text: "Áreas de atuação", included: true },
+      { text: "Distribuição de casos", included: true },
+      { text: "Gestão de grupos", included: true },
+      { text: "500 processos ativos", included: true },
+      { text: "Campanhas informativas", included: true },
+      { text: "IA jurídica", included: false },
     ],
     color: "border-primary ring-2 ring-primary/20",
   },
   {
-    name: "Business",
-    description: "Para operações avançadas com IA e integrações",
-    price: "R$ 750",
+    name: "Premium",
+    description: "Para operações avançadas com IA e analytics",
+    price: "R$ 697",
     period: "/mês",
     popular: false,
-    cta: "Testar 3 Dias Grátis",
+    cta: "Testar 7 Dias Grátis",
     features: [
       { text: "6 conexões WhatsApp", included: true },
-      { text: "12 usuários", included: true },
-      { text: "Tudo do Professional +", included: true },
-      { text: "Agentes de IA ilimitados", included: true },
-      { text: "Lead Scoring automático", included: true },
-      { text: "Sequências Nurturing", included: true },
-      { text: "Webhooks e APIs avançadas", included: true },
-      { text: "5.000 mensagens/mês", included: true },
-      { text: "Análise Preditiva", included: false },
-      { text: "Revenue Intelligence", included: false },
-      { text: "Suporte prioritário", included: false },
+      { text: "20 usuários", included: true },
+      { text: "Tudo do Escritório +", included: true },
+      { text: "IA jurídica ilimitada", included: true },
+      { text: "Relatórios gerenciais", included: true },
+      { text: "Scoring de clientes", included: true },
+      { text: "Processos ilimitados", included: true },
+      { text: "Webhooks & APIs", included: true },
+      { text: "Suporte prioritário", included: true },
     ],
     color: "border-border",
   },
   {
     name: "Enterprise",
-    description: "Para grandes operações com recursos premium",
+    description: "Para bancas e escritórios de grande porte",
     price: "Sob consulta",
     period: "",
     popular: false,
-    cta: "Falar com Vendas",
+    cta: "Falar com Consultor",
     features: [
       { text: "WhatsApps ilimitados", included: true },
       { text: "Usuários ilimitados", included: true },
-      { text: "Tudo do Business +", included: true },
-      { text: "Análise Preditiva (IA)", included: true },
-      { text: "Revenue Intelligence", included: true },
-      { text: "Webhooks e APIs sem limite", included: true },
-      { text: "Mensagens ilimitadas", included: true },
-      { text: "Suporte prioritário 24/7", included: true },
-      { text: "Onboarding dedicado", included: true },
+      { text: "Tudo do Premium +", included: true },
+      { text: "Análise preditiva de casos", included: true },
       { text: "Integrações customizadas", included: true },
+      { text: "Onboarding dedicado", included: true },
       { text: "SLA garantido", included: true },
+      { text: "Suporte 24/7", included: true },
+      { text: "Multi-unidades", included: true },
     ],
     color: "border-border bg-gradient-to-br from-background to-muted/50",
   },
 ];
 
 const stats = [
-  { value: "50k+", label: "Mensagens/dia processadas" },
+  { value: "2.000+", label: "Escritórios ativos" },
   { value: "99.9%", label: "Uptime garantido" },
-  { value: "500+", label: "Empresas ativas" },
-  { value: "<2s", label: "Tempo de resposta" },
+  { value: "50k+", label: "Processos gerenciados" },
+  { value: "<3s", label: "Tempo de resposta" },
+];
+
+const testimonials = [
+  {
+    name: "Dr. Ricardo Almeida",
+    role: "Sócio - Almeida & Barros Advogados",
+    text: "Reduziu em 40% nosso tempo de resposta a clientes. Agora gerenciamos 300+ processos sem perder prazos.",
+  },
+  {
+    name: "Dra. Camila Santos",
+    role: "Advogada Autônoma - Direito de Família",
+    text: "O chatbot jurídico atende meus clientes 24h e já agenda consultas automaticamente. Revolucionou meu escritório.",
+  },
+  {
+    name: "Dr. Fernando Costa",
+    role: "Diretor - Costa & Associados",
+    text: "A gestão de grupos e distribuição de casos entre 15 advogados ficou completamente automatizada.",
+  },
 ];
 
 export default function LandingPage() {
   const { branding } = useBranding();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [activeScreen, setActiveScreen] = useState("chat");
-  const [activeCategory, setActiveCategory] = useState("Atendimento");
-  
-  // Pre-register form state
+  const [activeCategory, setActiveCategory] = useState("Gestão Processual");
+
   const [showPreRegister, setShowPreRegister] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
@@ -350,7 +343,7 @@ export default function LandingPage() {
 
   const handlePreRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.name.trim() || !formData.email.trim() || !formData.whatsapp.trim()) {
       toast.error("Por favor, preencha todos os campos");
       return;
@@ -412,28 +405,33 @@ export default function LandingPage() {
                 />
               ) : (
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                    <MessageSquare className="h-5 w-5 text-primary-foreground" />
+                  <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center">
+                    <Scale className="h-5 w-5 text-primary-foreground" />
                   </div>
-                  <span className="font-bold text-xl">
-                    {branding.company_name || "Whatsale"}
-                  </span>
+                  <div className="flex flex-col">
+                    <span className="font-bold text-lg leading-tight">
+                      {branding.company_name || "JurisWhats"}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground leading-tight tracking-wider uppercase">
+                      Gestão Jurídica
+                    </span>
+                  </div>
                 </div>
               )}
             </div>
 
-            {/* Desktop Navigation */}
             <div className="hidden md:flex items-center gap-6">
               <a href="#funcionalidades" className="text-sm text-muted-foreground hover:text-foreground transition">
                 Funcionalidades
               </a>
               <a href="#precos" className="text-sm text-muted-foreground hover:text-foreground transition">
-                Preços
+                Planos
+              </a>
+              <a href="#depoimentos" className="text-sm text-muted-foreground hover:text-foreground transition">
+                Depoimentos
               </a>
               <Link to="/login">
-                <Button variant="ghost" size="sm">
-                  Entrar
-                </Button>
+                <Button variant="ghost" size="sm">Entrar</Button>
               </Link>
               <Button size="sm" className="gap-2" onClick={() => setShowPreRegister(true)}>
                 Testar Grátis
@@ -441,36 +439,22 @@ export default function LandingPage() {
               </Button>
             </div>
 
-            {/* Mobile Menu Button */}
-            <button
-              className="md:hidden p-2"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            >
-              {mobileMenuOpen ? (
-                <X className="h-6 w-6" />
-              ) : (
-                <Menu className="h-6 w-6" />
-              )}
+            <button className="md:hidden p-2" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+              {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
           </div>
 
-          {/* Mobile Menu */}
           {mobileMenuOpen && (
             <div className="md:hidden py-4 border-t">
               <div className="flex flex-col gap-4">
-                <a href="#funcionalidades" className="text-sm text-muted-foreground hover:text-foreground" onClick={() => setMobileMenuOpen(false)}>
-                  Funcionalidades
-                </a>
-                <a href="#precos" className="text-sm text-muted-foreground hover:text-foreground" onClick={() => setMobileMenuOpen(false)}>
-                  Preços
-                </a>
+                <a href="#funcionalidades" className="text-sm text-muted-foreground hover:text-foreground" onClick={() => setMobileMenuOpen(false)}>Funcionalidades</a>
+                <a href="#precos" className="text-sm text-muted-foreground hover:text-foreground" onClick={() => setMobileMenuOpen(false)}>Planos</a>
+                <a href="#depoimentos" className="text-sm text-muted-foreground hover:text-foreground" onClick={() => setMobileMenuOpen(false)}>Depoimentos</a>
                 <div className="flex gap-2 pt-2">
                   <Link to="/login" className="flex-1">
                     <Button variant="outline" className="w-full">Entrar</Button>
                   </Link>
-                  <Button className="flex-1" onClick={() => { setMobileMenuOpen(false); setShowPreRegister(true); }}>
-                    Testar Grátis
-                  </Button>
+                  <Button className="flex-1" onClick={() => { setMobileMenuOpen(false); setShowPreRegister(true); }}>Testar Grátis</Button>
                 </div>
               </div>
             </div>
@@ -483,46 +467,48 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto">
           <div className="text-center max-w-4xl mx-auto">
             <Badge className="mb-6 px-4 py-1.5" variant="secondary">
-              <Sparkles className="h-3 w-3 mr-1" />
-              Plataforma completa com IA integrada
+              <Gavel className="h-3 w-3 mr-1" />
+              Plataforma exclusiva para advogados
             </Badge>
-            
+
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-6">
-              Transforme seu WhatsApp em uma{" "}
-              <span className="text-primary">máquina de vendas</span>
+              Seu escritório no{" "}
+              <span className="text-primary">WhatsApp</span>{" "}
+              com gestão completa de{" "}
+              <span className="text-primary">processos</span>
             </h1>
-            
+
             <p className="text-lg sm:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-              Automatize atendimentos, dispare campanhas, gerencie seu CRM e feche mais vendas 
-              com inteligência artificial integrada.
+              Atenda clientes, gerencie processos, controle prazos e organize sua equipe jurídica
+              — tudo integrado ao WhatsApp com inteligência artificial.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button 
-                size="lg" 
+              <Button
+                size="lg"
                 className="gap-2 px-8 h-12 text-base w-full sm:w-auto"
                 onClick={() => setShowPreRegister(true)}
               >
-                Testar 3 Dias Grátis
+                Testar 7 Dias Grátis
                 <ArrowRight className="h-5 w-5" />
               </Button>
-              <a href="#precos">
-                <Button 
-                  size="lg" 
+              <a href="#funcionalidades">
+                <Button
+                  size="lg"
                   variant="outline"
                   className="gap-2 px-8 h-12 text-base w-full sm:w-auto"
                 >
-                  Ver Planos
+                  Conhecer Funcionalidades
                 </Button>
               </a>
             </div>
 
             <p className="text-sm text-muted-foreground mt-4">
-              Sem cartão de crédito • Cancele quando quiser
+              Sem cartão de crédito • Específico para advocacia • Suporte especializado
             </p>
           </div>
 
-          {/* Stats Bar */}
+          {/* Stats */}
           <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto">
             {stats.map((stat, index) => (
               <div key={index} className="text-center p-4">
@@ -532,28 +518,9 @@ export default function LandingPage() {
             ))}
           </div>
 
-          {/* Hero Image/Preview with Tabs */}
+          {/* Hero Image */}
           <div className="mt-16 relative">
             <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent z-10 pointer-events-none" />
-            
-            {/* Screenshot Tabs */}
-            <div className="flex justify-center gap-4 mb-6">
-              {systemScreenshots.map((screen) => (
-                <button
-                  key={screen.id}
-                  onClick={() => setActiveScreen(screen.id)}
-                  className={cn(
-                    "px-4 py-2 rounded-lg text-sm font-medium transition-all",
-                    activeScreen === screen.id
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground hover:bg-muted/80"
-                  )}
-                >
-                  {screen.title}
-                </button>
-              ))}
-            </div>
-
             <div className="rounded-xl border shadow-2xl bg-card overflow-hidden">
               <div className="flex items-center gap-2 px-4 py-3 border-b bg-muted/30">
                 <div className="flex gap-1.5">
@@ -562,39 +529,57 @@ export default function LandingPage() {
                   <div className="w-3 h-3 rounded-full bg-green-500" />
                 </div>
                 <div className="flex-1 text-center text-xs text-muted-foreground">
-                  {branding.company_name || "Whatsale"} - {systemScreenshots.find(s => s.id === activeScreen)?.title}
+                  {branding.company_name || "JurisWhats"} — Gestão Processual & WhatsApp
                 </div>
               </div>
-              {systemScreenshots.map((screen) => (
-                <img 
-                  key={screen.id}
-                  src={screen.image} 
-                  alt={screen.description}
-                  className={cn(
-                    "w-full h-auto transition-opacity duration-300",
-                    activeScreen === screen.id ? "block" : "hidden"
-                  )}
-                />
-              ))}
+              <img src={heroImage} alt="Plataforma de gestão jurídica com WhatsApp integrado" className="w-full h-auto" />
             </div>
           </div>
         </div>
       </section>
 
-      {/* Features Section - Tabbed */}
-      <section id="funcionalidades" className="py-20 px-4 sm:px-6 lg:px-8 bg-muted/30">
+      {/* Pain Points / Why Section */}
+      <section className="py-16 px-4 sm:px-6 lg:px-8 border-y bg-muted/20">
+        <div className="max-w-5xl mx-auto">
+          <h2 className="text-2xl sm:text-3xl font-bold text-center mb-10">
+            Problemas que resolvemos no seu escritório
+          </h2>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[
+              { icon: Clock, title: "Prazos perdidos", desc: "Alertas automáticos para prazos processuais, audiências e diligências." },
+              { icon: MessageSquare, title: "Clientes sem resposta", desc: "Chatbot 24h + fila de atendimento distribuída entre advogados." },
+              { icon: FolderOpen, title: "Processos desorganizados", desc: "Kanban visual com etapas customizáveis e documentos anexados." },
+              { icon: Users, title: "Equipe descoordenada", desc: "Grupos por caso, alertas internos e distribuição automática." },
+              { icon: BarChart3, title: "Sem visão gerencial", desc: "Relatórios de produtividade, taxa de êxito e receita por área." },
+              { icon: Shield, title: "Dados sensíveis expostos", desc: "Criptografia, permissões por cargo e controle de acesso total." },
+            ].map((item, i) => (
+              <div key={i} className="flex items-start gap-3 p-4 rounded-lg bg-background border">
+                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <item.icon className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <h4 className="font-semibold mb-1">{item.title}</h4>
+                  <p className="text-sm text-muted-foreground">{item.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section id="funcionalidades" className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
-            <Badge variant="outline" className="mb-4">+30 Funcionalidades</Badge>
+            <Badge variant="outline" className="mb-4">+30 Funcionalidades Jurídicas</Badge>
             <h2 className="text-3xl sm:text-4xl font-bold mb-4">
-              Tudo que você precisa em um só lugar
+              Feito sob medida para a advocacia
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Da automação de atendimento à inteligência de vendas, cobrimos todo o ciclo do cliente.
+              Da captação de clientes à conclusão do processo, cobrimos todo o ciclo jurídico.
             </p>
           </div>
 
-          {/* Category Tabs */}
           <div className="flex flex-wrap justify-center gap-2 mb-10">
             {featureCategories.map((cat) => (
               <button
@@ -604,7 +589,7 @@ export default function LandingPage() {
                   "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all",
                   activeCategory === cat.category
                     ? `${cat.bgColor} ${cat.color} ring-2 ring-current/20`
-                    : "bg-background border text-muted-foreground hover:text-foreground"
+                    : "bg-muted border text-muted-foreground hover:text-foreground"
                 )}
               >
                 <cat.icon className="h-4 w-4" />
@@ -613,7 +598,6 @@ export default function LandingPage() {
             ))}
           </div>
 
-          {/* Features Grid */}
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {activeFeatures.map((feature, index) => (
               <Card key={index} className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-background">
@@ -634,10 +618,10 @@ export default function LandingPage() {
             ))}
           </div>
 
-          {/* All Features Summary */}
+          {/* Summary Grid */}
           <div className="mt-16 grid md:grid-cols-3 gap-6">
             {featureCategories.slice(0, 6).map((cat, index) => (
-              <div key={index} className="flex items-start gap-3 p-4 rounded-lg bg-background border">
+              <div key={index} className="flex items-start gap-3 p-4 rounded-lg bg-muted/30 border">
                 <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0", cat.bgColor)}>
                   <cat.icon className={cn("h-5 w-5", cat.color)} />
                 </div>
@@ -653,16 +637,47 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Pricing Section */}
+      {/* Testimonials */}
+      <section id="depoimentos" className="py-20 px-4 sm:px-6 lg:px-8 bg-muted/30">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-12">
+            <Badge variant="outline" className="mb-4">Depoimentos</Badge>
+            <h2 className="text-3xl sm:text-4xl font-bold mb-4">
+              O que advogados dizem sobre nós
+            </h2>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6">
+            {testimonials.map((t, i) => (
+              <Card key={i} className="bg-background">
+                <CardContent className="p-6">
+                  <div className="flex gap-1 mb-4">
+                    {[...Array(5)].map((_, j) => (
+                      <Star key={j} className="h-4 w-4 fill-amber-400 text-amber-400" />
+                    ))}
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-4 italic">"{t.text}"</p>
+                  <div>
+                    <p className="font-semibold text-sm">{t.name}</p>
+                    <p className="text-xs text-muted-foreground">{t.role}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing */}
       <section id="precos" className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
-            <Badge variant="outline" className="mb-4">Preços</Badge>
+            <Badge variant="outline" className="mb-4">Planos</Badge>
             <h2 className="text-3xl sm:text-4xl font-bold mb-4">
-              Planos para cada momento do seu negócio
+              Planos pensados para escritórios de advocacia
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Comece pequeno e escale conforme cresce. Todos os planos incluem 3 dias de teste grátis.
+              Comece pequeno e escale conforme seu escritório cresce. Teste grátis por 7 dias.
             </p>
           </div>
 
@@ -700,8 +715,8 @@ export default function LandingPage() {
                       </li>
                     ))}
                   </ul>
-                  <Button 
-                    className="w-full" 
+                  <Button
+                    className="w-full"
                     variant={plan.popular ? "default" : "outline"}
                     onClick={() => setShowPreRegister(true)}
                   >
@@ -711,65 +726,53 @@ export default function LandingPage() {
               </Card>
             ))}
           </div>
-
-          {/* Enterprise CTA */}
-          <div className="mt-12 text-center">
-            <p className="text-muted-foreground mb-4">
-              Precisa de algo personalizado? Oferecemos planos customizados para grandes operações.
-            </p>
-            <Button variant="link" className="gap-2" onClick={() => setShowPreRegister(true)}>
-              Falar com nossa equipe comercial
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-          </div>
         </div>
       </section>
 
-      {/* Social Proof / Trust Section */}
+      {/* Trust Section */}
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-muted/30">
         <div className="max-w-5xl mx-auto text-center">
           <h2 className="text-2xl sm:text-3xl font-bold mb-12">
-            Por que centenas de empresas confiam em nós?
+            Por que escritórios confiam na nossa plataforma?
           </h2>
-          
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
             <Card className="p-6">
               <Shield className="h-8 w-8 mx-auto text-primary mb-3" />
-              <h3 className="font-semibold mb-1">Segurança</h3>
-              <p className="text-sm text-muted-foreground">Dados criptografados e backup automático</p>
+              <h3 className="font-semibold mb-1">Sigilo Total</h3>
+              <p className="text-sm text-muted-foreground">Criptografia ponta a ponta e conformidade com LGPD</p>
             </Card>
             <Card className="p-6">
-              <Zap className="h-8 w-8 mx-auto text-primary mb-3" />
-              <h3 className="font-semibold mb-1">Performance</h3>
-              <p className="text-sm text-muted-foreground">Infraestrutura escalável e rápida</p>
+              <Gavel className="h-8 w-8 mx-auto text-primary mb-3" />
+              <h3 className="font-semibold mb-1">Feito para OAB</h3>
+              <p className="text-sm text-muted-foreground">Respeita o código de ética e normas da advocacia</p>
             </Card>
             <Card className="p-6">
               <Headphones className="h-8 w-8 mx-auto text-primary mb-3" />
-              <h3 className="font-semibold mb-1">Suporte</h3>
-              <p className="text-sm text-muted-foreground">Equipe técnica especializada</p>
+              <h3 className="font-semibold mb-1">Suporte Jurídico</h3>
+              <p className="text-sm text-muted-foreground">Equipe que entende as necessidades do advogado</p>
             </Card>
             <Card className="p-6">
-              <RefreshCw className="h-8 w-8 mx-auto text-primary mb-3" />
-              <h3 className="font-semibold mb-1">Atualizações</h3>
-              <p className="text-sm text-muted-foreground">Novos recursos toda semana</p>
+              <Zap className="h-8 w-8 mx-auto text-primary mb-3" />
+              <h3 className="font-semibold mb-1">Setup em 5min</h3>
+              <p className="text-sm text-muted-foreground">Conecte seu WhatsApp e comece a usar imediatamente</p>
             </Card>
           </div>
         </div>
       </section>
 
-      {/* Final CTA Section */}
+      {/* Final CTA */}
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-primary text-primary-foreground">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-3xl sm:text-4xl font-bold mb-4">
-            Pronto para transformar seu atendimento?
+            Pronto para modernizar seu escritório?
           </h2>
           <p className="text-lg opacity-90 mb-8">
-            Junte-se a mais de 500 empresas que já escalam vendas com nossa plataforma.
+            Junte-se a mais de 2.000 escritórios que já gerenciam processos e clientes pela nossa plataforma.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button 
-              size="lg" 
-              variant="secondary" 
+            <Button
+              size="lg"
+              variant="secondary"
               className="gap-2 px-8 h-12 text-base w-full sm:w-auto"
               onClick={() => setShowPreRegister(true)}
             >
@@ -791,40 +794,28 @@ export default function LandingPage() {
           <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-3">
               {branding.logo_topbar ? (
-                <img
-                  src={branding.logo_topbar}
-                  alt={branding.company_name || "Logo"}
-                  className="h-8 object-contain"
-                />
+                <img src={branding.logo_topbar} alt={branding.company_name || "Logo"} className="h-8 object-contain" />
               ) : (
                 <>
                   <div className="w-8 h-8 rounded bg-primary flex items-center justify-center">
-                    <MessageSquare className="h-5 w-5 text-primary-foreground" />
+                    <Scale className="h-5 w-5 text-primary-foreground" />
                   </div>
-                  <span className="font-semibold text-lg">{branding.company_name || "Whatsale"}</span>
+                  <span className="font-semibold text-lg">{branding.company_name || "JurisWhats"}</span>
                 </>
               )}
             </div>
-            
             <div className="flex items-center gap-6 text-sm text-muted-foreground">
-              <Link to="/politica-privacidade" className="hover:text-foreground transition">
-                Política de Privacidade
-              </Link>
-              <a href="#funcionalidades" className="hover:text-foreground transition">
-                Funcionalidades
-              </a>
-              <a href="#precos" className="hover:text-foreground transition">
-                Preços
-              </a>
+              <Link to="/politica-privacidade" className="hover:text-foreground transition">Política de Privacidade</Link>
+              <a href="#funcionalidades" className="hover:text-foreground transition">Funcionalidades</a>
+              <a href="#precos" className="hover:text-foreground transition">Planos</a>
             </div>
           </div>
-          
           <div className="mt-8 pt-8 border-t flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
             <div className="flex items-center gap-2">
               <Building2 className="h-4 w-4" />
               <span>CNPJ: 04.609.030/0001-29</span>
             </div>
-            <span>© {new Date().getFullYear()} {branding.company_name || "Whatsale"}. Todos os direitos reservados.</span>
+            <span>© {new Date().getFullYear()} {branding.company_name || "JurisWhats"}. Todos os direitos reservados.</span>
           </div>
         </div>
       </footer>
@@ -834,8 +825,8 @@ export default function LandingPage() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-primary" />
-              Teste Grátis por 3 Dias
+              <Scale className="h-5 w-5 text-primary" />
+              Teste Grátis por 7 Dias
             </DialogTitle>
             <DialogDescription>
               Preencha seus dados e nossa equipe entrará em contato para ativar seu acesso.
@@ -846,18 +837,18 @@ export default function LandingPage() {
               <Label htmlFor="name">Nome completo</Label>
               <Input
                 id="name"
-                placeholder="Seu nome"
+                placeholder="Dr(a). Nome Sobrenome"
                 value={formData.name}
                 onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                 required
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">E-mail</Label>
+              <Label htmlFor="email">E-mail profissional</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="seu@email.com"
+                placeholder="contato@escritorio.com.br"
                 value={formData.email}
                 onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                 required
@@ -882,7 +873,7 @@ export default function LandingPage() {
                   </>
                 ) : (
                   <>
-                    Solicitar Teste Grátis
+                    Solicitar Acesso
                     <ArrowRight className="h-4 w-4" />
                   </>
                 )}
