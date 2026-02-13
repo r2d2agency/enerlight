@@ -89,14 +89,14 @@ const Login = () => {
             <CardHeader className="text-center">
               <div className="flex justify-center mb-4">
                 {branding.logo_login ? (
-                  <img src={branding.logo_login} alt="Logo" className="h-16 max-w-[200px] object-contain" />
+                  <img src={branding.logo_login} alt="Logo" className="h-24 max-w-[280px] object-contain" />
                 ) : (
                   <div className="gradient-primary p-3 rounded-full neon-glow">
                     <Zap className="h-8 w-8 text-primary-foreground" />
                   </div>
                 )}
               </div>
-              <CardTitle className="text-2xl neon-text">Entrar no Whatsale</CardTitle>
+              <CardTitle className="text-2xl neon-text">Entrar no {branding.company_name || 'Whatsale'}</CardTitle>
               <CardDescription>
                 Plataforma completa de CRM e automação de WhatsApp para gerenciar contatos, 
                 campanhas e atendimento ao cliente
@@ -170,7 +170,7 @@ const Login = () => {
       <footer className="py-4 px-4 border-t">
         <div className="max-w-md mx-auto text-center space-y-2">
           <p className="text-xs text-muted-foreground">
-            Whatsale - CRM e Automação de WhatsApp
+            {branding.company_name || 'Whatsale'} - CRM e Automação de WhatsApp
           </p>
           <div className="flex items-center justify-center gap-4 text-xs">
             <Link 
@@ -181,7 +181,7 @@ const Login = () => {
             </Link>
           </div>
           <p className="text-xs text-muted-foreground">
-            © {new Date().getFullYear()} Whatsale. Todos os direitos reservados.
+            © {new Date().getFullYear()} {branding.company_name || 'Whatsale'}. Todos os direitos reservados.
           </p>
         </div>
       </footer>
