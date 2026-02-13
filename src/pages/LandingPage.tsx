@@ -47,7 +47,7 @@ import {
   Layers,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import heroImage from "@/assets/hero-lawtech.jpg";
+import heroImage from "@/assets/system-preview-crm-kanban.png";
 
 const featureCategories = [
   {
@@ -223,8 +223,8 @@ const featureCategories = [
 const pricingPlans = [
   {
     name: "Solo",
-    description: "Para advogados autônomos começando a organizar",
-    price: "R$ 197",
+    description: "Para advogados autônomos e escritórios pequenos",
+    price: "R$ 300",
     period: "/mês",
     popular: false,
     cta: "Começar Agora",
@@ -243,7 +243,7 @@ const pricingPlans = [
   {
     name: "Escritório",
     description: "Para escritórios com equipe e múltiplas áreas",
-    price: "R$ 397",
+    price: "R$ 750",
     period: "/mês",
     popular: true,
     cta: "Testar 7 Dias Grátis",
@@ -262,7 +262,7 @@ const pricingPlans = [
   {
     name: "Premium",
     description: "Para escritórios que querem IA e automação total",
-    price: "R$ 697",
+    price: "R$ 1.500",
     period: "/mês",
     popular: false,
     cta: "Testar 7 Dias Grátis",
@@ -405,7 +405,7 @@ export default function LandingPage() {
                   </div>
                   <div className="flex flex-col">
                     <span className="font-bold text-lg leading-tight">
-                      {branding.company_name || "JurisWhats"}
+                      {branding.company_name || "Legal Tech App"}
                     </span>
                     <span className="text-[10px] text-muted-foreground leading-tight tracking-wider uppercase">
                       Gestão Jurídica
@@ -524,7 +524,7 @@ export default function LandingPage() {
                   <div className="w-3 h-3 rounded-full bg-green-500" />
                 </div>
                 <div className="flex-1 text-center text-xs text-muted-foreground">
-                  {branding.company_name || "JurisWhats"} — WhatsApp Jurídico Organizado
+                  {branding.company_name || "Legal Tech App"} — WhatsApp Jurídico Organizado
                 </div>
               </div>
               <img src={heroImage} alt="Plataforma de gestão jurídica com WhatsApp integrado" className="w-full h-auto" />
@@ -795,7 +795,7 @@ export default function LandingPage() {
                   <div className="w-8 h-8 rounded bg-primary flex items-center justify-center">
                     <Scale className="h-5 w-5 text-primary-foreground" />
                   </div>
-                  <span className="font-semibold text-lg">{branding.company_name || "JurisWhats"}</span>
+                  <span className="font-semibold text-lg">{branding.company_name || "Legal Tech App"}</span>
                 </>
               )}
             </div>
@@ -810,7 +810,7 @@ export default function LandingPage() {
               <Building2 className="h-4 w-4" />
               <span>CNPJ: 04.609.030/0001-29</span>
             </div>
-            <span>© {new Date().getFullYear()} {branding.company_name || "JurisWhats"}. Todos os direitos reservados.</span>
+            <span>© {new Date().getFullYear()} {branding.company_name || "Legal Tech App"}. Todos os direitos reservados.</span>
           </div>
         </div>
       </footer>
