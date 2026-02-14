@@ -686,28 +686,30 @@ export function CRMSidePanel({
           <div className="flex items-center justify-center p-8">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
-        ) : deals.length === 0 ? (
-          <div className="flex flex-col items-center justify-center p-8 text-center text-muted-foreground">
-            <Briefcase className="h-10 w-10 mb-3 opacity-40" />
-            <p className="text-sm font-medium">Nenhuma negociação ativa</p>
-            <p className="text-xs mt-1">
-              {allDeals.length > 0 
-                ? `${allDeals.length} negociação(ões) encerrada(s)`
-                : "Este contato não possui negociações"
-              }
-            </p>
-            <Button 
-              variant="default" 
-              size="sm" 
-              className="mt-4 gap-1"
-              onClick={openCreateDealForm}
-            >
-              <Plus className="h-3 w-3" />
-              Criar negociação
-            </Button>
-          </div>
         ) : (
           <div className="p-2">
+            {deals.length === 0 ? (
+              <div className="flex flex-col items-center justify-center p-6 text-center text-muted-foreground mb-2">
+                <Briefcase className="h-10 w-10 mb-3 opacity-40" />
+                <p className="text-sm font-medium">Nenhuma negociação ativa</p>
+                <p className="text-xs mt-1">
+                  {allDeals.length > 0 
+                    ? `${allDeals.length} negociação(ões) encerrada(s)`
+                    : "Este contato não possui negociações"
+                  }
+                </p>
+                <Button 
+                  variant="default" 
+                  size="sm" 
+                  className="mt-4 gap-1"
+                  onClick={openCreateDealForm}
+                >
+                  <Plus className="h-3 w-3" />
+                  Criar negociação
+                </Button>
+              </div>
+            ) : (
+              <>
             {/* Deal selector - prominent when multiple deals */}
             {deals.length > 1 && (
               <div className="mb-3 p-3 bg-primary/5 border border-primary/20 rounded-lg">
@@ -1105,7 +1107,12 @@ export function CRMSidePanel({
                   )}
                 </AccordionContent>
               </AccordionItem>
+            </Accordion>
+              </>
+            )}
 
+            {/* Always visible sections */}
+            <Accordion type="multiple" defaultValue={["contact", "notes", "ai-agents"]} className="space-y-1 mt-1">
               {/* Contact */}
               <AccordionItem value="contact" className="border rounded-lg px-3">
                 <AccordionTrigger className="py-2 hover:no-underline">
