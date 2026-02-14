@@ -116,6 +116,7 @@ import { DealLinkDialog } from "./DealLinkDialog";
 import { CallLogDialog } from "./CallLogDialog";
 import { useCRMDealsByPhone, CRMDeal } from "@/hooks/use-crm";
 import { DealDetailDialog } from "@/components/crm/DealDetailDialog";
+import { AIAgentBanner } from "./AIAgentBanner";
 
 interface ChatAreaProps {
   conversation: Conversation | null;
@@ -1497,6 +1498,11 @@ export function ChatArea({
           </DropdownMenu>
         </div>
       </div>
+
+      {/* AI Agent Banner */}
+      {!conversation.is_group && (
+        <AIAgentBanner conversationId={conversation.id} isGroup={conversation.is_group} />
+      )}
 
       {/* Search Bar */}
       {showSearch && (
