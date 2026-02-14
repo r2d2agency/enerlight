@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { authenticate } from '../middleware/auth.js';
 import { query } from '../db.js';
 import { logInfo, logError } from '../logger.js';
+import { callAI, callAIWithTools } from '../lib/ai-caller.js';
 
 const router = Router();
 
@@ -590,6 +591,241 @@ router.get('/:id/stats', authenticate, async (req, res) => {
   } catch (error) {
     logError('ai_agents.stats_error', error);
     res.status(500).json({ error: 'Erro ao buscar estatísticas' });
+  }
+});
+
+// ==================== PROCESSAR MENSAGEM (TEST & PRODUÇÃO) ====================
+
+/**
+ * Get AI config for an agent (agent-specific key or org fallback)
+ */
+async function getAgentAIConfig(agent, organizationId) {
+  if (agent.ai_api_key) {
+    return {
+      provider: agent.ai_provider,
+      model: agent.ai_model,
+      apiKey: agent.ai_api_key,
+    };
+  }
+
+  // Fallback to org AI config
+  const orgResult = await query(
+    `SELECT ai_provider, ai_model, ai_api_key FROM organizations WHERE id = $1`,
+    [organizationId]
+  );
+  const org = orgResult.rows[0];
+
+  if (!org || !org.ai_api_key || org.ai_provider === 'none') {
+    throw new Error('Nenhuma chave de API configurada. Configure uma API Key no agente ou nas configurações da organização.');
+  }
+
+  return {
+    provider: org.ai_provider || agent.ai_provider,
+    model: agent.ai_model || org.ai_model || (org.ai_provider === 'openai' ? 'gpt-4o-mini' : 'gemini-1.5-flash'),
+    apiKey: org.ai_api_key,
+  };
+}
+
+/**
+ * Build the call_agent tool definition for OpenAI/Gemini
+ */
+function buildCallAgentTool(availableAgents) {
+  const agentNames = availableAgents.map(a => a.name);
+  const agentDescriptions = availableAgents.map(a => `- ${a.name}: ${a.description || a.system_prompt?.substring(0, 100) || 'Agente especialista'}`).join('\n');
+
+  return {
+    type: 'function',
+    function: {
+      name: 'consult_specialist_agent',
+      description: `Consulta outro agente especialista da equipe para obter informações sobre um assunto específico. Agentes disponíveis:\n${agentDescriptions}`,
+      parameters: {
+        type: 'object',
+        properties: {
+          agent_name: {
+            type: 'string',
+            description: `Nome do agente a consultar. Opções: ${agentNames.join(', ')}`,
+          },
+          question: {
+            type: 'string',
+            description: 'A pergunta ou contexto a enviar para o agente especialista',
+          },
+        },
+        required: ['agent_name', 'question'],
+      },
+    },
+  };
+}
+
+/**
+ * Execute a consult to another specialist agent
+ */
+async function executeCallAgent(organizationId, agentName, question) {
+  try {
+    // Find the specialist agent
+    const agentResult = await query(
+      `SELECT * FROM ai_agents WHERE organization_id = $1 AND name ILIKE $2 AND is_active = true LIMIT 1`,
+      [organizationId, `%${agentName}%`]
+    );
+
+    if (agentResult.rows.length === 0) {
+      return `Agente "${agentName}" não encontrado ou está inativo.`;
+    }
+
+    const specialist = agentResult.rows[0];
+    const specialistConfig = await getAgentAIConfig(specialist, organizationId);
+
+    // Get specialist's knowledge base
+    const knowledgeResult = await query(
+      `SELECT source_content FROM ai_knowledge_sources WHERE agent_id = $1 AND is_active = true ORDER BY priority DESC`,
+      [specialist.id]
+    );
+    const knowledgeContext = knowledgeResult.rows.map(k => k.source_content).join('\n\n');
+
+    const systemPrompt = `${specialist.system_prompt || 'Você é um assistente especialista.'}\n\n${knowledgeContext ? `Base de conhecimento:\n${knowledgeContext}` : ''}`;
+
+    // Call the specialist (no tools - specialists don't chain)
+    const result = await callAI(specialistConfig, [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: question },
+    ], {
+      temperature: specialist.temperature || 0.7,
+      maxTokens: specialist.max_tokens || 1000,
+    });
+
+    logInfo('ai_agents.call_agent_executed', {
+      specialist: specialist.name,
+      question: question.substring(0, 100),
+      tokensUsed: result.tokensUsed,
+    });
+
+    return result.content || 'O agente especialista não retornou uma resposta.';
+  } catch (error) {
+    logError('ai_agents.call_agent_error', error);
+    return `Erro ao consultar agente "${agentName}": ${error.message}`;
+  }
+}
+
+// Test agent chat endpoint
+router.post('/:id/test', authenticate, async (req, res) => {
+  try {
+    const userCtx = await getUserContext(req.userId);
+    if (!userCtx?.organization_id) {
+      return res.status(403).json({ error: 'Usuário não pertence a uma organização' });
+    }
+
+    // Get the agent
+    const agentResult = await query(
+      'SELECT * FROM ai_agents WHERE id = $1 AND organization_id = $2',
+      [req.params.id, userCtx.organization_id]
+    );
+
+    if (agentResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Agente não encontrado' });
+    }
+
+    const agent = agentResult.rows[0];
+    const { message, history = [] } = req.body;
+
+    if (!message) {
+      return res.status(400).json({ error: 'Mensagem é obrigatória' });
+    }
+
+    // Get AI config
+    const aiConfig = await getAgentAIConfig(agent, userCtx.organization_id);
+
+    // Build knowledge context
+    const knowledgeResult = await query(
+      `SELECT source_content FROM ai_knowledge_sources WHERE agent_id = $1 AND is_active = true ORDER BY priority DESC`,
+      [agent.id]
+    );
+    const knowledgeContext = knowledgeResult.rows.map(k => k.source_content).join('\n\n');
+
+    // Build system prompt
+    let systemPrompt = agent.system_prompt || 'Você é um assistente virtual profissional e prestativo.';
+    if (knowledgeContext) {
+      systemPrompt += `\n\nBase de Conhecimento (use estas informações para responder):\n${knowledgeContext}`;
+    }
+
+    // Build messages
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      ...history.slice(-(agent.context_window || 10)).map(h => ({
+        role: h.role,
+        content: h.content,
+      })),
+      { role: 'user', content: message },
+    ];
+
+    // Parse capabilities
+    const capabilities = Array.isArray(agent.capabilities) 
+      ? agent.capabilities 
+      : (typeof agent.capabilities === 'string' ? agent.capabilities.replace(/[{}]/g, '').split(',') : ['respond_messages']);
+
+    // Check if call_agent is enabled
+    const hasCallAgent = capabilities.includes('call_agent');
+    let tools = null;
+
+    if (hasCallAgent) {
+      // Get other active agents in the org (exclude current agent)
+      const otherAgentsResult = await query(
+        `SELECT id, name, description, system_prompt FROM ai_agents 
+         WHERE organization_id = $1 AND id != $2 AND is_active = true`,
+        [userCtx.organization_id, agent.id]
+      );
+
+      if (otherAgentsResult.rows.length > 0) {
+        tools = [buildCallAgentTool(otherAgentsResult.rows)];
+      }
+    }
+
+    let result;
+    let toolCallsExecuted = [];
+
+    if (tools) {
+      // Use tool-calling flow
+      const toolExecutor = async (toolName, args) => {
+        if (toolName === 'consult_specialist_agent') {
+          return await executeCallAgent(userCtx.organization_id, args.agent_name, args.question);
+        }
+        return 'Ferramenta desconhecida';
+      };
+
+      result = await callAIWithTools(aiConfig, messages, {
+        temperature: agent.temperature || 0.7,
+        maxTokens: agent.max_tokens || 1000,
+        tools,
+      }, toolExecutor);
+
+      toolCallsExecuted = result.toolCallsExecuted || [];
+    } else {
+      // Simple call without tools
+      result = await callAI(aiConfig, messages, {
+        temperature: agent.temperature || 0.7,
+        maxTokens: agent.max_tokens || 1000,
+      });
+    }
+
+    logInfo('ai_agents.test_chat', {
+      agentId: agent.id,
+      userId: userCtx.id,
+      tokensUsed: result.tokensUsed,
+      toolCallsCount: toolCallsExecuted.length,
+    });
+
+    res.json({
+      response: result.content,
+      tokens_used: result.tokensUsed || 0,
+      model_used: result.model || aiConfig.model,
+      sources_used: knowledgeResult.rows.length > 0 ? ['knowledge_base'] : [],
+      tool_calls: toolCallsExecuted.map(tc => ({
+        agent_consulted: tc.arguments?.agent_name,
+        question: tc.arguments?.question,
+        response_preview: typeof tc.result === 'string' ? tc.result.substring(0, 200) : '',
+      })),
+    });
+  } catch (error) {
+    logError('ai_agents.test_error', error);
+    res.status(500).json({ error: error.message || 'Erro ao processar mensagem' });
   }
 });
 
