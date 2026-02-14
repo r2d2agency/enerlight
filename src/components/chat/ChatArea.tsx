@@ -145,6 +145,7 @@ interface ChatAreaProps {
   onDepartmentChange?: (departmentId: string | null) => void;
   isMobile?: boolean;
   onMobileBack?: () => void;
+  onOpenCRM?: () => void;
 }
 
 const messageStatusIcon = (status: string) => {
@@ -191,6 +192,7 @@ export function ChatArea({
   onDepartmentChange,
   isMobile = false,
   onMobileBack,
+  onOpenCRM,
 }: ChatAreaProps) {
   // Manager (Supervisor) = apenas visualização
   const isViewOnly = userRole === 'manager';
@@ -1124,6 +1126,19 @@ export function ChatArea({
             </>
           )}
           
+          {/* CRM button - mobile only */}
+          {isMobile && onOpenCRM && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={onOpenCRM}
+              title="Abrir CRM"
+            >
+              <Briefcase className="h-3.5 w-3.5" />
+            </Button>
+          )}
+
           {/* Search - always visible */}
           <Button
             variant="ghost"

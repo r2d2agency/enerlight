@@ -12,6 +12,7 @@ import { chatEvents } from "@/lib/chat-events";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { MessageSquare, Users, Bell, RefreshCw } from "lucide-react";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { useNotificationSound } from "@/hooks/use-notification-sound";
@@ -854,10 +855,11 @@ const Chat = () => {
               onDepartmentChange={() => loadConversations()}
               isMobile={isMobile}
               onMobileBack={handleMobileBack}
+              onOpenCRM={modulesEnabled.crm && !selectedConversation?.is_group ? () => setCrmPanelOpen(true) : undefined}
             />
           )}
 
-          {/* CRM Side Panel - Desktop only, when conversation selected and CRM module enabled */}
+          {/* CRM Side Panel - Desktop */}
           {!isMobile && selectedConversation && modulesEnabled.crm && (
             <CRMSidePanel
               conversationId={selectedConversation.id}
@@ -867,6 +869,22 @@ const Chat = () => {
               onToggle={() => setCrmPanelOpen(!crmPanelOpen)}
               chatMessages={messages.map(m => ({ id: m.id, content: m.content || '', sender: m.from_me ? 'me' : 'contact', timestamp: m.timestamp }))}
             />
+          )}
+
+          {/* CRM Side Panel - Mobile Sheet */}
+          {isMobile && selectedConversation && modulesEnabled.crm && (
+            <Sheet open={crmPanelOpen} onOpenChange={setCrmPanelOpen}>
+              <SheetContent side="right" className="w-full max-w-sm p-0 [&>button]:hidden">
+                <CRMSidePanel
+                  conversationId={selectedConversation.id}
+                  contactPhone={selectedConversation.remote_jid?.replace('@s.whatsapp.net', '').replace('@g.us', '') || null}
+                  contactName={selectedConversation.contact_name || selectedConversation.group_name || null}
+                  isOpen={true}
+                  onToggle={() => setCrmPanelOpen(false)}
+                  chatMessages={messages.map(m => ({ id: m.id, content: m.content || '', sender: m.from_me ? 'me' : 'contact', timestamp: m.timestamp }))}
+                />
+              </SheetContent>
+            </Sheet>
           )}
         </div>
       </div>
