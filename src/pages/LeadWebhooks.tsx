@@ -384,13 +384,13 @@ Content-Type: application/json
                     <Label>Funil de destino</Label>
                     <Select 
                       value={form.funnel_id} 
-                      onValueChange={(v) => setForm({ ...form, funnel_id: v, stage_id: "" })}
+                      onValueChange={(v) => setForm({ ...form, funnel_id: v === "none" ? "" : v, stage_id: "" })}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione um funil" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Nenhum (criar como Prospect)</SelectItem>
+                        <SelectItem value="none">Nenhum (criar como Prospect)</SelectItem>
                         {funnels.map((funnel) => (
                           <SelectItem key={funnel.id} value={funnel.id}>
                             {funnel.name}
@@ -425,13 +425,13 @@ Content-Type: application/json
                   <Label>Responsável padrão</Label>
                   <Select 
                     value={form.owner_id} 
-                    onValueChange={(v) => setForm({ ...form, owner_id: v })}
+                    onValueChange={(v) => setForm({ ...form, owner_id: v === "none" ? "" : v })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione um usuário" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Nenhum</SelectItem>
+                      <SelectItem value="none">Nenhum</SelectItem>
                       {members.map((member) => (
                         <SelectItem key={member.user_id} value={member.user_id}>
                           {member.name}
