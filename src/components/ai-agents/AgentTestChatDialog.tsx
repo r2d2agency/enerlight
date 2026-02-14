@@ -24,6 +24,12 @@ interface AgentTestChatDialogProps {
   agent: AIAgent | null;
 }
 
+interface ToolCallInfo {
+  agent_consulted: string;
+  question: string;
+  response_preview: string;
+}
+
 interface TestMessage {
   id: string;
   role: 'user' | 'assistant' | 'system';
@@ -32,6 +38,7 @@ interface TestMessage {
   tokens?: number;
   sources_used?: string[];
   processing_time_ms?: number;
+  tool_calls?: ToolCallInfo[];
   error?: boolean;
 }
 
@@ -88,6 +95,7 @@ export function AgentTestChatDialog({ open, onOpenChange, agent }: AgentTestChat
         tokens_used: number;
         sources_used?: string[];
         model_used?: string;
+        tool_calls?: ToolCallInfo[];
       }>(`/api/ai-agents/${agent.id}/test`, {
         method: 'POST',
         body: {
@@ -101,6 +109,18 @@ export function AgentTestChatDialog({ open, onOpenChange, agent }: AgentTestChat
 
       const processingTime = Date.now() - startTime;
 
+      // Show tool call info if agents were consulted
+      if (response.tool_calls && response.tool_calls.length > 0) {
+        for (const tc of response.tool_calls) {
+          setMessages(prev => [...prev, {
+            id: `tool-${Date.now()}-${tc.agent_consulted}`,
+            role: 'system',
+            content: `🤖 Consultou agente "${tc.agent_consulted}": "${tc.question}"`,
+            timestamp: new Date(),
+          }]);
+        }
+      }
+
       const assistantMessage: TestMessage = {
         id: `assistant-${Date.now()}`,
         role: 'assistant',
@@ -109,6 +129,7 @@ export function AgentTestChatDialog({ open, onOpenChange, agent }: AgentTestChat
         tokens: response.tokens_used,
         sources_used: response.sources_used,
         processing_time_ms: processingTime,
+        tool_calls: response.tool_calls,
       };
 
       setMessages(prev => [...prev, assistantMessage]);
