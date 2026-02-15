@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Target, X, ExternalLink, BellRing } from "lucide-react";
+import { Target, X, ExternalLink, BellRing, Bell, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -28,6 +28,9 @@ interface CRMAlert {
     lead_name?: string;
     lead_phone?: string;
     lead_email?: string;
+    task_id?: string;
+    task_type?: string;
+    priority?: string;
   };
   is_read: boolean;
   created_at: string;
@@ -43,8 +46,8 @@ export function CRMAlerts() {
   const fetchAlerts = useCallback(async () => {
     try {
       const data = await api<CRMAlert[]>("/api/chat/alerts");
-      // Filter only new_lead alerts
-      const crmAlerts = data.filter(a => a.type === 'new_lead');
+      // Include new_lead AND task_reminder alerts
+      const crmAlerts = data.filter(a => a.type === 'new_lead' || a.type === 'task_reminder');
       
       // Play sound and show notification if new alerts arrived
       if (crmAlerts.length > previousCount && previousCount > 0) {
@@ -96,22 +99,29 @@ export function CRMAlerts() {
     }
   };
 
-  const handleGoToDeal = (alert: CRMAlert) => {
+  const handleGoToAlert = (alert: CRMAlert) => {
     setIsOpen(false);
-    if (alert.metadata.deal_id) {
+    if (alert.type === 'task_reminder') {
+      window.location.href = "/crm/tarefas";
+    } else if (alert.metadata.deal_id) {
       window.location.href = `/crm/negociacoes?deal=${alert.metadata.deal_id}`;
     } else if (alert.metadata.prospect_id) {
       window.location.href = `/crm/prospects`;
     }
   };
 
-  const getSourceIcon = (source?: string) => {
-    if (source === 'webhook') return '🔗';
-    if (source === 'form') return '📝';
+  const getSourceIcon = (alert: CRMAlert) => {
+    if (alert.type === 'task_reminder') return '⏰';
+    if (alert.metadata.source === 'webhook') return '🔗';
+    if (alert.metadata.source === 'form') return '📝';
     return '🎯';
   };
 
   const getSourceLabel = (alert: CRMAlert) => {
+    if (alert.type === 'task_reminder') {
+      const typeLabels: Record<string, string> = { task: 'Tarefa', call: 'Ligação', email: 'Email', meeting: 'Reunião', follow_up: 'Follow-up' };
+      return typeLabels[alert.metadata.task_type || ''] || 'Lembrete';
+    }
     if (alert.metadata.source === 'webhook') {
       return alert.metadata.webhook_name || 'Webhook';
     }
@@ -121,8 +131,11 @@ export function CRMAlerts() {
     return 'CRM';
   };
 
+  const taskReminderCount = alerts.filter(a => a.type === 'task_reminder').length;
+  const leadCount = alerts.filter(a => a.type === 'new_lead').length;
+
   if (alerts.length === 0) {
-    return null; // Don't show the icon if no alerts
+    return null;
   }
 
   return (
@@ -136,7 +149,7 @@ export function CRMAlerts() {
           <Target className="h-5 w-5 text-primary animate-pulse" />
           <Badge
             variant="default"
-            className="absolute -top-1 -right-1 h-5 min-w-[20px] px-1 text-[10px] font-bold bg-green-500 hover:bg-green-500"
+            className="absolute -top-1 -right-1 h-5 min-w-[20px] px-1 text-[10px] font-bold bg-primary hover:bg-primary"
           >
             {alerts.length > 99 ? "99+" : alerts.length}
           </Badge>
@@ -149,8 +162,13 @@ export function CRMAlerts() {
       >
         <div className="flex items-center justify-between p-3 border-b">
           <h4 className="font-semibold text-sm flex items-center gap-2">
-            <BellRing className="h-4 w-4 text-green-500" />
-            <span className="truncate">Novos Leads</span>
+            <BellRing className="h-4 w-4 text-primary" />
+            <span className="truncate">
+              Alertas
+              {leadCount > 0 && taskReminderCount > 0
+                ? ` (${leadCount} leads, ${taskReminderCount} lembretes)`
+                : leadCount > 0 ? ` (${leadCount} leads)` : ` (${taskReminderCount} lembretes)`}
+            </span>
           </h4>
           {alerts.length > 0 && (
             <Button
@@ -170,17 +188,22 @@ export function CRMAlerts() {
               <div
                 key={alert.id}
                 className="p-3 hover:bg-muted/50 active:bg-muted/70 cursor-pointer transition-colors group"
-                onClick={() => handleGoToDeal(alert)}
+                onClick={() => handleGoToAlert(alert)}
               >
                 <div className="flex items-start gap-3">
-                  <div className="flex-shrink-0 w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center text-lg">
-                    {getSourceIcon(alert.metadata.source)}
+                  <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-lg ${
+                    alert.type === 'task_reminder' ? 'bg-primary/10' : 'bg-accent'
+                  }`}>
+                    {getSourceIcon(alert)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="font-medium text-sm truncate">
-                        {alert.metadata.lead_name || "Novo Lead"}
+                        {alert.type === 'task_reminder' ? alert.title : (alert.metadata.lead_name || "Novo Lead")}
                       </p>
+                      {alert.metadata.priority === 'urgent' && (
+                        <Badge variant="destructive" className="text-[10px]">Urgente</Badge>
+                      )}
                     </div>
                     <p className="text-xs text-muted-foreground truncate mt-0.5">
                       {alert.message}
@@ -201,7 +224,7 @@ export function CRMAlerts() {
                       className="h-7 w-7"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleGoToDeal(alert);
+                        handleGoToAlert(alert);
                       }}
                       title="Abrir"
                     >
