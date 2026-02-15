@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { query } from '../db.js';
 import { authenticate } from '../middleware/auth.js';
+import { generateMeetingMinutes } from '../lib/group-secretary.js';
 
 const router = Router();
 router.use(authenticate);
@@ -397,6 +398,80 @@ router.get('/stats', async (req, res) => {
   } catch (error) {
     console.error('Get secretary stats error:', error);
     res.status(500).json({ error: 'Erro ao buscar estatísticas' });
+  }
+});
+
+// ==========================================
+// MEETING MINUTES (Atas de Reunião)
+// ==========================================
+
+// Generate meeting minutes for a group
+router.post('/meeting-minutes/generate', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+
+    const { conversation_id, hours = 24 } = req.body;
+    if (!conversation_id) return res.status(400).json({ error: 'conversation_id é obrigatório' });
+
+    const result = await generateMeetingMinutes({
+      organizationId: org.organization_id,
+      conversationId: conversation_id,
+      hours: Math.min(parseInt(hours) || 24, 168),
+      generatedBy: req.userId,
+    });
+
+    if (!result) {
+      return res.status(400).json({ error: 'Não foi possível gerar a ata. Verifique se há mensagens no período e se a IA está configurada.' });
+    }
+
+    res.json(result);
+  } catch (error) {
+    console.error('Generate meeting minutes error:', error);
+    res.status(500).json({ error: 'Erro ao gerar ata de reunião' });
+  }
+});
+
+// List meeting minutes
+router.get('/meeting-minutes', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+
+    const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+
+    const result = await query(
+      `SELECT gsmm.*, u.name as generated_by_name
+       FROM group_secretary_meeting_minutes gsmm
+       LEFT JOIN users u ON u.id = gsmm.generated_by
+       WHERE gsmm.organization_id = $1
+       ORDER BY gsmm.created_at DESC
+       LIMIT $2`,
+      [org.organization_id, limit]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('List meeting minutes error:', error);
+    res.status(500).json({ error: 'Erro ao buscar atas' });
+  }
+});
+
+// Delete a meeting minute
+router.delete('/meeting-minutes/:id', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+
+    await query(
+      `DELETE FROM group_secretary_meeting_minutes WHERE id = $1 AND organization_id = $2`,
+      [req.params.id, org.organization_id]
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete meeting minutes error:', error);
+    res.status(500).json({ error: 'Erro ao excluir ata' });
   }
 });
 

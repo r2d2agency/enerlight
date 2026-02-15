@@ -15,17 +15,18 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import {
-  Bot, Users, Settings, Activity, Plus, Trash2, Save, Loader2, Shield, Clock, MessageSquare, BellRing, Phone, Smartphone, Wifi, AlertTriangle, Pencil, BarChart3, RefreshCw, Timer
+  Bot, Users, Settings, Activity, Plus, Trash2, Save, Loader2, Shield, Clock, MessageSquare, BellRing, Phone, Smartphone, Wifi, AlertTriangle, Pencil, BarChart3, RefreshCw, Timer, FileText, ChevronDown, ChevronUp, CalendarDays
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { MainLayout } from "@/components/layout/MainLayout";
-import { useGroupSecretary, type SecretaryConfig, type SecretaryMember, type SecretaryLog, type SecretaryStats, type AvailableUser, type MonitoredGroup } from "@/hooks/use-group-secretary";
-import { formatDistanceToNow } from "date-fns";
+import { useGroupSecretary, type SecretaryConfig, type SecretaryMember, type SecretaryLog, type SecretaryStats, type AvailableUser, type MonitoredGroup, type MeetingMinutes } from "@/hooks/use-group-secretary";
+import { format, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 export default function SecretariaGrupos() {
   const {
-    getConfig, saveConfig, getMembers, addMember, removeMember, getLogs, getAvailableUsers, getGroups, getStats, updateMemberPhone
+    getConfig, saveConfig, getMembers, addMember, removeMember, getLogs, getAvailableUsers, getGroups, getStats, updateMemberPhone,
+    generateMeetingMinutes, getMeetingMinutes, deleteMeetingMinutes,
   } = useGroupSecretary();
 
   const [config, setConfig] = useState<SecretaryConfig>({
@@ -54,6 +55,11 @@ export default function SecretariaGrupos() {
   const [newMember, setNewMember] = useState({
     user_id: "", aliases: "", role_description: "", departments: "",
   });
+  const [meetingMinutes, setMeetingMinutes] = useState<MeetingMinutes[]>([]);
+  const [selectedMinutesGroup, setSelectedMinutesGroup] = useState("");
+  const [minutesHours, setMinutesHours] = useState("24");
+  const [generatingMinutes, setGeneratingMinutes] = useState(false);
+  const [expandedMinutes, setExpandedMinutes] = useState<string | null>(null);
 
   useEffect(() => {
     loadAll();
@@ -62,8 +68,9 @@ export default function SecretariaGrupos() {
   const loadAll = async () => {
     setLoading(true);
     try {
-      const [cfg, mems, lgs, users, groups, sts] = await Promise.all([
+      const [cfg, mems, lgs, users, groups, sts, minutes] = await Promise.all([
         getConfig(), getMembers(), getLogs(), getAvailableUsers(), getGroups(), getStats().catch(() => null),
+        getMeetingMinutes().catch(() => []),
       ]);
       setConfig(cfg);
       setMembers(mems);
@@ -71,6 +78,7 @@ export default function SecretariaGrupos() {
       setAvailableUsers(users);
       setAllGroups(groups);
       setStats(sts);
+      setMeetingMinutes(minutes);
     } catch (err: any) {
       toast.error(err.message || "Erro ao carregar dados");
     } finally {
@@ -197,6 +205,10 @@ export default function SecretariaGrupos() {
             <TabsTrigger value="logs" className="gap-1">
               <Activity className="h-3.5 w-3.5" />
               Logs
+            </TabsTrigger>
+            <TabsTrigger value="minutes" className="gap-1">
+              <FileText className="h-3.5 w-3.5" />
+              Atas
             </TabsTrigger>
           </TabsList>
 
@@ -891,6 +903,241 @@ export default function SecretariaGrupos() {
                   ))}
                 </div>
               </ScrollArea>
+            )}
+          </TabsContent>
+
+          {/* MEETING MINUTES TAB */}
+          <TabsContent value="minutes" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Gerar Ata de Reunião
+                </CardTitle>
+                <CardDescription>
+                  Selecione um grupo e o período para gerar uma ata automática com decisões e responsáveis
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="space-y-1.5 md:col-span-2">
+                    <Label>Grupo</Label>
+                    <Select value={selectedMinutesGroup} onValueChange={setSelectedMinutesGroup}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o grupo..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {allGroups.map((g) => (
+                          <SelectItem key={g.id} value={g.id}>
+                            {g.group_name || g.remote_jid} ({g.connection_name})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Período (horas)</Label>
+                    <Select value={minutesHours} onValueChange={setMinutesHours}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="6">Últimas 6h</SelectItem>
+                        <SelectItem value="12">Últimas 12h</SelectItem>
+                        <SelectItem value="24">Últimas 24h</SelectItem>
+                        <SelectItem value="48">Últimas 48h</SelectItem>
+                        <SelectItem value="72">Últimas 72h</SelectItem>
+                        <SelectItem value="168">Última semana</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <Button
+                  disabled={!selectedMinutesGroup || generatingMinutes}
+                  onClick={async () => {
+                    setGeneratingMinutes(true);
+                    try {
+                      const result = await generateMeetingMinutes(selectedMinutesGroup, parseInt(minutesHours));
+                      setMeetingMinutes((prev) => [result, ...prev]);
+                      toast.success("Ata gerada com sucesso!");
+                    } catch (err: any) {
+                      toast.error(err.message || "Erro ao gerar ata");
+                    } finally {
+                      setGeneratingMinutes(false);
+                    }
+                  }}
+                  className="gap-2"
+                >
+                  {generatingMinutes ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+                  {generatingMinutes ? "Analisando mensagens..." : "Gerar Ata"}
+                </Button>
+              </CardContent>
+            </Card>
+
+            {meetingMinutes.length === 0 ? (
+              <Card>
+                <CardContent className="p-8 text-center text-muted-foreground">
+                  <FileText className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                  <p>Nenhuma ata gerada ainda</p>
+                  <p className="text-xs mt-1">Selecione um grupo acima e clique em "Gerar Ata"</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-3">
+                {meetingMinutes.map((minute) => {
+                  const isExpanded = expandedMinutes === minute.id;
+                  const decisions = Array.isArray(minute.decisions) ? minute.decisions : [];
+                  const actionItems = Array.isArray(minute.action_items) ? minute.action_items : [];
+
+                  return (
+                    <Card key={minute.id}>
+                      <CardContent className="p-4 space-y-3">
+                        <div className="flex items-start justify-between">
+                          <div
+                            className="flex-1 cursor-pointer"
+                            onClick={() => setExpandedMinutes(isExpanded ? null : minute.id)}
+                          >
+                            <div className="flex items-center gap-2">
+                              <FileText className="h-4 w-4 text-primary shrink-0" />
+                              <span className="font-medium text-sm">{minute.title}</span>
+                            </div>
+                            <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground pl-6">
+                              <span className="flex items-center gap-1">
+                                <MessageSquare className="h-3 w-3" />
+                                {minute.group_name}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <CalendarDays className="h-3 w-3" />
+                                {format(new Date(minute.created_at), "dd/MM/yyyy HH:mm")}
+                              </span>
+                              <Badge variant="secondary" className="text-xs">
+                                {minute.message_count} msgs
+                              </Badge>
+                              {decisions.length > 0 && (
+                                <Badge variant="outline" className="text-xs">
+                                  {decisions.length} decisões
+                                </Badge>
+                              )}
+                              {actionItems.length > 0 && (
+                                <Badge variant="outline" className="text-xs">
+                                  {actionItems.length} ações
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={() => setExpandedMinutes(isExpanded ? null : minute.id)}
+                            >
+                              {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-destructive"
+                              onClick={async () => {
+                                try {
+                                  await deleteMeetingMinutes(minute.id);
+                                  setMeetingMinutes((prev) => prev.filter((m) => m.id !== minute.id));
+                                  toast.success("Ata excluída");
+                                } catch (err: any) {
+                                  toast.error(err.message || "Erro ao excluir");
+                                }
+                              }}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+
+                        {isExpanded && (
+                          <div className="pl-6 space-y-4 border-t pt-3">
+                            {/* Summary */}
+                            <div>
+                              <h4 className="text-sm font-medium mb-1">📋 Resumo</h4>
+                              <p className="text-sm text-muted-foreground whitespace-pre-line">{minute.summary}</p>
+                            </div>
+
+                            {/* Participants */}
+                            {minute.participants?.length > 0 && (
+                              <div>
+                                <h4 className="text-sm font-medium mb-1">👥 Participantes</h4>
+                                <div className="flex flex-wrap gap-1">
+                                  {minute.participants.map((p, i) => (
+                                    <Badge key={i} variant="secondary" className="text-xs">{p}</Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Decisions */}
+                            {decisions.length > 0 && (
+                              <div>
+                                <h4 className="text-sm font-medium mb-1">✅ Decisões</h4>
+                                <ul className="space-y-1">
+                                  {decisions.map((d, i) => (
+                                    <li key={i} className="text-sm flex items-start gap-2">
+                                      <span className="text-primary mt-0.5">•</span>
+                                      <span>
+                                        {d.description}
+                                        {d.responsible && (
+                                          <Badge variant="outline" className="ml-2 text-xs">{d.responsible}</Badge>
+                                        )}
+                                      </span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+
+                            {/* Action Items */}
+                            {actionItems.length > 0 && (
+                              <div>
+                                <h4 className="text-sm font-medium mb-1">🎯 Itens de Ação</h4>
+                                <div className="space-y-2">
+                                  {actionItems.map((item, i) => (
+                                    <div key={i} className="flex items-start gap-2 text-sm p-2 rounded-md border">
+                                      <span className="text-primary font-medium">{i + 1}.</span>
+                                      <div className="flex-1">
+                                        <p>{item.task}</p>
+                                        <div className="flex gap-2 mt-1">
+                                          {item.responsible && (
+                                            <Badge variant="secondary" className="text-xs">
+                                              👤 {item.responsible}
+                                            </Badge>
+                                          )}
+                                          {item.deadline && (
+                                            <Badge variant="outline" className="text-xs">
+                                              📅 {item.deadline}
+                                            </Badge>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Meta */}
+                            <div className="text-xs text-muted-foreground border-t pt-2 flex gap-4">
+                              {minute.generated_by_name && <span>Gerado por: {minute.generated_by_name}</span>}
+                              {minute.period_start && minute.period_end && (
+                                <span>
+                                  Período: {format(new Date(minute.period_start), "dd/MM HH:mm")} — {format(new Date(minute.period_end), "dd/MM HH:mm")}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
             )}
           </TabsContent>
         </Tabs>

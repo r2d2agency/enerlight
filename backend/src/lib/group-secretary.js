@@ -500,3 +500,132 @@ async function getNotificationConnection(organizationId, defaultConnectionId) {
     return null;
   }
 }
+
+/**
+ * Generate meeting minutes from recent group messages using AI
+ */
+export async function generateMeetingMinutes({ organizationId, conversationId, hours = 24, generatedBy }) {
+  try {
+    // Get conversation info
+    const convResult = await query(
+      `SELECT c.*, conn.name as connection_name 
+       FROM conversations c 
+       JOIN connections conn ON conn.id = c.connection_id 
+       WHERE c.id = $1 AND conn.organization_id = $2`,
+      [conversationId, organizationId]
+    );
+    if (convResult.rows.length === 0) return null;
+    const conv = convResult.rows[0];
+
+    // Get recent messages
+    const messagesResult = await query(
+      `SELECT m.content, m.sender_name, m.from_me, m.created_at, m.media_type
+       FROM messages m
+       WHERE m.conversation_id = $1 
+         AND m.created_at >= NOW() - INTERVAL '1 hour' * $2
+         AND m.content IS NOT NULL AND m.content != ''
+         AND m.media_type IN ('text', 'extendedTextMessage', 'conversation')
+       ORDER BY m.created_at ASC
+       LIMIT 500`,
+      [conversationId, hours]
+    );
+
+    if (messagesResult.rows.length < 3) return null;
+
+    const messages = messagesResult.rows;
+    const participants = [...new Set(messages.map(m => m.sender_name).filter(Boolean))];
+
+    // Get AI config
+    const configResult = await query(
+      `SELECT * FROM group_secretary_config WHERE organization_id = $1`,
+      [organizationId]
+    );
+    const config = configResult.rows[0] || {};
+    const aiConfig = await getAIConfig(organizationId, config);
+    if (!aiConfig || !aiConfig.apiKey) return null;
+
+    // Get team members for context
+    const membersResult = await query(
+      `SELECT gsm.*, u.name as user_name
+       FROM group_secretary_members gsm
+       JOIN users u ON u.id = gsm.user_id
+       WHERE gsm.organization_id = $1 AND gsm.is_active = true`,
+      [organizationId]
+    );
+    const memberNames = membersResult.rows.map(m => m.user_name);
+
+    // Build message log for AI
+    const messageLog = messages.map(m => {
+      const time = new Date(m.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      return `[${time}] ${m.sender_name || 'Desconhecido'}: ${m.content}`;
+    }).join('\n');
+
+    const systemPrompt = `Você é um assistente especializado em gerar atas de reunião a partir de conversas de grupo do WhatsApp.
+Analise a sequência de mensagens e produza uma ata estruturada.
+
+MEMBROS DA EQUIPE CONHECIDOS: ${memberNames.join(', ') || 'Não informados'}
+
+Retorne SOMENTE um JSON válido com esta estrutura:
+{
+  "title": "Título conciso da reunião/discussão",
+  "summary": "Resumo executivo em 2-3 parágrafos do que foi discutido",
+  "decisions": [
+    {"description": "Decisão tomada", "responsible": "Nome do responsável ou null"}
+  ],
+  "action_items": [
+    {"task": "Tarefa a ser feita", "responsible": "Nome do responsável", "deadline": "Prazo mencionado ou null"}
+  ],
+  "key_topics": ["Tópico 1", "Tópico 2"]
+}
+
+REGRAS:
+- Foque em decisões concretas e itens de ação
+- Identifique responsáveis quando mencionados
+- Ignore mensagens triviais (saudações, emojis soltos)
+- O título deve refletir o tema principal discutido
+- O resumo deve ser profissional e objetivo`;
+
+    const userPrompt = `Grupo: ${conv.group_name || 'Desconhecido'}
+Período: últimas ${hours} horas
+Total de mensagens: ${messages.length}
+Participantes: ${participants.join(', ')}
+
+MENSAGENS:
+${messageLog}`;
+
+    const aiResult = await callAI(aiConfig, systemPrompt, userPrompt);
+    if (!aiResult) return null;
+
+    // Save to database
+    const periodStart = messages[0]?.created_at;
+    const periodEnd = messages[messages.length - 1]?.created_at;
+
+    const insertResult = await query(
+      `INSERT INTO group_secretary_meeting_minutes 
+       (organization_id, conversation_id, group_name, title, summary, decisions, action_items, participants, message_count, period_start, period_end, ai_provider, ai_model, generated_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+       RETURNING *`,
+      [
+        organizationId, conversationId, conv.group_name || 'Grupo',
+        aiResult.title || 'Ata de Reunião',
+        aiResult.summary || '',
+        JSON.stringify(aiResult.decisions || []),
+        JSON.stringify(aiResult.action_items || []),
+        participants,
+        messages.length,
+        periodStart, periodEnd,
+        aiConfig.provider, aiConfig.model,
+        generatedBy,
+      ]
+    );
+
+    logInfo('group_secretary.meeting_minutes_generated', {
+      conversationId, groupName: conv.group_name, messageCount: messages.length,
+    });
+
+    return insertResult.rows[0];
+  } catch (error) {
+    logError('group_secretary.meeting_minutes_error', error);
+    return null;
+  }
+}

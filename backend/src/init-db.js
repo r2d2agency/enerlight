@@ -2845,6 +2845,30 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_column THEN null; END $$;
 
 CREATE INDEX IF NOT EXISTS idx_crm_tasks_source ON crm_tasks(source);
+
+-- Meeting Minutes (Atas de Reunião)
+CREATE TABLE IF NOT EXISTS group_secretary_meeting_minutes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE NOT NULL,
+    conversation_id UUID REFERENCES conversations(id) ON DELETE SET NULL,
+    group_name TEXT,
+    title TEXT NOT NULL,
+    summary TEXT,
+    decisions JSONB DEFAULT '[]',
+    action_items JSONB DEFAULT '[]',
+    participants TEXT[] DEFAULT '{}',
+    message_count INTEGER DEFAULT 0,
+    period_start TIMESTAMP WITH TIME ZONE,
+    period_end TIMESTAMP WITH TIME ZONE,
+    ai_provider VARCHAR(20),
+    ai_model VARCHAR(100),
+    generated_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_meeting_minutes_org ON group_secretary_meeting_minutes(organization_id);
+CREATE INDEX IF NOT EXISTS idx_meeting_minutes_conv ON group_secretary_meeting_minutes(conversation_id);
+CREATE INDEX IF NOT EXISTS idx_meeting_minutes_created ON group_secretary_meeting_minutes(created_at);
 `;
 
 // Migration steps in order of execution
