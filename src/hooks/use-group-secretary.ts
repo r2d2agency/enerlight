@@ -97,6 +97,23 @@ export interface AvailableUser {
   role: string;
 }
 
+export interface MeetingMinutes {
+  id: string;
+  organization_id: string;
+  conversation_id: string;
+  group_name: string;
+  title: string;
+  summary: string;
+  decisions: Array<{ description: string; responsible: string | null }>;
+  action_items: Array<{ task: string; responsible: string; deadline: string | null }>;
+  participants: string[];
+  message_count: number;
+  period_start: string;
+  period_end: string;
+  generated_by_name: string | null;
+  created_at: string;
+}
+
 export interface MonitoredGroup {
   id: string;
   remote_jid: string;
@@ -170,6 +187,23 @@ export const useGroupSecretary = () => {
     });
   }, []);
 
+  const generateMeetingMinutes = useCallback(async (conversationId: string, hours = 24): Promise<MeetingMinutes> => {
+    const data = await api<MeetingMinutes>('/api/group-secretary/meeting-minutes/generate', {
+      method: 'POST',
+      body: { conversation_id: conversationId, hours },
+    });
+    return data;
+  }, []);
+
+  const getMeetingMinutes = useCallback(async (limit = 20): Promise<MeetingMinutes[]> => {
+    const data = await api<MeetingMinutes[]>(`/api/group-secretary/meeting-minutes?limit=${limit}`);
+    return data;
+  }, []);
+
+  const deleteMeetingMinutes = useCallback(async (id: string): Promise<void> => {
+    await api(`/api/group-secretary/meeting-minutes/${id}`, { method: 'DELETE' });
+  }, []);
+
   return {
     loading,
     setLoading,
@@ -183,5 +217,8 @@ export const useGroupSecretary = () => {
     getGroups,
     getStats,
     updateMemberPhone,
+    generateMeetingMinutes,
+    getMeetingMinutes,
+    deleteMeetingMinutes,
   };
 };
