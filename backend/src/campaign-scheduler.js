@@ -87,7 +87,7 @@ async function sendWhatsAppMessage(connection, phone, messageItems, contact) {
         mediaUrl
       );
 
-      results.push({ success: result.success, item, error: result.error });
+      results.push({ success: result.success, item, error: result.error, messageId: result.messageId });
       
       // Small delay between items of same message
       if (expandedItems.length > 1) {
@@ -336,6 +336,56 @@ export async function executeCampaignMessages() {
           await query(
             `UPDATE campaigns SET sent_count = sent_count + 1, updated_at = NOW() WHERE id = $1`,
             [msg.campaign_id]
+          );
+
+          // Save sent messages to chat_messages so they appear in the chat UI
+          const remoteJid = msg.phone.includes('@') ? msg.phone : `${msg.phone}@s.whatsapp.net`;
+          
+          // Find or create conversation
+          let convResult = await query(
+            `SELECT id FROM conversations WHERE connection_id = $1 AND remote_jid = $2`,
+            [msg.connection_id, remoteJid]
+          );
+          
+          let conversationId;
+          if (convResult.rows.length === 0) {
+            const newConv = await query(
+              `INSERT INTO conversations (connection_id, remote_jid, contact_name, contact_phone)
+               VALUES ($1, $2, $3, $4)
+               RETURNING id`,
+              [msg.connection_id, remoteJid, msg.contact_name || '', msg.phone]
+            );
+            conversationId = newConv.rows[0].id;
+          } else {
+            conversationId = convResult.rows[0].id;
+          }
+
+          // Save each sent item to chat_messages
+          for (const r of (result.results || [])) {
+            if (!r.success) continue;
+            const item = r.item || {};
+            const processedContent = replaceVariables(item.content || item.caption || '', contact);
+            const mediaUrl = item.mediaUrl || item.media_url || null;
+            const msgType = item.type || 'text';
+
+            await query(
+              `INSERT INTO chat_messages 
+                (conversation_id, message_id, from_me, content, message_type, media_url, status, timestamp)
+               VALUES ($1, $2, true, $3, $4, $5, 'sent', NOW())`,
+              [
+                conversationId,
+                r.messageId || null,
+                processedContent,
+                msgType,
+                mediaUrl,
+              ]
+            );
+          }
+
+          // Update conversation last_message_at
+          await query(
+            `UPDATE conversations SET last_message_at = NOW(), updated_at = NOW() WHERE id = $1`,
+            [conversationId]
           );
         } else {
           const translatedError = translateError(result.error);
