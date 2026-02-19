@@ -1,13 +1,13 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/auth.js';
-import pool from '../db.js';
+import { query } from '../db.js';
 
 const router = Router();
 router.use(authenticate);
 
 // Helper
 async function getUserOrg(userId) {
-  const r = await pool.query(
+  const r = await query(
     `SELECT organization_id, role FROM organization_members WHERE user_id = $1 LIMIT 1`,
     [userId]
   );
@@ -29,7 +29,7 @@ router.get('/stages', async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No org' });
-    const r = await pool.query(
+    const r = await query(
       `SELECT * FROM project_stages WHERE organization_id = $1 ORDER BY position ASC`,
       [org.organization_id]
     );
@@ -46,11 +46,11 @@ router.post('/stages', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org || !canManage(org.role)) return res.status(403).json({ error: 'Forbidden' });
     const { name, color, is_final } = req.body;
-    const posR = await pool.query(
+    const posR = await query(
       `SELECT COALESCE(MAX(position), -1) + 1 as pos FROM project_stages WHERE organization_id = $1`,
       [org.organization_id]
     );
-    const r = await pool.query(
+    const r = await query(
       `INSERT INTO project_stages (organization_id, name, color, is_final, position)
        VALUES ($1, $2, $3, $4, $5) RETURNING *`,
       [org.organization_id, name, color || '#6366f1', is_final || false, posR.rows[0].pos]
@@ -67,7 +67,7 @@ router.patch('/stages/:id', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org || !canManage(org.role)) return res.status(403).json({ error: 'Forbidden' });
     const { name, color, is_final, position } = req.body;
-    const r = await pool.query(
+    const r = await query(
       `UPDATE project_stages SET name = COALESCE($1, name), color = COALESCE($2, color),
        is_final = COALESCE($3, is_final), position = COALESCE($4, position)
        WHERE id = $5 AND organization_id = $6 RETURNING *`,
@@ -84,7 +84,7 @@ router.delete('/stages/:id', async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
     if (!org || !canManage(org.role)) return res.status(403).json({ error: 'Forbidden' });
-    await pool.query(
+    await query(
       `DELETE FROM project_stages WHERE id = $1 AND organization_id = $2`,
       [req.params.id, org.organization_id]
     );
@@ -101,7 +101,7 @@ router.post('/stages/reorder', async (req, res) => {
     if (!org || !canManage(org.role)) return res.status(403).json({ error: 'Forbidden' });
     const { stages } = req.body; // [{id, position}]
     for (const s of stages) {
-      await pool.query(`UPDATE project_stages SET position = $1 WHERE id = $2 AND organization_id = $3`,
+      await query(`UPDATE project_stages SET position = $1 WHERE id = $2 AND organization_id = $3`,
         [s.position, s.id, org.organization_id]);
     }
     res.json({ success: true });
@@ -119,7 +119,7 @@ router.get('/', async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No org' });
-    const r = await pool.query(
+    const r = await query(
       `SELECT p.*, 
         u1.name as requested_by_name, u2.name as assigned_to_name,
         ps.name as stage_name, ps.color as stage_color,
@@ -147,7 +147,7 @@ router.get('/:id', async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No org' });
-    const r = await pool.query(
+    const r = await query(
       `SELECT p.*, 
         u1.name as requested_by_name, u2.name as assigned_to_name,
         ps.name as stage_name, ps.color as stage_color,
@@ -177,14 +177,14 @@ router.post('/', async (req, res) => {
     // Get first stage as default
     let stage_id = null;
     try {
-      const stageR = await pool.query(
+      const stageR = await query(
         `SELECT id FROM project_stages WHERE organization_id = $1 ORDER BY position ASC LIMIT 1`,
         [org.organization_id]
       );
       if (stageR.rows[0]) stage_id = stageR.rows[0].id;
     } catch (_) {}
 
-    const r = await pool.query(
+    const r = await query(
       `INSERT INTO projects (organization_id, title, description, deal_id, stage_id, requested_by, assigned_to, priority, due_date)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
       [org.organization_id, title, description, deal_id || null, stage_id, req.userId, assigned_to || null, priority || 'medium', due_date || null]
@@ -195,7 +195,7 @@ router.post('/', async (req, res) => {
     // Apply template tasks if template_id provided
     if (template_id) {
       try {
-        const tmplTasks = await pool.query(
+        const tmplTasks = await query(
           `SELECT * FROM project_template_tasks WHERE template_id = $1 ORDER BY position ASC`,
           [template_id]
         );
@@ -204,7 +204,7 @@ router.post('/', async (req, res) => {
           const startDate = new Date();
           const endDate = new Date();
           endDate.setDate(endDate.getDate() + (t.duration_days || 1));
-          const tr = await pool.query(
+          const tr = await query(
             `INSERT INTO project_tasks (project_id, title, description, position, duration_days, start_date, end_date)
              VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
             [project.id, t.title, t.description, t.position, t.duration_days, startDate, endDate]
@@ -214,7 +214,7 @@ router.post('/', async (req, res) => {
         // Set dependencies
         for (const t of tmplTasks.rows) {
           if (t.depends_on_position != null && taskIdMap[t.depends_on_position]) {
-            await pool.query(
+            await query(
               `UPDATE project_tasks SET depends_on = $1 WHERE id = $2`,
               [taskIdMap[t.depends_on_position], taskIdMap[t.position]]
             );
@@ -235,7 +235,7 @@ router.patch('/:id', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No org' });
     const { title, description, stage_id, assigned_to, priority, due_date, position } = req.body;
-    const r = await pool.query(
+    const r = await query(
       `UPDATE projects SET 
         title = COALESCE($1, title), description = COALESCE($2, description),
         stage_id = COALESCE($3, stage_id), assigned_to = COALESCE($4, assigned_to),
@@ -256,7 +256,7 @@ router.post('/:id/move', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No org' });
     const { stage_id, position } = req.body;
-    const r = await pool.query(
+    const r = await query(
       `UPDATE projects SET stage_id = $1, position = COALESCE($2, position), updated_at = NOW()
        WHERE id = $3 AND organization_id = $4 RETURNING *`,
       [stage_id, position, req.params.id, org.organization_id]
@@ -272,7 +272,7 @@ router.delete('/:id', async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
     if (!org || !canManage(org.role)) return res.status(403).json({ error: 'Forbidden' });
-    await pool.query(`DELETE FROM projects WHERE id = $1 AND organization_id = $2`, [req.params.id, org.organization_id]);
+    await query(`DELETE FROM projects WHERE id = $1 AND organization_id = $2`, [req.params.id, org.organization_id]);
     res.json({ success: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -284,7 +284,7 @@ router.get('/by-deal/:dealId', async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No org' });
-    const r = await pool.query(
+    const r = await query(
       `SELECT p.*, ps.name as stage_name, ps.color as stage_color,
         (SELECT COUNT(*) FROM project_tasks pt WHERE pt.project_id = p.id) as total_tasks,
         (SELECT COUNT(*) FROM project_tasks pt WHERE pt.project_id = p.id AND pt.status = 'completed') as completed_tasks
@@ -307,7 +307,7 @@ router.get('/by-deal/:dealId', async (req, res) => {
 
 router.get('/:id/attachments', async (req, res) => {
   try {
-    const r = await pool.query(
+    const r = await query(
       `SELECT pa.*, u.name as uploaded_by_name FROM project_attachments pa
        LEFT JOIN users u ON pa.uploaded_by = u.id
        WHERE pa.project_id = $1 ORDER BY pa.created_at DESC`,
@@ -323,7 +323,7 @@ router.get('/:id/attachments', async (req, res) => {
 router.post('/:id/attachments', async (req, res) => {
   try {
     const { name, url, mimetype, size } = req.body;
-    const r = await pool.query(
+    const r = await query(
       `INSERT INTO project_attachments (project_id, name, url, mimetype, size, uploaded_by)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
       [req.params.id, name, url, mimetype, size, req.userId]
@@ -336,7 +336,7 @@ router.post('/:id/attachments', async (req, res) => {
 
 router.delete('/attachments/:attId', async (req, res) => {
   try {
-    await pool.query(`DELETE FROM project_attachments WHERE id = $1`, [req.params.attId]);
+    await query(`DELETE FROM project_attachments WHERE id = $1`, [req.params.attId]);
     res.json({ success: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -349,7 +349,7 @@ router.delete('/attachments/:attId', async (req, res) => {
 
 router.get('/:id/notes', async (req, res) => {
   try {
-    const r = await pool.query(
+    const r = await query(
       `SELECT pn.*, u.name as user_name FROM project_notes pn
        LEFT JOIN users u ON pn.user_id = u.id
        WHERE pn.project_id = $1 ORDER BY pn.created_at ASC`,
@@ -365,13 +365,13 @@ router.get('/:id/notes', async (req, res) => {
 router.post('/:id/notes', async (req, res) => {
   try {
     const { content, parent_id } = req.body;
-    const r = await pool.query(
+    const r = await query(
       `INSERT INTO project_notes (project_id, user_id, content, parent_id)
        VALUES ($1, $2, $3, $4) RETURNING *`,
       [req.params.id, req.userId, content, parent_id || null]
     );
     // Fetch with user name
-    const full = await pool.query(
+    const full = await query(
       `SELECT pn.*, u.name as user_name FROM project_notes pn LEFT JOIN users u ON pn.user_id = u.id WHERE pn.id = $1`,
       [r.rows[0].id]
     );
@@ -383,7 +383,7 @@ router.post('/:id/notes', async (req, res) => {
 
 router.delete('/notes/:noteId', async (req, res) => {
   try {
-    await pool.query(`DELETE FROM project_notes WHERE id = $1 AND user_id = $2`, [req.params.noteId, req.userId]);
+    await query(`DELETE FROM project_notes WHERE id = $1 AND user_id = $2`, [req.params.noteId, req.userId]);
     res.json({ success: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -396,7 +396,7 @@ router.delete('/notes/:noteId', async (req, res) => {
 
 router.get('/:id/tasks', async (req, res) => {
   try {
-    const r = await pool.query(
+    const r = await query(
       `SELECT pt.*, u.name as assigned_to_name FROM project_tasks pt
        LEFT JOIN users u ON pt.assigned_to = u.id
        WHERE pt.project_id = $1 ORDER BY pt.position ASC`,
@@ -412,11 +412,11 @@ router.get('/:id/tasks', async (req, res) => {
 router.post('/:id/tasks', async (req, res) => {
   try {
     const { title, description, start_date, end_date, duration_days, depends_on, assigned_to } = req.body;
-    const posR = await pool.query(
+    const posR = await query(
       `SELECT COALESCE(MAX(position), -1) + 1 as pos FROM project_tasks WHERE project_id = $1`,
       [req.params.id]
     );
-    const r = await pool.query(
+    const r = await query(
       `INSERT INTO project_tasks (project_id, title, description, position, start_date, end_date, duration_days, depends_on, assigned_to)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
       [req.params.id, title, description, posR.rows[0].pos, start_date || null, end_date || null, duration_days || 1, depends_on || null, assigned_to || null]
@@ -430,8 +430,7 @@ router.post('/:id/tasks', async (req, res) => {
 router.patch('/tasks/:taskId', async (req, res) => {
   try {
     const { title, description, status, start_date, end_date, duration_days, depends_on, assigned_to, position } = req.body;
-    const completed_at = status === 'completed' ? 'NOW()' : 'NULL';
-    const r = await pool.query(
+    const r = await query(
       `UPDATE project_tasks SET 
         title = COALESCE($1, title), description = COALESCE($2, description),
         status = COALESCE($3, status), start_date = COALESCE($4, start_date),
@@ -449,7 +448,7 @@ router.patch('/tasks/:taskId', async (req, res) => {
 
 router.delete('/tasks/:taskId', async (req, res) => {
   try {
-    await pool.query(`DELETE FROM project_tasks WHERE id = $1`, [req.params.taskId]);
+    await query(`DELETE FROM project_tasks WHERE id = $1`, [req.params.taskId]);
     res.json({ success: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -464,7 +463,7 @@ router.get('/templates', async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No org' });
-    const r = await pool.query(
+    const r = await query(
       `SELECT pt.*, 
         (SELECT COUNT(*) FROM project_template_tasks ptt WHERE ptt.template_id = pt.id) as task_count
        FROM project_templates pt WHERE pt.organization_id = $1 ORDER BY pt.name ASC`,
@@ -482,7 +481,7 @@ router.post('/templates', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org || !canManage(org.role)) return res.status(403).json({ error: 'Forbidden' });
     const { name, description, tasks } = req.body;
-    const r = await pool.query(
+    const r = await query(
       `INSERT INTO project_templates (organization_id, name, description, created_by)
        VALUES ($1, $2, $3, $4) RETURNING *`,
       [org.organization_id, name, description, req.userId]
@@ -491,7 +490,7 @@ router.post('/templates', async (req, res) => {
     if (tasks?.length) {
       for (let i = 0; i < tasks.length; i++) {
         const t = tasks[i];
-        await pool.query(
+        await query(
           `INSERT INTO project_template_tasks (template_id, title, description, position, duration_days, depends_on_position)
            VALUES ($1, $2, $3, $4, $5, $6)`,
           [template.id, t.title, t.description || null, i, t.duration_days || 1, t.depends_on_position ?? null]
@@ -509,16 +508,16 @@ router.patch('/templates/:id', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org || !canManage(org.role)) return res.status(403).json({ error: 'Forbidden' });
     const { name, description, tasks } = req.body;
-    await pool.query(
+    await query(
       `UPDATE project_templates SET name = COALESCE($1, name), description = COALESCE($2, description)
        WHERE id = $3 AND organization_id = $4`,
       [name, description, req.params.id, org.organization_id]
     );
     if (tasks) {
-      await pool.query(`DELETE FROM project_template_tasks WHERE template_id = $1`, [req.params.id]);
+      await query(`DELETE FROM project_template_tasks WHERE template_id = $1`, [req.params.id]);
       for (let i = 0; i < tasks.length; i++) {
         const t = tasks[i];
-        await pool.query(
+        await query(
           `INSERT INTO project_template_tasks (template_id, title, description, position, duration_days, depends_on_position)
            VALUES ($1, $2, $3, $4, $5, $6)`,
           [req.params.id, t.title, t.description || null, i, t.duration_days || 1, t.depends_on_position ?? null]
@@ -535,7 +534,7 @@ router.delete('/templates/:id', async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
     if (!org || !canManage(org.role)) return res.status(403).json({ error: 'Forbidden' });
-    await pool.query(`DELETE FROM project_templates WHERE id = $1 AND organization_id = $2`, [req.params.id, org.organization_id]);
+    await query(`DELETE FROM project_templates WHERE id = $1 AND organization_id = $2`, [req.params.id, org.organization_id]);
     res.json({ success: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -545,7 +544,7 @@ router.delete('/templates/:id', async (req, res) => {
 // Get template tasks
 router.get('/templates/:id/tasks', async (req, res) => {
   try {
-    const r = await pool.query(
+    const r = await query(
       `SELECT * FROM project_template_tasks WHERE template_id = $1 ORDER BY position ASC`,
       [req.params.id]
     );
@@ -561,7 +560,7 @@ router.get('/check-designer', async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
     if (!org) return res.json({ isDesigner: false });
-    const r = await pool.query(
+    const r = await query(
       `SELECT 1 FROM crm_user_group_members gm
        JOIN crm_user_groups g ON g.id = gm.group_id
        WHERE gm.user_id = $1 AND g.organization_id = $2 AND LOWER(g.name) LIKE '%projeto%'
