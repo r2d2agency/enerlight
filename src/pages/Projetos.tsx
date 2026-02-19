@@ -54,6 +54,9 @@ export default function Projetos() {
   // Stage editor state
   const [newStageName, setNewStageName] = useState("");
   const [newStageColor, setNewStageColor] = useState("#6366f1");
+  const [editingStage, setEditingStage] = useState<ProjectStage | null>(null);
+  const [editStageName, setEditStageName] = useState("");
+  const [editStageColor, setEditStageColor] = useState("");
 
   // Template editor state
   const [editingTemplate, setEditingTemplate] = useState<ProjectTemplate | null>(null);
@@ -274,20 +277,93 @@ export default function Projetos() {
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Gerenciar Etapas</DialogTitle></DialogHeader>
           <div className="space-y-4">
+            {/* Add new stage */}
             <div className="flex gap-2">
               <Input value={newStageName} onChange={e => setNewStageName(e.target.value)} placeholder="Nova etapa..." className="flex-1" />
               <input type="color" value={newStageColor} onChange={e => setNewStageColor(e.target.value)} className="w-10 h-10 rounded cursor-pointer border" />
               <Button size="sm" onClick={handleCreateStage}><Plus className="h-4 w-4" /></Button>
             </div>
+
+            {/* Stage list with edit/reorder */}
             <div className="space-y-2">
-              {stages.map(stage => (
+              {stages.map((stage, idx) => (
                 <div key={stage.id} className="flex items-center gap-2 p-2 rounded-lg border">
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: stage.color }} />
-                  <span className="flex-1 text-sm font-medium">{stage.name}</span>
-                  {stage.is_final && <Badge variant="outline" className="text-xs">Final</Badge>}
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => stageMut.remove.mutate(stage.id)}>
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
+                  {editingStage?.id === stage.id ? (
+                    <>
+                      <input
+                        type="color"
+                        value={editStageColor}
+                        onChange={e => setEditStageColor(e.target.value)}
+                        className="w-8 h-8 rounded cursor-pointer border-0 p-0"
+                      />
+                      <Input
+                        value={editStageName}
+                        onChange={e => setEditStageName(e.target.value)}
+                        className="flex-1 h-8 text-sm"
+                        autoFocus
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') {
+                            stageMut.update.mutate({ id: stage.id, name: editStageName, color: editStageColor });
+                            setEditingStage(null);
+                          }
+                          if (e.key === 'Escape') setEditingStage(null);
+                        }}
+                      />
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
+                        stageMut.update.mutate({ id: stage.id, name: editStageName, color: editStageColor });
+                        setEditingStage(null);
+                      }}>
+                        <CheckSquare className="h-3 w-3 text-green-500" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingStage(null)}>
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex flex-col gap-0.5">
+                        <Button
+                          variant="ghost" size="icon" className="h-5 w-5"
+                          disabled={idx === 0}
+                          onClick={() => {
+                            const reordered = stages.map((s, i) => ({
+                              id: s.id,
+                              position: i === idx ? idx - 1 : i === idx - 1 ? idx : i
+                            }));
+                            stageMut.reorder.mutate(reordered);
+                          }}
+                        >
+                          <ArrowRight className="h-3 w-3 -rotate-90" />
+                        </Button>
+                        <Button
+                          variant="ghost" size="icon" className="h-5 w-5"
+                          disabled={idx === stages.length - 1}
+                          onClick={() => {
+                            const reordered = stages.map((s, i) => ({
+                              id: s.id,
+                              position: i === idx ? idx + 1 : i === idx + 1 ? idx : i
+                            }));
+                            stageMut.reorder.mutate(reordered);
+                          }}
+                        >
+                          <ArrowRight className="h-3 w-3 rotate-90" />
+                        </Button>
+                      </div>
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: stage.color }} />
+                      <span className="flex-1 text-sm font-medium">{stage.name}</span>
+                      {stage.is_final && <Badge variant="outline" className="text-xs">Final</Badge>}
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
+                        setEditingStage(stage);
+                        setEditStageName(stage.name);
+                        setEditStageColor(stage.color);
+                      }}>
+                        <Edit className="h-3 w-3" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => stageMut.remove.mutate(stage.id)}>
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </>
+                  )}
                 </div>
               ))}
             </div>

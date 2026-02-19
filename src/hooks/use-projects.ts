@@ -189,7 +189,13 @@ export function useProjectStageMutations() {
     onSuccess: () => { inv(); toast.success("Etapa removida!"); },
   });
 
-  return { create, update, remove };
+  const reorder = useMutation({
+    mutationFn: (stages: { id: string; position: number }[]) =>
+      api("/api/projects/stages/reorder", { method: "POST", body: { stages }, auth: true }),
+    onSuccess: () => { inv(); },
+  });
+
+  return { create, update, remove, reorder };
 }
 
 export function useProjectMutations() {
