@@ -86,7 +86,7 @@ export default function Projetos() {
       title: newProject.title,
       description: newProject.description,
       priority: newProject.priority,
-      template_id: newProject.template_id || undefined,
+      template_id: newProject.template_id && newProject.template_id !== "none" ? newProject.template_id : undefined,
     }, {
       onSuccess: () => {
         setShowCreateProject(false);
@@ -250,7 +250,7 @@ export default function Projetos() {
                 <Select value={newProject.template_id} onValueChange={v => setNewProject(p => ({ ...p, template_id: v }))}>
                   <SelectTrigger><SelectValue placeholder="Sem template" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Sem template</SelectItem>
+                    <SelectItem value="none">Sem template</SelectItem>
                     {templates.map(t => (
                       <SelectItem key={t.id} value={t.id}>{t.name} ({t.task_count} tarefas)</SelectItem>
                     ))}
