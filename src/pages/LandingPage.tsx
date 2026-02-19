@@ -255,7 +255,7 @@ const pricingPlans = [
   {
     name: "Starter",
     description: "Para pequenas empresas e empreendedores",
-    price: "R$ 300",
+    price: "R$ 253",
     period: "/mês",
     popular: false,
     cta: "Começar Agora",
@@ -275,8 +275,8 @@ const pricingPlans = [
   {
     name: "Business",
     description: "Para empresas com equipe comercial estruturada",
-    price: "R$ 750",
-    period: "/mês",
+    price: "Sob consulta",
+    period: "",
     popular: true,
     cta: "Testar 7 Dias Grátis",
     features: [
@@ -297,8 +297,8 @@ const pricingPlans = [
   {
     name: "Premium",
     description: "Para empresas que querem IA e automação total",
-    price: "R$ 1.500",
-    period: "/mês",
+    price: "Sob consulta",
+    period: "",
     popular: false,
     cta: "Testar 7 Dias Grátis",
     features: [
