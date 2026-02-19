@@ -571,31 +571,185 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Pain Points / Why Section */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8 border-y bg-muted/20">
-        <div className="max-w-5xl mx-auto">
-          <h2 className="text-2xl sm:text-3xl font-bold text-center mb-10">
-            Problemas que resolvemos na sua empresa
-          </h2>
+      {/* Dores Section */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8 border-y bg-muted/20">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-14">
+            <Badge variant="secondary" className="mb-4 px-3 py-1 text-destructive bg-destructive/10 border-destructive/20">
+              <AlertTriangle className="h-3 w-3 mr-1" />
+              Você se identifica?
+            </Badge>
+            <h2 className="text-3xl sm:text-4xl font-bold mb-4">
+              As dores que <span className="text-destructive">travam</span> o crescimento da sua empresa
+            </h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              Se sua equipe comercial sofre com algum desses problemas, você está perdendo dinheiro todos os dias.
+            </p>
+          </div>
+
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
-              { icon: MessageSquare, title: "WhatsApp caótico", desc: "Centralize todas as conversas de clientes em um único painel organizado." },
-              { icon: Clock, title: "Esqueceu de retornar", desc: "Lembretes automáticos para follow-ups, reuniões e retornos a clientes." },
-              { icon: FolderOpen, title: "Oportunidades perdidas", desc: "CRM com Kanban visual para acompanhar cada negociação do funil." },
-              { icon: Bot, title: "Grupos sem controle", desc: "Secretária IA monitora grupos do WhatsApp, identifica pedidos e cria tarefas automaticamente." },
-              { icon: Brain, title: "Equipe sem padrão", desc: "IA que ajuda a criar scripts, propostas e respostas padronizadas para toda a equipe." },
-              { icon: ArrowLeftRight, title: "Atendimento manual 24h", desc: "Transfira conversas para agentes IA que atendem automaticamente com base no conhecimento da empresa." },
+              { icon: MessageSquare, title: "WhatsApp caótico", desc: "Conversas misturadas, clientes sem resposta, vendedores usando celular pessoal. Impossível saber quem atendeu quem." },
+              { icon: Clock, title: "Leads esfriando", desc: "Ninguém lembra de retornar. O cliente que pediu orçamento ontem já comprou do concorrente." },
+              { icon: FolderOpen, title: "Pipeline invisível", desc: "Ninguém sabe quantas negociações estão abertas, em que fase estão ou quando vão fechar." },
+              { icon: Users, title: "Equipe desalinhada", desc: "Dois vendedores atendem o mesmo lead. Outro lead fica sem resposta. Sem distribuição justa." },
+              { icon: Brain, title: "Sem padrão de atendimento", desc: "Cada vendedor responde de um jeito. Sem scripts, sem propostas padronizadas, sem controle de qualidade." },
+              { icon: Shield, title: "Zero visibilidade gerencial", desc: "Gestor não sabe o volume de conversas, tempo de resposta nem taxa de conversão da equipe." },
             ].map((item, i) => (
-              <div key={i} className="flex items-start gap-3 p-4 rounded-lg bg-background border">
-                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                  <item.icon className="h-5 w-5 text-primary" />
+              <div key={i} className="group p-5 rounded-xl bg-background border border-destructive/20 hover:border-destructive/40 transition-all hover:shadow-lg">
+                <div className="w-11 h-11 rounded-lg bg-destructive/10 flex items-center justify-center mb-3">
+                  <item.icon className="h-5 w-5 text-destructive" />
                 </div>
+                <h4 className="font-semibold mb-2">{item.title}</h4>
+                <p className="text-sm text-muted-foreground leading-relaxed">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Gatilhos / Urgência Section */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-14">
+            <Badge variant="secondary" className="mb-4 px-3 py-1">
+              <Zap className="h-3 w-3 mr-1" />
+              Por que agir agora?
+            </Badge>
+            <h2 className="text-3xl sm:text-4xl font-bold mb-4">
+              Cada dia sem organização é{" "}
+              <span className="bg-gradient-to-r from-[hsl(24,92%,55%)] to-[hsl(340,70%,55%)] bg-clip-text text-transparent">
+                dinheiro perdido
+              </span>
+            </h2>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-8">
+            {[
+              {
+                emoji: "💸",
+                trigger: "Você perde 30% dos leads por demora na resposta",
+                detail: "Pesquisas mostram que responder em até 5 minutos aumenta 21x a chance de conversão. Quanto tempo seu time demora?",
+              },
+              {
+                emoji: "📉",
+                trigger: "Seu concorrente já automatizou o atendimento",
+                detail: "Enquanto sua equipe responde manualmente, empresas do seu mercado já usam IA para qualificar e atender 24h.",
+              },
+              {
+                emoji: "🔥",
+                trigger: "Sua equipe trabalha mais, mas vende menos",
+                detail: "Sem processo, sem CRM e sem automação, seus vendedores gastam 60% do tempo em tarefas operacionais.",
+              },
+              {
+                emoji: "⏰",
+                trigger: "Crescer sem controle é receita para o caos",
+                detail: "Mais vendedores sem sistema = mais confusão. A hora de organizar é antes de escalar, não depois.",
+              },
+            ].map((item, i) => (
+              <div key={i} className="flex gap-4 p-6 rounded-xl border bg-card hover:shadow-md transition-shadow">
+                <span className="text-3xl shrink-0">{item.emoji}</span>
                 <div>
-                  <h4 className="font-semibold mb-1">{item.title}</h4>
-                  <p className="text-sm text-muted-foreground">{item.desc}</p>
+                  <h4 className="font-bold text-lg mb-2">{item.trigger}</h4>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{item.detail}</p>
                 </div>
               </div>
             ))}
+          </div>
+
+          <div className="text-center mt-10">
+            <Button size="lg" className="gap-2 px-8 h-12 text-base" onClick={() => setShowPreRegister(true)}>
+              Quero parar de perder vendas
+              <ArrowRight className="h-5 w-5" />
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      {/* Como Resolvemos Section */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8 border-y bg-muted/20">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-14">
+            <Badge variant="secondary" className="mb-4 px-3 py-1 text-primary bg-primary/10 border-primary/20">
+              <CheckCircle2 className="h-3 w-3 mr-1" />
+              A solução
+            </Badge>
+            <h2 className="text-3xl sm:text-4xl font-bold mb-4">
+              Como o{" "}
+              <span className="bg-gradient-to-r from-[hsl(217,75%,55%)] via-[hsl(152,55%,48%)] to-[hsl(24,92%,55%)] bg-clip-text text-transparent">
+                Glee-go Whats
+              </span>{" "}
+              resolve cada problema
+            </h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              Cada dor da sua operação tem uma funcionalidade específica para resolver. Veja o antes e depois:
+            </p>
+          </div>
+
+          <div className="space-y-6">
+            {[
+              {
+                pain: "WhatsApp caótico",
+                solution: "Chat centralizado com multi-atendentes",
+                desc: "Todas as conversas em um painel único. Cada vendedor vê apenas seus clientes, com filas organizadas e transferências entre departamentos.",
+                icon: MessageSquare,
+              },
+              {
+                pain: "Leads esfriando sem retorno",
+                solution: "Lembretes + Follow-up automático",
+                desc: "Crie lembretes para cada cliente. Configure sequências automáticas de acompanhamento para leads que não responderam. Nunca mais esqueça um follow-up.",
+                icon: Bell,
+              },
+              {
+                pain: "Pipeline invisível",
+                solution: "CRM Kanban integrado ao WhatsApp",
+                desc: "Veja todas as negociações em um quadro visual por etapa. Arraste cards entre colunas, adicione tarefas e acompanhe o valor total do funil em tempo real.",
+                icon: FolderOpen,
+              },
+              {
+                pain: "Equipe desalinhada",
+                solution: "Distribuição automática de leads",
+                desc: "Novos leads são distribuídos automaticamente entre vendedores por rodízio, área ou regra personalizada. Fim do conflito e dos leads perdidos.",
+                icon: UserCheck,
+              },
+              {
+                pain: "Sem padrão de atendimento",
+                solution: "IA comercial com base de conhecimento",
+                desc: "Alimente a IA com catálogos e manuais da empresa. Ela sugere respostas, cria propostas e ajuda no fechamento usando informações reais do seu negócio.",
+                icon: Brain,
+              },
+              {
+                pain: "Atendimento fora do horário",
+                solution: "Agentes IA atendem 24h por você",
+                desc: "Transfira conversas para agentes IA especializados que atendem, qualificam e agendam reuniões automaticamente — mesmo de madrugada.",
+                icon: Bot,
+              },
+            ].map((item, i) => (
+              <div key={i} className="flex flex-col md:flex-row items-start gap-4 p-6 rounded-xl border bg-card hover:shadow-md transition-shadow">
+                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                  <item.icon className="h-6 w-6 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex flex-wrap items-center gap-3 mb-2">
+                    <span className="text-sm font-medium text-destructive bg-destructive/10 px-2.5 py-0.5 rounded-full">
+                      ❌ {item.pain}
+                    </span>
+                    <ArrowRight className="h-4 w-4 text-muted-foreground hidden sm:block" />
+                    <span className="text-sm font-medium text-primary bg-primary/10 px-2.5 py-0.5 rounded-full">
+                      ✅ {item.solution}
+                    </span>
+                  </div>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{item.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="text-center mt-12">
+            <Button size="lg" variant="outline" className="gap-2 px-8 h-12 text-base" onClick={() => setShowPreRegister(true)}>
+              <Sparkles className="h-5 w-5" />
+              Quero essa solução para minha empresa
+            </Button>
           </div>
         </div>
       </section>
