@@ -1,9 +1,9 @@
 import { Router } from 'express';
-import { authMiddleware } from '../middleware/auth.js';
+import { authenticate } from '../middleware/auth.js';
 import pool from '../db.js';
 
 const router = Router();
-router.use(authMiddleware);
+router.use(authenticate);
 
 // Helper
 async function getUserOrg(userId) {
@@ -27,7 +27,7 @@ const canManage = (role) => ['owner', 'admin', 'manager'].includes(role);
 // List stages
 router.get('/stages', async (req, res) => {
   try {
-    const org = await getUserOrg(req.user.id);
+    const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No org' });
     const r = await pool.query(
       `SELECT * FROM project_stages WHERE organization_id = $1 ORDER BY position ASC`,
@@ -43,7 +43,7 @@ router.get('/stages', async (req, res) => {
 // Create stage
 router.post('/stages', async (req, res) => {
   try {
-    const org = await getUserOrg(req.user.id);
+    const org = await getUserOrg(req.userId);
     if (!org || !canManage(org.role)) return res.status(403).json({ error: 'Forbidden' });
     const { name, color, is_final } = req.body;
     const posR = await pool.query(
@@ -64,7 +64,7 @@ router.post('/stages', async (req, res) => {
 // Update stage
 router.patch('/stages/:id', async (req, res) => {
   try {
-    const org = await getUserOrg(req.user.id);
+    const org = await getUserOrg(req.userId);
     if (!org || !canManage(org.role)) return res.status(403).json({ error: 'Forbidden' });
     const { name, color, is_final, position } = req.body;
     const r = await pool.query(
@@ -82,7 +82,7 @@ router.patch('/stages/:id', async (req, res) => {
 // Delete stage
 router.delete('/stages/:id', async (req, res) => {
   try {
-    const org = await getUserOrg(req.user.id);
+    const org = await getUserOrg(req.userId);
     if (!org || !canManage(org.role)) return res.status(403).json({ error: 'Forbidden' });
     await pool.query(
       `DELETE FROM project_stages WHERE id = $1 AND organization_id = $2`,
@@ -97,7 +97,7 @@ router.delete('/stages/:id', async (req, res) => {
 // Reorder stages
 router.post('/stages/reorder', async (req, res) => {
   try {
-    const org = await getUserOrg(req.user.id);
+    const org = await getUserOrg(req.userId);
     if (!org || !canManage(org.role)) return res.status(403).json({ error: 'Forbidden' });
     const { stages } = req.body; // [{id, position}]
     for (const s of stages) {
@@ -117,7 +117,7 @@ router.post('/stages/reorder', async (req, res) => {
 // List projects
 router.get('/', async (req, res) => {
   try {
-    const org = await getUserOrg(req.user.id);
+    const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No org' });
     const r = await pool.query(
       `SELECT p.*, 
@@ -145,7 +145,7 @@ router.get('/', async (req, res) => {
 // Get single project
 router.get('/:id', async (req, res) => {
   try {
-    const org = await getUserOrg(req.user.id);
+    const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No org' });
     const r = await pool.query(
       `SELECT p.*, 
@@ -170,7 +170,7 @@ router.get('/:id', async (req, res) => {
 // Create project
 router.post('/', async (req, res) => {
   try {
-    const org = await getUserOrg(req.user.id);
+    const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No org' });
     const { title, description, deal_id, assigned_to, priority, due_date, template_id } = req.body;
 
@@ -187,7 +187,7 @@ router.post('/', async (req, res) => {
     const r = await pool.query(
       `INSERT INTO projects (organization_id, title, description, deal_id, stage_id, requested_by, assigned_to, priority, due_date)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-      [org.organization_id, title, description, deal_id || null, stage_id, req.user.id, assigned_to || null, priority || 'medium', due_date || null]
+      [org.organization_id, title, description, deal_id || null, stage_id, req.userId, assigned_to || null, priority || 'medium', due_date || null]
     );
 
     const project = r.rows[0];
@@ -232,7 +232,7 @@ router.post('/', async (req, res) => {
 // Update project
 router.patch('/:id', async (req, res) => {
   try {
-    const org = await getUserOrg(req.user.id);
+    const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No org' });
     const { title, description, stage_id, assigned_to, priority, due_date, position } = req.body;
     const r = await pool.query(
@@ -253,7 +253,7 @@ router.patch('/:id', async (req, res) => {
 // Move project (stage change)
 router.post('/:id/move', async (req, res) => {
   try {
-    const org = await getUserOrg(req.user.id);
+    const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No org' });
     const { stage_id, position } = req.body;
     const r = await pool.query(
@@ -270,7 +270,7 @@ router.post('/:id/move', async (req, res) => {
 // Delete project
 router.delete('/:id', async (req, res) => {
   try {
-    const org = await getUserOrg(req.user.id);
+    const org = await getUserOrg(req.userId);
     if (!org || !canManage(org.role)) return res.status(403).json({ error: 'Forbidden' });
     await pool.query(`DELETE FROM projects WHERE id = $1 AND organization_id = $2`, [req.params.id, org.organization_id]);
     res.json({ success: true });
@@ -282,7 +282,7 @@ router.delete('/:id', async (req, res) => {
 // Get projects by deal
 router.get('/by-deal/:dealId', async (req, res) => {
   try {
-    const org = await getUserOrg(req.user.id);
+    const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No org' });
     const r = await pool.query(
       `SELECT p.*, ps.name as stage_name, ps.color as stage_color,
@@ -326,7 +326,7 @@ router.post('/:id/attachments', async (req, res) => {
     const r = await pool.query(
       `INSERT INTO project_attachments (project_id, name, url, mimetype, size, uploaded_by)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [req.params.id, name, url, mimetype, size, req.user.id]
+      [req.params.id, name, url, mimetype, size, req.userId]
     );
     res.json(r.rows[0]);
   } catch (e) {
@@ -368,7 +368,7 @@ router.post('/:id/notes', async (req, res) => {
     const r = await pool.query(
       `INSERT INTO project_notes (project_id, user_id, content, parent_id)
        VALUES ($1, $2, $3, $4) RETURNING *`,
-      [req.params.id, req.user.id, content, parent_id || null]
+      [req.params.id, req.userId, content, parent_id || null]
     );
     // Fetch with user name
     const full = await pool.query(
@@ -383,7 +383,7 @@ router.post('/:id/notes', async (req, res) => {
 
 router.delete('/notes/:noteId', async (req, res) => {
   try {
-    await pool.query(`DELETE FROM project_notes WHERE id = $1 AND user_id = $2`, [req.params.noteId, req.user.id]);
+    await pool.query(`DELETE FROM project_notes WHERE id = $1 AND user_id = $2`, [req.params.noteId, req.userId]);
     res.json({ success: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -462,7 +462,7 @@ router.delete('/tasks/:taskId', async (req, res) => {
 
 router.get('/templates', async (req, res) => {
   try {
-    const org = await getUserOrg(req.user.id);
+    const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No org' });
     const r = await pool.query(
       `SELECT pt.*, 
@@ -479,13 +479,13 @@ router.get('/templates', async (req, res) => {
 
 router.post('/templates', async (req, res) => {
   try {
-    const org = await getUserOrg(req.user.id);
+    const org = await getUserOrg(req.userId);
     if (!org || !canManage(org.role)) return res.status(403).json({ error: 'Forbidden' });
     const { name, description, tasks } = req.body;
     const r = await pool.query(
       `INSERT INTO project_templates (organization_id, name, description, created_by)
        VALUES ($1, $2, $3, $4) RETURNING *`,
-      [org.organization_id, name, description, req.user.id]
+      [org.organization_id, name, description, req.userId]
     );
     const template = r.rows[0];
     if (tasks?.length) {
@@ -506,7 +506,7 @@ router.post('/templates', async (req, res) => {
 
 router.patch('/templates/:id', async (req, res) => {
   try {
-    const org = await getUserOrg(req.user.id);
+    const org = await getUserOrg(req.userId);
     if (!org || !canManage(org.role)) return res.status(403).json({ error: 'Forbidden' });
     const { name, description, tasks } = req.body;
     await pool.query(
@@ -533,7 +533,7 @@ router.patch('/templates/:id', async (req, res) => {
 
 router.delete('/templates/:id', async (req, res) => {
   try {
-    const org = await getUserOrg(req.user.id);
+    const org = await getUserOrg(req.userId);
     if (!org || !canManage(org.role)) return res.status(403).json({ error: 'Forbidden' });
     await pool.query(`DELETE FROM project_templates WHERE id = $1 AND organization_id = $2`, [req.params.id, org.organization_id]);
     res.json({ success: true });
@@ -559,14 +559,14 @@ router.get('/templates/:id/tasks', async (req, res) => {
 // Check if user is in a "projects" group
 router.get('/check-designer', async (req, res) => {
   try {
-    const org = await getUserOrg(req.user.id);
+    const org = await getUserOrg(req.userId);
     if (!org) return res.json({ isDesigner: false });
     const r = await pool.query(
       `SELECT 1 FROM crm_user_group_members gm
        JOIN crm_user_groups g ON g.id = gm.group_id
        WHERE gm.user_id = $1 AND g.organization_id = $2 AND LOWER(g.name) LIKE '%projeto%'
        LIMIT 1`,
-      [req.user.id, org.organization_id]
+      [req.userId, org.organization_id]
     );
     res.json({ isDesigner: r.rows.length > 0 });
   } catch (e) {
