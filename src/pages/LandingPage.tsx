@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ScrollReveal } from "@/hooks/use-scroll-animation";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -572,7 +573,7 @@ export default function LandingPage() {
       </section>
 
       {/* Dores Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 border-y bg-muted/20">
+      <ScrollReveal><section className="py-20 px-4 sm:px-6 lg:px-8 border-y bg-muted/20">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-14">
             <Badge variant="secondary" className="mb-4 px-3 py-1 text-destructive bg-destructive/10 border-destructive/20">
@@ -606,10 +607,10 @@ export default function LandingPage() {
             ))}
           </div>
         </div>
-      </section>
+      </section></ScrollReveal>
 
       {/* Gatilhos / Urgência Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8">
+      <ScrollReveal><section className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
             <Badge variant="secondary" className="mb-4 px-3 py-1">
@@ -664,10 +665,10 @@ export default function LandingPage() {
             </Button>
           </div>
         </div>
-      </section>
+      </section></ScrollReveal>
 
       {/* Como Resolvemos Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 border-y bg-muted/20">
+      <ScrollReveal><section className="py-20 px-4 sm:px-6 lg:px-8 border-y bg-muted/20">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-14">
             <Badge variant="secondary" className="mb-4 px-3 py-1 text-primary bg-primary/10 border-primary/20">
@@ -752,10 +753,10 @@ export default function LandingPage() {
             </Button>
           </div>
         </div>
-      </section>
+      </section></ScrollReveal>
 
       {/* Features Section */}
-      <section id="funcionalidades" className="py-20 px-4 sm:px-6 lg:px-8">
+      <ScrollReveal><section id="funcionalidades" className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
             <Badge variant="outline" className="mb-4">+30 Funcionalidades</Badge>
@@ -822,10 +823,10 @@ export default function LandingPage() {
             ))}
           </div>
         </div>
-      </section>
+      </section></ScrollReveal>
 
       {/* Testimonials */}
-      <section id="depoimentos" className="py-20 px-4 sm:px-6 lg:px-8 bg-muted/30">
+      <ScrollReveal><section id="depoimentos" className="py-20 px-4 sm:px-6 lg:px-8 bg-muted/30">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
             <Badge variant="outline" className="mb-4">Depoimentos</Badge>
@@ -853,10 +854,10 @@ export default function LandingPage() {
             ))}
           </div>
         </div>
-      </section>
+      </section></ScrollReveal>
 
       {/* Pricing */}
-      <section id="precos" className="py-20 px-4 sm:px-6 lg:px-8">
+      <ScrollReveal><section id="precos" className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
             <Badge variant="outline" className="mb-4">Planos</Badge>
@@ -914,10 +915,10 @@ export default function LandingPage() {
             ))}
           </div>
         </div>
-      </section>
+      </section></ScrollReveal>
 
       {/* Trust Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-muted/30">
+      <ScrollReveal><section className="py-20 px-4 sm:px-6 lg:px-8 bg-muted/30">
         <div className="max-w-5xl mx-auto text-center">
           <h2 className="text-2xl sm:text-3xl font-bold mb-12">
             Por que empresas confiam na nossa plataforma?
@@ -945,10 +946,10 @@ export default function LandingPage() {
             </Card>
           </div>
         </div>
-      </section>
+      </section></ScrollReveal>
 
       {/* FAQ Section */}
-      <section id="faq" className="py-20 px-4 sm:px-6 lg:px-8">
+      <ScrollReveal><section id="faq" className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-3xl mx-auto">
           <div className="text-center mb-12">
             <Badge variant="outline" className="mb-4">FAQ</Badge>
@@ -1011,10 +1012,10 @@ export default function LandingPage() {
             ))}
           </div>
         </div>
-      </section>
+      </section></ScrollReveal>
 
       {/* Final CTA */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-primary text-primary-foreground">
+      <ScrollReveal><section className="py-20 px-4 sm:px-6 lg:px-8 bg-primary text-primary-foreground">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-3xl sm:text-4xl font-bold mb-4">
             Pronto para escalar suas vendas?
@@ -1039,7 +1040,7 @@ export default function LandingPage() {
             </Link>
           </div>
         </div>
-      </section>
+      </section></ScrollReveal>
 
       {/* Footer */}
       <footer className="py-12 px-4 sm:px-6 lg:px-8 border-t">
