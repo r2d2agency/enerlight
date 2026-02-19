@@ -67,18 +67,18 @@ const featureCategories = [
       },
       {
         icon: Users,
-        title: "Multi-Advogados",
-        description: "Cada advogado atende seus clientes com filas organizadas e transferências.",
+        title: "Multi-Atendentes",
+        description: "Cada vendedor ou atendente cuida dos seus clientes com filas organizadas e transferências.",
       },
       {
         icon: Bell,
-        title: "Solicitações de Clientes",
-        description: "Receba alertas quando clientes enviam documentos, dúvidas ou novas demandas.",
+        title: "Notificações Inteligentes",
+        description: "Receba alertas quando clientes enviam mensagens, pedidos ou novas solicitações.",
       },
       {
         icon: Building2,
-        title: "Setores do Escritório",
-        description: "Separe atendimento por área: cível, trabalhista, família, criminal.",
+        title: "Setores e Departamentos",
+        description: "Separe atendimento por área: comercial, suporte, financeiro, pós-venda.",
       },
     ],
   },
@@ -90,13 +90,13 @@ const featureCategories = [
     features: [
       {
         icon: FolderOpen,
-        title: "Kanban de Demandas",
-        description: "Organize solicitações e demandas dos clientes em quadros visuais por status.",
+        title: "Kanban de Negociações",
+        description: "Organize negociações e oportunidades em quadros visuais por etapa do funil.",
       },
       {
         icon: ClipboardList,
         title: "Tarefas da Equipe",
-        description: "Atribua e acompanhe tarefas entre advogados, estagiários e secretaria.",
+        description: "Atribua e acompanhe tarefas entre vendedores, gestores e equipe de suporte.",
       },
       {
         icon: Bot,
@@ -106,12 +106,12 @@ const featureCategories = [
       {
         icon: Users,
         title: "Gestão de Grupos",
-        description: "Grupos internos por caso ou área para comunicação rápida da equipe.",
+        description: "Grupos internos por projeto ou área para comunicação rápida da equipe.",
       },
       {
         icon: Lock,
         title: "Permissões por Cargo",
-        description: "Controle quem vê o quê: sócios, associados, estagiários e secretaria.",
+        description: "Controle quem vê o quê: diretores, gerentes, vendedores e atendentes.",
       },
     ],
   },
@@ -124,7 +124,7 @@ const featureCategories = [
       {
         icon: Bell,
         title: "Lembretes Automáticos",
-        description: "Crie lembretes para compromissos, reuniões e retornos a clientes.",
+        description: "Crie lembretes para reuniões, follow-ups e retornos a clientes.",
       },
       {
         icon: Clock,
@@ -133,26 +133,26 @@ const featureCategories = [
       },
       {
         icon: Calendar,
-        title: "Agenda do Escritório",
+        title: "Agenda da Empresa",
         description: "Visualize compromissos de toda a equipe em um calendário integrado.",
       },
       {
         icon: RefreshCw,
         title: "Follow-up Automático",
-        description: "Sequências de acompanhamento para clientes que não responderam.",
+        description: "Sequências de acompanhamento para leads que não responderam.",
       },
     ],
   },
   {
-    category: "IA Jurídica",
+    category: "IA Comercial",
     icon: Brain,
     color: "text-violet-500",
     bgColor: "bg-violet-500/10",
     features: [
       {
         icon: Brain,
-        title: "Assistente para Peças",
-        description: "IA que ajuda a redigir petições, contestações e pareceres dentro do sistema.",
+        title: "Assistente de Vendas",
+        description: "IA que ajuda a criar propostas, scripts de vendas e respostas comerciais.",
       },
       {
         icon: ArrowLeftRight,
@@ -167,7 +167,7 @@ const featureCategories = [
       {
         icon: Database,
         title: "Base de Conhecimento",
-        description: "Alimente a IA com documentos, URLs e textos do escritório para respostas precisas (RAG).",
+        description: "Alimente a IA com catálogos, manuais e documentos da empresa para respostas precisas (RAG).",
       },
       {
         icon: Bot,
@@ -186,8 +186,8 @@ const featureCategories = [
       },
       {
         icon: Sparkles,
-        title: "Tira-Dúvidas Jurídico",
-        description: "Pergunte sobre legislação, jurisprudência e procedimentos diretamente no chat.",
+        title: "Insights Comerciais",
+        description: "Análise inteligente de conversas para identificar oportunidades e melhorar o atendimento.",
       },
     ],
   },
@@ -200,22 +200,22 @@ const featureCategories = [
       {
         icon: Bot,
         title: "Fluxos de Atendimento",
-        description: "Crie menus automáticos para triagem: tipo de caso, urgência e área.",
+        description: "Crie menus automáticos para triagem: tipo de produto, urgência e departamento.",
       },
       {
         icon: Send,
         title: "Disparos em Massa",
-        description: "Envie comunicados e informativos para toda sua base de clientes.",
+        description: "Envie promoções, novidades e comunicados para toda sua base de clientes.",
       },
       {
         icon: UserCheck,
         title: "Distribuição Automática",
-        description: "Novos contatos são distribuídos automaticamente entre os advogados.",
+        description: "Novos leads são distribuídos automaticamente entre os vendedores.",
       },
       {
         icon: Target,
         title: "Tags e Segmentação",
-        description: "Classifique clientes por tipo de caso, status e prioridade.",
+        description: "Classifique clientes por interesse, etapa do funil e prioridade.",
       },
     ],
   },
@@ -227,13 +227,13 @@ const featureCategories = [
     features: [
       {
         icon: BarChart3,
-        title: "Dashboard do Escritório",
-        description: "Visão geral de atendimentos, demandas abertas e performance da equipe.",
+        title: "Dashboard Gerencial",
+        description: "Visão geral de vendas, atendimentos e performance da equipe comercial.",
       },
       {
         icon: TrendingUp,
         title: "Métricas de Atendimento",
-        description: "Tempo de resposta, volume de conversas e satisfação dos clientes.",
+        description: "Tempo de resposta, volume de conversas e taxa de conversão.",
       },
       {
         icon: Search,
@@ -243,7 +243,7 @@ const featureCategories = [
       {
         icon: Globe,
         title: "Formulários de Captação",
-        description: "Capte novos clientes com formulários online integrados ao WhatsApp.",
+        description: "Capte novos leads com formulários online integrados ao WhatsApp.",
       },
     ],
   },
@@ -251,8 +251,8 @@ const featureCategories = [
 
 const pricingPlans = [
   {
-    name: "Solo",
-    description: "Para advogados autônomos e escritórios pequenos",
+    name: "Starter",
+    description: "Para pequenas empresas e empreendedores",
     price: "R$ 300",
     period: "/mês",
     popular: false,
@@ -261,7 +261,7 @@ const pricingPlans = [
       { text: "1 conexão WhatsApp", included: true },
       { text: "2 usuários", included: true },
       { text: "Chat centralizado", included: true },
-      { text: "Kanban de demandas", included: true },
+      { text: "CRM com Kanban", included: true },
       { text: "Lembretes e agendamentos", included: true },
       { text: "Chatbot de triagem", included: true },
       { text: "Consulta IA no chat", included: false },
@@ -271,8 +271,8 @@ const pricingPlans = [
     color: "border-border",
   },
   {
-    name: "Escritório",
-    description: "Para escritórios com equipe e múltiplas áreas",
+    name: "Business",
+    description: "Para empresas com equipe comercial estruturada",
     price: "R$ 750",
     period: "/mês",
     popular: true,
@@ -280,9 +280,9 @@ const pricingPlans = [
     features: [
       { text: "3 conexões WhatsApp", included: true },
       { text: "8 usuários", included: true },
-      { text: "Tudo do Solo +", included: true },
-      { text: "Setores e áreas de atuação", included: true },
-      { text: "Distribuição de clientes", included: true },
+      { text: "Tudo do Starter +", included: true },
+      { text: "Departamentos e setores", included: true },
+      { text: "Distribuição de leads", included: true },
       { text: "Gestão de grupos internos", included: true },
       { text: "Secretária IA nos grupos", included: true },
       { text: "Disparos em massa", included: true },
@@ -294,7 +294,7 @@ const pricingPlans = [
   },
   {
     name: "Premium",
-    description: "Para escritórios que querem IA e automação total",
+    description: "Para empresas que querem IA e automação total",
     price: "R$ 1.500",
     period: "/mês",
     popular: false,
@@ -302,12 +302,12 @@ const pricingPlans = [
     features: [
       { text: "6 conexões WhatsApp", included: true },
       { text: "20 usuários", included: true },
-      { text: "Tudo do Escritório +", included: true },
-      { text: "IA jurídica ilimitada", included: true },
+      { text: "Tudo do Business +", included: true },
+      { text: "IA comercial ilimitada", included: true },
       { text: "Transferir para IA", included: true },
       { text: "Base de conhecimento IA (RAG)", included: true },
       { text: "Múltiplos agentes especializados", included: true },
-      { text: "Assistente para peças", included: true },
+      { text: "Assistente de vendas IA", included: true },
       { text: "Resumos de conversas por IA", included: true },
       { text: "Análise fantasma de conversas", included: true },
       { text: "Relatórios gerenciais", included: true },
@@ -317,7 +317,7 @@ const pricingPlans = [
   },
   {
     name: "Enterprise",
-    description: "Para bancas e escritórios de grande porte",
+    description: "Para grandes empresas e operações complexas",
     price: "Sob consulta",
     period: "",
     popular: false,
@@ -330,14 +330,14 @@ const pricingPlans = [
       { text: "Onboarding dedicado", included: true },
       { text: "SLA garantido", included: true },
       { text: "Suporte 24/7", included: true },
-      { text: "Multi-unidades", included: true },
+      { text: "Multi-filiais", included: true },
     ],
     color: "border-border bg-gradient-to-br from-background to-muted/50",
   },
 ];
 
 const stats = [
-  { value: "100%", label: "Focado em advocacia" },
+  { value: "100%", label: "Focado em resultados" },
   { value: "99.9%", label: "Uptime garantido" },
   { value: "24/7", label: "IA atendendo seus clientes" },
   { value: "<3s", label: "Tempo de resposta" },
@@ -345,19 +345,19 @@ const stats = [
 
 const testimonials = [
   {
-    name: "Dr. Ricardo Almeida",
-    role: "Sócio - Almeida & Barros Advogados",
-    text: "Organizamos todo o WhatsApp do escritório. Cada advogado atende seus clientes sem confusão e a IA ajuda a redigir peças.",
+    name: "Ricardo Almeida",
+    role: "Diretor Comercial - Tech Solutions",
+    text: "Organizamos todo o WhatsApp da empresa. Cada vendedor atende seus leads sem confusão e a IA ajuda no fechamento.",
   },
   {
-    name: "Dra. Camila Santos",
-    role: "Advogada Autônoma - Direito de Família",
-    text: "Os lembretes automáticos e o chatbot de triagem mudaram minha rotina. Nunca mais perdi um retorno a cliente.",
+    name: "Camila Santos",
+    role: "CEO - Santos Distribuidora",
+    text: "Os lembretes automáticos e o chatbot de triagem mudaram nossa operação. Nunca mais perdemos um follow-up.",
   },
   {
-    name: "Dr. Fernando Costa",
-    role: "Diretor - Costa & Associados",
-    text: "A gestão de grupos internos e a distribuição automática de clientes entre 15 advogados ficou impecável.",
+    name: "Fernando Costa",
+    role: "Gerente de Vendas - Costa Importações",
+    text: "A distribuição automática de leads entre 15 vendedores e o CRM integrado ao WhatsApp ficou impecável.",
   },
 ];
 
@@ -439,14 +439,14 @@ export default function LandingPage() {
               ) : (
                 <div className="flex items-center gap-2">
                   <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center">
-                    <Scale className="h-5 w-5 text-primary-foreground" />
+                    <Building2 className="h-5 w-5 text-primary-foreground" />
                   </div>
                   <div className="flex flex-col">
                     <span className="font-bold text-lg leading-tight">
-                      {branding.company_name || "Legal Tech App"}
+                      {branding.company_name || "BlasterPro"}
                     </span>
                     <span className="text-[10px] text-muted-foreground leading-tight tracking-wider uppercase">
-                      Gestão Jurídica
+                      Gestão Comercial
                     </span>
                   </div>
                 </div>
@@ -500,20 +500,20 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto">
           <div className="text-center max-w-4xl mx-auto">
             <Badge className="mb-6 px-4 py-1.5" variant="secondary">
-              <Gavel className="h-3 w-3 mr-1" />
-              Plataforma exclusiva para advogados
+              <Building2 className="h-3 w-3 mr-1" />
+              Plataforma completa para empresas
             </Badge>
 
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-6">
               Organize seu{" "}
-              <span className="text-primary">WhatsApp jurídico</span>{" "}
-              com IA e gestão{" "}
+              <span className="text-primary">WhatsApp comercial</span>{" "}
+              com CRM e IA{" "}
               <span className="text-primary">inteligente</span>
             </h1>
 
             <p className="text-lg sm:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-              Centralize conversas, transfira atendimentos para agentes de IA, consulte a IA durante o chat,
-              organize solicitações e use inteligência artificial com base de conhecimento do seu escritório.
+              Centralize conversas, gerencie seu funil de vendas, transfira atendimentos para agentes de IA,
+              organize sua equipe comercial e use inteligência artificial com base de conhecimento da sua empresa.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -537,7 +537,7 @@ export default function LandingPage() {
             </div>
 
             <p className="text-sm text-muted-foreground mt-4">
-              Sem cartão de crédito • Específico para advocacia • Suporte especializado
+              Sem cartão de crédito • Para qualquer segmento • Suporte especializado
             </p>
           </div>
 
@@ -562,10 +562,10 @@ export default function LandingPage() {
                   <div className="w-3 h-3 rounded-full bg-green-500" />
                 </div>
                 <div className="flex-1 text-center text-xs text-muted-foreground">
-                  {branding.company_name || "Legal Tech App"} — WhatsApp Jurídico Organizado
+                  {branding.company_name || "BlasterPro"} — Gestão Comercial Inteligente
                 </div>
               </div>
-              <img src={heroImage} alt="Plataforma de gestão jurídica com WhatsApp integrado" className="w-full h-auto" />
+              <img src={heroImage} alt="Plataforma de gestão comercial com WhatsApp e CRM integrado" className="w-full h-auto" />
             </div>
           </div>
         </div>
@@ -575,16 +575,16 @@ export default function LandingPage() {
       <section className="py-16 px-4 sm:px-6 lg:px-8 border-y bg-muted/20">
         <div className="max-w-5xl mx-auto">
           <h2 className="text-2xl sm:text-3xl font-bold text-center mb-10">
-            Problemas que resolvemos no seu escritório
+            Problemas que resolvemos na sua empresa
           </h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
               { icon: MessageSquare, title: "WhatsApp caótico", desc: "Centralize todas as conversas de clientes em um único painel organizado." },
-              { icon: Clock, title: "Esqueceu de retornar", desc: "Lembretes automáticos para retornos, reuniões e compromissos." },
-              { icon: FolderOpen, title: "Solicitações perdidas", desc: "Kanban visual para organizar demandas e solicitações dos clientes." },
+              { icon: Clock, title: "Esqueceu de retornar", desc: "Lembretes automáticos para follow-ups, reuniões e retornos a clientes." },
+              { icon: FolderOpen, title: "Oportunidades perdidas", desc: "CRM com Kanban visual para acompanhar cada negociação do funil." },
               { icon: Bot, title: "Grupos sem controle", desc: "Secretária IA monitora grupos do WhatsApp, identifica pedidos e cria tarefas automaticamente." },
-              { icon: Brain, title: "Demora em peças", desc: "IA que ajuda a redigir petições e peças. Consulte a IA direto no chat durante o atendimento." },
-              { icon: ArrowLeftRight, title: "Atendimento manual 24h", desc: "Transfira conversas para agentes IA que atendem automaticamente com base no conhecimento do escritório." },
+              { icon: Brain, title: "Equipe sem padrão", desc: "IA que ajuda a criar scripts, propostas e respostas padronizadas para toda a equipe." },
+              { icon: ArrowLeftRight, title: "Atendimento manual 24h", desc: "Transfira conversas para agentes IA que atendem automaticamente com base no conhecimento da empresa." },
             ].map((item, i) => (
               <div key={i} className="flex items-start gap-3 p-4 rounded-lg bg-background border">
                 <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
@@ -606,10 +606,10 @@ export default function LandingPage() {
           <div className="text-center mb-12">
             <Badge variant="outline" className="mb-4">+30 Funcionalidades</Badge>
             <h2 className="text-3xl sm:text-4xl font-bold mb-4">
-              Tudo que seu escritório precisa no WhatsApp
+              Tudo que sua empresa precisa no WhatsApp
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Da organização de conversas à IA com base de conhecimento, transferência para agentes inteligentes e assistente jurídico.
+              Da organização de conversas à IA com base de conhecimento, CRM integrado, transferência para agentes inteligentes e automação comercial.
             </p>
           </div>
 
@@ -676,7 +676,7 @@ export default function LandingPage() {
           <div className="text-center mb-12">
             <Badge variant="outline" className="mb-4">Depoimentos</Badge>
             <h2 className="text-3xl sm:text-4xl font-bold mb-4">
-              O que advogados dizem sobre nós
+              O que nossos clientes dizem
             </h2>
           </div>
 
@@ -707,10 +707,10 @@ export default function LandingPage() {
           <div className="text-center mb-12">
             <Badge variant="outline" className="mb-4">Planos</Badge>
             <h2 className="text-3xl sm:text-4xl font-bold mb-4">
-              Planos pensados para escritórios de advocacia
+              Planos pensados para sua empresa crescer
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Comece pequeno e escale conforme seu escritório cresce. Teste grátis por 7 dias.
+              Comece pequeno e escale conforme sua operação cresce. Teste grátis por 7 dias.
             </p>
           </div>
 
@@ -766,28 +766,28 @@ export default function LandingPage() {
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-muted/30">
         <div className="max-w-5xl mx-auto text-center">
           <h2 className="text-2xl sm:text-3xl font-bold mb-12">
-            Por que escritórios confiam na nossa plataforma?
+            Por que empresas confiam na nossa plataforma?
           </h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
             <Card className="p-6">
               <Shield className="h-8 w-8 mx-auto text-primary mb-3" />
-              <h3 className="font-semibold mb-1">Sigilo Total</h3>
+              <h3 className="font-semibold mb-1">Segurança Total</h3>
               <p className="text-sm text-muted-foreground">Criptografia ponta a ponta e conformidade com LGPD</p>
             </Card>
             <Card className="p-6">
-              <Gavel className="h-8 w-8 mx-auto text-primary mb-3" />
-              <h3 className="font-semibold mb-1">Feito para OAB</h3>
-              <p className="text-sm text-muted-foreground">Respeita o código de ética e normas da advocacia</p>
+              <TrendingUp className="h-8 w-8 mx-auto text-primary mb-3" />
+              <h3 className="font-semibold mb-1">Foco em Resultados</h3>
+              <p className="text-sm text-muted-foreground">CRM e métricas para aumentar suas vendas e conversões</p>
             </Card>
             <Card className="p-6">
               <Headphones className="h-8 w-8 mx-auto text-primary mb-3" />
-              <h3 className="font-semibold mb-1">Suporte Jurídico</h3>
-              <p className="text-sm text-muted-foreground">Equipe que entende as necessidades do advogado</p>
+              <h3 className="font-semibold mb-1">Suporte Dedicado</h3>
+              <p className="text-sm text-muted-foreground">Equipe que entende as necessidades do seu negócio</p>
             </Card>
             <Card className="p-6">
               <Zap className="h-8 w-8 mx-auto text-primary mb-3" />
               <h3 className="font-semibold mb-1">Setup Personalizado</h3>
-              <p className="text-sm text-muted-foreground">Configuração sob medida para a realidade do seu escritório</p>
+              <p className="text-sm text-muted-foreground">Configuração sob medida para a realidade da sua empresa</p>
             </Card>
           </div>
         </div>
@@ -797,10 +797,10 @@ export default function LandingPage() {
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-primary text-primary-foreground">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-3xl sm:text-4xl font-bold mb-4">
-            Pronto para modernizar seu escritório?
+            Pronto para escalar suas vendas?
           </h2>
           <p className="text-lg opacity-90 mb-8">
-            Comece agora e descubra como a IA pode transformar o atendimento do seu escritório.
+            Comece agora e descubra como a IA e o CRM podem transformar o comercial da sua empresa.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button
@@ -831,9 +831,9 @@ export default function LandingPage() {
               ) : (
                 <>
                   <div className="w-8 h-8 rounded bg-primary flex items-center justify-center">
-                    <Scale className="h-5 w-5 text-primary-foreground" />
+                    <Building2 className="h-5 w-5 text-primary-foreground" />
                   </div>
-                  <span className="font-semibold text-lg">{branding.company_name || "Legal Tech App"}</span>
+                  <span className="font-semibold text-lg">{branding.company_name || "BlasterPro"}</span>
                 </>
               )}
             </div>
@@ -848,7 +848,7 @@ export default function LandingPage() {
               <Building2 className="h-4 w-4" />
               <span>CNPJ: 04.609.030/0001-29</span>
             </div>
-            <span>© {new Date().getFullYear()} {branding.company_name || "Legal Tech App"}. Todos os direitos reservados.</span>
+            <span>© {new Date().getFullYear()} {branding.company_name || "BlasterPro"}. Todos os direitos reservados.</span>
           </div>
         </div>
       </footer>
@@ -858,7 +858,7 @@ export default function LandingPage() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Scale className="h-5 w-5 text-primary" />
+              <Building2 className="h-5 w-5 text-primary" />
               Teste Grátis por 7 Dias
             </DialogTitle>
             <DialogDescription>
