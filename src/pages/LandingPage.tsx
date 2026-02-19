@@ -50,6 +50,10 @@ import {
   Database,
   MessageCircle,
   Cpu,
+  Ghost,
+  Eye,
+  ShieldCheck,
+  Activity,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import heroImage from "@/assets/system-preview-crm-kanban.png";
@@ -246,6 +250,34 @@ const featureCategories = [
         icon: Globe,
         title: "Formulários de Captação",
         description: "Capte novos leads com formulários online integrados ao WhatsApp.",
+      },
+    ],
+  },
+  {
+    category: "Modo Fantasma",
+    icon: Ghost,
+    color: "text-slate-400",
+    bgColor: "bg-slate-500/10",
+    features: [
+      {
+        icon: Ghost,
+        title: "Análise Invisível",
+        description: "Monitore conversas da equipe de forma silenciosa, sem que os atendentes saibam.",
+      },
+      {
+        icon: Eye,
+        title: "Auditoria de Qualidade",
+        description: "Avalie a qualidade do atendimento com IA: tom, agilidade, assertividade e postura.",
+      },
+      {
+        icon: ShieldCheck,
+        title: "Análise de Risco e Conduta",
+        description: "Detecte comportamentos inadequados, promessas indevidas ou riscos de compliance.",
+      },
+      {
+        icon: Activity,
+        title: "Métricas Operacionais",
+        description: "Tempo médio de resposta, taxa de resolução, horários de pico e ranking de desempenho.",
       },
     ],
   },
@@ -796,7 +828,7 @@ export default function LandingPage() {
 
           {/* Summary Grid */}
           <div className="mt-16 grid md:grid-cols-3 gap-6">
-            {featureCategories.slice(0, 6).map((cat, index) => (
+            {featureCategories.map((cat, index) => (
               <div key={index} className="flex items-start gap-3 p-4 rounded-lg bg-muted/30 border">
                 <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0", cat.bgColor)}>
                   <cat.icon className={cn("h-5 w-5", cat.color)} />
