@@ -13,6 +13,7 @@ interface ModulesEnabled {
   ai_agents: boolean;
   group_secretary: boolean;
   ghost: boolean;
+  projects: boolean;
 }
 
 interface User {
@@ -54,6 +55,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     ai_agents: true,
     group_secretary: false,
     ghost: true,
+    projects: false,
   };
 
   const refreshUser = async () => {

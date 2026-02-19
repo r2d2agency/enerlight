@@ -50,7 +50,7 @@ interface NavItem {
   name: string;
   href: string;
   icon: any;
-  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost';
+  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects';
   adminOnly?: boolean;
   ownerOnly?: boolean;
   superadminOnly?: boolean;
@@ -60,7 +60,7 @@ interface NavSection {
   title: string;
   icon: any;
   items: NavItem[];
-  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost';
+  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects';
   adminOnly?: boolean; // Entire section requires admin role
 }
 
@@ -100,6 +100,7 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
   {
     title: "Projetos",
     icon: FolderKanban,
+    moduleKey: 'projects',
     items: [
       { name: "Kanban", href: "/projetos", icon: FolderKanban },
     ],

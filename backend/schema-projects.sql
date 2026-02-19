@@ -110,3 +110,6 @@ CREATE TABLE IF NOT EXISTS project_tasks (
 
 CREATE INDEX IF NOT EXISTS idx_project_tasks_proj ON project_tasks(project_id);
 CREATE INDEX IF NOT EXISTS idx_project_tasks_status ON project_tasks(status);
+
+-- Add has_projects column to plans table
+ALTER TABLE plans ADD COLUMN IF NOT EXISTS has_projects BOOLEAN DEFAULT false;
