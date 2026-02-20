@@ -17,8 +17,8 @@ export default defineConfig(({ mode }) => ({
       registerType: "autoUpdate",
       includeAssets: ["favicon.ico", "icons/*.png", "sounds/*.mp3"],
       manifest: {
-        name: "Glee-go Whats - Gestão Comercial",
-        short_name: "Glee-go Whats",
+        name: "Enerlight - Gestão Comercial",
+        short_name: "Enerlight",
         description: "Plataforma completa de gestão comercial, CRM e automação via WhatsApp",
         theme_color: "#3b82f6",
         background_color: "#0f172a",
