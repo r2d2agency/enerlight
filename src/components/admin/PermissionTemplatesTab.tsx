@@ -299,7 +299,7 @@ export function PermissionTemplatesTab() {
 
       {/* Editor Dialog */}
       <Dialog open={editorOpen} onOpenChange={setEditorOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+        <DialogContent className="max-w-lg h-[90vh] flex flex-col overflow-hidden">
           <DialogHeader className="flex-shrink-0">
             <DialogTitle>{editing ? 'Editar Template' : 'Novo Template'}</DialogTitle>
             <DialogDescription>
