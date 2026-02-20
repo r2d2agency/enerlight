@@ -3028,6 +3028,49 @@ CREATE TABLE IF NOT EXISTS project_note_notifications (
 CREATE INDEX IF NOT EXISTS idx_project_note_notifs_user ON project_note_notifications(user_id, read);
 `;
 
+// Step 37: User Permissions
+const step37Permissions = `
+CREATE TABLE IF NOT EXISTS user_permissions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  can_view_chat BOOLEAN DEFAULT true,
+  can_view_chatbots BOOLEAN DEFAULT false,
+  can_view_flows BOOLEAN DEFAULT false,
+  can_view_departments BOOLEAN DEFAULT false,
+  can_view_schedules BOOLEAN DEFAULT false,
+  can_view_tags BOOLEAN DEFAULT true,
+  can_view_contacts BOOLEAN DEFAULT true,
+  can_view_ai_secretary BOOLEAN DEFAULT false,
+  can_view_ai_agents BOOLEAN DEFAULT false,
+  can_view_crm BOOLEAN DEFAULT true,
+  can_view_prospects BOOLEAN DEFAULT true,
+  can_view_companies BOOLEAN DEFAULT false,
+  can_view_map BOOLEAN DEFAULT false,
+  can_view_calendar BOOLEAN DEFAULT true,
+  can_view_tasks BOOLEAN DEFAULT true,
+  can_view_reports BOOLEAN DEFAULT false,
+  can_view_revenue_intel BOOLEAN DEFAULT false,
+  can_view_ghost BOOLEAN DEFAULT false,
+  can_view_crm_settings BOOLEAN DEFAULT false,
+  can_view_projects BOOLEAN DEFAULT false,
+  can_view_campaigns BOOLEAN DEFAULT false,
+  can_view_sequences BOOLEAN DEFAULT false,
+  can_view_external_flows BOOLEAN DEFAULT false,
+  can_view_webhooks BOOLEAN DEFAULT false,
+  can_view_ctwa BOOLEAN DEFAULT false,
+  can_view_billing BOOLEAN DEFAULT false,
+  can_view_connections BOOLEAN DEFAULT false,
+  can_view_organizations BOOLEAN DEFAULT false,
+  can_view_settings BOOLEAN DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(user_id, organization_id)
+);
+CREATE INDEX IF NOT EXISTS idx_user_permissions_user ON user_permissions(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_permissions_org ON user_permissions(organization_id);
+`;
+
 // Migration steps in order of execution
 const migrationSteps = [
   { name: 'Enums', sql: step1Enums, critical: true },
@@ -3067,6 +3110,7 @@ const migrationSteps = [
   { name: 'Ghost Saved Analyses', sql: step34GhostSavedAnalyses, critical: false },
   { name: 'Group Funnels', sql: step35GroupFunnels, critical: false },
   { name: 'Projects Module', sql: step36Projects, critical: false },
+  { name: 'User Permissions', sql: step37Permissions, critical: false },
 ];
 
 export async function initDatabase() {

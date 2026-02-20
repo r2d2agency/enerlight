@@ -248,6 +248,26 @@ router.post('/login', async (req, res) => {
       modulesEnabled = orgResult.rows[0]?.modules_enabled || allModulesEnabled;
     }
 
+    // Get user-level permissions
+    let userPermissions = null;
+    try {
+      const permResult = await query(
+        `SELECT * FROM user_permissions WHERE user_id = $1 AND organization_id = $2`,
+        [user.id, organizationId]
+      );
+      if (permResult.rows.length > 0) {
+        const row = permResult.rows[0];
+        userPermissions = {};
+        for (const key of Object.keys(row)) {
+          if (key.startsWith('can_view_')) {
+            userPermissions[key] = row[key];
+          }
+        }
+      }
+    } catch (_) {
+      // table might not exist yet
+    }
+
     // Generate token
     const token = jwt.sign(
       { userId: user.id, email: user.email },
@@ -296,6 +316,7 @@ router.post('/login', async (req, res) => {
         organization_id: organizationId,
         modules_enabled: modulesEnabled,
         has_connections: hasConnections,
+        user_permissions: isSuperadmin ? null : userPermissions,
       },
       token
     });
@@ -367,6 +388,26 @@ router.get('/me', async (req, res) => {
       modulesEnabled = orgResult.rows[0]?.modules_enabled || allModulesEnabled;
     }
 
+    // Get user-level permissions
+    let userPermissions = null;
+    try {
+      const permResult = await query(
+        `SELECT * FROM user_permissions WHERE user_id = $1 AND organization_id = $2`,
+        [decoded.userId, organizationId]
+      );
+      if (permResult.rows.length > 0) {
+        const row = permResult.rows[0];
+        userPermissions = {};
+        for (const key of Object.keys(row)) {
+          if (key.startsWith('can_view_')) {
+            userPermissions[key] = row[key];
+          }
+        }
+      }
+    } catch (_) {
+      // table might not exist yet
+    }
+
     // Check if user has any connections assigned
     let hasConnections = false;
     try {
@@ -411,6 +452,7 @@ router.get('/me', async (req, res) => {
         organization_id: organizationId,
         modules_enabled: modulesEnabled,
         has_connections: hasConnections,
+        user_permissions: isSuperadmin ? null : userPermissions,
       } 
     });
   } catch (error) {

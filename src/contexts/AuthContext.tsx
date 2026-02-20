@@ -16,6 +16,38 @@ interface ModulesEnabled {
   projects: boolean;
 }
 
+export interface UserPermissions {
+  can_view_chat: boolean;
+  can_view_chatbots: boolean;
+  can_view_flows: boolean;
+  can_view_departments: boolean;
+  can_view_schedules: boolean;
+  can_view_tags: boolean;
+  can_view_contacts: boolean;
+  can_view_ai_secretary: boolean;
+  can_view_ai_agents: boolean;
+  can_view_crm: boolean;
+  can_view_prospects: boolean;
+  can_view_companies: boolean;
+  can_view_map: boolean;
+  can_view_calendar: boolean;
+  can_view_tasks: boolean;
+  can_view_reports: boolean;
+  can_view_revenue_intel: boolean;
+  can_view_ghost: boolean;
+  can_view_crm_settings: boolean;
+  can_view_projects: boolean;
+  can_view_campaigns: boolean;
+  can_view_sequences: boolean;
+  can_view_external_flows: boolean;
+  can_view_webhooks: boolean;
+  can_view_ctwa: boolean;
+  can_view_billing: boolean;
+  can_view_connections: boolean;
+  can_view_organizations: boolean;
+  can_view_settings: boolean;
+}
+
 interface User {
   id: string;
   email: string;
@@ -24,6 +56,7 @@ interface User {
   organization_id?: string;
   modules_enabled?: ModulesEnabled;
   has_connections?: boolean;
+  user_permissions?: UserPermissions | null;
 }
 
 interface AuthContextType {
@@ -31,6 +64,7 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   modulesEnabled: ModulesEnabled;
+  userPermissions: UserPermissions | null;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name: string, planId?: string) => Promise<void>;
   logout: () => void;
@@ -107,6 +141,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const modulesEnabled = user?.modules_enabled || defaultModules;
+  const userPermissions = user?.user_permissions || null;
 
   return (
     <AuthContext.Provider
@@ -115,6 +150,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         isLoading,
         isAuthenticated: !!user,
         modulesEnabled,
+        userPermissions,
         login,
         register,
         logout,
