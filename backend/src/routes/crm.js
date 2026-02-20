@@ -297,6 +297,8 @@ router.get('/funnels', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
+    console.log(`[funnels] User ${req.userId} role=${org.role} org=${org.organization_id}`);
+
     // Check if user is a designer (projetista) — they see all funnels
     let isDesignerUser = false;
     try {
@@ -312,6 +314,7 @@ router.get('/funnels', async (req, res) => {
 
     // Admins/owners/managers/designers see all funnels
     if (canManage(org.role) || isDesignerUser) {
+      console.log(`[funnels] canManage=true or designer, showing all funnels`);
       const result = await query(
         `SELECT f.*, 
           (SELECT COUNT(*) FROM crm_deals WHERE funnel_id = f.id AND status = 'open') as open_deals,
@@ -321,6 +324,7 @@ router.get('/funnels', async (req, res) => {
          ORDER BY f.name`,
         [org.organization_id]
       );
+      console.log(`[funnels] Returning ${result.rows.length} funnels`);
       return res.json(result.rows);
     }
 
@@ -334,6 +338,8 @@ router.get('/funnels', async (req, res) => {
         [req.userId]
       );
       
+      console.log(`[funnels] User group funnels: ${groupFunnels.rows.length} found`, groupFunnels.rows.map(r => r.funnel_id));
+
       // If user has group funnel restrictions, filter
       if (groupFunnels.rows.length > 0) {
         const funnelIds = groupFunnels.rows.map(r => r.funnel_id);
@@ -347,13 +353,16 @@ router.get('/funnels', async (req, res) => {
            ORDER BY f.name`,
           [org.organization_id, ...funnelIds]
         );
+        console.log(`[funnels] Returning ${result.rows.length} filtered funnels`);
         return res.json(result.rows);
       }
     } catch (e) {
+      console.log(`[funnels] crm_group_funnels error:`, e.message);
       // crm_group_funnels table might not exist yet, fall through to show all
     }
 
     // No group restrictions or table doesn't exist: show all
+    console.log(`[funnels] No group restrictions, showing all funnels`);
     const result = await query(
       `SELECT f.*, 
         (SELECT COUNT(*) FROM crm_deals WHERE funnel_id = f.id AND status = 'open') as open_deals,
@@ -363,6 +372,7 @@ router.get('/funnels', async (req, res) => {
        ORDER BY f.name`,
       [org.organization_id]
     );
+    console.log(`[funnels] Returning ${result.rows.length} funnels (fallback)`);
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching funnels:', error);
