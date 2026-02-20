@@ -132,7 +132,7 @@ const Chat = () => {
       
       // Use notify() which handles both sound AND push notification
       notify(
-        '🔔 Glee-go Whats', 
+        '🔔 Enerlight', 
         message,
         { playSound: true }
       );

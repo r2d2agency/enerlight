@@ -13,7 +13,7 @@ interface SystemSetting {
 }
 
 export function IntegrationsTab() {
-  const [cnpjApiUrl, setCnpjApiUrl] = useState("https://cnpj.gleego.com.br");
+  const [cnpjApiUrl, setCnpjApiUrl] = useState("");
   const [cnpjApiToken, setCnpjApiToken] = useState("");
   const [showToken, setShowToken] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -27,7 +27,7 @@ export function IntegrationsTab() {
     try {
       const settings = await api<SystemSetting[]>("/api/admin/settings");
       for (const s of settings) {
-        if (s.key === "cnpj_api_url") setCnpjApiUrl(s.value || "https://cnpj.gleego.com.br");
+        if (s.key === "cnpj_api_url") setCnpjApiUrl(s.value || "");
         if (s.key === "cnpj_api_token") setCnpjApiToken(s.value || "");
       }
     } catch {
@@ -64,17 +64,7 @@ export function IntegrationsTab() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            Consulta de CNPJ
-            <a
-              href="https://cnpj.gleego.com.br/api-docs"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-muted-foreground hover:text-primary"
-            >
-              <ExternalLink className="h-3.5 w-3.5" />
-            </a>
-          </CardTitle>
+          <CardTitle>Consulta de CNPJ</CardTitle>
           <CardDescription>
             Configure a API de consulta de CNPJ para preencher automaticamente dados de empresas e sócios ao criar negociações.
           </CardDescription>
@@ -85,7 +75,7 @@ export function IntegrationsTab() {
             <Input
               value={cnpjApiUrl}
               onChange={(e) => setCnpjApiUrl(e.target.value)}
-              placeholder="https://cnpj.gleego.com.br"
+              placeholder="https://sua-api-cnpj.com.br"
             />
           </div>
 
@@ -110,11 +100,7 @@ export function IntegrationsTab() {
               </div>
             </div>
             <p className="text-xs text-muted-foreground">
-              Obtenha seu token em{" "}
-              <a href="https://cnpj.gleego.com.br" target="_blank" rel="noopener noreferrer" className="underline hover:text-primary">
-                cnpj.gleego.com.br
-              </a>{" "}
-              na seção Credenciais API. Sem token configurado, será usado a BrasilAPI (gratuita, sem sócios).
+              Configure a URL e o token da sua API de consulta CNPJ. Sem token configurado, será usado a BrasilAPI (gratuita, sem sócios).
             </p>
           </div>
 

@@ -478,8 +478,8 @@ export default function LandingPage() {
 
             {/* Center - Logo */}
             <div className="flex items-center justify-center gap-2">
-              <img src={branding.logo_topbar || gleegoLogo} alt={branding.company_name || "Glee-go Whats"} className="h-10 w-10 object-contain" />
-              <span className="font-bold text-lg">{branding.company_name || "Glee-go Whats"}</span>
+              <img src={branding.logo_topbar || gleegoLogo} alt={branding.company_name || "Enerlight"} className="h-10 w-10 object-contain" />
+              <span className="font-bold text-lg">{branding.company_name || "Enerlight"}</span>
             </div>
 
             {/* Right - Buttons */}
@@ -583,7 +583,7 @@ export default function LandingPage() {
                   <div className="w-3 h-3 rounded-full bg-green-500" />
                 </div>
                 <div className="flex-1 text-center text-xs text-muted-foreground">
-                  {branding.company_name || "Glee-go Whats"} — Gestão Comercial Inteligente
+                  {branding.company_name || "Enerlight"} — Gestão Comercial Inteligente
                 </div>
               </div>
               <img src={heroImage} alt="Plataforma de gestão comercial com WhatsApp e CRM integrado" className="w-full h-auto" />
@@ -698,7 +698,7 @@ export default function LandingPage() {
             <h2 className="text-3xl sm:text-4xl font-bold mb-4">
               Como o{" "}
               <span className="bg-gradient-to-r from-[hsl(217,75%,55%)] via-[hsl(152,55%,48%)] to-[hsl(24,92%,55%)] bg-clip-text text-transparent">
-                Glee-go Whats
+                Enerlight
               </span>{" "}
               resolve cada problema
             </h2>
@@ -1067,8 +1067,8 @@ export default function LandingPage() {
                 <img src={branding.logo_topbar} alt={branding.company_name || "Logo"} className="h-8 object-contain" />
               ) : (
                 <>
-                  <img src={gleegoLogo} alt="Glee-go Whats" className="h-8 w-8 object-contain" />
-                  <span className="font-semibold text-lg">{branding.company_name || "Glee-go Whats"}</span>
+                  <img src={gleegoLogo} alt="Enerlight" className="h-8 w-8 object-contain" />
+                  <span className="font-semibold text-lg">{branding.company_name || "Enerlight"}</span>
                 </>
               )}
             </div>
@@ -1083,7 +1083,7 @@ export default function LandingPage() {
               <Building2 className="h-4 w-4" />
               <span>CNPJ: 04.609.030/0001-29</span>
             </div>
-            <span>© {new Date().getFullYear()} {branding.company_name || "Glee-go Whats"}. Todos os direitos reservados.</span>
+            <span>© {new Date().getFullYear()} {branding.company_name || "Enerlight"}. Todos os direitos reservados.</span>
           </div>
         </div>
       </footer>
