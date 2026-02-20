@@ -3,13 +3,20 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useCRMCompanies, useCRMCompanyMutations, CRMCompany } from "@/hooks/use-crm";
-import { Building2, Search, Plus, Loader2, Check, X } from "lucide-react";
+import { Building2, Search, Plus, Loader2, Check, X, Users } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { api } from "@/lib/api";
 
 interface CompanySearchSelectProps {
   value: string;
   onSelect: (companyId: string) => void;
+}
+
+interface CNPJSocio {
+  nome: string;
+  qualificacao: string;
+  data_entrada: string;
 }
 
 interface CNPJData {
@@ -18,11 +25,16 @@ interface CNPJData {
   cnpj: string;
   logradouro: string;
   numero: string;
+  bairro: string;
   municipio: string;
   uf: string;
   cep: string;
   telefone: string;
   email: string;
+  capital_social: string;
+  natureza: string;
+  data_abertura: string;
+  socios: CNPJSocio[];
 }
 
 function formatCNPJ(value: string): string {
@@ -78,21 +90,8 @@ export function CompanySearchSelect({ value, onSelect }: CompanySearchSelectProp
     setLoadingCNPJ(true);
     setCnpjData(null);
     try {
-      const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${digits}`);
-      if (!res.ok) throw new Error("CNPJ não encontrado");
-      const data = await res.json();
-      setCnpjData({
-        razao_social: data.razao_social || "",
-        nome_fantasia: data.nome_fantasia || "",
-        cnpj: digits,
-        logradouro: data.logradouro || "",
-        numero: data.numero || "",
-        municipio: data.municipio || "",
-        uf: data.uf || "",
-        cep: data.cep || "",
-        telefone: data.ddd_telefone_1 || "",
-        email: data.email || "",
-      });
+      const data = await api<CNPJData>(`/api/cnpj/lookup/${digits}`);
+      setCnpjData(data);
       setNewCompanyName(data.nome_fantasia || data.razao_social || "");
       setNewCompanyCNPJ(formatCNPJ(digits));
     } catch {
@@ -108,9 +107,28 @@ export function CompanySearchSelect({ value, onSelect }: CompanySearchSelectProp
       return;
     }
 
+    // Build socios text for notes
+    let notesText = "";
+    if (cnpjData) {
+      const parts: string[] = [];
+      if (cnpjData.razao_social) parts.push(`Razão Social: ${cnpjData.razao_social}`);
+      if (cnpjData.capital_social) parts.push(`Capital Social: R$ ${Number(cnpjData.capital_social).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`);
+      if (cnpjData.natureza) parts.push(`Natureza Jurídica: ${cnpjData.natureza}`);
+      if (cnpjData.data_abertura) parts.push(`Data Abertura: ${cnpjData.data_abertura}`);
+      if (cnpjData.socios?.length) {
+        parts.push("");
+        parts.push("=== SÓCIOS ===");
+        cnpjData.socios.forEach((s, i) => {
+          parts.push(`${i + 1}. ${s.nome} - ${s.qualificacao}${s.data_entrada ? ` (desde ${s.data_entrada})` : ""}`);
+        });
+      }
+      notesText = parts.join("\n");
+    }
+
     const companyData: Partial<CRMCompany> = {
       name: newCompanyName.trim(),
       cnpj: cleanCNPJ(newCompanyCNPJ) || undefined,
+      notes: notesText || undefined,
     };
 
     if (cnpjData) {
@@ -141,7 +159,7 @@ export function CompanySearchSelect({ value, onSelect }: CompanySearchSelectProp
       <div ref={containerRef} className="space-y-3 border rounded-md p-3 bg-muted/30">
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium">Nova Empresa</span>
-          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setCreatingMode(false); setCnpjData(null); }}>
+          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setCreatingMode(false); setCnpjData(null); setCnpjSearch(""); }}>
             <X className="h-4 w-4" />
           </Button>
         </div>
@@ -152,6 +170,7 @@ export function CompanySearchSelect({ value, onSelect }: CompanySearchSelectProp
             onChange={(e) => setCnpjSearch(formatCNPJ(e.target.value))}
             placeholder="Buscar por CNPJ..."
             className="flex-1"
+            onKeyDown={(e) => e.key === "Enter" && handleSearchCNPJ()}
           />
           <Button size="sm" onClick={handleSearchCNPJ} disabled={loadingCNPJ}>
             {loadingCNPJ ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
@@ -159,10 +178,29 @@ export function CompanySearchSelect({ value, onSelect }: CompanySearchSelectProp
         </div>
 
         {cnpjData && (
-          <div className="text-xs text-muted-foreground bg-muted rounded p-2 space-y-1">
-            <p><strong>Razão Social:</strong> {cnpjData.razao_social}</p>
-            {cnpjData.nome_fantasia && <p><strong>Fantasia:</strong> {cnpjData.nome_fantasia}</p>}
-            {cnpjData.municipio && <p><strong>Cidade:</strong> {cnpjData.municipio}/{cnpjData.uf}</p>}
+          <div className="text-xs bg-muted rounded p-2.5 space-y-1.5">
+            <p className="font-medium text-foreground">{cnpjData.razao_social}</p>
+            {cnpjData.nome_fantasia && <p className="text-muted-foreground">Fantasia: {cnpjData.nome_fantasia}</p>}
+            {cnpjData.municipio && <p className="text-muted-foreground">📍 {cnpjData.municipio}/{cnpjData.uf}</p>}
+            {cnpjData.capital_social && (
+              <p className="text-muted-foreground">
+                💰 Capital: R$ {Number(cnpjData.capital_social).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+              </p>
+            )}
+            
+            {cnpjData.socios?.length > 0 && (
+              <div className="mt-2 pt-2 border-t border-border">
+                <p className="font-medium text-foreground flex items-center gap-1 mb-1">
+                  <Users className="h-3 w-3" />
+                  Sócios ({cnpjData.socios.length})
+                </p>
+                {cnpjData.socios.map((s, i) => (
+                  <p key={i} className="text-muted-foreground pl-4">
+                    • {s.nome} <span className="text-muted-foreground/70">— {s.qualificacao}</span>
+                  </p>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
