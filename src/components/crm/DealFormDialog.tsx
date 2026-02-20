@@ -7,9 +7,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CRMFunnel, useCRMDealMutations, useCRMCompanies, useCRMFunnel, useCRMGroups } from "@/hooks/use-crm";
+import { CRMFunnel, useCRMDealMutations, useCRMFunnel, useCRMGroups } from "@/hooks/use-crm";
 import { Slider } from "@/components/ui/slider";
-import { Building2, User } from "lucide-react";
+import { User } from "lucide-react";
+import { CompanySearchSelect } from "@/components/crm/CompanySearchSelect";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -44,7 +45,6 @@ export function DealFormDialog({ funnel, open, onOpenChange }: DealFormDialogPro
   const [contactName, setContactName] = useState("");
   const [contactPhone, setContactPhone] = useState("");
 
-  const { data: companies } = useCRMCompanies();
   const { data: funnelData } = useCRMFunnel(funnel?.id || null);
   const { data: groups } = useCRMGroups();
   const { data: myGroups } = useMyGroups();
@@ -138,7 +138,6 @@ export function DealFormDialog({ funnel, open, onOpenChange }: DealFormDialogPro
               <Tabs value={mode} onValueChange={(v) => setMode(v as "company" | "contact")}>
                 <TabsList className="grid w-full grid-cols-2">
                   <TabsTrigger value="company" className="flex items-center gap-2">
-                    <Building2 className="h-4 w-4" />
                     Empresa
                   </TabsTrigger>
                   <TabsTrigger value="contact" className="flex items-center gap-2">
@@ -148,18 +147,7 @@ export function DealFormDialog({ funnel, open, onOpenChange }: DealFormDialogPro
                 </TabsList>
 
                 <TabsContent value="company" className="mt-3">
-                  <Select value={companyId} onValueChange={setCompanyId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione uma empresa" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {companies?.map((company) => (
-                        <SelectItem key={company.id} value={company.id}>
-                          {company.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <CompanySearchSelect value={companyId} onSelect={setCompanyId} />
                 </TabsContent>
 
                 <TabsContent value="contact" className="mt-3 space-y-3">
