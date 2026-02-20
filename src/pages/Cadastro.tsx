@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { useBranding } from '@/hooks/use-branding';
+import { useThemedBranding } from '@/hooks/use-branding';
 import { authApi } from '@/lib/api';
 import { Loader2, Zap, Check, Wifi, MessageSquare, Users, Receipt, Clock } from 'lucide-react';
 import { z } from 'zod';
@@ -51,7 +51,7 @@ const Cadastro = () => {
   const { register } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { branding } = useBranding();
+  const { branding } = useThemedBranding();
 
   useEffect(() => {
     loadPlans();
