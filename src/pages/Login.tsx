@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { useBranding } from '@/hooks/use-branding';
+import { useThemedBranding } from '@/hooks/use-branding';
 import { Loader2, Zap, Eye, EyeOff } from 'lucide-react';
 import { z } from 'zod';
 
@@ -24,7 +24,7 @@ const Login = () => {
   const { login } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { branding } = useBranding();
+  const { branding } = useThemedBranding();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -211,13 +211,13 @@ export function BrandingTab() {
         </div>
       </div>
 
-      {/* Logos Section */}
+      {/* Logos Section - Dark/Default */}
       <div>
-        <h3 className="text-sm font-medium text-muted-foreground mb-3">Logos do Sistema</h3>
+        <h3 className="text-sm font-medium text-muted-foreground mb-3">Logos do Sistema (Tema Escuro)</h3>
         <div className="grid gap-4 md:grid-cols-3">
           <LogoUploader
             label="Logo do Login"
-            description="Exibida na tela de login"
+            description="Exibida na tela de login (tema escuro)"
             settingKey="logo_login"
             currentValue={getSetting('logo_login')}
             onUpdate={handleUpdate}
@@ -226,7 +226,7 @@ export function BrandingTab() {
 
           <LogoUploader
             label="Ícone da Sidebar"
-            description="Exibido no topo da barra lateral"
+            description="Exibido no topo da barra lateral (tema escuro)"
             settingKey="logo_sidebar"
             currentValue={getSetting('logo_sidebar')}
             onUpdate={handleUpdate}
@@ -240,6 +240,42 @@ export function BrandingTab() {
             currentValue={getSetting('favicon')}
             onUpdate={handleUpdate}
             aspectHint="Recomendado: 32x32px ICO/PNG"
+          />
+        </div>
+      </div>
+
+      {/* Logos Section - Light */}
+      <div>
+        <h3 className="text-sm font-medium text-muted-foreground mb-3">Logos do Sistema (Tema Claro)</h3>
+        <p className="text-xs text-muted-foreground mb-3">
+          Opcional — se não definidas, serão usadas as logos do tema escuro.
+        </p>
+        <div className="grid gap-4 md:grid-cols-3">
+          <LogoUploader
+            label="Logo do Login (Claro)"
+            description="Exibida na tela de login no tema claro"
+            settingKey="logo_login_light"
+            currentValue={getSetting('logo_login_light')}
+            onUpdate={handleUpdate}
+            aspectHint="Recomendado: 200x60px"
+          />
+
+          <LogoUploader
+            label="Ícone da Sidebar (Claro)"
+            description="Exibido no topo da barra lateral no tema claro"
+            settingKey="logo_sidebar_light"
+            currentValue={getSetting('logo_sidebar_light')}
+            onUpdate={handleUpdate}
+            aspectHint="Recomendado: 40x40px"
+          />
+
+          <LogoUploader
+            label="Logo da Barra Superior (Claro)"
+            description="Exibida ao lado do nome da empresa no tema claro"
+            settingKey="logo_topbar_light"
+            currentValue={getSetting('logo_topbar_light')}
+            onUpdate={handleUpdate}
+            aspectHint="Recomendado: 32x32px"
           />
         </div>
       </div>

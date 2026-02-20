@@ -40,7 +40,7 @@ import {
 import { API_URL, getAuthToken } from "@/lib/api";
 import gleegoLogo from "@/assets/gleego-logo.png";
 import { useAuth } from "@/contexts/AuthContext";
-import { useBranding } from "@/hooks/use-branding";
+import { useThemedBranding } from "@/hooks/use-branding";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -148,7 +148,7 @@ function SidebarContentComponent({ isExpanded, isSuperadmin, onNavigate }: Sideb
   const location = useLocation();
   const navigate = useNavigate();
   const { logout, user, modulesEnabled } = useAuth();
-  const { branding } = useBranding();
+  const { branding } = useThemedBranding();
   const [openSections, setOpenSections] = useState<string[]>(["Atendimento"]);
 
   // Helper to check if user has admin-level role

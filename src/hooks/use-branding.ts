@@ -1,10 +1,14 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useTheme } from '@/hooks/use-theme';
 import { API_URL, getAuthToken } from '@/lib/api';
 
 export interface BrandingSettings {
   logo_login: string | null;
   logo_sidebar: string | null;
   logo_topbar: string | null;
+  logo_login_light: string | null;
+  logo_sidebar_light: string | null;
+  logo_topbar_light: string | null;
   favicon: string | null;
   company_name: string | null;
 }
@@ -14,6 +18,9 @@ export function useBranding() {
     logo_login: null,
     logo_sidebar: null,
     logo_topbar: null,
+    logo_login_light: null,
+    logo_sidebar_light: null,
+    logo_topbar_light: null,
     favicon: null,
     company_name: null,
   });
@@ -46,6 +53,21 @@ export function useBranding() {
   }, [fetchBranding]);
 
   return { branding, loading, refetch: fetchBranding };
+}
+
+/** Returns theme-aware branding: picks light variant when theme is light, falls back to dark/default */
+export function useThemedBranding() {
+  const { branding, loading, refetch } = useBranding();
+  const { isLight } = useTheme();
+
+  const themed = useMemo(() => ({
+    ...branding,
+    logo_login: (isLight && branding.logo_login_light) || branding.logo_login,
+    logo_sidebar: (isLight && branding.logo_sidebar_light) || branding.logo_sidebar,
+    logo_topbar: (isLight && branding.logo_topbar_light) || branding.logo_topbar,
+  }), [branding, isLight]);
+
+  return { branding: themed, loading, refetch, isLight };
 }
 
 export function useAdminSettings() {

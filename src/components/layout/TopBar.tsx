@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useBranding } from "@/hooks/use-branding";
+import { useThemedBranding } from "@/hooks/use-branding";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Clock, Sun, Sunset, Moon, Building2 } from "lucide-react";
@@ -21,7 +21,7 @@ function getGreeting(hour: number): { text: string; icon: typeof Sun } {
 
 export function TopBar() {
   const { user } = useAuth();
-  const { branding } = useBranding();
+  const { branding } = useThemedBranding();
   const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
