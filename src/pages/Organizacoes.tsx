@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { Building2, Plus, Users, Trash2, UserPlus, Crown, Shield, User, Briefcase, Loader2, Pencil, Link2, Settings, KeyRound, Megaphone, Receipt, UsersRound, CalendarClock, Bot, Layers, MessagesSquare, Upload, Image, ShieldCheck } from 'lucide-react';
 import { PermissionsDialog } from '@/components/permissions/PermissionsDialog';
+import { PermissionTemplatesTab } from '@/components/admin/PermissionTemplatesTab';
 import { useUpload } from '@/hooks/use-upload';
 
 interface Organization {
@@ -623,10 +624,14 @@ export default function Organizacoes() {
 
                 {/* Tabs for Members and Settings */}
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
-                  <TabsList className="grid w-full grid-cols-2">
+                  <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="members" className="flex items-center gap-2">
                       <Users className="h-4 w-4" />
                       Membros
+                    </TabsTrigger>
+                    <TabsTrigger value="permissions" className="flex items-center gap-2">
+                      <ShieldCheck className="h-4 w-4" />
+                      Permissões
                     </TabsTrigger>
                     <TabsTrigger value="settings" className="flex items-center gap-2">
                       <Settings className="h-4 w-4" />
@@ -1120,6 +1125,11 @@ export default function Organizacoes() {
                         )}
                       </CardContent>
                     </Card>
+                  </TabsContent>
+
+                  {/* Permissions Tab */}
+                  <TabsContent value="permissions">
+                    <PermissionTemplatesTab />
                   </TabsContent>
                 </Tabs>
               </>
