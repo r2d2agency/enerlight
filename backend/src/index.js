@@ -40,6 +40,7 @@ import ghostRoutes from './routes/ghost.js';
 import projectsRoutes from './routes/projects.js';
 import permissionsRoutes from './routes/permissions.js';
 import permissionTemplatesRoutes from './routes/permission-templates.js';
+import cnpjRoutes from './routes/cnpj.js';
 import { initDatabase } from './init-db.js';
 import { executeNotifications } from './scheduler.js';
 import { executeCampaignMessages } from './campaign-scheduler.js';
@@ -197,6 +198,7 @@ app.use('/api/ghost', ghostRoutes);
 app.use('/api/projects', projectsRoutes);
 app.use('/api/permissions', permissionsRoutes);
 app.use('/api/permission-templates', permissionTemplatesRoutes);
+app.use('/api/cnpj', cnpjRoutes);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

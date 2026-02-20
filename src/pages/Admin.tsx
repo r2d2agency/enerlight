@@ -20,6 +20,7 @@ import { useAdminSettings } from '@/hooks/use-branding';
 import { useUpload } from '@/hooks/use-upload';
 import { BrandingTab } from '@/components/admin/BrandingTab';
 import { PermissionTemplatesTab } from '@/components/admin/PermissionTemplatesTab';
+import { IntegrationsTab } from '@/components/admin/IntegrationsTab';
 import { toast } from 'sonner';
 import { Shield, Building2, Users, Plus, Trash2, Loader2, Pencil, Crown, Image, Package, CalendarIcon, UserPlus, Eye, MessageSquare, Receipt, Wifi, Upload, Palette, Bot, Clock, Briefcase, Search, AlertTriangle, Mail, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -638,7 +639,7 @@ export default function Admin() {
         </div>
 
         <Tabs defaultValue="plans" className="space-y-6">
-          <TabsList className="grid w-full max-w-3xl grid-cols-5">
+          <TabsList className="grid w-full max-w-4xl grid-cols-6">
             <TabsTrigger value="plans" className="flex items-center gap-2">
               <Package className="h-4 w-4" />
               Planos
@@ -654,6 +655,10 @@ export default function Admin() {
             <TabsTrigger value="permissions" className="flex items-center gap-2">
               <Shield className="h-4 w-4" />
               Permissões
+            </TabsTrigger>
+            <TabsTrigger value="integrations" className="flex items-center gap-2">
+              <Wifi className="h-4 w-4" />
+              Integrações
             </TabsTrigger>
             <TabsTrigger value="branding" className="flex items-center gap-2">
               <Palette className="h-4 w-4" />
@@ -1631,6 +1636,11 @@ export default function Admin() {
           {/* Permissions Tab */}
           <TabsContent value="permissions" className="space-y-4">
             <PermissionTemplatesTab />
+          </TabsContent>
+
+          {/* Integrations Tab */}
+          <TabsContent value="integrations" className="space-y-4">
+            <IntegrationsTab />
           </TabsContent>
 
           {/* Branding Tab */}
