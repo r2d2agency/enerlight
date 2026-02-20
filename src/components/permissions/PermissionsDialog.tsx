@@ -4,10 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Shield, RotateCcw } from 'lucide-react';
+import { Loader2, Shield, RotateCcw, Users, UserCheck, Briefcase, Crown } from 'lucide-react';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface PermissionsDialogProps {
   open: boolean;
@@ -79,17 +80,74 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
   },
 ];
 
+const ALL_KEYS = PERMISSION_GROUPS.flatMap(g => g.items.map(i => i.key));
+
+interface PermissionTemplate {
+  id: string;
+  label: string;
+  description: string;
+  icon: typeof Users;
+  permissions: Record<string, boolean>;
+}
+
+const TEMPLATES: PermissionTemplate[] = [
+  {
+    id: 'vendedor',
+    label: 'Vendedor',
+    description: 'Chat, CRM básico, contatos e tarefas',
+    icon: UserCheck,
+    permissions: Object.fromEntries(ALL_KEYS.map(k => {
+      const allowed = [
+        'can_view_chat', 'can_view_contacts', 'can_view_tags',
+        'can_view_crm', 'can_view_prospects', 'can_view_companies',
+        'can_view_calendar', 'can_view_tasks', 'can_view_map',
+        'can_view_schedules', 'can_view_settings',
+      ];
+      return [k, allowed.includes(k)];
+    })),
+  },
+  {
+    id: 'gerente',
+    label: 'Gerente',
+    description: 'Tudo do vendedor + relatórios, projetos e departamentos',
+    icon: Briefcase,
+    permissions: Object.fromEntries(ALL_KEYS.map(k => {
+      const denied = [
+        'can_view_ghost', 'can_view_ai_secretary', 'can_view_billing',
+        'can_view_connections', 'can_view_organizations',
+      ];
+      return [k, !denied.includes(k)];
+    })),
+  },
+  {
+    id: 'admin',
+    label: 'Administrador',
+    description: 'Acesso total a todos os módulos',
+    icon: Crown,
+    permissions: Object.fromEntries(ALL_KEYS.map(k => [k, true])),
+  },
+];
+
 export function PermissionsDialog({ open, onOpenChange, userId, userName, userRole }: PermissionsDialogProps) {
   const [permissions, setPermissions] = useState<Record<string, boolean>>({});
   const [isCustom, setIsCustom] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [activeTemplate, setActiveTemplate] = useState<string | null>(null);
 
   useEffect(() => {
     if (open && userId) {
       loadPermissions();
     }
   }, [open, userId]);
+
+  // Detect which template matches current permissions
+  useEffect(() => {
+    const match = TEMPLATES.find(t =>
+      ALL_KEYS.every(k => (t.permissions[k] || false) === (permissions[k] || false))
+    );
+    setActiveTemplate(match?.id || null);
+  }, [permissions]);
 
   const loadPermissions = async () => {
     setLoading(true);
@@ -117,6 +175,14 @@ export function PermissionsDialog({ open, onOpenChange, userId, userName, userRo
       });
       return updated;
     });
+  };
+
+  const handleApplyTemplate = (templateId: string) => {
+    const template = TEMPLATES.find(t => t.id === templateId);
+    if (template) {
+      setPermissions({ ...template.permissions });
+      toast.info(`Template "${template.label}" aplicado`);
+    }
   };
 
   const handleSave = async () => {
@@ -152,8 +218,8 @@ export function PermissionsDialog({ open, onOpenChange, userId, userName, userRo
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
-        <DialogHeader>
+      <DialogContent className="max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Shield className="h-5 w-5 text-primary" />
             Permissões de {userName}
@@ -169,8 +235,42 @@ export function PermissionsDialog({ open, onOpenChange, userId, userName, userRo
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <ScrollArea className="flex-1 -mx-6 px-6">
+          <ScrollArea className="flex-1 min-h-0 -mx-6 px-6">
             <div className="space-y-6 pb-4">
+              {/* Template selector */}
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">Aplicar template de permissão</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {TEMPLATES.map((tpl) => {
+                    const Icon = tpl.icon;
+                    const isActive = activeTemplate === tpl.id;
+                    return (
+                      <button
+                        key={tpl.id}
+                        type="button"
+                        onClick={() => handleApplyTemplate(tpl.id)}
+                        className={`flex flex-col items-center gap-1.5 p-3 rounded-lg border text-center transition-all
+                          ${isActive
+                            ? 'border-primary bg-primary/10 text-primary ring-1 ring-primary/30'
+                            : 'border-border hover:border-primary/50 hover:bg-muted/50 text-muted-foreground hover:text-foreground'
+                          }`}
+                      >
+                        <Icon className="h-5 w-5" />
+                        <span className="text-xs font-medium">{tpl.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {activeTemplate && (
+                  <p className="text-xs text-muted-foreground">
+                    {TEMPLATES.find(t => t.id === activeTemplate)?.description}
+                  </p>
+                )}
+              </div>
+
+              <div className="border-t" />
+
+              {/* Permission groups */}
               {PERMISSION_GROUPS.map((group) => (
                 <div key={group.title} className="space-y-2">
                   <div className="flex items-center justify-between">
@@ -218,7 +318,7 @@ export function PermissionsDialog({ open, onOpenChange, userId, userName, userRo
           </ScrollArea>
         )}
 
-        <DialogFooter className="flex-row gap-2">
+        <DialogFooter className="flex-shrink-0 flex-row gap-2 border-t pt-4">
           <Button variant="outline" size="sm" onClick={handleReset} disabled={saving || !isCustom}>
             <RotateCcw className="h-4 w-4 mr-1" />
             Resetar
