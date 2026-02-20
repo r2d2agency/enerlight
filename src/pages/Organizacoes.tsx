@@ -16,7 +16,8 @@ import { useOrganizations } from '@/hooks/use-organizations';
 import { useSuperadmin } from '@/hooks/use-superadmin';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
-import { Building2, Plus, Users, Trash2, UserPlus, Crown, Shield, User, Briefcase, Loader2, Pencil, Link2, Settings, KeyRound, Megaphone, Receipt, UsersRound, CalendarClock, Bot, Layers, MessagesSquare, Upload, Image } from 'lucide-react';
+import { Building2, Plus, Users, Trash2, UserPlus, Crown, Shield, User, Briefcase, Loader2, Pencil, Link2, Settings, KeyRound, Megaphone, Receipt, UsersRound, CalendarClock, Bot, Layers, MessagesSquare, Upload, Image, ShieldCheck } from 'lucide-react';
+import { PermissionsDialog } from '@/components/permissions/PermissionsDialog';
 import { useUpload } from '@/hooks/use-upload';
 
 interface Organization {
@@ -108,6 +109,10 @@ export default function Organizacoes() {
   const [editMemberRole, setEditMemberRole] = useState<string>('agent');
   const [editMemberConnectionIds, setEditMemberConnectionIds] = useState<string[]>([]);
   const [editMemberDepartmentIds, setEditMemberDepartmentIds] = useState<string[]>([]);
+
+  // Permissions dialog
+  const [permDialogOpen, setPermDialogOpen] = useState(false);
+  const [permMember, setPermMember] = useState<OrganizationMember | null>(null);
 
   // Edit password dialog
   const [editPasswordDialogOpen, setEditPasswordDialogOpen] = useState(false);
@@ -844,6 +849,14 @@ export default function Organizacoes() {
                                             >
                                                 <Settings className="h-4 w-4" />
                                               </Button>
+                                          <Button 
+                                            variant="ghost" 
+                                            size="icon"
+                                            onClick={() => { setPermMember(member); setPermDialogOpen(true); }}
+                                            title="Permissões de acesso"
+                                          >
+                                            <ShieldCheck className="h-4 w-4 text-primary" />
+                                          </Button>
                                           {member.role !== 'owner' && (
                                             <>
                                               <Button 
@@ -1292,6 +1305,17 @@ export default function Organizacoes() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Permissions Dialog */}
+      {permMember && (
+        <PermissionsDialog
+          open={permDialogOpen}
+          onOpenChange={setPermDialogOpen}
+          userId={permMember.user_id}
+          userName={permMember.name}
+          userRole={roleLabels[permMember.role]?.label || permMember.role}
+        />
+      )}
     </MainLayout>
   );
 }
