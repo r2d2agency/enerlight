@@ -17,12 +17,19 @@ router.get('/', authenticate, async (req, res) => {
   }
 });
 
-// Create template (superadmin only)
+// Create template (superadmin or org owner)
 router.post('/', authenticate, async (req, res) => {
   try {
-    const userResult = await query(`SELECT is_superadmin FROM users WHERE id = $1`, [req.userId]);
-    if (!userResult.rows[0]?.is_superadmin) {
-      return res.status(403).json({ error: 'Apenas superadmins podem criar templates' });
+    const userResult = await query(
+      `SELECT u.is_superadmin, om.role FROM users u
+       LEFT JOIN organization_members om ON om.user_id = u.id
+       WHERE u.id = $1`,
+      [req.userId]
+    );
+    const user = userResult.rows[0];
+    const isOwner = userResult.rows.some(r => r.role === 'owner');
+    if (!user?.is_superadmin && !isOwner) {
+      return res.status(403).json({ error: 'Sem permissão para criar templates' });
     }
 
     const { name, description, icon, permissions } = req.body;
@@ -45,12 +52,19 @@ router.post('/', authenticate, async (req, res) => {
   }
 });
 
-// Update template (superadmin only)
+// Update template (superadmin or org owner)
 router.put('/:id', authenticate, async (req, res) => {
   try {
-    const userResult = await query(`SELECT is_superadmin FROM users WHERE id = $1`, [req.userId]);
-    if (!userResult.rows[0]?.is_superadmin) {
-      return res.status(403).json({ error: 'Apenas superadmins podem editar templates' });
+    const userResult = await query(
+      `SELECT u.is_superadmin, om.role FROM users u
+       LEFT JOIN organization_members om ON om.user_id = u.id
+       WHERE u.id = $1`,
+      [req.userId]
+    );
+    const user = userResult.rows[0];
+    const isOwner = userResult.rows.some(r => r.role === 'owner');
+    if (!user?.is_superadmin && !isOwner) {
+      return res.status(403).json({ error: 'Sem permissão para editar templates' });
     }
 
     const { name, description, icon, permissions } = req.body;
@@ -71,12 +85,19 @@ router.put('/:id', authenticate, async (req, res) => {
   }
 });
 
-// Delete template (superadmin only)
+// Delete template (superadmin or org owner)
 router.delete('/:id', authenticate, async (req, res) => {
   try {
-    const userResult = await query(`SELECT is_superadmin FROM users WHERE id = $1`, [req.userId]);
-    if (!userResult.rows[0]?.is_superadmin) {
-      return res.status(403).json({ error: 'Apenas superadmins podem excluir templates' });
+    const userResult = await query(
+      `SELECT u.is_superadmin, om.role FROM users u
+       LEFT JOIN organization_members om ON om.user_id = u.id
+       WHERE u.id = $1`,
+      [req.userId]
+    );
+    const user = userResult.rows[0];
+    const isOwner = userResult.rows.some(r => r.role === 'owner');
+    if (!user?.is_superadmin && !isOwner) {
+      return res.status(403).json({ error: 'Sem permissão para excluir templates' });
     }
 
     await query(`DELETE FROM permission_templates WHERE id = $1`, [req.params.id]);
