@@ -159,6 +159,17 @@ export function useCRMGroupMembers(groupId: string | null) {
   });
 }
 
+// Get team members from current user's groups (for managers)
+export function useCRMMyTeam() {
+  return useQuery({
+    queryKey: ["crm-my-team"],
+    queryFn: async () => {
+      return api<{ user_id: string; name: string; email: string }[]>("/api/crm/my-team");
+    },
+  });
+}
+
+
 export function useCRMGroupMutations() {
   const queryClient = useQueryClient();
   const { toast } = useToast();

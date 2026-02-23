@@ -9,8 +9,8 @@ import { DealFormDialog } from "@/components/crm/DealFormDialog";
 import { FunnelEditorDialog } from "@/components/crm/FunnelEditorDialog";
 import { WinCelebration } from "@/components/crm/WinCelebration";
 import { LossReasonDialog } from "@/components/crm/LossReasonDialog";
-import { useCRMFunnels, useCRMFunnel, useCRMDeals, useCRMGroups, useCRMGroupMembers, useCRMDealMutations, useCRMDeal, CRMDeal, CRMFunnel } from "@/hooks/use-crm";
-import { Plus, Settings, Loader2, Filter, User, Users, ArrowUpDown, CalendarIcon, X, LayoutGrid, List, Trophy, XCircle, Pause } from "lucide-react";
+import { useCRMFunnels, useCRMFunnel, useCRMDeals, useCRMMyTeam, useCRMDealMutations, useCRMDeal, CRMDeal, CRMFunnel } from "@/hooks/use-crm";
+import { Plus, Settings, Loader2, Filter, User, ArrowUpDown, CalendarIcon, X, LayoutGrid, List, Trophy, XCircle, Pause } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { parseISO, format, startOfDay, endOfDay, isWithinInterval } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -63,7 +63,7 @@ export default function CRMNegociacoes() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   
   const { data: funnels, isLoading: loadingFunnels } = useCRMFunnels();
-  const { data: groups } = useCRMGroups();
+  const { data: teamMembers } = useCRMMyTeam();
   const { updateDeal } = useCRMDealMutations();
   
   // Auto-select first funnel
@@ -77,7 +77,7 @@ export default function CRMNegociacoes() {
 
   const { data: funnelData } = useCRMFunnel(currentFunnelId);
   const { data: dealsByStage, isLoading: loadingDeals } = useCRMDeals(currentFunnelId);
-  const { data: groupMembers } = useCRMGroupMembers(groupFilter !== "all" ? groupFilter : null);
+  
 
   const currentFunnel = funnels?.find((f) => f.id === currentFunnelId) || null;
   const canManage = user?.role && ['owner', 'admin', 'manager'].includes(user.role);
@@ -301,7 +301,7 @@ export default function CRMNegociacoes() {
               <SelectContent>
                 <SelectItem value="all">Todos</SelectItem>
                 <SelectItem value="mine">Minhas negociações</SelectItem>
-                {groupMembers?.map((member) => (
+                {teamMembers?.map((member) => (
                   <SelectItem key={member.user_id} value={member.user_id}>
                     {member.name}
                   </SelectItem>
