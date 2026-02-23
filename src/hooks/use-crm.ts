@@ -98,6 +98,7 @@ export interface CRMDeal {
   scheduled_messages?: number;
   project_count?: number;
   contacts?: CRMDealContact[];
+  custom_fields?: Record<string, any>;
   last_activity_at: string;
   last_opened_at: string;
   created_at: string;
