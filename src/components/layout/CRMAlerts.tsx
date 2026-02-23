@@ -213,7 +213,7 @@ export function CRMAlerts() {
                         {getSourceLabel(alert)}
                       </Badge>
                       <span className="text-[10px] text-muted-foreground">
-                        {format(new Date(alert.created_at), "HH:mm", { locale: ptBR })}
+                        {alert.created_at && !isNaN(new Date(alert.created_at).getTime()) ? format(new Date(alert.created_at), "HH:mm", { locale: ptBR }) : "—"}
                       </span>
                     </div>
                   </div>
