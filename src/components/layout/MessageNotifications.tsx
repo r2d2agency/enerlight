@@ -13,6 +13,7 @@ import { api } from "@/lib/api";
 import { chatEvents } from "@/lib/chat-events";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { safeFormatDate } from "@/lib/utils";
 import { useNotificationSound } from "@/hooks/use-notification-sound";
 import { useProjectNoteNotifications, useProjectNoteNotificationMutations } from "@/hooks/use-projects";
 
@@ -226,7 +227,7 @@ export function MessageNotifications() {
                               <>
                                 <span className="text-[10px] text-muted-foreground">•</span>
                                 <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-                                  {!isNaN(new Date(conv.last_message_at).getTime()) ? format(new Date(conv.last_message_at), "HH:mm", { locale: ptBR }) : "—"}
+                                  {safeFormatDate(conv.last_message_at, "HH:mm", { locale: ptBR })}
                                 </span>
                               </>
                             )}
@@ -293,7 +294,7 @@ export function MessageNotifications() {
                             <span className="font-medium">{notif.sender_name}</span>: {notif.content_preview}
                           </p>
                           <span className="text-[10px] text-muted-foreground">
-                            {notif.created_at && !isNaN(new Date(notif.created_at).getTime()) ? format(new Date(notif.created_at), "dd/MM HH:mm", { locale: ptBR }) : "—"}
+                            {safeFormatDate(notif.created_at, "dd/MM HH:mm", { locale: ptBR })}
                           </span>
                         </div>
                         <Button
