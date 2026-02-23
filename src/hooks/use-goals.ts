@@ -72,6 +72,7 @@ export function useGoalDashboard(params: {
   userId?: string;
   groupId?: string;
   period?: string;
+  rankingGroupId?: string;
 }) {
   const sp = new URLSearchParams();
   if (params.startDate) sp.set("start_date", params.startDate);
@@ -79,6 +80,7 @@ export function useGoalDashboard(params: {
   if (params.userId) sp.set("user_id", params.userId);
   if (params.groupId) sp.set("group_id", params.groupId);
   if (params.period) sp.set("period", params.period);
+  if (params.rankingGroupId) sp.set("ranking_group_id", params.rankingGroupId);
 
   return useQuery({
     queryKey: ["crm-goals-dashboard", params],

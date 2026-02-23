@@ -13,7 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { useGoals, useGoalDashboard, useGoalMutations, Goal } from "@/hooks/use-goals";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useCRMMyTeam } from "@/hooks/use-crm";
+import { useCRMMyTeam, useCRMGroups } from "@/hooks/use-crm";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -60,6 +60,7 @@ export default function CRMMetas() {
   const [filterUserId, setFilterUserId] = useState("all");
   const [filterGroupId, setFilterGroupId] = useState("all");
   const [filterPeriod, setFilterPeriod] = useState("monthly");
+  const [rankingGroupId, setRankingGroupId] = useState("all");
 
   const { data: goals, isLoading: loadingGoals } = useGoals();
   const { data: dashboard, isLoading: loadingDash } = useGoalDashboard({
@@ -68,8 +69,10 @@ export default function CRMMetas() {
     userId: filterUserId !== "all" ? filterUserId : undefined,
     groupId: filterGroupId !== "all" ? filterGroupId : undefined,
     period: filterPeriod,
+    rankingGroupId: rankingGroupId !== "all" ? rankingGroupId : undefined,
   });
   const { data: teamMembers } = useCRMMyTeam();
+  const { data: groups } = useCRMGroups();
   const { createGoal, updateGoal, deleteGoal } = useGoalMutations();
 
   // Form state
@@ -277,11 +280,27 @@ export default function CRMMetas() {
                 {dashboard.ranking && dashboard.ranking.length > 0 && (
                   <Card>
                     <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Trophy className="h-5 w-5 text-amber-500" />
-                        Ranking de Vendedores
-                      </CardTitle>
-                      <CardDescription>Desempenho individual no período selecionado</CardDescription>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle className="flex items-center gap-2">
+                            <Trophy className="h-5 w-5 text-amber-500" />
+                            Ranking de Vendedores
+                          </CardTitle>
+                          <CardDescription>Desempenho individual no período selecionado</CardDescription>
+                        </div>
+                        <Select value={rankingGroupId} onValueChange={setRankingGroupId}>
+                          <SelectTrigger className="w-[200px]">
+                            <Users className="h-4 w-4 mr-2" />
+                            <SelectValue placeholder="Todos os grupos" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Todos os grupos</SelectItem>
+                            {groups?.map(g => (
+                              <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </CardHeader>
                     <CardContent>
                       <Table>
