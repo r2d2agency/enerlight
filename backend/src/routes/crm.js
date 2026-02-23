@@ -434,21 +434,28 @@ router.get('/funnels/:id', async (req, res) => {
       } catch (_) {}
 
       if (!isDesigner) {
-        const userGroupMemberships = await getUserGroupIds(req.userId);
-        const groupIds = userGroupMemberships.map(g => g.group_id);
-        if (groupIds.length > 0) {
-          const linked = await query(
-            `SELECT 1 FROM crm_group_funnels WHERE funnel_id = $1 AND group_id = ANY($2) LIMIT 1`,
-            [req.params.id, groupIds]
+        try {
+          // Use same logic as GET /funnels list: check which funnels are linked to user's groups
+          const groupFunnels = await query(
+            `SELECT DISTINCT gf.funnel_id 
+             FROM crm_group_funnels gf
+             JOIN crm_user_group_members gm ON gm.group_id = gf.group_id
+             WHERE gm.user_id = $1`,
+            [req.userId]
           );
-          // If the group has explicit funnel links and this funnel isn't one of them, deny
-          const anyLinks = await query(
-            `SELECT 1 FROM crm_group_funnels WHERE group_id = ANY($1) LIMIT 1`,
-            [groupIds]
-          );
-          if (anyLinks.rows.length > 0 && linked.rows.length === 0) {
-            return res.status(404).json({ error: 'Funnel not found' });
+          
+          // Only restrict if user's groups have explicit funnel links
+          if (groupFunnels.rows.length > 0) {
+            const allowedIds = groupFunnels.rows.map(r => r.funnel_id);
+            if (!allowedIds.includes(req.params.id)) {
+              console.log(`[funnels/:id] User ${req.userId} denied access to funnel ${req.params.id}, allowed: ${allowedIds}`);
+              return res.status(404).json({ error: 'Funnel not found' });
+            }
           }
+          // If no funnel links exist for user's groups → allow all (fallback)
+        } catch (e) {
+          console.log(`[funnels/:id] Permission check error:`, e.message);
+          // Table might not exist, allow access
         }
       }
     }
