@@ -16,6 +16,7 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { safeFormatDate } from "@/lib/utils";
 import {
   Calendar, Clock, MapPin, Users, FileText, ClipboardList, Paperclip,
   Plus, Trash2, Download, CheckCircle2, Circle, Loader2, X, ExternalLink
@@ -160,7 +161,7 @@ export function MeetingDetailDialog({ open, onOpenChange, meetingId }: MeetingDe
                 <div className="grid grid-cols-2 gap-4">
                   <div className="flex items-center gap-2 text-sm">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
-                    {format(new Date(meeting.meeting_date + "T12:00:00"), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                    {safeFormatDate(meeting.meeting_date ? meeting.meeting_date + "T12:00:00" : null, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
                   </div>
                   <div className="flex items-center gap-2 text-sm">
                     <Clock className="h-4 w-4 text-muted-foreground" />
@@ -277,7 +278,7 @@ export function MeetingDetailDialog({ open, onOpenChange, meetingId }: MeetingDe
                         <p className={`text-sm font-medium ${task.status === "completed" ? "line-through" : ""}`}>{task.title}</p>
                         <div className="flex items-center gap-2 mt-0.5">
                           {task.assigned_to_name && <span className="text-xs text-muted-foreground">👤 {task.assigned_to_name}</span>}
-                          {task.due_date && <span className="text-xs text-muted-foreground">📅 {format(new Date(task.due_date), "dd/MM/yyyy")}</span>}
+                          {task.due_date && <span className="text-xs text-muted-foreground">📅 {safeFormatDate(task.due_date, "dd/MM/yyyy")}</span>}
                         </div>
                       </div>
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => taskMutations.remove.mutateAsync({ taskId: task.id, meetingId: meetingId! })}>
@@ -305,7 +306,7 @@ export function MeetingDetailDialog({ open, onOpenChange, meetingId }: MeetingDe
                       <Paperclip className="h-4 w-4 text-muted-foreground shrink-0" />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{att.name}</p>
-                        <p className="text-xs text-muted-foreground">{att.uploaded_by_name} • {format(new Date(att.created_at), "dd/MM HH:mm")}</p>
+                        <p className="text-xs text-muted-foreground">{att.uploaded_by_name} • {safeFormatDate(att.created_at, "dd/MM HH:mm")}</p>
                       </div>
                       <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
                         <a href={att.url} target="_blank" rel="noopener"><Download className="h-3.5 w-3.5" /></a>

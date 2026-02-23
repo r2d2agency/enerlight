@@ -11,6 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { api } from "@/lib/api";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { safeFormatDate } from "@/lib/utils";
 import { useNotificationSound } from "@/hooks/use-notification-sound";
 
 interface CRMAlert {
@@ -213,7 +214,7 @@ export function CRMAlerts() {
                         {getSourceLabel(alert)}
                       </Badge>
                       <span className="text-[10px] text-muted-foreground">
-                        {alert.created_at && !isNaN(new Date(alert.created_at).getTime()) ? format(new Date(alert.created_at), "HH:mm", { locale: ptBR }) : "—"}
+                        {safeFormatDate(alert.created_at, "HH:mm", { locale: ptBR })}
                       </span>
                     </div>
                   </div>
