@@ -11,12 +11,14 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useOrganizations } from '@/hooks/use-organizations';
 import { useSuperadmin } from '@/hooks/use-superadmin';
+import { useCRMGroups, useCRMGroupMembers, useCRMGroupMutations, useCRMFunnels, useCRMGroupFunnels, useCRMGroupFunnelMutations } from '@/hooks/use-crm';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
-import { Building2, Plus, Users, Trash2, UserPlus, Crown, Shield, User, Briefcase, Loader2, Pencil, Link2, Settings, KeyRound, Megaphone, Receipt, UsersRound, CalendarClock, Bot, Layers, MessagesSquare, Upload, Image, ShieldCheck } from 'lucide-react';
+import { Building2, Plus, Users, Trash2, UserPlus, Crown, Shield, User, Briefcase, Loader2, Pencil, Link2, Settings, KeyRound, Megaphone, Receipt, UsersRound, CalendarClock, Bot, Layers, MessagesSquare, Upload, Image, ShieldCheck, GitBranch, Edit } from 'lucide-react';
 import { PermissionsDialog } from '@/components/permissions/PermissionsDialog';
 import { PermissionTemplatesTab } from '@/components/admin/PermissionTemplatesTab';
 import { useUpload } from '@/hooks/use-upload';
@@ -70,8 +72,8 @@ interface OrgDepartment {
 const roleLabels = {
   owner: { label: 'Proprietário', icon: Crown, color: 'bg-amber-500' },
   admin: { label: 'Admin', icon: Shield, color: 'bg-blue-500' },
-  manager: { label: 'Supervisor', icon: Briefcase, color: 'bg-green-500' },
-  agent: { label: 'Agente', icon: User, color: 'bg-gray-500' }
+  manager: { label: 'Gerente', icon: Briefcase, color: 'bg-green-500' },
+  agent: { label: 'Vendedor', icon: User, color: 'bg-gray-500' }
 };
 
 export default function Organizacoes() {
@@ -135,6 +137,23 @@ export default function Organizacoes() {
     projects: false,
   });
   const [savingModules, setSavingModules] = useState(false);
+
+  // Groups management
+  const { data: crmGroups, isLoading: loadingCrmGroups } = useCRMGroups();
+  const { createGroup: createCrmGroup, updateGroup: updateCrmGroup, deleteGroup: deleteCrmGroup, addMember: addCrmMember, removeMember: removeCrmMember } = useCRMGroupMutations();
+  const { data: allFunnels } = useCRMFunnels();
+  const [groupDialogOpen, setGroupDialogOpen] = useState(false);
+  const [editingCrmGroup, setEditingCrmGroup] = useState<any>(null);
+  const [crmGroupForm, setCrmGroupForm] = useState({ name: '', description: '' });
+  const [selectedCrmGroupId, setSelectedCrmGroupId] = useState<string | null>(null);
+  const { data: crmGroupMembers } = useCRMGroupMembers(selectedCrmGroupId);
+  const [crmMembersDialogOpen, setCrmMembersDialogOpen] = useState(false);
+  const [crmOrgMembers, setCrmOrgMembers] = useState<Array<{ user_id: string; name: string; email: string }>>([]);
+  const [loadingCrmOrgMembers, setLoadingCrmOrgMembers] = useState(false);
+  const [funnelAssignGroupId, setFunnelAssignGroupId] = useState<string | null>(null);
+  const [funnelAssignDialogOpen, setFunnelAssignDialogOpen] = useState(false);
+  const { data: groupFunnels } = useCRMGroupFunnels(funnelAssignGroupId);
+  const { setGroupFunnels } = useCRMGroupFunnelMutations();
 
   const { 
     loading, 
@@ -411,6 +430,62 @@ export default function Organizacoes() {
 
   const canManageOrg = selectedOrg?.role === 'owner' || selectedOrg?.role === 'admin';
 
+  // CRM Group handlers
+  const openCrmGroupDialog = (group?: any) => {
+    if (group) {
+      setEditingCrmGroup(group);
+      setCrmGroupForm({ name: group.name, description: group.description || '' });
+    } else {
+      setEditingCrmGroup(null);
+      setCrmGroupForm({ name: '', description: '' });
+    }
+    setGroupDialogOpen(true);
+  };
+
+  const saveCrmGroup = () => {
+    if (!crmGroupForm.name.trim()) return;
+    if (editingCrmGroup) {
+      updateCrmGroup.mutate({ id: editingCrmGroup.id, ...crmGroupForm });
+    } else {
+      createCrmGroup.mutate(crmGroupForm);
+    }
+    setGroupDialogOpen(false);
+  };
+
+  const openCrmMembersDialog = async (group: any) => {
+    setSelectedCrmGroupId(group.id);
+    setEditingCrmGroup(group);
+    setCrmMembersDialogOpen(true);
+    setLoadingCrmOrgMembers(true);
+    try {
+      const orgs = await api<any[]>('/api/organizations');
+      if (orgs.length > 0) {
+        const orgMembers = await api<any[]>(`/api/organizations/${orgs[0].id}/members`);
+        setCrmOrgMembers(orgMembers);
+      }
+    } catch (error) {
+      console.error('Error loading org members:', error);
+    } finally {
+      setLoadingCrmOrgMembers(false);
+    }
+  };
+
+  const handleAddCrmMember = (userId: string, isSupervisor: boolean = false) => {
+    if (!selectedCrmGroupId) return;
+    addCrmMember.mutate({ groupId: selectedCrmGroupId, userId, isSupervisor });
+  };
+
+  const handleRemoveCrmMember = (userId: string) => {
+    if (!selectedCrmGroupId) return;
+    removeCrmMember.mutate({ groupId: selectedCrmGroupId, userId });
+  };
+
+  const openFunnelAssignDialog = (group: any) => {
+    setFunnelAssignGroupId(group.id);
+    setEditingCrmGroup(group);
+    setFunnelAssignDialogOpen(true);
+  };
+
   return (
     <MainLayout>
       <div className="space-y-6 overflow-hidden">
@@ -624,10 +699,14 @@ export default function Organizacoes() {
 
                 {/* Tabs for Members and Settings */}
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
-                  <TabsList className="grid w-full grid-cols-3">
+                  <TabsList className="grid w-full grid-cols-4">
                     <TabsTrigger value="members" className="flex items-center gap-2">
                       <Users className="h-4 w-4" />
                       Membros
+                    </TabsTrigger>
+                    <TabsTrigger value="groups" className="flex items-center gap-2">
+                      <UsersRound className="h-4 w-4" />
+                      Grupos
                     </TabsTrigger>
                     <TabsTrigger value="permissions" className="flex items-center gap-2">
                       <ShieldCheck className="h-4 w-4" />
@@ -709,8 +788,8 @@ export default function Organizacoes() {
                                       </SelectTrigger>
                                       <SelectContent>
                                         <SelectItem value="admin">Admin - Gerencia tudo</SelectItem>
-                                        <SelectItem value="manager">Supervisor - Apenas visualização</SelectItem>
-                                        <SelectItem value="agent">Agente - Acesso básico</SelectItem>
+                                        <SelectItem value="manager">Gerente - Gerencia equipe</SelectItem>
+                                        <SelectItem value="agent">Vendedor - Acesso operacional</SelectItem>
                                       </SelectContent>
                                     </Select>
                                   </div>
@@ -904,6 +983,100 @@ export default function Organizacoes() {
                                   </TableRow>
                                 );
                               })}
+                            </TableBody>
+                          </Table>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+
+                  {/* Groups Tab */}
+                  <TabsContent value="groups">
+                    <Card>
+                      <CardHeader>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <CardTitle className="flex items-center gap-2">
+                              <UsersRound className="h-5 w-5" />
+                              Grupos da Organização
+                            </CardTitle>
+                            <CardDescription>
+                              Organize usuários em grupos para controle de visibilidade no CRM e vinculação de funis
+                            </CardDescription>
+                          </div>
+                          {canManageOrg && (
+                            <Button size="sm" onClick={() => openCrmGroupDialog()}>
+                              <Plus className="h-4 w-4 mr-2" />
+                              Novo Grupo
+                            </Button>
+                          )}
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        {loadingCrmGroups ? (
+                          <div className="flex justify-center py-8">
+                            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                          </div>
+                        ) : !crmGroups?.length ? (
+                          <div className="text-center py-8 text-muted-foreground">
+                            <UsersRound className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                            <p>Nenhum grupo cadastrado</p>
+                            <p className="text-sm mt-1">Crie grupos para organizar sua equipe e controlar acesso aos funis do CRM</p>
+                          </div>
+                        ) : (
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Grupo</TableHead>
+                                <TableHead>Membros</TableHead>
+                                <TableHead>Funis</TableHead>
+                                <TableHead className="w-[140px]">Ações</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {crmGroups.map((group) => (
+                                <TableRow key={group.id}>
+                                  <TableCell>
+                                    <div>
+                                      <p className="font-medium">{group.name}</p>
+                                      {group.description && (
+                                        <p className="text-sm text-muted-foreground">{group.description}</p>
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge variant="secondary">{group.member_count} membros</Badge>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge variant="outline" className="cursor-pointer" onClick={() => openFunnelAssignDialog(group)}>
+                                      <GitBranch className="h-3 w-3 mr-1" />
+                                      Configurar
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex items-center gap-1">
+                                      <Button variant="ghost" size="icon" onClick={() => openFunnelAssignDialog(group)} title="Gerenciar funis">
+                                        <GitBranch className="h-4 w-4" />
+                                      </Button>
+                                      <Button variant="ghost" size="icon" onClick={() => openCrmMembersDialog(group)} title="Gerenciar membros">
+                                        <Users className="h-4 w-4" />
+                                      </Button>
+                                      <Button variant="ghost" size="icon" onClick={() => openCrmGroupDialog(group)} title="Editar grupo">
+                                        <Edit className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => deleteCrmGroup.mutate(group.id)}
+                                        className="text-destructive hover:text-destructive"
+                                        title="Excluir grupo"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
                             </TableBody>
                           </Table>
                         )}
@@ -1174,8 +1347,8 @@ export default function Organizacoes() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="admin">Admin - Gerencia tudo</SelectItem>
-                      <SelectItem value="manager">Supervisor - Visualização avançada</SelectItem>
-                      <SelectItem value="agent">Agente - Acesso básico</SelectItem>
+                      <SelectItem value="manager">Gerente - Gerencia equipe</SelectItem>
+                      <SelectItem value="agent">Vendedor - Acesso operacional</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1326,6 +1499,166 @@ export default function Organizacoes() {
           userRole={roleLabels[permMember.role]?.label || permMember.role}
         />
       )}
+
+      {/* Group Create/Edit Dialog */}
+      <Dialog open={groupDialogOpen} onOpenChange={setGroupDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingCrmGroup ? 'Editar' : 'Novo'} Grupo</DialogTitle>
+            <DialogDescription>Configure o nome e descrição do grupo</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Nome</Label>
+              <Input
+                value={crmGroupForm.name}
+                onChange={(e) => setCrmGroupForm({ ...crmGroupForm, name: e.target.value })}
+                placeholder="Ex: Vendas SP, Suporte Técnico..."
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Descrição (opcional)</Label>
+              <Input
+                value={crmGroupForm.description}
+                onChange={(e) => setCrmGroupForm({ ...crmGroupForm, description: e.target.value })}
+                placeholder="Descrição do grupo..."
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setGroupDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={saveCrmGroup} disabled={!crmGroupForm.name.trim()}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Group Members Dialog */}
+      <Dialog open={crmMembersDialogOpen} onOpenChange={setCrmMembersDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Membros do Grupo: {editingCrmGroup?.name}</DialogTitle>
+            <DialogDescription>Adicione ou remova membros deste grupo</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label className="mb-2 block">Membros atuais</Label>
+              {crmGroupMembers?.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-2">Nenhum membro adicionado</p>
+              ) : (
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {crmGroupMembers?.map((member) => (
+                    <div key={member.user_id} className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-medium text-sm">
+                          {member.name?.[0]?.toUpperCase() || '?'}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">{member.name}</p>
+                          <p className="text-xs text-muted-foreground">{member.email}</p>
+                        </div>
+                        {member.is_supervisor && <Badge variant="outline" className="ml-2">Gerente</Badge>}
+                      </div>
+                      <Button variant="ghost" size="icon" onClick={() => handleRemoveCrmMember(member.user_id)} className="text-destructive hover:text-destructive h-8 w-8">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div>
+              <Label className="mb-2 block">Adicionar membro</Label>
+              {loadingCrmOrgMembers ? (
+                <div className="flex justify-center py-4">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <ScrollArea className="max-h-48">
+                  <div className="space-y-2">
+                    {crmOrgMembers
+                      .filter(m => !crmGroupMembers?.some(gm => gm.user_id === m.user_id))
+                      .map((member) => (
+                        <div key={member.user_id} className="flex items-center justify-between p-2 rounded-lg border">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground font-medium text-sm">
+                              {member.name?.[0]?.toUpperCase() || '?'}
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium">{member.name}</p>
+                              <p className="text-xs text-muted-foreground">{member.email}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button variant="outline" size="sm" onClick={() => handleAddCrmMember(member.user_id, true)}>
+                              + Gerente
+                            </Button>
+                            <Button variant="default" size="sm" onClick={() => handleAddCrmMember(member.user_id, false)}>
+                              + Vendedor
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    {crmOrgMembers.filter(m => !crmGroupMembers?.some(gm => gm.user_id === m.user_id)).length === 0 && (
+                      <p className="text-sm text-muted-foreground py-2 text-center">Todos os usuários já foram adicionados</p>
+                    )}
+                  </div>
+                </ScrollArea>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCrmMembersDialogOpen(false)}>Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Group Funnel Assignment Dialog */}
+      <Dialog open={funnelAssignDialogOpen} onOpenChange={(open) => {
+        setFunnelAssignDialogOpen(open);
+        if (!open) setFunnelAssignGroupId(null);
+      }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Funis do Grupo: {editingCrmGroup?.name}</DialogTitle>
+            <DialogDescription>
+              Selecione quais funis/kanbans este grupo pode acessar. Se nenhum for selecionado, o grupo terá acesso a todos os funis.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 max-h-[400px] overflow-y-auto">
+            {allFunnels?.map((funnel) => {
+              const isAssigned = groupFunnels?.some(gf => gf.funnel_id === funnel.id) || false;
+              return (
+                <div key={funnel.id} className="flex items-center justify-between p-3 rounded-lg border">
+                  <div className="flex items-center gap-3">
+                    <div className="w-4 h-4 rounded-full" style={{ backgroundColor: funnel.color }} />
+                    <div>
+                      <p className="font-medium text-sm">{funnel.name}</p>
+                      {funnel.description && <p className="text-xs text-muted-foreground">{funnel.description}</p>}
+                    </div>
+                  </div>
+                  <Switch
+                    checked={isAssigned}
+                    onCheckedChange={(checked) => {
+                      if (!funnelAssignGroupId) return;
+                      const currentIds = groupFunnels?.map(gf => gf.funnel_id) || [];
+                      const newIds = checked
+                        ? [...currentIds, funnel.id]
+                        : currentIds.filter(id => id !== funnel.id);
+                      setGroupFunnels.mutate({ groupId: funnelAssignGroupId, funnelIds: newIds });
+                    }}
+                  />
+                </div>
+              );
+            })}
+            {!allFunnels?.length && (
+              <p className="text-sm text-muted-foreground text-center py-4">Nenhum funil cadastrado</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFunnelAssignDialogOpen(false)}>Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 }
