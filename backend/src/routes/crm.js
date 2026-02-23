@@ -330,6 +330,27 @@ router.get('/funnels', async (req, res) => {
 
     // Regular users: check if crm_group_funnels table exists and filter
     try {
+      // First log which groups this user belongs to
+      const userGroups = await query(
+        `SELECT gm.group_id, g.name as group_name 
+         FROM crm_user_group_members gm 
+         JOIN crm_user_groups g ON g.id = gm.group_id 
+         WHERE gm.user_id = $1`,
+        [req.userId]
+      );
+      console.log(`[funnels] User ${req.userId} belongs to groups:`, userGroups.rows);
+
+      // Then check which funnels are linked to those groups
+      const allGroupFunnelLinks = await query(
+        `SELECT gf.group_id, g.name as group_name, gf.funnel_id, f.name as funnel_name
+         FROM crm_group_funnels gf
+         JOIN crm_user_groups g ON g.id = gf.group_id
+         JOIN crm_funnels f ON f.id = gf.funnel_id
+         WHERE gf.group_id IN (SELECT group_id FROM crm_user_group_members WHERE user_id = $1)`,
+        [req.userId]
+      );
+      console.log(`[funnels] All funnel links for user's groups:`, allGroupFunnelLinks.rows);
+
       const groupFunnels = await query(
         `SELECT DISTINCT gf.funnel_id 
          FROM crm_group_funnels gf
