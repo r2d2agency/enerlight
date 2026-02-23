@@ -4341,10 +4341,10 @@ router.get('/goals/dashboard', async (req, res) => {
     }
 
     // Seller ranking
+    const rankingGroupId = req.query.ranking_group_id;
     let ranking = [];
     try {
-      const rankResult = await query(
-        `SELECT d.owner_id as user_id, u.name as user_name,
+      let rankSql = `SELECT d.owner_id as user_id, u.name as user_name,
           COUNT(*) as total_deals,
           COUNT(*) FILTER (WHERE d.status = 'won') as won_deals,
           COUNT(*) FILTER (WHERE d.status = 'open') as open_deals,
@@ -4352,12 +4352,16 @@ router.get('/goals/dashboard', async (req, res) => {
           COALESCE(SUM(d.value), 0) as total_value
          FROM crm_deals d
          JOIN crm_funnels f ON f.id = d.funnel_id
-         JOIN users u ON u.id = d.owner_id
-         WHERE f.organization_id = $1 AND d.created_at::date >= $2::date AND d.created_at::date <= $3::date
+         JOIN users u ON u.id = d.owner_id`;
+      const rankParams = [org.organization_id, sd, ed];
+      if (rankingGroupId) {
+        rankSql += ` JOIN crm_user_group_members gm ON gm.user_id = d.owner_id AND gm.group_id = $4`;
+        rankParams.push(rankingGroupId);
+      }
+      rankSql += ` WHERE f.organization_id = $1 AND d.created_at::date >= $2::date AND d.created_at::date <= $3::date
          GROUP BY d.owner_id, u.name
-         ORDER BY won_deals DESC, won_value DESC`,
-        [org.organization_id, sd, ed]
-      );
+         ORDER BY won_deals DESC, won_value DESC`;
+      const rankResult = await query(rankSql, rankParams);
       ranking = rankResult.rows.map(r => ({
         user_id: r.user_id,
         user_name: r.user_name,
