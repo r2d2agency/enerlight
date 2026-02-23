@@ -312,13 +312,13 @@ router.get('/funnels', async (req, res) => {
       isDesignerUser = designerCheck.rows.length > 0;
     } catch (_) {}
 
-    // Admins/owners/managers/designers see all funnels
-    // Also check if user is a supervisor in any group — supervisors should see their group's funnels
+    // Only owners/admins/designers see ALL funnels unconditionally
+    // Managers and agents are filtered by their group's funnel assignments
     const userGroupMemberships = await getUserGroupIds(req.userId);
     const isSupervisor = userGroupMemberships.some(g => g.is_supervisor);
 
-    if (canManage(org.role) || isDesignerUser) {
-      console.log(`[funnels] canManage=true or designer, showing all funnels`);
+    if (['owner', 'admin'].includes(org.role) || isDesignerUser) {
+      console.log(`[funnels] owner/admin/designer, showing all funnels`);
       const result = await query(
         `SELECT f.*, 
           (SELECT COUNT(*) FROM crm_deals WHERE funnel_id = f.id AND status = 'open') as open_deals,
