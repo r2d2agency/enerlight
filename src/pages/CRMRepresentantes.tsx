@@ -77,13 +77,13 @@ export default function CRMRepresentantes() {
 
   const handleSave = () => {
     if (!form.name.trim()) return;
+    if (createRepresentative.isPending || updateRepresentative.isPending) return;
     const data = { ...form, commission_percent: Number(form.commission_percent) || 0 };
     if (editingRep) {
-      updateRepresentative.mutate({ id: editingRep.id, ...data });
+      updateRepresentative.mutate({ id: editingRep.id, ...data }, { onSuccess: () => setFormOpen(false) });
     } else {
-      createRepresentative.mutate(data);
+      createRepresentative.mutate(data, { onSuccess: () => setFormOpen(false) });
     }
-    setFormOpen(false);
   };
 
   const handleDelete = (id: string) => {
@@ -362,8 +362,8 @@ export default function CRMRepresentantes() {
           </ScrollArea>
           <DialogFooter>
             <Button variant="outline" onClick={() => setFormOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave} disabled={!form.name.trim()}>
-              {editingRep ? "Salvar" : "Criar"}
+            <Button onClick={handleSave} disabled={!form.name.trim() || createRepresentative.isPending || updateRepresentative.isPending}>
+              {(createRepresentative.isPending || updateRepresentative.isPending) ? "Salvando..." : editingRep ? "Salvar" : "Criar"}
             </Button>
           </DialogFooter>
         </DialogContent>
