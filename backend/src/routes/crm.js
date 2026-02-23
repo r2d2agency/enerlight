@@ -313,6 +313,10 @@ router.get('/funnels', async (req, res) => {
     } catch (_) {}
 
     // Admins/owners/managers/designers see all funnels
+    // Also check if user is a supervisor in any group — supervisors should see their group's funnels
+    const userGroupMemberships = await getUserGroupIds(req.userId);
+    const isSupervisor = userGroupMemberships.some(g => g.is_supervisor);
+
     if (canManage(org.role) || isDesignerUser) {
       console.log(`[funnels] canManage=true or designer, showing all funnels`);
       const result = await query(
@@ -329,53 +333,55 @@ router.get('/funnels', async (req, res) => {
     }
 
     // Regular users: check if crm_group_funnels table exists and filter
+    // Supervisors also see all funnels from their groups
     try {
       // First log which groups this user belongs to
       const userGroups = await query(
-        `SELECT gm.group_id, g.name as group_name 
+        `SELECT gm.group_id, g.name as group_name, gm.is_supervisor 
          FROM crm_user_group_members gm 
          JOIN crm_user_groups g ON g.id = gm.group_id 
          WHERE gm.user_id = $1`,
         [req.userId]
       );
-      console.log(`[funnels] User ${req.userId} belongs to groups:`, userGroups.rows);
+      console.log(`[funnels] User ${req.userId} (supervisor=${isSupervisor}) belongs to groups:`, userGroups.rows);
 
-      // Then check which funnels are linked to those groups
-      const allGroupFunnelLinks = await query(
-        `SELECT gf.group_id, g.name as group_name, gf.funnel_id, f.name as funnel_name
-         FROM crm_group_funnels gf
-         JOIN crm_user_groups g ON g.id = gf.group_id
-         JOIN crm_funnels f ON f.id = gf.funnel_id
-         WHERE gf.group_id IN (SELECT group_id FROM crm_user_group_members WHERE user_id = $1)`,
-        [req.userId]
-      );
-      console.log(`[funnels] All funnel links for user's groups:`, allGroupFunnelLinks.rows);
-
-      const groupFunnels = await query(
-        `SELECT DISTINCT gf.funnel_id 
-         FROM crm_group_funnels gf
-         JOIN crm_user_group_members gm ON gm.group_id = gf.group_id
-         WHERE gm.user_id = $1`,
-        [req.userId]
-      );
-      
-      console.log(`[funnels] User group funnels: ${groupFunnels.rows.length} found`, groupFunnels.rows.map(r => r.funnel_id));
-
-      // If user has group funnel restrictions, filter
-      if (groupFunnels.rows.length > 0) {
-        const funnelIds = groupFunnels.rows.map(r => r.funnel_id);
-        const placeholders = funnelIds.map((_, i) => `$${i + 2}`).join(', ');
-        const result = await query(
-          `SELECT f.*, 
-            (SELECT COUNT(*) FROM crm_deals WHERE funnel_id = f.id AND status = 'open') as open_deals,
-            (SELECT COALESCE(SUM(value), 0) FROM crm_deals WHERE funnel_id = f.id AND status = 'open') as total_value
-           FROM crm_funnels f 
-           WHERE f.organization_id = $1 AND f.is_active = true AND f.id IN (${placeholders})
-           ORDER BY f.name`,
-          [org.organization_id, ...funnelIds]
+      // If user has no groups at all, fall through to show all (or none depending on policy)
+      if (userGroups.rows.length === 0) {
+        console.log(`[funnels] User has no groups, showing all funnels as fallback`);
+        // Fall through to show all
+      } else {
+        // Check which funnels are linked to those groups
+        const groupFunnels = await query(
+          `SELECT DISTINCT gf.funnel_id 
+           FROM crm_group_funnels gf
+           JOIN crm_user_group_members gm ON gm.group_id = gf.group_id
+           WHERE gm.user_id = $1`,
+          [req.userId]
         );
-        console.log(`[funnels] Returning ${result.rows.length} filtered funnels`);
-        return res.json(result.rows);
+        
+        console.log(`[funnels] User group funnels: ${groupFunnels.rows.length} found`, groupFunnels.rows.map(r => r.funnel_id));
+
+        // If user has group funnel restrictions, filter
+        if (groupFunnels.rows.length > 0) {
+          const funnelIds = groupFunnels.rows.map(r => r.funnel_id);
+          const placeholders = funnelIds.map((_, i) => `$${i + 2}`).join(', ');
+          const result = await query(
+            `SELECT f.*, 
+              (SELECT COUNT(*) FROM crm_deals WHERE funnel_id = f.id AND status = 'open') as open_deals,
+              (SELECT COALESCE(SUM(value), 0) FROM crm_deals WHERE funnel_id = f.id AND status = 'open') as total_value
+             FROM crm_funnels f 
+             WHERE f.organization_id = $1 AND f.is_active = true AND f.id IN (${placeholders})
+             ORDER BY f.name`,
+            [org.organization_id, ...funnelIds]
+          );
+          console.log(`[funnels] Returning ${result.rows.length} filtered funnels`);
+          return res.json(result.rows);
+        }
+        
+        // Supervisor with groups but no funnel restrictions → show all
+        if (isSupervisor) {
+          console.log(`[funnels] Supervisor with no funnel restrictions, showing all`);
+        }
       }
     } catch (e) {
       console.log(`[funnels] crm_group_funnels error:`, e.message);
@@ -1087,7 +1093,7 @@ router.put('/deals/:id', async (req, res) => {
     if (!org) return res.status(403).json({ error: 'No organization' });
 
     const { stage_id, title, value, probability, expected_close_date, description, 
-            tags, owner_id, group_id, status, lost_reason, loss_reason_id } = req.body;
+            tags, owner_id, group_id, status, lost_reason, loss_reason_id, custom_fields } = req.body;
 
     // Get current deal for history
     const current = await query(`SELECT * FROM crm_deals WHERE id = $1`, [req.params.id]);
@@ -1100,6 +1106,21 @@ router.put('/deals/:id', async (req, res) => {
     // Build dynamic update
     const fieldsToUpdate = { stage_id, title, value, probability, expected_close_date, 
                              description, tags, owner_id, group_id, status, lost_reason, loss_reason_id };
+    
+    for (const [key, val] of Object.entries(fieldsToUpdate)) {
+      if (val !== undefined) {
+        updates.push(`${key} = $${paramIndex}`);
+        values.push(key === 'tags' ? val : val);
+        paramIndex++;
+      }
+    }
+
+    // Handle custom_fields separately (JSONB)
+    if (custom_fields !== undefined) {
+      updates.push(`custom_fields = $${paramIndex}`);
+      values.push(JSON.stringify(custom_fields));
+      paramIndex++;
+    }
     
     for (const [key, val] of Object.entries(fieldsToUpdate)) {
       if (val !== undefined) {

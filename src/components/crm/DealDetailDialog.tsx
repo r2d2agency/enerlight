@@ -58,6 +58,16 @@ interface DealAttachment {
   created_at: string;
 }
 
+interface CustomField {
+  id: string;
+  field_name: string;
+  field_label: string;
+  field_type: string;
+  entity_type: string;
+  options?: string[];
+  is_required: boolean;
+}
+
 export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogProps) {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("details");
@@ -66,6 +76,14 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
   const [newTaskDueDate, setNewTaskDueDate] = useState("");
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [description, setDescription] = useState("");
+
+  // Inline edit states for value, expected_close_date, custom_fields
+  const [isEditingValue, setIsEditingValue] = useState(false);
+  const [editValue, setEditValue] = useState("");
+  const [isEditingCloseDate, setIsEditingCloseDate] = useState(false);
+  const [editCloseDate, setEditCloseDate] = useState("");
+  const [customFields, setCustomFields] = useState<CustomField[]>([]);
+  const [dealCustomFields, setDealCustomFields] = useState<Record<string, any>>({});
   const [attachments, setAttachments] = useState<DealAttachment[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -142,7 +160,7 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
     }
   };
 
-  // Load agenda contacts
+  // Load agenda contacts & custom fields
   useEffect(() => {
     if (open) {
       setLoadingContacts(true);
@@ -153,6 +171,11 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
       
       // Load scheduled WhatsApp messages for this deal's contacts
       loadScheduledMessages();
+
+      // Load custom fields definition
+      api<CustomField[]>('/api/crm/config/custom-fields?entity_type=deal')
+        .then(setCustomFields)
+        .catch(() => setCustomFields([]));
     }
   }, [open, currentDeal?.contacts]);
 
@@ -162,6 +185,15 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
       setDescription(currentDeal.description);
     }
   }, [currentDeal?.description]);
+
+  // Sync inline edit states
+  useEffect(() => {
+    if (currentDeal) {
+      setEditValue(String(currentDeal.value || 0));
+      setEditCloseDate(currentDeal.expected_close_date ? currentDeal.expected_close_date.substring(0, 10) : "");
+      setDealCustomFields(currentDeal.custom_fields || {});
+    }
+  }, [currentDeal]);
 
   if (!deal) return null;
 
@@ -190,6 +222,26 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
     updateDeal.mutate({ id: deal.id, description });
     setIsEditingDescription(false);
     toast.success("Descrição salva!");
+  };
+
+  const handleSaveValue = () => {
+    updateDeal.mutate({ id: deal.id, value: Number(editValue) || 0 } as any);
+    setIsEditingValue(false);
+    toast.success("Valor atualizado!");
+  };
+
+  const handleSaveCloseDate = () => {
+    updateDeal.mutate({ id: deal.id, expected_close_date: editCloseDate || null } as any);
+    setIsEditingCloseDate(false);
+    toast.success("Data de fechamento atualizada!");
+  };
+
+  const handleSaveCustomField = (fieldName: string, value: any) => {
+    const updated = { ...dealCustomFields, [fieldName]: value };
+    setDealCustomFields(updated);
+    api(`/api/crm/deals/${deal.id}`, { method: 'PUT', body: { custom_fields: updated } })
+      .then(() => toast.success("Campo atualizado!"))
+      .catch(() => toast.error("Erro ao salvar campo"));
   };
 
   const handleChangeCompany = (companyId: string, companyName: string) => {
@@ -424,9 +476,25 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
                   </button>
                 )}
                 <span>•</span>
-                <span className="font-semibold text-foreground">
-                  {formatCurrency(currentDeal?.value || 0)}
-                </span>
+                {isEditingValue ? (
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="number"
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      className="w-32 h-7 text-sm"
+                      autoFocus
+                      onKeyDown={(e) => { if (e.key === 'Enter') handleSaveValue(); if (e.key === 'Escape') setIsEditingValue(false); }}
+                    />
+                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={handleSaveValue}><Save className="h-3 w-3" /></Button>
+                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setIsEditingValue(false)}><X className="h-3 w-3" /></Button>
+                  </div>
+                ) : (
+                  <button onClick={() => setIsEditingValue(true)} className="font-semibold text-foreground hover:underline flex items-center gap-1">
+                    {formatCurrency(currentDeal?.value || 0)}
+                    <Edit2 className="h-3 w-3 opacity-50" />
+                  </button>
+                )}
                 {isEditingCompany && (
                   <Button 
                     variant="ghost" 
@@ -553,17 +621,53 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
                       <span className="text-muted-foreground">Responsável</span>
                       <span>{currentDeal?.owner_name || "Não definido"}</span>
                     </div>
-                    {currentDeal?.expected_close_date && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Fechamento previsto</span>
-                        <span>{format(parseISO(currentDeal.expected_close_date), "dd/MM/yyyy")}</span>
-                      </div>
-                    )}
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">Fechamento previsto</span>
+                      {isEditingCloseDate ? (
+                        <div className="flex items-center gap-1">
+                          <Input
+                            type="date"
+                            value={editCloseDate}
+                            onChange={(e) => setEditCloseDate(e.target.value)}
+                            className="w-36 h-7 text-sm"
+                            onKeyDown={(e) => { if (e.key === 'Enter') handleSaveCloseDate(); if (e.key === 'Escape') setIsEditingCloseDate(false); }}
+                          />
+                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={handleSaveCloseDate}><Save className="h-3 w-3" /></Button>
+                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setIsEditingCloseDate(false)}><X className="h-3 w-3" /></Button>
+                        </div>
+                      ) : (
+                        <button onClick={() => setIsEditingCloseDate(true)} className="hover:underline flex items-center gap-1">
+                          {currentDeal?.expected_close_date 
+                            ? format(parseISO(currentDeal.expected_close_date), "dd/MM/yyyy")
+                            : "Definir data"}
+                          <Edit2 className="h-3 w-3 opacity-50" />
+                        </button>
+                      )}
+                    </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Criado em</span>
                       <span>{format(parseISO(currentDeal?.created_at || new Date().toISOString()), "dd/MM/yyyy", { locale: ptBR })}</span>
                     </div>
                   </div>
+
+                  {/* Custom Fields */}
+                  {customFields.length > 0 && (
+                    <div className="mt-4 pt-3 border-t space-y-3">
+                      <h5 className="text-xs font-medium text-muted-foreground uppercase">Campos Personalizados</h5>
+                      {customFields.map((field) => (
+                        <div key={field.id} className="flex justify-between items-center text-sm">
+                          <span className="text-muted-foreground">{field.field_label}</span>
+                          <Input
+                            value={dealCustomFields[field.field_name] || ""}
+                            onChange={(e) => setDealCustomFields(prev => ({ ...prev, [field.field_name]: e.target.value }))}
+                            onBlur={() => handleSaveCustomField(field.field_name, dealCustomFields[field.field_name] || "")}
+                            className="w-40 h-7 text-sm text-right"
+                            placeholder="—"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </Card>
 
                 <Card className="p-4">
