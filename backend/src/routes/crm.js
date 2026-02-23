@@ -4066,4 +4066,294 @@ router.delete('/representatives/:id', async (req, res) => {
   }
 });
 
+// ============================================
+// GOALS / METAS
+// ============================================
+
+// Ensure goals table exists
+async function ensureGoalsTable() {
+  try {
+    await query(`CREATE TABLE IF NOT EXISTS crm_goals (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      name VARCHAR(255) NOT NULL,
+      type VARCHAR(20) NOT NULL DEFAULT 'individual',
+      target_user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+      target_group_id UUID REFERENCES crm_user_groups(id) ON DELETE CASCADE,
+      metric VARCHAR(50) NOT NULL,
+      target_value NUMERIC(15,2) NOT NULL DEFAULT 0,
+      period VARCHAR(20) NOT NULL DEFAULT 'monthly',
+      start_date DATE NOT NULL DEFAULT CURRENT_DATE,
+      end_date DATE,
+      is_active BOOLEAN DEFAULT true,
+      created_by UUID REFERENCES users(id),
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    )`);
+  } catch (e) {
+    // table likely already exists
+  }
+}
+
+// List goals
+router.get('/goals', async (req, res) => {
+  try {
+    await ensureGoalsTable();
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const result = await query(
+      `SELECT g.*,
+        u.name as target_user_name,
+        ug.name as target_group_name
+       FROM crm_goals g
+       LEFT JOIN users u ON u.id = g.target_user_id
+       LEFT JOIN crm_user_groups ug ON ug.id = g.target_group_id
+       WHERE g.organization_id = $1
+       ORDER BY g.created_at DESC`,
+      [org.organization_id]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching goals:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create goal
+router.post('/goals', async (req, res) => {
+  try {
+    await ensureGoalsTable();
+    const org = await getUserOrg(req.userId);
+    if (!org || !canManage(org.role)) return res.status(403).json({ error: 'Permission denied' });
+
+    const { name, type, target_user_id, target_group_id, metric, target_value, period, start_date, end_date } = req.body;
+    const result = await query(
+      `INSERT INTO crm_goals (organization_id, name, type, target_user_id, target_group_id, metric, target_value, period, start_date, end_date, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+      [org.organization_id, name, type || 'individual', target_user_id || null, target_group_id || null, metric, target_value, period || 'monthly', start_date || new Date(), end_date || null, req.userId]
+    );
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error creating goal:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update goal
+router.put('/goals/:id', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org || !canManage(org.role)) return res.status(403).json({ error: 'Permission denied' });
+
+    const { name, type, target_user_id, target_group_id, metric, target_value, period, start_date, end_date, is_active } = req.body;
+    const result = await query(
+      `UPDATE crm_goals SET name=$1, type=$2, target_user_id=$3, target_group_id=$4, metric=$5, target_value=$6, period=$7, start_date=$8, end_date=$9, is_active=$10, updated_at=NOW()
+       WHERE id=$11 AND organization_id=$12 RETURNING *`,
+      [name, type, target_user_id || null, target_group_id || null, metric, target_value, period, start_date, end_date || null, is_active !== false, req.params.id, org.organization_id]
+    );
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating goal:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete goal
+router.delete('/goals/:id', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org || !canManage(org.role)) return res.status(403).json({ error: 'Permission denied' });
+
+    await query(`DELETE FROM crm_goals WHERE id=$1 AND organization_id=$2`, [req.params.id, org.organization_id]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting goal:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Goals dashboard with progress calculation
+router.get('/goals/dashboard', async (req, res) => {
+  try {
+    await ensureGoalsTable();
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const { start_date, end_date, user_id, group_id, period } = req.query;
+    const sd = start_date || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+    const ed = end_date || new Date().toISOString().split('T')[0];
+
+    // Fetch active goals
+    let goalsQuery = `SELECT g.*, u.name as target_user_name, ug.name as target_group_name
+      FROM crm_goals g
+      LEFT JOIN users u ON u.id = g.target_user_id
+      LEFT JOIN crm_user_groups ug ON ug.id = g.target_group_id
+      WHERE g.organization_id = $1 AND g.is_active = true`;
+    const goalsParams = [org.organization_id];
+
+    if (user_id) {
+      goalsParams.push(user_id);
+      goalsQuery += ` AND (g.target_user_id = $${goalsParams.length} OR g.type = 'group')`;
+    }
+    if (group_id) {
+      goalsParams.push(group_id);
+      goalsQuery += ` AND g.target_group_id = $${goalsParams.length}`;
+    }
+
+    const goalsResult = await query(goalsQuery, goalsParams);
+
+    // Calculate KPIs
+    let kpiUserFilter = '';
+    const kpiParams = [org.organization_id, sd, ed];
+    if (user_id) {
+      kpiParams.push(user_id);
+      kpiUserFilter = ` AND d.owner_id = $${kpiParams.length}`;
+    }
+
+    // New deals created in period
+    const newDealsResult = await query(
+      `SELECT COUNT(*) as cnt FROM crm_deals d
+       JOIN crm_funnels f ON f.id = d.funnel_id
+       WHERE f.organization_id = $1 AND d.created_at::date >= $2::date AND d.created_at::date <= $3::date${kpiUserFilter}`,
+      kpiParams
+    );
+
+    // Closed (won) deals in period
+    const closedDealsResult = await query(
+      `SELECT COUNT(*) as cnt, COALESCE(SUM(d.value),0) as total FROM crm_deals d
+       JOIN crm_funnels f ON f.id = d.funnel_id
+       WHERE f.organization_id = $1 AND d.status = 'won' AND d.won_at::date >= $2::date AND d.won_at::date <= $3::date${kpiUserFilter}`,
+      kpiParams
+    );
+
+    // New clients (unique companies with first deal in period)
+    let newClientsCount = 0;
+    let recurringClientsCount = 0;
+    try {
+      const newClients = await query(
+        `SELECT COUNT(DISTINCT d.company_id) as cnt FROM crm_deals d
+         JOIN crm_funnels f ON f.id = d.funnel_id
+         WHERE f.organization_id = $1 AND d.created_at::date >= $2::date AND d.created_at::date <= $3::date${kpiUserFilter}
+         AND d.company_id IS NOT NULL
+         AND NOT EXISTS (
+           SELECT 1 FROM crm_deals d2
+           JOIN crm_funnels f2 ON f2.id = d2.funnel_id
+           WHERE f2.organization_id = $1 AND d2.company_id = d.company_id AND d2.created_at < $2::date
+         )`,
+        kpiParams
+      );
+      newClientsCount = parseInt(newClients.rows[0]?.cnt || '0');
+
+      const recurring = await query(
+        `SELECT COUNT(DISTINCT d.company_id) as cnt FROM crm_deals d
+         JOIN crm_funnels f ON f.id = d.funnel_id
+         WHERE f.organization_id = $1 AND d.created_at::date >= $2::date AND d.created_at::date <= $3::date${kpiUserFilter}
+         AND d.company_id IS NOT NULL
+         AND EXISTS (
+           SELECT 1 FROM crm_deals d2
+           JOIN crm_funnels f2 ON f2.id = d2.funnel_id
+           WHERE f2.organization_id = $1 AND d2.company_id = d.company_id AND d2.created_at < $2::date
+         )`,
+        kpiParams
+      );
+      recurringClientsCount = parseInt(recurring.rows[0]?.cnt || '0');
+    } catch (_) {}
+
+    const kpis = {
+      new_deals: parseInt(newDealsResult.rows[0]?.cnt || '0'),
+      closed_deals: parseInt(closedDealsResult.rows[0]?.cnt || '0'),
+      won_value: parseFloat(closedDealsResult.rows[0]?.total || '0'),
+      new_clients: newClientsCount,
+      recurring_clients: recurringClientsCount,
+    };
+
+    // Calculate progress for each goal
+    const progress = [];
+    for (const goal of goalsResult.rows) {
+      let currentValue = 0;
+      const metricMap = {
+        new_deals: kpis.new_deals,
+        closed_deals: kpis.closed_deals,
+        won_value: kpis.won_value,
+        new_clients: kpis.new_clients,
+        recurring_clients: kpis.recurring_clients,
+      };
+
+      // If goal is individual and we have user_id filter or the goal has a target_user_id
+      if (goal.type === 'individual' && goal.target_user_id) {
+        // Recalculate for specific user if not already filtered
+        if (!user_id || user_id !== goal.target_user_id) {
+          const userParams = [org.organization_id, sd, ed, goal.target_user_id];
+          const uf = ` AND d.owner_id = $4`;
+          if (goal.metric === 'new_deals') {
+            const r = await query(`SELECT COUNT(*) as cnt FROM crm_deals d JOIN crm_funnels f ON f.id=d.funnel_id WHERE f.organization_id=$1 AND d.created_at::date>=$2::date AND d.created_at::date<=$3::date${uf}`, userParams);
+            currentValue = parseInt(r.rows[0]?.cnt || '0');
+          } else if (goal.metric === 'closed_deals') {
+            const r = await query(`SELECT COUNT(*) as cnt FROM crm_deals d JOIN crm_funnels f ON f.id=d.funnel_id WHERE f.organization_id=$1 AND d.status='won' AND d.won_at::date>=$2::date AND d.won_at::date<=$3::date${uf}`, userParams);
+            currentValue = parseInt(r.rows[0]?.cnt || '0');
+          } else if (goal.metric === 'won_value') {
+            const r = await query(`SELECT COALESCE(SUM(d.value),0) as total FROM crm_deals d JOIN crm_funnels f ON f.id=d.funnel_id WHERE f.organization_id=$1 AND d.status='won' AND d.won_at::date>=$2::date AND d.won_at::date<=$3::date${uf}`, userParams);
+            currentValue = parseFloat(r.rows[0]?.total || '0');
+          } else {
+            currentValue = metricMap[goal.metric] || 0;
+          }
+        } else {
+          currentValue = metricMap[goal.metric] || 0;
+        }
+      } else {
+        currentValue = metricMap[goal.metric] || 0;
+      }
+
+      const targetVal = parseFloat(goal.target_value) || 1;
+      progress.push({
+        goal_id: goal.id,
+        goal_name: goal.name,
+        metric: goal.metric,
+        target_value: targetVal,
+        current_value: currentValue,
+        percentage: Math.min(Math.round((currentValue / targetVal) * 100), 100),
+        type: goal.type,
+        period: goal.period,
+        target_user_name: goal.target_user_name,
+        target_group_name: goal.target_group_name,
+      });
+    }
+
+    // Timeline data
+    const groupByPeriod = period === 'daily' ? "d.created_at::date" : period === 'weekly' ? "date_trunc('week', d.created_at)::date" : "date_trunc('month', d.created_at)::date";
+    let timelineResult;
+    try {
+      timelineResult = await query(
+        `SELECT ${groupByPeriod} as period,
+          COUNT(*) as new_deals,
+          COUNT(*) FILTER (WHERE d.status = 'won') as closed_deals,
+          COALESCE(SUM(d.value) FILTER (WHERE d.status = 'won'), 0) as won_value
+         FROM crm_deals d
+         JOIN crm_funnels f ON f.id = d.funnel_id
+         WHERE f.organization_id = $1 AND d.created_at::date >= $2::date AND d.created_at::date <= $3::date${kpiUserFilter}
+         GROUP BY ${groupByPeriod}
+         ORDER BY period`,
+        kpiParams
+      );
+    } catch (_) {
+      timelineResult = { rows: [] };
+    }
+
+    res.json({
+      progress,
+      kpis,
+      timeline: timelineResult.rows.map(r => ({
+        period: r.period,
+        new_deals: parseInt(r.new_deals),
+        closed_deals: parseInt(r.closed_deals),
+        won_value: parseFloat(r.won_value),
+      })),
+    });
+  } catch (error) {
+    console.error('Error fetching goals dashboard:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
