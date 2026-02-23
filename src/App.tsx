@@ -47,6 +47,7 @@ import ModuloFantasma from "./pages/ModuloFantasma";
 import Projetos from "./pages/Projetos";
 import CRMRepresentantes from "./pages/CRMRepresentantes";
 import CRMMetas from "./pages/CRMMetas";
+import Reunioes from "./pages/Reunioes";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -119,6 +120,7 @@ const App = () => (
             <Route path="/secretaria-grupos" element={<ProtectedRoute><SecretariaGrupos /></ProtectedRoute>} />
             <Route path="/modulo-fantasma" element={<ProtectedRoute><ModuloFantasma /></ProtectedRoute>} />
             <Route path="/projetos" element={<ProtectedRoute><Projetos /></ProtectedRoute>} />
+            <Route path="/reunioes" element={<ProtectedRoute><Reunioes /></ProtectedRoute>} />
             <Route path="/f/:slug" element={<PublicFormPage />} />
             <Route path="/politica-privacidade" element={<PoliticaPrivacidade />} />
             <Route path="*" element={<NotFound />} />
