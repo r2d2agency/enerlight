@@ -173,7 +173,7 @@ export default function Reunioes() {
                   <CardContent className="space-y-2">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Calendar className="h-3.5 w-3.5" />
-                      {format(new Date(meeting.meeting_date + "T12:00:00"), "dd/MM/yyyy")}
+                      {meeting.meeting_date ? format(new Date(meeting.meeting_date + "T12:00:00"), "dd/MM/yyyy") : "—"}
                       <Clock className="h-3.5 w-3.5 ml-2" />
                       {meeting.start_time?.slice(0, 5)} - {meeting.end_time?.slice(0, 5)}
                     </div>
