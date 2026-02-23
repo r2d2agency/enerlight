@@ -419,6 +419,40 @@ router.get('/funnels/:id', async (req, res) => {
     );
     if (!funnel.rows[0]) return res.status(404).json({ error: 'Funnel not found' });
 
+    // Permission check: non-admin/owner users must have funnel linked to their group
+    if (!['owner', 'admin'].includes(org.role)) {
+      let isDesigner = false;
+      try {
+        const dc = await query(
+          `SELECT 1 FROM crm_user_group_members gm
+           JOIN crm_user_groups g ON g.id = gm.group_id
+           WHERE gm.user_id = $1 AND g.organization_id = $2 AND LOWER(g.name) LIKE '%projeto%'
+           LIMIT 1`,
+          [req.userId, org.organization_id]
+        );
+        isDesigner = dc.rows.length > 0;
+      } catch (_) {}
+
+      if (!isDesigner) {
+        const userGroupMemberships = await getUserGroupIds(req.userId);
+        const groupIds = userGroupMemberships.map(g => g.group_id);
+        if (groupIds.length > 0) {
+          const linked = await query(
+            `SELECT 1 FROM crm_group_funnels WHERE funnel_id = $1 AND group_id = ANY($2) LIMIT 1`,
+            [req.params.id, groupIds]
+          );
+          // If the group has explicit funnel links and this funnel isn't one of them, deny
+          const anyLinks = await query(
+            `SELECT 1 FROM crm_group_funnels WHERE group_id = ANY($1) LIMIT 1`,
+            [groupIds]
+          );
+          if (anyLinks.rows.length > 0 && linked.rows.length === 0) {
+            return res.status(404).json({ error: 'Funnel not found' });
+          }
+        }
+      }
+    }
+
     const stages = await query(
       `SELECT * FROM crm_stages WHERE funnel_id = $1 ORDER BY position`,
       [req.params.id]
