@@ -340,8 +340,11 @@ export default function CRMRepresentantes() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Nenhum</SelectItem>
+                    {user && !orgMembers?.some(m => m.user_id === user.id) && (
+                      <SelectItem key={user.id} value={user.id}>{user.name} ({user.email}) — Eu</SelectItem>
+                    )}
                     {orgMembers?.map(m => (
-                      <SelectItem key={m.user_id} value={m.user_id}>{m.name} ({m.email})</SelectItem>
+                      <SelectItem key={m.user_id} value={m.user_id}>{m.name} ({m.email}){m.user_id === user?.id ? ' — Eu' : ''}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
