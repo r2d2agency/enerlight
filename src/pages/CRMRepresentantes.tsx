@@ -22,15 +22,7 @@ import {
 } from "lucide-react";
 import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api";
 
-function useOrgMembers() {
-  return useQuery({
-    queryKey: ["org-members-for-reps"],
-    queryFn: () => api<{ id: string; name: string; email: string; role: string }[]>("/api/organizations/members"),
-  });
-}
 
 export default function CRMRepresentantes() {
   const { user } = useAuth();
@@ -48,7 +40,7 @@ export default function CRMRepresentantes() {
 
   const { data: representatives, isLoading } = useRepresentatives(search || undefined);
   const { data: dashboard, isLoading: loadingDash } = useRepresentativeDashboard(selectedRepId, startDate, endDate);
-  const { data: orgMembers } = useOrgMembers();
+  const { data: orgMembers } = useCRMMyTeam();
   const { createRepresentative, updateRepresentative, deleteRepresentative } = useRepresentativeMutations();
 
   // Form state
@@ -349,7 +341,7 @@ export default function CRMRepresentantes() {
                   <SelectContent>
                     <SelectItem value="none">Nenhum</SelectItem>
                     {orgMembers?.map(m => (
-                      <SelectItem key={m.id} value={m.id}>{m.name} ({m.role})</SelectItem>
+                      <SelectItem key={m.user_id} value={m.user_id}>{m.name} ({m.email})</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
