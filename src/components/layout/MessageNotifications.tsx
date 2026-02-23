@@ -226,7 +226,7 @@ export function MessageNotifications() {
                               <>
                                 <span className="text-[10px] text-muted-foreground">•</span>
                                 <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-                                  {format(new Date(conv.last_message_at), "HH:mm", { locale: ptBR })}
+                                  {!isNaN(new Date(conv.last_message_at).getTime()) ? format(new Date(conv.last_message_at), "HH:mm", { locale: ptBR }) : "—"}
                                 </span>
                               </>
                             )}
@@ -293,7 +293,7 @@ export function MessageNotifications() {
                             <span className="font-medium">{notif.sender_name}</span>: {notif.content_preview}
                           </p>
                           <span className="text-[10px] text-muted-foreground">
-                            {format(new Date(notif.created_at), "dd/MM HH:mm", { locale: ptBR })}
+                            {notif.created_at && !isNaN(new Date(notif.created_at).getTime()) ? format(new Date(notif.created_at), "dd/MM HH:mm", { locale: ptBR }) : "—"}
                           </span>
                         </div>
                         <Button
