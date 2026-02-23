@@ -70,6 +70,37 @@ export function useRepresentativeDashboard(id: string | null, startDate?: string
   });
 }
 
+export interface RepresentativeDeal {
+  id: string;
+  title: string;
+  value: number;
+  status: string;
+  created_at: string;
+  expected_close_date?: string;
+  stage_id?: string;
+  stage_name?: string;
+  stage_color?: string;
+  company_id?: string;
+  company_name?: string;
+  funnel_id?: string;
+}
+
+export function useRepresentativeDeals(id: string | null, startDate?: string, endDate?: string, status?: string) {
+  return useQuery({
+    queryKey: ["crm-representative-deals", id, startDate, endDate, status],
+    queryFn: async () => {
+      if (!id) return [];
+      const params = new URLSearchParams();
+      if (startDate) params.append("start_date", startDate);
+      if (endDate) params.append("end_date", endDate);
+      if (status) params.append("status", status);
+      const qs = params.toString();
+      return api<RepresentativeDeal[]>(`/api/crm/representatives/${id}/deals${qs ? `?${qs}` : ""}`);
+    },
+    enabled: !!id,
+  });
+}
+
 // Representatives filtered by current user's visibility (for deal form)
 export function useRepresentativesForDeal() {
   return useQuery({

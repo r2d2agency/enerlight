@@ -3968,6 +3968,50 @@ router.get('/representatives/:id/dashboard', async (req, res) => {
   }
 });
 
+// Representative deals list
+router.get('/representatives/:id/deals', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const { start_date, end_date, status } = req.query;
+    let filters = '';
+    const params = [req.params.id, org.organization_id];
+    let paramIdx = 3;
+
+    if (start_date && end_date) {
+      filters += ` AND d.created_at >= $${paramIdx} AND d.created_at <= $${paramIdx + 1}`;
+      params.push(start_date, end_date + 'T23:59:59');
+      paramIdx += 2;
+    }
+    if (status && status !== 'all') {
+      filters += ` AND d.status = $${paramIdx}`;
+      params.push(status);
+      paramIdx++;
+    }
+
+    const result = await query(
+      `SELECT d.id, d.title, d.value, d.status, d.created_at, d.expected_close_date,
+        d.stage_id, s.name as stage_name, s.color as stage_color,
+        d.company_id, c.name as company_name,
+        d.funnel_id
+       FROM crm_deals d
+       LEFT JOIN crm_stages s ON s.id = d.stage_id
+       LEFT JOIN crm_companies c ON c.id = d.company_id
+       WHERE d.representative_id = $1 AND d.organization_id = $2${filters}
+       ORDER BY d.created_at DESC
+       LIMIT 100`,
+      params
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    if (isMissingSchemaError(error)) return res.json([]);
+    console.error('Error fetching representative deals:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Create representative
 router.post('/representatives', async (req, res) => {
   try {

@@ -12,13 +12,14 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { 
   useRepresentatives, useRepresentativeDashboard, useRepresentativeMutations, 
-  Representative 
+  useRepresentativeDeals, Representative 
 } from "@/hooks/use-representatives";
-import { useCRMMyTeam } from "@/hooks/use-crm";
+import { useCRMMyTeam, CRMDeal } from "@/hooks/use-crm";
+import { DealDetailDialog } from "@/components/crm/DealDetailDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { 
   Plus, Search, Users, DollarSign, TrendingUp, TrendingDown, 
-  Briefcase, Edit2, Trash2, ArrowLeft, Calendar, XCircle, Trophy, Percent 
+  Briefcase, Edit2, Trash2, ArrowLeft, Calendar, XCircle, Trophy, Percent, ExternalLink 
 } from "lucide-react";
 import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -33,6 +34,9 @@ export default function CRMRepresentantes() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingRep, setEditingRep] = useState<Representative | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [dealStatusFilter, setDealStatusFilter] = useState("all");
+  const [selectedDeal, setSelectedDeal] = useState<CRMDeal | null>(null);
+  const [dealDetailOpen, setDealDetailOpen] = useState(false);
 
   // Dashboard date filters
   const [startDate, setStartDate] = useState(format(subDays(new Date(), 30), "yyyy-MM-dd"));
@@ -40,6 +44,7 @@ export default function CRMRepresentantes() {
 
   const { data: representatives, isLoading } = useRepresentatives(search || undefined);
   const { data: dashboard, isLoading: loadingDash } = useRepresentativeDashboard(selectedRepId, startDate, endDate);
+  const { data: repDeals, isLoading: loadingDeals } = useRepresentativeDeals(selectedRepId, startDate, endDate, dealStatusFilter);
   const { data: orgMembers } = useCRMMyTeam();
   const { createRepresentative, updateRepresentative, deleteRepresentative } = useRepresentativeMutations();
 
@@ -180,8 +185,81 @@ export default function CRMRepresentantes() {
                   </CardContent>
                 </Card>
               )}
+
+              {/* Deals list */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-medium">Negociações</CardTitle>
+                    <Select value={dealStatusFilter} onValueChange={setDealStatusFilter}>
+                      <SelectTrigger className="w-32 h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todas</SelectItem>
+                        <SelectItem value="open">Abertas</SelectItem>
+                        <SelectItem value="won">Ganhas</SelectItem>
+                        <SelectItem value="lost">Perdidas</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {loadingDeals ? (
+                    <div className="space-y-2">
+                      {[1,2,3].map(i => <Skeleton key={i} className="h-12" />)}
+                    </div>
+                  ) : !repDeals?.length ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">Nenhuma negociação encontrada</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {repDeals.map(deal => (
+                        <div
+                          key={deal.id}
+                          className="flex items-center justify-between p-3 rounded-lg border cursor-pointer hover:bg-accent/50 transition-colors"
+                          onClick={() => {
+                            setSelectedDeal(deal as any);
+                            setDealDetailOpen(true);
+                          }}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm truncate">{deal.title}</p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              {deal.company_name && <span className="text-xs text-muted-foreground">{deal.company_name}</span>}
+                              {deal.stage_name && (
+                                <Badge variant="outline" className="text-xs px-1.5 py-0">
+                                  {deal.stage_name}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3 ml-2">
+                            <div className="text-right">
+                              <p className="text-sm font-medium">{formatCurrency(deal.value)}</p>
+                              <Badge variant={deal.status === 'won' ? 'default' : deal.status === 'lost' ? 'destructive' : 'secondary'} className="text-xs">
+                                {deal.status === 'open' ? 'Aberta' : deal.status === 'won' ? 'Ganha' : 'Perdida'}
+                              </Badge>
+                            </div>
+                            <ExternalLink className="h-4 w-4 text-muted-foreground shrink-0" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </>
           ) : null}
+
+          {/* Deal Detail Dialog */}
+          <DealDetailDialog
+            deal={selectedDeal}
+            open={dealDetailOpen}
+            onOpenChange={(open) => {
+              setDealDetailOpen(open);
+              if (!open) setSelectedDeal(null);
+            }}
+          />
         </div>
       </MainLayout>
     );
