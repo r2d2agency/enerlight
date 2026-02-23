@@ -31,6 +31,16 @@ export interface GoalProgress {
   target_group_name?: string;
 }
 
+export interface SellerRanking {
+  user_id: string;
+  user_name: string;
+  total_deals: number;
+  won_deals: number;
+  open_deals: number;
+  won_value: number;
+  total_value: number;
+}
+
 export interface GoalDashboardData {
   progress: GoalProgress[];
   kpis: {
@@ -40,6 +50,7 @@ export interface GoalDashboardData {
     new_clients: number;
     recurring_clients: number;
   };
+  ranking: SellerRanking[];
   timeline: Array<{
     period: string;
     new_deals: number;

@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { useGoals, useGoalDashboard, useGoalMutations, Goal } from "@/hooks/use-goals";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useCRMMyTeam } from "@/hooks/use-crm";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -21,6 +22,7 @@ import {
 import {
   Target, Plus, Edit2, Trash2, Users, UserCheck, TrendingUp,
   Briefcase, DollarSign, UserPlus, RefreshCw, CalendarDays, Loader2, BarChart3,
+  Trophy, Medal, Award,
 } from "lucide-react";
 import { format, subDays, startOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -45,7 +47,7 @@ function formatCurrency(v: number) {
 
 export default function CRMMetas() {
   const { user } = useAuth();
-  const canManage = user?.role && ["owner", "admin", "manager"].includes(user.role);
+  const isAdmin = user?.role && ["owner", "admin"].includes(user.role);
 
   const [activeTab, setActiveTab] = useState("dashboard");
   const [formOpen, setFormOpen] = useState(false);
@@ -128,7 +130,7 @@ export default function CRMMetas() {
             </h1>
             <p className="text-muted-foreground">Defina e acompanhe metas individuais e de grupo</p>
           </div>
-          {canManage && (
+          {isAdmin && (
             <Button onClick={openCreate}>
               <Plus className="h-4 w-4 mr-2" />
               Nova Meta
@@ -271,6 +273,50 @@ export default function CRMMetas() {
                   </div>
                 )}
 
+                {/* Seller Ranking */}
+                {dashboard.ranking && dashboard.ranking.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Trophy className="h-5 w-5 text-amber-500" />
+                        Ranking de Vendedores
+                      </CardTitle>
+                      <CardDescription>Desempenho individual no período selecionado</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-10">#</TableHead>
+                            <TableHead>Vendedor</TableHead>
+                            <TableHead className="text-center">Novos</TableHead>
+                            <TableHead className="text-center">Em Aberto</TableHead>
+                            <TableHead className="text-center">Fechados</TableHead>
+                            <TableHead className="text-right">Valor Ganho</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {dashboard.ranking.map((r, i) => (
+                            <TableRow key={r.user_id}>
+                              <TableCell>
+                                {i === 0 ? <Trophy className="h-4 w-4 text-amber-500" /> :
+                                 i === 1 ? <Medal className="h-4 w-4 text-gray-400" /> :
+                                 i === 2 ? <Award className="h-4 w-4 text-amber-700" /> :
+                                 <span className="text-muted-foreground">{i + 1}</span>}
+                              </TableCell>
+                              <TableCell className="font-medium">{r.user_name}</TableCell>
+                              <TableCell className="text-center">{r.total_deals}</TableCell>
+                              <TableCell className="text-center">{r.open_deals}</TableCell>
+                              <TableCell className="text-center font-medium text-green-600">{r.won_deals}</TableCell>
+                              <TableCell className="text-right font-medium">{formatCurrency(r.won_value)}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+                )}
+
                 {/* Timeline Chart */}
                 {dashboard.timeline.length > 0 && (
                   <Card>
@@ -355,7 +401,7 @@ export default function CRMMetas() {
                             {g.target_group_name && <span>👥 {g.target_group_name}</span>}
                           </div>
                         </div>
-                        {canManage && (
+                        {isAdmin && (
                           <div className="flex gap-1 ml-4">
                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(g)}>
                               <Edit2 className="h-4 w-4" />

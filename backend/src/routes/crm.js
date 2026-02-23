@@ -4125,7 +4125,7 @@ router.post('/goals', async (req, res) => {
   try {
     await ensureGoalsTable();
     const org = await getUserOrg(req.userId);
-    if (!org || !canManage(org.role)) return res.status(403).json({ error: 'Permission denied' });
+    if (!org || !['owner', 'admin'].includes(org.role)) return res.status(403).json({ error: 'Permission denied' });
 
     const { name, type, target_user_id, target_group_id, metric, target_value, period, start_date, end_date } = req.body;
     const result = await query(
@@ -4144,7 +4144,7 @@ router.post('/goals', async (req, res) => {
 router.put('/goals/:id', async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
-    if (!org || !canManage(org.role)) return res.status(403).json({ error: 'Permission denied' });
+    if (!org || !['owner', 'admin'].includes(org.role)) return res.status(403).json({ error: 'Permission denied' });
 
     const { name, type, target_user_id, target_group_id, metric, target_value, period, start_date, end_date, is_active } = req.body;
     const result = await query(
@@ -4163,7 +4163,7 @@ router.put('/goals/:id', async (req, res) => {
 router.delete('/goals/:id', async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
-    if (!org || !canManage(org.role)) return res.status(403).json({ error: 'Permission denied' });
+    if (!org || !['owner', 'admin'].includes(org.role)) return res.status(403).json({ error: 'Permission denied' });
 
     await query(`DELETE FROM crm_goals WHERE id=$1 AND organization_id=$2`, [req.params.id, org.organization_id]);
     res.json({ success: true });
@@ -4340,9 +4340,39 @@ router.get('/goals/dashboard', async (req, res) => {
       timelineResult = { rows: [] };
     }
 
+    // Seller ranking
+    let ranking = [];
+    try {
+      const rankResult = await query(
+        `SELECT d.owner_id as user_id, u.name as user_name,
+          COUNT(*) as total_deals,
+          COUNT(*) FILTER (WHERE d.status = 'won') as won_deals,
+          COUNT(*) FILTER (WHERE d.status = 'open') as open_deals,
+          COALESCE(SUM(d.value) FILTER (WHERE d.status = 'won'), 0) as won_value,
+          COALESCE(SUM(d.value), 0) as total_value
+         FROM crm_deals d
+         JOIN crm_funnels f ON f.id = d.funnel_id
+         JOIN users u ON u.id = d.owner_id
+         WHERE f.organization_id = $1 AND d.created_at::date >= $2::date AND d.created_at::date <= $3::date
+         GROUP BY d.owner_id, u.name
+         ORDER BY won_deals DESC, won_value DESC`,
+        [org.organization_id, sd, ed]
+      );
+      ranking = rankResult.rows.map(r => ({
+        user_id: r.user_id,
+        user_name: r.user_name,
+        total_deals: parseInt(r.total_deals),
+        won_deals: parseInt(r.won_deals),
+        open_deals: parseInt(r.open_deals),
+        won_value: parseFloat(r.won_value),
+        total_value: parseFloat(r.total_value),
+      }));
+    } catch (_) {}
+
     res.json({
       progress,
       kpis,
+      ranking,
       timeline: timelineResult.rows.map(r => ({
         period: r.period,
         new_deals: parseInt(r.new_deals),
