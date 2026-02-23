@@ -309,21 +309,6 @@ export default function CRMNegociacoes() {
               </SelectContent>
             </Select>
 
-            {/* Group Filter */}
-            <Select value={groupFilter} onValueChange={setGroupFilter}>
-              <SelectTrigger className="w-[180px]">
-                <Users className="h-4 w-4 mr-2" />
-                <SelectValue placeholder="Grupo" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os grupos</SelectItem>
-                {groups?.map((group) => (
-                  <SelectItem key={group.id} value={group.id}>
-                    {group.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
 
             {/* Sort Order */}
             <Select value={sortOrder} onValueChange={setSortOrder}>
