@@ -86,6 +86,25 @@ router.get('/groups/me', async (req, res) => {
   }
 });
 
+// Get team members from the current user's groups (for managers)
+router.get('/my-team', async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT DISTINCT u.id as user_id, u.name, u.email
+       FROM crm_user_group_members gm
+       JOIN crm_user_group_members gm2 ON gm2.group_id = gm.group_id AND gm2.user_id != $1
+       JOIN users u ON u.id = gm2.user_id
+       WHERE gm.user_id = $1
+       ORDER BY u.name`,
+      [req.userId]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching my team:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // List groups
 router.get('/groups', async (req, res) => {
   try {
