@@ -3,7 +3,7 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MapPin, Building2, Users, Briefcase } from "lucide-react";
+import { MapPin, Building2, Users, Briefcase, Handshake } from "lucide-react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useMapData, MapLocation } from "@/hooks/use-map-data";
@@ -12,6 +12,7 @@ const TYPE_CONFIG = {
   deal: { label: "Negociações", color: "bg-blue-500", markerColor: "#3b82f6", icon: Briefcase },
   prospect: { label: "Prospects", color: "bg-orange-500", markerColor: "#f97316", icon: Users },
   company: { label: "Empresas", color: "bg-green-500", markerColor: "#22c55e", icon: Building2 },
+  representative: { label: "Representantes", color: "bg-purple-500", markerColor: "#a855f7", icon: Handshake },
 };
 
 // Create custom marker icon
@@ -101,6 +102,7 @@ export default function Mapa() {
     deal: true,
     prospect: true,
     company: true,
+    representative: true,
   });
 
   const filteredLocations = useMemo(() => {
@@ -111,6 +113,7 @@ export default function Mapa() {
     deal: locations.filter((l) => l.type === "deal").length,
     prospect: locations.filter((l) => l.type === "prospect").length,
     company: locations.filter((l) => l.type === "company").length,
+    representative: locations.filter((l) => l.type === "representative").length,
   }), [locations]);
 
   const toggleFilter = (type: keyof typeof filters) => {

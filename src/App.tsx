@@ -45,6 +45,7 @@ import RevenueIntelligence from "./pages/RevenueIntelligence";
 import SecretariaGrupos from "./pages/SecretariaGrupos";
 import ModuloFantasma from "./pages/ModuloFantasma";
 import Projetos from "./pages/Projetos";
+import CRMRepresentantes from "./pages/CRMRepresentantes";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -106,6 +107,7 @@ const App = () => (
             <Route path="/crm/agenda" element={<ProtectedRoute><CRMAgenda /></ProtectedRoute>} />
             <Route path="/crm/configuracoes" element={<ProtectedRoute><CRMConfiguracoes /></ProtectedRoute>} />
             <Route path="/crm/relatorios" element={<ProtectedRoute><CRMRelatorios /></ProtectedRoute>} />
+            <Route path="/crm/representantes" element={<ProtectedRoute><CRMRepresentantes /></ProtectedRoute>} />
             <Route path="/mapa" element={<ProtectedRoute><Mapa /></ProtectedRoute>} />
             <Route path="/fluxos-externos" element={<ProtectedRoute><FluxosExternos /></ProtectedRoute>} />
             <Route path="/lead-webhooks" element={<ProtectedRoute><LeadWebhooks /></ProtectedRoute>} />

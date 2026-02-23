@@ -3,7 +3,7 @@ import { API_URL, getAuthToken } from "@/lib/api";
 
 export interface MapLocation {
   id: string;
-  type: "deal" | "prospect" | "company";
+  type: "deal" | "prospect" | "company" | "representative";
   name: string;
   phone?: string;
   city?: string;

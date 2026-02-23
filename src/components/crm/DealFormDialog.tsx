@@ -9,11 +9,12 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CRMFunnel, useCRMDealMutations, useCRMFunnel, useCRMGroups } from "@/hooks/use-crm";
 import { Slider } from "@/components/ui/slider";
-import { User } from "lucide-react";
+import { User, Handshake } from "lucide-react";
 import { CompanySearchSelect } from "@/components/crm/CompanySearchSelect";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useRepresentativesForDeal } from "@/hooks/use-representatives";
 
 interface DealFormDialogProps {
   funnel: CRMFunnel | null;
@@ -40,6 +41,7 @@ export function DealFormDialog({ funnel, open, onOpenChange }: DealFormDialogPro
   const [expectedCloseDate, setExpectedCloseDate] = useState("");
   const [description, setDescription] = useState("");
   const [groupId, setGroupId] = useState("");
+  const [representativeId, setRepresentativeId] = useState("");
   
   const [mode, setMode] = useState<"company" | "contact">("company");
   const [contactName, setContactName] = useState("");
@@ -48,6 +50,7 @@ export function DealFormDialog({ funnel, open, onOpenChange }: DealFormDialogPro
   const { data: funnelData } = useCRMFunnel(funnel?.id || null);
   const { data: groups } = useCRMGroups();
   const { data: myGroups } = useMyGroups();
+  const { data: repsForDeal } = useRepresentativesForDeal();
   const { createDeal } = useCRMDealMutations();
 
   // Auto-fill group for non-managers
@@ -81,6 +84,7 @@ export function DealFormDialog({ funnel, open, onOpenChange }: DealFormDialogPro
       expected_close_date: expectedCloseDate || undefined,
       description,
       group_id: groupId || undefined,
+      representative_id: representativeId || undefined,
       contact_name: mode === "contact" ? contactName : undefined,
       contact_phone: mode === "contact" ? contactPhone : undefined,
     } as any);
@@ -97,6 +101,7 @@ export function DealFormDialog({ funnel, open, onOpenChange }: DealFormDialogPro
     setExpectedCloseDate("");
     setDescription("");
     setGroupId("");
+    setRepresentativeId("");
     setContactName("");
     setContactPhone("");
     setMode("company");
@@ -240,6 +245,24 @@ export function DealFormDialog({ funnel, open, onOpenChange }: DealFormDialogPro
                 <Input value={userGroupName} disabled className="bg-muted" />
               </div>
             ) : null}
+
+            {/* Representative */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2"><Handshake className="h-4 w-4" /> Representante</Label>
+              <Select value={representativeId || "none"} onValueChange={v => setRepresentativeId(v === "none" ? "" : v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um representante (opcional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Nenhum</SelectItem>
+                  {repsForDeal?.map(rep => (
+                    <SelectItem key={rep.id} value={rep.id}>
+                      {rep.name} ({rep.commission_percent}%)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
             <div className="space-y-2">
               <Label>Descrição</Label>

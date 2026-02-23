@@ -621,6 +621,12 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
                       <span className="text-muted-foreground">Responsável</span>
                       <span>{currentDeal?.owner_name || "Não definido"}</span>
                     </div>
+                    {(currentDeal as any)?.representative_name && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Representante</span>
+                        <span>{(currentDeal as any).representative_name} ({(currentDeal as any).representative_commission}%)</span>
+                      </div>
+                    )}
                     <div className="flex justify-between items-center">
                       <span className="text-muted-foreground">Fechamento previsto</span>
                       {isEditingCloseDate ? (

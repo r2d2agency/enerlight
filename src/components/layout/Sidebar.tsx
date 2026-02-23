@@ -36,6 +36,7 @@ import {
   Webhook,
   Ghost,
   FolderKanban,
+  Handshake,
 } from "lucide-react";
 import { API_URL, getAuthToken } from "@/lib/api";
 import gleegoLogo from "@/assets/gleego-logo.png";
@@ -95,6 +96,7 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
       { name: "Agenda", href: "/crm/agenda", icon: CalendarDays, permissionKey: 'can_view_calendar' },
       { name: "Tarefas", href: "/crm/tarefas", icon: ClipboardList, permissionKey: 'can_view_tasks' },
       { name: "Relatórios", href: "/crm/relatorios", icon: BarChart3, permissionKey: 'can_view_reports' },
+      { name: "Representantes", href: "/crm/representantes", icon: Handshake, permissionKey: 'can_view_crm' },
       { name: "Revenue Intel", href: "/revenue-intelligence", icon: Brain, adminOnly: true, permissionKey: 'can_view_revenue_intel' },
       { name: "Fantasma", href: "/modulo-fantasma", icon: Ghost, ownerOnly: true, moduleKey: 'ghost', permissionKey: 'can_view_ghost' },
       { name: "Configurações", href: "/crm/configuracoes", icon: Settings, adminOnly: true, permissionKey: 'can_view_crm_settings' },

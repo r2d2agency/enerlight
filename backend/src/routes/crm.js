@@ -979,13 +979,16 @@ router.get('/deals/:id', async (req, res) => {
         u.name as owner_name,
         f.name as funnel_name,
         s.name as stage_name,
-        g.name as group_name
+        g.name as group_name,
+        rep.name as representative_name,
+        rep.commission_percent as representative_commission
        FROM crm_deals d
        LEFT JOIN crm_companies c ON c.id = d.company_id
        LEFT JOIN users u ON u.id = d.owner_id
        LEFT JOIN crm_funnels f ON f.id = d.funnel_id
        LEFT JOIN crm_stages s ON s.id = d.stage_id
        LEFT JOIN crm_user_groups g ON g.id = d.group_id
+       LEFT JOIN crm_representatives rep ON rep.id = d.representative_id
        WHERE d.id = $1 AND d.organization_id = $2`,
       [req.params.id, org.organization_id]
     );
@@ -1043,7 +1046,7 @@ router.post('/deals', async (req, res) => {
     if (!org) return res.status(403).json({ error: 'No organization' });
 
     const { funnel_id, stage_id, company_id, title, value, probability, expected_close_date, 
-            description, tags, owner_id, group_id, contact_ids, contact_name, contact_phone } = req.body;
+            description, tags, owner_id, group_id, contact_ids, contact_name, contact_phone, representative_id } = req.body;
 
     if (!funnel_id || !stage_id || !title) {
       return res.status(400).json({ error: 'Campos obrigatórios: funil, etapa e título' });
@@ -1067,10 +1070,10 @@ router.post('/deals', async (req, res) => {
 
     const result = await query(
       `INSERT INTO crm_deals (organization_id, funnel_id, stage_id, position, company_id, title, value, probability, 
-       expected_close_date, description, tags, owner_id, group_id, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *`,
+       expected_close_date, description, tags, owner_id, group_id, representative_id, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING *`,
       [org.organization_id, funnel_id, stage_id, nextPosition, resolvedCompanyId, title, value || 0, probability || 50,
-       expected_close_date, description, tags || [], owner_id || req.userId, group_id, req.userId]
+       expected_close_date, description, tags || [], owner_id || req.userId, group_id, representative_id || null, req.userId]
     );
     const deal = result.rows[0];
 
@@ -1153,7 +1156,7 @@ router.put('/deals/:id', async (req, res) => {
     if (!org) return res.status(403).json({ error: 'No organization' });
 
     const { stage_id, title, value, probability, expected_close_date, description, 
-            tags, owner_id, group_id, status, lost_reason, loss_reason_id, custom_fields } = req.body;
+            tags, owner_id, group_id, status, lost_reason, loss_reason_id, custom_fields, representative_id } = req.body;
 
     // Get current deal for history
     const current = await query(`SELECT * FROM crm_deals WHERE id = $1`, [req.params.id]);
@@ -1165,7 +1168,7 @@ router.put('/deals/:id', async (req, res) => {
 
     // Build dynamic update
     const fieldsToUpdate = { stage_id, title, value, probability, expected_close_date, 
-                             description, tags, owner_id, group_id, status, lost_reason, loss_reason_id };
+                             description, tags, owner_id, group_id, status, lost_reason, loss_reason_id, representative_id };
     
     for (const [key, val] of Object.entries(fieldsToUpdate)) {
       if (val !== undefined) {
@@ -3108,6 +3111,37 @@ router.get('/map-data', async (req, res) => {
       }
     }
 
+    // Get representatives with location
+    try {
+      const repsResult = await query(
+        `SELECT r.id, r.name, r.phone, r.city, r.state, r.commission_percent,
+          (SELECT COALESCE(SUM(d.value), 0) FROM crm_deals d WHERE d.representative_id = r.id AND d.status = 'open') as open_value
+         FROM crm_representatives r
+         WHERE r.organization_id = $1 AND r.is_active = true`,
+        [org.organization_id]
+      );
+      for (const rep of repsResult.rows) {
+        const coords = getCoords(rep.city, rep.state);
+        if (coords) {
+          locations.push({
+            id: rep.id,
+            type: 'representative',
+            name: rep.name,
+            phone: rep.phone,
+            city: rep.city,
+            state: rep.state,
+            lat: coords.lat,
+            lng: coords.lng,
+            value: Number(rep.open_value) || 0,
+          });
+        }
+      }
+    } catch (e) {
+      if (e.code !== '42P01' && e.code !== '42703') {
+        console.error('Error fetching representatives for map:', e.message);
+      }
+    }
+
     res.json(locations);
   } catch (error) {
     console.error('Error fetching map data:', error);
@@ -3758,6 +3792,232 @@ router.get('/intelligence/win-loss-analysis', async (req, res) => {
         trend: [],
       });
     }
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
+// REPRESENTATIVES (Representantes)
+// ============================================
+
+// List representatives with stats
+router.get('/representatives', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const { search } = req.query;
+    let searchFilter = '';
+    const params = [org.organization_id];
+
+    if (search) {
+      searchFilter = ` AND (r.name ILIKE $2 OR r.email ILIKE $2 OR r.city ILIKE $2)`;
+      params.push(`%${search}%`);
+    }
+
+    const result = await query(
+      `SELECT r.*, u.name as linked_user_name,
+        (SELECT COUNT(*) FROM crm_deals d WHERE d.representative_id = r.id AND d.status = 'open') as open_deals_count,
+        (SELECT COALESCE(SUM(d.value), 0) FROM crm_deals d WHERE d.representative_id = r.id AND d.status = 'open') as open_deals_value
+       FROM crm_representatives r
+       LEFT JOIN users u ON u.id = r.linked_user_id
+       WHERE r.organization_id = $1${searchFilter}
+       ORDER BY r.name`,
+      params
+    );
+    res.json(result.rows);
+  } catch (error) {
+    if (isMissingSchemaError(error)) return res.json([]);
+    console.error('Error fetching representatives:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get representatives filtered for deal form (only those linked to current user or user's team)
+router.get('/representatives/for-deal', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    let visibilityFilter = '';
+    const params = [org.organization_id];
+
+    if (canManage(org.role)) {
+      // Managers/admins see all
+    } else {
+      // Regular users see reps linked to them or their team
+      visibilityFilter = ` AND (r.linked_user_id = $2 OR r.linked_user_id IN (
+        SELECT gm2.user_id FROM crm_user_group_members gm
+        JOIN crm_user_group_members gm2 ON gm2.group_id = gm.group_id
+        WHERE gm.user_id = $2
+      ))`;
+      params.push(req.userId);
+    }
+
+    const result = await query(
+      `SELECT r.id, r.name, r.commission_percent, u.name as linked_user_name
+       FROM crm_representatives r
+       LEFT JOIN users u ON u.id = r.linked_user_id
+       WHERE r.organization_id = $1 AND r.is_active = true${visibilityFilter}
+       ORDER BY r.name`,
+      params
+    );
+    res.json(result.rows);
+  } catch (error) {
+    if (isMissingSchemaError(error)) return res.json([]);
+    console.error('Error fetching representatives for deal:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get single representative
+router.get('/representatives/:id', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const result = await query(
+      `SELECT r.*, u.name as linked_user_name
+       FROM crm_representatives r
+       LEFT JOIN users u ON u.id = r.linked_user_id
+       WHERE r.id = $1 AND r.organization_id = $2`,
+      [req.params.id, org.organization_id]
+    );
+    if (!result.rows[0]) return res.status(404).json({ error: 'Representative not found' });
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error fetching representative:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Representative dashboard
+router.get('/representatives/:id/dashboard', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const { start_date, end_date } = req.query;
+    let dateFilter = '';
+    const params = [req.params.id, org.organization_id];
+
+    if (start_date && end_date) {
+      dateFilter = ` AND d.created_at >= $3 AND d.created_at <= $4`;
+      params.push(start_date, end_date + 'T23:59:59');
+    }
+
+    // Get representative commission percent
+    const repResult = await query(`SELECT commission_percent FROM crm_representatives WHERE id = $1`, [req.params.id]);
+    const commissionPercent = repResult.rows[0]?.commission_percent || 0;
+
+    // Open deals
+    const openResult = await query(
+      `SELECT COUNT(*) as count, COALESCE(SUM(value), 0) as total
+       FROM crm_deals d WHERE d.representative_id = $1 AND d.organization_id = $2 AND d.status = 'open'${dateFilter}`,
+      params
+    );
+
+    // Won deals
+    const wonResult = await query(
+      `SELECT COUNT(*) as count, COALESCE(SUM(value), 0) as total
+       FROM crm_deals d WHERE d.representative_id = $1 AND d.organization_id = $2 AND d.status = 'won'${dateFilter}`,
+      params
+    );
+
+    // Lost deals
+    const lostResult = await query(
+      `SELECT COUNT(*) as count, COALESCE(SUM(value), 0) as total
+       FROM crm_deals d WHERE d.representative_id = $1 AND d.organization_id = $2 AND d.status = 'lost'${dateFilter}`,
+      params
+    );
+
+    // Loss reasons
+    let lossReasons = [];
+    try {
+      const lrResult = await query(
+        `SELECT COALESCE(lr.name, 'Não informado') as reason, COUNT(*) as count
+         FROM crm_deals d
+         LEFT JOIN crm_loss_reasons lr ON lr.id = d.loss_reason_id
+         WHERE d.representative_id = $1 AND d.organization_id = $2 AND d.status = 'lost'${dateFilter}
+         GROUP BY lr.name
+         ORDER BY count DESC`,
+        params
+      );
+      lossReasons = lrResult.rows;
+    } catch (_) {}
+
+    const wonValue = Number(wonResult.rows[0]?.total || 0);
+    const totalCommission = wonValue * (commissionPercent / 100);
+
+    res.json({
+      total_commission: totalCommission,
+      open_deals: Number(openResult.rows[0]?.count || 0),
+      open_value: Number(openResult.rows[0]?.total || 0),
+      won_deals: Number(wonResult.rows[0]?.count || 0),
+      won_value: wonValue,
+      lost_deals: Number(lostResult.rows[0]?.count || 0),
+      lost_value: Number(lostResult.rows[0]?.total || 0),
+      loss_reasons: lossReasons,
+    });
+  } catch (error) {
+    if (isMissingSchemaError(error)) {
+      return res.json({ total_commission: 0, open_deals: 0, open_value: 0, won_deals: 0, won_value: 0, lost_deals: 0, lost_value: 0, loss_reasons: [] });
+    }
+    console.error('Error fetching representative dashboard:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create representative
+router.post('/representatives', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org || !canManage(org.role)) return res.status(403).json({ error: 'Permission denied' });
+
+    const { name, email, phone, cpf_cnpj, city, state, address, zip_code, commission_percent, notes, linked_user_id } = req.body;
+    const result = await query(
+      `INSERT INTO crm_representatives (organization_id, name, email, phone, cpf_cnpj, city, state, address, zip_code, commission_percent, notes, linked_user_id, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
+      [org.organization_id, name, email, phone, cpf_cnpj, city, state, address, zip_code, commission_percent || 0, notes, linked_user_id || null, req.userId]
+    );
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error creating representative:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update representative
+router.put('/representatives/:id', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org || !canManage(org.role)) return res.status(403).json({ error: 'Permission denied' });
+
+    const { name, email, phone, cpf_cnpj, city, state, address, zip_code, commission_percent, notes, linked_user_id, is_active } = req.body;
+    const result = await query(
+      `UPDATE crm_representatives SET name=$1, email=$2, phone=$3, cpf_cnpj=$4, city=$5, state=$6, address=$7, zip_code=$8,
+       commission_percent=$9, notes=$10, linked_user_id=$11, is_active=COALESCE($12, is_active), updated_at=NOW()
+       WHERE id=$13 AND organization_id=$14 RETURNING *`,
+      [name, email, phone, cpf_cnpj, city, state, address, zip_code, commission_percent || 0, notes, linked_user_id || null, is_active, req.params.id, org.organization_id]
+    );
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating representative:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete representative
+router.delete('/representatives/:id', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org || !canManage(org.role)) return res.status(403).json({ error: 'Permission denied' });
+
+    await query(`UPDATE crm_deals SET representative_id = NULL WHERE representative_id = $1`, [req.params.id]);
+    await query(`DELETE FROM crm_representatives WHERE id = $1 AND organization_id = $2`, [req.params.id, org.organization_id]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting representative:', error);
     res.status(500).json({ error: error.message });
   }
 });
