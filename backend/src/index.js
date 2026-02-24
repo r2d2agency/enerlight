@@ -43,6 +43,7 @@ import permissionTemplatesRoutes from './routes/permission-templates.js';
 import cnpjRoutes from './routes/cnpj.js';
 import meetingsRoutes from './routes/meetings.js';
 import scheduleBlocksRoutes from './routes/schedule-blocks.js';
+import internalChatRoutes from './routes/internal-chat.js';
 import { initDatabase } from './init-db.js';
 import { executeNotifications } from './scheduler.js';
 import { executeCampaignMessages } from './campaign-scheduler.js';
@@ -203,6 +204,7 @@ app.use('/api/permission-templates', permissionTemplatesRoutes);
 app.use('/api/cnpj', cnpjRoutes);
 app.use('/api/meetings', meetingsRoutes);
 app.use('/api/schedule-blocks', scheduleBlocksRoutes);
+app.use('/api/internal-chat', internalChatRoutes);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
