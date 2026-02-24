@@ -1,6 +1,6 @@
 import express from 'express';
 import { authenticate } from '../middleware/auth.js';
-import pool from '../db.js';
+import { pool } from '../db.js';
 
 const router = express.Router();
 router.use(authenticate);
