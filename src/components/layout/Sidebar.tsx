@@ -109,6 +109,7 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
   {
     title: "Chat Interno",
     icon: Radio,
+    moduleKey: 'internal_chat',
     permissionKey: 'can_view_internal_chat',
     items: [
       { name: "Canais", href: "/comunicacao", icon: Radio, permissionKey: 'can_view_internal_chat' },

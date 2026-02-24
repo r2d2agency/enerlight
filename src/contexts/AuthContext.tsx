@@ -14,6 +14,7 @@ interface ModulesEnabled {
   group_secretary: boolean;
   ghost: boolean;
   projects: boolean;
+  internal_chat: boolean;
 }
 
 export interface UserPermissions {
@@ -89,8 +90,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     crm: true,
     ai_agents: true,
     group_secretary: false,
-    ghost: true,
+  ghost: true,
     projects: false,
+    internal_chat: true,
   };
 
   const refreshUser = async () => {
