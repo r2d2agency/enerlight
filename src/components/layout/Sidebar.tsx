@@ -39,6 +39,7 @@ import {
   FolderKanban,
   Handshake,
   Presentation,
+  Radio,
 } from "lucide-react";
 import { API_URL, getAuthToken } from "@/lib/api";
 import gleegoLogo from "@/assets/gleego-logo.png";
@@ -53,7 +54,7 @@ interface NavItem {
   name: string;
   href: string;
   icon: any;
-  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects';
+  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat';
   adminOnly?: boolean;
   ownerOnly?: boolean;
   superadminOnly?: boolean;
@@ -64,7 +65,7 @@ interface NavSection {
   title: string;
   icon: any;
   items: NavItem[];
-  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects';
+  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat';
   adminOnly?: boolean;
   permissionKey?: string;
 }
@@ -103,6 +104,14 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
       { name: "Revenue Intel", href: "/revenue-intelligence", icon: Brain, adminOnly: true, permissionKey: 'can_view_revenue_intel' },
       { name: "Fantasma", href: "/modulo-fantasma", icon: Ghost, ownerOnly: true, moduleKey: 'ghost', permissionKey: 'can_view_ghost' },
       { name: "Configurações", href: "/crm/configuracoes", icon: Settings, adminOnly: true, permissionKey: 'can_view_crm_settings' },
+    ],
+  },
+  {
+    title: "Comunicação",
+    icon: Radio,
+    permissionKey: 'can_view_internal_chat',
+    items: [
+      { name: "Canais", href: "/comunicacao", icon: Radio, permissionKey: 'can_view_internal_chat' },
     ],
   },
   {

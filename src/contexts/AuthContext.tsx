@@ -46,6 +46,7 @@ export interface UserPermissions {
   can_view_connections: boolean;
   can_view_organizations: boolean;
   can_view_settings: boolean;
+  can_view_internal_chat: boolean;
 }
 
 interface User {

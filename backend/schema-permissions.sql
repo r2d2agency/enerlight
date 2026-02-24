@@ -45,6 +45,9 @@ CREATE TABLE IF NOT EXISTS user_permissions (
   can_view_organizations BOOLEAN DEFAULT false,
   can_view_settings BOOLEAN DEFAULT true,
 
+  -- Comunicação Interna
+  can_view_internal_chat BOOLEAN DEFAULT true,
+
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 
