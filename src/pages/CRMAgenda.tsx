@@ -5,10 +5,11 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Calendar } from "@/components/ui/calendar";
 import { TaskDialog } from "@/components/crm/TaskDialog";
+import { ScheduleBlockDialog } from "@/components/agenda/ScheduleBlockDialog";
 import { useCRMTasks, useCRMTaskMutations, CRMTask } from "@/hooks/use-crm";
 import { useGoogleCalendarStatus, useGoogleCalendarEvents, GoogleCalendarEvent } from "@/hooks/use-google-calendar";
+import { useScheduleBlocks, useScheduleBlockMutations, ScheduleBlock, BLOCK_REASONS } from "@/hooks/use-schedule-blocks";
 import { 
   Plus, 
   ChevronLeft, 
@@ -23,7 +24,9 @@ import {
   Building2,
   Kanban,
   Video,
-  ExternalLink
+  ExternalLink,
+  Ban,
+  Trash2
 } from "lucide-react";
 import { 
   format, 
@@ -35,7 +38,6 @@ import {
   addMonths, 
   subMonths,
   isToday,
-  isPast,
   startOfWeek,
   endOfWeek,
   addWeeks,
@@ -52,42 +54,46 @@ export default function CRMAgenda() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<CRMTask | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [blockDialogOpen, setBlockDialogOpen] = useState(false);
+  const [editingBlock, setEditingBlock] = useState<ScheduleBlock | null>(null);
+  const [blockDefaultDate, setBlockDefaultDate] = useState<Date | null>(null);
 
-  // Fetch all tasks for the calendar
   const { data: allTasks, isLoading } = useCRMTasks({ period: "all" });
   const { completeTask } = useCRMTaskMutations();
-
-  // Fetch Google Calendar status and events
   const { data: googleStatus } = useGoogleCalendarStatus();
-  
-  // Calculate date range for Google Calendar events based on view
-  const googleDateRange = useMemo(() => {
+
+  // Date range for fetching
+  const dateRange = useMemo(() => {
     if (viewMode === "month") {
       const start = startOfWeek(startOfMonth(currentDate), { weekStartsOn: 0 });
       const end = endOfWeek(endOfMonth(currentDate), { weekStartsOn: 0 });
-      return { timeMin: start.toISOString(), timeMax: end.toISOString() };
+      return { timeMin: start.toISOString(), timeMax: end.toISOString(), dateFrom: format(start, "yyyy-MM-dd"), dateTo: format(end, "yyyy-MM-dd") };
     } else if (viewMode === "week") {
       const start = startOfWeek(currentDate, { weekStartsOn: 0 });
       const end = endOfWeek(currentDate, { weekStartsOn: 0 });
-      return { timeMin: start.toISOString(), timeMax: end.toISOString() };
+      return { timeMin: start.toISOString(), timeMax: end.toISOString(), dateFrom: format(start, "yyyy-MM-dd"), dateTo: format(end, "yyyy-MM-dd") };
     } else {
-      const start = new Date(currentDate);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(currentDate);
-      end.setHours(23, 59, 59, 999);
-      return { timeMin: start.toISOString(), timeMax: end.toISOString() };
+      const start = new Date(currentDate); start.setHours(0, 0, 0, 0);
+      const end = new Date(currentDate); end.setHours(23, 59, 59, 999);
+      return { timeMin: start.toISOString(), timeMax: end.toISOString(), dateFrom: format(currentDate, "yyyy-MM-dd"), dateTo: format(currentDate, "yyyy-MM-dd") };
     }
   }, [currentDate, viewMode]);
 
   const { data: googleEvents = [] } = useGoogleCalendarEvents(
-    googleStatus?.connected ? googleDateRange.timeMin : undefined,
-    googleStatus?.connected ? googleDateRange.timeMax : undefined
+    googleStatus?.connected ? dateRange.timeMin : undefined,
+    googleStatus?.connected ? dateRange.timeMax : undefined
   );
+
+  // Schedule blocks
+  const { data: scheduleBlocks = [] } = useScheduleBlocks({
+    date_from: dateRange.dateFrom,
+    date_to: dateRange.dateTo,
+  });
+  const { remove: removeBlock } = useScheduleBlockMutations();
 
   // Group tasks by date
   const tasksByDate = useMemo(() => {
     if (!allTasks) return new Map<string, CRMTask[]>();
-    
     const map = new Map<string, CRMTask[]>();
     allTasks.forEach((task) => {
       if (task.due_date) {
@@ -99,7 +105,7 @@ export default function CRMAgenda() {
     return map;
   }, [allTasks]);
 
-  // Group Google Calendar events by date
+  // Group Google events by date
   const googleEventsByDate = useMemo(() => {
     const map = new Map<string, GoogleCalendarEvent[]>();
     googleEvents.forEach((event) => {
@@ -112,7 +118,19 @@ export default function CRMAgenda() {
     return map;
   }, [googleEvents]);
 
-  // Get days for current view
+  // Group blocks by date
+  const blocksByDate = useMemo(() => {
+    const map = new Map<string, ScheduleBlock[]>();
+    scheduleBlocks.forEach((block) => {
+      if (block.block_date) {
+        const dateKey = block.block_date.split("T")[0];
+        const existing = map.get(dateKey) || [];
+        map.set(dateKey, [...existing, block]);
+      }
+    });
+    return map;
+  }, [scheduleBlocks]);
+
   const viewDays = useMemo(() => {
     if (viewMode === "month") {
       const start = startOfWeek(startOfMonth(currentDate), { weekStartsOn: 0 });
@@ -128,28 +146,18 @@ export default function CRMAgenda() {
   }, [currentDate, viewMode]);
 
   const handlePrevious = () => {
-    if (viewMode === "month") {
-      setCurrentDate(subMonths(currentDate, 1));
-    } else if (viewMode === "week") {
-      setCurrentDate(subWeeks(currentDate, 1));
-    } else {
-      setCurrentDate(new Date(currentDate.getTime() - 86400000));
-    }
+    if (viewMode === "month") setCurrentDate(subMonths(currentDate, 1));
+    else if (viewMode === "week") setCurrentDate(subWeeks(currentDate, 1));
+    else setCurrentDate(new Date(currentDate.getTime() - 86400000));
   };
 
   const handleNext = () => {
-    if (viewMode === "month") {
-      setCurrentDate(addMonths(currentDate, 1));
-    } else if (viewMode === "week") {
-      setCurrentDate(addWeeks(currentDate, 1));
-    } else {
-      setCurrentDate(new Date(currentDate.getTime() + 86400000));
-    }
+    if (viewMode === "month") setCurrentDate(addMonths(currentDate, 1));
+    else if (viewMode === "week") setCurrentDate(addWeeks(currentDate, 1));
+    else setCurrentDate(new Date(currentDate.getTime() + 86400000));
   };
 
-  const handleToday = () => {
-    setCurrentDate(new Date());
-  };
+  const handleToday = () => setCurrentDate(new Date());
 
   const handleNewTask = (date?: Date) => {
     setEditingTask(null);
@@ -160,6 +168,17 @@ export default function CRMAgenda() {
   const handleEditTask = (task: CRMTask) => {
     setEditingTask(task);
     setDialogOpen(true);
+  };
+
+  const handleNewBlock = (date?: Date) => {
+    setEditingBlock(null);
+    setBlockDefaultDate(date || null);
+    setBlockDialogOpen(true);
+  };
+
+  const handleEditBlock = (block: ScheduleBlock) => {
+    setEditingBlock(block);
+    setBlockDialogOpen(true);
   };
 
   const getTypeIcon = (type: string) => {
@@ -183,38 +202,47 @@ export default function CRMAgenda() {
   };
 
   const typeLabels: Record<string, string> = {
-    task: "Tarefa",
-    call: "Ligação",
-    email: "Email",
-    meeting: "Reunião",
-    follow_up: "Follow-up",
+    task: "Tarefa", call: "Ligação", email: "Email", meeting: "Reunião", follow_up: "Follow-up",
   };
 
   const getViewTitle = () => {
-    if (viewMode === "month") {
-      return format(currentDate, "MMMM yyyy", { locale: ptBR });
-    } else if (viewMode === "week") {
+    if (viewMode === "month") return format(currentDate, "MMMM yyyy", { locale: ptBR });
+    else if (viewMode === "week") {
       const start = startOfWeek(currentDate, { weekStartsOn: 0 });
       const end = endOfWeek(currentDate, { weekStartsOn: 0 });
       return `${format(start, "dd MMM", { locale: ptBR })} - ${format(end, "dd MMM yyyy", { locale: ptBR })}`;
-    } else {
-      return format(currentDate, "EEEE, dd 'de' MMMM", { locale: ptBR });
-    }
+    } else return format(currentDate, "EEEE, dd 'de' MMMM", { locale: ptBR });
   };
 
-  // Tasks for selected day (sidebar)
   const selectedDayTasks = useMemo(() => {
     if (!selectedDate) return [];
-    const dateKey = format(selectedDate, "yyyy-MM-dd");
-    return tasksByDate.get(dateKey) || [];
+    return tasksByDate.get(format(selectedDate, "yyyy-MM-dd")) || [];
   }, [selectedDate, tasksByDate]);
 
-  // Google events for selected day
   const selectedDayGoogleEvents = useMemo(() => {
     if (!selectedDate) return [];
-    const dateKey = format(selectedDate, "yyyy-MM-dd");
-    return googleEventsByDate.get(dateKey) || [];
+    return googleEventsByDate.get(format(selectedDate, "yyyy-MM-dd")) || [];
   }, [selectedDate, googleEventsByDate]);
+
+  const selectedDayBlocks = useMemo(() => {
+    if (!selectedDate) return [];
+    return blocksByDate.get(format(selectedDate, "yyyy-MM-dd")) || [];
+  }, [selectedDate, blocksByDate]);
+
+  // Render a block pill (for calendar cells)
+  const renderBlockPill = (block: ScheduleBlock) => {
+    const info = BLOCK_REASONS[block.reason] || BLOCK_REASONS.other;
+    return (
+      <button
+        key={block.id}
+        onClick={(e) => { e.stopPropagation(); handleEditBlock(block); }}
+        className="w-full text-left text-xs px-1.5 py-0.5 rounded truncate flex items-center gap-1 bg-destructive/10 text-destructive border border-destructive/20"
+      >
+        <Ban className="h-3 w-3" />
+        <span className="truncate">{info.emoji} {block.title}</span>
+      </button>
+    );
+  };
 
   return (
     <MainLayout>
@@ -224,12 +252,8 @@ export default function CRMAgenda() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <h1 className="text-2xl font-bold">Agenda</h1>
-              
-              {/* View Mode */}
               <Select value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
-                <SelectTrigger className="w-[130px]">
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger className="w-[130px]"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="month">Mês</SelectItem>
                   <SelectItem value="week">Semana</SelectItem>
@@ -239,23 +263,15 @@ export default function CRMAgenda() {
             </div>
 
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={handlePrevious}>
-                <ChevronLeft className="h-4 w-4" />
+              <Button variant="outline" size="sm" onClick={handlePrevious}><ChevronLeft className="h-4 w-4" /></Button>
+              <Button variant="outline" size="sm" onClick={handleToday}>Hoje</Button>
+              <Button variant="outline" size="sm" onClick={handleNext}><ChevronRight className="h-4 w-4" /></Button>
+              <span className="font-medium min-w-[200px] text-center capitalize">{getViewTitle()}</span>
+              <Button variant="outline" onClick={() => handleNewBlock()}>
+                <Ban className="h-4 w-4 mr-2" /> Bloquear Agenda
               </Button>
-              <Button variant="outline" size="sm" onClick={handleToday}>
-                Hoje
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleNext}>
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-              
-              <span className="font-medium min-w-[200px] text-center capitalize">
-                {getViewTitle()}
-              </span>
-
               <Button onClick={() => handleNewTask()}>
-                <Plus className="h-4 w-4 mr-2" />
-                Novo Compromisso
+                <Plus className="h-4 w-4 mr-2" /> Novo Compromisso
               </Button>
             </div>
           </div>
@@ -267,21 +283,19 @@ export default function CRMAgenda() {
           <div className="flex-1 overflow-auto p-4">
             {viewMode === "month" && (
               <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden">
-                {/* Week day headers */}
                 {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((day) => (
-                  <div key={day} className="bg-muted p-2 text-center text-sm font-medium">
-                    {day}
-                  </div>
+                  <div key={day} className="bg-muted p-2 text-center text-sm font-medium">{day}</div>
                 ))}
 
-                {/* Calendar cells */}
                 {viewDays.map((day) => {
                   const dateKey = format(day, "yyyy-MM-dd");
                   const dayTasks = tasksByDate.get(dateKey) || [];
                   const dayGoogleEvents = googleEventsByDate.get(dateKey) || [];
+                  const dayBlocks = blocksByDate.get(dateKey) || [];
                   const isCurrentMonth = day.getMonth() === currentDate.getMonth();
                   const isSelected = selectedDate && isSameDay(day, selectedDate);
-                  const totalItems = dayTasks.length + dayGoogleEvents.length;
+                  const hasBlock = dayBlocks.length > 0;
+                  const totalItems = dayTasks.length + dayGoogleEvents.length + dayBlocks.length;
 
                   return (
                     <div
@@ -290,7 +304,8 @@ export default function CRMAgenda() {
                         "min-h-[120px] bg-background p-1 cursor-pointer transition-colors hover:bg-muted/50",
                         !isCurrentMonth && "bg-muted/30",
                         isToday(day) && "ring-2 ring-primary ring-inset",
-                        isSelected && "bg-primary/10"
+                        isSelected && "bg-primary/10",
+                        hasBlock && "bg-destructive/5"
                       )}
                       onClick={() => setSelectedDate(day)}
                       onDoubleClick={() => handleNewTask(day)}
@@ -303,14 +318,13 @@ export default function CRMAgenda() {
                         {format(day, "d")}
                       </div>
                       <div className="space-y-1">
+                        {/* Blocks first */}
+                        {dayBlocks.slice(0, 1).map(renderBlockPill)}
                         {/* CRM Tasks */}
-                        {dayTasks.slice(0, 2).map((task) => (
+                        {dayTasks.slice(0, hasBlock ? 1 : 2).map((task) => (
                           <button
                             key={task.id}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleEditTask(task);
-                            }}
+                            onClick={(e) => { e.stopPropagation(); handleEditTask(task); }}
                             className={cn(
                               "w-full text-left text-xs px-1.5 py-0.5 rounded truncate flex items-center gap-1",
                               getTypeColor(task.type),
@@ -321,14 +335,11 @@ export default function CRMAgenda() {
                             <span className="truncate">{task.title}</span>
                           </button>
                         ))}
-                        {/* Google Calendar Events */}
-                        {dayGoogleEvents.slice(0, Math.max(0, 3 - dayTasks.length)).map((event) => (
+                        {/* Google Events */}
+                        {dayGoogleEvents.slice(0, Math.max(0, 3 - dayTasks.length - dayBlocks.length)).map((event) => (
                           <button
                             key={event.id}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (event.htmlLink) window.open(event.htmlLink, "_blank");
-                            }}
+                            onClick={(e) => { e.stopPropagation(); if (event.htmlLink) window.open(event.htmlLink, "_blank"); }}
                             className="w-full text-left text-xs px-1.5 py-0.5 rounded truncate flex items-center gap-1 bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800"
                           >
                             <Video className="h-3 w-3" />
@@ -336,9 +347,7 @@ export default function CRMAgenda() {
                           </button>
                         ))}
                         {totalItems > 3 && (
-                          <div className="text-xs text-muted-foreground pl-1">
-                            +{totalItems - 3} mais
-                          </div>
+                          <div className="text-xs text-muted-foreground pl-1">+{totalItems - 3} mais</div>
                         )}
                       </div>
                     </div>
@@ -353,7 +362,9 @@ export default function CRMAgenda() {
                   const dateKey = format(day, "yyyy-MM-dd");
                   const dayTasks = tasksByDate.get(dateKey) || [];
                   const dayGoogleEvents = googleEventsByDate.get(dateKey) || [];
+                  const dayBlocks = blocksByDate.get(dateKey) || [];
                   const isSelected = selectedDate && isSameDay(day, selectedDate);
+                  const hasBlock = dayBlocks.length > 0;
 
                   return (
                     <Card
@@ -361,65 +372,63 @@ export default function CRMAgenda() {
                       className={cn(
                         "p-3 cursor-pointer transition-colors hover:bg-muted/50 min-h-[400px]",
                         isToday(day) && "ring-2 ring-primary",
-                        isSelected && "bg-primary/10"
+                        isSelected && "bg-primary/10",
+                        hasBlock && "bg-destructive/5"
                       )}
                       onClick={() => setSelectedDate(day)}
                       onDoubleClick={() => handleNewTask(day)}
                     >
-                      <div className={cn(
-                        "text-center mb-3",
-                        isToday(day) && "text-primary"
-                      )}>
-                        <div className="text-xs text-muted-foreground uppercase">
-                          {format(day, "EEE", { locale: ptBR })}
-                        </div>
+                      <div className={cn("text-center mb-3", isToday(day) && "text-primary")}>
+                        <div className="text-xs text-muted-foreground uppercase">{format(day, "EEE", { locale: ptBR })}</div>
                         <div className="text-2xl font-bold">{format(day, "d")}</div>
                       </div>
                       <div className="space-y-2">
+                        {/* Blocks */}
+                        {dayBlocks.map((block) => {
+                          const info = BLOCK_REASONS[block.reason] || BLOCK_REASONS.other;
+                          return (
+                            <button
+                              key={block.id}
+                              onClick={(e) => { e.stopPropagation(); handleEditBlock(block); }}
+                              className="w-full text-left text-xs p-2 rounded border bg-destructive/10 text-destructive border-destructive/20"
+                            >
+                              <div className="flex items-center gap-1 mb-1">
+                                <Ban className="h-3 w-3" />
+                                <span className="font-medium truncate">{info.emoji} {block.title}</span>
+                              </div>
+                              {!block.all_day && block.start_time && (
+                                <div className="text-[10px] opacity-75">{block.start_time.slice(0, 5)} - {block.end_time?.slice(0, 5)}</div>
+                              )}
+                              {block.all_day && <div className="text-[10px] opacity-75">Dia inteiro</div>}
+                            </button>
+                          );
+                        })}
                         {/* CRM Tasks */}
                         {dayTasks.map((task) => (
                           <button
                             key={task.id}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleEditTask(task);
-                            }}
-                            className={cn(
-                              "w-full text-left text-xs p-2 rounded border",
-                              getTypeColor(task.type),
-                              task.status === "completed" && "opacity-50"
-                            )}
+                            onClick={(e) => { e.stopPropagation(); handleEditTask(task); }}
+                            className={cn("w-full text-left text-xs p-2 rounded border", getTypeColor(task.type), task.status === "completed" && "opacity-50")}
                           >
                             <div className="flex items-center gap-1 mb-1">
                               {getTypeIcon(task.type)}
                               <span className="font-medium truncate">{task.title}</span>
                             </div>
-                            {task.due_date && (
-                              <div className="text-[10px] opacity-75">
-                                {format(parseISO(task.due_date), "HH:mm")}
-                              </div>
-                            )}
+                            {task.due_date && <div className="text-[10px] opacity-75">{format(parseISO(task.due_date), "HH:mm")}</div>}
                           </button>
                         ))}
-                        {/* Google Calendar Events */}
+                        {/* Google Events */}
                         {dayGoogleEvents.map((event) => (
                           <button
                             key={event.id}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (event.htmlLink) window.open(event.htmlLink, "_blank");
-                            }}
+                            onClick={(e) => { e.stopPropagation(); if (event.htmlLink) window.open(event.htmlLink, "_blank"); }}
                             className="w-full text-left text-xs p-2 rounded border bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800"
                           >
                             <div className="flex items-center gap-1 mb-1">
                               <Video className="h-3 w-3" />
                               <span className="font-medium truncate">{event.summary}</span>
                             </div>
-                            {event.start?.dateTime && (
-                              <div className="text-[10px] opacity-75">
-                                {format(parseISO(event.start.dateTime), "HH:mm")}
-                              </div>
-                            )}
+                            {event.start?.dateTime && <div className="text-[10px] opacity-75">{format(parseISO(event.start.dateTime), "HH:mm")}</div>}
                           </button>
                         ))}
                       </div>
@@ -432,13 +441,15 @@ export default function CRMAgenda() {
             {viewMode === "day" && (
               <Card className="p-4">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-semibold">
-                    {format(currentDate, "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
-                  </h2>
-                  <Button variant="outline" size="sm" onClick={() => handleNewTask(currentDate)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Adicionar
-                  </Button>
+                  <h2 className="text-lg font-semibold">{format(currentDate, "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}</h2>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => handleNewBlock(currentDate)}>
+                      <Ban className="h-4 w-4 mr-2" /> Bloquear
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => handleNewTask(currentDate)}>
+                      <Plus className="h-4 w-4 mr-2" /> Adicionar
+                    </Button>
+                  </div>
                 </div>
 
                 <ScrollArea className="h-[calc(100vh-280px)]">
@@ -447,50 +458,81 @@ export default function CRMAgenda() {
                       const dateKey = format(currentDate, "yyyy-MM-dd");
                       const dayTasks = tasksByDate.get(dateKey) || [];
                       const dayGoogleEvents = googleEventsByDate.get(dateKey) || [];
-                      const hasAny = dayTasks.length > 0 || dayGoogleEvents.length > 0;
+                      const dayBlocks = blocksByDate.get(dateKey) || [];
+                      const hasAny = dayTasks.length > 0 || dayGoogleEvents.length > 0 || dayBlocks.length > 0;
                       
                       if (!hasAny) {
                         return (
                           <div className="text-center py-12 text-muted-foreground">
                             <CalendarIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
                             <p>Nenhum compromisso para este dia</p>
-                            <Button 
-                              variant="outline" 
-                              className="mt-4"
-                              onClick={() => handleNewTask(currentDate)}
-                            >
-                              <Plus className="h-4 w-4 mr-2" />
-                              Agendar compromisso
-                            </Button>
+                            <div className="flex gap-2 justify-center mt-4">
+                              <Button variant="outline" onClick={() => handleNewBlock(currentDate)}>
+                                <Ban className="h-4 w-4 mr-2" /> Bloquear
+                              </Button>
+                              <Button variant="outline" onClick={() => handleNewTask(currentDate)}>
+                                <Plus className="h-4 w-4 mr-2" /> Agendar
+                              </Button>
+                            </div>
                           </div>
                         );
                       }
 
                       return (
                         <>
+                          {/* Schedule Blocks */}
+                          {dayBlocks.map((block) => {
+                            const info = BLOCK_REASONS[block.reason] || BLOCK_REASONS.other;
+                            return (
+                              <Card key={block.id} className="p-4 bg-destructive/5 border-destructive/20">
+                                <div className="flex items-start gap-4">
+                                  <div className="w-6 h-6 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center mt-0.5 flex-shrink-0">
+                                    <Ban className="h-3 w-3" />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <Badge variant="destructive" className="text-xs">
+                                        {info.emoji} {info.label}
+                                      </Badge>
+                                      {!block.all_day && block.start_time && (
+                                        <span className="text-sm text-muted-foreground flex items-center gap-1">
+                                          <Clock className="h-3 w-3" />
+                                          {block.start_time.slice(0, 5)} - {block.end_time?.slice(0, 5)}
+                                        </span>
+                                      )}
+                                      {block.all_day && (
+                                        <span className="text-xs text-muted-foreground">Dia inteiro</span>
+                                      )}
+                                    </div>
+                                    <h4 className="font-medium">{block.title}</h4>
+                                    {block.notes && <p className="text-sm text-muted-foreground mt-1">{block.notes}</p>}
+                                  </div>
+                                  <div className="flex gap-1">
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEditBlock(block)}>
+                                      <CalendarIcon className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeBlock.mutate(block.id)}>
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              </Card>
+                            );
+                          })}
+
                           {/* CRM Tasks */}
                           {dayTasks.map((task) => (
                             <Card
                               key={task.id}
-                              className={cn(
-                                "p-4 cursor-pointer hover:bg-muted/50 transition-colors",
-                                task.status === "completed" && "opacity-60"
-                              )}
+                              className={cn("p-4 cursor-pointer hover:bg-muted/50 transition-colors", task.status === "completed" && "opacity-60")}
                               onClick={() => handleEditTask(task)}
                             >
                               <div className="flex items-start gap-4">
                                 <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (task.status !== "completed") {
-                                      completeTask.mutate(task.id);
-                                    }
-                                  }}
+                                  onClick={(e) => { e.stopPropagation(); if (task.status !== "completed") completeTask.mutate(task.id); }}
                                   className={cn(
                                     "w-6 h-6 rounded-full border-2 flex items-center justify-center mt-0.5 flex-shrink-0",
-                                    task.status === "completed"
-                                      ? "bg-green-500 border-green-500 text-white"
-                                      : "border-muted-foreground hover:border-primary"
+                                    task.status === "completed" ? "bg-green-500 border-green-500 text-white" : "border-muted-foreground hover:border-primary"
                                   )}
                                 >
                                   {task.status === "completed" && <CheckCircle className="h-4 w-4" />}
@@ -508,36 +550,12 @@ export default function CRMAgenda() {
                                       </span>
                                     )}
                                   </div>
-                                  <h4 className={cn(
-                                    "font-medium",
-                                    task.status === "completed" && "line-through"
-                                  )}>
-                                    {task.title}
-                                  </h4>
-                                  {task.description && (
-                                    <p className="text-sm text-muted-foreground mt-1">
-                                      {task.description}
-                                    </p>
-                                  )}
+                                  <h4 className={cn("font-medium", task.status === "completed" && "line-through")}>{task.title}</h4>
+                                  {task.description && <p className="text-sm text-muted-foreground mt-1">{task.description}</p>}
                                   <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                                    {task.deal_title && (
-                                      <span className="flex items-center gap-1">
-                                        <Kanban className="h-3 w-3" />
-                                        {task.deal_title}
-                                      </span>
-                                    )}
-                                    {task.company_name && (
-                                      <span className="flex items-center gap-1">
-                                        <Building2 className="h-3 w-3" />
-                                        {task.company_name}
-                                      </span>
-                                    )}
-                                    {task.assigned_to_name && (
-                                      <span className="flex items-center gap-1">
-                                        <Users className="h-3 w-3" />
-                                        {task.assigned_to_name}
-                                      </span>
-                                    )}
+                                    {task.deal_title && <span className="flex items-center gap-1"><Kanban className="h-3 w-3" />{task.deal_title}</span>}
+                                    {task.company_name && <span className="flex items-center gap-1"><Building2 className="h-3 w-3" />{task.company_name}</span>}
+                                    {task.assigned_to_name && <span className="flex items-center gap-1"><Users className="h-3 w-3" />{task.assigned_to_name}</span>}
                                   </div>
                                 </div>
                               </div>
@@ -558,8 +576,7 @@ export default function CRMAgenda() {
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2 mb-1">
                                     <Badge className="bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-300">
-                                      <Video className="h-3 w-3 mr-1" />
-                                      Google Calendar
+                                      <Video className="h-3 w-3 mr-1" />Google Calendar
                                     </Badge>
                                     {event.start?.dateTime && (
                                       <span className="text-sm text-muted-foreground flex items-center gap-1">
@@ -570,15 +587,10 @@ export default function CRMAgenda() {
                                     )}
                                   </div>
                                   <h4 className="font-medium">{event.summary}</h4>
-                                  {event.description && (
-                                    <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                                      {event.description}
-                                    </p>
-                                  )}
+                                  {event.description && <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{event.description}</p>}
                                   {event.htmlLink && (
                                     <div className="flex items-center gap-1 mt-2 text-xs text-primary">
-                                      <ExternalLink className="h-3 w-3" />
-                                      Abrir no Google Calendar
+                                      <ExternalLink className="h-3 w-3" />Abrir no Google Calendar
                                     </div>
                                   )}
                                 </div>
@@ -594,88 +606,88 @@ export default function CRMAgenda() {
             )}
           </div>
 
-          {/* Sidebar - Selected Day Details */}
+          {/* Sidebar */}
           {selectedDate && viewMode !== "day" && (
             <div className="w-80 border-l bg-muted/30 p-4 overflow-auto">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold">
-                  {format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}
-                </h3>
-                <Button variant="ghost" size="sm" onClick={() => handleNewTask(selectedDate)}>
-                  <Plus className="h-4 w-4" />
-                </Button>
+                <h3 className="font-semibold">{format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}</h3>
+                <div className="flex gap-1">
+                  <Button variant="ghost" size="sm" onClick={() => handleNewBlock(selectedDate)} title="Bloquear agenda">
+                    <Ban className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => handleNewTask(selectedDate)}>
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
 
-              {selectedDayTasks.length === 0 && selectedDayGoogleEvents.length === 0 ? (
+              {selectedDayTasks.length === 0 && selectedDayGoogleEvents.length === 0 && selectedDayBlocks.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <CalendarIcon className="h-8 w-8 mx-auto mb-2 opacity-50" />
                   <p className="text-sm">Nenhum compromisso</p>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="mt-2"
-                    onClick={() => handleNewTask(selectedDate)}
-                  >
-                    Agendar
-                  </Button>
+                  <div className="flex gap-2 justify-center mt-2">
+                    <Button variant="outline" size="sm" onClick={() => handleNewBlock(selectedDate)}>Bloquear</Button>
+                    <Button variant="outline" size="sm" onClick={() => handleNewTask(selectedDate)}>Agendar</Button>
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {/* CRM Tasks */}
+                  {/* Blocks */}
+                  {selectedDayBlocks.map((block) => {
+                    const info = BLOCK_REASONS[block.reason] || BLOCK_REASONS.other;
+                    return (
+                      <Card key={block.id} className="p-3 bg-destructive/5 border-destructive/20">
+                        <div className="flex items-start gap-2">
+                          <div className="w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center mt-0.5 flex-shrink-0">
+                            <Ban className="h-3 w-3" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1 mb-1">
+                              <span className="text-xs font-medium text-destructive">{info.emoji} {info.label}</span>
+                              {!block.all_day && block.start_time && (
+                                <span className="text-xs text-muted-foreground">{block.start_time.slice(0, 5)}-{block.end_time?.slice(0, 5)}</span>
+                              )}
+                            </div>
+                            <h4 className="text-sm font-medium truncate">{block.title}</h4>
+                          </div>
+                          <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeBlock.mutate(block.id)}>
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </Card>
+                    );
+                  })}
+
+                  {/* Tasks */}
                   {selectedDayTasks.map((task) => (
                     <Card
                       key={task.id}
-                      className={cn(
-                        "p-3 cursor-pointer hover:bg-muted/50 transition-colors",
-                        task.status === "completed" && "opacity-60"
-                      )}
+                      className={cn("p-3 cursor-pointer hover:bg-muted/50 transition-colors", task.status === "completed" && "opacity-60")}
                       onClick={() => handleEditTask(task)}
                     >
                       <div className="flex items-start gap-2">
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (task.status !== "completed") {
-                              completeTask.mutate(task.id);
-                            }
-                          }}
+                          onClick={(e) => { e.stopPropagation(); if (task.status !== "completed") completeTask.mutate(task.id); }}
                           className={cn(
                             "w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 flex-shrink-0",
-                            task.status === "completed"
-                              ? "bg-green-500 border-green-500 text-white"
-                              : "border-muted-foreground hover:border-primary"
+                            task.status === "completed" ? "bg-green-500 border-green-500 text-white" : "border-muted-foreground hover:border-primary"
                           )}
                         >
                           {task.status === "completed" && <CheckCircle className="h-3 w-3" />}
                         </button>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1 mb-1">
-                            <span className={cn("p-0.5 rounded", getTypeColor(task.type))}>
-                              {getTypeIcon(task.type)}
-                            </span>
-                            {task.due_date && (
-                              <span className="text-xs text-muted-foreground">
-                                {format(parseISO(task.due_date), "HH:mm")}
-                              </span>
-                            )}
+                            <span className={cn("p-0.5 rounded", getTypeColor(task.type))}>{getTypeIcon(task.type)}</span>
+                            {task.due_date && <span className="text-xs text-muted-foreground">{format(parseISO(task.due_date), "HH:mm")}</span>}
                           </div>
-                          <h4 className={cn(
-                            "text-sm font-medium truncate",
-                            task.status === "completed" && "line-through"
-                          )}>
-                            {task.title}
-                          </h4>
-                          {task.deal_title && (
-                            <p className="text-xs text-muted-foreground truncate mt-1">
-                              {task.deal_title}
-                            </p>
-                          )}
+                          <h4 className={cn("text-sm font-medium truncate", task.status === "completed" && "line-through")}>{task.title}</h4>
+                          {task.deal_title && <p className="text-xs text-muted-foreground truncate mt-1">{task.deal_title}</p>}
                         </div>
                       </div>
                     </Card>
                   ))}
 
-                  {/* Google Calendar Events */}
+                  {/* Google Events */}
                   {selectedDayGoogleEvents.map((event) => (
                     <Card
                       key={event.id}
@@ -687,19 +699,10 @@ export default function CRMAgenda() {
                           <Video className="h-3 w-3" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1 mb-1">
-                            {event.start?.dateTime && (
-                              <span className="text-xs text-muted-foreground">
-                                {format(parseISO(event.start.dateTime), "HH:mm")}
-                              </span>
-                            )}
-                          </div>
-                          <h4 className="text-sm font-medium truncate">
-                            {event.summary}
-                          </h4>
+                          {event.start?.dateTime && <span className="text-xs text-muted-foreground">{format(parseISO(event.start.dateTime), "HH:mm")}</span>}
+                          <h4 className="text-sm font-medium truncate">{event.summary}</h4>
                           <p className="text-xs text-red-600 dark:text-red-400 mt-1 flex items-center gap-1">
-                            <ExternalLink className="h-3 w-3" />
-                            Google Calendar
+                            <ExternalLink className="h-3 w-3" />Google Calendar
                           </p>
                         </div>
                       </div>
@@ -712,12 +715,13 @@ export default function CRMAgenda() {
         </div>
       </div>
 
-      {/* Task Dialog */}
-      <TaskDialog
-        task={editingTask}
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        defaultDate={selectedDate}
+      {/* Dialogs */}
+      <TaskDialog task={editingTask} open={dialogOpen} onOpenChange={setDialogOpen} defaultDate={selectedDate} />
+      <ScheduleBlockDialog
+        open={blockDialogOpen}
+        onOpenChange={(open) => { setBlockDialogOpen(open); if (!open) setEditingBlock(null); }}
+        block={editingBlock}
+        defaultDate={blockDefaultDate}
       />
     </MainLayout>
   );

@@ -387,8 +387,9 @@ router.post('/check-conflicts', async (req, res) => {
 
     const { user_ids, meeting_date, start_time, end_time, exclude_meeting_id } = req.body;
 
+    // Check meeting conflicts
     let sql = `
-      SELECT DISTINCT u.name, u.id as user_id, m.title, m.start_time::text, m.end_time::text
+      SELECT DISTINCT u.name, u.id as user_id, m.title, m.start_time::text, m.end_time::text, 'meeting' as conflict_type
       FROM meeting_participants mp
       JOIN meetings m ON m.id = mp.meeting_id
       JOIN users u ON u.id = mp.user_id
@@ -401,8 +402,20 @@ router.post('/check-conflicts', async (req, res) => {
       params.push(exclude_meeting_id);
     }
 
-    const result = await query(sql, params);
-    res.json({ conflicts: result.rows });
+    const meetingConflicts = await query(sql, params);
+
+    // Check schedule block conflicts
+    const blockSql = `
+      SELECT u.name, sb.user_id, sb.title, sb.start_time::text, sb.end_time::text, sb.all_day, sb.reason, 'block' as conflict_type
+      FROM schedule_blocks sb
+      JOIN users u ON u.id = sb.user_id
+      WHERE sb.user_id = ANY($1) AND sb.block_date = $2
+        AND (sb.all_day = true OR ($3::time < sb.end_time AND $4::time > sb.start_time))
+    `;
+    const blockConflicts = await query(blockSql, [user_ids, meeting_date, start_time, end_time]);
+
+    const allConflicts = [...meetingConflicts.rows, ...blockConflicts.rows];
+    res.json({ conflicts: allConflicts });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
