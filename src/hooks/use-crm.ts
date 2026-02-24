@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
@@ -440,6 +440,7 @@ export function useCRMDeal(id: string | null) {
       return api<CRMDeal & { contacts: any[]; history: any[]; tasks: CRMTask[] }>(`/api/crm/deals/${id}`);
     },
     enabled: !!id,
+    placeholderData: keepPreviousData,
   });
 }
 
