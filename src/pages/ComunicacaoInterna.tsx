@@ -16,6 +16,7 @@ import {
   Reply, X
 } from "lucide-react";
 import { TopicLinksBadges } from "@/components/chat-interno/TopicLinksBadges";
+import { ChannelMembersDialog } from "@/components/chat-interno/ChannelMembersDialog";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -62,6 +63,7 @@ export default function ComunicacaoInterna() {
   const [messageText, setMessageText] = useState("");
   const [pendingAttachments, setPendingAttachments] = useState<{ file_url: string; file_name: string; file_size?: number; file_type?: string }[]>([]);
   const [replyingTo, setReplyingTo] = useState<InternalMessage | null>(null);
+  const [showMembers, setShowMembers] = useState(false);
   const [showMentionSuggestions, setShowMentionSuggestions] = useState(false);
   const [mentionQuery, setMentionQuery] = useState("");
   const [mentionStartIdx, setMentionStartIdx] = useState(-1);
@@ -417,9 +419,19 @@ export default function ComunicacaoInterna() {
               <Hash className="h-4 w-4 text-primary" />
               <h3 className="font-semibold text-sm truncate flex-1">{selectedChannel?.name || "Selecione um canal"}</h3>
               {selectedChannel && (
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowNewTopic(true)}>
-                  <Plus className="h-4 w-4" />
-                </Button>
+                <>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowMembers(true)}>
+                        <Users className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Gerenciar membros</TooltipContent>
+                  </Tooltip>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowNewTopic(true)}>
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </>
               )}
             </div>
             {selectedChannel && (
@@ -734,6 +746,16 @@ export default function ComunicacaoInterna() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Members Dialog */}
+      {selectedChannel && (
+        <ChannelMembersDialog
+          channelId={selectedChannel.id}
+          channelName={selectedChannel.name}
+          open={showMembers}
+          onOpenChange={setShowMembers}
+        />
+      )}
     </MainLayout>
   );
 }

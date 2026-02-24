@@ -399,6 +399,23 @@ router.post('/mentions/:mentionId/read', async (req, res) => {
 });
 
 // ========================
+// ORG MEMBERS (for adding to channels)
+// ========================
+router.get('/org-members', async (req, res) => {
+  try {
+    const orgId = await getUserOrg(req.userId);
+    if (!orgId) return res.json([]);
+    const result = await pool.query(
+      `SELECT u.id, u.name, u.email FROM organization_members om JOIN users u ON u.id = om.user_id WHERE om.organization_id = $1 ORDER BY u.name`,
+      [orgId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ========================
 // SEARCH
 // ========================
 
