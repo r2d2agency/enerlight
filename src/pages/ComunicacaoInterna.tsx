@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import {
   Hash, Plus, Search, Send, Paperclip, AtSign, MessageSquare,
   ChevronRight, Circle, CheckCircle2, Clock, Trash2, Users,
-  ArrowLeft, Filter, MoreVertical, Building2, Loader2, FileText
+  ArrowLeft, Filter, MoreVertical, Building2, Loader2, FileText,
+  Reply, X
 } from "lucide-react";
 import { TopicLinksBadges } from "@/components/chat-interno/TopicLinksBadges";
 import { cn } from "@/lib/utils";
@@ -33,6 +34,7 @@ import {
   useUnreadMentions,
   type InternalChannel,
   type InternalTopic,
+  type InternalMessage,
 } from "@/hooks/use-internal-chat";
 import { useDepartments } from "@/hooks/use-departments";
 import { useAuth } from "@/contexts/AuthContext";
@@ -59,8 +61,14 @@ export default function ComunicacaoInterna() {
   const [newTopicTitle, setNewTopicTitle] = useState("");
   const [messageText, setMessageText] = useState("");
   const [pendingAttachments, setPendingAttachments] = useState<{ file_url: string; file_name: string; file_size?: number; file_type?: string }[]>([]);
+  const [replyingTo, setReplyingTo] = useState<InternalMessage | null>(null);
+  const [showMentionSuggestions, setShowMentionSuggestions] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState("");
+  const [mentionStartIdx, setMentionStartIdx] = useState(-1);
+  const [mentionSelectedIdx, setMentionSelectedIdx] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { uploadFile, isUploading } = useUpload();
 
   const { data: channels = [], isLoading: loadingChannels } = useInternalChannels(departmentFilter || undefined);
@@ -132,17 +140,102 @@ export default function ComunicacaoInterna() {
   const handleSendMessage = async () => {
     if ((!messageText.trim() && !pendingAttachments.length) || !selectedTopic) return;
     const mentions = parseMentions(messageText);
+    const content = replyingTo
+      ? `> ${replyingTo.sender_name}: ${replyingTo.content.slice(0, 80)}${replyingTo.content.length > 80 ? '...' : ''}\n\n${messageText}`
+      : messageText;
     try {
       await sendMessage.mutateAsync({
         topicId: selectedTopic.id,
-        content: messageText,
+        content,
         mentions,
         attachments: pendingAttachments.length ? pendingAttachments : undefined,
       });
       setMessageText("");
       setPendingAttachments([]);
+      setReplyingTo(null);
     } catch {
       toast.error("Erro ao enviar mensagem");
+    }
+  };
+
+  // Mention autocomplete logic
+  const filteredMembers = members.filter(m =>
+    !mentionQuery || m.user_name.toLowerCase().includes(mentionQuery.toLowerCase())
+  );
+
+  const handleTextChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setMessageText(val);
+
+    const cursorPos = e.target.selectionStart;
+    const textBefore = val.slice(0, cursorPos);
+    const lastAt = textBefore.lastIndexOf("@");
+
+    if (lastAt === -1) {
+      setShowMentionSuggestions(false);
+      return;
+    }
+
+    const charBefore = lastAt > 0 ? textBefore[lastAt - 1] : " ";
+    if (charBefore !== " " && charBefore !== "\n" && lastAt !== 0) {
+      setShowMentionSuggestions(false);
+      return;
+    }
+
+    const afterAt = textBefore.slice(lastAt + 1);
+    if (afterAt.includes(" ") || afterAt.includes("\n")) {
+      setShowMentionSuggestions(false);
+      return;
+    }
+
+    setMentionQuery(afterAt);
+    setMentionStartIdx(lastAt);
+    setMentionSelectedIdx(0);
+    setShowMentionSuggestions(true);
+  }, []);
+
+  const handleSelectMention = useCallback((member: { user_id: string; user_name: string }) => {
+    const cursorPos = textareaRef.current?.selectionStart || messageText.length;
+    const before = messageText.slice(0, mentionStartIdx);
+    const after = messageText.slice(cursorPos);
+    const newText = `${before}@${member.user_name} ${after}`;
+    setMessageText(newText);
+    setShowMentionSuggestions(false);
+    setMentionQuery("");
+    setMentionStartIdx(-1);
+    setTimeout(() => {
+      const newPos = mentionStartIdx + member.user_name.length + 2;
+      textareaRef.current?.focus();
+      textareaRef.current?.setSelectionRange(newPos, newPos);
+    }, 0);
+  }, [messageText, mentionStartIdx]);
+
+  const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (showMentionSuggestions && filteredMembers.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setMentionSelectedIdx(prev => (prev < filteredMembers.length - 1 ? prev + 1 : 0));
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setMentionSelectedIdx(prev => (prev > 0 ? prev - 1 : filteredMembers.length - 1));
+        return;
+      }
+      if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault();
+        handleSelectMention(filteredMembers[mentionSelectedIdx]);
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setShowMentionSuggestions(false);
+        return;
+      }
+    }
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
     }
   };
 
@@ -169,15 +262,43 @@ export default function ComunicacaoInterna() {
     updateTopic.mutate({ id: topicId, status: newStatus });
   };
 
-  // Render message content with highlighted mentions
+  // Render message content with highlighted mentions and reply quotes
   const renderContent = (content: string) => {
-    const parts = content.split(/(@\w[\w\s]*)/g);
-    return parts.map((part, i) => {
-      if (part.startsWith("@")) {
-        return <span key={i} className="text-primary font-medium bg-primary/10 rounded px-1">{part}</span>;
+    // Handle reply quotes
+    const lines = content.split("\n");
+    const quoteLines: string[] = [];
+    let restLines: string[] = [];
+    let passedQuote = false;
+    for (const line of lines) {
+      if (!passedQuote && line.startsWith("> ")) {
+        quoteLines.push(line.slice(2));
+      } else {
+        passedQuote = true;
+        restLines.push(line);
       }
-      return <span key={i}>{part}</span>;
-    });
+    }
+    const restText = restLines.join("\n").trim();
+
+    const highlightMentions = (text: string) => {
+      const parts = text.split(/(@\w[\w\s]*)/g);
+      return parts.map((part, i) => {
+        if (part.startsWith("@")) {
+          return <span key={i} className="text-primary font-medium bg-primary/10 rounded px-1">{part}</span>;
+        }
+        return <span key={i}>{part}</span>;
+      });
+    };
+
+    return (
+      <>
+        {quoteLines.length > 0 && (
+          <div className="border-l-2 border-primary/40 pl-2 mb-1 text-xs text-muted-foreground italic">
+            {quoteLines.map((q, i) => <div key={i}>{q}</div>)}
+          </div>
+        )}
+        {highlightMentions(restText)}
+      </>
+    );
   };
 
   // ========== MOBILE-FRIENDLY 3-PANEL LAYOUT ==========
@@ -412,7 +533,7 @@ export default function ComunicacaoInterna() {
                   ) : messages.map(msg => {
                     const isMe = msg.sender_id === user?.id;
                     return (
-                      <div key={msg.id} className={cn("flex gap-3", isMe && "flex-row-reverse")}>
+                      <div key={msg.id} className={cn("flex gap-3 group/msg", isMe && "flex-row-reverse")}>
                         <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0 text-xs font-bold text-primary">
                           {msg.sender_name?.charAt(0)?.toUpperCase()}
                         </div>
@@ -420,6 +541,16 @@ export default function ComunicacaoInterna() {
                           <div className="flex items-center gap-2 text-xs text-muted-foreground">
                             <span className="font-medium text-foreground">{msg.sender_name}</span>
                             <span>{format(new Date(msg.created_at), "dd/MM HH:mm", { locale: ptBR })}</span>
+                            <button
+                              onClick={() => {
+                                setReplyingTo(msg);
+                                textareaRef.current?.focus();
+                              }}
+                              className="opacity-0 group-hover/msg:opacity-100 transition-opacity p-0.5 rounded hover:bg-accent"
+                              title="Responder"
+                            >
+                              <Reply className="h-3 w-3" />
+                            </button>
                           </div>
                           <div className={cn(
                             "rounded-lg p-3 text-sm",
@@ -454,6 +585,19 @@ export default function ComunicacaoInterna() {
 
               {/* Message Input */}
               <div className="p-4 border-t border-border">
+                {/* Reply banner */}
+                {replyingTo && (
+                  <div className="flex items-center gap-2 mb-2 p-2 rounded bg-muted text-sm max-w-3xl mx-auto">
+                    <Reply className="h-3.5 w-3.5 text-primary shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <span className="font-medium text-xs">{replyingTo.sender_name}</span>
+                      <p className="text-xs text-muted-foreground truncate">{replyingTo.content.slice(0, 80)}</p>
+                    </div>
+                    <button onClick={() => setReplyingTo(null)} className="shrink-0">
+                      <X className="h-3.5 w-3.5 text-muted-foreground" />
+                    </button>
+                  </div>
+                )}
                 {pendingAttachments.length > 0 && (
                   <div className="flex flex-wrap gap-2 mb-2">
                     {pendingAttachments.map((att, i) => (
@@ -467,7 +611,7 @@ export default function ComunicacaoInterna() {
                     ))}
                   </div>
                 )}
-                <div className="flex items-end gap-2 max-w-3xl mx-auto">
+                <div className="relative flex items-end gap-2 max-w-3xl mx-auto">
                   <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileUpload} />
                   <Button
                     variant="ghost" size="icon" className="h-9 w-9 shrink-0"
@@ -476,16 +620,41 @@ export default function ComunicacaoInterna() {
                   >
                     {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
                   </Button>
+
+                  {/* Mention suggestions popup */}
+                  {showMentionSuggestions && filteredMembers.length > 0 && (
+                    <div className="absolute bottom-full left-10 mb-1 z-50 bg-popover border border-border rounded-lg shadow-lg py-1 min-w-[200px] max-h-[200px] overflow-y-auto">
+                      <div className="px-2 py-1 text-xs text-muted-foreground border-b mb-1">
+                        Membros do canal
+                      </div>
+                      {filteredMembers.map((member, index) => (
+                        <button
+                          key={member.id}
+                          className={cn(
+                            "w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-muted transition-colors",
+                            index === mentionSelectedIdx && "bg-muted"
+                          )}
+                          onClick={() => handleSelectMention(member)}
+                          onMouseEnter={() => setMentionSelectedIdx(index)}
+                        >
+                          <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-medium">
+                            {member.user_name?.charAt(0)?.toUpperCase()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium truncate">{member.user_name}</div>
+                            <div className="text-xs text-muted-foreground truncate">{member.user_email}</div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
                   <Textarea
+                    ref={textareaRef}
                     placeholder={`Mensagem... Use @nome para mencionar`}
                     value={messageText}
-                    onChange={e => setMessageText(e.target.value)}
-                    onKeyDown={e => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSendMessage();
-                      }
-                    }}
+                    onChange={handleTextChange}
+                    onKeyDown={handleTextareaKeyDown}
                     className="min-h-[40px] max-h-[120px] resize-none text-sm"
                     rows={1}
                   />

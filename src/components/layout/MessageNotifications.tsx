@@ -17,6 +17,7 @@ import { safeFormatDate } from "@/lib/utils";
 import { useNotificationSound } from "@/hooks/use-notification-sound";
 import { useProjectNoteNotifications, useProjectNoteNotificationMutations } from "@/hooks/use-projects";
 import { useUnreadMentions, useUnreadMentionCount } from "@/hooks/use-internal-chat";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 interface UnreadConversation {
@@ -33,6 +34,7 @@ interface UnreadConversation {
 }
 
 export function MessageNotifications() {
+  const queryClient = useQueryClient();
   const [unreadConversations, setUnreadConversations] = useState<UnreadConversation[]>([]);
   const [totalUnread, setTotalUnread] = useState(0);
   const [soundEnabled, setSoundEnabled] = useState(() => {
@@ -85,7 +87,8 @@ export function MessageNotifications() {
   const handleDismissMention = async (mentionId: string) => {
     try {
       await api(`/api/internal-chat/mentions/${mentionId}/read`, { method: "POST" });
-      // Queries will auto-refetch
+      queryClient.invalidateQueries({ queryKey: ["internal-mentions"] });
+      queryClient.invalidateQueries({ queryKey: ["internal-mentions-count"] });
     } catch (err) {
       console.error("Error dismissing mention:", err);
     }
