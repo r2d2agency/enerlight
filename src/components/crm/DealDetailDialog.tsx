@@ -12,7 +12,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
-import { CRMDeal, CRMTask, CRMStage, useCRMDeal, useCRMDealMutations, useCRMTaskMutations, useCRMFunnel, useCRMCompanies } from "@/hooks/use-crm";
+import { CRMDeal, CRMTask, CRMStage, useCRMDeal, useCRMDealMutations, useCRMTaskMutations, useCRMFunnel, useCRMCompanies, useCRMMyTeam } from "@/hooks/use-crm";
+import { useRepresentativesForDeal } from "@/hooks/use-representatives";
 import { api } from "@/lib/api";
 import { Building2, User, Phone, Calendar as CalendarIcon, Clock, CheckCircle, Plus, Trash2, Paperclip, MessageSquare, ChevronRight, Edit2, Save, X, FileText, Image, Loader2, Upload, Search, UserPlus, Building, Mail, Video, Send, ClipboardList, RefreshCw, Flame } from "lucide-react";
 import { format, parseISO } from "date-fns";
@@ -125,9 +126,17 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
   const [newProjectDescription, setNewProjectDescription] = useState("");
   const [newProjectTemplateId, setNewProjectTemplateId] = useState<string>("");
 
+  // Inline edit states for probability, owner, representative
+  const [isEditingProbability, setIsEditingProbability] = useState(false);
+  const [editProbability, setEditProbability] = useState("");
+  const [isEditingOwner, setIsEditingOwner] = useState(false);
+  const [isEditingRepresentative, setIsEditingRepresentative] = useState(false);
+
   const { data: fullDeal, isLoading } = useCRMDeal(deal?.id || null);
   const { data: funnelData } = useCRMFunnel(deal?.funnel_id || null);
   const { data: companies } = useCRMCompanies(companySearch);
+  const { data: teamMembers } = useCRMMyTeam();
+  const { data: representatives } = useRepresentativesForDeal();
   const { updateDeal, moveDeal, addContact, removeContact } = useCRMDealMutations();
   const { createTask, completeTask, deleteTask } = useCRMTaskMutations();
   const { uploadFile, isUploading } = useUpload();
@@ -192,6 +201,7 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
       setEditValue(String(currentDeal.value || 0));
       setEditCloseDate(currentDeal.expected_close_date ? currentDeal.expected_close_date.substring(0, 10) : "");
       setDealCustomFields(currentDeal.custom_fields || {});
+      setEditProbability(String(currentDeal.probability || 0));
     }
   }, [currentDeal]);
 
@@ -250,6 +260,25 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
     setIsEditingCompany(false);
     setCompanySearch("");
     toast.success(`Empresa alterada para ${companyName}`);
+  };
+
+  const handleSaveProbability = () => {
+    const val = Math.max(0, Math.min(100, Number(editProbability) || 0));
+    updateDeal.mutate({ id: deal.id, probability: val } as any);
+    setIsEditingProbability(false);
+    toast.success("Probabilidade atualizada!");
+  };
+
+  const handleChangeOwner = (ownerId: string) => {
+    updateDeal.mutate({ id: deal.id, owner_id: ownerId } as any);
+    setIsEditingOwner(false);
+    toast.success("Responsável alterado!");
+  };
+
+  const handleChangeRepresentative = (repId: string | null) => {
+    updateDeal.mutate({ id: deal.id, representative_id: repId } as any);
+    setIsEditingRepresentative(false);
+    toast.success(repId ? "Representante vinculado!" : "Representante removido!");
   };
 
   const handleAddTask = () => {
@@ -609,24 +638,87 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
                 <Card className="p-4">
                   <h4 className="font-medium mb-3">Informações</h4>
                   <div className="space-y-3 text-sm">
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-center">
                       <span className="text-muted-foreground">Probabilidade</span>
-                      <Badge variant="outline">{currentDeal?.probability}%</Badge>
+                      {isEditingProbability ? (
+                        <div className="flex items-center gap-1">
+                          <Input
+                            type="number"
+                            min={0}
+                            max={100}
+                            value={editProbability}
+                            onChange={(e) => setEditProbability(e.target.value)}
+                            className="w-20 h-7 text-sm text-right"
+                            autoFocus
+                            onKeyDown={(e) => { if (e.key === 'Enter') handleSaveProbability(); if (e.key === 'Escape') setIsEditingProbability(false); }}
+                          />
+                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={handleSaveProbability}><Save className="h-3 w-3" /></Button>
+                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setIsEditingProbability(false)}><X className="h-3 w-3" /></Button>
+                        </div>
+                      ) : (
+                        <button onClick={() => setIsEditingProbability(true)} className="hover:underline flex items-center gap-1">
+                          <Badge variant="outline">{currentDeal?.probability}%</Badge>
+                          <Edit2 className="h-3 w-3 opacity-50" />
+                        </button>
+                      )}
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Etapa</span>
                       <span>{currentDeal?.stage_name}</span>
                     </div>
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-center">
                       <span className="text-muted-foreground">Responsável</span>
-                      <span>{currentDeal?.owner_name || "Não definido"}</span>
+                      {isEditingOwner ? (
+                        <div className="flex items-center gap-1">
+                          <Select onValueChange={(val) => handleChangeOwner(val)}>
+                            <SelectTrigger className="w-40 h-7 text-sm">
+                              <SelectValue placeholder={currentDeal?.owner_name || "Selecionar"} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {teamMembers?.map((member) => (
+                                <SelectItem key={member.user_id} value={member.user_id}>
+                                  {member.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setIsEditingOwner(false)}><X className="h-3 w-3" /></Button>
+                        </div>
+                      ) : (
+                        <button onClick={() => setIsEditingOwner(true)} className="hover:underline flex items-center gap-1">
+                          {currentDeal?.owner_name || "Não definido"}
+                          <Edit2 className="h-3 w-3 opacity-50" />
+                        </button>
+                      )}
                     </div>
-                    {(currentDeal as any)?.representative_name && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Representante</span>
-                        <span>{(currentDeal as any).representative_name} ({(currentDeal as any).representative_commission}%)</span>
-                      </div>
-                    )}
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">Representante</span>
+                      {isEditingRepresentative ? (
+                        <div className="flex items-center gap-1">
+                          <Select onValueChange={(val) => handleChangeRepresentative(val === "none" ? null : val)}>
+                            <SelectTrigger className="w-40 h-7 text-sm">
+                              <SelectValue placeholder={(currentDeal as any)?.representative_name || "Selecionar"} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">Nenhum</SelectItem>
+                              {representatives?.map((rep) => (
+                                <SelectItem key={rep.id} value={rep.id}>
+                                  {rep.name} ({rep.commission_percent}%)
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setIsEditingRepresentative(false)}><X className="h-3 w-3" /></Button>
+                        </div>
+                      ) : (
+                        <button onClick={() => setIsEditingRepresentative(true)} className="hover:underline flex items-center gap-1">
+                          {(currentDeal as any)?.representative_name 
+                            ? `${(currentDeal as any).representative_name} (${(currentDeal as any).representative_commission}%)`
+                            : "Vincular representante"}
+                          <Edit2 className="h-3 w-3 opacity-50" />
+                        </button>
+                      )}
+                    </div>
                     <div className="flex justify-between items-center">
                       <span className="text-muted-foreground">Fechamento previsto</span>
                       {isEditingCloseDate ? (
