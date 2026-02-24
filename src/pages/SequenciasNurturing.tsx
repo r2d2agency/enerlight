@@ -67,7 +67,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { cn } from "@/lib/utils";
+import { cn, safeFormatDate } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   useNurturingSequences,
@@ -470,7 +470,7 @@ export default function SequenciasNurturing() {
                               </div>
                               <div className="text-xs text-muted-foreground">
                                 Passo {enrollment.current_step + 1} • 
-                                Inscrito em {format(new Date(enrollment.enrolled_at), "dd/MM/yyyy", { locale: ptBR })}
+                                Inscrito em {safeFormatDate(enrollment.enrolled_at, "dd/MM/yyyy", { locale: ptBR })}
                               </div>
                             </div>
                           </div>

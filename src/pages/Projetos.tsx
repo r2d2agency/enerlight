@@ -22,7 +22,7 @@ import {
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { cn } from "@/lib/utils";
+import { cn, safeFormatDate } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUpload } from "@/hooks/use-upload";
 import { useOrganizations } from "@/hooks/use-organizations";
@@ -544,7 +544,7 @@ function ProjectCard({ project, stages, canEdit, onOpen, onMove }: {
             </div>
           )}
           <span className="text-[10px] text-muted-foreground">
-            {format(new Date(project.created_at), "dd/MM", { locale: ptBR })}
+            {safeFormatDate(project.created_at, "dd/MM", { locale: ptBR })}
           </span>
         </div>
 
@@ -581,8 +581,8 @@ function TaskChecklistItem({ task, projectId, isCompleted, orgMembers, taskMut, 
 }) {
   const [expanded, setExpanded] = useState(false);
   const [assignedTo, setAssignedTo] = useState(task.assigned_to || "");
-  const [startDate, setStartDate] = useState(task.start_date ? format(new Date(task.start_date), "yyyy-MM-dd") : "");
-  const [endDate, setEndDate] = useState(task.end_date ? format(new Date(task.end_date), "yyyy-MM-dd") : "");
+  const [startDate, setStartDate] = useState(task.start_date ? safeFormatDate(task.start_date, "yyyy-MM-dd") : "");
+  const [endDate, setEndDate] = useState(task.end_date ? safeFormatDate(task.end_date, "yyyy-MM-dd") : "");
 
   const handleSave = () => {
     taskMut.update.mutate({
@@ -620,7 +620,7 @@ function TaskChecklistItem({ task, projectId, isCompleted, orgMembers, taskMut, 
           <p className={cn("text-sm", isCompleted && "line-through text-muted-foreground")}>{task.title}</p>
           <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
             {task.assigned_to_name && <span>{task.assigned_to_name}</span>}
-            {task.end_date && <span>• {format(new Date(task.end_date), "dd/MM")}</span>}
+            {task.end_date && <span>• {safeFormatDate(task.end_date, "dd/MM")}</span>}
           </div>
         </div>
         {canEdit && (
@@ -901,11 +901,11 @@ function ProjectDetailDialog({ project, open, onOpenChange, stages, canEdit, onM
                 </div>
                 <div>
                   <Label className="text-xs text-muted-foreground">Criado em</Label>
-                  <p className="text-sm">{format(new Date(project.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}</p>
+                  <p className="text-sm">{safeFormatDate(project.created_at, "dd/MM/yyyy HH:mm", { locale: ptBR })}</p>
                 </div>
                 <div>
                   <Label className="text-xs text-muted-foreground">Atualizado em</Label>
-                  <p className="text-sm">{format(new Date(project.updated_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}</p>
+                  <p className="text-sm">{safeFormatDate(project.updated_at, "dd/MM/yyyy HH:mm", { locale: ptBR })}</p>
                 </div>
               </div>
             </TabsContent>
@@ -918,7 +918,7 @@ function ProjectDetailDialog({ project, open, onOpenChange, stages, canEdit, onM
                     <div className="rounded-lg bg-muted/50 p-3">
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-xs font-semibold">{note.user_name || "Usuário"}</span>
-                        <span className="text-[10px] text-muted-foreground">{format(new Date(note.created_at), "dd/MM HH:mm", { locale: ptBR })}</span>
+                        <span className="text-[10px] text-muted-foreground">{safeFormatDate(note.created_at, "dd/MM HH:mm", { locale: ptBR })}</span>
                       </div>
                       <p className="text-sm whitespace-pre-wrap">{note.content}</p>
                       <Button variant="ghost" size="sm" className="mt-1 h-6 text-xs" onClick={() => setReplyTo(note.id)}>
@@ -929,7 +929,7 @@ function ProjectDetailDialog({ project, open, onOpenChange, stages, canEdit, onM
                       <div key={reply.id} className="ml-6 rounded-lg bg-accent/30 p-3">
                         <div className="flex items-center justify-between mb-1">
                           <span className="text-xs font-semibold">{reply.user_name || "Usuário"}</span>
-                          <span className="text-[10px] text-muted-foreground">{format(new Date(reply.created_at), "dd/MM HH:mm", { locale: ptBR })}</span>
+                          <span className="text-[10px] text-muted-foreground">{safeFormatDate(reply.created_at, "dd/MM HH:mm", { locale: ptBR })}</span>
                         </div>
                         <p className="text-sm whitespace-pre-wrap">{reply.content}</p>
                       </div>
@@ -1098,7 +1098,7 @@ function ProjectDetailDialog({ project, open, onOpenChange, stages, canEdit, onM
                             <p className={cn("text-xs font-medium truncate", isCompleted && "line-through text-muted-foreground")}>{task.title}</p>
                             <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
                               {task.assigned_to_name && <><User className="h-2.5 w-2.5" /><span className="truncate">{task.assigned_to_name}</span></>}
-                              {task.end_date && <><Calendar className="h-2.5 w-2.5 ml-1" /><span>{format(new Date(task.end_date), "dd/MM")}</span></>}
+                              {task.end_date && <><Calendar className="h-2.5 w-2.5 ml-1" /><span>{safeFormatDate(task.end_date, "dd/MM")}</span></>}
                             </div>
                           </div>
                           <div className="flex-1 flex relative py-1.5">
@@ -1186,7 +1186,7 @@ function ProjectDetailDialog({ project, open, onOpenChange, stages, canEdit, onM
                     <FileText className="h-5 w-5 text-primary shrink-0" />
                     <div className="flex-1 min-w-0">
                       <a href={resolveMediaUrl(att.url)} target="_blank" rel="noopener noreferrer" className="text-sm font-medium hover:underline truncate block">{att.name}</a>
-                      <p className="text-xs text-muted-foreground">{att.uploaded_by_name} · {format(new Date(att.created_at), "dd/MM HH:mm", { locale: ptBR })}</p>
+                      <p className="text-xs text-muted-foreground">{att.uploaded_by_name} · {safeFormatDate(att.created_at, "dd/MM HH:mm", { locale: ptBR })}</p>
                     </div>
                     {canEdit && (
                       <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => attMut.remove.mutate({ attId: att.id, projectId: project.id })}>

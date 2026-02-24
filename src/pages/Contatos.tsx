@@ -42,6 +42,7 @@ import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { safeFormatDate } from "@/lib/utils";
 
 const Contatos = () => {
   const {
@@ -400,7 +401,7 @@ const Contatos = () => {
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge variant="secondary">
-                      {format(new Date(list.created_at), "dd/MM/yy", { locale: ptBR })}
+                      {safeFormatDate(list.created_at, "dd/MM/yy", { locale: ptBR })}
                     </Badge>
                     <Button
                       variant="ghost"

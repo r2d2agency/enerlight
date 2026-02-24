@@ -22,6 +22,7 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { useGroupSecretary, type SecretaryConfig, type SecretaryMember, type SecretaryLog, type SecretaryStats, type AvailableUser, type MonitoredGroup, type MeetingMinutes } from "@/hooks/use-group-secretary";
 import { format, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { safeFormatDate } from "@/lib/utils";
 
 export default function SecretariaGrupos() {
   const {
@@ -1106,7 +1107,7 @@ export default function SecretariaGrupos() {
                               </span>
                               <span className="flex items-center gap-1">
                                 <CalendarDays className="h-3 w-3" />
-                                {format(new Date(minute.created_at), "dd/MM/yyyy HH:mm")}
+                                {safeFormatDate(minute.created_at, "dd/MM/yyyy HH:mm")}
                               </span>
                               <Badge variant="secondary" className="text-xs">
                                 {minute.message_count} msgs
@@ -1225,7 +1226,7 @@ export default function SecretariaGrupos() {
                               {minute.generated_by_name && <span>Gerado por: {minute.generated_by_name}</span>}
                               {minute.period_start && minute.period_end && (
                                 <span>
-                                  Período: {format(new Date(minute.period_start), "dd/MM HH:mm")} — {format(new Date(minute.period_end), "dd/MM HH:mm")}
+                                  Período: {safeFormatDate(minute.period_start, "dd/MM HH:mm")} — {safeFormatDate(minute.period_end, "dd/MM HH:mm")}
                                 </span>
                               )}
                             </div>

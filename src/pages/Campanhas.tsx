@@ -19,6 +19,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { safeFormatDate } from "@/lib/utils";
 import {
   Send,
   Plus,
@@ -642,8 +643,8 @@ const Campanhas = () => {
                             {campaign.start_date && (
                               <span className="flex items-center gap-1">
                                 <CalendarIcon className="h-4 w-4" />
-                                {format(new Date(campaign.start_date), "dd/MM/yyyy", { locale: ptBR })}
-                                {campaign.end_date && ` - ${format(new Date(campaign.end_date), "dd/MM/yyyy", { locale: ptBR })}`}
+                                {safeFormatDate(campaign.start_date, "dd/MM/yyyy", { locale: ptBR })}
+                                {campaign.end_date && ` - ${safeFormatDate(campaign.end_date, "dd/MM/yyyy", { locale: ptBR })}`}
                               </span>
                             )}
                             {campaign.start_time && campaign.end_time && (

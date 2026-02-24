@@ -73,6 +73,7 @@ import { useChat, ConversationNote } from "@/hooks/use-chat";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { safeFormatDate } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import { api } from "@/lib/api";
 import { useAIAgents, AIAgent } from "@/hooks/use-ai-agents";
@@ -1324,7 +1325,7 @@ export function CRMSidePanel({
                             <div className="flex items-center justify-between mb-1">
                               <span className="font-medium truncate">{note.user_name || 'Usuário'}</span>
                               <span className="text-[10px] text-muted-foreground">
-                                {format(new Date(note.created_at), "dd/MM HH:mm", { locale: ptBR })}
+                                {safeFormatDate(note.created_at, "dd/MM HH:mm", { locale: ptBR })}
                               </span>
                             </div>
                             <p className="whitespace-pre-wrap break-words line-clamp-3">{note.content}</p>
@@ -1418,7 +1419,7 @@ export function CRMSidePanel({
                                         <div className="flex items-center justify-between mb-0.5">
                                           <span className="font-medium text-[10px]">{note.user_name || "Usuário"}</span>
                                           <span className="text-[9px] text-muted-foreground">
-                                            {format(new Date(note.created_at), "dd/MM HH:mm", { locale: ptBR })}
+                                            {safeFormatDate(note.created_at, "dd/MM HH:mm", { locale: ptBR })}
                                           </span>
                                         </div>
                                         <p className="text-[11px] whitespace-pre-wrap">{note.content}</p>
