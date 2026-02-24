@@ -14,8 +14,13 @@ export interface ScheduleBlock {
   start_time?: string;
   end_time?: string;
   all_day: boolean;
+  recurrent: boolean;
+  recurrence_pattern?: string;
+  recurrence_days?: number[];
+  recurrence_end?: string;
   notes?: string;
   created_at: string;
+  _is_recurrence_instance?: boolean;
 }
 
 export const BLOCK_REASONS: Record<string, { label: string; emoji: string }> = {
