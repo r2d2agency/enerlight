@@ -14,6 +14,7 @@ import {
   ChevronRight, Circle, CheckCircle2, Clock, Trash2, Users,
   ArrowLeft, Filter, MoreVertical, Building2, Loader2, FileText
 } from "lucide-react";
+import { TopicLinksBadges } from "@/components/chat-interno/TopicLinksBadges";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -376,9 +377,12 @@ export default function ComunicacaoInterna() {
                 </Button>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-sm truncate">{selectedTopic.title}</h3>
-                  <p className="text-xs text-muted-foreground">
-                    {selectedChannel?.name} · {selectedTopic.message_count || 0} mensagens
-                  </p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-xs text-muted-foreground">
+                      {selectedChannel?.name} · {selectedTopic.message_count || 0} mensagens
+                    </p>
+                    <TopicLinksBadges topicId={selectedTopic.id} />
+                  </div>
                 </div>
                 <Select
                   value={selectedTopic.status}

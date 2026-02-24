@@ -414,4 +414,84 @@ router.get('/search', async (req, res) => {
   }
 });
 
+// ========================
+// TOPIC LINKS (vincular tarefas, reuniões, projetos, negociações)
+// ========================
+
+// List links for a topic
+router.get('/topics/:topicId/links', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT * FROM internal_topic_links WHERE topic_id = $1 ORDER BY created_at DESC`,
+      [req.params.topicId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Create a link
+router.post('/topics/:topicId/links', async (req, res) => {
+  try {
+    const { link_type, link_id, link_title } = req.body;
+    const result = await pool.query(
+      `INSERT INTO internal_topic_links (topic_id, link_type, link_id, link_title, created_by)
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [req.params.topicId, link_type, link_id, link_title, req.userId]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'Vínculo já existe' });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete a link
+router.delete('/topics/links/:linkId', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM internal_topic_links WHERE id = $1', [req.params.linkId]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Search linkable items (tasks, meetings, projects, deals)
+router.get('/search-linkable', async (req, res) => {
+  try {
+    const orgId = await getUserOrg(req.userId);
+    if (!orgId) return res.json([]);
+
+    const { type, q = '' } = req.query;
+    let query, params;
+
+    switch (type) {
+      case 'task':
+        query = `SELECT t.id, t.title FROM crm_tasks t WHERE t.organization_id = $1 AND t.title ILIKE $2 ORDER BY t.created_at DESC LIMIT 20`;
+        params = [orgId, `%${q}%`];
+        break;
+      case 'meeting':
+        query = `SELECT id, title FROM meetings WHERE organization_id = $1 AND title ILIKE $2 ORDER BY meeting_date DESC LIMIT 20`;
+        params = [orgId, `%${q}%`];
+        break;
+      case 'project':
+        query = `SELECT id, title FROM projects WHERE organization_id = $1 AND title ILIKE $2 ORDER BY created_at DESC LIMIT 20`;
+        params = [orgId, `%${q}%`];
+        break;
+      case 'deal':
+        query = `SELECT id, title FROM deals WHERE organization_id = $1 AND title ILIKE $2 ORDER BY created_at DESC LIMIT 20`;
+        params = [orgId, `%${q}%`];
+        break;
+      default:
+        return res.json([]);
+    }
+
+    const result = await pool.query(query, params);
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;
