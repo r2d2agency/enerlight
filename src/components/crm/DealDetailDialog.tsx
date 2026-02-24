@@ -275,10 +275,9 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
     toast.success("Responsável alterado!");
   };
 
-  const handleChangeRepresentative = (repId: string | null) => {
-    updateDeal.mutate({ id: deal.id, representative_id: repId } as any);
+  const handleChangeRepresentative = async (repId: string | null) => {
+    await updateDeal.mutateAsync({ id: deal.id, representative_id: repId } as any);
     setIsEditingRepresentative(false);
-    toast.success(repId ? "Representante vinculado!" : "Representante removido!");
   };
 
   const handleAddTask = () => {
