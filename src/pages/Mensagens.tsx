@@ -43,6 +43,7 @@ import { useMessages, MessageTemplate } from "@/hooks/use-messages";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { safeFormatDate } from "@/lib/utils";
 
 const Mensagens = () => {
   const { loading, getMessages, createMessage, updateMessage, deleteMessage } = useMessages();
@@ -233,7 +234,7 @@ const Mensagens = () => {
                           <div>
                             <CardTitle className="text-base">{message.name}</CardTitle>
                             <CardDescription>
-                              {format(new Date(message.created_at), "dd/MM/yyyy", { locale: ptBR })}
+                              {safeFormatDate(message.created_at, "dd/MM/yyyy", { locale: ptBR })}
                             </CardDescription>
                           </div>
                         </div>

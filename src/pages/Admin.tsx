@@ -26,7 +26,7 @@ import { Shield, Building2, Users, Plus, Trash2, Loader2, Pencil, Crown, Image, 
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { cn } from '@/lib/utils';
+import { cn, safeFormatDate } from '@/lib/utils';
 
 interface UserOrganization {
   org_id: string;
@@ -1334,7 +1334,7 @@ export default function Admin() {
                           <TableCell>
                             {org.expires_at ? (
                               <Badge variant={isExpired(org.expires_at) ? "destructive" : "secondary"}>
-                                {format(new Date(org.expires_at), "dd/MM/yyyy", { locale: ptBR })}
+                                {safeFormatDate(org.expires_at, "dd/MM/yyyy", { locale: ptBR })}
                               </Badge>
                             ) : (
                               <span className="text-muted-foreground">-</span>

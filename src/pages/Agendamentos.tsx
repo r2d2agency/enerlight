@@ -47,6 +47,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { safeFormatDate } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -309,11 +310,11 @@ const Agendamentos = () => {
                         <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
                           <span className="flex items-center gap-1">
                             <Calendar className="h-3 w-3" />
-                            {format(new Date(msg.scheduled_at), "dd/MM/yyyy", { locale: ptBR })}
+                            {safeFormatDate(msg.scheduled_at, "dd/MM/yyyy", { locale: ptBR })}
                           </span>
                           <span className="flex items-center gap-1">
                             <Clock className="h-3 w-3" />
-                            {format(new Date(msg.scheduled_at), "HH:mm", { locale: ptBR })}
+                            {safeFormatDate(msg.scheduled_at, "HH:mm", { locale: ptBR })}
                           </span>
                           {msg.sender_name && (
                             <span className="flex items-center gap-1">

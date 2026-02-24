@@ -87,7 +87,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { cn } from "@/lib/utils";
+import { cn, safeFormatDate } from "@/lib/utils";
 import { resolveMediaUrl } from "@/lib/media";
 import { ChatMessage, Conversation, ConversationTag, TeamMember, ConversationNote } from "@/hooks/use-chat";
 import { useChat } from "@/hooks/use-chat";
@@ -1900,7 +1900,7 @@ export function ChatArea({
                     <span className="text-[10px] opacity-50 italic">editada</span>
                   )}
                   <span className="text-[10px] opacity-70">
-                    {format(new Date(msg.timestamp), "HH:mm", { locale: ptBR })}
+                    {safeFormatDate(msg.timestamp, "HH:mm", { locale: ptBR })}
                   </span>
                   {msg.from_me && messageStatusIcon(msg.status)}
                 </div>

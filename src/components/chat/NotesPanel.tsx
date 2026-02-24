@@ -18,6 +18,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { safeFormatDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -215,7 +216,7 @@ export function NotesPanel({ conversationId, onClose }: NotesPanelProps) {
                             {note.user_name || 'Usuário'}
                           </span>
                           <span className="text-[10px] text-muted-foreground">
-                            {format(new Date(note.created_at), "dd/MM HH:mm", { locale: ptBR })}
+                            {safeFormatDate(note.created_at, "dd/MM HH:mm", { locale: ptBR })}
                           </span>
                         </div>
                       </div>

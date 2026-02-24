@@ -51,7 +51,7 @@ import {
 } from "lucide-react";
 import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { cn } from "@/lib/utils";
+import { cn, safeFormatDate } from "@/lib/utils";
 import { toast } from "sonner";
 import {
   useCTWACampaigns,
@@ -247,12 +247,12 @@ export default function CTWAAnalytics() {
                         <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                         <XAxis
                           dataKey="date"
-                          tickFormatter={(v) => format(new Date(v), "dd/MM")}
+                          tickFormatter={(v) => safeFormatDate(v, "dd/MM")}
                           className="text-xs"
                         />
                         <YAxis className="text-xs" />
                         <Tooltip
-                          labelFormatter={(v) => format(new Date(v), "dd/MM/yyyy")}
+                          labelFormatter={(v) => safeFormatDate(v, "dd/MM/yyyy")}
                           contentStyle={{
                             backgroundColor: "hsl(var(--popover))",
                             border: "1px solid hsl(var(--border))",
@@ -480,7 +480,7 @@ export default function CTWAAnalytics() {
                                 : "--"}
                             </td>
                             <td className="p-3 text-right text-muted-foreground">
-                              {format(new Date(lead.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                              {safeFormatDate(lead.created_at, "dd/MM/yyyy HH:mm", { locale: ptBR })}
                             </td>
                           </tr>
                         ))}

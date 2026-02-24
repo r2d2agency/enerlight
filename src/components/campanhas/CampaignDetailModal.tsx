@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { safeFormatDate } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -338,7 +339,7 @@ export function CampaignDetailModal({ campaignId, open, onClose }: CampaignDetai
                 <span className="text-sm">
                   <span className="text-muted-foreground">Previsão de término:</span>{' '}
                   <span className="font-medium">
-                    {format(new Date(details.estimatedCompletion), "dd/MM 'às' HH:mm", { locale: ptBR })}
+                    {safeFormatDate(details.estimatedCompletion, "dd/MM 'às' HH:mm", { locale: ptBR })}
                   </span>
                   <span className="text-muted-foreground ml-2">
                     ({formatDistanceToNow(new Date(details.estimatedCompletion), { locale: ptBR, addSuffix: true })})
@@ -411,7 +412,7 @@ export function CampaignDetailModal({ campaignId, open, onClose }: CampaignDetai
                             <div className="text-xs text-muted-foreground">
                               <span className="text-green-500 font-medium">Enviado</span>
                               <br />
-                              {format(new Date(msg.sent_at), "dd/MM HH:mm:ss", { locale: ptBR })}
+                              {safeFormatDate(msg.sent_at, "dd/MM HH:mm:ss", { locale: ptBR })}
                             </div>
                           )}
                           {msg.status === 'failed' && (
@@ -426,7 +427,7 @@ export function CampaignDetailModal({ campaignId, open, onClose }: CampaignDetai
                             <div className="text-xs text-right">
                               <span className="text-yellow-500 font-medium">Agendado para</span>
                               <div className="text-muted-foreground font-medium">
-                                {format(new Date(msg.scheduled_at), "dd/MM 'às' HH:mm", { locale: ptBR })}
+                                {safeFormatDate(msg.scheduled_at, "dd/MM 'às' HH:mm", { locale: ptBR })}
                               </div>
                             </div>
                           )}
