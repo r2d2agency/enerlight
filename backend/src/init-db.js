@@ -3241,6 +3241,117 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_column THEN null; END $$;
 `;
 
+// ============================================
+// STEP 42: INTERNAL CHAT (depends on organizations, departments, users)
+// ============================================
+const step42InternalChat = `
+-- Internal communication channels
+CREATE TABLE IF NOT EXISTS internal_channels (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  department_id UUID REFERENCES departments(id) ON DELETE SET NULL,
+  name VARCHAR(255) NOT NULL,
+  description TEXT,
+  created_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  is_archived BOOLEAN DEFAULT false,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_internal_channels_org ON internal_channels(organization_id);
+CREATE INDEX IF NOT EXISTS idx_internal_channels_dept ON internal_channels(department_id);
+
+-- Channel members
+CREATE TABLE IF NOT EXISTS internal_channel_members (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  channel_id UUID NOT NULL REFERENCES internal_channels(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  joined_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(channel_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_internal_channel_members_channel ON internal_channel_members(channel_id);
+CREATE INDEX IF NOT EXISTS idx_internal_channel_members_user ON internal_channel_members(user_id);
+
+-- Topic status enum
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'internal_topic_status') THEN
+    CREATE TYPE internal_topic_status AS ENUM ('open', 'in_progress', 'closed');
+  END IF;
+END $$;
+
+-- Topics (threads) inside a channel
+CREATE TABLE IF NOT EXISTS internal_topics (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  channel_id UUID NOT NULL REFERENCES internal_channels(id) ON DELETE CASCADE,
+  title VARCHAR(500) NOT NULL,
+  status internal_topic_status DEFAULT 'open',
+  created_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  closed_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  closed_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_internal_topics_channel ON internal_topics(channel_id);
+CREATE INDEX IF NOT EXISTS idx_internal_topics_status ON internal_topics(status);
+
+-- Messages in topics
+CREATE TABLE IF NOT EXISTS internal_messages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  topic_id UUID NOT NULL REFERENCES internal_topics(id) ON DELETE CASCADE,
+  sender_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  content TEXT NOT NULL,
+  mentions UUID[] DEFAULT '{}',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_internal_messages_topic ON internal_messages(topic_id);
+CREATE INDEX IF NOT EXISTS idx_internal_messages_sender ON internal_messages(sender_id);
+
+-- Message attachments
+CREATE TABLE IF NOT EXISTS internal_message_attachments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  message_id UUID NOT NULL REFERENCES internal_messages(id) ON DELETE CASCADE,
+  file_url TEXT NOT NULL,
+  file_name VARCHAR(500) NOT NULL,
+  file_size INTEGER,
+  file_type VARCHAR(100),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_internal_attachments_message ON internal_message_attachments(message_id);
+
+-- Unread mentions (notification badges)
+CREATE TABLE IF NOT EXISTS internal_mentions_unread (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  message_id UUID NOT NULL REFERENCES internal_messages(id) ON DELETE CASCADE,
+  topic_id UUID NOT NULL REFERENCES internal_topics(id) ON DELETE CASCADE,
+  channel_id UUID NOT NULL REFERENCES internal_channels(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(user_id, message_id)
+);
+CREATE INDEX IF NOT EXISTS idx_internal_mentions_user ON internal_mentions_unread(user_id);
+
+-- Triggers for updated_at
+CREATE OR REPLACE FUNCTION update_internal_channels_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN NEW.updated_at = NOW(); RETURN NEW; END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trigger_internal_channels_updated_at ON internal_channels;
+CREATE TRIGGER trigger_internal_channels_updated_at
+  BEFORE UPDATE ON internal_channels FOR EACH ROW
+  EXECUTE FUNCTION update_internal_channels_updated_at();
+
+CREATE OR REPLACE FUNCTION update_internal_topics_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN NEW.updated_at = NOW(); RETURN NEW; END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trigger_internal_topics_updated_at ON internal_topics;
+CREATE TRIGGER trigger_internal_topics_updated_at
+  BEFORE UPDATE ON internal_topics FOR EACH ROW
+  EXECUTE FUNCTION update_internal_topics_updated_at();
+`;
+
 // Migration steps in order of execution
 const migrationSteps = [
   { name: 'Enums', sql: step1Enums, critical: true },
@@ -3285,6 +3396,7 @@ const migrationSteps = [
   { name: 'Representatives Module', sql: step39Representatives, critical: false },
   { name: 'Meetings Module', sql: step40Meetings, critical: false },
   { name: 'Schedule Blocks', sql: step41ScheduleBlocks, critical: false },
+  { name: 'Internal Chat', sql: step42InternalChat, critical: false },
 ];
 
 export async function initDatabase() {
