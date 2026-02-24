@@ -3207,6 +3207,29 @@ CREATE INDEX IF NOT EXISTS idx_meeting_tasks_assigned ON meeting_tasks(assigned_
 CREATE INDEX IF NOT EXISTS idx_meeting_tasks_status ON meeting_tasks(status);
 `;
 
+// ============================================
+// STEP 41: SCHEDULE BLOCKS
+// ============================================
+const step41ScheduleBlocks = `
+CREATE TABLE IF NOT EXISTS schedule_blocks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id UUID NOT NULL,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    reason VARCHAR(50) DEFAULT 'other',
+    block_date DATE NOT NULL,
+    start_time TIME,
+    end_time TIME,
+    all_day BOOLEAN DEFAULT FALSE,
+    recurrent BOOLEAN DEFAULT FALSE,
+    notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_schedule_blocks_org ON schedule_blocks(organization_id);
+CREATE INDEX IF NOT EXISTS idx_schedule_blocks_user ON schedule_blocks(user_id);
+CREATE INDEX IF NOT EXISTS idx_schedule_blocks_date ON schedule_blocks(block_date);
+`;
+
 // Migration steps in order of execution
 const migrationSteps = [
   { name: 'Enums', sql: step1Enums, critical: true },
@@ -3250,6 +3273,7 @@ const migrationSteps = [
   { name: 'Permission Templates', sql: step38PermissionTemplates, critical: false },
   { name: 'Representatives Module', sql: step39Representatives, critical: false },
   { name: 'Meetings Module', sql: step40Meetings, critical: false },
+  { name: 'Schedule Blocks', sql: step41ScheduleBlocks, critical: false },
 ];
 
 export async function initDatabase() {
