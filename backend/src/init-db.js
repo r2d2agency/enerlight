@@ -3222,12 +3222,23 @@ CREATE TABLE IF NOT EXISTS schedule_blocks (
     end_time TIME,
     all_day BOOLEAN DEFAULT FALSE,
     recurrent BOOLEAN DEFAULT FALSE,
+    recurrence_pattern VARCHAR(20),
+    recurrence_days JSONB,
+    recurrence_end DATE,
     notes TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_schedule_blocks_org ON schedule_blocks(organization_id);
 CREATE INDEX IF NOT EXISTS idx_schedule_blocks_user ON schedule_blocks(user_id);
 CREATE INDEX IF NOT EXISTS idx_schedule_blocks_date ON schedule_blocks(block_date);
+CREATE INDEX IF NOT EXISTS idx_schedule_blocks_recurrent ON schedule_blocks(recurrent);
+
+-- Add recurrence columns to existing tables
+DO $$ BEGIN
+    ALTER TABLE schedule_blocks ADD COLUMN IF NOT EXISTS recurrence_pattern VARCHAR(20);
+    ALTER TABLE schedule_blocks ADD COLUMN IF NOT EXISTS recurrence_days JSONB;
+    ALTER TABLE schedule_blocks ADD COLUMN IF NOT EXISTS recurrence_end DATE;
+EXCEPTION WHEN duplicate_column THEN null; END $$;
 `;
 
 // Migration steps in order of execution

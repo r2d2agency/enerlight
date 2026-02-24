@@ -12,6 +12,9 @@ CREATE TABLE IF NOT EXISTS schedule_blocks (
     end_time TIME,          -- NULL = dia inteiro
     all_day BOOLEAN DEFAULT FALSE,
     recurrent BOOLEAN DEFAULT FALSE,
+    recurrence_pattern VARCHAR(20),  -- daily, weekdays, weekly, monthly
+    recurrence_days JSONB,           -- [0,1,2,3,4,5,6] for weekly pattern
+    recurrence_end DATE,             -- NULL = indefinido
     notes TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -19,3 +22,4 @@ CREATE TABLE IF NOT EXISTS schedule_blocks (
 CREATE INDEX IF NOT EXISTS idx_schedule_blocks_org ON schedule_blocks(organization_id);
 CREATE INDEX IF NOT EXISTS idx_schedule_blocks_user ON schedule_blocks(user_id);
 CREATE INDEX IF NOT EXISTS idx_schedule_blocks_date ON schedule_blocks(block_date);
+CREATE INDEX IF NOT EXISTS idx_schedule_blocks_recurrent ON schedule_blocks(recurrent);

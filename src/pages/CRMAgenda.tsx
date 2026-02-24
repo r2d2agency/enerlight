@@ -26,7 +26,8 @@ import {
   Video,
   ExternalLink,
   Ban,
-  Trash2
+  Trash2,
+  Repeat
 } from "lucide-react";
 import { 
   format, 
@@ -234,11 +235,11 @@ export default function CRMAgenda() {
     const info = BLOCK_REASONS[block.reason] || BLOCK_REASONS.other;
     return (
       <button
-        key={block.id}
+        key={block.id + (block._is_recurrence_instance ? block.block_date : '')}
         onClick={(e) => { e.stopPropagation(); handleEditBlock(block); }}
         className="w-full text-left text-xs px-1.5 py-0.5 rounded truncate flex items-center gap-1 bg-destructive/10 text-destructive border border-destructive/20"
       >
-        <Ban className="h-3 w-3" />
+        {block.recurrent ? <Repeat className="h-3 w-3" /> : <Ban className="h-3 w-3" />}
         <span className="truncate">{info.emoji} {block.title}</span>
       </button>
     );
