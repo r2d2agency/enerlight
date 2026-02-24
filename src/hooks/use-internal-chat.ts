@@ -226,6 +226,20 @@ export function useUnreadMentions() {
   });
 }
 
+// Org members (for adding to channels)
+export interface OrgMember {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export function useOrgMembers() {
+  return useQuery({
+    queryKey: ["internal-org-members"],
+    queryFn: () => api<OrgMember[]>("/api/internal-chat/org-members"),
+  });
+}
+
 // Search
 export function useInternalSearch(query: string) {
   return useQuery({
