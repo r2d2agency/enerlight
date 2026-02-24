@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Bell, BellOff, Volume2, VolumeX, X, MessageSquare, FolderKanban, StickyNote } from "lucide-react";
+import { Bell, BellOff, Volume2, VolumeX, X, MessageSquare, FolderKanban, StickyNote, AtSign, Hash } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -16,6 +16,8 @@ import { ptBR } from "date-fns/locale";
 import { safeFormatDate } from "@/lib/utils";
 import { useNotificationSound } from "@/hooks/use-notification-sound";
 import { useProjectNoteNotifications, useProjectNoteNotificationMutations } from "@/hooks/use-projects";
+import { useUnreadMentions, useUnreadMentionCount } from "@/hooks/use-internal-chat";
+import { toast } from "sonner";
 
 interface UnreadConversation {
   id: string;
@@ -48,7 +50,46 @@ export function MessageNotifications() {
   const { data: projectNotifications = [] } = useProjectNoteNotifications();
   const projectNotifMut = useProjectNoteNotificationMutations();
   const totalProjectNotifs = projectNotifications.length;
-  const grandTotal = totalUnread + totalProjectNotifs;
+
+  // Internal chat mention notifications
+  const { data: internalMentions = [] } = useUnreadMentions();
+  const { data: mentionCountData } = useUnreadMentionCount();
+  const totalMentions = mentionCountData?.count || internalMentions.length;
+  const previousMentionsRef = useRef<number>(0);
+
+  const grandTotal = totalUnread + totalProjectNotifs + totalMentions;
+
+  // Toast popup for new mentions
+  useEffect(() => {
+    if (totalMentions > previousMentionsRef.current && previousMentionsRef.current >= 0) {
+      const newCount = totalMentions - previousMentionsRef.current;
+      if (previousMentionsRef.current > 0 || totalMentions > 0) {
+        const latestMention = internalMentions[0];
+        if (latestMention && newCount > 0 && previousMentionsRef.current > 0) {
+          toast.info(`${latestMention.sender_name} mencionou você`, {
+            description: `#${latestMention.channel_name} / ${latestMention.topic_title}`,
+            action: {
+              label: "Ver",
+              onClick: () => { window.location.href = "/comunicacao"; },
+            },
+            duration: 8000,
+          });
+          if (soundEnabled) playSound();
+        }
+      }
+    }
+    previousMentionsRef.current = totalMentions;
+  }, [totalMentions, internalMentions]);
+
+  // Mark mention as read
+  const handleDismissMention = async (mentionId: string) => {
+    try {
+      await api(`/api/internal-chat/mentions/${mentionId}/read`, { method: "POST" });
+      // Queries will auto-refetch
+    } catch (err) {
+      console.error("Error dismissing mention:", err);
+    }
+  };
 
   // Save sound preference
   useEffect(() => {
@@ -175,6 +216,10 @@ export function MessageNotifications() {
               <TabsTrigger value="projects" className="text-xs h-7 gap-1">
                 <FolderKanban className="h-3 w-3" />
                 Projetos {totalProjectNotifs > 0 && <Badge variant="destructive" className="text-[9px] px-1 h-4">{totalProjectNotifs}</Badge>}
+              </TabsTrigger>
+              <TabsTrigger value="interno" className="text-xs h-7 gap-1">
+                <AtSign className="h-3 w-3" />
+                Interno {totalMentions > 0 && <Badge variant="destructive" className="text-[9px] px-1 h-4">{totalMentions}</Badge>}
               </TabsTrigger>
             </TabsList>
             <Button
@@ -322,6 +367,77 @@ export function MessageNotifications() {
                   size="sm"
                   className="w-full text-xs h-8"
                   onClick={() => projectNotifMut.markAllRead.mutate()}
+                >
+                  Marcar todas como lidas
+                </Button>
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="interno" className="mt-0">
+            <ScrollArea className="max-h-[60vh] sm:max-h-[300px]">
+              {internalMentions.length === 0 ? (
+                <div className="p-6 sm:p-4 text-center text-sm text-muted-foreground">
+                  <AtSign className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  Nenhuma menção não lida
+                </div>
+              ) : (
+                <div className="divide-y">
+                  {internalMentions.map((mention) => (
+                    <div
+                      key={mention.id}
+                      className="p-3 hover:bg-muted/50 cursor-pointer transition-colors group"
+                      onClick={() => {
+                        handleDismissMention(mention.id);
+                        setIsOpen(false);
+                        window.location.href = "/comunicacao";
+                      }}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
+                          <AtSign className="h-5 w-5 text-blue-500" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm truncate">{mention.sender_name}</p>
+                          <p className="text-xs text-muted-foreground truncate mt-0.5">
+                            {mention.content?.slice(0, 60) || "Nova menção"}
+                          </p>
+                          <div className="flex items-center gap-1 mt-1 text-[10px] text-muted-foreground">
+                            <Hash className="h-2.5 w-2.5" />
+                            <span className="truncate">{mention.channel_name} / {mention.topic_title}</span>
+                            <span>•</span>
+                            <span className="whitespace-nowrap">
+                              {safeFormatDate(mention.created_at, "dd/MM HH:mm", { locale: ptBR })}
+                            </span>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 opacity-0 group-hover:opacity-100 flex-shrink-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDismissMention(mention.id);
+                          }}
+                          title="Marcar como lida"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </ScrollArea>
+            {internalMentions.length > 0 && (
+              <div className="p-2 border-t">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full text-xs h-8"
+                  onClick={async () => {
+                    for (const m of internalMentions) await handleDismissMention(m.id);
+                  }}
                 >
                   Marcar todas como lidas
                 </Button>

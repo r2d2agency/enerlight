@@ -385,6 +385,19 @@ router.get('/mentions/unread', async (req, res) => {
   }
 });
 
+// Mark a mention as read (dismiss)
+router.post('/mentions/:mentionId/read', async (req, res) => {
+  try {
+    await pool.query(
+      'DELETE FROM internal_mentions_unread WHERE id = $1 AND user_id = $2',
+      [req.params.mentionId, req.userId]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ========================
 // SEARCH
 // ========================
