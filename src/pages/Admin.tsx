@@ -66,6 +66,7 @@ interface Plan {
   has_group_secretary: boolean;
   has_ghost: boolean;
   has_projects: boolean;
+  has_internal_chat: boolean;
   price: number;
   billing_period: string;
   is_active: boolean;
@@ -158,6 +159,7 @@ export default function Admin() {
   const [newPlanGroupSecretary, setNewPlanGroupSecretary] = useState(false);
   const [newPlanGhost, setNewPlanGhost] = useState(false);
   const [newPlanProjects, setNewPlanProjects] = useState(false);
+  const [newPlanInternalChat, setNewPlanInternalChat] = useState(true);
   const [newPlanPeriod, setNewPlanPeriod] = useState('monthly');
   const [newPlanVisibleOnSignup, setNewPlanVisibleOnSignup] = useState(false);
   const [newPlanTrialDays, setNewPlanTrialDays] = useState('3');
@@ -317,6 +319,7 @@ export default function Admin() {
       has_group_secretary: newPlanGroupSecretary,
       has_ghost: newPlanGhost,
       has_projects: newPlanProjects,
+      has_internal_chat: newPlanInternalChat,
       price: parseFloat(newPlanPrice) || 0,
       billing_period: newPlanPeriod,
       visible_on_signup: newPlanVisibleOnSignup,
@@ -355,6 +358,7 @@ export default function Admin() {
     setNewPlanGroupSecretary(false);
     setNewPlanGhost(false);
     setNewPlanProjects(false);
+    setNewPlanInternalChat(true);
     setNewPlanPeriod('monthly');
     setNewPlanVisibleOnSignup(false);
     setNewPlanTrialDays('3');
@@ -384,6 +388,7 @@ export default function Admin() {
       has_group_secretary: editingPlan.has_group_secretary,
       has_ghost: editingPlan.has_ghost,
       has_projects: editingPlan.has_projects,
+      has_internal_chat: editingPlan.has_internal_chat,
       price: editingPlan.price,
       billing_period: editingPlan.billing_period,
       is_active: editingPlan.is_active,
@@ -933,9 +938,19 @@ export default function Admin() {
                           <Label htmlFor="projects-switch">Módulo Projetos</Label>
                         </div>
                         <Switch
-                          id="projects-switch"
+                         id="projects-switch"
                           checked={newPlanProjects}
                           onCheckedChange={setNewPlanProjects}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between rounded-lg border p-3">
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="internal-chat-switch">Chat Interno</Label>
+                        </div>
+                        <Switch
+                          id="internal-chat-switch"
+                          checked={newPlanInternalChat}
+                          onCheckedChange={setNewPlanInternalChat}
                         />
                       </div>
                     </div>
@@ -1078,6 +1093,9 @@ export default function Admin() {
                         )}
                         {plan.has_projects && (
                           <Badge variant="secondary" className="text-xs">Projetos</Badge>
+                        )}
+                        {plan.has_internal_chat && (
+                          <Badge variant="secondary" className="text-xs">Chat Interno</Badge>
                         )}
                       </div>
                       <div className="flex items-center justify-between pt-2 border-t">
@@ -1919,6 +1937,14 @@ export default function Admin() {
                     id="edit-projects"
                     checked={editingPlan?.has_projects || false}
                     onCheckedChange={(v) => setEditingPlan({ ...editingPlan!, has_projects: v })}
+                  />
+                </div>
+                <div className="flex items-center justify-between rounded-lg border p-3">
+                  <Label htmlFor="edit-internal-chat">Chat Interno</Label>
+                  <Switch
+                    id="edit-internal-chat"
+                    checked={editingPlan?.has_internal_chat || false}
+                    onCheckedChange={(v) => setEditingPlan({ ...editingPlan!, has_internal_chat: v })}
                   />
                 </div>
                 <div className="flex items-center justify-between rounded-lg border p-3">

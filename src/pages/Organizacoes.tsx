@@ -135,6 +135,7 @@ export default function Organizacoes() {
     group_secretary: false,
     ghost: false,
     projects: false,
+    internal_chat: true,
   });
   const [savingModules, setSavingModules] = useState(false);
 
@@ -227,6 +228,7 @@ export default function Organizacoes() {
         group_secretary: modules.group_secretary ?? false,
         ghost: modules.ghost ?? false,
         projects: modules.projects ?? false,
+        internal_chat: modules.internal_chat ?? true,
       });
     } catch (error) {
       console.error('Error loading modules:', error);
@@ -1283,6 +1285,20 @@ export default function Organizacoes() {
                           <Switch
                             checked={modulesEnabled.projects}
                             onCheckedChange={(checked) => setModulesEnabled(prev => ({ ...prev, projects: checked }))}
+                            disabled={!canManageOrg}
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between rounded-lg border p-4">
+                          <div>
+                            <p className="font-medium">Chat Interno</p>
+                            <p className="text-sm text-muted-foreground">
+                              Comunicação interna entre equipes com canais e tópicos
+                            </p>
+                          </div>
+                          <Switch
+                            checked={modulesEnabled.internal_chat}
+                            onCheckedChange={(checked) => setModulesEnabled(prev => ({ ...prev, internal_chat: checked }))}
                             disabled={!canManageOrg}
                           />
                         </div>
