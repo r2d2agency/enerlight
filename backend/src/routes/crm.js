@@ -616,6 +616,37 @@ router.delete('/funnels/:id', async (req, res) => {
   }
 });
 
+// Delete all deals from a funnel
+router.delete('/funnels/:id/deals', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org || !canManage(org.role)) {
+      return res.status(403).json({ error: 'Permission denied' });
+    }
+
+    // Delete related records first
+    await query(
+      `DELETE FROM crm_deal_contacts WHERE deal_id IN (SELECT id FROM crm_deals WHERE funnel_id = $1 AND organization_id = $2)`,
+      [req.params.id, org.organization_id]
+    );
+    await query(
+      `DELETE FROM crm_deal_history WHERE deal_id IN (SELECT id FROM crm_deals WHERE funnel_id = $1 AND organization_id = $2)`,
+      [req.params.id, org.organization_id]
+    );
+
+    const result = await query(
+      `DELETE FROM crm_deals WHERE funnel_id = $1 AND organization_id = $2`,
+      [req.params.id, org.organization_id]
+    );
+
+    logInfo('crm.funnel_deals_deleted', { funnel_id: req.params.id, count: result.rowCount, user_id: req.userId });
+    res.json({ success: true, deleted: result.rowCount });
+  } catch (error) {
+    console.error('Error deleting funnel deals:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ============================================
 // COMPANIES
 // ============================================
