@@ -4390,4 +4390,277 @@ router.get('/goals/dashboard', async (req, res) => {
   }
 });
 
+// ============================================
+// IMPORT FROM SPREADSHEET
+// ============================================
+
+router.post('/import', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org || !canManage(org.role)) {
+      return res.status(403).json({ error: 'Permission denied' });
+    }
+
+    const { rows, ownerMapping } = req.body;
+    // ownerMapping: { "Bruna Silva": "uuid-of-user", ... }
+    // rows: array of parsed spreadsheet rows
+
+    if (!rows || !Array.isArray(rows) || rows.length === 0) {
+      return res.status(400).json({ error: 'Nenhum dado para importar' });
+    }
+
+    const orgId = org.organization_id;
+    const stats = { created: 0, skipped: 0, errors: [], funnelsCreated: 0, stagesCreated: 0, companiesCreated: 0 };
+
+    // Cache for funnels, stages, companies
+    const funnelCache = {};
+    const stageCache = {};
+    const companyCache = {};
+
+    // Load existing funnels
+    const existingFunnels = await query(
+      `SELECT id, name FROM crm_funnels WHERE organization_id = $1`,
+      [orgId]
+    );
+    for (const f of existingFunnels.rows) {
+      funnelCache[f.name.trim().toUpperCase()] = f.id;
+    }
+
+    // Load existing companies
+    const existingCompanies = await query(
+      `SELECT id, name FROM crm_companies WHERE organization_id = $1`,
+      [orgId]
+    );
+    for (const c of existingCompanies.rows) {
+      companyCache[c.name.trim().toUpperCase()] = c.id;
+    }
+
+    // Helper: get or create funnel
+    async function getOrCreateFunnel(name) {
+      const key = name.trim().toUpperCase();
+      if (funnelCache[key]) return funnelCache[key];
+      
+      const result = await query(
+        `INSERT INTO crm_funnels (organization_id, name) VALUES ($1, $2)
+         ON CONFLICT (organization_id, name) DO UPDATE SET updated_at = NOW()
+         RETURNING id`,
+        [orgId, name.trim()]
+      );
+      funnelCache[key] = result.rows[0].id;
+      stats.funnelsCreated++;
+      return result.rows[0].id;
+    }
+
+    // Helper: get or create stage
+    async function getOrCreateStage(funnelId, stageName) {
+      const key = `${funnelId}:${stageName.trim().toUpperCase()}`;
+      if (stageCache[key]) return stageCache[key];
+
+      // Check existing
+      const existing = await query(
+        `SELECT id FROM crm_stages WHERE funnel_id = $1 AND UPPER(TRIM(name)) = $2`,
+        [funnelId, stageName.trim().toUpperCase()]
+      );
+      if (existing.rows[0]) {
+        stageCache[key] = existing.rows[0].id;
+        return existing.rows[0].id;
+      }
+
+      // Get max position
+      const maxPos = await query(
+        `SELECT COALESCE(MAX(position), -1) as max_pos FROM crm_stages WHERE funnel_id = $1`,
+        [funnelId]
+      );
+      const pos = (maxPos.rows[0]?.max_pos || 0) + 1;
+
+      const result = await query(
+        `INSERT INTO crm_stages (funnel_id, name, position) VALUES ($1, $2, $3) RETURNING id`,
+        [funnelId, stageName.trim(), pos]
+      );
+      stageCache[key] = result.rows[0].id;
+      stats.stagesCreated++;
+      return result.rows[0].id;
+    }
+
+    // Helper: get or create company
+    async function getOrCreateCompany(companyName) {
+      const key = companyName.trim().toUpperCase();
+      if (companyCache[key]) return companyCache[key];
+
+      const result = await query(
+        `INSERT INTO crm_companies (organization_id, name, created_by) VALUES ($1, $2, $3)
+         RETURNING id`,
+        [orgId, companyName.trim(), req.userId]
+      );
+      companyCache[key] = result.rows[0].id;
+      stats.companiesCreated++;
+      return result.rows[0].id;
+    }
+
+    // Parse date helper (handles M/D/YY and M/D/YYYY)
+    function parseDate(dateStr, timeStr) {
+      if (!dateStr) return null;
+      try {
+        const parts = String(dateStr).split('/');
+        if (parts.length !== 3) return null;
+        let [month, day, year] = parts.map(Number);
+        if (year < 100) year += 2000;
+        const h = timeStr ? String(timeStr).split(':') : [0, 0];
+        return new Date(year, month - 1, day, Number(h[0]) || 0, Number(h[1]) || 0);
+      } catch { return null; }
+    }
+
+    // Map status
+    function mapStatus(estado) {
+      if (!estado) return 'open';
+      const s = estado.trim().toLowerCase();
+      if (s.includes('vendida') || s.includes('ganha') || s.includes('won')) return 'won';
+      if (s.includes('perdida') || s.includes('lost')) return 'lost';
+      return 'open';
+    }
+
+    // Process rows
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      try {
+        const funnelName = row['Funil de vendas'] || 'Importado';
+        const stageName = row['Etapa'] || 'Sem etapa';
+        const companyName = row['Empresa'] || row['Nome'] || 'Sem empresa';
+        const title = row['Nome'] || companyName;
+
+        const funnelId = await getOrCreateFunnel(funnelName);
+        const stageId = await getOrCreateStage(funnelId, stageName);
+        const companyId = await getOrCreateCompany(companyName);
+
+        const status = mapStatus(row['Estado']);
+        const value = parseFloat(row['Valor Único'] || row['Valor Unico'] || 0) || 0;
+        const createdAt = parseDate(row['Data de criação'] || row['Data de criacao'], row['Hora de criação'] || row['Hora de criacao']);
+        const closedAt = parseDate(row['Data de fechamento'], row['Hora de fechamento']);
+        const expectedClose = parseDate(row['Previsão de fechamento'] || row['Previsao de fechamento']);
+        const lastActivity = parseDate(row['Data do último contato'] || row['Data do ultimo contato'], row['Hora do último contato'] || row['Hora do ultimo contato']);
+
+        // Owner mapping
+        const ownerName = (row['Responsável'] || row['Responsavel'] || '').trim();
+        const ownerId = ownerMapping?.[ownerName] || null;
+
+        // Custom fields
+        const customFields = {};
+        if (row['Nº Orçamento'] || row['No Orcamento']) customFields['Nº Orçamento'] = row['Nº Orçamento'] || row['No Orcamento'];
+        if (row['Status da Obra']) customFields['Status da Obra'] = row['Status da Obra'];
+        if (row['Fonte']) customFields['Fonte'] = row['Fonte'];
+        if (row['Campanha']) customFields['Campanha'] = row['Campanha'];
+        if (row['Valor Recorrente'] && parseFloat(row['Valor Recorrente']) > 0) customFields['Valor Recorrente'] = row['Valor Recorrente'];
+        if (row['Qualificação'] || row['Qualificacao']) customFields['Qualificação'] = row['Qualificação'] || row['Qualificacao'];
+        if (row['Produtos']) customFields['Produtos'] = row['Produtos'];
+        if (row['Equipes do responsável'] || row['Equipes do responsavel']) customFields['Equipe'] = row['Equipes do responsável'] || row['Equipes do responsavel'];
+        if (row['Obra']) customFields['Obra'] = row['Obra'];
+
+        const lostReason = status === 'lost' 
+          ? [row['Motivo de Perda'], row['Anotação do motivo de perda']].filter(Boolean).join(' - ') || null
+          : null;
+
+        // Get max position for stage
+        const maxPosResult = await query(
+          `SELECT COALESCE(MAX(position), -1) as max_pos FROM crm_deals WHERE stage_id = $1`,
+          [stageId]
+        );
+        const position = (maxPosResult.rows[0]?.max_pos || 0) + 1;
+
+        await query(
+          `INSERT INTO crm_deals (
+            organization_id, funnel_id, stage_id, position, company_id, owner_id,
+            title, value, status, won_at, lost_at, lost_reason,
+            expected_close_date, last_activity_at, custom_fields,
+            created_by, created_at, updated_at
+          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$17)`,
+          [
+            orgId, funnelId, stageId, position, companyId, ownerId,
+            title, value, status,
+            status === 'won' ? (closedAt || createdAt || new Date()) : null,
+            status === 'lost' ? (closedAt || createdAt || new Date()) : null,
+            lostReason,
+            expectedClose, lastActivity || createdAt,
+            JSON.stringify(customFields),
+            req.userId,
+            createdAt || new Date()
+          ]
+        );
+
+        // Create contact if present
+        if (row['Contatos'] || row['Email'] || row['Telefone']) {
+          const contactName = row['Contatos'] || row['Nome'] || '';
+          const contactEmail = row['Email'] || '';
+          const contactPhone = (row['Telefone'] || '').replace(/[^\d+]/g, '');
+          
+          if (contactName || contactEmail || contactPhone) {
+            try {
+              // Try to find existing contact
+              let contactId = null;
+              if (contactPhone) {
+                const existing = await query(
+                  `SELECT id FROM contacts WHERE organization_id = $1 AND phone = $2 LIMIT 1`,
+                  [orgId, contactPhone]
+                );
+                if (existing.rows[0]) contactId = existing.rows[0].id;
+              }
+              if (!contactId && contactEmail) {
+                const existing = await query(
+                  `SELECT id FROM contacts WHERE organization_id = $1 AND email = $2 LIMIT 1`,
+                  [orgId, contactEmail]
+                );
+                if (existing.rows[0]) contactId = existing.rows[0].id;
+              }
+              if (!contactId && contactName) {
+                const ins = await query(
+                  `INSERT INTO contacts (organization_id, name, email, phone) VALUES ($1, $2, $3, $4) RETURNING id`,
+                  [orgId, contactName, contactEmail || null, contactPhone || null]
+                );
+                contactId = ins.rows[0].id;
+              }
+
+              // Link contact to deal
+              if (contactId) {
+                const dealResult = await query(
+                  `SELECT id FROM crm_deals WHERE organization_id = $1 AND title = $2 AND company_id = $3 
+                   ORDER BY created_at DESC LIMIT 1`,
+                  [orgId, title, companyId]
+                );
+                if (dealResult.rows[0]) {
+                  await query(
+                    `INSERT INTO crm_deal_contacts (deal_id, contact_id, is_primary, role) 
+                     VALUES ($1, $2, true, $3) ON CONFLICT DO NOTHING`,
+                    [dealResult.rows[0].id, contactId, row['Cargo'] || null]
+                  );
+                }
+              }
+            } catch (contactErr) {
+              // Don't fail import for contact errors
+              console.log('Contact link error:', contactErr.message);
+            }
+          }
+        }
+
+        stats.created++;
+      } catch (rowErr) {
+        stats.errors.push(`Linha ${i + 2}: ${rowErr.message}`);
+        stats.skipped++;
+      }
+    }
+
+    logInfo('crm.import_completed', { 
+      user_id: req.userId, 
+      org_id: orgId, 
+      ...stats 
+    });
+
+    res.json({
+      success: true,
+      stats
+    });
+  } catch (error) {
+    logError('crm.import_failed', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

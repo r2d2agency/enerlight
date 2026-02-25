@@ -9,8 +9,9 @@ import { DealFormDialog } from "@/components/crm/DealFormDialog";
 import { FunnelEditorDialog } from "@/components/crm/FunnelEditorDialog";
 import { WinCelebration } from "@/components/crm/WinCelebration";
 import { LossReasonDialog } from "@/components/crm/LossReasonDialog";
+import { CRMImportDialog } from "@/components/crm/CRMImportDialog";
 import { useCRMFunnels, useCRMFunnel, useCRMDeals, useCRMMyTeam, useCRMDealMutations, useCRMDeal, CRMDeal, CRMFunnel } from "@/hooks/use-crm";
-import { Plus, Settings, Loader2, Filter, User, ArrowUpDown, CalendarIcon, X, LayoutGrid, List, Trophy, XCircle, Pause } from "lucide-react";
+import { Plus, Settings, Loader2, Filter, User, ArrowUpDown, CalendarIcon, X, LayoutGrid, List, Trophy, XCircle, Pause, FileSpreadsheet } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { parseISO, format, startOfDay, endOfDay, isWithinInterval } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -20,6 +21,8 @@ import { cn } from "@/lib/utils";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { toast } from "sonner";
 import { useSearchParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 export default function CRMNegociacoes() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -41,6 +44,14 @@ export default function CRMNegociacoes() {
   const [newDealOpen, setNewDealOpen] = useState(false);
   const [funnelEditorOpen, setFunnelEditorOpen] = useState(false);
   const [editingFunnel, setEditingFunnel] = useState<CRMFunnel | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+
+  // Org members for import mapping
+  const { data: orgMembers = [] } = useQuery<{ id: string; name: string; email: string }[]>({
+    queryKey: ["internal-org-members"],
+    queryFn: () => api("/api/internal-chat/org-members"),
+    enabled: importOpen,
+  });
   
   // View mode
   const [viewMode, setViewMode] = useState<"kanban" | "pipeline">("kanban");
@@ -234,6 +245,12 @@ export default function CRMNegociacoes() {
                 </ToggleGroupItem>
               </ToggleGroup>
 
+              {canManage && (
+                <Button variant="outline" size="sm" onClick={() => setImportOpen(true)} className="hidden lg:flex">
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Importar
+                </Button>
+              )}
               {canManage && (
                 <Button variant="outline" size="sm" onClick={handleNewFunnel} className="hidden lg:flex">
                   <Plus className="h-4 w-4 mr-2" />
@@ -536,6 +553,12 @@ export default function CRMNegociacoes() {
         onOpenChange={setLossDialogOpen}
         onConfirm={handleConfirmLoss}
         dealTitle={pendingLossDeal?.title}
+      />
+
+      <CRMImportDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        orgMembers={orgMembers}
       />
     </MainLayout>
   );
