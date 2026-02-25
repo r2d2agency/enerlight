@@ -95,26 +95,47 @@ export function CRMImportDialog({ open, onOpenChange, orgMembers }: CRMImportDia
     setProgress(10);
 
     try {
-      // Send in batches of 100
-      const batchSize = 100;
+      // Send in smaller batches to reduce timeout risk on reverse proxy
+      const batchSize = 25;
       const totalBatches = Math.ceil(rows.length / batchSize);
       let totalCreated = 0;
       let totalSkipped = 0;
       let allErrors: string[] = [];
       let lastStats: any = null;
 
+      const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
       for (let i = 0; i < totalBatches; i++) {
         const batch = rows.slice(i * batchSize, (i + 1) * batchSize);
-        const result = await api<any>("/api/crm/import", {
-          method: "POST",
-          body: { rows: batch, ownerMapping },
-        });
-        
+
+        let result: any = null;
+        let lastError: any = null;
+
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          try {
+            result = await api<any>("/api/crm/import", {
+              method: "POST",
+              body: { rows: batch, ownerMapping },
+            });
+            break;
+          } catch (err: any) {
+            lastError = err;
+            const msg = String(err?.message || "");
+            const isGatewayError = msg.includes("(502)") || msg.includes("(504)");
+            if (!isGatewayError || attempt === 3) break;
+            await wait(800 * attempt);
+          }
+        }
+
+        if (!result) {
+          throw lastError || new Error("Falha ao importar lote");
+        }
+
         totalCreated += result.stats?.created || 0;
         totalSkipped += result.stats?.skipped || 0;
         if (result.stats?.errors) allErrors.push(...result.stats.errors);
         lastStats = result.stats;
-        
+
         setProgress(Math.round(((i + 1) / totalBatches) * 100));
       }
 
