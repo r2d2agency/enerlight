@@ -125,7 +125,7 @@ export const DealCard = forwardRef<HTMLDivElement, DealCardProps>(
         style={cardStyle}
         onClick={onClick}
         className={cn(
-          "p-3 cursor-grab active:cursor-grabbing",
+          "p-3 cursor-grab active:cursor-grabbing overflow-hidden",
           "transition-all duration-200 ease-out",
           "hover:shadow-md hover:-translate-y-0.5",
           isDragging && "shadow-2xl scale-105 rotate-2 ring-2 ring-primary/50 cursor-grabbing",
@@ -142,21 +142,23 @@ export const DealCard = forwardRef<HTMLDivElement, DealCardProps>(
         )}
 
         {/* Title & Value */}
-        <div className="flex items-start justify-between gap-2 mb-2">
+        <div className="flex items-start justify-between gap-2 mb-2 min-w-0">
           <h4 className={cn(
-            "font-medium text-sm line-clamp-2",
+            "font-medium text-sm line-clamp-2 min-w-0 break-words",
             isPaused && "text-muted-foreground"
           )}>
             {deal.title}
           </h4>
-          <Badge variant="outline" className={cn(
-            "shrink-0 text-xs",
-            isWon && "border-green-500 text-green-600",
-            isLost && "border-red-500 text-red-600 line-through",
-            isPaused && "border-gray-400 text-gray-500"
-          )}>
-            {formatCurrency(deal.value)}
-          </Badge>
+          {deal.value > 0 && (
+            <Badge variant="outline" className={cn(
+              "shrink-0 text-xs whitespace-nowrap",
+              isWon && "border-green-500 text-green-600",
+              isLost && "border-red-500 text-red-600 line-through",
+              isPaused && "border-gray-400 text-gray-500"
+            )}>
+              {formatCurrency(deal.value)}
+            </Badge>
+          )}
         </div>
 
         {/* Company */}
