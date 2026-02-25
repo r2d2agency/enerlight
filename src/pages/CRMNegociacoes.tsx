@@ -136,16 +136,21 @@ export default function CRMNegociacoes() {
   }, [updateDeal, pendingLossDeal]);
 
   // Sort function
+  const safeParseTime = (val: string | null | undefined): number => {
+    if (!val) return 0;
+    try { return parseISO(val).getTime(); } catch { return 0; }
+  };
+
   const sortDeals = (deals: CRMDeal[]): CRMDeal[] => {
     return [...deals].sort((a, b) => {
       switch (sortOrder) {
         case "oldest":
-          return parseISO(a.created_at).getTime() - parseISO(b.created_at).getTime();
+          return safeParseTime(a.created_at) - safeParseTime(b.created_at);
         case "last_activity":
-          return parseISO(b.last_activity_at).getTime() - parseISO(a.last_activity_at).getTime();
+          return safeParseTime(b.last_activity_at) - safeParseTime(a.last_activity_at);
         case "recent":
         default:
-          return parseISO(b.created_at).getTime() - parseISO(a.created_at).getTime();
+          return safeParseTime(b.created_at) - safeParseTime(a.created_at);
       }
     });
   };
@@ -177,9 +182,9 @@ export default function CRMNegociacoes() {
       // Filter by date range
       if (startDate || endDate) {
         filtered = filtered.filter(d => {
-          const dateToCheck = dateFilterType === "last_activity" 
-            ? parseISO(d.last_activity_at) 
-            : parseISO(d.created_at);
+          const raw = dateFilterType === "last_activity" ? d.last_activity_at : d.created_at;
+          if (!raw) return false;
+          const dateToCheck = parseISO(raw);
           
           if (startDate && endDate) {
             return isWithinInterval(dateToCheck, {
