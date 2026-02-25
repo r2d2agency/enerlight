@@ -4558,22 +4558,27 @@ router.post('/import', async (req, res) => {
         // String date
         else {
           const str = String(dateStr).trim();
+          // Try YYYY-MM-DD (ISO short format from dateNF)
+          const isoParts = str.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+          if (isoParts) {
+            d = new Date(Number(isoParts[1]), Number(isoParts[2]) - 1, Number(isoParts[3]));
+          }
           // Try DD/MM/YYYY or D/M/YYYY (Brazilian format)
-          const brParts = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
-          if (brParts) {
-            let [, p1, p2, p3] = brParts.map(Number);
-            if (p3 < 100) p3 += 2000;
-            // If p1 > 12, it's DD/MM/YYYY; otherwise try MM/DD/YYYY
-            if (p1 > 12) {
-              d = new Date(p3, p2 - 1, p1); // DD/MM/YYYY
-            } else if (p2 > 12) {
-              d = new Date(p3, p1 - 1, p2); // MM/DD/YYYY
-            } else {
-              // Ambiguous - assume DD/MM/YYYY (Brazilian default)
-              d = new Date(p3, p2 - 1, p1);
+          if (!d) {
+            const brParts = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+            if (brParts) {
+              let [, p1, p2, p3] = brParts.map(Number);
+              if (p3 < 100) p3 += 2000;
+              if (p1 > 12) {
+                d = new Date(p3, p2 - 1, p1);
+              } else if (p2 > 12) {
+                d = new Date(p3, p1 - 1, p2);
+              } else {
+                d = new Date(p3, p2 - 1, p1);
+              }
             }
           }
-          // Try ISO format
+          // Try ISO format (full datetime string)
           if (!d) {
             const parsed = new Date(str);
             if (!isNaN(parsed.getTime())) d = parsed;
@@ -4604,15 +4609,13 @@ router.post('/import', async (req, res) => {
     // Log column names for debugging (first row only)
     if (rows.length > 0) {
       const r0 = rows[0];
-      console.log('Import date raw values:', {
-        'Data de criação': r0['Data de criação'], type: typeof r0['Data de criação'],
-        'Data de fechamento': r0['Data de fechamento'], type2: typeof r0['Data de fechamento'],
+      const allCols = Object.keys(r0);
+      const dateCols = allCols.filter(k => k.toLowerCase().includes('data') || k.toLowerCase().includes('hora') || k.toLowerCase().includes('date'));
+      console.log('Import columns:', allCols);
+      console.log('Import date columns found:', dateCols);
+      dateCols.forEach(col => {
+        console.log(`  Column "${col}": raw="${r0[col]}" (type: ${typeof r0[col]}) → parsed: ${parseDate(r0[col])}`);
       });
-      console.log('Import date parsed:', {
-        created: parseDate(r0['Data de criação'] || r0['Data de criacao']),
-        closed: parseDate(r0['Data de fechamento']),
-      });
-      console.log('Import columns:', Object.keys(rows[0]));
     }
 
     // Helper: find value from multiple possible column names
