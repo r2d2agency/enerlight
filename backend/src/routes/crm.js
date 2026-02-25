@@ -55,6 +55,13 @@ function canManage(role) {
   return ['owner', 'admin', 'manager'].includes(role);
 }
 
+// Helper: Get user name for audit snapshot
+async function getUserName(userId) {
+  if (!userId) return null;
+  const result = await query(`SELECT name FROM users WHERE id = $1`, [userId]);
+  return result.rows[0]?.name || null;
+}
+
 // Helper: Get user's group IDs (for supervisor visibility)
 async function getUserGroupIds(userId) {
   const result = await query(
@@ -1008,7 +1015,7 @@ router.get('/deals/:id', async (req, res) => {
 
     // Get history
     const history = await query(
-      `SELECT h.*, u.name as user_name
+      `SELECT h.*, COALESCE(h.user_name_snapshot, u.name) as user_name
        FROM crm_deal_history h
        LEFT JOIN users u ON u.id = h.user_id
        WHERE h.deal_id = $1
@@ -1136,10 +1143,11 @@ router.post('/deals', async (req, res) => {
       );
     }
 
-    // Log history
+    // Log history with name snapshot
+    const creatorName = await getUserName(req.userId);
     await query(
-      `INSERT INTO crm_deal_history (deal_id, user_id, action, to_value) VALUES ($1, $2, 'created', $3)`,
-      [deal.id, req.userId, title]
+      `INSERT INTO crm_deal_history (deal_id, user_id, user_name_snapshot, action, to_value) VALUES ($1, $2, $3, 'created', $4)`,
+      [deal.id, req.userId, creatorName, title]
     );
 
     res.json(deal);
@@ -1215,9 +1223,10 @@ router.put('/deals/:id', async (req, res) => {
     if (stage_id && stage_id !== current.rows[0].stage_id) {
       const oldStage = await query(`SELECT name FROM crm_stages WHERE id = $1`, [current.rows[0].stage_id]);
       const newStage = await query(`SELECT name FROM crm_stages WHERE id = $1`, [stage_id]);
+      const userName = await getUserName(req.userId);
       await query(
-        `INSERT INTO crm_deal_history (deal_id, user_id, action, from_value, to_value) VALUES ($1, $2, 'stage_changed', $3, $4)`,
-        [req.params.id, req.userId, oldStage.rows[0]?.name, newStage.rows[0]?.name]
+        `INSERT INTO crm_deal_history (deal_id, user_id, user_name_snapshot, action, from_value, to_value) VALUES ($1, $2, $3, 'stage_changed', $4, $5)`,
+        [req.params.id, req.userId, userName, oldStage.rows[0]?.name, newStage.rows[0]?.name]
       );
     }
 
@@ -1228,23 +1237,24 @@ router.put('/deals/:id', async (req, res) => {
         const reasonResult = await query(`SELECT name FROM crm_loss_reasons WHERE id = $1`, [loss_reason_id]);
         if (reasonResult.rows[0]) {
           reasonName = reasonResult.rows[0].name;
-          // Increment usage count
           await query(`UPDATE crm_loss_reasons SET usage_count = usage_count + 1 WHERE id = $1`, [loss_reason_id]);
         }
       }
+      const userName = await getUserName(req.userId);
       await query(
-        `INSERT INTO crm_deal_history (deal_id, user_id, action, from_value, to_value, notes) 
-         VALUES ($1, $2, 'status_changed', $3, 'lost', $4)`,
-        [req.params.id, req.userId, current.rows[0].status, `Motivo: ${reasonName}${lost_reason ? `. ${lost_reason}` : ''}`]
+        `INSERT INTO crm_deal_history (deal_id, user_id, user_name_snapshot, action, from_value, to_value, notes) 
+         VALUES ($1, $2, $3, 'status_changed', $4, 'lost', $5)`,
+        [req.params.id, req.userId, userName, current.rows[0].status, `Motivo: ${reasonName}${lost_reason ? `. ${lost_reason}` : ''}`]
       );
     }
 
     // Log history for status change to won
     if (status === 'won' && current.rows[0].status !== 'won') {
+      const userName = await getUserName(req.userId);
       await query(
-        `INSERT INTO crm_deal_history (deal_id, user_id, action, from_value, to_value) 
-         VALUES ($1, $2, 'status_changed', $3, 'won')`,
-        [req.params.id, req.userId, current.rows[0].status]
+        `INSERT INTO crm_deal_history (deal_id, user_id, user_name_snapshot, action, from_value, to_value) 
+         VALUES ($1, $2, $3, 'status_changed', $4, 'won')`,
+        [req.params.id, req.userId, userName, current.rows[0].status]
       );
     }
 
@@ -1361,9 +1371,10 @@ router.post('/deals/:id/move', async (req, res) => {
       // Log history
       const oldStage = await query(`SELECT name FROM crm_stages WHERE id = $1`, [oldStageId]);
       const newStage = await query(`SELECT name FROM crm_stages WHERE id = $1`, [stage_id]);
+      const userName = await getUserName(req.userId);
       await query(
-        `INSERT INTO crm_deal_history (deal_id, user_id, action, from_value, to_value) VALUES ($1, $2, 'stage_changed', $3, $4)`,
-        [req.params.id, req.userId, oldStage.rows[0]?.name, newStage.rows[0]?.name]
+        `INSERT INTO crm_deal_history (deal_id, user_id, user_name_snapshot, action, from_value, to_value) VALUES ($1, $2, $3, 'stage_changed', $4, $5)`,
+        [req.params.id, req.userId, userName, oldStage.rows[0]?.name, newStage.rows[0]?.name]
       );
 
       // Trigger automation for new stage (if configured)

@@ -1436,12 +1436,19 @@ CREATE TABLE IF NOT EXISTS crm_deal_history (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     deal_id UUID REFERENCES crm_deals(id) ON DELETE CASCADE NOT NULL,
     user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    user_name_snapshot VARCHAR(255),
     action VARCHAR(50) NOT NULL,
     from_value TEXT,
     to_value TEXT,
     notes TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Add user_name_snapshot if missing (migration)
+DO $$ BEGIN
+  ALTER TABLE crm_deal_history ADD COLUMN IF NOT EXISTS user_name_snapshot VARCHAR(255);
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
 
 -- CRM Tasks
 CREATE TABLE IF NOT EXISTS crm_tasks (
