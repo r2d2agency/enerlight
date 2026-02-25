@@ -4619,6 +4619,8 @@ router.post('/import', async (req, res) => {
       const s = estado.trim().toLowerCase();
       if (s.includes('vendida') || s.includes('ganha') || s.includes('won')) return 'won';
       if (s.includes('perdida') || s.includes('lost')) return 'lost';
+      if (s.includes('pausada') || s.includes('paused') || s.includes('suspens')) return 'paused';
+      // "em andamento" or any other value = open
       return 'open';
     }
 

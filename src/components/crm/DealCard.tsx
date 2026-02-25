@@ -142,23 +142,25 @@ export const DealCard = forwardRef<HTMLDivElement, DealCardProps>(
         )}
 
         {/* Title & Value */}
-        <div className="flex items-start justify-between gap-2 mb-2 min-w-0">
-          <h4 className={cn(
-            "font-medium text-sm line-clamp-1 min-w-0 break-words",
-            isPaused && "text-muted-foreground"
-          )}>
-            {deal.title}
-          </h4>
-          {deal.value > 0 && (
-            <Badge variant="outline" className={cn(
-              "shrink-0 text-xs whitespace-nowrap",
-              isWon && "border-green-500 text-green-600",
-              isLost && "border-red-500 text-red-600 line-through",
-              isPaused && "border-gray-400 text-gray-500"
-            )}>
-              {formatCurrency(deal.value)}
-            </Badge>
-          )}
+        <div className="mb-2 min-w-0">
+          <div className="flex items-center justify-between gap-2">
+            <h4 className={cn(
+              "font-medium text-sm truncate min-w-0",
+              isPaused && "text-muted-foreground"
+            )} title={deal.title}>
+              {deal.title}
+            </h4>
+            {deal.value > 0 && (
+              <Badge variant="outline" className={cn(
+                "shrink-0 text-[11px] whitespace-nowrap",
+                isWon && "border-green-500 text-green-600",
+                isLost && "border-red-500 text-red-600 line-through",
+                isPaused && "border-gray-400 text-gray-500"
+              )}>
+                {formatCurrency(deal.value)}
+              </Badge>
+            )}
+          </div>
         </div>
 
         {/* Company */}
