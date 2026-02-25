@@ -163,7 +163,7 @@ export function CRMImportDialog({ open, onOpenChange, orgMembers }: CRMImportDia
         {/* Step 1: Upload */}
         {step === "upload" && (
           <div className="flex flex-col items-center justify-center py-12 gap-4">
-            <div className="border-2 border-dashed rounded-lg p-12 text-center w-full cursor-pointer hover:border-primary/50 transition-colors">
+            <label className="relative border-2 border-dashed rounded-lg p-12 text-center w-full cursor-pointer hover:border-primary/50 transition-colors">
               <Upload className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
               <p className="text-sm text-muted-foreground mb-2">Arraste ou clique para selecionar</p>
               <p className="text-xs text-muted-foreground">Formatos: .xlsx, .xls</p>
@@ -171,10 +171,9 @@ export function CRMImportDialog({ open, onOpenChange, orgMembers }: CRMImportDia
                 type="file"
                 accept=".xlsx,.xls"
                 onChange={handleFileUpload}
-                className="absolute inset-0 opacity-0 cursor-pointer"
-                style={{ position: "relative" }}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               />
-            </div>
+            </label>
           </div>
         )}
 
