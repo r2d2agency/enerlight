@@ -4601,7 +4601,16 @@ router.post('/import', async (req, res) => {
         );
 
         if (existingDeal.rows[0]) {
-          stats.skipped++;
+          // Update existing deal with new values
+          await query(
+            `UPDATE crm_deals SET value = $1, owner_id = COALESCE($2, owner_id), 
+             status = $3, lost_reason = $4, expected_close_date = COALESCE($5, expected_close_date),
+             last_activity_at = COALESCE($6, last_activity_at), custom_fields = $7,
+             updated_at = NOW()
+             WHERE id = $8`,
+            [value, ownerId, status, lostReason, expectedClose, lastActivity, JSON.stringify(customFields), existingDeal.rows[0].id]
+          );
+          stats.skipped++; // count as updated
           continue;
         }
 
