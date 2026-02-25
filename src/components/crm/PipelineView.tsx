@@ -63,7 +63,7 @@ export function PipelineView({ stages, dealsByStage, onDealClick, onStatusChange
 
         {/* Deals list */}
         {allDeals.map((deal) => {
-          const hoursInactive = differenceInHours(new Date(), parseISO(deal.last_activity_at));
+          const hoursInactive = deal.last_activity_at ? differenceInHours(new Date(), parseISO(deal.last_activity_at)) : 0;
           const isNewWin = newWinDealId === deal.id;
 
           return (
@@ -153,7 +153,7 @@ export function PipelineView({ stages, dealsByStage, onDealClick, onStatusChange
               {/* Last activity */}
               <div className="col-span-2 flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Clock className="h-3.5 w-3.5" />
-                <span>{format(parseISO(deal.last_activity_at), "dd/MM HH:mm", { locale: ptBR })}</span>
+                <span>{deal.last_activity_at ? format(parseISO(deal.last_activity_at), "dd/MM HH:mm", { locale: ptBR }) : "—"}</span>
                 <span className="text-muted-foreground/50">({hoursInactive}h)</span>
               </div>
             </Card>

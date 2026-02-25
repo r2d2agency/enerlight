@@ -17,7 +17,7 @@ interface DealCardProps {
 export const DealCard = forwardRef<HTMLDivElement, DealCardProps>(
   function DealCard({ deal, isDragging, onClick, isNewWin }, ref) {
     // Calculate inactivity
-    const hoursInactive = differenceInHours(new Date(), parseISO(deal.last_activity_at));
+    const hoursInactive = deal.last_activity_at ? differenceInHours(new Date(), parseISO(deal.last_activity_at)) : 0;
     const isInactive = deal.inactivity_hours && hoursInactive >= deal.inactivity_hours;
     
     // Convert pending_tasks to number (comes as string from API)
