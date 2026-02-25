@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +14,9 @@ import { DndContext, closestCenter, DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { StageAutomationEditor } from "./StageAutomationEditor";
+import { toast } from "sonner";
+import { api } from "@/lib/api";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface FunnelEditorDialogProps {
   funnel: CRMFunnel | null;
@@ -128,6 +132,7 @@ export function FunnelEditorDialog({ funnel, open, onOpenChange }: FunnelEditorD
   const [stages, setStages] = useState<CRMStage[]>([]);
 
   const { createFunnel, updateFunnel } = useCRMFunnelMutations();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (funnel) {
@@ -289,13 +294,52 @@ export function FunnelEditorDialog({ funnel, open, onOpenChange }: FunnelEditorD
           </div>
         </div>
 
-        <DialogFooter className="flex-shrink-0 border-t pt-4">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancelar
-          </Button>
-          <Button onClick={handleSave} disabled={!name.trim() || stages.length < 2}>
-            {funnel ? "Salvar" : "Criar Funil"}
-          </Button>
+        <DialogFooter className="flex-shrink-0 border-t pt-4 justify-between">
+          <div>
+            {funnel?.id && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" size="sm">
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    Limpar negociações
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Apagar todas as negociações?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Isso vai remover TODAS as negociações do funil "{funnel.name}". Esta ação não pode ser desfeita.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      onClick={async () => {
+                        try {
+                          const result = await api<any>(`/api/crm/funnels/${funnel.id}/deals`, { method: "DELETE" });
+                          toast.success(`${result.deleted || 0} negociações removidas`);
+                          queryClient.invalidateQueries({ queryKey: ["crm"] });
+                        } catch (err: any) {
+                          toast.error(err.message || "Erro ao apagar");
+                        }
+                      }}
+                    >
+                      Sim, apagar todas
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSave} disabled={!name.trim() || stages.length < 2}>
+              {funnel ? "Salvar" : "Criar Funil"}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
