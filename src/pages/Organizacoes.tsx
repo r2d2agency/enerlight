@@ -105,6 +105,8 @@ export default function Organizacoes() {
   const [newMemberRole, setNewMemberRole] = useState<string>('agent');
   const [newMemberConnectionIds, setNewMemberConnectionIds] = useState<string[]>([]);
   const [newMemberDepartmentIds, setNewMemberDepartmentIds] = useState<string[]>([]);
+  const [newMemberTemplateId, setNewMemberTemplateId] = useState<string>('');
+  const [permissionTemplates, setPermissionTemplates] = useState<Array<{ id: string; name: string; description: string | null; icon: string }>>([]);
 
   // Edit member dialog
   const [editMemberDialogOpen, setEditMemberDialogOpen] = useState(false);
@@ -176,6 +178,7 @@ export default function Organizacoes() {
   useEffect(() => {
     loadOrganizations();
     checkSuperadmin().then(setIsSuperadmin);
+    loadPermissionTemplates();
   }, []);
 
   useEffect(() => {
@@ -186,6 +189,15 @@ export default function Organizacoes() {
       loadModules(selectedOrg.id);
     }
   }, [selectedOrg]);
+
+  const loadPermissionTemplates = async () => {
+    try {
+      const tpls = await api<Array<{ id: string; name: string; description: string | null; icon: string }>>('/api/permission-templates');
+      setPermissionTemplates(tpls);
+    } catch (e) {
+      console.error('Error loading permission templates:', e);
+    }
+  };
 
   const loadOrganizations = async () => {
     setLoadingOrgs(true);
@@ -322,7 +334,8 @@ export default function Organizacoes() {
       name: newMemberName,
       password: newMemberPassword,
       connection_ids: newMemberConnectionIds.length > 0 ? newMemberConnectionIds : undefined,
-      department_ids: newMemberDepartmentIds.length > 0 ? newMemberDepartmentIds : undefined
+      department_ids: newMemberDepartmentIds.length > 0 ? newMemberDepartmentIds : undefined,
+      permission_template_id: newMemberTemplateId || undefined
     });
 
     if (result.success) {
@@ -342,6 +355,7 @@ export default function Organizacoes() {
     setNewMemberRole('agent');
     setNewMemberConnectionIds([]);
     setNewMemberDepartmentIds([]);
+    setNewMemberTemplateId('');
   };
 
   const handleOpenEditMember = (member: OrganizationMember) => {
@@ -795,6 +809,31 @@ export default function Organizacoes() {
                                       </SelectContent>
                                     </Select>
                                   </div>
+
+                                  {permissionTemplates.length > 0 && (
+                                    <div className="space-y-2">
+                                      <Label className="flex items-center gap-2">
+                                        <ShieldCheck className="h-4 w-4" />
+                                        Template de Permissões
+                                      </Label>
+                                      <p className="text-xs text-muted-foreground">
+                                        Aplica automaticamente as permissões do template ao criar o usuário
+                                      </p>
+                                      <Select value={newMemberTemplateId} onValueChange={setNewMemberTemplateId}>
+                                        <SelectTrigger>
+                                          <SelectValue placeholder="Nenhum (usar padrão do cargo)" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="">Nenhum (usar padrão do cargo)</SelectItem>
+                                          {permissionTemplates.map((tpl) => (
+                                            <SelectItem key={tpl.id} value={tpl.id}>
+                                              {tpl.name}{tpl.description ? ` - ${tpl.description}` : ''}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                  )}
 
                                   {connections.length > 0 && (
                                     <div className="space-y-2">
