@@ -4612,7 +4612,6 @@ router.post('/import', async (req, res) => {
         created: parseDate(r0['Data de criação'] || r0['Data de criacao']),
         closed: parseDate(r0['Data de fechamento']),
       });
-    }
       console.log('Import columns:', Object.keys(rows[0]));
     }
 
