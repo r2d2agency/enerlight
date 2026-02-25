@@ -236,7 +236,7 @@ export function CRMImportDialog({ open, onOpenChange, orgMembers }: CRMImportDia
               <Badge variant="outline">{uniqueOwners.length} encontrados</Badge>
             </div>
 
-            <ScrollArea className="flex-1 max-h-[40vh] border rounded-md p-1" type="always">
+            <div className="flex-1 max-h-[40vh] overflow-y-auto border rounded-md p-1">
               <div className="space-y-2 pr-4">
                 {uniqueOwners.map(owner => {
                   const count = rows.filter(r => (r["Responsável"] || r["Responsavel"] || "").trim() === owner).length;
@@ -270,7 +270,7 @@ export function CRMImportDialog({ open, onOpenChange, orgMembers }: CRMImportDia
                   </p>
                 )}
               </div>
-            </ScrollArea>
+            </div>
 
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={() => setStep("upload")}>Voltar</Button>
