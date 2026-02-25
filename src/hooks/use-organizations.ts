@@ -55,6 +55,7 @@ interface AddMemberParams {
   password?: string;
   connection_ids?: string[];
   department_ids?: string[];
+  permission_template_id?: string;
 }
 
 interface UpdateMemberParams {

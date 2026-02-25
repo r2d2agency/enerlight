@@ -3360,6 +3360,36 @@ CREATE TRIGGER trigger_internal_topics_updated_at
 `;
 
 // Migration steps in order of execution
+// ============================================
+// STEP 43: DEFAULT PERMISSION TEMPLATES (seed)
+// ============================================
+const step43DefaultTemplates = `
+-- Seed default permission templates if none exist
+INSERT INTO permission_templates (name, description, icon, permissions, sort_order, is_default)
+SELECT 'Vendedor', 'Acesso padrão de vendedor com CRM e Chat', 'Users', 
+  '{"can_view_chat":true,"can_view_crm":true,"can_view_prospects":true,"can_view_calendar":true,"can_view_tasks":true,"can_view_contacts":true,"can_view_schedules":true,"can_view_tags":true,"can_view_settings":true,"can_view_internal_chat":true,"can_view_chatbots":false,"can_view_flows":false,"can_view_departments":false,"can_view_ai_secretary":false,"can_view_ai_agents":false,"can_view_companies":false,"can_view_map":false,"can_view_reports":false,"can_view_revenue_intel":false,"can_view_ghost":false,"can_view_crm_settings":false,"can_view_projects":false,"can_view_campaigns":false,"can_view_sequences":false,"can_view_external_flows":false,"can_view_webhooks":false,"can_view_ctwa":false,"can_view_billing":false,"can_view_connections":false,"can_view_organizations":false}'::jsonb,
+  1, true
+WHERE NOT EXISTS (SELECT 1 FROM permission_templates WHERE name = 'Vendedor' AND is_default = true);
+
+INSERT INTO permission_templates (name, description, icon, permissions, sort_order, is_default)
+SELECT 'Gerente', 'Gerente com visão de equipe e relatórios', 'Briefcase',
+  '{"can_view_chat":true,"can_view_crm":true,"can_view_prospects":true,"can_view_companies":true,"can_view_map":true,"can_view_calendar":true,"can_view_tasks":true,"can_view_reports":true,"can_view_contacts":true,"can_view_schedules":true,"can_view_tags":true,"can_view_settings":true,"can_view_internal_chat":true,"can_view_projects":true,"can_view_chatbots":false,"can_view_flows":false,"can_view_departments":false,"can_view_ai_secretary":false,"can_view_ai_agents":false,"can_view_revenue_intel":false,"can_view_ghost":false,"can_view_crm_settings":false,"can_view_campaigns":false,"can_view_sequences":false,"can_view_external_flows":false,"can_view_webhooks":false,"can_view_ctwa":false,"can_view_billing":false,"can_view_connections":false,"can_view_organizations":false}'::jsonb,
+  2, true
+WHERE NOT EXISTS (SELECT 1 FROM permission_templates WHERE name = 'Gerente' AND is_default = true);
+
+INSERT INTO permission_templates (name, description, icon, permissions, sort_order, is_default)
+SELECT 'Projetista', 'Acesso focado em Projetos e tarefas', 'Eye',
+  '{"can_view_chat":true,"can_view_projects":true,"can_view_tasks":true,"can_view_calendar":true,"can_view_contacts":true,"can_view_settings":true,"can_view_internal_chat":true,"can_view_crm":false,"can_view_prospects":false,"can_view_companies":false,"can_view_map":false,"can_view_reports":false,"can_view_revenue_intel":false,"can_view_ghost":false,"can_view_crm_settings":false,"can_view_chatbots":false,"can_view_flows":false,"can_view_departments":false,"can_view_ai_secretary":false,"can_view_ai_agents":false,"can_view_schedules":false,"can_view_tags":false,"can_view_campaigns":false,"can_view_sequences":false,"can_view_external_flows":false,"can_view_webhooks":false,"can_view_ctwa":false,"can_view_billing":false,"can_view_connections":false,"can_view_organizations":false}'::jsonb,
+  3, true
+WHERE NOT EXISTS (SELECT 1 FROM permission_templates WHERE name = 'Projetista' AND is_default = true);
+
+INSERT INTO permission_templates (name, description, icon, permissions, sort_order, is_default)
+SELECT 'Faturamento', 'Acesso ao módulo de cobrança e financeiro', 'Shield',
+  '{"can_view_billing":true,"can_view_chat":true,"can_view_contacts":true,"can_view_settings":true,"can_view_internal_chat":true,"can_view_crm":false,"can_view_prospects":false,"can_view_companies":false,"can_view_map":false,"can_view_calendar":false,"can_view_tasks":false,"can_view_reports":false,"can_view_revenue_intel":false,"can_view_ghost":false,"can_view_crm_settings":false,"can_view_projects":false,"can_view_chatbots":false,"can_view_flows":false,"can_view_departments":false,"can_view_ai_secretary":false,"can_view_ai_agents":false,"can_view_schedules":false,"can_view_tags":false,"can_view_campaigns":false,"can_view_sequences":false,"can_view_external_flows":false,"can_view_webhooks":false,"can_view_ctwa":false,"can_view_connections":false,"can_view_organizations":false}'::jsonb,
+  4, true
+WHERE NOT EXISTS (SELECT 1 FROM permission_templates WHERE name = 'Faturamento' AND is_default = true);
+`;
+
 const migrationSteps = [
   { name: 'Enums', sql: step1Enums, critical: true },
   { name: 'Core Tables (users, plans)', sql: step2CoreTables, critical: true },
@@ -3404,6 +3434,7 @@ const migrationSteps = [
   { name: 'Meetings Module', sql: step40Meetings, critical: false },
   { name: 'Schedule Blocks', sql: step41ScheduleBlocks, critical: false },
   { name: 'Internal Chat', sql: step42InternalChat, critical: false },
+  { name: 'Default Permission Templates', sql: step43DefaultTemplates, critical: false },
 ];
 
 export async function initDatabase() {

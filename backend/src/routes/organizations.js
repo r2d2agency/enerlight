@@ -2,6 +2,7 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { query } from '../db.js';
 import { authenticate } from '../middleware/auth.js';
+import { PERMISSION_COLUMNS } from './permissions.js';
 
 const router = Router();
 router.use(authenticate);
@@ -315,7 +316,7 @@ router.get('/:id([0-9a-fA-F-]{36})/members', async (req, res) => {
 router.post('/:id([0-9a-fA-F-]{36})/members', async (req, res) => {
   try {
     const { id } = req.params;
-    const { email, name, password, role, connection_ids } = req.body;
+    const { email, name, password, role, connection_ids, permission_template_id } = req.body;
 
     // Check if user is admin/owner
     const memberCheck = await query(
@@ -392,6 +393,38 @@ router.post('/:id([0-9a-fA-F-]{36})/members', async (req, res) => {
            ON CONFLICT (connection_id, user_id) DO NOTHING`,
           [connId, userId]
         );
+      }
+    }
+
+    // Apply permission template if provided
+    if (permission_template_id) {
+      try {
+        const tplResult = await query(
+          `SELECT permissions FROM permission_templates WHERE id = $1`,
+          [permission_template_id]
+        );
+        if (tplResult.rows.length > 0) {
+          const tplPerms = typeof tplResult.rows[0].permissions === 'string' 
+            ? JSON.parse(tplResult.rows[0].permissions) 
+            : tplResult.rows[0].permissions;
+          
+          const columns = PERMISSION_COLUMNS.filter(c => tplPerms[c] !== undefined);
+          const values = columns.map(c => tplPerms[c]);
+          
+          if (columns.length > 0) {
+            const insertCols = ['user_id', 'organization_id', ...columns].join(', ');
+            const insertVals = [userId, id, ...values].map((_, i) => `$${i + 1}`).join(', ');
+            const updateClauses = columns.map(c => `${c} = EXCLUDED.${c}`).join(', ');
+            
+            await query(
+              `INSERT INTO user_permissions (${insertCols}) VALUES (${insertVals})
+               ON CONFLICT (user_id, organization_id) DO UPDATE SET ${updateClauses}, updated_at = NOW()`,
+              [userId, id, ...values]
+            );
+          }
+        }
+      } catch (tplErr) {
+        console.error('Error applying permission template:', tplErr);
       }
     }
 
