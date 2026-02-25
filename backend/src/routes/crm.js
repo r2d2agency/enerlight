@@ -1466,6 +1466,73 @@ router.post('/deals/:id/move', async (req, res) => {
   }
 });
 
+// Migrate deal to another funnel
+router.post('/deals/:id/migrate-funnel', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const { target_funnel_id, target_stage_id } = req.body;
+    if (!target_funnel_id) return res.status(400).json({ error: 'target_funnel_id is required' });
+
+    // Verify deal belongs to org
+    const dealResult = await query(
+      `SELECT id, funnel_id, stage_id, title FROM crm_deals WHERE id = $1 AND organization_id = $2`,
+      [req.params.id, org.organization_id]
+    );
+    if (!dealResult.rows[0]) return res.status(404).json({ error: 'Deal not found' });
+    const currentDeal = dealResult.rows[0];
+
+    if (currentDeal.funnel_id === target_funnel_id) {
+      return res.status(400).json({ error: 'Deal is already in this funnel' });
+    }
+
+    // Verify target funnel belongs to org
+    const funnelResult = await query(
+      `SELECT id, name FROM crm_funnels WHERE id = $1 AND organization_id = $2`,
+      [target_funnel_id, org.organization_id]
+    );
+    if (!funnelResult.rows[0]) return res.status(404).json({ error: 'Target funnel not found' });
+
+    // Get target stage (first stage if not specified)
+    let stageId = target_stage_id;
+    if (!stageId) {
+      const firstStage = await query(
+        `SELECT id FROM crm_stages WHERE funnel_id = $1 ORDER BY position ASC LIMIT 1`,
+        [target_funnel_id]
+      );
+      if (!firstStage.rows[0]) return res.status(400).json({ error: 'Target funnel has no stages' });
+      stageId = firstStage.rows[0].id;
+    }
+
+    // Get max position in target stage
+    const maxPos = await query(
+      `SELECT COALESCE(MAX(position), -1) + 1 as new_pos FROM crm_deals WHERE stage_id = $1 AND organization_id = $2`,
+      [stageId, org.organization_id]
+    );
+
+    // Update deal
+    await query(
+      `UPDATE crm_deals SET funnel_id = $1, stage_id = $2, position = $3, last_activity_at = NOW(), updated_at = NOW()
+       WHERE id = $4 AND organization_id = $5`,
+      [target_funnel_id, stageId, maxPos.rows[0].new_pos, req.params.id, org.organization_id]
+    );
+
+    // Log history
+    const oldFunnel = await query(`SELECT name FROM crm_funnels WHERE id = $1`, [currentDeal.funnel_id]);
+    const userName = await getUserName(req.userId);
+    await query(
+      `INSERT INTO crm_deal_history (deal_id, user_id, user_name_snapshot, action, from_value, to_value) VALUES ($1, $2, $3, 'funnel_changed', $4, $5)`,
+      [req.params.id, req.userId, userName, oldFunnel.rows[0]?.name, funnelResult.rows[0]?.name]
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error migrating deal to funnel:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Add contact to deal
 router.post('/deals/:id/contacts', async (req, res) => {
   let contact_id, role, is_primary, finalContactId;

@@ -12,10 +12,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
-import { CRMDeal, CRMTask, CRMStage, useCRMDeal, useCRMDealMutations, useCRMTaskMutations, useCRMFunnel, useCRMCompanies, useCRMMyTeam } from "@/hooks/use-crm";
+import { CRMDeal, CRMTask, CRMStage, useCRMDeal, useCRMDealMutations, useCRMTaskMutations, useCRMFunnel, useCRMFunnels, useCRMCompanies, useCRMMyTeam } from "@/hooks/use-crm";
 import { useRepresentativesForDeal } from "@/hooks/use-representatives";
 import { api } from "@/lib/api";
-import { Building2, User, Phone, Calendar as CalendarIcon, Clock, CheckCircle, Plus, Trash2, Paperclip, MessageSquare, ChevronRight, Edit2, Save, X, FileText, Image, Loader2, Upload, Search, UserPlus, Building, Mail, Video, Send, ClipboardList, RefreshCw, Flame } from "lucide-react";
+import { Building2, User, Phone, Calendar as CalendarIcon, Clock, CheckCircle, Plus, Trash2, Paperclip, MessageSquare, ChevronRight, Edit2, Save, X, FileText, Image, Loader2, Upload, Search, UserPlus, Building, Mail, Video, Send, ClipboardList, RefreshCw, Flame, ArrowRightLeft } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -134,10 +134,11 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
 
   const { data: fullDeal, isLoading } = useCRMDeal(deal?.id || null);
   const { data: funnelData } = useCRMFunnel(deal?.funnel_id || null);
+  const { data: allFunnels } = useCRMFunnels();
   const { data: companies } = useCRMCompanies(companySearch);
   const { data: teamMembers } = useCRMMyTeam();
   const { data: representatives } = useRepresentativesForDeal();
-  const { updateDeal, moveDeal, addContact, removeContact } = useCRMDealMutations();
+  const { updateDeal, moveDeal, migrateDealToFunnel, addContact, removeContact } = useCRMDealMutations();
   const { createTask, completeTask, deleteTask } = useCRMTaskMutations();
   const { uploadFile, isUploading } = useUpload();
   
@@ -226,6 +227,15 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
       moveDeal.mutate({ id: deal.id, stage_id: stageId });
       toast.success("Etapa alterada com sucesso!");
     }
+  };
+
+  const handleMigrateFunnel = (targetFunnelId: string) => {
+    if (targetFunnelId === currentDeal?.funnel_id) return;
+    migrateDealToFunnel.mutate({ id: deal.id, target_funnel_id: targetFunnelId }, {
+      onSuccess: () => {
+        onOpenChange(false);
+      }
+    });
   };
 
   const handleSaveDescription = () => {
@@ -568,7 +578,38 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
 
         {/* Stage Pipeline */}
         <div className="py-4 border-b">
-          <Label className="text-xs text-muted-foreground mb-2 block">Etapa do Funil</Label>
+          <div className="flex items-center justify-between mb-2">
+            <Label className="text-xs text-muted-foreground">Etapa do Funil</Label>
+            {/* Migrate to another funnel */}
+            {allFunnels && allFunnels.filter(f => f.id !== currentDeal?.funnel_id && f.is_active).length > 0 && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5">
+                    <ArrowRightLeft className="h-3 w-3" />
+                    Migrar para outro funil
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[280px] p-2" align="end">
+                  <p className="text-xs text-muted-foreground mb-2 px-1">Selecione o funil de destino:</p>
+                  <div className="space-y-1">
+                    {allFunnels
+                      .filter(f => f.id !== currentDeal?.funnel_id && f.is_active)
+                      .map(funnel => (
+                        <button
+                          key={funnel.id}
+                          onClick={() => handleMigrateFunnel(funnel.id)}
+                          disabled={migrateDealToFunnel.isPending}
+                          className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm hover:bg-accent transition-colors text-left"
+                        >
+                          <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: funnel.color }} />
+                          <span className="truncate">{funnel.name}</span>
+                        </button>
+                      ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
+          </div>
           <div className="flex items-center gap-1 overflow-x-auto pb-2">
             {stages.map((stage, index) => {
               const isActive = stage.id === currentDeal?.stage_id;
