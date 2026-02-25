@@ -136,6 +136,7 @@ CREATE TABLE IF NOT EXISTS crm_deal_history (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     deal_id UUID REFERENCES crm_deals(id) ON DELETE CASCADE NOT NULL,
     user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    user_name_snapshot VARCHAR(255), -- Nome do usuário no momento da ação (auditoria)
     action VARCHAR(50) NOT NULL, -- created, stage_changed, value_changed, etc
     from_value TEXT,
     to_value TEXT,
