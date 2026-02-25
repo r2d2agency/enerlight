@@ -236,7 +236,7 @@ export function CRMImportDialog({ open, onOpenChange, orgMembers }: CRMImportDia
               <Badge variant="outline">{uniqueOwners.length} encontrados</Badge>
             </div>
 
-            <ScrollArea className="flex-1 max-h-[300px]">
+            <ScrollArea className="flex-1 max-h-[40vh] border rounded-md p-1" type="always">
               <div className="space-y-2 pr-4">
                 {uniqueOwners.map(owner => {
                   const count = rows.filter(r => (r["Responsável"] || r["Responsavel"] || "").trim() === owner).length;
