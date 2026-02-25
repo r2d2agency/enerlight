@@ -819,12 +819,12 @@ export default function Organizacoes() {
                                       <p className="text-xs text-muted-foreground">
                                         Aplica automaticamente as permissões do template ao criar o usuário
                                       </p>
-                                      <Select value={newMemberTemplateId} onValueChange={setNewMemberTemplateId}>
+                                      <Select value={newMemberTemplateId || "_none"} onValueChange={(v) => setNewMemberTemplateId(v === "_none" ? "" : v)}>
                                         <SelectTrigger>
                                           <SelectValue placeholder="Nenhum (usar padrão do cargo)" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                          <SelectItem value="">Nenhum (usar padrão do cargo)</SelectItem>
+                                          <SelectItem value="_none">Nenhum (usar padrão do cargo)</SelectItem>
                                           {permissionTemplates.map((tpl) => (
                                             <SelectItem key={tpl.id} value={tpl.id}>
                                               {tpl.name}{tpl.description ? ` - ${tpl.description}` : ''}
