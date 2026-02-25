@@ -4669,7 +4669,7 @@ router.post('/import', async (req, res) => {
         if (row['Contatos'] || row['Email'] || row['Telefone']) {
           const contactName = row['Contatos'] || row['Nome'] || '';
           const contactEmail = row['Email'] || '';
-          const contactPhone = (row['Telefone'] || '').replace(/[^\d+]/g, '');
+          const contactPhone = String(row['Telefone'] || '').replace(/[^\d+]/g, '');
           
           if (contactName || contactEmail || contactPhone) {
             try {
