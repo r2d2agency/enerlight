@@ -4594,6 +4594,17 @@ router.post('/import', async (req, res) => {
         );
         const position = (maxPosResult.rows[0]?.max_pos || 0) + 1;
 
+        // Check for duplicate (same title + company in same org)
+        const existingDeal = await query(
+          `SELECT id FROM crm_deals WHERE organization_id = $1 AND title = $2 AND company_id = $3 LIMIT 1`,
+          [orgId, title, companyId]
+        );
+
+        if (existingDeal.rows[0]) {
+          stats.skipped++;
+          continue;
+        }
+
         await query(
           `INSERT INTO crm_deals (
             organization_id, funnel_id, stage_id, position, company_id, owner_id,
