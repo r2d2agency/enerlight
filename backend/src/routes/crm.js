@@ -4700,34 +4700,33 @@ router.post('/import', async (req, res) => {
           continue;
         }
 
-        await query(
-          const dealInsert = await query(
-            `INSERT INTO crm_deals (
-              organization_id, funnel_id, stage_id, position, company_id, owner_id,
-              title, value, status, won_at, lost_at, lost_reason,
-              expected_close_date, last_activity_at, custom_fields,
-              created_by, created_at, updated_at
-            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$17) RETURNING id`,
-            [
-              orgId, funnelId, stageId, position, companyId, ownerId,
-              title, value, status,
-              status === 'won' ? (closedAt || createdAt || new Date()) : null,
-              status === 'lost' ? (closedAt || createdAt || new Date()) : null,
-              lostReason,
-              expectedClose, lastActivity || createdAt,
-              JSON.stringify(customFields),
-              req.userId,
-              createdAt || new Date()
-            ]
-          );
+        const dealInsert = await query(
+          `INSERT INTO crm_deals (
+            organization_id, funnel_id, stage_id, position, company_id, owner_id,
+            title, value, status, won_at, lost_at, lost_reason,
+            expected_close_date, last_activity_at, custom_fields,
+            created_by, created_at, updated_at
+          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$17) RETURNING id`,
+          [
+            orgId, funnelId, stageId, position, companyId, ownerId,
+            title, value, status,
+            status === 'won' ? (closedAt || createdAt || new Date()) : null,
+            status === 'lost' ? (closedAt || createdAt || new Date()) : null,
+            lostReason,
+            expectedClose, lastActivity || createdAt,
+            JSON.stringify(customFields),
+            req.userId,
+            createdAt || new Date()
+          ]
+        );
 
-          // Add history record for imported deal
-          const newDealId = dealInsert.rows[0].id;
-          await query(
-            `INSERT INTO crm_deal_history (deal_id, user_id, user_name_snapshot, action, to_value, notes, created_at)
-             VALUES ($1, $2, 'Importação', 'created', $3, $4, $5)`,
-            [newDealId, req.userId, stageName, 'Importado da planilha', createdAt || new Date()]
-          );
+        // Add history record for imported deal
+        const newDealId = dealInsert.rows[0].id;
+        await query(
+          `INSERT INTO crm_deal_history (deal_id, user_id, user_name_snapshot, action, to_value, notes, created_at)
+           VALUES ($1, $2, 'Importação', 'created', $3, $4, $5)`,
+          [newDealId, req.userId, stageName, 'Importado da planilha', createdAt || new Date()]
+        );
 
         // Create contact if present
         if (row['Contatos'] || row['Email'] || row['Telefone']) {
