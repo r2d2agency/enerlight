@@ -70,9 +70,9 @@ export function CRMImportDialog({ open, onOpenChange, orgMembers }: CRMImportDia
     reader.onload = (evt) => {
       try {
         const data = new Uint8Array(evt.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: "array", cellDates: true });
+        const workbook = XLSX.read(data, { type: "array", cellDates: false });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonRows = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { defval: "", raw: false, dateNF: 'yyyy-mm-dd' });
+        const jsonRows = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { defval: "", raw: true });
         
         if (jsonRows.length === 0) {
           toast.error("Planilha vazia");

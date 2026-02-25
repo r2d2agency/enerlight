@@ -4593,6 +4593,22 @@ router.post('/import', async (req, res) => {
           d.setHours(Number(h[0]) || 0, Number(h[1]) || 0, Number(h[2]) || 0);
         }
 
+        // Cap to today - imported data should never have future dates
+        const now = new Date();
+        now.setHours(23, 59, 59, 999);
+        if (d > now) {
+          // Likely a timezone/parsing issue - try subtracting 1 year
+          const corrected = new Date(d);
+          corrected.setFullYear(corrected.getFullYear() - 1);
+          if (corrected <= now && corrected.getFullYear() >= 2000) {
+            console.log(`Date correction: ${d.toISOString()} → ${corrected.toISOString()} (shifted -1 year)`);
+            return corrected;
+          }
+          // Otherwise just cap to today
+          console.log(`Date capped to today: ${d.toISOString()}`);
+          return now;
+        }
+
         return d;
       } catch { return null; }
     }

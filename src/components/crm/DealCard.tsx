@@ -144,7 +144,7 @@ export const DealCard = forwardRef<HTMLDivElement, DealCardProps>(
         {/* Title & Value */}
         <div className="flex items-start justify-between gap-2 mb-2 min-w-0">
           <h4 className={cn(
-            "font-medium text-sm line-clamp-2 min-w-0 break-words",
+            "font-medium text-sm line-clamp-1 min-w-0 break-words",
             isPaused && "text-muted-foreground"
           )}>
             {deal.title}
