@@ -4594,10 +4594,10 @@ router.post('/import', async (req, res) => {
         );
         const position = (maxPosResult.rows[0]?.max_pos || 0) + 1;
 
-        // Check for duplicate (same title + company in same org)
+        // Check for duplicate (same title in same org)
         const existingDeal = await query(
-          `SELECT id FROM crm_deals WHERE organization_id = $1 AND title = $2 AND company_id = $3 LIMIT 1`,
-          [orgId, title, companyId]
+          `SELECT id FROM crm_deals WHERE organization_id = $1 AND LOWER(TRIM(title)) = LOWER(TRIM($2)) LIMIT 1`,
+          [orgId, title]
         );
 
         if (existingDeal.rows[0]) {
