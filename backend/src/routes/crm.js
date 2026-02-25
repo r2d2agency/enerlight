@@ -4539,16 +4539,56 @@ router.post('/import', async (req, res) => {
       return result.rows[0].id;
     }
 
-    // Parse date helper (handles M/D/YY and M/D/YYYY)
+    // Parse date helper - handles Excel serial numbers, Date objects, and string formats
     function parseDate(dateStr, timeStr) {
-      if (!dateStr) return null;
+      if (dateStr === null || dateStr === undefined || dateStr === '') return null;
       try {
-        const parts = String(dateStr).split('/');
-        if (parts.length !== 3) return null;
-        let [month, day, year] = parts.map(Number);
-        if (year < 100) year += 2000;
-        const h = timeStr ? String(timeStr).split(':') : [0, 0];
-        return new Date(year, month - 1, day, Number(h[0]) || 0, Number(h[1]) || 0);
+        let d = null;
+
+        // Already a Date object (XLSX sometimes auto-parses)
+        if (dateStr instanceof Date) {
+          d = dateStr;
+        }
+        // Excel serial number (number of days since 1900-01-01)
+        else if (typeof dateStr === 'number') {
+          // Excel epoch: Jan 1, 1900 (but Excel has a leap year bug for 1900)
+          const excelEpoch = new Date(1899, 11, 30); // Dec 30, 1899
+          d = new Date(excelEpoch.getTime() + dateStr * 86400000);
+        }
+        // String date
+        else {
+          const str = String(dateStr).trim();
+          // Try DD/MM/YYYY or D/M/YYYY (Brazilian format)
+          const brParts = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+          if (brParts) {
+            let [, p1, p2, p3] = brParts.map(Number);
+            if (p3 < 100) p3 += 2000;
+            // If p1 > 12, it's DD/MM/YYYY; otherwise try MM/DD/YYYY
+            if (p1 > 12) {
+              d = new Date(p3, p2 - 1, p1); // DD/MM/YYYY
+            } else if (p2 > 12) {
+              d = new Date(p3, p1 - 1, p2); // MM/DD/YYYY
+            } else {
+              // Ambiguous - assume DD/MM/YYYY (Brazilian default)
+              d = new Date(p3, p2 - 1, p1);
+            }
+          }
+          // Try ISO format
+          if (!d) {
+            const parsed = new Date(str);
+            if (!isNaN(parsed.getTime())) d = parsed;
+          }
+        }
+
+        if (!d || isNaN(d.getTime())) return null;
+
+        // Apply time if provided
+        if (timeStr) {
+          const h = String(timeStr).split(':');
+          d.setHours(Number(h[0]) || 0, Number(h[1]) || 0, Number(h[2]) || 0);
+        }
+
+        return d;
       } catch { return null; }
     }
 
@@ -4563,6 +4603,16 @@ router.post('/import', async (req, res) => {
 
     // Log column names for debugging (first row only)
     if (rows.length > 0) {
+      const r0 = rows[0];
+      console.log('Import date raw values:', {
+        'Data de criação': r0['Data de criação'], type: typeof r0['Data de criação'],
+        'Data de fechamento': r0['Data de fechamento'], type2: typeof r0['Data de fechamento'],
+      });
+      console.log('Import date parsed:', {
+        created: parseDate(r0['Data de criação'] || r0['Data de criacao']),
+        closed: parseDate(r0['Data de fechamento']),
+      });
+    }
       console.log('Import columns:', Object.keys(rows[0]));
     }
 
@@ -4632,38 +4682,53 @@ router.post('/import', async (req, res) => {
         );
 
         if (existingDeal.rows[0]) {
-          // Update existing deal with new values
+          // Update existing deal with new values including dates
           await query(
             `UPDATE crm_deals SET value = $1, owner_id = COALESCE($2, owner_id), 
              status = $3, lost_reason = $4, expected_close_date = COALESCE($5, expected_close_date),
              last_activity_at = COALESCE($6, last_activity_at), custom_fields = $7,
+             won_at = COALESCE($8, won_at), lost_at = COALESCE($9, lost_at),
+             created_at = COALESCE($10, created_at),
              updated_at = NOW()
-             WHERE id = $8`,
-            [value, ownerId, status, lostReason, expectedClose, lastActivity, JSON.stringify(customFields), existingDeal.rows[0].id]
+             WHERE id = $11`,
+            [value, ownerId, status, lostReason, expectedClose, lastActivity, JSON.stringify(customFields),
+             status === 'won' ? (closedAt || createdAt || null) : null,
+             status === 'lost' ? (closedAt || createdAt || null) : null,
+             createdAt,
+             existingDeal.rows[0].id]
           );
           stats.skipped++; // count as updated
           continue;
         }
 
         await query(
-          `INSERT INTO crm_deals (
-            organization_id, funnel_id, stage_id, position, company_id, owner_id,
-            title, value, status, won_at, lost_at, lost_reason,
-            expected_close_date, last_activity_at, custom_fields,
-            created_by, created_at, updated_at
-          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$17)`,
-          [
-            orgId, funnelId, stageId, position, companyId, ownerId,
-            title, value, status,
-            status === 'won' ? (closedAt || createdAt || new Date()) : null,
-            status === 'lost' ? (closedAt || createdAt || new Date()) : null,
-            lostReason,
-            expectedClose, lastActivity || createdAt,
-            JSON.stringify(customFields),
-            req.userId,
-            createdAt || new Date()
-          ]
-        );
+          const dealInsert = await query(
+            `INSERT INTO crm_deals (
+              organization_id, funnel_id, stage_id, position, company_id, owner_id,
+              title, value, status, won_at, lost_at, lost_reason,
+              expected_close_date, last_activity_at, custom_fields,
+              created_by, created_at, updated_at
+            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$17) RETURNING id`,
+            [
+              orgId, funnelId, stageId, position, companyId, ownerId,
+              title, value, status,
+              status === 'won' ? (closedAt || createdAt || new Date()) : null,
+              status === 'lost' ? (closedAt || createdAt || new Date()) : null,
+              lostReason,
+              expectedClose, lastActivity || createdAt,
+              JSON.stringify(customFields),
+              req.userId,
+              createdAt || new Date()
+            ]
+          );
+
+          // Add history record for imported deal
+          const newDealId = dealInsert.rows[0].id;
+          await query(
+            `INSERT INTO crm_deal_history (deal_id, user_id, user_name_snapshot, action, to_value, notes, created_at)
+             VALUES ($1, $2, 'Importação', 'created', $3, $4, $5)`,
+            [newDealId, req.userId, stageName, 'Importado da planilha', createdAt || new Date()]
+          );
 
         // Create contact if present
         if (row['Contatos'] || row['Email'] || row['Telefone']) {
