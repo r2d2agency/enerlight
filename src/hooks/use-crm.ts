@@ -481,6 +481,21 @@ export function useCRMDealMutations() {
     },
   });
 
+  const migrateDealToFunnel = useMutation({
+    mutationFn: async ({ id, target_funnel_id, target_stage_id }: { id: string; target_funnel_id: string; target_stage_id?: string }) => {
+      return api<{ success: boolean }>(`/api/crm/deals/${id}/migrate-funnel`, { 
+        method: "POST", 
+        body: { target_funnel_id, target_stage_id } 
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["crm-deals"] });
+      queryClient.invalidateQueries({ queryKey: ["crm-deal"] });
+      queryClient.invalidateQueries({ queryKey: ["crm-funnels"] });
+      toast({ title: "Negociação migrada para outro funil" });
+    },
+  });
+
   const addContact = useMutation({
     mutationFn: async ({ dealId, contactId, role, isPrimary }: { dealId: string; contactId: string; role?: string; isPrimary?: boolean }) => {
       return api<any>(`/api/crm/deals/${dealId}/contacts`, { method: "POST", body: { contact_id: contactId, role, is_primary: isPrimary } });
@@ -499,7 +514,7 @@ export function useCRMDealMutations() {
     },
   });
 
-  return { createDeal, updateDeal, moveDeal, addContact, removeContact };
+  return { createDeal, updateDeal, moveDeal, migrateDealToFunnel, addContact, removeContact };
 }
 
 // Tasks
