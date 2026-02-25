@@ -4530,6 +4530,23 @@ router.post('/import', async (req, res) => {
       return 'open';
     }
 
+    // Log column names for debugging (first row only)
+    if (rows.length > 0) {
+      console.log('Import columns:', Object.keys(rows[0]));
+    }
+
+    // Helper: find value from multiple possible column names
+    function extractValue(row) {
+      const valueKeys = ['Valor Único', 'Valor Unico', 'Valor único', 'Valor unico', 'Valor', 'Value', 'Valor Total', 'Total', 'Amount', 'Deal Value', 'Valor do Negócio', 'Valor do Negocio'];
+      for (const key of valueKeys) {
+        if (row[key] !== undefined && row[key] !== null && row[key] !== '') {
+          const parsed = parseFloat(String(row[key]).replace(/[^\d.,\-]/g, '').replace(',', '.'));
+          if (!isNaN(parsed)) return parsed;
+        }
+      }
+      return 0;
+    }
+
     // Process rows
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
@@ -4544,7 +4561,7 @@ router.post('/import', async (req, res) => {
         const companyId = await getOrCreateCompany(companyName);
 
         const status = mapStatus(row['Estado']);
-        const value = parseFloat(row['Valor Único'] || row['Valor Unico'] || 0) || 0;
+        const value = extractValue(row);
         const createdAt = parseDate(row['Data de criação'] || row['Data de criacao'], row['Hora de criação'] || row['Hora de criacao']);
         const closedAt = parseDate(row['Data de fechamento'], row['Hora de fechamento']);
         const expectedClose = parseDate(row['Previsão de fechamento'] || row['Previsao de fechamento']);
