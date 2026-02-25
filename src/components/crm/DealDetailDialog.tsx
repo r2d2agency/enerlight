@@ -435,13 +435,13 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
   return (
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl h-[95vh] max-h-[95vh] flex flex-col" aria-describedby={undefined}>
+      <DialogContent className="max-w-4xl w-[95vw] sm:w-full h-[95vh] max-h-[95vh] flex flex-col" aria-describedby={undefined}>
         <DialogHeader>
-          <div className="flex items-start justify-between">
-            <div>
-              <DialogTitle className="text-xl">{currentDeal?.title}</DialogTitle>
-              <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
-                <Building2 className="h-4 w-4" />
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+            <div className="min-w-0">
+              <DialogTitle className="text-lg sm:text-xl truncate">{currentDeal?.title}</DialogTitle>
+              <div className="flex flex-wrap items-center gap-1 sm:gap-2 mt-1 text-xs sm:text-sm text-muted-foreground">
+                <Building2 className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />
                 {isEditingCompany ? (
                   <Popover open={companySearchOpen} onOpenChange={setCompanySearchOpen}>
                     <PopoverTrigger asChild>
@@ -535,25 +535,25 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
                 )}
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => { setShowNewProject(true); setActiveTab("projects"); }} title="Solicitar Projeto">
-                <FolderKanban className="h-4 w-4 mr-2" />
-                Projeto
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+              <Button variant="outline" size="sm" className="h-8 px-2 sm:px-3 text-xs sm:text-sm" onClick={() => { setShowNewProject(true); setActiveTab("projects"); }} title="Solicitar Projeto">
+                <FolderKanban className="h-3.5 w-3.5 sm:mr-1" />
+                <span className="hidden sm:inline">Projeto</span>
               </Button>
-              <Button variant="outline" size="sm" onClick={() => setShowSequenceDialog(true)} title="Inscrever em Sequência de Nurturing">
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Sequência
+              <Button variant="outline" size="sm" className="h-8 px-2 sm:px-3 text-xs sm:text-sm" onClick={() => setShowSequenceDialog(true)} title="Sequência">
+                <RefreshCw className="h-3.5 w-3.5 sm:mr-1" />
+                <span className="hidden sm:inline">Sequência</span>
               </Button>
-              <Button variant="outline" size="sm" onClick={() => setShowEmailDialog(true)}>
-                <Mail className="h-4 w-4 mr-2" />
-                Email
+              <Button variant="outline" size="sm" className="h-8 px-2 sm:px-3 text-xs sm:text-sm" onClick={() => setShowEmailDialog(true)}>
+                <Mail className="h-3.5 w-3.5 sm:mr-1" />
+                <span className="hidden sm:inline">Email</span>
               </Button>
-              <Button variant="outline" size="sm" onClick={handleOpenChat}>
-                <MessageSquare className="h-4 w-4 mr-2" />
-                Chat
+              <Button variant="outline" size="sm" className="h-8 px-2 sm:px-3 text-xs sm:text-sm" onClick={handleOpenChat}>
+                <MessageSquare className="h-3.5 w-3.5 sm:mr-1" />
+                <span className="hidden sm:inline">Chat</span>
               </Button>
               <Select value={currentDeal?.status} onValueChange={handleStatusChange}>
-                <SelectTrigger className="w-32">
+                <SelectTrigger className="w-24 sm:w-32 h-8 text-xs sm:text-sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -601,9 +601,9 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0 overflow-hidden">
-          <TabsList className="flex-shrink-0">
-            <TabsTrigger value="details">Detalhes</TabsTrigger>
-            <TabsTrigger value="tasks">
+          <TabsList className="flex-shrink-0 w-full justify-start overflow-x-auto">
+            <TabsTrigger value="details" className="text-xs sm:text-sm">Detalhes</TabsTrigger>
+            <TabsTrigger value="tasks" className="text-xs sm:text-sm">
               Tarefas
               {fullDeal?.tasks && fullDeal.tasks.filter(t => t.status === 'pending').length > 0 && (
                 <Badge variant="secondary" className="ml-1 text-xs">
@@ -611,8 +611,8 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="contacts">Contatos</TabsTrigger>
-            <TabsTrigger value="attachments">
+            <TabsTrigger value="contacts" className="text-xs sm:text-sm">Contatos</TabsTrigger>
+            <TabsTrigger value="attachments" className="text-xs sm:text-sm">
               Arquivos
               {attachments.length > 0 && (
                 <Badge variant="secondary" className="ml-1 text-xs">
@@ -620,7 +620,7 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="projects">
+            <TabsTrigger value="projects" className="text-xs sm:text-sm">
               Projetos
               {dealProjects && dealProjects.length > 0 && (
                 <Badge variant="secondary" className="ml-1 text-xs">
@@ -628,13 +628,13 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="history">Histórico</TabsTrigger>
+            <TabsTrigger value="history" className="text-xs sm:text-sm">Histórico</TabsTrigger>
           </TabsList>
 
           <ScrollArea className="flex-1 mt-4 h-[calc(95vh-260px)]">
             <TabsContent value="details" className="m-0">
-              <div className="grid grid-cols-2 gap-4">
-                <Card className="p-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Card className="p-3 sm:p-4">
                   <h4 className="font-medium mb-3">Informações</h4>
                   <div className="space-y-3 text-sm">
                     <div className="flex justify-between items-center">

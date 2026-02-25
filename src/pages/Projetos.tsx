@@ -718,6 +718,13 @@ function ProjectDetailDialog({ project, open, onOpenChange, stages, canEdit, onM
   const [templateStartDate, setTemplateStartDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [templateAssignedTo, setTemplateAssignedTo] = useState(project.assigned_to || "");
 
+  // Edit project fields
+  const [editingProject, setEditingProject] = useState(false);
+  const [editTitle, setEditTitle] = useState(project.title);
+  const [editPriority, setEditPriority] = useState(project.priority);
+  const [editAssignedTo, setEditAssignedTo] = useState(project.assigned_to || "");
+  const [editDueDate, setEditDueDate] = useState(project.due_date ? safeFormatDate(project.due_date, "yyyy-MM-dd") : "");
+
   const navigate = useNavigate();
 
   // Load org members for responsible selector
@@ -782,6 +789,18 @@ function ProjectDetailDialog({ project, open, onOpenChange, stages, canEdit, onM
     setEditingDesc(false);
   };
 
+  const handleSaveProject = () => {
+    projectMut.update.mutate({
+      id: project.id,
+      title: editTitle,
+      priority: editPriority,
+      assigned_to: editAssignedTo || null,
+      due_date: editDueDate || null,
+    } as any);
+    setEditingProject(false);
+    toast.success("Projeto atualizado!");
+  };
+
   // Group notes: root + replies
   const rootNotes = notes.filter(n => !n.parent_id);
   const repliesMap: Record<string, ProjectNote[]> = {};
@@ -814,9 +833,22 @@ function ProjectDetailDialog({ project, open, onOpenChange, stages, canEdit, onM
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl w-[95vw] sm:w-full max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <div className="flex items-center gap-3">
-            <FolderKanban className="h-5 w-5 text-primary" />
-            <DialogTitle className="text-lg">{project.title}</DialogTitle>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-3 min-w-0">
+              <FolderKanban className="h-5 w-5 text-primary shrink-0" />
+              <DialogTitle className="text-lg truncate">{project.title}</DialogTitle>
+            </div>
+            {canEdit && (
+              <Button variant="outline" size="sm" className="shrink-0" onClick={() => {
+                setEditTitle(project.title);
+                setEditPriority(project.priority);
+                setEditAssignedTo(project.assigned_to || "");
+                setEditDueDate(project.due_date ? safeFormatDate(project.due_date, "yyyy-MM-dd") : "");
+                setEditingProject(!editingProject);
+              }}>
+                <Edit className="h-3.5 w-3.5 mr-1" /> Editar
+              </Button>
+            )}
           </div>
           <div className="flex flex-wrap items-center gap-2 pt-1">
             {project.deal_title && project.deal_id && (
@@ -870,6 +902,51 @@ function ProjectDetailDialog({ project, open, onOpenChange, stages, canEdit, onM
           <ScrollArea className="flex-1 mt-3">
             {/* Details */}
             <TabsContent value="details" className="mt-0 space-y-4">
+              {/* Inline edit form */}
+              {editingProject && canEdit && (
+                <Card className="p-4 border-primary/30 bg-primary/5">
+                  <div className="space-y-3">
+                    <div>
+                      <Label className="text-xs">Título</Label>
+                      <Input value={editTitle} onChange={e => setEditTitle(e.target.value)} />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <Label className="text-xs">Prioridade</Label>
+                        <Select value={editPriority} onValueChange={setEditPriority}>
+                          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="low">Baixa</SelectItem>
+                            <SelectItem value="medium">Média</SelectItem>
+                            <SelectItem value="high">Alta</SelectItem>
+                            <SelectItem value="urgent">Urgente</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-xs">Responsável</Label>
+                        <Select value={editAssignedTo} onValueChange={setEditAssignedTo}>
+                          <SelectTrigger className="h-9"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+                          <SelectContent>
+                            {orgMembers.map(m => (
+                              <SelectItem key={m.user_id} value={m.user_id}>{m.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-xs">Prazo</Label>
+                        <Input type="date" value={editDueDate} onChange={e => setEditDueDate(e.target.value)} className="h-9" />
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <Button variant="outline" size="sm" onClick={() => setEditingProject(false)}>Cancelar</Button>
+                      <Button size="sm" onClick={handleSaveProject}>Salvar</Button>
+                    </div>
+                  </div>
+                </Card>
+              )}
+
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <Label className="text-sm font-semibold">Descrição</Label>

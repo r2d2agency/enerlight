@@ -77,6 +77,12 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
       { key: 'can_view_organizations', label: 'Organizações', description: 'Gerenciar organização' },
     ],
   },
+  {
+    title: 'Comunicação Interna',
+    items: [
+      { key: 'can_view_internal_chat', label: 'Chat Interno', description: 'Comunicação entre equipe' },
+    ],
+  },
 ];
 
 const ALL_KEYS = PERMISSION_GROUPS.flatMap(g => g.items.map(i => i.key));
