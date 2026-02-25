@@ -633,7 +633,7 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
 
           <ScrollArea className="flex-1 mt-4 h-[calc(95vh-260px)]">
             <TabsContent value="details" className="m-0">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="flex flex-col sm:grid sm:grid-cols-2 gap-4">
                 <Card className="p-3 sm:p-4">
                   <h4 className="font-medium mb-3">Informações</h4>
                   <div className="space-y-3 text-sm">
@@ -810,7 +810,7 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
 
                 {/* Lead Score Card */}
                 {dealScore && dealScore.score > 0 && (
-                  <Card className="p-4 col-span-2">
+                  <Card className="p-4 sm:col-span-2">
                     <div className="flex items-center justify-between mb-3">
                       <h4 className="font-medium flex items-center gap-2">
                         <Flame className="h-4 w-4" />
@@ -835,7 +835,7 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
 
                 {/* Predictive Analytics */}
                 {currentDeal && (
-                  <div className="col-span-2">
+                  <div className="sm:col-span-2">
                     <PredictiveAnalyticsCard
                       deal={{
                         id: currentDeal.id,
@@ -857,7 +857,7 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
                 )}
 
                 {/* Ações Rápidas Card */}
-                <Card className="p-4 col-span-2">
+                <Card className="p-4 sm:col-span-2">
                   <h4 className="font-medium mb-4 flex items-center gap-2">
                     <ClipboardList className="h-4 w-4" />
                     Ações Rápidas
