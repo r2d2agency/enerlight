@@ -74,7 +74,9 @@ export default function RevenueIntelligence() {
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 
   const formatMonth = (monthStr: string) => {
+    if (!monthStr) return "";
     const date = new Date(monthStr + "-01");
+    if (isNaN(date.getTime())) return String(monthStr);
     return format(date, "MMM/yy", { locale: ptBR });
   };
 
