@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,9 +13,11 @@ import { useCRMCompanies, useCRMCompanyMutations, useCRMFunnels, CRMCompany, CRM
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Plus, Search, MoreHorizontal, Building2, Phone, Mail, Trash2, Edit, Loader2, FileSpreadsheet, Tag, Briefcase } from "lucide-react";
 import { format, parseISO } from "date-fns";
+import { useDebounce } from "@/hooks/use-debounce";
 
 export default function CRMEmpresas() {
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 400);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<CRMCompany | null>(null);
@@ -24,10 +26,9 @@ export default function CRMEmpresas() {
   const [selectedFunnel, setSelectedFunnel] = useState<CRMFunnel | null>(null);
   const [selectedCompanyForDeal, setSelectedCompanyForDeal] = useState<CRMCompany | null>(null);
 
-  const { data: companies, isLoading } = useCRMCompanies(search);
+  const { data: companies, isLoading } = useCRMCompanies(debouncedSearch);
   const { data: funnels } = useCRMFunnels();
-  const { importCompanies } = useCRMCompanyMutations();
-  const { deleteCompany } = useCRMCompanyMutations();
+  const { deleteCompany, importCompanies } = useCRMCompanyMutations();
 
   const handleEdit = (company: CRMCompany) => {
     setEditingCompany(company);

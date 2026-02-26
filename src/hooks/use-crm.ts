@@ -335,6 +335,9 @@ export function useCRMCompanies(search?: string) {
       const params = search ? `?search=${encodeURIComponent(search)}` : "";
       return api<CRMCompany[]>(`/api/crm/companies${params}`);
     },
+    staleTime: 30000,
+    retry: 2,
+    placeholderData: keepPreviousData,
   });
 }
 
