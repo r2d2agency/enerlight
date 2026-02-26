@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Bell, BellOff, Volume2, VolumeX, X, MessageSquare, FolderKanban, StickyNote, AtSign, Hash } from "lucide-react";
+import { Bell, BellOff, Volume2, VolumeX, X, MessageSquare, FolderKanban, StickyNote, AtSign, Hash, BellRing } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -19,6 +19,7 @@ import { useProjectNoteNotifications, useProjectNoteNotificationMutations } from
 import { useUnreadMentions, useUnreadMentionCount } from "@/hooks/use-internal-chat";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { supportsPushNotifications, subscribeToPush, isPushSubscribed, getPushPermissionStatus } from "@/lib/push-notifications";
 
 interface UnreadConversation {
   id: string;
@@ -58,6 +59,8 @@ export function MessageNotifications() {
   const { data: mentionCountData } = useUnreadMentionCount();
   const totalMentions = mentionCountData?.count || internalMentions.length;
   const previousMentionsRef = useRef<number>(0);
+  const [pushSubscribed, setPushSubscribed] = useState(false);
+  const [pushSupported] = useState(() => supportsPushNotifications());
 
   const grandTotal = totalUnread + totalProjectNotifs + totalMentions;
 
@@ -83,7 +86,33 @@ export function MessageNotifications() {
     previousMentionsRef.current = totalMentions;
   }, [totalMentions, internalMentions]);
 
-  // Mark mention as read
+  // Check push subscription status on mount
+  useEffect(() => {
+    if (pushSupported) {
+      isPushSubscribed().then(setPushSubscribed);
+    }
+  }, [pushSupported]);
+
+  const handleTogglePush = async () => {
+    if (pushSubscribed) {
+      // Already subscribed
+      toast.info("Notificações push já estão ativas!");
+      return;
+    }
+    const permission = getPushPermissionStatus();
+    if (permission === 'denied') {
+      toast.error("Notificações foram bloqueadas no navegador. Vá nas configurações do navegador para permitir.");
+      return;
+    }
+    const result = await subscribeToPush();
+    if (result) {
+      setPushSubscribed(true);
+      toast.success("Notificações push ativadas! Você receberá alertas mesmo com o app minimizado.");
+    } else {
+      toast.error("Não foi possível ativar as notificações push.");
+    }
+  };
+
   const handleDismissMention = async (mentionId: string) => {
     try {
       await api(`/api/internal-chat/mentions/${mentionId}/read`, { method: "POST" });
@@ -225,15 +254,28 @@ export function MessageNotifications() {
                 Interno {totalMentions > 0 && <Badge variant="destructive" className="text-[9px] px-1 h-4">{totalMentions}</Badge>}
               </TabsTrigger>
             </TabsList>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              onClick={() => setSoundEnabled(!soundEnabled)}
-              title={soundEnabled ? "Desativar som" : "Ativar som"}
-            >
-              {soundEnabled ? <Volume2 className="h-3.5 w-3.5 text-primary" /> : <VolumeX className="h-3.5 w-3.5 text-muted-foreground" />}
-            </Button>
+            <div className="flex gap-0.5">
+              {pushSupported && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={handleTogglePush}
+                  title={pushSubscribed ? "Notificações push ativas" : "Ativar notificações push"}
+                >
+                  <BellRing className={`h-3.5 w-3.5 ${pushSubscribed ? 'text-primary' : 'text-muted-foreground'}`} />
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => setSoundEnabled(!soundEnabled)}
+                title={soundEnabled ? "Desativar som" : "Ativar som"}
+              >
+                {soundEnabled ? <Volume2 className="h-3.5 w-3.5 text-primary" /> : <VolumeX className="h-3.5 w-3.5 text-muted-foreground" />}
+              </Button>
+            </div>
           </div>
 
           <TabsContent value="messages" className="mt-0">
