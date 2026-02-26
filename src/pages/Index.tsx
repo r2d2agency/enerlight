@@ -6,6 +6,9 @@ import { AttendanceChart } from "@/components/dashboard/AttendanceChart";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Users, MessageSquare, Send, CheckCircle2, Loader2, Play, Clock, Calendar as CalendarIcon, Pause, MessageCircle, CheckCheck, Hourglass, Headphones, Megaphone } from "lucide-react";
+import { MentionsWidget } from "@/components/dashboard/MentionsWidget";
+import { TasksWidget } from "@/components/dashboard/TasksWidget";
+import { AgendaWidget } from "@/components/dashboard/AgendaWidget";
 import { useContacts } from "@/hooks/use-contacts";
 import { useMessages } from "@/hooks/use-messages";
 import { useCampaigns, Campaign } from "@/hooks/use-campaigns";
@@ -223,6 +226,13 @@ const Index = () => {
               }}
             />
           </div>
+        </div>
+
+        {/* === PERSONAL WIDGETS === */}
+        <div className="grid gap-6 lg:grid-cols-3">
+          <MentionsWidget />
+          <TasksWidget />
+          <AgendaWidget />
         </div>
 
         {/* === DISPAROS SECTION === */}
