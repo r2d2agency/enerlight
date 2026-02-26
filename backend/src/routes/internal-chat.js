@@ -1,6 +1,7 @@
 import express from 'express';
 import { authenticate } from '../middleware/auth.js';
 import { pool } from '../db.js';
+import { sendPushToUser } from './push-notifications.js';
 
 const router = express.Router();
 router.use(authenticate);
@@ -428,6 +429,13 @@ router.post('/topics/:topicId/messages', async (req, res) => {
       const topicRes = await pool.query(`SELECT channel_id FROM internal_topics WHERE id = $1`, [req.params.topicId]);
       const channelId = topicRes.rows[0]?.channel_id;
 
+      // Get sender name and topic/channel info for push
+      const senderRes = await pool.query(`SELECT name FROM users WHERE id = $1`, [req.userId]);
+      const senderName = senderRes.rows[0]?.name || 'Alguém';
+      const topicTitleRes = await pool.query(`SELECT t.title, c.name as channel_name FROM internal_topics t JOIN internal_channels c ON c.id = t.channel_id WHERE t.id = $1`, [req.params.topicId]);
+      const topicTitle = topicTitleRes.rows[0]?.title || '';
+      const channelName = topicTitleRes.rows[0]?.channel_name || '';
+
       for (const userId of mentions) {
         if (userId !== req.userId) {
           await pool.query(
@@ -435,6 +443,17 @@ router.post('/topics/:topicId/messages', async (req, res) => {
              VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING`,
             [userId, message.id, req.params.topicId, channelId]
           );
+
+          // Send push notification
+          sendPushToUser(userId, {
+            title: `${senderName} mencionou você`,
+            body: `#${channelName} / ${topicTitle}: ${content.slice(0, 100)}`,
+            icon: '/icons/icon-192.png',
+            tag: `mention-${req.params.topicId}`,
+            renotify: true,
+            url: '/comunicacao',
+            type: 'mention',
+          }).catch(err => console.error('Push mention error:', err));
         }
       }
     }
