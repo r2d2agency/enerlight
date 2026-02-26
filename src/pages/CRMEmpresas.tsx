@@ -5,11 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { CompanyDialog } from "@/components/crm/CompanyDialog";
 import { CompanyImportDialog } from "@/components/crm/CompanyImportDialog";
-import { useCRMCompanies, useCRMCompanyMutations, CRMCompany } from "@/hooks/use-crm";
-import { Plus, Search, MoreHorizontal, Building2, Phone, Mail, Trash2, Edit, Loader2, FileSpreadsheet, Tag } from "lucide-react";
+import { DealFormDialog } from "@/components/crm/DealFormDialog";
+import { useCRMCompanies, useCRMCompanyMutations, useCRMFunnels, CRMCompany, CRMFunnel } from "@/hooks/use-crm";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Plus, Search, MoreHorizontal, Building2, Phone, Mail, Trash2, Edit, Loader2, FileSpreadsheet, Tag, Briefcase } from "lucide-react";
 import { format, parseISO } from "date-fns";
 
 export default function CRMEmpresas() {
@@ -17,8 +19,13 @@ export default function CRMEmpresas() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<CRMCompany | null>(null);
+  const [funnelPickerOpen, setFunnelPickerOpen] = useState(false);
+  const [dealDialogOpen, setDealDialogOpen] = useState(false);
+  const [selectedFunnel, setSelectedFunnel] = useState<CRMFunnel | null>(null);
+  const [selectedCompanyForDeal, setSelectedCompanyForDeal] = useState<CRMCompany | null>(null);
 
   const { data: companies, isLoading } = useCRMCompanies(search);
+  const { data: funnels } = useCRMFunnels();
   const { importCompanies } = useCRMCompanyMutations();
   const { deleteCompany } = useCRMCompanyMutations();
 
@@ -36,6 +43,22 @@ export default function CRMEmpresas() {
     if (confirm("Tem certeza que deseja excluir esta empresa?")) {
       deleteCompany.mutate(id);
     }
+  };
+
+  const handleCreateDeal = (company: CRMCompany) => {
+    setSelectedCompanyForDeal(company);
+    if (funnels?.length === 1) {
+      setSelectedFunnel(funnels[0]);
+      setDealDialogOpen(true);
+    } else {
+      setFunnelPickerOpen(true);
+    }
+  };
+
+  const handleFunnelSelected = (funnel: CRMFunnel) => {
+    setSelectedFunnel(funnel);
+    setFunnelPickerOpen(false);
+    setDealDialogOpen(true);
   };
 
   return (
@@ -72,7 +95,7 @@ export default function CRMEmpresas() {
 
         {/* Table */}
         <Card>
-          <CardContent className="p-0">
+          <CardContent className="p-0 overflow-x-auto">
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -90,30 +113,30 @@ export default function CRMEmpresas() {
                 </Button>
               </div>
             ) : (
-              <Table>
+              <Table className="table-fixed w-full">
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Empresa</TableHead>
-                    <TableHead>Segmento</TableHead>
-                    <TableHead>CNPJ</TableHead>
-                    <TableHead>Contato</TableHead>
-                    <TableHead>Negociações</TableHead>
-                    <TableHead>Criado em</TableHead>
-                    <TableHead className="w-[50px]"></TableHead>
+                    <TableHead className="w-[28%]">Empresa</TableHead>
+                    <TableHead className="w-[13%]">Segmento</TableHead>
+                    <TableHead className="w-[14%]">CNPJ</TableHead>
+                    <TableHead className="w-[15%]">Contato</TableHead>
+                    <TableHead className="w-[10%]">Negociações</TableHead>
+                    <TableHead className="w-[12%]">Criado em</TableHead>
+                    <TableHead className="w-[8%] text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {companies.map((company) => (
-                    <TableRow key={company.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <TableRow key={company.id} className="cursor-pointer" onClick={() => handleEdit(company)}>
+                      <TableCell className="max-w-0">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                             <Building2 className="h-5 w-5 text-primary" />
                           </div>
-                          <div>
-                            <p className="font-medium">{company.name}</p>
+                          <div className="min-w-0">
+                            <p className="font-medium truncate" title={company.name}>{company.name}</p>
                             {company.city && (
-                              <p className="text-sm text-muted-foreground">
+                              <p className="text-sm text-muted-foreground truncate">
                                 {company.city}{company.state ? `, ${company.state}` : ""}
                               </p>
                             )}
@@ -134,29 +157,29 @@ export default function CRMEmpresas() {
                               className="w-2 h-2 rounded-full" 
                               style={{ backgroundColor: company.segment_color }} 
                             />
-                            {company.segment_name}
+                            <span className="truncate">{company.segment_name}</span>
                           </Badge>
                         ) : (
                           <span className="text-muted-foreground">-</span>
                         )}
                       </TableCell>
                       <TableCell>
-                        <span className="font-mono text-sm">
+                        <span className="font-mono text-sm truncate block">
                           {company.cnpj || "-"}
                         </span>
                       </TableCell>
                       <TableCell>
-                        <div className="space-y-1">
+                        <div className="space-y-1 min-w-0">
                           {company.phone && (
                             <div className="flex items-center gap-1 text-sm">
-                              <Phone className="h-3 w-3" />
-                              {company.phone}
+                              <Phone className="h-3 w-3 shrink-0" />
+                              <span className="truncate">{company.phone}</span>
                             </div>
                           )}
                           {company.email && (
                             <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                              <Mail className="h-3 w-3" />
-                              {company.email}
+                              <Mail className="h-3 w-3 shrink-0" />
+                              <span className="truncate">{company.email}</span>
                             </div>
                           )}
                           {!company.phone && !company.email && "-"}
@@ -164,16 +187,16 @@ export default function CRMEmpresas() {
                       </TableCell>
                       <TableCell>
                         <Badge variant="secondary">
-                          {company.deals_count || 0} negociações
+                          {company.deals_count || 0}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-muted-foreground">
+                      <TableCell className="text-muted-foreground text-sm">
                         {format(parseISO(company.created_at), "dd/MM/yyyy")}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
@@ -182,6 +205,11 @@ export default function CRMEmpresas() {
                               <Edit className="h-4 w-4 mr-2" />
                               Editar
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleCreateDeal(company)}>
+                              <Briefcase className="h-4 w-4 mr-2" />
+                              Criar Negociação
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
                             <DropdownMenuItem 
                               onClick={() => handleDelete(company.id)}
                               className="text-destructive"
@@ -213,6 +241,39 @@ export default function CRMEmpresas() {
         onImport={async (companies) => {
           await importCompanies.mutateAsync(companies);
         }}
+      />
+
+      {/* Funnel Picker Dialog */}
+      <Dialog open={funnelPickerOpen} onOpenChange={setFunnelPickerOpen}>
+        <DialogContent className="max-w-sm" aria-describedby={undefined}>
+          <DialogHeader>
+            <DialogTitle>Selecione o Funil</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            {funnels?.map((funnel) => (
+              <Button
+                key={funnel.id}
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => handleFunnelSelected(funnel)}
+              >
+                <Briefcase className="h-4 w-4 mr-2" />
+                {funnel.name}
+              </Button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Deal Form Dialog */}
+      <DealFormDialog
+        funnel={selectedFunnel}
+        open={dealDialogOpen}
+        onOpenChange={(open) => {
+          setDealDialogOpen(open);
+          if (!open) setSelectedCompanyForDeal(null);
+        }}
+        defaultCompanyId={selectedCompanyForDeal?.id}
       />
     </MainLayout>
   );
