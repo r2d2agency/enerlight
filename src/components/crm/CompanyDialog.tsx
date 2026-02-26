@@ -14,8 +14,28 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { CRMCompany, useCRMCompanyMutations } from "@/hooks/use-crm";
 import { useCRMSegments } from "@/hooks/use-crm-config";
 import { useContacts, Contact, ContactList } from "@/hooks/use-contacts";
-import { Tag, User, Plus, Trash2, Phone, Search, Check, UserPlus } from "lucide-react";
+import { Tag, User, Plus, Trash2, Phone, Search, Check, UserPlus, Loader2, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { api } from "@/lib/api";
+import { toast } from "sonner";
+
+interface CNPJData {
+  razao_social: string;
+  nome_fantasia: string;
+  cnpj: string;
+  logradouro: string;
+  numero: string;
+  bairro: string;
+  municipio: string;
+  uf: string;
+  cep: string;
+  telefone: string;
+  email: string;
+  capital_social: string;
+  natureza: string;
+  data_abertura: string;
+  socios: { nome: string; qualificacao: string; data_entrada: string }[];
+}
 
 interface CompanyContact {
   id?: string;
@@ -55,6 +75,8 @@ export function CompanyDialog({ company, open, onOpenChange }: CompanyDialogProp
   const [listContacts, setListContacts] = useState<Contact[]>([]);
   const [searchContact, setSearchContact] = useState("");
   const [popoverOpen, setPopoverOpen] = useState(false);
+  const [loadingCNPJ, setLoadingCNPJ] = useState(false);
+  const [cnpjData, setCnpjData] = useState<CNPJData | null>(null);
 
   const { createCompany, updateCompany } = useCRMCompanyMutations();
   const { data: segments } = useCRMSegments();
@@ -109,6 +131,52 @@ export function CompanyDialog({ company, open, onOpenChange }: CompanyDialogProp
 
   const handleChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleCNPJLookup = async () => {
+    const digits = formData.cnpj.replace(/\D/g, "");
+    if (digits.length !== 14) {
+      toast.error("CNPJ deve ter 14 dígitos");
+      return;
+    }
+    setLoadingCNPJ(true);
+    setCnpjData(null);
+    try {
+      const data = await api<CNPJData>(`/api/cnpj/lookup/${digits}`);
+      setCnpjData(data);
+      // Auto-fill form fields
+      setFormData((prev) => ({
+        ...prev,
+        name: prev.name || data.nome_fantasia || data.razao_social || prev.name,
+        phone: prev.phone || data.telefone || prev.phone,
+        email: prev.email || data.email || prev.email,
+        address: prev.address || [data.logradouro, data.numero].filter(Boolean).join(", ") || prev.address,
+        city: prev.city || data.municipio || prev.city,
+        state: prev.state || data.uf || prev.state,
+        zip_code: prev.zip_code || data.cep || prev.zip_code,
+        notes: prev.notes || buildCNPJNotes(data),
+      }));
+      toast.success("Dados do CNPJ preenchidos!");
+    } catch {
+      toast.error("Erro ao consultar CNPJ. Verifique e tente novamente.");
+    } finally {
+      setLoadingCNPJ(false);
+    }
+  };
+
+  const buildCNPJNotes = (data: CNPJData) => {
+    const parts: string[] = [];
+    if (data.razao_social) parts.push(`Razão Social: ${data.razao_social}`);
+    if (data.capital_social) parts.push(`Capital Social: R$ ${Number(data.capital_social).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`);
+    if (data.natureza) parts.push(`Natureza Jurídica: ${data.natureza}`);
+    if (data.data_abertura) parts.push(`Data Abertura: ${data.data_abertura}`);
+    if (data.socios?.length) {
+      parts.push("", "=== SÓCIOS ===");
+      data.socios.forEach((s, i) => {
+        parts.push(`${i + 1}. ${s.nome} - ${s.qualificacao}${s.data_entrada ? ` (desde ${s.data_entrada})` : ""}`);
+      });
+    }
+    return parts.join("\n");
   };
 
   const handleAddContact = () => {
@@ -207,11 +275,24 @@ export function CompanyDialog({ company, open, onOpenChange }: CompanyDialogProp
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>CNPJ</Label>
-                <Input
-                  value={formData.cnpj}
-                  onChange={(e) => handleChange("cnpj", e.target.value)}
-                  placeholder="00.000.000/0000-00"
-                />
+                <div className="flex gap-2">
+                  <Input
+                    value={formData.cnpj}
+                    onChange={(e) => handleChange("cnpj", e.target.value)}
+                    placeholder="00.000.000/0000-00"
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={handleCNPJLookup}
+                    disabled={loadingCNPJ || !formData.cnpj.replace(/\D/g, "").length}
+                    title="Buscar dados do CNPJ"
+                  >
+                    {loadingCNPJ ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                  </Button>
+                </div>
               </div>
               <div className="space-y-2">
                 <Label>Telefone</Label>
@@ -222,6 +303,35 @@ export function CompanyDialog({ company, open, onOpenChange }: CompanyDialogProp
                 />
               </div>
             </div>
+
+            {/* CNPJ Data Preview */}
+            {cnpjData && (
+              <Card className="p-3 bg-muted/30">
+                <div className="text-xs space-y-1.5">
+                  <p className="font-medium text-foreground">{cnpjData.razao_social}</p>
+                  {cnpjData.nome_fantasia && <p className="text-muted-foreground">Fantasia: {cnpjData.nome_fantasia}</p>}
+                  {cnpjData.municipio && <p className="text-muted-foreground">📍 {cnpjData.municipio}/{cnpjData.uf}</p>}
+                  {cnpjData.capital_social && (
+                    <p className="text-muted-foreground">
+                      💰 Capital: R$ {Number(cnpjData.capital_social).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    </p>
+                  )}
+                  {cnpjData.socios?.length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-border">
+                      <p className="font-medium text-foreground flex items-center gap-1 mb-1">
+                        <Users className="h-3 w-3" />
+                        Sócios ({cnpjData.socios.length})
+                      </p>
+                      {cnpjData.socios.map((s, i) => (
+                        <p key={i} className="text-muted-foreground pl-4">
+                          • {s.nome} <span className="text-muted-foreground/70">— {s.qualificacao}</span>
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </Card>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
