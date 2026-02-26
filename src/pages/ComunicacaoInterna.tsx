@@ -476,7 +476,7 @@ export default function ComunicacaoInterna() {
 
         {/* PANEL 2: Topics */}
         <div className={cn(
-          "flex flex-col border-r border-border bg-background w-full md:w-80 md:min-w-[320px] shrink-0",
+          "relative z-10 flex flex-col border-r border-border bg-background w-full md:w-80 md:min-w-[320px] shrink-0",
           !showTopicList && "hidden md:flex"
         )}>
           <div className="p-4 border-b border-border space-y-2">
@@ -557,7 +557,7 @@ export default function ComunicacaoInterna() {
                           <MoreVertical className="h-4 w-4 text-muted-foreground" />
                         </button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="z-[100]">
+                      <DropdownMenuContent side="left" align="start" className="z-[120] min-w-[180px]">
                         <DropdownMenuItem onSelect={() => {
                           setEditingTopicId(t.id);
                           setEditingTopicTitle(t.title);
