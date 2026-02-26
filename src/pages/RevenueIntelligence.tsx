@@ -24,7 +24,7 @@ import {
   ArrowRight,
   Gauge,
 } from "lucide-react";
-import { format, subDays } from "date-fns";
+import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import {
@@ -73,11 +73,26 @@ export default function RevenueIntelligence() {
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 
-  const formatMonth = (monthStr: string) => {
-    if (!monthStr) return "";
-    const date = new Date(monthStr + "-01");
-    if (isNaN(date.getTime())) return String(monthStr);
-    return format(date, "MMM/yy", { locale: ptBR });
+  const formatMonth = (monthValue: unknown) => {
+    if (!monthValue) return "";
+
+    try {
+      const raw = monthValue instanceof Date ? monthValue.toISOString() : String(monthValue);
+      const normalized = raw.slice(0, 7);
+      const match = normalized.match(/^(\d{4})-(\d{2})$/);
+      if (!match) return raw;
+
+      const year = Number(match[1]);
+      const month = Number(match[2]);
+      if (!Number.isFinite(year) || month < 1 || month > 12) return raw;
+
+      const date = new Date(Date.UTC(year, month - 1, 1));
+      if (Number.isNaN(date.getTime())) return raw;
+
+      return format(date, "MMM/yy", { locale: ptBR });
+    } catch {
+      return String(monthValue);
+    }
   };
 
   return (

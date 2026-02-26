@@ -32,6 +32,8 @@ export const api = async <T>(endpoint: string, options: ApiOptions = {}): Promis
   // Read body as text first for safer parsing
   const rawText = await response.text().catch(() => '');
 
+  const isHtmlResponse = rawText.trim().startsWith('<!') || rawText.includes('<html');
+
   if (contentType.includes('application/json') || rawText.trim().startsWith('{') || rawText.trim().startsWith('[')) {
     try {
       data = JSON.parse(rawText);
@@ -40,7 +42,7 @@ export const api = async <T>(endpoint: string, options: ApiOptions = {}): Promis
     }
   } else {
     // Got HTML or unexpected format – log for debugging
-    if (rawText.trim().startsWith('<!') || rawText.includes('<html')) {
+    if (isHtmlResponse) {
       console.error('[api] Got HTML instead of JSON', {
         url: `${API_URL}${endpoint}`,
         status: response.status,
@@ -51,7 +53,14 @@ export const api = async <T>(endpoint: string, options: ApiOptions = {}): Promis
   }
 
   if (!response.ok) {
-    const baseMsg = data?.error || data?.message || `Erro na requisição (${response.status})`;
+    let baseMsg = data?.error || data?.message || `Erro na requisição (${response.status})`;
+
+    if (response.status === 502) {
+      baseMsg = 'Servidor temporariamente indisponível (502). Tente novamente em instantes.';
+    } else if (isHtmlResponse && response.status >= 500) {
+      baseMsg = `Erro no servidor (${response.status}). A API retornou HTML em vez de JSON.`;
+    }
+
     const details = data?.details ? `: ${data.details}` : '';
     // eslint-disable-next-line no-console
     console.error('[api] request failed', {
@@ -61,7 +70,11 @@ export const api = async <T>(endpoint: string, options: ApiOptions = {}): Promis
       body,
       response: data,
     });
-    throw new Error(`${baseMsg}${details}`);
+
+    const error = new Error(`${baseMsg}${details}`) as Error & { status?: number; endpoint?: string };
+    error.status = response.status;
+    error.endpoint = endpoint;
+    throw error;
   }
 
   return data as T;
