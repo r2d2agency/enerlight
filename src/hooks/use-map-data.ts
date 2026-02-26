@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { API_URL, getAuthToken } from "@/lib/api";
+import { api } from "@/lib/api";
 
 export interface MapLocation {
   id: string;
@@ -11,6 +11,14 @@ export interface MapLocation {
   lat: number;
   lng: number;
   value?: number;
+  owner_id?: string;
+  owner_name?: string;
+}
+
+export interface MapFilters {
+  owner_id?: string;
+  date_from?: string;
+  date_to?: string;
 }
 
 // Brazilian state capitals coordinates
@@ -69,11 +77,9 @@ const CITY_COORDS: Record<string, { lat: number; lng: number }> = {
 };
 
 export function getCoordinates(city?: string, state?: string): { lat: number; lng: number } | null {
-  // Try city first
   if (city) {
     const cityLower = city.toLowerCase().trim();
     if (CITY_COORDS[cityLower]) {
-      // Add small random offset to avoid exact overlap
       const offset = () => (Math.random() - 0.5) * 0.05;
       return {
         lat: CITY_COORDS[cityLower].lat + offset(),
@@ -81,8 +87,6 @@ export function getCoordinates(city?: string, state?: string): { lat: number; ln
       };
     }
   }
-
-  // Fallback to state capital
   if (state) {
     const stateUpper = state.toUpperCase().trim();
     if (STATE_CAPITALS[stateUpper]) {
@@ -93,21 +97,18 @@ export function getCoordinates(city?: string, state?: string): { lat: number; ln
       };
     }
   }
-
   return null;
 }
 
-async function fetchMapData(): Promise<MapLocation[]> {
-  const res = await fetch(`${API_URL}/api/crm/map-data`, {
-    headers: { Authorization: `Bearer ${getAuthToken()}` },
-  });
-  if (!res.ok) throw new Error("Failed to fetch map data");
-  return res.json();
-}
+export function useMapData(filters?: MapFilters) {
+  const params = new URLSearchParams();
+  if (filters?.owner_id) params.set("owner_id", filters.owner_id);
+  if (filters?.date_from) params.set("date_from", filters.date_from);
+  if (filters?.date_to) params.set("date_to", filters.date_to);
+  const qs = params.toString();
 
-export function useMapData() {
   return useQuery({
-    queryKey: ["crm-map-data"],
-    queryFn: fetchMapData,
+    queryKey: ["crm-map-data", filters?.owner_id, filters?.date_from, filters?.date_to],
+    queryFn: () => api<MapLocation[]>(`/api/crm/map-data${qs ? `?${qs}` : ""}`),
   });
 }

@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CRMCompany, useCRMCompanyMutations } from "@/hooks/use-crm";
+import { useSalesPositions } from "@/hooks/use-sales-positions";
 import { useCRMSegments } from "@/hooks/use-crm-config";
 import { useContacts, Contact, ContactList } from "@/hooks/use-contacts";
 import { Tag, User, Plus, Trash2, Phone, Search, Check, UserPlus, Loader2, Users } from "lucide-react";
@@ -65,6 +66,7 @@ export function CompanyDialog({ company, open, onOpenChange }: CompanyDialogProp
     zip_code: "",
     notes: "",
     segment_id: "",
+    sales_position_id: "",
   });
 
   const [contacts, setContacts] = useState<CompanyContact[]>([]);
@@ -80,6 +82,7 @@ export function CompanyDialog({ company, open, onOpenChange }: CompanyDialogProp
 
   const { createCompany, updateCompany } = useCRMCompanyMutations();
   const { data: segments } = useCRMSegments();
+  const { data: salesPositions = [] } = useSalesPositions();
   const contactsApi = useContacts();
 
   // Load contact lists on mount
@@ -108,6 +111,7 @@ export function CompanyDialog({ company, open, onOpenChange }: CompanyDialogProp
         zip_code: company.zip_code || "",
         notes: company.notes || "",
         segment_id: company.segment_id || "",
+        sales_position_id: (company as any).sales_position_id || "",
       });
       // TODO: Load existing contacts from API
       setContacts([]);
@@ -125,6 +129,7 @@ export function CompanyDialog({ company, open, onOpenChange }: CompanyDialogProp
         zip_code: "",
         notes: "",
         segment_id: "",
+        sales_position_id: "",
       });
       setContacts([]);
       setCnpjData(null);
@@ -216,6 +221,7 @@ export function CompanyDialog({ company, open, onOpenChange }: CompanyDialogProp
     const data = {
       ...formData,
       segment_id: formData.segment_id || undefined,
+      sales_position_id: formData.sales_position_id || undefined,
       contacts: contacts.length > 0 ? contacts : undefined,
     };
     if (company) {
@@ -273,6 +279,32 @@ export function CompanyDialog({ company, open, onOpenChange }: CompanyDialogProp
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Posição de Vendas */}
+            {salesPositions.length > 0 && (
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Posição de Vendas
+                </Label>
+                <Select
+                  value={formData.sales_position_id || "none"}
+                  onValueChange={(value) => handleChange("sales_position_id", value === "none" ? "" : value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione uma posição" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nenhuma</SelectItem>
+                    {salesPositions.map((pos) => (
+                      <SelectItem key={pos.id} value={pos.id}>
+                        {pos.name}{pos.current_user_name ? ` (${pos.current_user_name})` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">

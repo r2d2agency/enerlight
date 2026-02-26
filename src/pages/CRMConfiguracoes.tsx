@@ -28,6 +28,7 @@ import {
 } from "@/hooks/use-crm-config";
 import { useCRMFunnels, useCRMFunnel, useCRMFunnelMutations, CRMFunnel } from "@/hooks/use-crm";
 import { FunnelEditorDialog } from "@/components/crm/FunnelEditorDialog";
+import { SalesPositionsPanel } from "@/components/crm/SalesPositionsPanel";
 import { GoogleCalendarPanel } from "@/components/crm/GoogleCalendarPanel";
 import { LeadScoringConfigPanel } from "@/components/crm/LeadScoringConfigPanel";
 
@@ -316,10 +317,14 @@ export default function CRMConfiguracoes() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid grid-cols-7 w-full max-w-5xl">
+          <TabsList className="grid grid-cols-8 w-full max-w-5xl">
             <TabsTrigger value="funnels" className="flex items-center gap-2">
               <GitBranch className="h-4 w-4" />
               <span className="hidden sm:inline">Funis</span>
+            </TabsTrigger>
+            <TabsTrigger value="sales-positions" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              <span className="hidden sm:inline">Posições</span>
             </TabsTrigger>
             <TabsTrigger value="lead-scoring" className="flex items-center gap-2">
               <Flame className="h-4 w-4" />
@@ -346,6 +351,11 @@ export default function CRMConfiguracoes() {
               <span className="hidden sm:inline">Integrações</span>
             </TabsTrigger>
           </TabsList>
+
+          {/* Sales Positions Tab */}
+          <TabsContent value="sales-positions" className="mt-6">
+            <SalesPositionsPanel />
+          </TabsContent>
 
           {/* Funnels Tab */}
           <TabsContent value="funnels" className="mt-6">

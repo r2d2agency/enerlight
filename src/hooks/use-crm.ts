@@ -58,6 +58,9 @@ export interface CRMCompany {
   segment_id?: string;
   segment_name?: string;
   segment_color?: string;
+  sales_position_id?: string;
+  sales_position_name?: string;
+  sales_position_user_name?: string;
   custom_fields?: Record<string, any>;
   deals_count: number;
   created_by_name?: string;

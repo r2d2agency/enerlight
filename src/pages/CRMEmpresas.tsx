@@ -150,11 +150,12 @@ export default function CRMEmpresas() {
               <Table className="table-fixed w-full">
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[28%]">Empresa</TableHead>
-                    <TableHead className="w-[13%]">Segmento</TableHead>
-                    <TableHead className="w-[14%]">CNPJ</TableHead>
-                    <TableHead className="w-[15%]">Contato</TableHead>
-                    <TableHead className="w-[10%]">Negociações</TableHead>
+                    <TableHead className="w-[24%]">Empresa</TableHead>
+                    <TableHead className="w-[11%]">Segmento</TableHead>
+                    <TableHead className="w-[12%]">Vendedor</TableHead>
+                    <TableHead className="w-[12%]">CNPJ</TableHead>
+                    <TableHead className="w-[13%]">Contato</TableHead>
+                    <TableHead className="w-[8%]">Negociações</TableHead>
                     <TableHead className="w-[12%]">Criado em</TableHead>
                     <TableHead className="w-[8%] text-right">Ações</TableHead>
                   </TableRow>
@@ -193,6 +194,15 @@ export default function CRMEmpresas() {
                             />
                             <span className="truncate">{company.segment_name}</span>
                           </Badge>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {company.sales_position_user_name ? (
+                          <span className="text-sm font-medium truncate block">{company.sales_position_user_name}</span>
+                        ) : company.sales_position_name ? (
+                          <span className="text-sm text-muted-foreground italic truncate block">{company.sales_position_name} (vago)</span>
                         ) : (
                           <span className="text-muted-foreground">-</span>
                         )}
