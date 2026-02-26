@@ -385,11 +385,13 @@ router.get('/topics/:topicId/messages', async (req, res) => {
       [req.params.topicId]
     );
 
-    // Mark mentions as read for current user
-    await pool.query(
-      `DELETE FROM internal_mentions_unread WHERE user_id = $1 AND topic_id = $2`,
-      [req.userId, req.params.topicId]
-    );
+    // Only mark mentions as read if explicitly requested (not during polling)
+    if (req.query.mark_read === 'true') {
+      await pool.query(
+        `DELETE FROM internal_mentions_unread WHERE user_id = $1 AND topic_id = $2`,
+        [req.userId, req.params.topicId]
+      );
+    }
 
     res.json(result.rows);
   } catch (err) {

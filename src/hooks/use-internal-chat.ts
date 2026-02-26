@@ -1,3 +1,4 @@
+import { useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 
@@ -249,11 +250,24 @@ export function useCreateTopicTask() {
 
 // Messages
 export function useTopicMessages(topicId: string | null) {
+  const initialFetchDone = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (topicId !== initialFetchDone.current) {
+      initialFetchDone.current = null;
+    }
+  }, [topicId]);
+
   return useQuery({
     queryKey: ["internal-messages", topicId],
-    queryFn: () => api<InternalMessage[]>(`/api/internal-chat/topics/${topicId}/messages`),
+    queryFn: async () => {
+      const markRead = initialFetchDone.current !== topicId ? "true" : "false";
+      const result = await api<InternalMessage[]>(`/api/internal-chat/topics/${topicId}/messages?mark_read=${markRead}`);
+      initialFetchDone.current = topicId;
+      return result;
+    },
     enabled: !!topicId,
-    refetchInterval: 10000, // poll every 10s
+    refetchInterval: 10000,
   });
 }
 
