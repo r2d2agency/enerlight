@@ -111,6 +111,7 @@ export function CompanyDialog({ company, open, onOpenChange }: CompanyDialogProp
       });
       // TODO: Load existing contacts from API
       setContacts([]);
+      setCnpjData(null);
     } else {
       setFormData({
         name: "",
@@ -126,6 +127,7 @@ export function CompanyDialog({ company, open, onOpenChange }: CompanyDialogProp
         segment_id: "",
       });
       setContacts([]);
+      setCnpjData(null);
     }
   }, [company, open]);
 
@@ -231,7 +233,7 @@ export function CompanyDialog({ company, open, onOpenChange }: CompanyDialogProp
           <DialogTitle>{company ? "Editar Empresa" : "Nova Empresa"}</DialogTitle>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 min-h-0 max-h-[calc(90vh-140px)]">
+        <ScrollArea className="flex-1 overflow-y-auto" style={{ maxHeight: "calc(90vh - 160px)" }}>
           <div className="space-y-4 p-1 pr-4">
             <div className="space-y-2">
               <Label>Nome da empresa *</Label>
