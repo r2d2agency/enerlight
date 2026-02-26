@@ -501,7 +501,7 @@ export default function ComunicacaoInterna() {
                     </button>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 opacity-0 group-hover/topic:opacity-100 transition-opacity">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0">
                           <MoreVertical className="h-3.5 w-3.5" />
                         </Button>
                       </DropdownMenuTrigger>
