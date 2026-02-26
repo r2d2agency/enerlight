@@ -337,6 +337,32 @@ export function useCRMCompanies(search?: string) {
     },
     staleTime: 30000,
     retry: 2,
+    refetchOnWindowFocus: false,
+    placeholderData: keepPreviousData,
+  });
+}
+
+export interface CRMPaginatedCompaniesResponse {
+  items: CRMCompany[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export function useCRMCompaniesPaginated(params: { search?: string; page: number; pageSize: number }) {
+  return useQuery({
+    queryKey: ["crm-companies-paginated", params.search, params.page, params.pageSize],
+    queryFn: async () => {
+      const searchParams = new URLSearchParams();
+      if (params.search) searchParams.set("search", params.search);
+      searchParams.set("page", String(params.page));
+      searchParams.set("page_size", String(params.pageSize));
+
+      return api<CRMPaginatedCompaniesResponse>(`/api/crm/companies?${searchParams.toString()}`);
+    },
+    staleTime: 30000,
+    retry: 2,
+    refetchOnWindowFocus: false,
     placeholderData: keepPreviousData,
   });
 }
