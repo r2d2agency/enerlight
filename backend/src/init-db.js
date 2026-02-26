@@ -3337,6 +3337,30 @@ CREATE TABLE IF NOT EXISTS internal_mentions_unread (
 );
 CREATE INDEX IF NOT EXISTS idx_internal_mentions_user ON internal_mentions_unread(user_id);
 
+-- Topic members (access control per topic)
+CREATE TABLE IF NOT EXISTS internal_topic_members (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  topic_id UUID NOT NULL REFERENCES internal_topics(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  added_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(topic_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_internal_topic_members_topic ON internal_topic_members(topic_id);
+CREATE INDEX IF NOT EXISTS idx_internal_topic_members_user ON internal_topic_members(user_id);
+
+-- Topic links (vincular tarefas, reuniões, projetos, negociações)
+CREATE TABLE IF NOT EXISTS internal_topic_links (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  topic_id UUID NOT NULL REFERENCES internal_topics(id) ON DELETE CASCADE,
+  link_type VARCHAR(50) NOT NULL,
+  link_id UUID NOT NULL,
+  link_title VARCHAR(500),
+  created_by UUID REFERENCES users(id),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(topic_id, link_type, link_id)
+);
+CREATE INDEX IF NOT EXISTS idx_internal_topic_links_topic ON internal_topic_links(topic_id);
+
 -- Triggers for updated_at
 CREATE OR REPLACE FUNCTION update_internal_channels_updated_at()
 RETURNS TRIGGER AS $$

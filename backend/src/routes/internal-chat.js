@@ -215,15 +215,16 @@ router.post('/channels/:channelId/topics', async (req, res) => {
   }
 });
 
-// Update topic status
+// Update topic (status, title, move to another channel)
 router.patch('/topics/:id', async (req, res) => {
   try {
-    const { status, title } = req.body;
+    const { status, title, channel_id } = req.body;
     const sets = [];
     const params = [];
     let idx = 1;
 
     if (title !== undefined) { sets.push(`title = $${idx++}`); params.push(title); }
+    if (channel_id !== undefined) { sets.push(`channel_id = $${idx++}`); params.push(channel_id); }
     if (status !== undefined) {
       sets.push(`status = $${idx++}`); params.push(status);
       if (status === 'closed') {
@@ -254,6 +255,112 @@ router.delete('/topics/:id', async (req, res) => {
     await pool.query(`DELETE FROM internal_topics WHERE id = $1`, [req.params.id]);
     res.json({ success: true });
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ========================
+// TOPIC MEMBERS
+// ========================
+
+// List topic members
+router.get('/topics/:topicId/members', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT tm.*, u.name as user_name, u.email as user_email
+       FROM internal_topic_members tm
+       JOIN users u ON u.id = tm.user_id
+       WHERE tm.topic_id = $1
+       ORDER BY u.name`,
+      [req.params.topicId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    if (err.code === '42P01') return res.json([]); // table doesn't exist yet
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Add member to topic
+router.post('/topics/:topicId/members', async (req, res) => {
+  try {
+    const { user_id } = req.body;
+    await pool.query(
+      `INSERT INTO internal_topic_members (topic_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+      [req.params.topicId, user_id]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Remove member from topic
+router.delete('/topics/:topicId/members/:userId', async (req, res) => {
+  try {
+    await pool.query(
+      `DELETE FROM internal_topic_members WHERE topic_id = $1 AND user_id = $2`,
+      [req.params.topicId, req.params.userId]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ========================
+// TOPIC TASKS (create + list with status)
+// ========================
+
+// List tasks linked to topic
+router.get('/topics/:topicId/tasks', async (req, res) => {
+  try {
+    const orgId = await getUserOrg(req.userId);
+    if (!orgId) return res.json([]);
+
+    const result = await pool.query(
+      `SELECT t.id, t.title, t.status, t.priority, t.due_date, t.assigned_to,
+              u.name as assigned_to_name
+       FROM internal_topic_links tl
+       JOIN crm_tasks t ON t.id = tl.link_id
+       LEFT JOIN users u ON u.id = t.assigned_to
+       WHERE tl.topic_id = $1 AND tl.link_type = 'task'
+       ORDER BY t.created_at DESC`,
+      [req.params.topicId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    if (err.code === '42P01') return res.json([]);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Create task from topic (creates CRM task + auto-links)
+router.post('/topics/:topicId/tasks', async (req, res) => {
+  try {
+    const orgId = await getUserOrg(req.userId);
+    if (!orgId) return res.status(400).json({ error: 'Sem organização' });
+
+    const { title, description, assigned_to, priority, due_date } = req.body;
+
+    // Create CRM task
+    const taskResult = await pool.query(
+      `INSERT INTO crm_tasks (organization_id, title, description, assigned_to, created_by, priority, due_date, type, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'task', 'pending') RETURNING *`,
+      [orgId, title, description || null, assigned_to || req.userId, req.userId, priority || 'medium', due_date || null]
+    );
+    const task = taskResult.rows[0];
+
+    // Auto-link to topic
+    await pool.query(
+      `INSERT INTO internal_topic_links (topic_id, link_type, link_id, link_title, created_by)
+       VALUES ($1, 'task', $2, $3, $4) ON CONFLICT DO NOTHING`,
+      [req.params.topicId, task.id, title, req.userId]
+    );
+
+    res.json(task);
+  } catch (err) {
+    console.error('Error creating task from topic:', err);
     res.status(500).json({ error: err.message });
   }
 });

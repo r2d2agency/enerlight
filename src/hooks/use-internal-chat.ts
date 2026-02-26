@@ -160,7 +160,7 @@ export function useCreateTopic() {
 export function useUpdateTopic() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...data }: { id: string; status?: string; title?: string }) =>
+    mutationFn: ({ id, ...data }: { id: string; status?: string; title?: string; channel_id?: string }) =>
       api(`/api/internal-chat/topics/${id}`, { method: "PATCH", body: data }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["internal-topics"] });
@@ -176,6 +176,73 @@ export function useDeleteTopic() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["internal-topics"] });
       qc.invalidateQueries({ queryKey: ["internal-channels"] });
+    },
+  });
+}
+
+// Topic members
+export interface TopicMember {
+  id: string;
+  topic_id: string;
+  user_id: string;
+  user_name: string;
+  user_email: string;
+  added_at: string;
+}
+
+export function useTopicMembers(topicId: string | null) {
+  return useQuery({
+    queryKey: ["internal-topic-members", topicId],
+    queryFn: () => api<TopicMember[]>(`/api/internal-chat/topics/${topicId}/members`),
+    enabled: !!topicId,
+  });
+}
+
+export function useAddTopicMember() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ topicId, userId }: { topicId: string; userId: string }) =>
+      api(`/api/internal-chat/topics/${topicId}/members`, { method: "POST", body: { user_id: userId } }),
+    onSuccess: (_, vars) => qc.invalidateQueries({ queryKey: ["internal-topic-members", vars.topicId] }),
+  });
+}
+
+export function useRemoveTopicMember() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ topicId, userId }: { topicId: string; userId: string }) =>
+      api(`/api/internal-chat/topics/${topicId}/members/${userId}`, { method: "DELETE" }),
+    onSuccess: (_, vars) => qc.invalidateQueries({ queryKey: ["internal-topic-members", vars.topicId] }),
+  });
+}
+
+// Topic tasks
+export interface TopicTask {
+  id: string;
+  title: string;
+  status: string;
+  priority: string;
+  due_date: string | null;
+  assigned_to: string | null;
+  assigned_to_name: string | null;
+}
+
+export function useTopicTasks(topicId: string | null) {
+  return useQuery({
+    queryKey: ["internal-topic-tasks", topicId],
+    queryFn: () => api<TopicTask[]>(`/api/internal-chat/topics/${topicId}/tasks`),
+    enabled: !!topicId,
+  });
+}
+
+export function useCreateTopicTask() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ topicId, ...data }: { topicId: string; title: string; description?: string; assigned_to?: string; priority?: string; due_date?: string }) =>
+      api<any>(`/api/internal-chat/topics/${topicId}/tasks`, { method: "POST", body: data }),
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ["internal-topic-tasks", vars.topicId] });
+      qc.invalidateQueries({ queryKey: ["topic-links", vars.topicId] });
     },
   });
 }

@@ -9,14 +9,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import {
   Hash, Plus, Search, Send, Paperclip, AtSign, MessageSquare,
   ChevronRight, Circle, CheckCircle2, Clock, Trash2, Users,
   ArrowLeft, Filter, MoreVertical, Building2, Loader2, FileText,
-  Reply, X
+  Reply, X, Edit, FolderInput
 } from "lucide-react";
 import { TopicLinksBadges } from "@/components/chat-interno/TopicLinksBadges";
-import { ChannelMembersDialog } from "@/components/chat-interno/ChannelMembersDialog";
+import { TopicMembersDialog } from "@/components/chat-interno/TopicMembersDialog";
+import { TopicTasksPanel } from "@/components/chat-interno/TopicTasksPanel";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -28,11 +30,13 @@ import {
   useTopics,
   useCreateTopic,
   useUpdateTopic,
+  useDeleteTopic,
   useTopicMessages,
   useSendMessage,
-  useChannelMembers,
+  useTopicMembers,
   useInternalSearch,
   useUnreadMentions,
+  useOrgMembers,
   type InternalChannel,
   type InternalTopic,
   type InternalMessage,
@@ -68,6 +72,11 @@ export default function ComunicacaoInterna() {
   const [mentionQuery, setMentionQuery] = useState("");
   const [mentionStartIdx, setMentionStartIdx] = useState(-1);
   const [mentionSelectedIdx, setMentionSelectedIdx] = useState(0);
+  const [editingTopicId, setEditingTopicId] = useState<string | null>(null);
+  const [editingTopicTitle, setEditingTopicTitle] = useState("");
+  const [moveTopicDialogOpen, setMoveTopicDialogOpen] = useState(false);
+  const [moveTopicId, setMoveTopicId] = useState<string | null>(null);
+  const [moveTargetChannel, setMoveTargetChannel] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -76,13 +85,20 @@ export default function ComunicacaoInterna() {
   const { data: channels = [], isLoading: loadingChannels } = useInternalChannels(departmentFilter || undefined);
   const { data: topics = [], isLoading: loadingTopics } = useTopics(selectedChannel?.id || null, statusFilter || undefined);
   const { data: messages = [], isLoading: loadingMessages } = useTopicMessages(selectedTopic?.id || null);
-  const { data: members = [] } = useChannelMembers(selectedChannel?.id || null);
+  const { data: topicMembers = [] } = useTopicMembers(selectedTopic?.id || null);
+  const { data: orgMembersList = [] } = useOrgMembers();
   const { data: searchResults = [] } = useInternalSearch(showSearch ? searchQuery : "");
   const { data: unreadMentions = [] } = useUnreadMentions();
+
+  // For mention suggestions, use topic members if any, otherwise org members
+  const members = topicMembers.length > 0
+    ? topicMembers.map(m => ({ id: m.id, user_id: m.user_id, user_name: m.user_name, user_email: m.user_email, channel_id: '', joined_at: m.added_at }))
+    : orgMembersList.map(m => ({ id: m.id, user_id: m.id, user_name: m.name, user_email: m.email, channel_id: '', joined_at: '' }));
 
   const createChannel = useCreateChannel();
   const createTopic = useCreateTopic();
   const updateTopic = useUpdateTopic();
+  const deleteTopic = useDeleteTopic();
   const sendMessage = useSendMessage();
 
   const [depts, setDepts] = useState<{ id: string; name: string }[]>([]);
@@ -285,7 +301,7 @@ export default function ComunicacaoInterna() {
       const parts = text.split(/(@\w[\w\s]*)/g);
       return parts.map((part, i) => {
         if (part.startsWith("@")) {
-          return <span key={i} className="text-primary font-medium bg-primary/10 rounded px-1">{part}</span>;
+          return <span key={i} className="font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/15 rounded px-1">{part}</span>;
         }
         return <span key={i}>{part}</span>;
       });
@@ -416,22 +432,12 @@ export default function ComunicacaoInterna() {
               <Button variant="ghost" size="icon" className="h-8 w-8 md:hidden" onClick={() => setSelectedChannel(null)}>
                 <ArrowLeft className="h-4 w-4" />
               </Button>
-              <Hash className="h-4 w-4 text-primary" />
+               <Hash className="h-4 w-4 text-primary" />
               <h3 className="font-semibold text-sm truncate flex-1">{selectedChannel?.name || "Selecione um canal"}</h3>
               {selectedChannel && (
-                <>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowMembers(true)}>
-                        <Users className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Gerenciar membros</TooltipContent>
-                  </Tooltip>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowNewTopic(true)}>
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowNewTopic(true)}>
+                  <Plus className="h-4 w-4" />
+                </Button>
               )}
             </div>
             {selectedChannel && (
@@ -461,35 +467,80 @@ export default function ComunicacaoInterna() {
                   <p>Nenhum tópico</p>
                   <Button variant="link" size="sm" onClick={() => setShowNewTopic(true)}>Criar tópico</Button>
                 </div>
-              ) : topics.map(t => {
+               ) : topics.map(t => {
                 const sc = statusConfig[t.status];
                 const StatusIcon = sc.icon;
                 return (
-                  <button
+                  <div
                     key={t.id}
-                    onClick={() => setSelectedTopic(t)}
                     className={cn(
-                      "w-full text-left p-3 rounded-lg transition-colors",
+                      "w-full text-left p-3 rounded-lg transition-colors flex items-start gap-2 group/topic",
                       selectedTopic?.id === t.id ? "bg-accent" : "hover:bg-muted"
                     )}
                   >
-                    <div className="flex items-center gap-2">
-                      <StatusIcon className={cn("h-4 w-4 shrink-0", sc.color)} />
-                      <span className="font-medium text-sm truncate flex-1">{t.title}</span>
-                      {t.message_count > 0 && (
-                        <span className="text-xs text-muted-foreground">{t.message_count}</span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 mt-1 ml-6 text-xs text-muted-foreground">
-                      <span>{t.created_by_name}</span>
-                      {t.last_message_at && (
-                        <>
-                          <span>·</span>
-                          <span>{format(new Date(t.last_message_at), "dd/MM HH:mm", { locale: ptBR })}</span>
-                        </>
-                      )}
-                    </div>
-                  </button>
+                    <button
+                      className="flex-1 min-w-0 text-left"
+                      onClick={() => setSelectedTopic(t)}
+                    >
+                      <div className="flex items-center gap-2">
+                        <StatusIcon className={cn("h-4 w-4 shrink-0", sc.color)} />
+                        <span className="font-medium text-sm truncate flex-1">{t.title}</span>
+                        {t.message_count > 0 && (
+                          <span className="text-xs text-muted-foreground">{t.message_count}</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 mt-1 ml-6 text-xs text-muted-foreground">
+                        <span>{t.created_by_name}</span>
+                        {t.last_message_at && (
+                          <>
+                            <span>·</span>
+                            <span>{format(new Date(t.last_message_at), "dd/MM HH:mm", { locale: ptBR })}</span>
+                          </>
+                        )}
+                      </div>
+                    </button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 opacity-0 group-hover/topic:opacity-100 transition-opacity">
+                          <MoreVertical className="h-3.5 w-3.5" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingTopicId(t.id);
+                          setEditingTopicTitle(t.title);
+                        }}>
+                          <Edit className="h-4 w-4 mr-2" />
+                          Editar título
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => {
+                          e.stopPropagation();
+                          setMoveTopicId(t.id);
+                          setMoveTargetChannel("");
+                          setMoveTopicDialogOpen(true);
+                        }}>
+                          <FolderInput className="h-4 w-4 mr-2" />
+                          Mover para outro canal
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (confirm("Excluir este tópico e todas as mensagens?")) {
+                              deleteTopic.mutate(t.id);
+                              if (selectedTopic?.id === t.id) setSelectedTopic(null);
+                              toast.success("Tópico excluído");
+                            }
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Excluir tópico
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 );
               })}
             </div>
@@ -504,35 +555,47 @@ export default function ComunicacaoInterna() {
           {selectedTopic ? (
             <>
               {/* Topic Header */}
-              <div className="p-4 border-b border-border flex items-center gap-3">
-                <Button variant="ghost" size="icon" className="h-8 w-8 md:hidden" onClick={() => setSelectedTopic(null)}>
-                  <ArrowLeft className="h-4 w-4" />
-                </Button>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-sm truncate">{selectedTopic.title}</h3>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-xs text-muted-foreground">
-                      {selectedChannel?.name} · {selectedTopic.message_count || 0} mensagens
-                    </p>
-                    <TopicLinksBadges topicId={selectedTopic.id} />
+              <div className="p-4 border-b border-border space-y-2">
+                <div className="flex items-center gap-3">
+                  <Button variant="ghost" size="icon" className="h-8 w-8 md:hidden" onClick={() => setSelectedTopic(null)}>
+                    <ArrowLeft className="h-4 w-4" />
+                  </Button>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-sm truncate">{selectedTopic.title}</h3>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-xs text-muted-foreground">
+                        {selectedChannel?.name} · {selectedTopic.message_count || 0} mensagens
+                      </p>
+                      <TopicLinksBadges topicId={selectedTopic.id} />
+                    </div>
                   </div>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowMembers(true)}>
+                        <Users className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Membros do tópico</TooltipContent>
+                  </Tooltip>
+                  <Select
+                    value={selectedTopic.status}
+                    onValueChange={(v) => {
+                      handleChangeStatus(selectedTopic.id, v);
+                      setSelectedTopic({ ...selectedTopic, status: v as any });
+                    }}
+                  >
+                    <SelectTrigger className="h-8 w-[140px] text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="open">🔵 Aberto</SelectItem>
+                      <SelectItem value="in_progress">🟡 Em andamento</SelectItem>
+                      <SelectItem value="closed">🟢 Fechado</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-                <Select
-                  value={selectedTopic.status}
-                  onValueChange={(v) => {
-                    handleChangeStatus(selectedTopic.id, v);
-                    setSelectedTopic({ ...selectedTopic, status: v as any });
-                  }}
-                >
-                  <SelectTrigger className="h-8 w-[140px] text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="open">🔵 Aberto</SelectItem>
-                    <SelectItem value="in_progress">🟡 Em andamento</SelectItem>
-                    <SelectItem value="closed">🟢 Fechado</SelectItem>
-                  </SelectContent>
-                </Select>
+                {/* Tasks panel */}
+                <TopicTasksPanel topicId={selectedTopic.id} />
               </div>
 
               {/* Messages */}
@@ -747,15 +810,96 @@ export default function ComunicacaoInterna() {
         </DialogContent>
       </Dialog>
 
-      {/* Members Dialog */}
-      {selectedChannel && (
-        <ChannelMembersDialog
-          channelId={selectedChannel.id}
-          channelName={selectedChannel.name}
+      {/* Edit Topic Title Dialog */}
+      <Dialog open={!!editingTopicId} onOpenChange={(v) => { if (!v) setEditingTopicId(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader><DialogTitle>Editar Tópico</DialogTitle></DialogHeader>
+          <div>
+            <label className="text-sm font-medium">Novo título *</label>
+            <Input
+              value={editingTopicTitle}
+              onChange={e => setEditingTopicTitle(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === "Enter" && editingTopicId && editingTopicTitle.trim()) {
+                  updateTopic.mutate({ id: editingTopicId, title: editingTopicTitle });
+                  setEditingTopicId(null);
+                  toast.success("Título atualizado");
+                }
+              }}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingTopicId(null)}>Cancelar</Button>
+            <Button
+              disabled={!editingTopicTitle.trim() || updateTopic.isPending}
+              onClick={() => {
+                if (!editingTopicId) return;
+                updateTopic.mutate({ id: editingTopicId, title: editingTopicTitle });
+                setEditingTopicId(null);
+                toast.success("Título atualizado");
+              }}
+            >
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Topic Members Dialog */}
+      {selectedTopic && (
+        <TopicMembersDialog
+          topicId={selectedTopic.id}
+          topicTitle={selectedTopic.title}
           open={showMembers}
           onOpenChange={setShowMembers}
         />
       )}
+
+      {/* Move Topic Dialog */}
+      <Dialog open={moveTopicDialogOpen} onOpenChange={setMoveTopicDialogOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader><DialogTitle>Mover Tópico</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <label className="text-sm font-medium">Mover para o canal:</label>
+            <Select value={moveTargetChannel} onValueChange={setMoveTargetChannel}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione um canal" />
+              </SelectTrigger>
+              <SelectContent>
+                {channels.filter(c => c.id !== selectedChannel?.id).map(c => (
+                  <SelectItem key={c.id} value={c.id}>
+                    <div className="flex items-center gap-2">
+                      <Hash className="h-3 w-3" />
+                      {c.name}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMoveTopicDialogOpen(false)}>Cancelar</Button>
+            <Button
+              disabled={!moveTargetChannel || updateTopic.isPending}
+              onClick={async () => {
+                if (!moveTopicId || !moveTargetChannel) return;
+                try {
+                  await updateTopic.mutateAsync({ id: moveTopicId, channel_id: moveTargetChannel });
+                  setMoveTopicDialogOpen(false);
+                  setMoveTopicId(null);
+                  setMoveTargetChannel("");
+                  if (selectedTopic?.id === moveTopicId) setSelectedTopic(null);
+                  toast.success("Tópico movido!");
+                } catch {
+                  toast.error("Erro ao mover tópico");
+                }
+              }}
+            >
+              Mover
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 }
