@@ -135,7 +135,7 @@ router.post('/register', async (req, res) => {
     const token = jwt.sign(
       { userId: user.id, email: user.email },
       process.env.JWT_SECRET,
-      { expiresIn: '7d' }
+      { expiresIn: '30d' }
     );
 
     // Fetch role and modules like login does, so the frontend has full context
@@ -272,7 +272,7 @@ router.post('/login', async (req, res) => {
     const token = jwt.sign(
       { userId: user.id, email: user.email },
       process.env.JWT_SECRET,
-      { expiresIn: '7d' }
+      { expiresIn: '30d' }
     );
 
     // Check if user has any connections assigned
@@ -442,6 +442,19 @@ router.get('/me', async (req, res) => {
       hasConnections = true;
     }
 
+    // Auto-renew token if it expires within 7 days
+    let newToken = null;
+    if (decoded.exp) {
+      const daysUntilExpiry = (decoded.exp * 1000 - Date.now()) / (1000 * 60 * 60 * 24);
+      if (daysUntilExpiry < 7) {
+        newToken = jwt.sign(
+          { userId: user.id, email: user.email },
+          process.env.JWT_SECRET,
+          { expiresIn: '30d' }
+        );
+      }
+    }
+
     res.json({ 
       user: { 
         id: user.id,
@@ -453,7 +466,8 @@ router.get('/me', async (req, res) => {
         modules_enabled: modulesEnabled,
         has_connections: hasConnections,
         user_permissions: isSuperadmin ? null : userPermissions,
-      } 
+      },
+      ...(newToken ? { token: newToken } : {}),
     });
   } catch (error) {
     res.status(401).json({ error: 'Token inválido' });

@@ -99,8 +99,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const token = getAuthToken();
     if (token) {
       try {
-        const { user } = await authApi.getMe();
-        setUser(user);
+        const response = await authApi.getMe();
+        setUser(response.user);
+        // Auto-renew token if backend sent a new one
+        if (response.token) {
+          setAuthToken(response.token);
+        }
       } catch {
         // Ignore errors on refresh
       }
@@ -112,10 +116,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const token = getAuthToken();
       if (token) {
         try {
-          const { user } = await authApi.getMe();
-          setUser(user);
-        } catch {
-          clearAuthToken();
+          const response = await authApi.getMe();
+          setUser(response.user);
+          if (response.token) {
+            setAuthToken(response.token);
+          }
+        } catch (err: any) {
+          // Only clear token if the server explicitly says it's invalid (401)
+          // Network errors, 502, timeouts etc should NOT logout the user
+          if (err?.status === 401) {
+            clearAuthToken();
+          } else {
+            // Try to decode the token locally to keep user logged in during outages
+            try {
+              const payload = JSON.parse(atob(token.split('.')[1]));
+              if (payload.exp && payload.exp * 1000 > Date.now()) {
+                // Token still valid, keep user info from token
+                setUser({ id: payload.userId, email: payload.email, name: payload.email });
+              } else {
+                clearAuthToken();
+              }
+            } catch {
+              clearAuthToken();
+            }
+          }
         }
       }
       setIsLoading(false);

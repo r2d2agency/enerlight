@@ -95,7 +95,7 @@ export const authApi = {
     ),
 
   getMe: () =>
-    api<{ user: { id: string; email: string; name: string } }>('/api/auth/me'),
+    api<{ user: { id: string; email: string; name: string }; token?: string }>('/api/auth/me'),
 
   getSignupPlans: () =>
     api<Array<{
