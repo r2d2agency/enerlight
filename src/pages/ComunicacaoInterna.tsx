@@ -27,6 +27,8 @@ import { useUpload } from "@/hooks/use-upload";
 import {
   useInternalChannels,
   useCreateChannel,
+  useUpdateChannel,
+  useDeleteChannel,
   useTopics,
   useCreateTopic,
   useUpdateTopic,
@@ -77,6 +79,9 @@ export default function ComunicacaoInterna() {
   const [moveTopicDialogOpen, setMoveTopicDialogOpen] = useState(false);
   const [moveTopicId, setMoveTopicId] = useState<string | null>(null);
   const [moveTargetChannel, setMoveTargetChannel] = useState("");
+  const [editingChannelId, setEditingChannelId] = useState<string | null>(null);
+  const [editingChannelName, setEditingChannelName] = useState("");
+  const [editingChannelDesc, setEditingChannelDesc] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -100,6 +105,8 @@ export default function ComunicacaoInterna() {
   const updateTopic = useUpdateTopic();
   const deleteTopic = useDeleteTopic();
   const sendMessage = useSendMessage();
+  const updateChannel = useUpdateChannel();
+  const deleteChannel = useDeleteChannel();
 
   const [depts, setDepts] = useState<{ id: string; name: string }[]>([]);
   const { getDepartments } = useDepartments();
@@ -397,25 +404,70 @@ export default function ComunicacaoInterna() {
                     <Button variant="link" size="sm" onClick={() => setShowNewChannel(true)}>Criar canal</Button>
                   </div>
                 ) : channels.map(ch => (
-                  <button
+                  <div
                     key={ch.id}
-                    onClick={() => { setSelectedChannel(ch); setSelectedTopic(null); }}
                     className={cn(
-                      "w-full text-left p-3 rounded-lg transition-colors",
+                      "w-full text-left p-3 rounded-lg transition-colors flex items-start gap-2",
                       selectedChannel?.id === ch.id ? "bg-accent" : "hover:bg-muted"
                     )}
                   >
-                    <div className="flex items-center gap-2">
-                      <Hash className="h-4 w-4 text-primary shrink-0" />
-                      <span className="font-medium text-sm truncate">{ch.name}</span>
-                      {ch.open_topics_count > 0 && (
-                        <Badge variant="secondary" className="ml-auto text-xs">{ch.open_topics_count}</Badge>
+                    <button
+                      className="flex-1 min-w-0 text-left"
+                      onClick={() => { setSelectedChannel(ch); setSelectedTopic(null); }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Hash className="h-4 w-4 text-primary shrink-0" />
+                        <span className="font-medium text-sm truncate">{ch.name}</span>
+                        {ch.open_topics_count > 0 && (
+                          <Badge variant="secondary" className="ml-auto text-xs">{ch.open_topics_count}</Badge>
+                        )}
+                      </div>
+                      {ch.department_name && (
+                        <p className="text-xs text-muted-foreground mt-1 ml-6">{ch.department_name}</p>
                       )}
-                    </div>
-                    {ch.department_name && (
-                      <p className="text-xs text-muted-foreground mt-1 ml-6">{ch.department_name}</p>
-                    )}
-                  </button>
+                    </button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button type="button" className="h-7 w-7 shrink-0 flex items-center justify-center rounded-md hover:bg-accent" onClick={(e) => e.stopPropagation()}>
+                          <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="z-[100]">
+                        <DropdownMenuItem onSelect={() => {
+                          setEditingChannelId(ch.id);
+                          setEditingChannelName(ch.name);
+                          setEditingChannelDesc(ch.description || "");
+                        }}>
+                          <Edit className="h-4 w-4 mr-2" />
+                          Renomear / Editar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => {
+                          updateChannel.mutate({ id: ch.id, is_archived: !ch.is_archived });
+                          toast.success(ch.is_archived ? "Canal desarquivado" : "Canal arquivado");
+                        }}>
+                          <FileText className="h-4 w-4 mr-2" />
+                          {ch.is_archived ? "Desarquivar" : "Arquivar"}
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive"
+                          onSelect={() => {
+                            if (confirm("Excluir este canal e todos os tópicos?")) {
+                              deleteChannel.mutate(ch.id);
+                              if (selectedChannel?.id === ch.id) {
+                                setSelectedChannel(null);
+                                setSelectedTopic(null);
+                              }
+                              toast.success("Canal excluído");
+                            }
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Excluir canal
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 ))}
               </div>
             </ScrollArea>
@@ -893,6 +945,37 @@ export default function ComunicacaoInterna() {
               }}
             >
               Mover
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Channel Dialog */}
+      <Dialog open={!!editingChannelId} onOpenChange={(open) => { if (!open) setEditingChannelId(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader><DialogTitle>Editar Canal</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <label className="text-sm font-medium">Nome do canal</label>
+              <Input value={editingChannelName} onChange={e => setEditingChannelName(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Descrição</label>
+              <Textarea value={editingChannelDesc} onChange={e => setEditingChannelDesc(e.target.value)} rows={3} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingChannelId(null)}>Cancelar</Button>
+            <Button
+              disabled={!editingChannelName.trim() || updateChannel.isPending}
+              onClick={() => {
+                if (!editingChannelId) return;
+                updateChannel.mutate({ id: editingChannelId, name: editingChannelName, description: editingChannelDesc });
+                setEditingChannelId(null);
+                toast.success("Canal atualizado");
+              }}
+            >
+              Salvar
             </Button>
           </DialogFooter>
         </DialogContent>
