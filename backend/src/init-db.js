@@ -3414,6 +3414,31 @@ SELECT 'Faturamento', 'Acesso ao módulo de cobrança e financeiro', 'Shield',
 WHERE NOT EXISTS (SELECT 1 FROM permission_templates WHERE name = 'Faturamento' AND is_default = true);
 `;
 
+// ============================================
+// STEP 44: SALES POSITIONS (Posições de Vendas)
+// ============================================
+const step44SalesPositions = `
+CREATE TABLE IF NOT EXISTS crm_sales_positions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE NOT NULL,
+  name VARCHAR(100) NOT NULL,
+  current_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(organization_id, name)
+);
+CREATE INDEX IF NOT EXISTS idx_crm_sales_positions_org ON crm_sales_positions(organization_id);
+CREATE INDEX IF NOT EXISTS idx_crm_sales_positions_user ON crm_sales_positions(current_user_id);
+
+-- Add sales_position_id to companies
+DO $$ BEGIN
+  ALTER TABLE crm_companies ADD COLUMN IF NOT EXISTS sales_position_id UUID REFERENCES crm_sales_positions(id) ON DELETE SET NULL;
+EXCEPTION WHEN others THEN NULL;
+END $$;
+CREATE INDEX IF NOT EXISTS idx_crm_companies_sales_position ON crm_companies(sales_position_id);
+`;
+
 const migrationSteps = [
   { name: 'Enums', sql: step1Enums, critical: true },
   { name: 'Core Tables (users, plans)', sql: step2CoreTables, critical: true },
@@ -3459,6 +3484,7 @@ const migrationSteps = [
   { name: 'Schedule Blocks', sql: step41ScheduleBlocks, critical: false },
   { name: 'Internal Chat', sql: step42InternalChat, critical: false },
   { name: 'Default Permission Templates', sql: step43DefaultTemplates, critical: false },
+  { name: 'Sales Positions', sql: step44SalesPositions, critical: false },
 ];
 
 export async function initDatabase() {

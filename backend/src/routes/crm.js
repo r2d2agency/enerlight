@@ -736,10 +736,15 @@ router.get('/companies', async (req, res) => {
 
     const baseSql = `SELECT c.*, u.name as created_by_name,
       s.name as segment_name, s.color as segment_color,
-      COALESCE(dc.deals_count, 0)::int as deals_count
+      COALESCE(dc.deals_count, 0)::int as deals_count,
+      sp.name as sales_position_name,
+      spu.name as sales_position_user_name,
+      sp.id as sales_position_id_resolved
       FROM crm_companies c
       LEFT JOIN users u ON u.id = c.created_by
       LEFT JOIN crm_segments s ON s.id = c.segment_id
+      LEFT JOIN crm_sales_positions sp ON sp.id = c.sales_position_id
+      LEFT JOIN users spu ON spu.id = sp.current_user_id
       LEFT JOIN (
         SELECT company_id, COUNT(*)::int as deals_count
         FROM crm_deals
@@ -800,13 +805,13 @@ router.post('/companies', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
-    const { name, cnpj, email, phone, website, address, city, state, zip_code, notes, segment_id, custom_fields } = req.body;
+    const { name, cnpj, email, phone, website, address, city, state, zip_code, notes, segment_id, custom_fields, sales_position_id } = req.body;
     
     const result = await query(
-      `INSERT INTO crm_companies (organization_id, name, cnpj, email, phone, website, address, city, state, zip_code, notes, segment_id, custom_fields, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *`,
+      `INSERT INTO crm_companies (organization_id, name, cnpj, email, phone, website, address, city, state, zip_code, notes, segment_id, custom_fields, sales_position_id, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING *`,
       [org.organization_id, name, cnpj, email, phone, website, address, city, state, zip_code, notes, segment_id || null,
-       custom_fields ? JSON.stringify(custom_fields) : '{}', req.userId]
+       custom_fields ? JSON.stringify(custom_fields) : '{}', sales_position_id || null, req.userId]
     );
     res.json(result.rows[0]);
   } catch (error) {
@@ -821,16 +826,16 @@ router.put('/companies/:id', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
-    const { name, cnpj, email, phone, website, address, city, state, zip_code, notes, segment_id, custom_fields } = req.body;
+    const { name, cnpj, email, phone, website, address, city, state, zip_code, notes, segment_id, custom_fields, sales_position_id } = req.body;
     
     const result = await query(
       `UPDATE crm_companies SET 
         name = $1, cnpj = $2, email = $3, phone = $4, website = $5, 
         address = $6, city = $7, state = $8, zip_code = $9, notes = $10, 
-        segment_id = $11, custom_fields = $12, updated_at = NOW()
-       WHERE id = $13 AND organization_id = $14 RETURNING *`,
+        segment_id = $11, custom_fields = $12, sales_position_id = $13, updated_at = NOW()
+       WHERE id = $14 AND organization_id = $15 RETURNING *`,
       [name, cnpj, email, phone, website, address, city, state, zip_code, notes, segment_id || null,
-       custom_fields ? JSON.stringify(custom_fields) : '{}', req.params.id, org.organization_id]
+       custom_fields ? JSON.stringify(custom_fields) : '{}', sales_position_id || null, req.params.id, org.organization_id]
     );
     res.json(result.rows[0]);
   } catch (error) {
@@ -3218,17 +3223,35 @@ router.get('/map-data', async (req, res) => {
       return null;
     };
 
+    const { owner_id, date_from, date_to } = req.query;
+
     // Get deals with contact/company info
     try {
+      let dealWhere = `d.organization_id = $1 AND d.status IN ('open','active')`;
+      const dealParams = [org.organization_id];
+      if (owner_id) {
+        dealParams.push(owner_id);
+        dealWhere += ` AND d.owner_id = $${dealParams.length}`;
+      }
+      if (date_from) {
+        dealParams.push(date_from);
+        dealWhere += ` AND d.created_at >= $${dealParams.length}`;
+      }
+      if (date_to) {
+        dealParams.push(date_to);
+        dealWhere += ` AND d.created_at <= $${dealParams.length}`;
+      }
       const dealsResult = await query(
-        `SELECT d.id, d.title, d.value,
+        `SELECT d.id, d.title, d.value, d.owner_id,
+                u.name as owner_name,
                 c.phone, c.city, c.state,
                 co.city as company_city, co.state as company_state
          FROM crm_deals d
          LEFT JOIN contacts c ON d.contact_id = c.id
          LEFT JOIN crm_companies co ON d.company_id = co.id
-         WHERE d.organization_id = $1 AND d.status = 'active'`,
-        [org.organization_id]
+         LEFT JOIN users u ON u.id = d.owner_id
+         WHERE ${dealWhere}`,
+        dealParams
       );
       for (const deal of dealsResult.rows) {
         const city = deal.city || deal.company_city;
@@ -3245,6 +3268,8 @@ router.get('/map-data', async (req, res) => {
             lat: coords.lat,
             lng: coords.lng,
             value: deal.value,
+            owner_id: deal.owner_id,
+            owner_name: deal.owner_name,
           });
         }
       }
@@ -3285,9 +3310,21 @@ router.get('/map-data', async (req, res) => {
 
     // Get companies with location
     try {
+      let compWhere = `c.organization_id = $1`;
+      const compParams = [org.organization_id];
+      if (owner_id) {
+        // Filter companies by sales position user
+        compParams.push(owner_id);
+        compWhere += ` AND sp.current_user_id = $${compParams.length}`;
+      }
       const companiesResult = await query(
-        `SELECT id, name, phone, city, state FROM crm_companies WHERE organization_id = $1`,
-        [org.organization_id]
+        `SELECT c.id, c.name, c.phone, c.city, c.state,
+                sp.current_user_id as owner_id, u.name as owner_name
+         FROM crm_companies c
+         LEFT JOIN crm_sales_positions sp ON sp.id = c.sales_position_id
+         LEFT JOIN users u ON u.id = sp.current_user_id
+         WHERE ${compWhere}`,
+        compParams
       );
       for (const company of companiesResult.rows) {
         const coords = getCoords(company.city, company.state);
@@ -3301,11 +3338,12 @@ router.get('/map-data', async (req, res) => {
             state: company.state,
             lat: coords.lat,
             lng: coords.lng,
+            owner_id: company.owner_id,
+            owner_name: company.owner_name,
           });
         }
       }
     } catch (e) {
-      // Ignore if table/columns don't exist yet
       if (e.code !== '42P01' && e.code !== '42703') {
         console.error('Error fetching companies for map:', e.message);
       }
@@ -3347,6 +3385,97 @@ router.get('/map-data', async (req, res) => {
     console.error('Error fetching map data:', error);
     // Return empty array instead of error to avoid breaking the UI
     res.json([]);
+  }
+});
+
+// ============================================
+// SALES POSITIONS (Posições de Vendas)
+// ============================================
+
+// List sales positions
+router.get('/sales-positions', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+    const result = await query(
+      `SELECT sp.*, u.name as current_user_name, u.email as current_user_email
+       FROM crm_sales_positions sp
+       LEFT JOIN users u ON u.id = sp.current_user_id
+       WHERE sp.organization_id = $1
+       ORDER BY sp.name`,
+      [org.organization_id]
+    );
+    res.json(result.rows);
+  } catch (e) {
+    if (isMissingSchemaError(e)) return res.json([]);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Create sales position
+router.post('/sales-positions', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+    const { name, current_user_id } = req.body;
+    const result = await query(
+      `INSERT INTO crm_sales_positions (organization_id, name, current_user_id)
+       VALUES ($1, $2, $3) RETURNING *`,
+      [org.organization_id, name, current_user_id || null]
+    );
+    res.json(result.rows[0]);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Update sales position
+router.patch('/sales-positions/:id', async (req, res) => {
+  try {
+    const { name, current_user_id, is_active } = req.body;
+    const sets = [];
+    const params = [];
+    let idx = 1;
+    if (name !== undefined) { sets.push(`name = $${idx++}`); params.push(name); }
+    if (current_user_id !== undefined) { sets.push(`current_user_id = $${idx++}`); params.push(current_user_id || null); }
+    if (is_active !== undefined) { sets.push(`is_active = $${idx++}`); params.push(is_active); }
+    if (!sets.length) return res.status(400).json({ error: 'Nothing to update' });
+    params.push(req.params.id);
+    const result = await query(
+      `UPDATE crm_sales_positions SET ${sets.join(', ')}, updated_at = NOW() WHERE id = $${idx} RETURNING *`,
+      params
+    );
+    res.json(result.rows[0]);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Delete sales position
+router.delete('/sales-positions/:id', async (req, res) => {
+  try {
+    await query(`DELETE FROM crm_sales_positions WHERE id = $1`, [req.params.id]);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Get org members (for dropdowns)
+router.get('/org-members', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+    const result = await query(
+      `SELECT u.id, u.name, u.email FROM users u
+       JOIN organization_members om ON om.user_id = u.id
+       WHERE om.organization_id = $1
+       ORDER BY u.name`,
+      [org.organization_id]
+    );
+    res.json(result.rows);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
 });
 
