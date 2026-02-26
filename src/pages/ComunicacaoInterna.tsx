@@ -501,21 +501,19 @@ export default function ComunicacaoInterna() {
                     </button>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0">
-                          <MoreVertical className="h-3.5 w-3.5" />
-                        </Button>
+                        <button type="button" className="h-7 w-7 shrink-0 flex items-center justify-center rounded-md hover:bg-accent" onClick={(e) => e.stopPropagation()}>
+                          <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                        </button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={(e) => {
-                          e.stopPropagation();
+                      <DropdownMenuContent align="end" className="z-[100]">
+                        <DropdownMenuItem onSelect={() => {
                           setEditingTopicId(t.id);
                           setEditingTopicTitle(t.title);
                         }}>
                           <Edit className="h-4 w-4 mr-2" />
                           Editar título
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={(e) => {
-                          e.stopPropagation();
+                        <DropdownMenuItem onSelect={() => {
                           setMoveTopicId(t.id);
                           setMoveTargetChannel("");
                           setMoveTopicDialogOpen(true);
@@ -526,8 +524,7 @@ export default function ComunicacaoInterna() {
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           className="text-destructive"
-                          onClick={(e) => {
-                            e.stopPropagation();
+                          onSelect={() => {
                             if (confirm("Excluir este tópico e todas as mensagens?")) {
                               deleteTopic.mutate(t.id);
                               if (selectedTopic?.id === t.id) setSelectedTopic(null);
