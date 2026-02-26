@@ -54,7 +54,7 @@ export function TopicMembersDialog({ topicId, topicTitle, open, onOpenChange }: 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[85vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Users className="h-5 w-5 text-primary" />
@@ -63,7 +63,7 @@ export function TopicMembersDialog({ topicId, topicTitle, open, onOpenChange }: 
           <p className="text-xs text-muted-foreground truncate">{topicTitle}</p>
         </DialogHeader>
 
-        <div>
+        <div className="flex-shrink-0">
           <p className="text-sm font-medium text-muted-foreground mb-2">
             Membros atuais ({members.length})
             {members.length === 0 && <span className="ml-1 text-xs">(todos podem ver)</span>}
@@ -73,8 +73,8 @@ export function TopicMembersDialog({ topicId, topicTitle, open, onOpenChange }: 
               <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
             </div>
           ) : (
-            <ScrollArea className="max-h-40">
-              <div className="space-y-1">
+            <ScrollArea className="h-auto max-h-[160px]">
+              <div className="space-y-1 pr-3">
                 {members.map(m => (
                   <div key={m.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
                     <div className="min-w-0">
@@ -97,9 +97,9 @@ export function TopicMembersDialog({ topicId, topicTitle, open, onOpenChange }: 
           )}
         </div>
 
-        <div>
-          <p className="text-sm font-medium text-muted-foreground mb-2">Adicionar membro</p>
-          <div className="relative mb-2">
+        <div className="flex-1 min-h-0 flex flex-col">
+          <p className="text-sm font-medium text-muted-foreground mb-2 flex-shrink-0">Adicionar membro</p>
+          <div className="relative mb-2 flex-shrink-0">
             <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
             <Input
               placeholder="Buscar por nome ou e-mail..."
@@ -108,8 +108,8 @@ export function TopicMembersDialog({ topicId, topicTitle, open, onOpenChange }: 
               className="pl-8 h-9 text-sm"
             />
           </div>
-          <ScrollArea className="max-h-48">
-            <div className="space-y-1">
+          <ScrollArea className="flex-1 min-h-0 max-h-[240px]">
+            <div className="space-y-1 pr-3">
               {availableUsers.length === 0 ? (
                 <p className="text-xs text-muted-foreground text-center py-3">
                   {search ? "Nenhum usuário encontrado" : "Todos os usuários já são membros"}
