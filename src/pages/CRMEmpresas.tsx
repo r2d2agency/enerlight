@@ -8,10 +8,12 @@ import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { CompanyDialog } from "@/components/crm/CompanyDialog";
 import { CompanyImportDialog } from "@/components/crm/CompanyImportDialog";
+import { BulkCNPJUpdateDialog } from "@/components/crm/BulkCNPJUpdateDialog";
 import { DealFormDialog } from "@/components/crm/DealFormDialog";
 import { useCRMCompanies, useCRMCompanyMutations, useCRMFunnels, CRMCompany, CRMFunnel } from "@/hooks/use-crm";
+import { useAuth } from "@/contexts/AuthContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Search, MoreHorizontal, Building2, Phone, Mail, Trash2, Edit, Loader2, FileSpreadsheet, Tag, Briefcase } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Building2, Phone, Mail, Trash2, Edit, Loader2, FileSpreadsheet, Tag, Briefcase, Database } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { useDebounce } from "@/hooks/use-debounce";
 
@@ -20,6 +22,7 @@ export default function CRMEmpresas() {
   const debouncedSearch = useDebounce(search, 400);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [bulkCNPJOpen, setBulkCNPJOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<CRMCompany | null>(null);
   const [funnelPickerOpen, setFunnelPickerOpen] = useState(false);
   const [dealDialogOpen, setDealDialogOpen] = useState(false);
@@ -29,6 +32,8 @@ export default function CRMEmpresas() {
   const { data: companies, isLoading } = useCRMCompanies(debouncedSearch);
   const { data: funnels } = useCRMFunnels();
   const { deleteCompany, importCompanies } = useCRMCompanyMutations();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'owner' || user?.role === 'admin';
 
   const handleEdit = (company: CRMCompany) => {
     setEditingCompany(company);
@@ -72,6 +77,12 @@ export default function CRMEmpresas() {
             <p className="text-muted-foreground">Gerencie sua base de empresas</p>
           </div>
           <div className="flex items-center gap-2">
+            {isAdmin && (
+              <Button variant="outline" onClick={() => setBulkCNPJOpen(true)}>
+                <Database className="h-4 w-4 mr-2" />
+                Atualizar CNPJs
+              </Button>
+            )}
             <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
               <FileSpreadsheet className="h-4 w-4 mr-2" />
               Importar Excel
@@ -242,6 +253,11 @@ export default function CRMEmpresas() {
         onImport={async (companies) => {
           await importCompanies.mutateAsync(companies);
         }}
+      />
+
+      <BulkCNPJUpdateDialog
+        open={bulkCNPJOpen}
+        onOpenChange={setBulkCNPJOpen}
       />
 
       {/* Funnel Picker Dialog */}

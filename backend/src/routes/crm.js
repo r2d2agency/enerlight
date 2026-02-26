@@ -651,6 +651,68 @@ router.delete('/funnels/:id/deals', async (req, res) => {
 // COMPANIES
 // ============================================
 
+// List companies with CNPJ (for bulk update)
+router.get('/companies/with-cnpj', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    // Only admin/owner can use bulk operations
+    if (!['owner', 'admin'].includes(org.role)) {
+      return res.status(403).json({ error: 'Permission denied' });
+    }
+
+    const result = await query(
+      `SELECT id, name, cnpj FROM crm_companies
+       WHERE organization_id = $1 AND cnpj IS NOT NULL AND cnpj != ''
+       ORDER BY name`,
+      [org.organization_id]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching companies with CNPJ:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Patch company (partial update)
+router.patch('/companies/:id', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const fields = ['name', 'cnpj', 'email', 'phone', 'website', 'address', 'city', 'state', 'zip_code', 'notes'];
+    const sets = [];
+    const params = [];
+    let paramIdx = 1;
+
+    for (const field of fields) {
+      if (req.body[field] !== undefined) {
+        sets.push(`${field} = $${paramIdx}`);
+        params.push(req.body[field]);
+        paramIdx++;
+      }
+    }
+
+    if (sets.length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+
+    sets.push('updated_at = NOW()');
+    params.push(req.params.id, org.organization_id);
+
+    const result = await query(
+      `UPDATE crm_companies SET ${sets.join(', ')}
+       WHERE id = $${paramIdx} AND organization_id = $${paramIdx + 1} RETURNING *`,
+      params
+    );
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error patching company:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // List companies
 router.get('/companies', async (req, res) => {
   try {
