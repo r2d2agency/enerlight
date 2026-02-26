@@ -20,6 +20,7 @@ interface DealFormDialogProps {
   funnel: CRMFunnel | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  defaultCompanyId?: string;
 }
 
 function useMyGroups() {
@@ -29,7 +30,7 @@ function useMyGroups() {
   });
 }
 
-export function DealFormDialog({ funnel, open, onOpenChange }: DealFormDialogProps) {
+export function DealFormDialog({ funnel, open, onOpenChange, defaultCompanyId }: DealFormDialogProps) {
   const { user } = useAuth();
   const canManage = user?.role && ['owner', 'admin', 'manager'].includes(user.role);
 
@@ -68,6 +69,14 @@ export function DealFormDialog({ funnel, open, onOpenChange }: DealFormDialogPro
       }
     }
   }, [open, funnelData]);
+
+  // Pre-fill company from prop
+  useEffect(() => {
+    if (open && defaultCompanyId) {
+      setCompanyId(defaultCompanyId);
+      setMode("company");
+    }
+  }, [open, defaultCompanyId]);
 
   const handleSave = () => {
     if (!funnel || !title.trim() || !stageId) return;
