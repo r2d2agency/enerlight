@@ -719,24 +719,53 @@ router.get('/companies', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
-    const { search } = req.query;
-    let sql = `SELECT c.*, u.name as created_by_name,
+    const { search, page, page_size } = req.query;
+    const hasPagination = page !== undefined || page_size !== undefined;
+
+    const pageNumber = Math.max(parseInt(page || '1', 10) || 1, 1);
+    const pageSize = Math.min(Math.max(parseInt(page_size || '50', 10) || 50, 10), 200);
+    const offset = (pageNumber - 1) * pageSize;
+
+    const params = [org.organization_id];
+    let whereClause = `WHERE c.organization_id = $1`;
+
+    if (search) {
+      params.push(`%${search}%`);
+      whereClause += ` AND (c.name ILIKE $2 OR c.cnpj ILIKE $2 OR c.email ILIKE $2)`;
+    }
+
+    const baseSql = `SELECT c.*, u.name as created_by_name,
       s.name as segment_name, s.color as segment_color,
-      (SELECT COUNT(*) FROM crm_deals WHERE company_id = c.id) as deals_count
+      COALESCE(dc.deals_count, 0)::int as deals_count
       FROM crm_companies c
       LEFT JOIN users u ON u.id = c.created_by
       LEFT JOIN crm_segments s ON s.id = c.segment_id
-      WHERE c.organization_id = $1`;
-    const params = [org.organization_id];
+      LEFT JOIN (
+        SELECT company_id, COUNT(*)::int as deals_count
+        FROM crm_deals
+        WHERE organization_id = $1
+        GROUP BY company_id
+      ) dc ON dc.company_id = c.id
+      ${whereClause}`;
 
-    if (search) {
-      sql += ` AND (c.name ILIKE $2 OR c.cnpj ILIKE $2 OR c.email ILIKE $2)`;
-      params.push(`%${search}%`);
+    if (hasPagination) {
+      const listSql = `${baseSql} ORDER BY c.name LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+      const totalSql = `SELECT COUNT(*)::int as total FROM crm_companies c ${whereClause}`;
+
+      const [result, totalResult] = await Promise.all([
+        query(listSql, [...params, pageSize, offset]),
+        query(totalSql, params),
+      ]);
+
+      return res.json({
+        items: result.rows,
+        total: totalResult.rows[0]?.total || 0,
+        page: pageNumber,
+        pageSize,
+      });
     }
 
-    sql += ` ORDER BY c.name`;
-
-    const result = await query(sql, params);
+    const result = await query(`${baseSql} ORDER BY c.name`, params);
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching companies:', error);

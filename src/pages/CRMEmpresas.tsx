@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,16 +10,18 @@ import { CompanyDialog } from "@/components/crm/CompanyDialog";
 import { CompanyImportDialog } from "@/components/crm/CompanyImportDialog";
 import { BulkCNPJUpdateDialog } from "@/components/crm/BulkCNPJUpdateDialog";
 import { DealFormDialog } from "@/components/crm/DealFormDialog";
-import { useCRMCompanies, useCRMCompanyMutations, useCRMFunnels, CRMCompany, CRMFunnel } from "@/hooks/use-crm";
+import { useCRMCompaniesPaginated, useCRMCompanyMutations, useCRMFunnels, CRMCompany, CRMFunnel } from "@/hooks/use-crm";
 import { useAuth } from "@/contexts/AuthContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Search, MoreHorizontal, Building2, Phone, Mail, Trash2, Edit, Loader2, FileSpreadsheet, Tag, Briefcase, Database } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Building2, Phone, Mail, Trash2, Edit, Loader2, FileSpreadsheet, Briefcase, Database, ChevronLeft, ChevronRight } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { useDebounce } from "@/hooks/use-debounce";
 
 export default function CRMEmpresas() {
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 400);
+  const [page, setPage] = useState(1);
+  const pageSize = 50;
   const [dialogOpen, setDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [bulkCNPJOpen, setBulkCNPJOpen] = useState(false);
@@ -29,7 +31,15 @@ export default function CRMEmpresas() {
   const [selectedFunnel, setSelectedFunnel] = useState<CRMFunnel | null>(null);
   const [selectedCompanyForDeal, setSelectedCompanyForDeal] = useState<CRMCompany | null>(null);
 
-  const { data: companies, isLoading } = useCRMCompanies(debouncedSearch);
+  const { data: companiesResponse, isLoading, isFetching } = useCRMCompaniesPaginated({
+    search: debouncedSearch || undefined,
+    page,
+    pageSize,
+  });
+  const companies = companiesResponse?.items || [];
+  const total = companiesResponse?.total || 0;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
   const { data: funnels } = useCRMFunnels();
   const { deleteCompany, importCompanies } = useCRMCompanyMutations();
   const { user } = useAuth();
@@ -67,6 +77,10 @@ export default function CRMEmpresas() {
     setDealDialogOpen(true);
   };
 
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch]);
+
   return (
     <MainLayout>
       <div className="p-6 space-y-6">
@@ -95,14 +109,22 @@ export default function CRMEmpresas() {
         </div>
 
         {/* Search */}
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar empresas..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-10"
-          />
+        <div className="flex items-center justify-between gap-3">
+          <div className="relative max-w-md w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar empresas..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          {isFetching && !isLoading && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Atualizando...
+            </div>
+          )}
         </div>
 
         {/* Table */}
@@ -203,7 +225,7 @@ export default function CRMEmpresas() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
-                        {format(parseISO(company.created_at), "dd/MM/yyyy")}
+                        {company.created_at ? format(parseISO(company.created_at), "dd/MM/yyyy") : "-"}
                       </TableCell>
                       <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu>
@@ -239,6 +261,38 @@ export default function CRMEmpresas() {
             )}
           </CardContent>
         </Card>
+
+        {/* Pagination */}
+        {total > 0 && (
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-sm text-muted-foreground">
+              Mostrando {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} de {total} empresas
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1 || isFetching}
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                Anterior
+              </Button>
+              <span className="text-sm text-muted-foreground min-w-[90px] text-center">
+                Página {page} de {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages || isFetching}
+              >
+                Próxima
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       <CompanyDialog
