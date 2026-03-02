@@ -546,7 +546,35 @@ export function useCRMDealMutations() {
     },
   });
 
-  return { createDeal, updateDeal, moveDeal, migrateDealToFunnel, addContact, removeContact };
+  const bulkDeleteDeals = useMutation({
+    mutationFn: async (dealIds: string[]) => {
+      return api<{ success: boolean; deleted: number }>("/api/crm/deals/bulk-delete", { 
+        method: "POST", 
+        body: { deal_ids: dealIds } 
+      });
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["crm-deals"] });
+      queryClient.invalidateQueries({ queryKey: ["crm-funnels"] });
+      toast({ title: `${data.deleted} negociação(ões) excluída(s)` });
+    },
+  });
+
+  const bulkMoveDeals = useMutation({
+    mutationFn: async ({ dealIds, targetStageId, targetFunnelId }: { dealIds: string[]; targetStageId?: string; targetFunnelId?: string }) => {
+      return api<{ success: boolean; moved: number }>("/api/crm/deals/bulk-move", { 
+        method: "POST", 
+        body: { deal_ids: dealIds, target_stage_id: targetStageId, target_funnel_id: targetFunnelId } 
+      });
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["crm-deals"] });
+      queryClient.invalidateQueries({ queryKey: ["crm-funnels"] });
+      toast({ title: `${data.moved} negociação(ões) movida(s)` });
+    },
+  });
+
+  return { createDeal, updateDeal, moveDeal, migrateDealToFunnel, addContact, removeContact, bulkDeleteDeals, bulkMoveDeals };
 }
 
 // Tasks
