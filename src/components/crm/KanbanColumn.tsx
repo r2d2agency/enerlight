@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Trophy, XCircle, Pause, Play } from "lucide-react";
+import { MoreHorizontal, Trophy, XCircle, Pause, Play, Trash2 } from "lucide-react";
 
 interface KanbanColumnProps {
   stage: CRMStage;
@@ -23,11 +23,12 @@ interface KanbanColumnProps {
   selectionMode?: boolean;
   selectedDealIds?: Set<string>;
   onToggleSelect?: (dealId: string) => void;
+  onDeleteDeal?: (dealId: string) => void;
 }
 
 function SortableDealItem({ 
   deal, onDealClick, onStatusChange, isNewWin, isActive, isOver, activeId,
-  selectionMode, isSelected, onToggleSelect,
+  selectionMode, isSelected, onToggleSelect, onDeleteDeal,
 }: { 
   deal: CRMDeal; 
   onDealClick: (deal: CRMDeal) => void;
@@ -39,6 +40,7 @@ function SortableDealItem({
   selectionMode?: boolean;
   isSelected?: boolean;
   onToggleSelect?: (dealId: string) => void;
+  onDeleteDeal?: (dealId: string) => void;
 }) {
   const {
     attributes, listeners, setNodeRef, transform, transition, isDragging, isSorting,
@@ -124,6 +126,11 @@ function SortableDealItem({
                   <Play className="h-4 w-4 mr-2 text-blue-500" /> Reabrir Negociação
                 </DropdownMenuItem>
               )}
+              {onDeleteDeal && (
+                <DropdownMenuItem onClick={() => onDeleteDeal(deal.id)} className="text-destructive focus:text-destructive">
+                  <Trash2 className="h-4 w-4 mr-2" /> Excluir
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -134,7 +141,7 @@ function SortableDealItem({
 
 export function KanbanColumn({ 
   stage, deals, totalValue, onDealClick, onStatusChange, newWinDealId,
-  activeId, overId, selectionMode, selectedDealIds, onToggleSelect,
+  activeId, overId, selectionMode, selectedDealIds, onToggleSelect, onDeleteDeal,
 }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: stage.id! });
 
@@ -207,6 +214,7 @@ export function KanbanColumn({
                 selectionMode={selectionMode}
                 isSelected={selectedDealIds?.has(deal.id)}
                 onToggleSelect={onToggleSelect}
+                onDeleteDeal={onDeleteDeal}
               />
             ))
           )}

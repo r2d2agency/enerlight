@@ -26,9 +26,10 @@ interface KanbanBoardProps {
   selectionMode?: boolean;
   selectedDealIds?: Set<string>;
   onToggleSelect?: (dealId: string) => void;
+  onDeleteDeal?: (dealId: string) => void;
 }
 
-export function KanbanBoard({ stages, dealsByStage, onDealClick, onStatusChange, newWinDealId, selectionMode, selectedDealIds, onToggleSelect }: KanbanBoardProps) {
+export function KanbanBoard({ stages, dealsByStage, onDealClick, onStatusChange, newWinDealId, selectionMode, selectedDealIds, onToggleSelect, onDeleteDeal }: KanbanBoardProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
   const { moveDeal } = useCRMDealMutations();
@@ -145,6 +146,7 @@ export function KanbanBoard({ stages, dealsByStage, onDealClick, onStatusChange,
                   selectionMode={selectionMode}
                   selectedDealIds={selectedDealIds}
                   onToggleSelect={onToggleSelect}
+                  onDeleteDeal={onDeleteDeal}
                 />
               </SortableContext>
             );

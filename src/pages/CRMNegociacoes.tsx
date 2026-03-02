@@ -78,6 +78,7 @@ export default function CRMNegociacoes() {
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedDealIds, setSelectedDealIds] = useState<Set<string>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [singleDeleteDealId, setSingleDeleteDealId] = useState<string | null>(null);
   const [bulkMoveTarget, setBulkMoveTarget] = useState<{ type: 'stage' | 'funnel'; id: string } | null>(null);
   
   // Filters
@@ -107,6 +108,21 @@ export default function CRMNegociacoes() {
   
   const currentFunnel = funnels?.find((f) => f.id === currentFunnelId) || null;
   const canManage = user?.role && ['owner', 'admin', 'manager'].includes(user.role);
+
+  // Single deal delete handler (for card menu)
+  const handleDeleteDeal = canManage ? (dealId: string) => {
+    setSingleDeleteDealId(dealId);
+  } : undefined;
+
+  const handleConfirmSingleDelete = useCallback(async () => {
+    if (!singleDeleteDealId) return;
+    try {
+      await bulkDeleteDeals.mutateAsync([singleDeleteDealId]);
+    } catch (error) {
+      console.error("Delete error:", error);
+    }
+    setSingleDeleteDealId(null);
+  }, [singleDeleteDealId, bulkDeleteDeals]);
 
   // Toggle selection
   const handleToggleSelect = useCallback((dealId: string) => {
@@ -622,6 +638,7 @@ export default function CRMNegociacoes() {
                 selectionMode={selectionMode}
                 selectedDealIds={selectedDealIds}
                 onToggleSelect={handleToggleSelect}
+                onDeleteDeal={handleDeleteDeal}
               />
             ) : (
               <PipelineView
@@ -683,6 +700,24 @@ export default function CRMNegociacoes() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Single deal delete confirmation */}
+      <AlertDialog open={!!singleDeleteDealId} onOpenChange={(open) => !open && setSingleDeleteDealId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir negociação?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação é irreversível. A negociação e seus dados relacionados serão removidos permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmSingleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Excluir
             </AlertDialogAction>
           </AlertDialogFooter>
