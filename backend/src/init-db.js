@@ -1389,6 +1389,20 @@ CREATE TABLE IF NOT EXISTS crm_deals (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Ensure organization_id exists for older databases
+DO $$ BEGIN
+    ALTER TABLE crm_deals ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE;
+EXCEPTION
+    WHEN duplicate_column THEN null;
+END $$;
+
+-- Backfill organization_id for existing deals that have NULL
+UPDATE crm_deals d
+SET organization_id = (
+  SELECT om.organization_id FROM organization_members om WHERE om.user_id = d.created_by LIMIT 1
+)
+WHERE d.organization_id IS NULL AND d.created_by IS NOT NULL;
+
 -- Ensure position exists for older databases (and backfill a stable order)
 DO $$ BEGIN
     ALTER TABLE crm_deals ADD COLUMN IF NOT EXISTS position INTEGER NOT NULL DEFAULT 0;
