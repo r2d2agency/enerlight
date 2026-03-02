@@ -3453,6 +3453,98 @@ END $$;
 CREATE INDEX IF NOT EXISTS idx_crm_companies_sales_position ON crm_companies(sales_position_id);
 `;
 
+// ============================================
+// STEP 45: HOMOLOGATION MODULE
+// ============================================
+const step45Homologation = `
+CREATE TABLE IF NOT EXISTS homologation_boards (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  description TEXT,
+  is_active BOOLEAN DEFAULT true,
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS homologation_stages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  board_id UUID REFERENCES homologation_boards(id) ON DELETE CASCADE NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  color VARCHAR(20) DEFAULT '#6366f1',
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  is_final BOOLEAN DEFAULT false,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS homologation_companies (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  board_id UUID REFERENCES homologation_boards(id) ON DELETE CASCADE NOT NULL,
+  organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE NOT NULL,
+  stage_id UUID REFERENCES homologation_stages(id) ON DELETE SET NULL,
+  name VARCHAR(255) NOT NULL,
+  cnpj VARCHAR(20),
+  contact_name VARCHAR(255),
+  contact_email VARCHAR(255),
+  contact_phone VARCHAR(50),
+  notes TEXT,
+  assigned_to UUID REFERENCES users(id) ON DELETE SET NULL,
+  completed_at TIMESTAMP WITH TIME ZONE,
+  sort_order INTEGER DEFAULT 0,
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS homologation_tasks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id UUID REFERENCES homologation_companies(id) ON DELETE CASCADE NOT NULL,
+  title VARCHAR(500) NOT NULL,
+  description TEXT,
+  status VARCHAR(20) DEFAULT 'pending',
+  priority VARCHAR(20) DEFAULT 'medium',
+  due_date TIMESTAMP WITH TIME ZONE,
+  assigned_to UUID REFERENCES users(id) ON DELETE SET NULL,
+  completed_at TIMESTAMP WITH TIME ZONE,
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS homologation_meetings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id UUID REFERENCES homologation_companies(id) ON DELETE CASCADE NOT NULL,
+  meeting_id UUID REFERENCES meetings(id) ON DELETE CASCADE NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(company_id, meeting_id)
+);
+
+CREATE TABLE IF NOT EXISTS homologation_history (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id UUID REFERENCES homologation_companies(id) ON DELETE CASCADE NOT NULL,
+  user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  user_name VARCHAR(255),
+  action VARCHAR(50) NOT NULL,
+  details TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_homologation_boards_org ON homologation_boards(organization_id);
+CREATE INDEX IF NOT EXISTS idx_homologation_stages_board ON homologation_stages(board_id);
+CREATE INDEX IF NOT EXISTS idx_homologation_companies_board ON homologation_companies(board_id);
+CREATE INDEX IF NOT EXISTS idx_homologation_companies_stage ON homologation_companies(stage_id);
+CREATE INDEX IF NOT EXISTS idx_homologation_tasks_company ON homologation_tasks(company_id);
+CREATE INDEX IF NOT EXISTS idx_homologation_meetings_company ON homologation_meetings(company_id);
+CREATE INDEX IF NOT EXISTS idx_homologation_history_company ON homologation_history(company_id);
+
+-- Plan column
+DO $$ BEGIN
+  ALTER TABLE plans ADD COLUMN IF NOT EXISTS has_homologation BOOLEAN DEFAULT false;
+EXCEPTION WHEN others THEN NULL;
+END $$;
+`;
+
 const migrationSteps = [
   { name: 'Enums', sql: step1Enums, critical: true },
   { name: 'Core Tables (users, plans)', sql: step2CoreTables, critical: true },
@@ -3499,6 +3591,7 @@ const migrationSteps = [
   { name: 'Internal Chat', sql: step42InternalChat, critical: false },
   { name: 'Default Permission Templates', sql: step43DefaultTemplates, critical: false },
   { name: 'Sales Positions', sql: step44SalesPositions, critical: false },
+  { name: 'Homologation Module', sql: step45Homologation, critical: false },
 ];
 
 export async function initDatabase() {

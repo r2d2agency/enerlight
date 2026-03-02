@@ -239,7 +239,8 @@ router.post('/login', async (req, res) => {
       chatbots: true,
       chat: true,
       crm: true,
-      projects: true
+      projects: true,
+      homologation: true
     };
     
     // Only superadmin bypasses module restrictions - owners/admins follow plan settings
@@ -379,7 +380,8 @@ router.get('/me', async (req, res) => {
       chatbots: true,
       chat: true,
       crm: true,
-      projects: true
+      projects: true,
+      homologation: true
     };
     
     // Only superadmin bypasses module restrictions - owners/admins follow plan settings

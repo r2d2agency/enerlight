@@ -54,7 +54,7 @@ interface NavItem {
   name: string;
   href: string;
   icon: any;
-  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat';
+  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat' | 'homologation';
   adminOnly?: boolean;
   ownerOnly?: boolean;
   superadminOnly?: boolean;
@@ -65,7 +65,7 @@ interface NavSection {
   title: string;
   icon: any;
   items: NavItem[];
-  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat';
+  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat' | 'homologation';
   adminOnly?: boolean;
   permissionKey?: string;
 }
@@ -123,6 +123,15 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
     items: [
       { name: "Kanban", href: "/projetos", icon: FolderKanban, permissionKey: 'can_view_projects' },
       { name: "Reuniões", href: "/reunioes", icon: Presentation, permissionKey: 'can_view_projects' },
+    ],
+  },
+  {
+    title: "Homologação",
+    icon: ClipboardList,
+    moduleKey: 'homologation',
+    permissionKey: 'can_view_homologation',
+    items: [
+      { name: "Quadros", href: "/homologacao", icon: ClipboardList, permissionKey: 'can_view_homologation' },
     ],
   },
   {
