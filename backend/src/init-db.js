@@ -3497,7 +3497,14 @@ CREATE TABLE IF NOT EXISTS homologation_companies (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS homologation_tasks (
+-- Add address columns if not exists
+DO $$ BEGIN
+  ALTER TABLE homologation_companies ADD COLUMN IF NOT EXISTS address TEXT;
+  ALTER TABLE homologation_companies ADD COLUMN IF NOT EXISTS city VARCHAR(255);
+  ALTER TABLE homologation_companies ADD COLUMN IF NOT EXISTS state VARCHAR(2);
+  ALTER TABLE homologation_companies ADD COLUMN IF NOT EXISTS zip_code VARCHAR(10);
+EXCEPTION WHEN others THEN NULL;
+END $$;
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID REFERENCES homologation_companies(id) ON DELETE CASCADE NOT NULL,
   title VARCHAR(500) NOT NULL,

@@ -192,7 +192,7 @@ router.get('/boards/:boardId/companies', requireAuth, async (req, res) => {
 router.post('/boards/:boardId/companies', requireAuth, async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
-    const { name, cnpj, contact_name, contact_email, contact_phone, notes, stage_id, assigned_to } = req.body;
+    const { name, cnpj, contact_name, contact_email, contact_phone, address, city, state, zip_code, notes, stage_id, assigned_to } = req.body;
     
     // If no stage_id, use the first stage
     let finalStageId = stage_id;
@@ -205,9 +205,9 @@ router.post('/boards/:boardId/companies', requireAuth, async (req, res) => {
     }
 
     const result = await query(
-      `INSERT INTO homologation_companies (board_id, organization_id, stage_id, name, cnpj, contact_name, contact_email, contact_phone, notes, assigned_to, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
-      [req.params.boardId, org.organization_id, finalStageId, name, cnpj || null, contact_name || null, contact_email || null, contact_phone || null, notes || null, assigned_to || null, req.userId]
+      `INSERT INTO homologation_companies (board_id, organization_id, stage_id, name, cnpj, contact_name, contact_email, contact_phone, address, city, state, zip_code, notes, assigned_to, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING *`,
+      [req.params.boardId, org.organization_id, finalStageId, name, cnpj || null, contact_name || null, contact_email || null, contact_phone || null, address || null, city || null, state || null, zip_code || null, notes || null, assigned_to || null, req.userId]
     );
 
     // Add history
@@ -227,7 +227,7 @@ router.post('/boards/:boardId/companies', requireAuth, async (req, res) => {
 // Update company
 router.patch('/companies/:id', requireAuth, async (req, res) => {
   try {
-    const { name, cnpj, contact_name, contact_email, contact_phone, notes, stage_id, assigned_to, sort_order } = req.body;
+    const { name, cnpj, contact_name, contact_email, contact_phone, address, city, state, zip_code, notes, stage_id, assigned_to, sort_order } = req.body;
     
     // Check if stage changed for history
     let oldStage = null;
@@ -242,9 +242,12 @@ router.patch('/companies/:id', requireAuth, async (req, res) => {
         contact_name = COALESCE($3, contact_name), contact_email = COALESCE($4, contact_email),
         contact_phone = COALESCE($5, contact_phone), notes = COALESCE($6, notes),
         stage_id = COALESCE($7, stage_id), assigned_to = COALESCE($8, assigned_to),
-        sort_order = COALESCE($9, sort_order), updated_at = NOW()
-       WHERE id = $10 RETURNING *`,
-      [name, cnpj, contact_name, contact_email, contact_phone, notes, stage_id, assigned_to, sort_order, req.params.id]
+        sort_order = COALESCE($9, sort_order),
+        address = COALESCE($10, address), city = COALESCE($11, city),
+        state = COALESCE($12, state), zip_code = COALESCE($13, zip_code),
+        updated_at = NOW()
+       WHERE id = $14 RETURNING *`,
+      [name, cnpj, contact_name, contact_email, contact_phone, notes, stage_id, assigned_to, sort_order, address, city, state, zip_code, req.params.id]
     );
 
     // History for stage change

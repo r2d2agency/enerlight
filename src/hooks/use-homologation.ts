@@ -33,6 +33,10 @@ export interface HomologationCompany {
   contact_name: string | null;
   contact_email: string | null;
   contact_phone: string | null;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  zip_code: string | null;
   notes: string | null;
   assigned_to: string | null;
   assigned_to_name: string | null;
@@ -156,7 +160,7 @@ export function useHomologationCompanies(boardId: string | null) {
 export function useCreateCompany() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ boardId, ...data }: { boardId: string; name: string; cnpj?: string; contact_name?: string; contact_email?: string; contact_phone?: string; notes?: string; stage_id?: string; assigned_to?: string }) =>
+    mutationFn: ({ boardId, ...data }: { boardId: string; name: string; cnpj?: string; contact_name?: string; contact_email?: string; contact_phone?: string; address?: string; city?: string; state?: string; zip_code?: string; notes?: string; stage_id?: string; assigned_to?: string }) =>
       api(`/api/homologation/boards/${boardId}/companies`, { method: "POST", body: data }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["homologation-companies"] }),
   });
@@ -165,7 +169,7 @@ export function useCreateCompany() {
 export function useUpdateCompany() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...data }: { id: string; name?: string; cnpj?: string; contact_name?: string; contact_email?: string; contact_phone?: string; notes?: string; stage_id?: string; assigned_to?: string; sort_order?: number }) =>
+    mutationFn: ({ id, ...data }: { id: string; name?: string; cnpj?: string; contact_name?: string; contact_email?: string; contact_phone?: string; address?: string; city?: string; state?: string; zip_code?: string; notes?: string; stage_id?: string; assigned_to?: string; sort_order?: number }) =>
       api(`/api/homologation/companies/${id}`, { method: "PATCH", body: data }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["homologation-companies"] });
