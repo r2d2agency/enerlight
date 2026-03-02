@@ -11,7 +11,7 @@ import { WinCelebration } from "@/components/crm/WinCelebration";
 import { LossReasonDialog } from "@/components/crm/LossReasonDialog";
 import { CRMImportDialog } from "@/components/crm/CRMImportDialog";
 import { useCRMFunnels, useCRMFunnel, useCRMDeals, useCRMMyTeam, useCRMDealMutations, useCRMDeal, CRMDeal, CRMFunnel } from "@/hooks/use-crm";
-import { Plus, Settings, Loader2, Filter, User, ArrowUpDown, CalendarIcon, X, LayoutGrid, List, Trophy, XCircle, Pause, FileSpreadsheet } from "lucide-react";
+import { Plus, Settings, Loader2, Filter, User, ArrowUpDown, CalendarIcon, X, LayoutGrid, List, Trophy, XCircle, Pause, FileSpreadsheet, CheckSquare, Trash2, ArrowRight } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { parseISO, format, startOfDay, endOfDay, isWithinInterval } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -23,6 +23,16 @@ import { toast } from "sonner";
 import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function CRMNegociacoes() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -64,6 +74,12 @@ export default function CRMNegociacoes() {
   const [lossDialogOpen, setLossDialogOpen] = useState(false);
   const [pendingLossDeal, setPendingLossDeal] = useState<{ id: string; title: string } | null>(null);
   
+  // Selection mode
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedDealIds, setSelectedDealIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkMoveTarget, setBulkMoveTarget] = useState<{ type: 'stage' | 'funnel'; id: string } | null>(null);
+  
   // Filters
   const [ownerFilter, setOwnerFilter] = useState<string>("all");
   const [groupFilter, setGroupFilter] = useState<string>("all");
@@ -75,7 +91,7 @@ export default function CRMNegociacoes() {
   
   const { data: funnels, isLoading: loadingFunnels } = useCRMFunnels();
   const { data: teamMembers } = useCRMMyTeam();
-  const { updateDeal } = useCRMDealMutations();
+  const { updateDeal, bulkDeleteDeals, bulkMoveDeals } = useCRMDealMutations();
   
   // Auto-select first funnel
   const currentFunnelId = selectedFunnelId || funnels?.[0]?.id || null;
@@ -89,13 +105,54 @@ export default function CRMNegociacoes() {
   const { data: funnelData } = useCRMFunnel(currentFunnelId);
   const { data: dealsByStage, isLoading: loadingDeals } = useCRMDeals(currentFunnelId);
   
-
   const currentFunnel = funnels?.find((f) => f.id === currentFunnelId) || null;
   const canManage = user?.role && ['owner', 'admin', 'manager'].includes(user.role);
+
+  // Toggle selection
+  const handleToggleSelect = useCallback((dealId: string) => {
+    setSelectedDealIds(prev => {
+      const next = new Set(prev);
+      if (next.has(dealId)) next.delete(dealId);
+      else next.add(dealId);
+      return next;
+    });
+  }, []);
+
+  // handleSelectAll defined after filteredDealsByStage
+
+  // Exit selection mode
+  const exitSelectionMode = useCallback(() => {
+    setSelectionMode(false);
+    setSelectedDealIds(new Set());
+  }, []);
+
+  // Bulk delete
+  const handleBulkDelete = useCallback(async () => {
+    try {
+      await bulkDeleteDeals.mutateAsync(Array.from(selectedDealIds));
+      exitSelectionMode();
+    } catch (error) {
+      console.error("Bulk delete error:", error);
+    }
+    setBulkDeleteOpen(false);
+  }, [selectedDealIds, bulkDeleteDeals, exitSelectionMode]);
+
+  // Bulk move
+  const handleBulkMove = useCallback(async (targetStageId?: string, targetFunnelId?: string) => {
+    try {
+      await bulkMoveDeals.mutateAsync({
+        dealIds: Array.from(selectedDealIds),
+        targetStageId,
+        targetFunnelId,
+      });
+      exitSelectionMode();
+    } catch (error) {
+      console.error("Bulk move error:", error);
+    }
+  }, [selectedDealIds, bulkMoveDeals, exitSelectionMode]);
   
   // Handle status change with celebration
   const handleStatusChange = useCallback((dealId: string, status: 'won' | 'lost' | 'paused' | 'open', dealTitle?: string) => {
-    // If marking as lost, open the loss reason dialog
     if (status === 'lost') {
       const deal = Object.values(dealsByStage || {}).flat().find(d => d.id === dealId);
       setPendingLossDeal({ id: dealId, title: dealTitle || deal?.title || 'Negociação' });
@@ -162,24 +219,20 @@ export default function CRMNegociacoes() {
     return Object.entries(dealsByStage).reduce((acc, [stageId, deals]) => {
       let filtered = deals as CRMDeal[];
       
-      // Filter by owner
       if (ownerFilter === "mine") {
         filtered = filtered.filter(d => d.owner_id === user?.id);
       } else if (ownerFilter !== "all") {
         filtered = filtered.filter(d => d.owner_id === ownerFilter);
       }
       
-      // Filter by group
       if (groupFilter !== "all") {
         filtered = filtered.filter(d => d.group_id === groupFilter);
       }
       
-      // Filter by status
       if (statusFilter !== "all") {
         filtered = filtered.filter(d => d.status === statusFilter);
       }
       
-      // Filter by date range
       if (startDate || endDate) {
         filtered = filtered.filter(d => {
           const raw = dateFilterType === "last_activity" ? d.last_activity_at : d.created_at;
@@ -187,10 +240,7 @@ export default function CRMNegociacoes() {
           const dateToCheck = parseISO(raw);
           
           if (startDate && endDate) {
-            return isWithinInterval(dateToCheck, {
-              start: startOfDay(startDate),
-              end: endOfDay(endDate)
-            });
+            return isWithinInterval(dateToCheck, { start: startOfDay(startDate), end: endOfDay(endDate) });
           } else if (startDate) {
             return dateToCheck >= startOfDay(startDate);
           } else if (endDate) {
@@ -200,13 +250,25 @@ export default function CRMNegociacoes() {
         });
       }
       
-      // Apply sorting
       filtered = sortDeals(filtered);
-      
       acc[stageId] = filtered;
       return acc;
     }, {} as Record<string, CRMDeal[]>);
   }, [dealsByStage, ownerFilter, groupFilter, sortOrder, user?.id, startDate, endDate, dateFilterType, statusFilter]);
+
+  const totalVisibleDeals = useMemo(() => {
+    return Object.values(filteredDealsByStage).flat().length;
+  }, [filteredDealsByStage]);
+
+  const handleSelectAll = useCallback(() => {
+    const allIds = Object.values(filteredDealsByStage).flat().map(d => d.id);
+    const allSelected = allIds.length > 0 && allIds.every(id => selectedDealIds.has(id));
+    if (allSelected) {
+      setSelectedDealIds(new Set());
+    } else {
+      setSelectedDealIds(new Set(allIds));
+    }
+  }, [selectedDealIds, filteredDealsByStage]);
 
   const handleDealClick = (deal: CRMDeal) => {
     setSelectedDeal(deal);
@@ -214,7 +276,6 @@ export default function CRMNegociacoes() {
   };
 
   const handleEditFunnel = () => {
-    // Use funnelData which includes stages
     if (funnelData) {
       setEditingFunnel(funnelData as CRMFunnel);
     } else {
@@ -238,7 +299,7 @@ export default function CRMNegociacoes() {
             <h1 className="text-lg lg:text-2xl font-bold shrink-0">Negociações</h1>
 
             <div className="flex items-center gap-2">
-              {/* View Toggle - icons only on mobile */}
+              {/* View Toggle */}
               <ToggleGroup type="single" value={viewMode} onValueChange={(v) => v && setViewMode(v as "kanban" | "pipeline")}>
                 <ToggleGroupItem value="kanban" aria-label="Kanban" className="gap-1">
                   <LayoutGrid className="h-4 w-4" />
@@ -249,6 +310,18 @@ export default function CRMNegociacoes() {
                   <span className="hidden lg:inline">Pipeline</span>
                 </ToggleGroupItem>
               </ToggleGroup>
+
+              {/* Selection mode toggle (admin only) */}
+              {canManage && viewMode === "kanban" && (
+                <Button 
+                  variant={selectionMode ? "default" : "outline"} 
+                  size="sm" 
+                  onClick={() => selectionMode ? exitSelectionMode() : setSelectionMode(true)}
+                >
+                  <CheckSquare className="h-4 w-4 mr-1" />
+                  <span className="hidden lg:inline">{selectionMode ? "Cancelar" : "Selecionar"}</span>
+                </Button>
+              )}
 
               {canManage && (
                 <Button variant="outline" size="sm" onClick={() => setImportOpen(true)} className="hidden lg:flex">
@@ -270,11 +343,80 @@ export default function CRMNegociacoes() {
             </div>
           </div>
 
+          {/* Bulk action bar */}
+          {selectionMode && selectedDealIds.size > 0 && (
+            <div className="flex items-center gap-3 p-2 bg-primary/10 rounded-lg border border-primary/20">
+              <span className="text-sm font-medium">{selectedDealIds.size} selecionada(s)</span>
+              <Button variant="ghost" size="sm" onClick={handleSelectAll}>
+                {selectedDealIds.size === totalVisibleDeals ? "Desmarcar todas" : "Selecionar todas"}
+              </Button>
+              <div className="flex-1" />
+
+              {/* Move to stage */}
+              {funnelData?.stages && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <ArrowRight className="h-4 w-4 mr-1" />
+                      Mover p/ etapa
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-48 p-1" align="end">
+                    {funnelData.stages.map(stage => (
+                      <Button
+                        key={stage.id}
+                        variant="ghost"
+                        size="sm"
+                        className="w-full justify-start gap-2"
+                        onClick={() => handleBulkMove(stage.id)}
+                      >
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: stage.color }} />
+                        {stage.name}
+                      </Button>
+                    ))}
+                  </PopoverContent>
+                </Popover>
+              )}
+
+              {/* Move to funnel */}
+              {funnels && funnels.length > 1 && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <ArrowRight className="h-4 w-4 mr-1" />
+                      Mover p/ funil
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-48 p-1" align="end">
+                    {funnels.filter(f => f.id !== currentFunnelId).map(funnel => (
+                      <Button
+                        key={funnel.id}
+                        variant="ghost"
+                        size="sm"
+                        className="w-full justify-start gap-2"
+                        onClick={() => handleBulkMove(undefined, funnel.id)}
+                      >
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: funnel.color }} />
+                        {funnel.name}
+                      </Button>
+                    ))}
+                  </PopoverContent>
+                </Popover>
+              )}
+
+              {/* Delete */}
+              <Button variant="destructive" size="sm" onClick={() => setBulkDeleteOpen(true)}>
+                <Trash2 className="h-4 w-4 mr-1" />
+                Excluir
+              </Button>
+            </div>
+          )}
+
           {/* Second row: funnel selector */}
           <div className="flex items-center gap-2">
             <Select 
               value={currentFunnelId || ""} 
-              onValueChange={(val) => setSelectedFunnelId(val)}
+              onValueChange={(val) => { setSelectedFunnelId(val); exitSelectionMode(); }}
             >
               <SelectTrigger className="w-full lg:w-[200px]">
                 <SelectValue placeholder="Selecione um funil" />
@@ -283,10 +425,7 @@ export default function CRMNegociacoes() {
                 {funnels?.map((funnel) => (
                   <SelectItem key={funnel.id} value={funnel.id}>
                     <div className="flex items-center gap-2">
-                      <div 
-                        className="w-3 h-3 rounded-full" 
-                        style={{ backgroundColor: funnel.color }} 
-                      />
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: funnel.color }} />
                       {funnel.name}
                     </div>
                   </SelectItem>
@@ -307,14 +446,13 @@ export default function CRMNegociacoes() {
             )}
           </div>
 
-          {/* Filters Row - scrollable on mobile */}
+          {/* Filters Row */}
           <div className="flex items-center gap-3 overflow-x-auto pb-1">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Filter className="h-4 w-4" />
               <span>Filtros:</span>
             </div>
 
-            {/* Owner Filter */}
             <Select value={ownerFilter} onValueChange={setOwnerFilter}>
               <SelectTrigger className="w-[180px]">
                 <User className="h-4 w-4 mr-2" />
@@ -331,8 +469,6 @@ export default function CRMNegociacoes() {
               </SelectContent>
             </Select>
 
-
-            {/* Sort Order */}
             <Select value={sortOrder} onValueChange={setSortOrder}>
               <SelectTrigger className="w-[180px]">
                 <ArrowUpDown className="h-4 w-4 mr-2" />
@@ -345,7 +481,6 @@ export default function CRMNegociacoes() {
               </SelectContent>
             </Select>
 
-            {/* Status Filter */}
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-[150px]">
                 <SelectValue placeholder="Status" />
@@ -402,13 +537,7 @@ export default function CRMNegociacoes() {
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0 z-50" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={startDate}
-                    onSelect={setStartDate}
-                    locale={ptBR}
-                    className={cn("p-3 pointer-events-auto")}
-                  />
+                  <Calendar mode="single" selected={startDate} onSelect={setStartDate} locale={ptBR} className={cn("p-3 pointer-events-auto")} />
                 </PopoverContent>
               </Popover>
 
@@ -438,14 +567,7 @@ export default function CRMNegociacoes() {
               </Popover>
 
               {(startDate || endDate) && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => {
-                    setStartDate(undefined);
-                    setEndDate(undefined);
-                  }}
-                >
+                <Button variant="ghost" size="icon" onClick={() => { setStartDate(undefined); setEndDate(undefined); }}>
                   <X className="h-4 w-4" />
                 </Button>
               )}
@@ -497,6 +619,9 @@ export default function CRMNegociacoes() {
                 onDealClick={handleDealClick}
                 onStatusChange={handleStatusChange}
                 newWinDealId={newWinDealId}
+                selectionMode={selectionMode}
+                selectedDealIds={selectedDealIds}
+                onToggleSelect={handleToggleSelect}
               />
             ) : (
               <PipelineView
@@ -525,34 +650,15 @@ export default function CRMNegociacoes() {
       </div>
 
       {/* Dialogs */}
-      <DealDetailDialog
-        deal={selectedDeal}
-        open={dealDetailOpen}
-        onOpenChange={setDealDetailOpen}
-      />
+      <DealDetailDialog deal={selectedDeal} open={dealDetailOpen} onOpenChange={setDealDetailOpen} />
+      <DealFormDialog funnel={currentFunnel} open={newDealOpen} onOpenChange={setNewDealOpen} />
+      <FunnelEditorDialog funnel={editingFunnel} open={funnelEditorOpen} onOpenChange={setFunnelEditorOpen} />
 
-      <DealFormDialog
-        funnel={currentFunnel}
-        open={newDealOpen}
-        onOpenChange={setNewDealOpen}
-      />
-
-      <FunnelEditorDialog
-        funnel={editingFunnel}
-        open={funnelEditorOpen}
-        onOpenChange={setFunnelEditorOpen}
-      />
-
-      {/* Win Celebration */}
       <WinCelebration 
         show={showCelebration} 
-        onComplete={() => {
-          setShowCelebration(false);
-          setNewWinDealId(null);
-        }} 
+        onComplete={() => { setShowCelebration(false); setNewWinDealId(null); }} 
       />
 
-      {/* Loss Reason Dialog */}
       <LossReasonDialog
         open={lossDialogOpen}
         onOpenChange={setLossDialogOpen}
@@ -560,11 +666,25 @@ export default function CRMNegociacoes() {
         dealTitle={pendingLossDeal?.title}
       />
 
-      <CRMImportDialog
-        open={importOpen}
-        onOpenChange={setImportOpen}
-        orgMembers={orgMembers}
-      />
+      <CRMImportDialog open={importOpen} onOpenChange={setImportOpen} orgMembers={orgMembers} />
+
+      {/* Bulk delete confirmation */}
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir {selectedDealIds.size} negociação(ões)?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação é irreversível. Todas as negociações selecionadas e seus dados relacionados serão removidos permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </MainLayout>
   );
 }

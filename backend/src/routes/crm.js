@@ -1562,6 +1562,91 @@ router.post('/deals/:id/move', async (req, res) => {
   }
 });
 
+// Bulk delete deals
+router.post('/deals/bulk-delete', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org || !canManage(org.role)) {
+      return res.status(403).json({ error: 'Permission denied' });
+    }
+
+    const { deal_ids } = req.body;
+    if (!deal_ids || !Array.isArray(deal_ids) || deal_ids.length === 0) {
+      return res.status(400).json({ error: 'deal_ids array is required' });
+    }
+
+    // Delete related records first
+    await query(
+      `DELETE FROM crm_deal_contacts WHERE deal_id = ANY($1::uuid[]) AND deal_id IN (SELECT id FROM crm_deals WHERE organization_id = $2)`,
+      [deal_ids, org.organization_id]
+    );
+    await query(
+      `DELETE FROM crm_deal_history WHERE deal_id = ANY($1::uuid[]) AND deal_id IN (SELECT id FROM crm_deals WHERE organization_id = $2)`,
+      [deal_ids, org.organization_id]
+    );
+
+    const result = await query(
+      `DELETE FROM crm_deals WHERE id = ANY($1::uuid[]) AND organization_id = $2`,
+      [deal_ids, org.organization_id]
+    );
+
+    logInfo('crm.deals_bulk_deleted', { count: result.rowCount, user_id: req.userId });
+    res.json({ success: true, deleted: result.rowCount });
+  } catch (error) {
+    console.error('Error bulk deleting deals:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Bulk move deals to stage
+router.post('/deals/bulk-move', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org || !canManage(org.role)) {
+      return res.status(403).json({ error: 'Permission denied' });
+    }
+
+    const { deal_ids, target_stage_id, target_funnel_id } = req.body;
+    if (!deal_ids || !Array.isArray(deal_ids) || deal_ids.length === 0) {
+      return res.status(400).json({ error: 'deal_ids array is required' });
+    }
+
+    if (target_funnel_id) {
+      // Moving to another funnel
+      let stageId = target_stage_id;
+      if (!stageId) {
+        const firstStage = await query(
+          `SELECT id FROM crm_stages WHERE funnel_id = $1 ORDER BY position ASC LIMIT 1`,
+          [target_funnel_id]
+        );
+        if (!firstStage.rows[0]) return res.status(400).json({ error: 'Target funnel has no stages' });
+        stageId = firstStage.rows[0].id;
+      }
+
+      await query(
+        `UPDATE crm_deals SET funnel_id = $1, stage_id = $2, last_activity_at = NOW(), updated_at = NOW()
+         WHERE id = ANY($3::uuid[]) AND organization_id = $4`,
+        [target_funnel_id, stageId, deal_ids, org.organization_id]
+      );
+    } else if (target_stage_id) {
+      // Moving to another stage in same funnel
+      await query(
+        `UPDATE crm_deals SET stage_id = $1, last_activity_at = NOW(), updated_at = NOW()
+         WHERE id = ANY($2::uuid[]) AND organization_id = $3`,
+        [target_stage_id, deal_ids, org.organization_id]
+      );
+    } else {
+      return res.status(400).json({ error: 'target_stage_id or target_funnel_id is required' });
+    }
+
+    logInfo('crm.deals_bulk_moved', { count: deal_ids.length, user_id: req.userId });
+    res.json({ success: true, moved: deal_ids.length });
+  } catch (error) {
+    console.error('Error bulk moving deals:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Migrate deal to another funnel
 router.post('/deals/:id/migrate-funnel', async (req, res) => {
   try {
