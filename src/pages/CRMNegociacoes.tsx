@@ -312,7 +312,7 @@ export default function CRMNegociacoes() {
               </ToggleGroup>
 
               {/* Selection mode toggle (admin only) */}
-              {canManage && viewMode === "kanban" && (
+              {canManage && (
                 <Button 
                   variant={selectionMode ? "default" : "outline"} 
                   size="sm" 
@@ -630,6 +630,9 @@ export default function CRMNegociacoes() {
                 onDealClick={handleDealClick}
                 onStatusChange={handleStatusChange}
                 newWinDealId={newWinDealId}
+                selectionMode={selectionMode}
+                selectedDealIds={selectedDealIds}
+                onToggleSelect={handleToggleSelect}
               />
             )
           ) : (
