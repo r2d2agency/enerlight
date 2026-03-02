@@ -52,6 +52,7 @@ const CRMRepresentantes = lazy(() => import("./pages/CRMRepresentantes"));
 const CRMMetas = lazy(() => import("./pages/CRMMetas"));
 const Reunioes = lazy(() => import("./pages/Reunioes"));
 const ComunicacaoInterna = lazy(() => import("./pages/ComunicacaoInterna"));
+const Homologacao = lazy(() => import("./pages/Homologacao"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
@@ -135,6 +136,7 @@ const App = () => (
               <Route path="/projetos" element={<ProtectedRoute><Projetos /></ProtectedRoute>} />
               <Route path="/reunioes" element={<ProtectedRoute><Reunioes /></ProtectedRoute>} />
               <Route path="/comunicacao" element={<ProtectedRoute><ComunicacaoInterna /></ProtectedRoute>} />
+              <Route path="/homologacao" element={<ProtectedRoute><Homologacao /></ProtectedRoute>} />
               <Route path="/f/:slug" element={<PublicFormPage />} />
               <Route path="/politica-privacidade" element={<PoliticaPrivacidade />} />
               <Route path="*" element={<NotFound />} />

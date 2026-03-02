@@ -15,6 +15,7 @@ interface ModulesEnabled {
   ghost: boolean;
   projects: boolean;
   internal_chat: boolean;
+  homologation: boolean;
 }
 
 export interface UserPermissions {
@@ -48,6 +49,7 @@ export interface UserPermissions {
   can_view_organizations: boolean;
   can_view_settings: boolean;
   can_view_internal_chat: boolean;
+  can_view_homologation: boolean;
 }
 
 interface User {
@@ -93,6 +95,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   ghost: true,
     projects: false,
     internal_chat: true,
+    homologation: false,
   };
 
   const refreshUser = async () => {

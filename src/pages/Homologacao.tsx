@@ -1,0 +1,643 @@
+import { useState, useCallback, useMemo } from "react";
+import { MainLayout } from "@/components/layout/MainLayout";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
+import { safeFormatDate } from "@/lib/utils";
+import {
+  Plus, Building2, User, Phone, Mail, FileText, ClipboardList,
+  Calendar, Trash2, Edit, GripVertical, CheckCircle2, Circle,
+  Clock, AlertTriangle, ChevronRight, History, Settings, MoreVertical,
+  Presentation, Search
+} from "lucide-react";
+import {
+  useHomologationBoards, useCreateBoard, useDeleteBoard,
+  useHomologationStages, useCreateStage, useUpdateStage, useDeleteStage,
+  useHomologationCompanies, useCreateCompany, useUpdateCompany, useDeleteCompany,
+  useHomologationTasks, useCreateTask, useUpdateTask, useDeleteTask,
+  useHomologationMeetings, useLinkMeeting,
+  useHomologationHistory, useHomologationOrgMembers,
+  HomologationCompany, HomologationStage,
+} from "@/hooks/use-homologation";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+
+export default function Homologacao() {
+  const { toast } = useToast();
+  const [selectedBoardId, setSelectedBoardId] = useState<string | null>(null);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
+  const [showNewBoardDialog, setShowNewBoardDialog] = useState(false);
+  const [showNewCompanyDialog, setShowNewCompanyDialog] = useState(false);
+  const [showCompanyDetailDialog, setShowCompanyDetailDialog] = useState(false);
+  const [showNewTaskDialog, setShowNewTaskDialog] = useState(false);
+  const [showStageSettings, setShowStageSettings] = useState(false);
+  const [showNewStageDialog, setShowNewStageDialog] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ type: string; id: string; name: string } | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  // Form states
+  const [boardName, setBoardName] = useState("");
+  const [companyForm, setCompanyForm] = useState({ name: "", cnpj: "", contact_name: "", contact_email: "", contact_phone: "", notes: "", assigned_to: "" });
+  const [taskForm, setTaskForm] = useState({ title: "", description: "", priority: "medium", due_date: "", assigned_to: "" });
+  const [newStageName, setNewStageName] = useState("");
+  const [newStageColor, setNewStageColor] = useState("#6366f1");
+
+  // Data
+  const { data: boards = [], isLoading: loadingBoards } = useHomologationBoards();
+  const { data: stages = [] } = useHomologationStages(selectedBoardId);
+  const { data: companies = [] } = useHomologationCompanies(selectedBoardId);
+  const { data: tasks = [] } = useHomologationTasks(selectedCompanyId);
+  const { data: meetings = [] } = useHomologationMeetings(selectedCompanyId);
+  const { data: history = [] } = useHomologationHistory(selectedCompanyId);
+  const { data: orgMembers = [] } = useHomologationOrgMembers();
+
+  // Mutations
+  const createBoard = useCreateBoard();
+  const deleteBoard = useDeleteBoard();
+  const createStage = useCreateStage();
+  const updateStage = useUpdateStage();
+  const deleteStage = useDeleteStage();
+  const createCompany = useCreateCompany();
+  const updateCompany = useUpdateCompany();
+  const deleteCompany = useDeleteCompany();
+  const createTask = useCreateTask();
+  const updateTask = useUpdateTask();
+  const deleteTask = useDeleteTask();
+
+  // Auto-select first board
+  const activeBoardId = selectedBoardId || boards[0]?.id || null;
+
+  const selectedCompany = useMemo(() => 
+    companies.find(c => c.id === selectedCompanyId), [companies, selectedCompanyId]
+  );
+
+  // Group companies by stage
+  const companiesByStage = useMemo(() => {
+    const map: Record<string, HomologationCompany[]> = {};
+    stages.forEach(s => { map[s.id] = []; });
+    companies
+      .filter(c => !searchTerm || c.name.toLowerCase().includes(searchTerm.toLowerCase()))
+      .forEach(c => {
+        if (c.stage_id && map[c.stage_id]) {
+          map[c.stage_id].push(c);
+        }
+      });
+    return map;
+  }, [companies, stages, searchTerm]);
+
+  // Handlers
+  const handleCreateBoard = async () => {
+    if (!boardName.trim()) return;
+    try {
+      const result = await createBoard.mutateAsync({ name: boardName });
+      setSelectedBoardId(result.id);
+      setBoardName("");
+      setShowNewBoardDialog(false);
+      toast({ title: "Quadro criado com sucesso!" });
+    } catch (e: any) {
+      toast({ title: "Erro ao criar quadro", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const handleCreateCompany = async () => {
+    if (!companyForm.name.trim() || !activeBoardId) return;
+    try {
+      await createCompany.mutateAsync({
+        boardId: activeBoardId,
+        ...companyForm,
+        assigned_to: companyForm.assigned_to || undefined,
+      });
+      setCompanyForm({ name: "", cnpj: "", contact_name: "", contact_email: "", contact_phone: "", notes: "", assigned_to: "" });
+      setShowNewCompanyDialog(false);
+      toast({ title: "Empresa adicionada!" });
+    } catch (e: any) {
+      toast({ title: "Erro", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const handleMoveCompany = async (companyId: string, newStageId: string) => {
+    try {
+      await updateCompany.mutateAsync({ id: companyId, stage_id: newStageId });
+    } catch (e: any) {
+      toast({ title: "Erro ao mover", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const handleCreateTask = async () => {
+    if (!taskForm.title.trim() || !selectedCompanyId) return;
+    try {
+      await createTask.mutateAsync({
+        companyId: selectedCompanyId,
+        ...taskForm,
+        assigned_to: taskForm.assigned_to || undefined,
+        due_date: taskForm.due_date || undefined,
+      });
+      setTaskForm({ title: "", description: "", priority: "medium", due_date: "", assigned_to: "" });
+      setShowNewTaskDialog(false);
+      toast({ title: "Tarefa criada!" });
+    } catch (e: any) {
+      toast({ title: "Erro", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const handleToggleTask = async (taskId: string, currentStatus: string) => {
+    const newStatus = currentStatus === "completed" ? "pending" : "completed";
+    await updateTask.mutateAsync({ id: taskId, status: newStatus });
+  };
+
+  const handleDelete = async () => {
+    if (!deleteConfirm) return;
+    try {
+      if (deleteConfirm.type === "board") await deleteBoard.mutateAsync(deleteConfirm.id);
+      if (deleteConfirm.type === "company") { await deleteCompany.mutateAsync(deleteConfirm.id); setShowCompanyDetailDialog(false); }
+      if (deleteConfirm.type === "task") await deleteTask.mutateAsync(deleteConfirm.id);
+      if (deleteConfirm.type === "stage") await deleteStage.mutateAsync(deleteConfirm.id);
+      toast({ title: "Removido com sucesso!" });
+    } catch (e: any) {
+      toast({ title: "Erro", description: e.message, variant: "destructive" });
+    }
+    setDeleteConfirm(null);
+  };
+
+  const handleAddStage = async () => {
+    if (!newStageName.trim() || !activeBoardId) return;
+    try {
+      await createStage.mutateAsync({ boardId: activeBoardId, name: newStageName, color: newStageColor });
+      setNewStageName("");
+      setShowNewStageDialog(false);
+      toast({ title: "Fase adicionada!" });
+    } catch (e: any) {
+      toast({ title: "Erro", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const priorityColors: Record<string, string> = {
+    low: "bg-muted text-muted-foreground",
+    medium: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
+    high: "bg-destructive/10 text-destructive",
+  };
+
+  return (
+    <MainLayout>
+      <div className="flex flex-col h-[calc(100vh-4rem)]">
+        {/* Top bar */}
+        <div className="flex items-center gap-3 p-4 border-b border-border flex-wrap">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            {boards.length > 0 && (
+              <Select value={activeBoardId || ""} onValueChange={setSelectedBoardId}>
+                <SelectTrigger className="w-[220px]">
+                  <SelectValue placeholder="Selecionar quadro" />
+                </SelectTrigger>
+                <SelectContent>
+                  {boards.map(b => (
+                    <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <Button variant="outline" size="sm" onClick={() => setShowNewBoardDialog(true)}>
+              <Plus className="h-4 w-4 mr-1" /> Novo Quadro
+            </Button>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar empresa..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="pl-9 w-[200px]"
+              />
+            </div>
+            {activeBoardId && (
+              <>
+                <Button size="sm" onClick={() => setShowNewCompanyDialog(true)}>
+                  <Plus className="h-4 w-4 mr-1" /> Nova Empresa
+                </Button>
+                <Button variant="ghost" size="icon" onClick={() => setShowStageSettings(true)}>
+                  <Settings className="h-4 w-4" />
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Kanban */}
+        {!activeBoardId ? (
+          <div className="flex-1 flex items-center justify-center text-muted-foreground">
+            <div className="text-center space-y-3">
+              <Building2 className="h-12 w-12 mx-auto opacity-40" />
+              <p>Crie seu primeiro quadro de homologação</p>
+              <Button onClick={() => setShowNewBoardDialog(true)}>
+                <Plus className="h-4 w-4 mr-1" /> Criar Quadro
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex-1 overflow-x-auto">
+            <div className="flex gap-4 p-4 h-full min-w-max">
+              {stages.map(stage => (
+                <div key={stage.id} className="flex flex-col w-[300px] shrink-0">
+                  <div className="flex items-center gap-2 mb-3 px-2">
+                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: stage.color }} />
+                    <span className="text-sm font-semibold">{stage.name}</span>
+                    <Badge variant="secondary" className="text-[10px] h-5 ml-auto">
+                      {companiesByStage[stage.id]?.length || 0}
+                    </Badge>
+                    {stage.is_final && (
+                      <Badge variant="default" className="text-[10px] h-5 bg-green-600">Final</Badge>
+                    )}
+                  </div>
+                  <ScrollArea className="flex-1">
+                    <div className="space-y-2 pr-2">
+                      {(companiesByStage[stage.id] || []).map(company => (
+                        <Card
+                          key={company.id}
+                          className="cursor-pointer hover:shadow-md transition-shadow border-l-4"
+                          style={{ borderLeftColor: stage.color }}
+                          onClick={() => { setSelectedCompanyId(company.id); setShowCompanyDetailDialog(true); }}
+                        >
+                          <CardContent className="p-3 space-y-2">
+                            <div className="flex items-start justify-between">
+                              <h4 className="font-medium text-sm leading-tight">{company.name}</h4>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>
+                                  <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0">
+                                    <MoreVertical className="h-3.5 w-3.5" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" onClick={e => e.stopPropagation()}>
+                                  {stages.filter(s => s.id !== stage.id).map(s => (
+                                    <DropdownMenuItem key={s.id} onClick={() => handleMoveCompany(company.id, s.id)}>
+                                      <div className="w-2 h-2 rounded-full mr-2" style={{ backgroundColor: s.color }} />
+                                      Mover para {s.name}
+                                    </DropdownMenuItem>
+                                  ))}
+                                  <DropdownMenuItem
+                                    className="text-destructive"
+                                    onClick={() => setDeleteConfirm({ type: "company", id: company.id, name: company.name })}
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" /> Excluir
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                            {company.cnpj && (
+                              <p className="text-xs text-muted-foreground">{company.cnpj}</p>
+                            )}
+                            {company.contact_name && (
+                              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                <User className="h-3 w-3" /> {company.contact_name}
+                              </div>
+                            )}
+                            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                              {company.task_count > 0 && (
+                                <span className="flex items-center gap-1">
+                                  <ClipboardList className="h-3 w-3" />
+                                  {company.completed_task_count}/{company.task_count}
+                                </span>
+                              )}
+                              {company.meeting_count > 0 && (
+                                <span className="flex items-center gap-1">
+                                  <Presentation className="h-3 w-3" />
+                                  {company.meeting_count}
+                                </span>
+                              )}
+                              {company.assigned_to_name && (
+                                <span className="flex items-center gap-1 ml-auto">
+                                  <User className="h-3 w-3" /> {company.assigned_to_name.split(' ')[0]}
+                                </span>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* New Board Dialog */}
+      <Dialog open={showNewBoardDialog} onOpenChange={setShowNewBoardDialog}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Novo Quadro de Homologação</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Nome do Quadro</Label>
+              <Input value={boardName} onChange={e => setBoardName(e.target.value)} placeholder="Ex: Homologação Fornecedores" />
+            </div>
+            <p className="text-xs text-muted-foreground">Fases padrão serão criadas automaticamente. Você pode personalizá-las depois.</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowNewBoardDialog(false)}>Cancelar</Button>
+            <Button onClick={handleCreateBoard} disabled={createBoard.isPending}>Criar Quadro</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* New Company Dialog */}
+      <Dialog open={showNewCompanyDialog} onOpenChange={setShowNewCompanyDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Nova Empresa</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2">
+                <Label>Nome da Empresa *</Label>
+                <Input value={companyForm.name} onChange={e => setCompanyForm(p => ({ ...p, name: e.target.value }))} />
+              </div>
+              <div>
+                <Label>CNPJ</Label>
+                <Input value={companyForm.cnpj} onChange={e => setCompanyForm(p => ({ ...p, cnpj: e.target.value }))} />
+              </div>
+              <div>
+                <Label>Responsável</Label>
+                <Select value={companyForm.assigned_to} onValueChange={v => setCompanyForm(p => ({ ...p, assigned_to: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
+                  <SelectContent>
+                    {orgMembers.map(m => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="border-t pt-3 space-y-3">
+              <p className="text-sm font-medium">Contato</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Nome</Label>
+                  <Input value={companyForm.contact_name} onChange={e => setCompanyForm(p => ({ ...p, contact_name: e.target.value }))} />
+                </div>
+                <div>
+                  <Label>Telefone</Label>
+                  <Input value={companyForm.contact_phone} onChange={e => setCompanyForm(p => ({ ...p, contact_phone: e.target.value }))} />
+                </div>
+                <div className="col-span-2">
+                  <Label>Email</Label>
+                  <Input value={companyForm.contact_email} onChange={e => setCompanyForm(p => ({ ...p, contact_email: e.target.value }))} />
+                </div>
+              </div>
+            </div>
+            <div>
+              <Label>Observações</Label>
+              <Textarea value={companyForm.notes} onChange={e => setCompanyForm(p => ({ ...p, notes: e.target.value }))} rows={2} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowNewCompanyDialog(false)}>Cancelar</Button>
+            <Button onClick={handleCreateCompany} disabled={createCompany.isPending}>Adicionar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Company Detail Dialog */}
+      <Dialog open={showCompanyDetailDialog} onOpenChange={v => { setShowCompanyDetailDialog(v); if (!v) setSelectedCompanyId(null); }}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5" />
+              {selectedCompany?.name}
+            </DialogTitle>
+          </DialogHeader>
+          {selectedCompany && (
+            <Tabs defaultValue="info" className="mt-2">
+              <TabsList className="grid w-full grid-cols-4">
+                <TabsTrigger value="info">Info</TabsTrigger>
+                <TabsTrigger value="tasks">Tarefas ({tasks.length})</TabsTrigger>
+                <TabsTrigger value="meetings">Reuniões ({meetings.length})</TabsTrigger>
+                <TabsTrigger value="history">Histórico</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="info" className="space-y-4 mt-4">
+                <div className="grid grid-cols-2 gap-4">
+                  {selectedCompany.cnpj && (
+                    <div>
+                      <Label className="text-xs text-muted-foreground">CNPJ</Label>
+                      <p className="text-sm">{selectedCompany.cnpj}</p>
+                    </div>
+                  )}
+                  {selectedCompany.assigned_to_name && (
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Responsável</Label>
+                      <p className="text-sm">{selectedCompany.assigned_to_name}</p>
+                    </div>
+                  )}
+                </div>
+                {(selectedCompany.contact_name || selectedCompany.contact_phone || selectedCompany.contact_email) && (
+                  <div className="border rounded-lg p-3 space-y-2">
+                    <p className="text-sm font-medium">Contato</p>
+                    {selectedCompany.contact_name && (
+                      <div className="flex items-center gap-2 text-sm"><User className="h-3.5 w-3.5 text-muted-foreground" /> {selectedCompany.contact_name}</div>
+                    )}
+                    {selectedCompany.contact_phone && (
+                      <div className="flex items-center gap-2 text-sm"><Phone className="h-3.5 w-3.5 text-muted-foreground" /> {selectedCompany.contact_phone}</div>
+                    )}
+                    {selectedCompany.contact_email && (
+                      <div className="flex items-center gap-2 text-sm"><Mail className="h-3.5 w-3.5 text-muted-foreground" /> {selectedCompany.contact_email}</div>
+                    )}
+                  </div>
+                )}
+                {selectedCompany.notes && (
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Observações</Label>
+                    <p className="text-sm whitespace-pre-wrap">{selectedCompany.notes}</p>
+                  </div>
+                )}
+                <div className="flex gap-2 pt-2">
+                  <Button variant="destructive" size="sm" onClick={() => setDeleteConfirm({ type: "company", id: selectedCompany.id, name: selectedCompany.name })}>
+                    <Trash2 className="h-4 w-4 mr-1" /> Excluir Empresa
+                  </Button>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="tasks" className="space-y-3 mt-4">
+                <Button size="sm" onClick={() => setShowNewTaskDialog(true)}>
+                  <Plus className="h-4 w-4 mr-1" /> Nova Tarefa
+                </Button>
+                <div className="space-y-2">
+                  {tasks.map(task => (
+                    <div key={task.id} className="flex items-center gap-3 p-2.5 rounded-lg border">
+                      <Checkbox
+                        checked={task.status === "completed"}
+                        onCheckedChange={() => handleToggleTask(task.id, task.status)}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className={cn("text-sm", task.status === "completed" && "line-through text-muted-foreground")}>
+                          {task.title}
+                        </p>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Badge variant="outline" className={cn("text-[10px] h-4", priorityColors[task.priority])}>
+                            {task.priority}
+                          </Badge>
+                          {task.due_date && <span>{safeFormatDate(task.due_date, "dd/MM/yyyy")}</span>}
+                          {task.assigned_to_name && <span>{task.assigned_to_name}</span>}
+                        </div>
+                      </div>
+                      <Button variant="ghost" size="icon" className="h-7 w-7"
+                        onClick={() => setDeleteConfirm({ type: "task", id: task.id, name: task.title })}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  ))}
+                  {tasks.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhuma tarefa</p>}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="meetings" className="space-y-3 mt-4">
+                <p className="text-xs text-muted-foreground">Reuniões vinculadas do módulo de Reuniões</p>
+                <div className="space-y-2">
+                  {meetings.map((m: any) => (
+                    <div key={m.id} className="flex items-center gap-3 p-2.5 rounded-lg border">
+                      <Presentation className="h-4 w-4 text-primary" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium">{m.title}</p>
+                        <p className="text-xs text-muted-foreground">{safeFormatDate(m.scheduled_at, "dd/MM/yyyy HH:mm")}</p>
+                      </div>
+                      <Badge variant="outline" className="text-[10px]">{m.status}</Badge>
+                    </div>
+                  ))}
+                  {meetings.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhuma reunião vinculada</p>}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="history" className="space-y-3 mt-4">
+                <div className="space-y-3">
+                  {history.map(h => (
+                    <div key={h.id} className="flex gap-3 text-sm">
+                      <div className="w-2 h-2 rounded-full bg-primary mt-1.5 shrink-0" />
+                      <div>
+                        <p><span className="font-medium">{h.user_name}</span> — {h.details}</p>
+                        <p className="text-xs text-muted-foreground">{safeFormatDate(h.created_at, "dd/MM/yyyy HH:mm")}</p>
+                      </div>
+                    </div>
+                  ))}
+                  {history.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Sem histórico</p>}
+                </div>
+              </TabsContent>
+            </Tabs>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* New Task Dialog */}
+      <Dialog open={showNewTaskDialog} onOpenChange={setShowNewTaskDialog}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Nova Tarefa</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Título *</Label>
+              <Input value={taskForm.title} onChange={e => setTaskForm(p => ({ ...p, title: e.target.value }))} />
+            </div>
+            <div>
+              <Label>Descrição</Label>
+              <Textarea value={taskForm.description} onChange={e => setTaskForm(p => ({ ...p, description: e.target.value }))} rows={2} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Prioridade</Label>
+                <Select value={taskForm.priority} onValueChange={v => setTaskForm(p => ({ ...p, priority: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Baixa</SelectItem>
+                    <SelectItem value="medium">Média</SelectItem>
+                    <SelectItem value="high">Alta</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Prazo</Label>
+                <Input type="date" value={taskForm.due_date} onChange={e => setTaskForm(p => ({ ...p, due_date: e.target.value }))} />
+              </div>
+            </div>
+            <div>
+              <Label>Responsável</Label>
+              <Select value={taskForm.assigned_to} onValueChange={v => setTaskForm(p => ({ ...p, assigned_to: v }))}>
+                <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
+                <SelectContent>
+                  {orgMembers.map(m => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowNewTaskDialog(false)}>Cancelar</Button>
+            <Button onClick={handleCreateTask} disabled={createTask.isPending}>Criar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Stage Settings Dialog */}
+      <Dialog open={showStageSettings} onOpenChange={setShowStageSettings}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Gerenciar Fases</DialogTitle></DialogHeader>
+          <div className="space-y-2">
+            {stages.map(s => (
+              <div key={s.id} className="flex items-center gap-3 p-2 rounded border">
+                <div className="w-4 h-4 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
+                <span className="flex-1 text-sm">{s.name}</span>
+                {s.is_final && <Badge variant="default" className="text-[10px] bg-green-600">Final</Badge>}
+                <span className="text-xs text-muted-foreground">{s.company_count} empresas</span>
+                <Button variant="ghost" size="icon" className="h-7 w-7"
+                  onClick={() => setDeleteConfirm({ type: "stage", id: s.id, name: s.name })}>
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            ))}
+          </div>
+          <Button variant="outline" size="sm" onClick={() => setShowNewStageDialog(true)}>
+            <Plus className="h-4 w-4 mr-1" /> Adicionar Fase
+          </Button>
+        </DialogContent>
+      </Dialog>
+
+      {/* New Stage Dialog */}
+      <Dialog open={showNewStageDialog} onOpenChange={setShowNewStageDialog}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Nova Fase</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Nome</Label>
+              <Input value={newStageName} onChange={e => setNewStageName(e.target.value)} />
+            </div>
+            <div>
+              <Label>Cor</Label>
+              <Input type="color" value={newStageColor} onChange={e => setNewStageColor(e.target.value)} className="h-10 w-20" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowNewStageDialog(false)}>Cancelar</Button>
+            <Button onClick={handleAddStage}>Adicionar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirm */}
+      <AlertDialog open={!!deleteConfirm} onOpenChange={v => !v && setDeleteConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Deseja excluir "{deleteConfirm?.name}"? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </MainLayout>
+  );
+}
