@@ -1,10 +1,10 @@
 import { CRMDeal, CRMStage, useCRMDealMutations } from "@/hooks/use-crm";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
-import { Building2, User, Clock, ChevronRight, Trophy, XCircle, Pause, DollarSign } from "lucide-react";
+import { Building2, Clock, Trophy, XCircle, Pause, DollarSign } from "lucide-react";
 import { differenceInHours, parseISO, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -14,12 +14,14 @@ interface PipelineViewProps {
   onDealClick: (deal: CRMDeal) => void;
   onStatusChange?: (dealId: string, status: 'won' | 'lost' | 'paused' | 'open') => void;
   newWinDealId?: string | null;
+  selectionMode?: boolean;
+  selectedDealIds?: Set<string>;
+  onToggleSelect?: (dealId: string) => void;
 }
 
-export function PipelineView({ stages, dealsByStage, onDealClick, onStatusChange, newWinDealId }: PipelineViewProps) {
+export function PipelineView({ stages, dealsByStage, onDealClick, onStatusChange, newWinDealId, selectionMode, selectedDealIds, onToggleSelect }: PipelineViewProps) {
   const { moveDeal } = useCRMDealMutations();
 
-  // Flatten all deals into a single list with stage info
   const allDeals = stages.flatMap(stage => {
     const deals = dealsByStage[stage.id!] || [];
     return deals.map(deal => ({ ...deal, stageName: stage.name, stageColor: stage.color }));
@@ -27,9 +29,7 @@ export function PipelineView({ stages, dealsByStage, onDealClick, onStatusChange
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-      minimumFractionDigits: 0,
+      style: "currency", currency: "BRL", minimumFractionDigits: 0,
     }).format(value);
   };
 
@@ -51,7 +51,11 @@ export function PipelineView({ stages, dealsByStage, onDealClick, onStatusChange
     <ScrollArea className="h-full">
       <div className="p-4 space-y-2">
         {/* Header */}
-        <div className="grid grid-cols-12 gap-4 px-4 py-2 text-xs font-medium text-muted-foreground border-b">
+        <div className={cn(
+          "grid gap-4 px-4 py-2 text-xs font-medium text-muted-foreground border-b",
+          selectionMode ? "grid-cols-13" : "grid-cols-12"
+        )} style={{ gridTemplateColumns: selectionMode ? '32px repeat(12, minmax(0, 1fr))' : 'repeat(12, minmax(0, 1fr))' }}>
+          {selectionMode && <div />}
           <div className="col-span-3">Título</div>
           <div className="col-span-2">Empresa</div>
           <div className="col-span-2">Etapa</div>
@@ -65,18 +69,39 @@ export function PipelineView({ stages, dealsByStage, onDealClick, onStatusChange
         {allDeals.map((deal) => {
           const hoursInactive = deal.last_activity_at ? differenceInHours(new Date(), parseISO(deal.last_activity_at)) : 0;
           const isNewWin = newWinDealId === deal.id;
+          const isSelected = selectedDealIds?.has(deal.id);
 
           return (
             <Card
               key={deal.id}
-              onClick={() => onDealClick(deal)}
+              onClick={() => {
+                if (selectionMode) {
+                  onToggleSelect?.(deal.id);
+                } else {
+                  onDealClick(deal);
+                }
+              }}
               className={cn(
-                "grid grid-cols-12 gap-4 px-4 py-3 cursor-pointer hover:shadow-md transition-all items-center",
+                "grid gap-4 px-4 py-3 cursor-pointer hover:shadow-md transition-all items-center",
                 getStatusStyles(deal),
-                isNewWin && "animate-scale-in ring-2 ring-green-500"
+                isNewWin && "animate-scale-in ring-2 ring-green-500",
+                selectionMode && isSelected && "ring-2 ring-primary"
               )}
-              style={{ borderLeftColor: deal.stageColor }}
+              style={{ 
+                borderLeftColor: deal.stageColor,
+                gridTemplateColumns: selectionMode ? '32px repeat(12, minmax(0, 1fr))' : 'repeat(12, minmax(0, 1fr))'
+              }}
             >
+              {/* Checkbox */}
+              {selectionMode && (
+                <div onClick={(e) => e.stopPropagation()}>
+                  <Checkbox 
+                    checked={isSelected} 
+                    onCheckedChange={() => onToggleSelect?.(deal.id)}
+                  />
+                </div>
+              )}
+
               {/* Title */}
               <div className="col-span-3">
                 <div className="flex items-center gap-2">
@@ -98,11 +123,7 @@ export function PipelineView({ stages, dealsByStage, onDealClick, onStatusChange
 
               {/* Stage */}
               <div className="col-span-2">
-                <Badge
-                  variant="outline"
-                  className="text-xs"
-                  style={{ borderColor: deal.stageColor, color: deal.stageColor }}
-                >
+                <Badge variant="outline" className="text-xs" style={{ borderColor: deal.stageColor, color: deal.stageColor }}>
                   {deal.stageName}
                 </Badge>
               </div>
@@ -120,18 +141,10 @@ export function PipelineView({ stages, dealsByStage, onDealClick, onStatusChange
 
               {/* Status */}
               <div className="col-span-1 flex justify-center">
-                {deal.status === 'won' && (
-                  <Badge className="bg-green-500 text-white text-[10px]">Ganho</Badge>
-                )}
-                {deal.status === 'lost' && (
-                  <Badge className="bg-red-500 text-white text-[10px]">Perdido</Badge>
-                )}
-                {deal.status === 'paused' && (
-                  <Badge className="bg-gray-500 text-white text-[10px]">Pausado</Badge>
-                )}
-                {deal.status === 'open' && (
-                  <Badge variant="outline" className="text-[10px]">Em aberto</Badge>
-                )}
+                {deal.status === 'won' && <Badge className="bg-green-500 text-white text-[10px]">Ganho</Badge>}
+                {deal.status === 'lost' && <Badge className="bg-red-500 text-white text-[10px]">Perdido</Badge>}
+                {deal.status === 'paused' && <Badge className="bg-gray-500 text-white text-[10px]">Pausado</Badge>}
+                {deal.status === 'open' && <Badge variant="outline" className="text-[10px]">Em aberto</Badge>}
               </div>
 
               {/* Owner */}
