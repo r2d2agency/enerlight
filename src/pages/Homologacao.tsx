@@ -456,8 +456,9 @@ export default function Homologacao() {
 
       {/* New Company Dialog */}
       <Dialog open={showNewCompanyDialog} onOpenChange={setShowNewCompanyDialog}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
           <DialogHeader><DialogTitle>Nova Empresa</DialogTitle></DialogHeader>
+          <ScrollArea className="flex-1 overflow-y-auto max-h-[calc(85vh-130px)] pr-2">
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="col-span-2">
@@ -484,7 +485,6 @@ export default function Homologacao() {
               </div>
             </div>
 
-            {/* Endereço */}
             <div className="border-t pt-3 space-y-3">
               <p className="text-sm font-medium flex items-center gap-1"><MapPin className="h-3.5 w-3.5" /> Endereço</p>
               <div className="grid grid-cols-2 gap-3">
@@ -529,6 +529,7 @@ export default function Homologacao() {
               <Textarea value={companyForm.notes} onChange={e => setCompanyForm(p => ({ ...p, notes: e.target.value }))} rows={2} />
             </div>
           </div>
+          </ScrollArea>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowNewCompanyDialog(false)}>Cancelar</Button>
             <Button onClick={handleCreateCompany} disabled={createCompany.isPending}>Adicionar</Button>
