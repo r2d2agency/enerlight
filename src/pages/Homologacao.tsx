@@ -21,7 +21,7 @@ import {
   Plus, Building2, User, Phone, Mail, FileText, ClipboardList,
   Calendar, Trash2, Edit, GripVertical, CheckCircle2, Circle,
   Clock, AlertTriangle, ChevronRight, History, Settings, MoreVertical,
-  Presentation, Search, MessageSquare, Send, Upload, Paperclip, StickyNote, MapPin
+  Presentation, Search, MessageSquare, Send, Upload, Paperclip, StickyNote, MapPin, Loader2
 } from "lucide-react";
 import {
   useHomologationBoards, useCreateBoard, useDeleteBoard,
@@ -53,13 +53,14 @@ export default function Homologacao() {
 
   // Form states
   const [boardName, setBoardName] = useState("");
-  const [companyForm, setCompanyForm] = useState({ name: "", cnpj: "", contact_name: "", contact_email: "", contact_phone: "", notes: "", assigned_to: "" });
+  const [companyForm, setCompanyForm] = useState({ name: "", cnpj: "", contact_name: "", contact_email: "", contact_phone: "", notes: "", assigned_to: "", address: "", city: "", state: "", zip_code: "" });
   const [taskForm, setTaskForm] = useState({ title: "", description: "", priority: "medium", due_date: "", assigned_to: "" });
   const [meetingForm, setMeetingForm] = useState({ title: "", description: "", meeting_date: "", start_time: "", end_time: "", location: "" });
   const [newStageName, setNewStageName] = useState("");
   const [newStageColor, setNewStageColor] = useState("#6366f1");
   const [whatsappForm, setWhatsappForm] = useState({ content: "", scheduled_at: "", scheduled_time: "" });
   const [noteContent, setNoteContent] = useState("");
+  const [loadingCNPJ, setLoadingCNPJ] = useState(false);
   const taskCreatingRef = useRef(false);
 
   const queryClient = useQueryClient();
@@ -156,6 +157,39 @@ export default function Homologacao() {
     }
   };
 
+  const handleCNPJLookup = async () => {
+    const digits = companyForm.cnpj.replace(/\D/g, "");
+    if (digits.length !== 14) {
+      toast({ title: "CNPJ deve ter 14 dígitos", variant: "destructive" });
+      return;
+    }
+    setLoadingCNPJ(true);
+    try {
+      const data = await api<any>(`/api/cnpj/lookup/${digits}`);
+      setCompanyForm(p => ({
+        ...p,
+        name: p.name || data.razao_social || data.nome_fantasia || p.name,
+        contact_email: p.contact_email || data.email || p.contact_email,
+        contact_phone: p.contact_phone || data.telefone || p.contact_phone,
+        address: [data.logradouro, data.numero, data.complemento].filter(Boolean).join(", ") || p.address,
+        city: data.municipio || p.city,
+        state: data.uf || p.state,
+        zip_code: data.cep || p.zip_code,
+        notes: p.notes || [
+          data.razao_social && `Razão Social: ${data.razao_social}`,
+          data.nome_fantasia && `Nome Fantasia: ${data.nome_fantasia}`,
+          data.capital_social && `Capital Social: R$ ${Number(data.capital_social).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
+          data.socios?.length && `Sócios: ${data.socios.map((s: any) => s.nome).join(", ")}`,
+        ].filter(Boolean).join("\n"),
+      }));
+      toast({ title: "Dados do CNPJ preenchidos!" });
+    } catch {
+      toast({ title: "Erro ao consultar CNPJ", variant: "destructive" });
+    } finally {
+      setLoadingCNPJ(false);
+    }
+  };
+
   const handleCreateCompany = async () => {
     if (!companyForm.name.trim() || !activeBoardId) return;
     try {
@@ -164,7 +198,7 @@ export default function Homologacao() {
         ...companyForm,
         assigned_to: companyForm.assigned_to || undefined,
       });
-      setCompanyForm({ name: "", cnpj: "", contact_name: "", contact_email: "", contact_phone: "", notes: "", assigned_to: "" });
+      setCompanyForm({ name: "", cnpj: "", contact_name: "", contact_email: "", contact_phone: "", notes: "", assigned_to: "", address: "", city: "", state: "", zip_code: "" });
       setShowNewCompanyDialog(false);
       toast({ title: "Empresa adicionada!" });
     } catch (e: any) {
@@ -464,7 +498,12 @@ export default function Homologacao() {
               </div>
               <div>
                 <Label>CNPJ</Label>
-                <Input value={companyForm.cnpj} onChange={e => setCompanyForm(p => ({ ...p, cnpj: e.target.value }))} />
+                <div className="flex gap-2">
+                  <Input value={companyForm.cnpj} onChange={e => setCompanyForm(p => ({ ...p, cnpj: e.target.value }))} placeholder="00.000.000/0000-00" className="flex-1" />
+                  <Button variant="outline" size="icon" onClick={handleCNPJLookup} disabled={loadingCNPJ || !companyForm.cnpj.replace(/\D/g, "").length} title="Buscar dados do CNPJ">
+                    {loadingCNPJ ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                  </Button>
+                </div>
               </div>
               <div>
                 <Label>Responsável</Label>
@@ -476,6 +515,30 @@ export default function Homologacao() {
                 </Select>
               </div>
             </div>
+
+            {/* Endereço */}
+            <div className="border-t pt-3 space-y-3">
+              <p className="text-sm font-medium flex items-center gap-1"><MapPin className="h-3.5 w-3.5" /> Endereço</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2">
+                  <Label>Logradouro</Label>
+                  <Input value={companyForm.address} onChange={e => setCompanyForm(p => ({ ...p, address: e.target.value }))} placeholder="Rua, nº, complemento" />
+                </div>
+                <div>
+                  <Label>Cidade</Label>
+                  <Input value={companyForm.city} onChange={e => setCompanyForm(p => ({ ...p, city: e.target.value }))} />
+                </div>
+                <div>
+                  <Label>UF</Label>
+                  <Input value={companyForm.state} onChange={e => setCompanyForm(p => ({ ...p, state: e.target.value }))} maxLength={2} />
+                </div>
+                <div>
+                  <Label>CEP</Label>
+                  <Input value={companyForm.zip_code} onChange={e => setCompanyForm(p => ({ ...p, zip_code: e.target.value }))} placeholder="00000-000" />
+                </div>
+              </div>
+            </div>
+
             <div className="border-t pt-3 space-y-3">
               <p className="text-sm font-medium">Contato</p>
               <div className="grid grid-cols-2 gap-3">
@@ -547,6 +610,16 @@ export default function Homologacao() {
                     </div>
                   )}
                 </div>
+                {((selectedCompany as any).address || (selectedCompany as any).city) && (
+                  <div className="border rounded-lg p-3 space-y-2">
+                    <p className="text-sm font-medium flex items-center gap-1"><MapPin className="h-3.5 w-3.5" /> Endereço</p>
+                    {(selectedCompany as any).address && <p className="text-sm">{(selectedCompany as any).address}</p>}
+                    <p className="text-sm text-muted-foreground">
+                      {[(selectedCompany as any).city, (selectedCompany as any).state].filter(Boolean).join(" / ")}
+                      {(selectedCompany as any).zip_code && ` — CEP ${(selectedCompany as any).zip_code}`}
+                    </p>
+                  </div>
+                )}
                 {(selectedCompany.contact_name || selectedCompany.contact_phone || selectedCompany.contact_email) && (
                   <div className="border rounded-lg p-3 space-y-2">
                     <p className="text-sm font-medium">Contato</p>
