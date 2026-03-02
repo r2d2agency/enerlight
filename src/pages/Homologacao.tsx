@@ -21,7 +21,8 @@ import {
   Plus, Building2, User, Phone, Mail, FileText, ClipboardList,
   Calendar, Trash2, Edit, GripVertical, CheckCircle2, Circle,
   Clock, AlertTriangle, ChevronRight, History, Settings, MoreVertical,
-  Presentation, Search, MessageSquare, Send, Upload, Paperclip, StickyNote, MapPin, Loader2
+  Presentation, Search, MessageSquare, Send, Upload, Paperclip, StickyNote, MapPin, Loader2,
+  BarChart3, LayoutDashboard
 } from "lucide-react";
 import {
   useHomologationBoards, useCreateBoard, useDeleteBoard,
@@ -36,9 +37,15 @@ import {
 } from "@/hooks/use-homologation";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useUpload } from "@/hooks/use-upload";
+import { useAuth } from "@/contexts/AuthContext";
+import { HomologationKanban } from "@/components/homologation/HomologationKanban";
+import { HomologationDashboard } from "@/components/homologation/HomologationDashboard";
 
 export default function Homologacao() {
   const { toast } = useToast();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "owner" || user?.role === "admin";
+  const [viewMode, setViewMode] = useState<"kanban" | "dashboard">("kanban");
   const [selectedBoardId, setSelectedBoardId] = useState<string | null>(null);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [showNewBoardDialog, setShowNewBoardDialog] = useState(false);
@@ -327,146 +334,107 @@ export default function Homologacao() {
   return (
     <MainLayout>
       <div className="flex flex-col h-[calc(100vh-4rem)]">
-        {/* Top bar */}
-        <div className="flex items-center gap-3 p-4 border-b border-border flex-wrap">
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            {boards.length > 0 && (
-              <Select value={activeBoardId || ""} onValueChange={setSelectedBoardId}>
-                <SelectTrigger className="w-[220px]">
-                  <SelectValue placeholder="Selecionar quadro" />
-                </SelectTrigger>
-                <SelectContent>
-                  {boards.map(b => (
-                    <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-            <Button variant="outline" size="sm" onClick={() => setShowNewBoardDialog(true)}>
-              <Plus className="h-4 w-4 mr-1" /> Novo Quadro
-            </Button>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar empresa..."
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                className="pl-9 w-[200px]"
-              />
-            </div>
-            {activeBoardId && (
-              <>
-                <Button size="sm" onClick={() => setShowNewCompanyDialog(true)}>
-                  <Plus className="h-4 w-4 mr-1" /> Nova Empresa
-                </Button>
-                <Button variant="ghost" size="icon" onClick={() => setShowStageSettings(true)}>
-                  <Settings className="h-4 w-4" />
-                </Button>
-              </>
-            )}
-          </div>
-        </div>
+         {/* Top bar */}
+         <div className="flex items-center gap-3 p-4 border-b border-border flex-wrap">
+           <div className="flex items-center gap-2 flex-1 min-w-0">
+             {boards.length > 0 && (
+               <Select value={activeBoardId || ""} onValueChange={setSelectedBoardId}>
+                 <SelectTrigger className="w-[220px]">
+                   <SelectValue placeholder="Selecionar quadro" />
+                 </SelectTrigger>
+                 <SelectContent>
+                   {boards.map(b => (
+                     <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                   ))}
+                 </SelectContent>
+               </Select>
+             )}
+             {isAdmin && (
+               <Button variant="outline" size="sm" onClick={() => setShowNewBoardDialog(true)}>
+                 <Plus className="h-4 w-4 mr-1" /> Novo Quadro
+               </Button>
+             )}
+             {isAdmin && activeBoardId && (
+               <Button variant="ghost" size="sm" className="text-destructive" onClick={() => {
+                 const board = boards.find(b => b.id === activeBoardId);
+                 if (board) setDeleteConfirm({ type: "board", id: board.id, name: board.name });
+               }}>
+                 <Trash2 className="h-4 w-4 mr-1" /> Apagar Quadro
+               </Button>
+             )}
+           </div>
+           <div className="flex items-center gap-2">
+             <div className="flex items-center border rounded-md overflow-hidden">
+               <Button
+                 variant={viewMode === "kanban" ? "default" : "ghost"}
+                 size="sm"
+                 className="rounded-none"
+                 onClick={() => setViewMode("kanban")}
+               >
+                 <Building2 className="h-4 w-4 mr-1" /> Kanban
+               </Button>
+               <Button
+                 variant={viewMode === "dashboard" ? "default" : "ghost"}
+                 size="sm"
+                 className="rounded-none"
+                 onClick={() => setViewMode("dashboard")}
+               >
+                 <LayoutDashboard className="h-4 w-4 mr-1" /> Dashboard
+               </Button>
+             </div>
+             {viewMode === "kanban" && (
+               <>
+                 <div className="relative">
+                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                   <Input
+                     placeholder="Buscar empresa..."
+                     value={searchTerm}
+                     onChange={e => setSearchTerm(e.target.value)}
+                     className="pl-9 w-[200px]"
+                   />
+                 </div>
+                 {activeBoardId && (
+                   <>
+                     <Button size="sm" onClick={() => setShowNewCompanyDialog(true)}>
+                       <Plus className="h-4 w-4 mr-1" /> Nova Empresa
+                     </Button>
+                     <Button variant="ghost" size="icon" onClick={() => setShowStageSettings(true)}>
+                       <Settings className="h-4 w-4" />
+                     </Button>
+                   </>
+                 )}
+               </>
+             )}
+           </div>
+         </div>
 
-        {/* Kanban */}
-        {!activeBoardId ? (
-          <div className="flex-1 flex items-center justify-center text-muted-foreground">
-            <div className="text-center space-y-3">
-              <Building2 className="h-12 w-12 mx-auto opacity-40" />
-              <p>Crie seu primeiro quadro de homologação</p>
-              <Button onClick={() => setShowNewBoardDialog(true)}>
-                <Plus className="h-4 w-4 mr-1" /> Criar Quadro
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <div className="flex-1 overflow-x-auto">
-            <div className="flex gap-4 p-4 h-full min-w-max">
-              {stages.map(stage => (
-                <div key={stage.id} className="flex flex-col w-[300px] shrink-0">
-                  <div className="flex items-center gap-2 mb-3 px-2">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: stage.color }} />
-                    <span className="text-sm font-semibold">{stage.name}</span>
-                    <Badge variant="secondary" className="text-[10px] h-5 ml-auto">
-                      {companiesByStage[stage.id]?.length || 0}
-                    </Badge>
-                    {stage.is_final && (
-                      <Badge variant="default" className="text-[10px] h-5 bg-green-600">Final</Badge>
-                    )}
-                  </div>
-                  <ScrollArea className="flex-1">
-                    <div className="space-y-2 pr-2">
-                      {(companiesByStage[stage.id] || []).map(company => (
-                        <Card
-                          key={company.id}
-                          className="cursor-pointer hover:shadow-md transition-shadow border-l-4"
-                          style={{ borderLeftColor: stage.color }}
-                          onClick={() => { setSelectedCompanyId(company.id); setShowCompanyDetailDialog(true); }}
-                        >
-                          <CardContent className="p-3 space-y-2">
-                            <div className="flex items-start justify-between">
-                              <h4 className="font-medium text-sm leading-tight">{company.name}</h4>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>
-                                  <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0">
-                                    <MoreVertical className="h-3.5 w-3.5" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" onClick={e => e.stopPropagation()}>
-                                  {stages.filter(s => s.id !== stage.id).map(s => (
-                                    <DropdownMenuItem key={s.id} onClick={() => handleMoveCompany(company.id, s.id)}>
-                                      <div className="w-2 h-2 rounded-full mr-2" style={{ backgroundColor: s.color }} />
-                                      Mover para {s.name}
-                                    </DropdownMenuItem>
-                                  ))}
-                                  <DropdownMenuItem
-                                    className="text-destructive"
-                                    onClick={() => setDeleteConfirm({ type: "company", id: company.id, name: company.name })}
-                                  >
-                                    <Trash2 className="h-4 w-4 mr-2" /> Excluir
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </div>
-                            {company.cnpj && (
-                              <p className="text-xs text-muted-foreground">{company.cnpj}</p>
-                            )}
-                            {company.contact_name && (
-                              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                <User className="h-3 w-3" /> {company.contact_name}
-                              </div>
-                            )}
-                            <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                              {company.task_count > 0 && (
-                                <span className="flex items-center gap-1">
-                                  <ClipboardList className="h-3 w-3" />
-                                  {company.completed_task_count}/{company.task_count}
-                                </span>
-                              )}
-                              {company.meeting_count > 0 && (
-                                <span className="flex items-center gap-1">
-                                  <Presentation className="h-3 w-3" />
-                                  {company.meeting_count}
-                                </span>
-                              )}
-                              {company.assigned_to_name && (
-                                <span className="flex items-center gap-1 ml-auto">
-                                  <User className="h-3 w-3" /> {company.assigned_to_name.split(' ')[0]}
-                                </span>
-                              )}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  </ScrollArea>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
+         {/* Content */}
+         {!activeBoardId ? (
+           <div className="flex-1 flex items-center justify-center text-muted-foreground">
+             <div className="text-center space-y-3">
+               <Building2 className="h-12 w-12 mx-auto opacity-40" />
+               <p>Crie seu primeiro quadro de homologação</p>
+               {isAdmin && (
+                 <Button onClick={() => setShowNewBoardDialog(true)}>
+                   <Plus className="h-4 w-4 mr-1" /> Criar Quadro
+                 </Button>
+               )}
+             </div>
+           </div>
+         ) : viewMode === "dashboard" ? (
+           <HomologationDashboard companies={companies} stages={stages} orgMembers={orgMembers} />
+         ) : (
+           <div className="flex-1 overflow-x-auto">
+             <HomologationKanban
+               stages={stages}
+               companiesByStage={companiesByStage}
+               onCompanyClick={(company) => { setSelectedCompanyId(company.id); setShowCompanyDetailDialog(true); }}
+               onMoveCompany={handleMoveCompany}
+               onDeleteCompany={(company) => setDeleteConfirm({ type: "company", id: company.id, name: company.name })}
+             />
+           </div>
+         )}
+       </div>
 
       {/* New Board Dialog */}
       <Dialog open={showNewBoardDialog} onOpenChange={setShowNewBoardDialog}>
