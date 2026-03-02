@@ -74,6 +74,8 @@ const FIELD_TYPES = [
   { value: "text", label: "Texto" },
   { value: "number", label: "Número" },
   { value: "date", label: "Data" },
+  { value: "datetime", label: "Data/Hora" },
+  { value: "time", label: "Hora" },
   { value: "boolean", label: "Sim/Não" },
   { value: "select", label: "Seleção única" },
   { value: "multiselect", label: "Seleção múltipla" },
@@ -118,7 +120,7 @@ export default function CRMConfiguracoes() {
     entity_type: 'deal' | 'company' | 'task';
     field_name: string;
     field_label: string;
-    field_type: 'text' | 'number' | 'date' | 'select' | 'multiselect' | 'boolean';
+    field_type: 'text' | 'number' | 'date' | 'datetime' | 'time' | 'select' | 'multiselect' | 'boolean';
     is_required: boolean;
     options: string[];
   }>({
@@ -1028,7 +1030,7 @@ export default function CRMConfiguracoes() {
                 <Label>Tipo do Campo</Label>
                 <Select
                   value={fieldForm.field_type}
-                  onValueChange={(v) => setFieldForm({ ...fieldForm, field_type: v as 'text' | 'number' | 'date' | 'select' | 'multiselect' | 'boolean' })}
+                  onValueChange={(v) => setFieldForm({ ...fieldForm, field_type: v as 'text' | 'number' | 'date' | 'datetime' | 'time' | 'select' | 'multiselect' | 'boolean' })}
                 >
                   <SelectTrigger>
                     <SelectValue />

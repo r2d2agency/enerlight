@@ -34,7 +34,7 @@ export interface CRMCustomField {
   entity_type: 'deal' | 'company' | 'task';
   field_name: string;
   field_label: string;
-  field_type: 'text' | 'number' | 'date' | 'select' | 'multiselect' | 'boolean';
+  field_type: 'text' | 'number' | 'date' | 'datetime' | 'time' | 'select' | 'multiselect' | 'boolean';
   options?: string[];
   is_required: boolean;
   is_global: boolean;
