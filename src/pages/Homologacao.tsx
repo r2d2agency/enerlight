@@ -1,4 +1,6 @@
 import { useState, useCallback, useMemo } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +21,7 @@ import {
   Plus, Building2, User, Phone, Mail, FileText, ClipboardList,
   Calendar, Trash2, Edit, GripVertical, CheckCircle2, Circle,
   Clock, AlertTriangle, ChevronRight, History, Settings, MoreVertical,
-  Presentation, Search
+  Presentation, Search, MessageSquare, Send
 } from "lucide-react";
 import {
   useHomologationBoards, useCreateBoard, useDeleteBoard,
@@ -51,6 +53,9 @@ export default function Homologacao() {
   const [taskForm, setTaskForm] = useState({ title: "", description: "", priority: "medium", due_date: "", assigned_to: "" });
   const [newStageName, setNewStageName] = useState("");
   const [newStageColor, setNewStageColor] = useState("#6366f1");
+  const [whatsappForm, setWhatsappForm] = useState({ content: "", scheduled_at: "", scheduled_time: "" });
+
+  const queryClient = useQueryClient();
 
   // Data
   const { data: boards = [], isLoading: loadingBoards } = useHomologationBoards();
@@ -60,6 +65,33 @@ export default function Homologacao() {
   const { data: meetings = [] } = useHomologationMeetings(selectedCompanyId);
   const { data: history = [] } = useHomologationHistory(selectedCompanyId);
   const { data: orgMembers = [] } = useHomologationOrgMembers();
+
+  // WhatsApp scheduled messages for selected company
+  const contactPhone = useMemo(() => {
+    const comp = companies.find(c => c.id === selectedCompanyId);
+    return comp?.contact_phone || "";
+  }, [companies, selectedCompanyId]);
+  const { data: scheduledMessages = [] } = useQuery({
+    queryKey: ["homologation-scheduled-messages", contactPhone],
+    queryFn: () => api<any[]>(`/api/chat/scheduled-messages-by-phone?phone=${encodeURIComponent(contactPhone)}`),
+    enabled: !!contactPhone,
+  });
+
+  const scheduleWhatsapp = useMutation({
+    mutationFn: (data: { phone: string; content: string; scheduled_at: string }) =>
+      api("/api/chat/schedule-message-by-phone", { method: "POST", body: data }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["homologation-scheduled-messages"] });
+      toast({ title: "Mensagem agendada com sucesso!" });
+      setWhatsappForm({ content: "", scheduled_at: "", scheduled_time: "" });
+    },
+    onError: (e: any) => toast({ title: "Erro ao agendar", description: e.message, variant: "destructive" }),
+  });
+
+  const cancelScheduled = useMutation({
+    mutationFn: (id: string) => api(`/api/chat/scheduled/${id}`, { method: "DELETE" }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["homologation-scheduled-messages"] }),
+  });
 
   // Mutations
   const createBoard = useCreateBoard();
@@ -179,6 +211,14 @@ export default function Homologacao() {
     } catch (e: any) {
       toast({ title: "Erro", description: e.message, variant: "destructive" });
     }
+  };
+
+  const handleScheduleWhatsapp = async () => {
+    if (!whatsappForm.content.trim() || !whatsappForm.scheduled_at || !contactPhone) return;
+    const scheduledAt = whatsappForm.scheduled_time
+      ? `${whatsappForm.scheduled_at}T${whatsappForm.scheduled_time}:00`
+      : `${whatsappForm.scheduled_at}T09:00:00`;
+    scheduleWhatsapp.mutate({ phone: contactPhone, content: whatsappForm.content, scheduled_at: scheduledAt });
   };
 
   const priorityColors: Record<string, string> = {
@@ -413,10 +453,13 @@ export default function Homologacao() {
           </DialogHeader>
           {selectedCompany && (
             <Tabs defaultValue="info" className="mt-2">
-              <TabsList className="grid w-full grid-cols-4">
+              <TabsList className="grid w-full grid-cols-5">
                 <TabsTrigger value="info">Info</TabsTrigger>
                 <TabsTrigger value="tasks">Tarefas ({tasks.length})</TabsTrigger>
-                <TabsTrigger value="meetings">Reuniões ({meetings.length})</TabsTrigger>
+                <TabsTrigger value="whatsapp">
+                  <MessageSquare className="h-3.5 w-3.5 mr-1" /> WhatsApp
+                </TabsTrigger>
+                <TabsTrigger value="meetings">Reuniões</TabsTrigger>
                 <TabsTrigger value="history">Histórico</TabsTrigger>
               </TabsList>
 
@@ -493,6 +536,61 @@ export default function Homologacao() {
                   ))}
                   {tasks.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhuma tarefa</p>}
                 </div>
+              </TabsContent>
+
+              <TabsContent value="whatsapp" className="space-y-4 mt-4">
+                {!selectedCompany.contact_phone ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    Adicione um telefone de contato para agendar mensagens WhatsApp
+                  </p>
+                ) : (
+                  <>
+                    {/* Schedule form */}
+                    <div className="border rounded-lg p-3 space-y-3">
+                      <p className="text-sm font-medium flex items-center gap-2">
+                        <Send className="h-4 w-4" /> Agendar Mensagem
+                      </p>
+                      <Textarea
+                        placeholder="Digite a mensagem..."
+                        value={whatsappForm.content}
+                        onChange={e => setWhatsappForm(p => ({ ...p, content: e.target.value }))}
+                        rows={3}
+                      />
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label className="text-xs">Data</Label>
+                          <Input type="date" value={whatsappForm.scheduled_at} onChange={e => setWhatsappForm(p => ({ ...p, scheduled_at: e.target.value }))} />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Hora</Label>
+                          <Input type="time" value={whatsappForm.scheduled_time} onChange={e => setWhatsappForm(p => ({ ...p, scheduled_time: e.target.value }))} />
+                        </div>
+                      </div>
+                      <Button size="sm" onClick={handleScheduleWhatsapp} disabled={scheduleWhatsapp.isPending || !whatsappForm.content || !whatsappForm.scheduled_at}>
+                        <Send className="h-4 w-4 mr-1" /> Agendar Envio
+                      </Button>
+                    </div>
+
+                    {/* Scheduled list */}
+                    {scheduledMessages.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium">Agendamentos pendentes</p>
+                        {scheduledMessages.map((sm: any) => (
+                          <div key={sm.id} className="flex items-center gap-3 p-2.5 rounded-lg border">
+                            <Clock className="h-4 w-4 text-primary shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm truncate">{sm.content}</p>
+                              <p className="text-xs text-muted-foreground">{safeFormatDate(sm.scheduled_at, "dd/MM/yyyy HH:mm")}</p>
+                            </div>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => cancelScheduled.mutate(sm.id)}>
+                              <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
               </TabsContent>
 
               <TabsContent value="meetings" className="space-y-3 mt-4">
