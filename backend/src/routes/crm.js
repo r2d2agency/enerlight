@@ -1240,16 +1240,19 @@ router.post('/deals', async (req, res) => {
       if (contactResult.rows.length > 0) {
         contactId = contactResult.rows[0].id;
       } else {
-        // Ensure CRM contacts list exists
+        // Ensure CRM contacts list exists for current user
         let crmList = await query(
-          `SELECT id FROM contact_lists WHERE organization_id = $1 AND name = 'CRM Contacts' LIMIT 1`,
+          `SELECT cl.id FROM contact_lists cl
+           JOIN organization_members om ON om.user_id = cl.user_id AND om.organization_id = $1
+           WHERE cl.name = 'CRM Contacts'
+           ORDER BY cl.created_at ASC LIMIT 1`,
           [org.organization_id]
         );
         
         if (crmList.rows.length === 0) {
           crmList = await query(
-            `INSERT INTO contact_lists (organization_id, user_id, name) VALUES ($1, $2, 'CRM Contacts') RETURNING id`,
-            [org.organization_id, req.userId]
+            `INSERT INTO contact_lists (user_id, name) VALUES ($1, 'CRM Contacts') RETURNING id`,
+            [req.userId]
           );
         }
         
