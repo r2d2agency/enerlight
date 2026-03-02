@@ -235,6 +235,19 @@ export function useHomologationMeetings(companyId: string | null) {
   });
 }
 
+export function useCreateHomologationMeeting() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ companyId, ...data }: { companyId: string; title: string; description?: string; meeting_date: string; start_time: string; end_time?: string; location?: string }) =>
+      api(`/api/homologation/companies/${companyId}/meetings/create`, { method: "POST", body: data }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["homologation-meetings"] });
+      qc.invalidateQueries({ queryKey: ["homologation-companies"] });
+      qc.invalidateQueries({ queryKey: ["homologation-history"] });
+    },
+  });
+}
+
 export function useLinkMeeting() {
   const qc = useQueryClient();
   return useMutation({
@@ -244,6 +257,85 @@ export function useLinkMeeting() {
       qc.invalidateQueries({ queryKey: ["homologation-meetings"] });
       qc.invalidateQueries({ queryKey: ["homologation-companies"] });
     },
+  });
+}
+
+// Documents
+export interface HomologationDocument {
+  id: string;
+  company_id: string;
+  name: string;
+  url: string;
+  mimetype: string | null;
+  size: number | null;
+  uploaded_by: string | null;
+  uploaded_by_name: string | null;
+  created_at: string;
+}
+
+export function useHomologationDocuments(companyId: string | null) {
+  return useQuery({
+    queryKey: ["homologation-documents", companyId],
+    queryFn: () => api<HomologationDocument[]>(`/api/homologation/companies/${companyId}/documents`),
+    enabled: !!companyId,
+  });
+}
+
+export function useCreateDocument() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ companyId, ...data }: { companyId: string; name: string; url: string; mimetype?: string; size?: number }) =>
+      api(`/api/homologation/companies/${companyId}/documents`, { method: "POST", body: data }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["homologation-documents"] });
+      qc.invalidateQueries({ queryKey: ["homologation-history"] });
+    },
+  });
+}
+
+export function useDeleteDocument() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api(`/api/homologation/documents/${id}`, { method: "DELETE" }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["homologation-documents"] }),
+  });
+}
+
+// Notes
+export interface HomologationNote {
+  id: string;
+  company_id: string;
+  user_id: string | null;
+  user_name: string | null;
+  content: string;
+  created_at: string;
+}
+
+export function useHomologationNotes(companyId: string | null) {
+  return useQuery({
+    queryKey: ["homologation-notes", companyId],
+    queryFn: () => api<HomologationNote[]>(`/api/homologation/companies/${companyId}/notes`),
+    enabled: !!companyId,
+  });
+}
+
+export function useCreateNote() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ companyId, content }: { companyId: string; content: string }) =>
+      api(`/api/homologation/companies/${companyId}/notes`, { method: "POST", body: { content } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["homologation-notes"] });
+      qc.invalidateQueries({ queryKey: ["homologation-history"] });
+    },
+  });
+}
+
+export function useDeleteNote() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api(`/api/homologation/notes/${id}`, { method: "DELETE" }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["homologation-notes"] }),
   });
 }
 

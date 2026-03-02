@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { MainLayout } from "@/components/layout/MainLayout";
@@ -21,18 +21,21 @@ import {
   Plus, Building2, User, Phone, Mail, FileText, ClipboardList,
   Calendar, Trash2, Edit, GripVertical, CheckCircle2, Circle,
   Clock, AlertTriangle, ChevronRight, History, Settings, MoreVertical,
-  Presentation, Search, MessageSquare, Send
+  Presentation, Search, MessageSquare, Send, Upload, Paperclip, StickyNote, MapPin
 } from "lucide-react";
 import {
   useHomologationBoards, useCreateBoard, useDeleteBoard,
   useHomologationStages, useCreateStage, useUpdateStage, useDeleteStage,
   useHomologationCompanies, useCreateCompany, useUpdateCompany, useDeleteCompany,
   useHomologationTasks, useCreateTask, useUpdateTask, useDeleteTask,
-  useHomologationMeetings, useLinkMeeting,
+  useHomologationMeetings, useCreateHomologationMeeting, useLinkMeeting,
+  useHomologationDocuments, useCreateDocument, useDeleteDocument,
+  useHomologationNotes, useCreateNote, useDeleteNote,
   useHomologationHistory, useHomologationOrgMembers,
   HomologationCompany, HomologationStage,
 } from "@/hooks/use-homologation";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { useUpload } from "@/hooks/use-upload";
 
 export default function Homologacao() {
   const { toast } = useToast();
@@ -44,6 +47,7 @@ export default function Homologacao() {
   const [showNewTaskDialog, setShowNewTaskDialog] = useState(false);
   const [showStageSettings, setShowStageSettings] = useState(false);
   const [showNewStageDialog, setShowNewStageDialog] = useState(false);
+  const [showNewMeetingDialog, setShowNewMeetingDialog] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: string; id: string; name: string } | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -51,9 +55,12 @@ export default function Homologacao() {
   const [boardName, setBoardName] = useState("");
   const [companyForm, setCompanyForm] = useState({ name: "", cnpj: "", contact_name: "", contact_email: "", contact_phone: "", notes: "", assigned_to: "" });
   const [taskForm, setTaskForm] = useState({ title: "", description: "", priority: "medium", due_date: "", assigned_to: "" });
+  const [meetingForm, setMeetingForm] = useState({ title: "", description: "", meeting_date: "", start_time: "", end_time: "", location: "" });
   const [newStageName, setNewStageName] = useState("");
   const [newStageColor, setNewStageColor] = useState("#6366f1");
   const [whatsappForm, setWhatsappForm] = useState({ content: "", scheduled_at: "", scheduled_time: "" });
+  const [noteContent, setNoteContent] = useState("");
+  const taskCreatingRef = useRef(false);
 
   const queryClient = useQueryClient();
 
@@ -63,8 +70,11 @@ export default function Homologacao() {
   const { data: companies = [] } = useHomologationCompanies(selectedBoardId);
   const { data: tasks = [] } = useHomologationTasks(selectedCompanyId);
   const { data: meetings = [] } = useHomologationMeetings(selectedCompanyId);
+  const { data: documents = [] } = useHomologationDocuments(selectedCompanyId);
+  const { data: notes = [] } = useHomologationNotes(selectedCompanyId);
   const { data: history = [] } = useHomologationHistory(selectedCompanyId);
   const { data: orgMembers = [] } = useHomologationOrgMembers();
+  const { uploadFile, isUploading } = useUpload();
 
   // WhatsApp scheduled messages for selected company
   const contactPhone = useMemo(() => {
@@ -105,6 +115,11 @@ export default function Homologacao() {
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
+  const createMeeting = useCreateHomologationMeeting();
+  const createDocument = useCreateDocument();
+  const deleteDocument = useDeleteDocument();
+  const createNote = useCreateNote();
+  const deleteNote = useDeleteNote();
 
   // Auto-select first board
   const activeBoardId = selectedBoardId || boards[0]?.id || null;
@@ -166,7 +181,8 @@ export default function Homologacao() {
   };
 
   const handleCreateTask = async () => {
-    if (!taskForm.title.trim() || !selectedCompanyId) return;
+    if (!taskForm.title.trim() || !selectedCompanyId || taskCreatingRef.current) return;
+    taskCreatingRef.current = true;
     try {
       await createTask.mutateAsync({
         companyId: selectedCompanyId,
@@ -177,6 +193,53 @@ export default function Homologacao() {
       setTaskForm({ title: "", description: "", priority: "medium", due_date: "", assigned_to: "" });
       setShowNewTaskDialog(false);
       toast({ title: "Tarefa criada!" });
+    } catch (e: any) {
+      toast({ title: "Erro", description: e.message, variant: "destructive" });
+    } finally {
+      taskCreatingRef.current = false;
+    }
+  };
+
+  const handleCreateMeeting = async () => {
+    if (!meetingForm.title.trim() || !meetingForm.meeting_date || !meetingForm.start_time || !selectedCompanyId) return;
+    try {
+      await createMeeting.mutateAsync({
+        companyId: selectedCompanyId,
+        ...meetingForm,
+      });
+      setMeetingForm({ title: "", description: "", meeting_date: "", start_time: "", end_time: "", location: "" });
+      setShowNewMeetingDialog(false);
+      toast({ title: "Reunião agendada!" });
+    } catch (e: any) {
+      toast({ title: "Erro", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const handleUploadDocument = async (file: File) => {
+    if (!selectedCompanyId) return;
+    try {
+      const url = await uploadFile(file);
+      if (url) {
+        await createDocument.mutateAsync({
+          companyId: selectedCompanyId,
+          name: file.name,
+          url,
+          mimetype: file.type,
+          size: file.size,
+        });
+        toast({ title: "Documento enviado!" });
+      }
+    } catch (e: any) {
+      toast({ title: "Erro ao enviar", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const handleAddNote = async () => {
+    if (!noteContent.trim() || !selectedCompanyId) return;
+    try {
+      await createNote.mutateAsync({ companyId: selectedCompanyId, content: noteContent });
+      setNoteContent("");
+      toast({ title: "Nota adicionada!" });
     } catch (e: any) {
       toast({ title: "Erro", description: e.message, variant: "destructive" });
     }
@@ -453,14 +516,20 @@ export default function Homologacao() {
           </DialogHeader>
           {selectedCompany && (
             <Tabs defaultValue="info" className="mt-2">
-              <TabsList className="grid w-full grid-cols-5">
-                <TabsTrigger value="info">Info</TabsTrigger>
-                <TabsTrigger value="tasks">Tarefas ({tasks.length})</TabsTrigger>
-                <TabsTrigger value="whatsapp">
-                  <MessageSquare className="h-3.5 w-3.5 mr-1" /> WhatsApp
+              <TabsList className="w-full flex flex-wrap h-auto gap-1">
+                <TabsTrigger value="info" className="text-xs">Info</TabsTrigger>
+                <TabsTrigger value="tasks" className="text-xs">Tarefas ({tasks.length})</TabsTrigger>
+                <TabsTrigger value="documents" className="text-xs">
+                  <Paperclip className="h-3 w-3 mr-1" /> Docs ({documents.length})
                 </TabsTrigger>
-                <TabsTrigger value="meetings">Reuniões</TabsTrigger>
-                <TabsTrigger value="history">Histórico</TabsTrigger>
+                <TabsTrigger value="notes" className="text-xs">
+                  <StickyNote className="h-3 w-3 mr-1" /> Notas ({notes.length})
+                </TabsTrigger>
+                <TabsTrigger value="whatsapp" className="text-xs">
+                  <MessageSquare className="h-3 w-3 mr-1" /> WhatsApp
+                </TabsTrigger>
+                <TabsTrigger value="meetings" className="text-xs">Reuniões ({meetings.length})</TabsTrigger>
+                <TabsTrigger value="history" className="text-xs">Histórico</TabsTrigger>
               </TabsList>
 
               <TabsContent value="info" className="space-y-4 mt-4">
@@ -593,20 +662,97 @@ export default function Homologacao() {
                 )}
               </TabsContent>
 
+              {/* Documents Tab */}
+              <TabsContent value="documents" className="space-y-3 mt-4">
+                <div>
+                  <input
+                    type="file"
+                    id="homolog-doc-upload"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleUploadDocument(file);
+                      e.target.value = "";
+                    }}
+                  />
+                  <Button size="sm" onClick={() => document.getElementById("homolog-doc-upload")?.click()} disabled={isUploading}>
+                    <Upload className="h-4 w-4 mr-1" /> {isUploading ? "Enviando..." : "Enviar Documento"}
+                  </Button>
+                </div>
+                <div className="space-y-2">
+                  {documents.map((doc: any) => (
+                    <div key={doc.id} className="flex items-center gap-3 p-2.5 rounded-lg border">
+                      <FileText className="h-4 w-4 text-primary shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium hover:underline truncate block">
+                          {doc.name}
+                        </a>
+                        <p className="text-xs text-muted-foreground">
+                          {doc.uploaded_by_name && <span>{doc.uploaded_by_name} • </span>}
+                          {safeFormatDate(doc.created_at, "dd/MM/yyyy HH:mm")}
+                          {doc.size && <span> • {(doc.size / 1024).toFixed(0)}KB</span>}
+                        </p>
+                      </div>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0"
+                        onClick={() => deleteDocument.mutate(doc.id)}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  ))}
+                  {documents.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhum documento</p>}
+                </div>
+              </TabsContent>
+
+              {/* Notes Tab */}
+              <TabsContent value="notes" className="space-y-3 mt-4">
+                <div className="flex gap-2">
+                  <Textarea
+                    placeholder="Adicionar nota..."
+                    value={noteContent}
+                    onChange={e => setNoteContent(e.target.value)}
+                    rows={2}
+                    className="flex-1"
+                  />
+                  <Button size="sm" className="self-end" onClick={handleAddNote} disabled={createNote.isPending || !noteContent.trim()}>
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="space-y-2">
+                  {notes.map((note: any) => (
+                    <div key={note.id} className="p-3 rounded-lg border space-y-1">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-muted-foreground font-medium">{note.user_name} • {safeFormatDate(note.created_at, "dd/MM/yyyy HH:mm")}</p>
+                        <Button variant="ghost" size="icon" className="h-6 w-6"
+                          onClick={() => deleteNote.mutate(note.id)}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      <p className="text-sm whitespace-pre-wrap">{note.content}</p>
+                    </div>
+                  ))}
+                  {notes.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhuma nota</p>}
+                </div>
+              </TabsContent>
+
               <TabsContent value="meetings" className="space-y-3 mt-4">
-                <p className="text-xs text-muted-foreground">Reuniões vinculadas do módulo de Reuniões</p>
+                <Button size="sm" onClick={() => setShowNewMeetingDialog(true)}>
+                  <Plus className="h-4 w-4 mr-1" /> Nova Reunião
+                </Button>
                 <div className="space-y-2">
                   {meetings.map((m: any) => (
                     <div key={m.id} className="flex items-center gap-3 p-2.5 rounded-lg border">
                       <Presentation className="h-4 w-4 text-primary" />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium">{m.title}</p>
-                        <p className="text-xs text-muted-foreground">{safeFormatDate(m.scheduled_at, "dd/MM/yyyy HH:mm")}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {safeFormatDate(m.meeting_date, "dd/MM/yyyy")} {m.start_time?.substring(0,5)}
+                          {m.location && <span> • {m.location}</span>}
+                        </p>
                       </div>
                       <Badge variant="outline" className="text-[10px]">{m.status}</Badge>
                     </div>
                   ))}
-                  {meetings.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhuma reunião vinculada</p>}
+                  {meetings.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhuma reunião</p>}
                 </div>
               </TabsContent>
 
@@ -676,7 +822,45 @@ export default function Homologacao() {
         </DialogContent>
       </Dialog>
 
-      {/* Stage Settings Dialog */}
+      {/* New Meeting Dialog */}
+      <Dialog open={showNewMeetingDialog} onOpenChange={setShowNewMeetingDialog}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Nova Reunião</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Título *</Label>
+              <Input value={meetingForm.title} onChange={e => setMeetingForm(p => ({ ...p, title: e.target.value }))} placeholder="Ex: Kickoff de homologação" />
+            </div>
+            <div>
+              <Label>Descrição</Label>
+              <Textarea value={meetingForm.description} onChange={e => setMeetingForm(p => ({ ...p, description: e.target.value }))} rows={2} />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <Label>Data *</Label>
+                <Input type="date" value={meetingForm.meeting_date} onChange={e => setMeetingForm(p => ({ ...p, meeting_date: e.target.value }))} />
+              </div>
+              <div>
+                <Label>Início *</Label>
+                <Input type="time" value={meetingForm.start_time} onChange={e => setMeetingForm(p => ({ ...p, start_time: e.target.value }))} />
+              </div>
+              <div>
+                <Label>Fim</Label>
+                <Input type="time" value={meetingForm.end_time} onChange={e => setMeetingForm(p => ({ ...p, end_time: e.target.value }))} />
+              </div>
+            </div>
+            <div>
+              <Label>Local</Label>
+              <Input value={meetingForm.location} onChange={e => setMeetingForm(p => ({ ...p, location: e.target.value }))} placeholder="Sala, endereço ou link" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowNewMeetingDialog(false)}>Cancelar</Button>
+            <Button onClick={handleCreateMeeting} disabled={createMeeting.isPending}>Agendar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={showStageSettings} onOpenChange={setShowStageSettings}>
         <DialogContent>
           <DialogHeader><DialogTitle>Gerenciar Fases</DialogTitle></DialogHeader>
