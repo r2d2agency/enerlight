@@ -74,8 +74,10 @@ export default function Homologacao() {
 
   // Data
   const { data: boards = [], isLoading: loadingBoards } = useHomologationBoards();
-  const { data: stages = [] } = useHomologationStages(selectedBoardId);
-  const { data: companies = [] } = useHomologationCompanies(selectedBoardId);
+  // Auto-select first board
+  const activeBoardId = selectedBoardId || boards[0]?.id || null;
+  const { data: stages = [] } = useHomologationStages(activeBoardId);
+  const { data: companies = [] } = useHomologationCompanies(activeBoardId);
   const { data: tasks = [] } = useHomologationTasks(selectedCompanyId);
   const { data: meetings = [] } = useHomologationMeetings(selectedCompanyId);
   const { data: documents = [] } = useHomologationDocuments(selectedCompanyId);
@@ -129,8 +131,7 @@ export default function Homologacao() {
   const createNote = useCreateNote();
   const deleteNote = useDeleteNote();
 
-  // Auto-select first board
-  const activeBoardId = selectedBoardId || boards[0]?.id || null;
+  // activeBoardId already defined above near hooks
 
   const selectedCompany = useMemo(() => 
     companies.find(c => c.id === selectedCompanyId), [companies, selectedCompanyId]
