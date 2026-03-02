@@ -529,9 +529,10 @@ export function CRMSidePanel({
         contact_name: contactName || undefined,
       } as any);
       
-      refetchDeals();
       resetCreateDealForm();
       toast.success("Negociação criada e vinculada ao contato!");
+      // Refresh deals list after short delay for backend processing
+      setTimeout(() => refetchDeals(), 500);
     } catch (error) {
       console.error("Error creating deal:", error);
       toast.error("Erro ao criar negociação");
