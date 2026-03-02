@@ -3505,6 +3505,8 @@ DO $$ BEGIN
   ALTER TABLE homologation_companies ADD COLUMN IF NOT EXISTS zip_code VARCHAR(10);
 EXCEPTION WHEN others THEN NULL;
 END $$;
+
+CREATE TABLE IF NOT EXISTS homologation_tasks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID REFERENCES homologation_companies(id) ON DELETE CASCADE NOT NULL,
   title VARCHAR(500) NOT NULL,
