@@ -58,6 +58,8 @@ interface PredictiveInsights {
 // Analyze deal patterns to predict close probability
 function calculateCloseProbability(deal: DealData, avgDaysToClose?: number): number {
   let score = 50; // Base score
+  const dealAgeDays = (Date.now() - new Date(deal.created_at).getTime()) / (1000 * 60 * 60 * 24);
+  const isNewLead = dealAgeDays <= 7;
   
   // Stage progress (0-30 points)
   if (deal.stage_position && deal.total_stages) {
@@ -75,22 +77,49 @@ function calculateCloseProbability(deal: DealData, avgDaysToClose?: number): num
     else score -= 10;
   }
   
-  // Engagement signals (0-15 points)
+  // Engagement signals (0-15 points) — boosted for new leads with early engagement
   if (deal.messages_count) {
-    if (deal.messages_count > 20) score += 15;
-    else if (deal.messages_count > 10) score += 10;
-    else if (deal.messages_count > 5) score += 5;
+    if (isNewLead) {
+      // New leads: even a few messages are a strong signal
+      if (deal.messages_count > 5) score += 15;
+      else if (deal.messages_count > 2) score += 12;
+      else if (deal.messages_count >= 1) score += 8;
+    } else {
+      if (deal.messages_count > 20) score += 15;
+      else if (deal.messages_count > 10) score += 10;
+      else if (deal.messages_count > 5) score += 5;
+    }
+  }
+
+  // Response time factor (0-15 points) — critical for new leads
+  if (deal.response_times && deal.response_times.length > 0) {
+    const avgResponseMin = deal.response_times.reduce((a, b) => a + b, 0) / deal.response_times.length;
+    const multiplier = isNewLead ? 1.5 : 1; // Weight more for new leads
+    if (avgResponseMin < 30) score += Math.round(15 * multiplier);
+    else if (avgResponseMin < 120) score += Math.round(10 * multiplier);
+    else if (avgResponseMin < 480) score += Math.round(5 * multiplier);
+    else if (avgResponseMin > 1440) score -= 5; // Over 24h penalty
+  } else if (isNewLead) {
+    // No response data yet for new lead — neutral
+    score += 3;
+  }
+
+  // Initial engagement velocity for new leads (bonus 0-10)
+  if (isNewLead && deal.messages_count && dealAgeDays > 0) {
+    const messagesPerDay = deal.messages_count / Math.max(dealAgeDays, 0.5);
+    if (messagesPerDay >= 5) score += 10;
+    else if (messagesPerDay >= 2) score += 7;
+    else if (messagesPerDay >= 1) score += 4;
   }
   
   // Tasks and meetings (0-15 points)
   if (deal.meetings_scheduled && deal.meetings_scheduled > 0) score += 10;
-  if (deal.tasks_pending === 0) score += 5; // All tasks completed
+  if (deal.tasks_pending === 0) score += 5;
   
   // Deal age vs average (−10 to +10)
   if (avgDaysToClose) {
-    const dealAge = (Date.now() - new Date(deal.created_at).getTime()) / (1000 * 60 * 60 * 24);
-    if (dealAge < avgDaysToClose * 0.5) score += 10;
-    else if (dealAge > avgDaysToClose * 1.5) score -= 10;
+    if (dealAgeDays < avgDaysToClose * 0.5) score += 10;
+    else if (dealAgeDays > avgDaysToClose * 1.5) score -= 10;
   }
   
   return Math.min(Math.max(score, 5), 95);
@@ -200,14 +229,47 @@ function calculateBestContactTimes(conversation?: ConversationData): { hour: num
   }));
 }
 
-// Calculate overall health score
-function calculateHealthScore(probability: number, churnRisk: 'low' | 'medium' | 'high'): number {
-  let score = probability;
-  
-  if (churnRisk === 'high') score -= 30;
-  else if (churnRisk === 'medium') score -= 15;
-  
-  return Math.min(Math.max(score, 0), 100);
+// Calculate overall health score — weighs probability, churn risk, and engagement signals
+function calculateHealthScore(
+  probability: number,
+  churnRisk: 'low' | 'medium' | 'high',
+  deal?: DealData,
+  conversation?: ConversationData
+): number {
+  // Base: 60% probability, 40% engagement & responsiveness
+  let score = probability * 0.6;
+
+  // Churn risk penalty
+  if (churnRisk === 'high') score -= 20;
+  else if (churnRisk === 'medium') score -= 8;
+  else score += 5; // Bonus for low churn
+
+  // Response time boost (0-20 points)
+  if (conversation?.avg_response_time_minutes != null) {
+    const rt = conversation.avg_response_time_minutes;
+    if (rt < 30) score += 20;
+    else if (rt < 120) score += 15;
+    else if (rt < 480) score += 10;
+    else if (rt < 1440) score += 5;
+    // >24h: no bonus
+  } else if (deal?.response_times && deal.response_times.length > 0) {
+    const avg = deal.response_times.reduce((a, b) => a + b, 0) / deal.response_times.length;
+    if (avg < 30) score += 20;
+    else if (avg < 120) score += 15;
+    else if (avg < 480) score += 10;
+    else if (avg < 1440) score += 5;
+  } else {
+    score += 8; // Neutral when no data
+  }
+
+  // Engagement volume boost (0-15 points)
+  const msgCount = conversation?.messages_count || deal?.messages_count || 0;
+  if (msgCount > 20) score += 15;
+  else if (msgCount > 10) score += 10;
+  else if (msgCount > 3) score += 7;
+  else if (msgCount > 0) score += 3;
+
+  return Math.min(Math.max(Math.round(score), 0), 100);
 }
 
 // Generate next action recommendations
@@ -249,7 +311,7 @@ export function analyzeDeal(deal: DealData, conversation?: ConversationData, avg
   const closeTimeframe = estimateCloseTimeframe(deal, closeProbability);
   const { risk: churnRisk, reasons: churnReasons } = calculateChurnRisk(deal, conversation);
   const bestContactTimes = calculateBestContactTimes(conversation);
-  const healthScore = calculateHealthScore(closeProbability, churnRisk);
+  const healthScore = calculateHealthScore(closeProbability, churnRisk, deal, conversation);
   
   const insights: PredictiveInsights = {
     closeProbability,
