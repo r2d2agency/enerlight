@@ -353,16 +353,51 @@ router.get('/companies/:companyId/meetings', requireAuth, async (req, res) => {
       `SELECT m.*, hm.id as link_id FROM homologation_meetings hm
        JOIN meetings m ON m.id = hm.meeting_id
        WHERE hm.company_id = $1
-       ORDER BY m.scheduled_at DESC`,
+       ORDER BY m.meeting_date DESC, m.start_time DESC`,
       [req.params.companyId]
     );
     res.json(result.rows);
   } catch (e) {
+    console.error('List homologation meetings error:', e);
     res.status(500).json({ error: e.message });
   }
 });
 
-// Link meeting
+// Create meeting directly from homologation
+router.post('/companies/:companyId/meetings/create', requireAuth, async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+    const { title, description, meeting_date, start_time, end_time, location } = req.body;
+    
+    // Create meeting in meetings table
+    const meeting = await query(
+      `INSERT INTO meetings (organization_id, title, description, meeting_date, start_time, end_time, location, status, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'scheduled', $8) RETURNING *`,
+      [org.organization_id, title, description || null, meeting_date, start_time, end_time || start_time, location || null, req.userId]
+    );
+    
+    // Link to homologation company
+    await query(
+      `INSERT INTO homologation_meetings (company_id, meeting_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+      [req.params.companyId, meeting.rows[0].id]
+    );
+
+    // History
+    const userName = (await query(`SELECT name FROM users WHERE id = $1`, [req.userId])).rows[0]?.name;
+    await query(
+      `INSERT INTO homologation_history (company_id, user_id, user_name, action, details) VALUES ($1, $2, $3, 'meeting_created', $4)`,
+      [req.params.companyId, req.userId, userName, `Reunião "${title}" agendada`]
+    );
+
+    res.json(meeting.rows[0]);
+  } catch (e) {
+    console.error('Create homologation meeting error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Link existing meeting
 router.post('/companies/:companyId/meetings', requireAuth, async (req, res) => {
   try {
     const { meeting_id } = req.body;
@@ -380,6 +415,106 @@ router.post('/companies/:companyId/meetings', requireAuth, async (req, res) => {
 router.delete('/meetings-link/:id', requireAuth, async (req, res) => {
   try {
     await query(`DELETE FROM homologation_meetings WHERE id = $1`, [req.params.id]);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ===================== DOCUMENTS =====================
+
+// List documents for a company
+router.get('/companies/:companyId/documents', requireAuth, async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT d.*, u.name as uploaded_by_name FROM homologation_documents d
+       LEFT JOIN users u ON u.id = d.uploaded_by
+       WHERE d.company_id = $1 ORDER BY d.created_at DESC`,
+      [req.params.companyId]
+    );
+    res.json(result.rows);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Add document
+router.post('/companies/:companyId/documents', requireAuth, async (req, res) => {
+  try {
+    const { name, url, mimetype, size } = req.body;
+    const result = await query(
+      `INSERT INTO homologation_documents (company_id, name, url, mimetype, size, uploaded_by)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [req.params.companyId, name, url, mimetype || null, size || null, req.userId]
+    );
+
+    // History
+    const userName = (await query(`SELECT name FROM users WHERE id = $1`, [req.userId])).rows[0]?.name;
+    await query(
+      `INSERT INTO homologation_history (company_id, user_id, user_name, action, details) VALUES ($1, $2, $3, 'document_added', $4)`,
+      [req.params.companyId, req.userId, userName, `Documento "${name}" adicionado`]
+    );
+
+    res.json(result.rows[0]);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Delete document
+router.delete('/documents/:id', requireAuth, async (req, res) => {
+  try {
+    await query(`DELETE FROM homologation_documents WHERE id = $1`, [req.params.id]);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ===================== NOTES =====================
+
+// List notes for a company
+router.get('/companies/:companyId/notes', requireAuth, async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT n.*, u.name as user_name FROM homologation_notes n
+       LEFT JOIN users u ON u.id = n.user_id
+       WHERE n.company_id = $1 ORDER BY n.created_at DESC`,
+      [req.params.companyId]
+    );
+    res.json(result.rows);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Add note
+router.post('/companies/:companyId/notes', requireAuth, async (req, res) => {
+  try {
+    const { content } = req.body;
+    const result = await query(
+      `INSERT INTO homologation_notes (company_id, user_id, content)
+       VALUES ($1, $2, $3) RETURNING *`,
+      [req.params.companyId, req.userId, content]
+    );
+
+    // History
+    const userName = (await query(`SELECT name FROM users WHERE id = $1`, [req.userId])).rows[0]?.name;
+    await query(
+      `INSERT INTO homologation_history (company_id, user_id, user_name, action, details) VALUES ($1, $2, $3, 'note_added', $4)`,
+      [req.params.companyId, req.userId, userName, `Nota adicionada`]
+    );
+
+    res.json({ ...result.rows[0], user_name: userName });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Delete note
+router.delete('/notes/:id', requireAuth, async (req, res) => {
+  try {
+    await query(`DELETE FROM homologation_notes WHERE id = $1`, [req.params.id]);
     res.json({ success: true });
   } catch (e) {
     res.status(500).json({ error: e.message });

@@ -82,6 +82,27 @@ CREATE TABLE IF NOT EXISTS homologation_history (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Documentos
+CREATE TABLE IF NOT EXISTS homologation_documents (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id UUID REFERENCES homologation_companies(id) ON DELETE CASCADE NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  url TEXT NOT NULL,
+  mimetype VARCHAR(100),
+  size INTEGER,
+  uploaded_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Notas
+CREATE TABLE IF NOT EXISTS homologation_notes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id UUID REFERENCES homologation_companies(id) ON DELETE CASCADE NOT NULL,
+  user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  content TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_homologation_boards_org ON homologation_boards(organization_id);
 CREATE INDEX IF NOT EXISTS idx_homologation_stages_board ON homologation_stages(board_id);
@@ -90,3 +111,5 @@ CREATE INDEX IF NOT EXISTS idx_homologation_companies_stage ON homologation_comp
 CREATE INDEX IF NOT EXISTS idx_homologation_tasks_company ON homologation_tasks(company_id);
 CREATE INDEX IF NOT EXISTS idx_homologation_meetings_company ON homologation_meetings(company_id);
 CREATE INDEX IF NOT EXISTS idx_homologation_history_company ON homologation_history(company_id);
+CREATE INDEX IF NOT EXISTS idx_homologation_documents_company ON homologation_documents(company_id);
+CREATE INDEX IF NOT EXISTS idx_homologation_notes_company ON homologation_notes(company_id);
