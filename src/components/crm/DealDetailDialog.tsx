@@ -795,13 +795,48 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
                       {customFields.map((field) => (
                         <div key={field.id} className="flex justify-between items-center text-sm">
                           <span className="text-muted-foreground">{field.field_label}</span>
-                          <Input
-                            value={dealCustomFields[field.field_name] || ""}
-                            onChange={(e) => setDealCustomFields(prev => ({ ...prev, [field.field_name]: e.target.value }))}
-                            onBlur={() => handleSaveCustomField(field.field_name, dealCustomFields[field.field_name] || "")}
-                            className="w-40 h-7 text-sm text-right"
-                            placeholder="—"
-                          />
+                          {field.field_type === 'datetime' ? (
+                            <Input
+                              type="datetime-local"
+                              value={dealCustomFields[field.field_name] || ""}
+                              onChange={(e) => setDealCustomFields(prev => ({ ...prev, [field.field_name]: e.target.value }))}
+                              onBlur={() => handleSaveCustomField(field.field_name, dealCustomFields[field.field_name] || "")}
+                              className="w-52 h-7 text-sm text-right"
+                            />
+                          ) : field.field_type === 'date' ? (
+                            <Input
+                              type="date"
+                              value={dealCustomFields[field.field_name] || ""}
+                              onChange={(e) => setDealCustomFields(prev => ({ ...prev, [field.field_name]: e.target.value }))}
+                              onBlur={() => handleSaveCustomField(field.field_name, dealCustomFields[field.field_name] || "")}
+                              className="w-40 h-7 text-sm text-right"
+                            />
+                          ) : field.field_type === 'time' ? (
+                            <Input
+                              type="time"
+                              value={dealCustomFields[field.field_name] || ""}
+                              onChange={(e) => setDealCustomFields(prev => ({ ...prev, [field.field_name]: e.target.value }))}
+                              onBlur={() => handleSaveCustomField(field.field_name, dealCustomFields[field.field_name] || "")}
+                              className="w-32 h-7 text-sm text-right"
+                            />
+                          ) : field.field_type === 'number' ? (
+                            <Input
+                              type="number"
+                              value={dealCustomFields[field.field_name] || ""}
+                              onChange={(e) => setDealCustomFields(prev => ({ ...prev, [field.field_name]: e.target.value }))}
+                              onBlur={() => handleSaveCustomField(field.field_name, dealCustomFields[field.field_name] || "")}
+                              className="w-32 h-7 text-sm text-right"
+                              placeholder="—"
+                            />
+                          ) : (
+                            <Input
+                              value={dealCustomFields[field.field_name] || ""}
+                              onChange={(e) => setDealCustomFields(prev => ({ ...prev, [field.field_name]: e.target.value }))}
+                              onBlur={() => handleSaveCustomField(field.field_name, dealCustomFields[field.field_name] || "")}
+                              className="w-40 h-7 text-sm text-right"
+                              placeholder="—"
+                            />
+                          )}
                         </div>
                       ))}
                     </div>
