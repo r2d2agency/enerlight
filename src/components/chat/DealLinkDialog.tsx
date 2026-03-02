@@ -84,13 +84,16 @@ export function DealLinkDialog({
         status: "open",
       };
       
-      console.log('[DealLinkDialog] Creating deal with data:', dealData);
-      
-      await createDeal.mutateAsync(dealData as any);
+      const createdDeal = await createDeal.mutateAsync(dealData as any);
 
-      toast.success("Negociação criada!");
-      onOpenChange(false);
+      // Auto-link the newly created deal to the contact
+      if (createdDeal?.id && onLinkDeal) {
+        onLinkDeal(createdDeal.id);
+      }
+
+      toast.success("Negociação criada e vinculada!");
       resetForm();
+      onOpenChange(false);
     } catch (error: any) {
       console.error('[DealLinkDialog] Error creating deal:', error);
       toast.error(error?.message || "Erro ao criar negociação");
