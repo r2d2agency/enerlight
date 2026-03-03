@@ -1490,76 +1490,119 @@ export async function getAllChatsForSync(instanceId, token) {
 }
 
 /**
- * Fetch contacts from W-API using the /contacts/fetch-contacts endpoint (paginated).
- * This returns actual WhatsApp contacts, not just chats.
- * GET /v1/contacts/fetch-contacts?instanceId=XXX&perPage=100&page=1
+ * Try multiple W-API contact endpoints until one returns data.
+ * Known endpoints: /contacts/fetch-contacts, /contacts/get-contacts, /contacts/list
+ */
+async function tryContactEndpoint(url, token) {
+  try {
+    const response = await fetch(url, { method: 'GET', headers: getHeaders(token) });
+    if (!response.ok) return null;
+    const data = await response.json();
+    
+    // Extract contacts array from various response formats
+    const contacts = Array.isArray(data?.contacts)
+      ? data.contacts
+      : Array.isArray(data?.data)
+        ? data.data
+        : Array.isArray(data?.result)
+          ? data.result
+          : Array.isArray(data)
+            ? data
+            : [];
+    
+    return { contacts, data };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Fetch contacts from W-API trying multiple endpoint patterns.
+ * Falls back to extracting contacts from chats if contact endpoints return empty.
  */
 export async function fetchContacts(instanceId, token, { perPage = 100, maxPages = 50 } = {}) {
   const encodedInstanceId = encodeURIComponent(instanceId || '');
   const allContacts = [];
-  let page = 1;
-  let totalPages = 1;
 
   try {
-    while (page <= totalPages && page <= maxPages) {
-      const response = await fetch(
-        `${W_API_BASE_URL}/contacts/fetch-contacts?instanceId=${encodedInstanceId}&perPage=${perPage}&page=${page}`,
-        {
-          method: 'GET',
-          headers: getHeaders(token),
+    // Try multiple contact endpoint patterns
+    const contactEndpoints = [
+      `${W_API_BASE_URL}/contacts/fetch-contacts?instanceId=${encodedInstanceId}&perPage=${perPage}&page=1`,
+      `${W_API_BASE_URL}/contacts/get-contacts?instanceId=${encodedInstanceId}`,
+      `${W_API_BASE_URL}/contacts/list?instanceId=${encodedInstanceId}`,
+      `${W_API_BASE_URL}/contacts?instanceId=${encodedInstanceId}`,
+    ];
+
+    let foundEndpoint = null;
+
+    for (const endpoint of contactEndpoints) {
+      logInfo('wapi.fetch_contacts_trying', { instanceId, endpoint });
+      const result = await tryContactEndpoint(endpoint, token);
+      
+      if (result && result.contacts.length > 0) {
+        allContacts.push(...result.contacts);
+        foundEndpoint = endpoint;
+        logInfo('wapi.fetch_contacts_found', { 
+          instanceId, endpoint, count: result.contacts.length,
+          responseKeys: Object.keys(result.data || {}),
+        });
+
+        // If paginated endpoint, fetch remaining pages
+        if (result.data?.totalPages > 1 && endpoint.includes('fetch-contacts')) {
+          let page = 2;
+          const totalPages = Math.min(result.data.totalPages, maxPages);
+          while (page <= totalPages) {
+            const pageUrl = `${W_API_BASE_URL}/contacts/fetch-contacts?instanceId=${encodedInstanceId}&perPage=${perPage}&page=${page}`;
+            const pageResult = await tryContactEndpoint(pageUrl, token);
+            if (pageResult && pageResult.contacts.length > 0) {
+              allContacts.push(...pageResult.contacts);
+            } else {
+              break;
+            }
+            page++;
+          }
         }
-      );
-
-      if (!response.ok) {
-        const text = await response.text().catch(() => '');
-        let errMsg = `HTTP ${response.status}`;
-        try { errMsg = JSON.parse(text)?.message || errMsg; } catch { /* ignore */ }
-        logWarn('wapi.fetch_contacts_page_failed', { instanceId, page, status: response.status, error: errMsg });
         break;
+      } else {
+        logInfo('wapi.fetch_contacts_empty', { 
+          instanceId, endpoint, 
+          responseKeys: result ? Object.keys(result.data || {}) : 'no_response',
+          rawSample: result ? JSON.stringify(result.data).substring(0, 300) : 'null',
+        });
       }
+    }
 
-      let data;
+    // Fallback: extract contacts from chats if no contacts found
+    if (allContacts.length === 0) {
+      logInfo('wapi.fetch_contacts_fallback_chats', { instanceId });
       try {
-        data = await response.json();
-      } catch {
-        logWarn('wapi.fetch_contacts_parse_error', { instanceId, page });
-        break;
+        const chatsResult = await getChats(instanceId, token);
+        if (chatsResult.success && chatsResult.chats?.length > 0) {
+          for (const chat of chatsResult.chats) {
+            const jid = chat.jid || chat.id || chat.remoteJid || '';
+            if (jid.includes('@g.us')) continue; // skip groups
+            
+            const phone = jid.replace('@s.whatsapp.net', '').replace('@c.us', '').replace(/\D/g, '');
+            if (!phone) continue;
+
+            allContacts.push({
+              jid,
+              phone,
+              name: chat.name || chat.pushName || chat.notify || chat.contact?.name || phone,
+              profilePicture: chat.profilePicture || chat.profilePictureUrl || chat.imgUrl || null,
+            });
+          }
+          logInfo('wapi.fetch_contacts_from_chats', { instanceId, count: allContacts.length });
+        }
+      } catch (chatErr) {
+        logWarn('wapi.fetch_contacts_chat_fallback_error', { instanceId, error: chatErr.message });
       }
-
-      // W-API may return contacts in different formats
-      const contacts = Array.isArray(data?.contacts)
-        ? data.contacts
-        : Array.isArray(data?.data)
-          ? data.data
-          : Array.isArray(data?.result)
-            ? data.result
-            : Array.isArray(data)
-              ? data
-              : [];
-
-      if (page === 1 && contacts.length === 0) {
-        logWarn('wapi.fetch_contacts_empty_response', { instanceId, keys: Object.keys(data || {}), type: typeof data });
-      }
-
-      allContacts.push(...contacts);
-
-      totalPages = data.totalPages || 1;
-      logInfo('wapi.fetch_contacts_page', {
-        instanceId,
-        page,
-        totalPages,
-        pageContacts: contacts.length,
-        totalSoFar: allContacts.length,
-        totalContacts: data.totalContacts || 0,
-      });
-
-      page++;
     }
 
     logInfo('wapi.fetch_contacts_complete', {
       instanceId,
       totalFetched: allContacts.length,
-      pagesProcessed: page - 1,
+      source: foundEndpoint || (allContacts.length > 0 ? 'chats_fallback' : 'none'),
     });
 
     return { success: true, contacts: allContacts, total: allContacts.length };
