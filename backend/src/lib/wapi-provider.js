@@ -1526,7 +1526,21 @@ export async function fetchContacts(instanceId, token, { perPage = 100, maxPages
         break;
       }
 
-      const contacts = Array.isArray(data?.contacts) ? data.contacts : [];
+      // W-API may return contacts in different formats
+      const contacts = Array.isArray(data?.contacts)
+        ? data.contacts
+        : Array.isArray(data?.data)
+          ? data.data
+          : Array.isArray(data?.result)
+            ? data.result
+            : Array.isArray(data)
+              ? data
+              : [];
+
+      if (page === 1 && contacts.length === 0) {
+        logWarn('wapi.fetch_contacts_empty_response', { instanceId, keys: Object.keys(data || {}), type: typeof data });
+      }
+
       allContacts.push(...contacts);
 
       totalPages = data.totalPages || 1;
