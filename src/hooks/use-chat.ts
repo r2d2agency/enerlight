@@ -400,7 +400,23 @@ export const useChat = () => {
     return data;
   }, []);
 
-  // Notes
+  // Sync W-API conversations
+  const syncWapiConversations = useCallback(async (connectionId: string): Promise<{ imported: number; updated: number; skipped: number; total: number; message: string }> => {
+    const data = await api<{ imported: number; updated: number; skipped: number; total: number; message: string }>(
+      `/api/connections/${connectionId}/wapi/sync-conversations`,
+      { method: 'POST' }
+    );
+    return data;
+  }, []);
+
+  // Sync W-API messages for a conversation
+  const syncWapiMessages = useCallback(async (connectionId: string, conversationId: string): Promise<{ imported: number; skipped: number; total: number; message: string }> => {
+    const data = await api<{ imported: number; skipped: number; total: number; message: string }>(
+      `/api/connections/${connectionId}/wapi/sync-messages`,
+      { method: 'POST', body: { conversationId } }
+    );
+    return data;
+  }, []);
   const getNotes = useCallback(async (conversationId: string): Promise<ConversationNote[]> => {
     try {
       const data = await api<ConversationNote[]>(`/api/chat/conversations/${conversationId}/notes`);
@@ -580,6 +596,8 @@ export const useChat = () => {
     getTeam,
     // History sync
     syncChatHistory,
+    syncWapiConversations,
+    syncWapiMessages,
     // Notes
     getNotes,
     createNote,

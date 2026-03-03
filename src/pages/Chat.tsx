@@ -53,6 +53,7 @@ const Chat = () => {
     removeTagFromConversation,
     getTeam,
     syncChatHistory,
+    syncWapiConversations,
     syncGroupName,
     syncAllGroupNames,
     startAlertsPolling,
@@ -74,6 +75,7 @@ const Chat = () => {
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [syncingHistory, setSyncingHistory] = useState(false);
   const [syncingGroups, setSyncingGroups] = useState(false);
+  const [syncingConversations, setSyncingConversations] = useState(false);
   const [newConversationOpen, setNewConversationOpen] = useState(false);
   const [crmPanelOpen, setCrmPanelOpen] = useState(false);
   const [attendanceCounts, setAttendanceCounts] = useState<{ waiting: number; attending: number; finished: number }>({ waiting: 0, attending: 0, finished: 0 });
@@ -699,6 +701,38 @@ const Chat = () => {
     }
   };
 
+  // Sync W-API conversations
+  const handleSyncWapiConversations = async () => {
+    setSyncingConversations(true);
+    try {
+      let totalImported = 0;
+      let totalUpdated = 0;
+
+      for (const conn of connections) {
+        try {
+          const result = await syncWapiConversations(conn.id);
+          totalImported += result.imported || 0;
+          totalUpdated += result.updated || 0;
+        } catch {
+          // Connection might not be W-API, skip silently
+        }
+      }
+
+      if (totalImported > 0 || totalUpdated > 0) {
+        toast.success(`Sincronização concluída: ${totalImported} novas conversas, ${totalUpdated} atualizadas`);
+      } else {
+        toast.info('Nenhuma conversa nova encontrada');
+      }
+
+      // Reload conversations
+      loadConversations();
+    } catch (error: any) {
+      toast.error(error?.message || 'Erro ao sincronizar conversas');
+    } finally {
+      setSyncingConversations(false);
+    }
+  };
+
   return (
     <MainLayout>
       {/* Mobile: full viewport height minus safe areas; Desktop: calc with padding */}
@@ -736,20 +770,35 @@ const Chat = () => {
               </TabsList>
             </Tabs>
             
-            {/* Sync groups button - only show on groups tab */}
-            {activeTab === 'groups' && (
+            <div className="flex items-center gap-1">
+              {/* Sync conversations button - always visible */}
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={handleSyncAllGroups}
-                disabled={syncingGroups}
-                title="Sincronizar nomes dos grupos"
+                onClick={handleSyncWapiConversations}
+                disabled={syncingConversations}
+                title="Sincronizar conversas do WhatsApp (W-API)"
                 className="text-xs gap-1 h-8"
               >
-                <RefreshCw className={cn("h-3.5 w-3.5", syncingGroups && "animate-spin")} />
+                <RefreshCw className={cn("h-3.5 w-3.5", syncingConversations && "animate-spin")} />
                 {!isMobile && 'Sincronizar'}
               </Button>
-            )}
+
+              {/* Sync groups button - only show on groups tab */}
+              {activeTab === 'groups' && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleSyncAllGroups}
+                  disabled={syncingGroups}
+                  title="Sincronizar nomes dos grupos"
+                  className="text-xs gap-1 h-8"
+                >
+                  <Users className={cn("h-3.5 w-3.5", syncingGroups && "animate-spin")} />
+                  {!isMobile && 'Grupos'}
+                </Button>
+              )}
+            </div>
           </div>
         )}
 
