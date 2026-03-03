@@ -2078,6 +2078,11 @@ router.get('/scheduled/all', authenticate, async (req, res) => {
       return res.json([]);
     }
 
+    // Determine visibility based on role
+    const org = await getUserOrganization(req.userId);
+    const role = org?.role;
+    const isAdmin = role === 'owner' || role === 'admin';
+
     let sql = `
       SELECT sm.*, 
         u.name as sender_name,
@@ -2092,10 +2097,41 @@ router.get('/scheduled/all', authenticate, async (req, res) => {
     `;
     
     const params = [connectionIds];
+    let paramIndex = 2;
+
+    // Role-based filtering
+    if (!isAdmin) {
+      if (role === 'manager') {
+        // Manager/supervisor: see own + group members' messages
+        const groupMembersResult = await query(
+          `SELECT DISTINCT gm2.user_id 
+           FROM group_members gm1
+           JOIN group_members gm2 ON gm2.group_id = gm1.group_id
+           WHERE gm1.user_id = $1`,
+          [req.userId]
+        );
+        const memberIds = groupMembersResult.rows.map(r => r.user_id);
+        if (memberIds.length > 0) {
+          sql += ` AND sm.sender_id = ANY($${paramIndex})`;
+          params.push(memberIds);
+          paramIndex++;
+        } else {
+          sql += ` AND sm.sender_id = $${paramIndex}`;
+          params.push(req.userId);
+          paramIndex++;
+        }
+      } else {
+        // Vendedor: only own messages
+        sql += ` AND sm.sender_id = $${paramIndex}`;
+        params.push(req.userId);
+        paramIndex++;
+      }
+    }
     
     if (status && status !== 'all') {
-      sql += ` AND sm.status = $2`;
+      sql += ` AND sm.status = $${paramIndex}`;
       params.push(status);
+      paramIndex++;
     }
     
     sql += ` ORDER BY sm.scheduled_at DESC`;
