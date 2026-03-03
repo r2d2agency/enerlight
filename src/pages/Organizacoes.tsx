@@ -108,10 +108,12 @@ export default function Organizacoes() {
   const [newMemberTemplateId, setNewMemberTemplateId] = useState<string>('');
   const [permissionTemplates, setPermissionTemplates] = useState<Array<{ id: string; name: string; description: string | null; icon: string }>>([]);
 
-  // Edit member dialog
+   // Edit member dialog
   const [editMemberDialogOpen, setEditMemberDialogOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<OrganizationMember | null>(null);
   const [editMemberRole, setEditMemberRole] = useState<string>('agent');
+  const [editMemberName, setEditMemberName] = useState('');
+  const [editMemberEmail, setEditMemberEmail] = useState('');
   const [editMemberConnectionIds, setEditMemberConnectionIds] = useState<string[]>([]);
   const [editMemberDepartmentIds, setEditMemberDepartmentIds] = useState<string[]>([]);
 
@@ -361,6 +363,8 @@ export default function Organizacoes() {
   const handleOpenEditMember = (member: OrganizationMember) => {
     setEditingMember(member);
     setEditMemberRole(member.role);
+    setEditMemberName(member.name);
+    setEditMemberEmail(member.email);
     setEditMemberConnectionIds(member.assigned_connections?.map(c => c.id) || []);
     setEditMemberDepartmentIds(member.assigned_departments?.map(d => d.id) || []);
     setEditMemberDialogOpen(true);
@@ -369,7 +373,7 @@ export default function Organizacoes() {
   const handleUpdateMember = async () => {
     if (!selectedOrg || !editingMember) return;
 
-    const updateData: { role?: string; connection_ids?: string[]; department_ids?: string[] } = {
+    const updateData: { role?: string; connection_ids?: string[]; department_ids?: string[]; name?: string; email?: string } = {
       connection_ids: editMemberConnectionIds,
       department_ids: editMemberDepartmentIds,
     };
@@ -377,6 +381,14 @@ export default function Organizacoes() {
     // Only include role if it's different and member is not owner
     if (editingMember.role !== 'owner' && editMemberRole !== editingMember.role) {
       updateData.role = editMemberRole;
+    }
+
+    // Include name/email if changed
+    if (editMemberName && editMemberName !== editingMember.name) {
+      updateData.name = editMemberName;
+    }
+    if (editMemberEmail && editMemberEmail !== editingMember.email) {
+      updateData.email = editMemberEmail;
     }
 
     const success = await updateMember(selectedOrg.id, editingMember.user_id, updateData);
@@ -1389,6 +1401,27 @@ export default function Organizacoes() {
               </DialogDescription>
             </DialogHeader>
             <div className="py-4 space-y-6 overflow-y-auto flex-1 pr-2">
+              {/* Name & Email */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label>Nome</Label>
+                  <Input
+                    value={editMemberName}
+                    onChange={(e) => setEditMemberName(e.target.value)}
+                    placeholder="Nome do membro"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Email</Label>
+                  <Input
+                    value={editMemberEmail}
+                    onChange={(e) => setEditMemberEmail(e.target.value)}
+                    placeholder="Email do membro"
+                    type="email"
+                  />
+                </div>
+              </div>
+
               {/* Role - only if not owner */}
               {editingMember?.role !== 'owner' && (
                 <div className="space-y-2">
