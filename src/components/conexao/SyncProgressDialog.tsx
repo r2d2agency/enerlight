@@ -23,6 +23,31 @@ interface SyncProgressDialogProps {
   type: "contacts" | "chats";
 }
 
+function formatDebug(debug: any): string {
+  if (!debug) return '';
+  const lines: string[] = [];
+  
+  if (debug.endpointResults) {
+    lines.push('Endpoints tentados:');
+    for (const ep of debug.endpointResults) {
+      lines.push(`  ${ep.endpoint} → HTTP ${ep.statusCode} | ${ep.contactsFound} contatos`);
+      if (ep.sample && ep.contactsFound === 0) {
+        lines.push(`    Resposta: ${ep.sample.substring(0, 200)}`);
+      }
+    }
+  }
+  
+  if (debug.chatFallback) {
+    lines.push(`\nFallback via chats: ${debug.chatFallback.success ? 'OK' : 'Falha'} | ${debug.chatFallback.chatsCount || 0} chats`);
+    if (debug.chatFallback.error) lines.push(`  Erro: ${debug.chatFallback.error}`);
+  }
+  
+  if (debug.message) lines.push(`\n${debug.message}`);
+  if (debug.instanceId) lines.push(`Instance: ${debug.instanceId}`);
+  
+  return lines.join('\n') || JSON.stringify(debug, null, 2);
+}
+
 export function SyncProgressDialog({ open, onOpenChange, connectionId, connectionName, type }: SyncProgressDialogProps) {
   const [steps, setSteps] = useState<SyncStep[]>([]);
   const [running, setRunning] = useState(false);
@@ -92,13 +117,12 @@ export function SyncProgressDialog({ open, onOpenChange, connectionId, connectio
       if (!result.success) {
         setSteps(prev => prev.map(s => s.id === "fetch" ? { ...s, status: "error", detail: result.error || "Falha ao buscar contatos" } : s));
         
-        // Add debug step if available
         if (result.debug) {
           setSteps(prev => [...prev, {
             id: "debug",
-            label: "Diagnóstico",
+            label: "Diagnóstico detalhado",
             status: "error",
-            detail: JSON.stringify(result.debug, null, 2)
+            detail: formatDebug(result.debug)
           }]);
         }
         setRunning(false);
@@ -108,17 +132,31 @@ export function SyncProgressDialog({ open, onOpenChange, connectionId, connectio
 
       setSteps(prev => prev.map(s => s.id === "fetch" ? {
         ...s,
-        status: "done",
-        detail: `${result.total} contatos encontrados`
+        status: result.total > 0 ? "done" : "error",
+        detail: result.total > 0 
+          ? `${result.total} contatos encontrados`
+          : `0 contatos encontrados (nenhum endpoint retornou dados)`
       } : s));
 
       // Step 3: Import results
       setSteps(prev => [...prev, {
         id: "import",
         label: "Sincronização concluída",
-        status: "done",
-        detail: `✅ ${result.imported} novos | 🔄 ${result.updated} atualizados | ⏭️ ${result.skipped} ignorados`
+        status: result.total > 0 ? "done" : "error",
+        detail: result.total > 0 
+          ? `✅ ${result.imported} novos | 🔄 ${result.updated} atualizados | ⏭️ ${result.skipped} ignorados`
+          : `Nenhum contato foi importado`
       }]);
+
+      // Show debug info if 0 contacts
+      if (result.total === 0 && result.debug) {
+        setSteps(prev => [...prev, {
+          id: "debug",
+          label: "Diagnóstico - Respostas da W-API",
+          status: "error",
+          detail: formatDebug(result.debug)
+        }]);
+      }
 
       setRunning(false);
       setFinished(true);
@@ -154,9 +192,9 @@ export function SyncProgressDialog({ open, onOpenChange, connectionId, connectio
         if (result.debug) {
           setSteps(prev => [...prev, {
             id: "debug",
-            label: "Diagnóstico",
+            label: "Diagnóstico detalhado",
             status: "error",
-            detail: JSON.stringify(result.debug, null, 2)
+            detail: formatDebug(result.debug)
           }]);
         }
         setRunning(false);

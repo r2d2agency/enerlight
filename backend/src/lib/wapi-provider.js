@@ -1496,23 +1496,49 @@ export async function getAllChatsForSync(instanceId, token) {
 async function tryContactEndpoint(url, token) {
   try {
     const response = await fetch(url, { method: 'GET', headers: getHeaders(token) });
-    if (!response.ok) return null;
-    const data = await response.json();
+    const statusCode = response.status;
+    
+    if (!response.ok) {
+      let errorBody = '';
+      try { errorBody = await response.text(); } catch {}
+      logWarn('wapi.contact_endpoint_failed', { url, statusCode, errorBody: errorBody.substring(0, 500) });
+      return { contacts: [], data: null, statusCode, error: errorBody.substring(0, 300) };
+    }
+    
+    const rawText = await response.text();
+    let data;
+    try { data = JSON.parse(rawText); } catch { 
+      logWarn('wapi.contact_endpoint_not_json', { url, rawSample: rawText.substring(0, 300) });
+      return { contacts: [], data: null, statusCode, rawSample: rawText.substring(0, 300) };
+    }
+    
+    // Log raw response keys and sample for debugging
+    const topKeys = typeof data === 'object' && data !== null ? Object.keys(data) : ['(array/primitive)'];
+    logInfo('wapi.contact_endpoint_response', { 
+      url, statusCode, topKeys,
+      isArray: Array.isArray(data),
+      sample: JSON.stringify(data).substring(0, 500),
+    });
     
     // Extract contacts array from various response formats
     const contacts = Array.isArray(data?.contacts)
       ? data.contacts
-      : Array.isArray(data?.data)
-        ? data.data
-        : Array.isArray(data?.result)
-          ? data.result
-          : Array.isArray(data)
-            ? data
-            : [];
+      : Array.isArray(data?.data?.contacts)
+        ? data.data.contacts
+        : Array.isArray(data?.data)
+          ? data.data
+          : Array.isArray(data?.result)
+            ? data.result
+            : Array.isArray(data?.rows)
+              ? data.rows
+              : Array.isArray(data)
+                ? data
+                : [];
     
-    return { contacts, data };
-  } catch {
-    return null;
+    return { contacts, data, statusCode, topKeys, sample: JSON.stringify(data).substring(0, 500) };
+  } catch (err) {
+    logWarn('wapi.contact_endpoint_exception', { url, error: err.message });
+    return { contacts: [], data: null, error: err.message };
   }
 }
 
@@ -1523,6 +1549,7 @@ async function tryContactEndpoint(url, token) {
 export async function fetchContacts(instanceId, token, { perPage = 100, maxPages = 50 } = {}) {
   const encodedInstanceId = encodeURIComponent(instanceId || '');
   const allContacts = [];
+  const endpointResults = []; // collect debug info from each attempt
 
   try {
     // Try multiple contact endpoint patterns
@@ -1539,6 +1566,16 @@ export async function fetchContacts(instanceId, token, { perPage = 100, maxPages
       logInfo('wapi.fetch_contacts_trying', { instanceId, endpoint });
       const result = await tryContactEndpoint(endpoint, token);
       
+      // Collect debug info
+      const shortEndpoint = endpoint.replace(W_API_BASE_URL, '');
+      endpointResults.push({
+        endpoint: shortEndpoint,
+        statusCode: result?.statusCode || 'N/A',
+        contactsFound: result?.contacts?.length || 0,
+        topKeys: result?.topKeys || [],
+        sample: result?.sample || result?.error || 'no response',
+      });
+
       if (result && result.contacts.length > 0) {
         allContacts.push(...result.contacts);
         foundEndpoint = endpoint;
@@ -1573,10 +1610,16 @@ export async function fetchContacts(instanceId, token, { perPage = 100, maxPages
     }
 
     // Fallback: extract contacts from chats if no contacts found
+    let chatFallbackInfo = null;
     if (allContacts.length === 0) {
       logInfo('wapi.fetch_contacts_fallback_chats', { instanceId });
       try {
         const chatsResult = await getChats(instanceId, token);
+        chatFallbackInfo = {
+          success: chatsResult.success,
+          chatsCount: chatsResult.chats?.length || 0,
+          error: chatsResult.error || null,
+        };
         if (chatsResult.success && chatsResult.chats?.length > 0) {
           for (const chat of chatsResult.chats) {
             const jid = chat.jid || chat.id || chat.remoteJid || '';
@@ -1595,6 +1638,7 @@ export async function fetchContacts(instanceId, token, { perPage = 100, maxPages
           logInfo('wapi.fetch_contacts_from_chats', { instanceId, count: allContacts.length });
         }
       } catch (chatErr) {
+        chatFallbackInfo = { success: false, error: chatErr.message };
         logWarn('wapi.fetch_contacts_chat_fallback_error', { instanceId, error: chatErr.message });
       }
     }
@@ -1605,9 +1649,18 @@ export async function fetchContacts(instanceId, token, { perPage = 100, maxPages
       source: foundEndpoint || (allContacts.length > 0 ? 'chats_fallback' : 'none'),
     });
 
-    return { success: true, contacts: allContacts, total: allContacts.length };
+    return { 
+      success: true, 
+      contacts: allContacts, 
+      total: allContacts.length,
+      debug: {
+        endpointResults,
+        chatFallback: chatFallbackInfo,
+        source: foundEndpoint ? foundEndpoint.replace(W_API_BASE_URL, '') : (allContacts.length > 0 ? 'chats_fallback' : 'none'),
+      },
+    };
   } catch (error) {
     logError('wapi.fetch_contacts_error', error, { instanceId });
-    return { success: false, error: error.message, contacts: [] };
+    return { success: false, error: error.message, contacts: [], debug: { endpointResults } };
   }
 }
