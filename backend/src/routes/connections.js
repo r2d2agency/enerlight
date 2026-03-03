@@ -296,5 +296,84 @@ router.post('/:id/configure-webhooks', async (req, res) => {
   }
 });
 
+// Auto-create W-API instance using integrator token
+router.post('/wapi/auto-create', async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: 'Nome da conexão é obrigatório' });
+    }
+
+    // Get integrator token from system_settings
+    const tokenResult = await query(
+      `SELECT value FROM system_settings WHERE key = 'wapi_integrator_token'`
+    );
+    const integratorToken = tokenResult.rows[0]?.value;
+
+    if (!integratorToken) {
+      return res.status(400).json({ error: 'Token de integrador W-API não configurado. Configure em Admin > Integrações.' });
+    }
+
+    // Call W-API create-instance endpoint
+    const response = await fetch('https://api.w-api.app/v1/integrator/create-instance', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${integratorToken}`,
+      },
+      body: JSON.stringify({}),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error('[W-API] Create instance failed:', response.status, errorData);
+      return res.status(400).json({ 
+        error: errorData.message || errorData.error || `Erro ao criar instância W-API (HTTP ${response.status})` 
+      });
+    }
+
+    const instanceData = await response.json();
+    console.log('[W-API] Instance created:', JSON.stringify(instanceData));
+
+    // Extract instance_id and token from response
+    const instanceId = instanceData.id || instanceData.instanceId || instanceData.instance_id;
+    const wapiToken = instanceData.token || instanceData.apiToken || instanceData.api_token;
+
+    if (!instanceId || !wapiToken) {
+      console.error('[W-API] Missing data in response:', instanceData);
+      return res.status(400).json({ error: 'Resposta da W-API não contém instanceId ou token' });
+    }
+
+    // Save connection in our database
+    const org = await getUserOrganization(req.userId);
+
+    const result = await query(
+      `INSERT INTO connections (user_id, organization_id, provider, instance_id, wapi_token, name)
+       VALUES ($1, $2, 'wapi', $3, $4, $5) RETURNING *`,
+      [req.userId, org?.organization_id || null, instanceId, wapiToken, name.trim()]
+    );
+
+    const connection = result.rows[0];
+
+    // Auto-configure webhooks
+    try {
+      const webhookResult = await wapiProvider.configureWebhooks(instanceId, wapiToken);
+      console.log('[W-API] Auto webhook config result:', webhookResult);
+      connection.webhooks_configured = webhookResult.success;
+    } catch (webhookError) {
+      console.error('[W-API] Auto webhook config failed:', webhookError);
+    }
+
+    res.status(201).json({
+      ...connection,
+      provider: 'wapi',
+      wapi_instance_created: true,
+    });
+  } catch (error) {
+    console.error('Auto-create W-API instance error:', error);
+    res.status(500).json({ error: 'Erro ao criar instância W-API automaticamente' });
+  }
+});
+
 export default router;
 
