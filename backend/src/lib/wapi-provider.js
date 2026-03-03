@@ -1328,3 +1328,126 @@ export async function downloadMedia(instanceId, token, messageId) {
 
   return { success: false, error: 'All downloadMedia attempts failed' };
 }
+
+/**
+ * Get messages from a specific chat
+ * W-API endpoint: GET /chat/get-messages?instanceId=XXX
+ * Body: { chatId: "5511999999999@s.whatsapp.net" }
+ */
+export async function getChatMessages(instanceId, token, chatId, limit = 500) {
+  const encodedInstanceId = encodeURIComponent(instanceId || '');
+
+  try {
+    // W-API uses POST with chatId in body for get-messages
+    const response = await fetch(
+      `${W_API_BASE_URL}/chat/get-messages?instanceId=${encodedInstanceId}`,
+      {
+        method: 'POST',
+        headers: getHeaders(token),
+        body: JSON.stringify({
+          chatId: chatId,
+          limit: limit,
+        }),
+      }
+    );
+
+    const responseText = await response.text();
+    logInfo('wapi.get_chat_messages', {
+      instanceId,
+      chatId,
+      status: response.status,
+      bodyLength: responseText.length,
+    });
+
+    if (!response.ok) {
+      let errMsg = `HTTP ${response.status}`;
+      try {
+        const errData = JSON.parse(responseText);
+        errMsg = errData?.message || errData?.error || errMsg;
+      } catch { /* ignore */ }
+      return { success: false, error: errMsg, messages: [] };
+    }
+
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch {
+      return { success: false, error: 'Invalid JSON response', messages: [] };
+    }
+
+    // Normalize response format
+    const messagesArray = Array.isArray(data)
+      ? data
+      : Array.isArray(data?.data)
+        ? data.data
+        : Array.isArray(data?.result)
+          ? data.result
+          : Array.isArray(data?.messages)
+            ? data.messages
+            : [];
+
+    logInfo('wapi.get_chat_messages_count', {
+      instanceId,
+      chatId,
+      count: messagesArray.length,
+    });
+
+    return { success: true, messages: messagesArray, total: messagesArray.length };
+  } catch (error) {
+    logError('wapi.get_chat_messages_error', error, { instanceId, chatId });
+    return { success: false, error: error.message, messages: [] };
+  }
+}
+
+/**
+ * Get all chats with last message info for sync purposes.
+ * Returns chats including groups.
+ */
+export async function getAllChatsForSync(instanceId, token) {
+  const encodedInstanceId = encodeURIComponent(instanceId || '');
+
+  try {
+    const response = await fetch(
+      `${W_API_BASE_URL}/chat/get-chats?instanceId=${encodedInstanceId}`,
+      {
+        method: 'GET',
+        headers: getHeaders(token),
+      }
+    );
+
+    const responseText = await response.text();
+    if (!response.ok) {
+      let errMsg = `HTTP ${response.status}`;
+      try {
+        const errData = JSON.parse(responseText);
+        errMsg = errData?.message || errData?.error || errMsg;
+      } catch { /* ignore */ }
+      return { success: false, error: errMsg, chats: [] };
+    }
+
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch {
+      return { success: false, error: 'Invalid JSON', chats: [] };
+    }
+
+    const chatsArray = Array.isArray(data)
+      ? data
+      : Array.isArray(data?.data)
+        ? data.data
+        : Array.isArray(data?.result)
+          ? data.result
+          : Array.isArray(data?.chats)
+            ? data.chats
+            : [];
+
+    logInfo('wapi.get_all_chats_for_sync', { instanceId, count: chatsArray.length });
+
+    return { success: true, chats: chatsArray, total: chatsArray.length };
+  } catch (error) {
+    logError('wapi.get_all_chats_for_sync_error', error, { instanceId });
+    return { success: false, error: error.message, chats: [] };
+  }
+}
+
