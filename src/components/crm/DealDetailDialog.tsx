@@ -735,19 +735,32 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
                       <span className="text-muted-foreground">Representante</span>
                       {isEditingRepresentative ? (
                         <div className="flex items-center gap-1">
-                          <Select onValueChange={(val) => handleChangeRepresentative(val === "none" ? null : val)}>
-                            <SelectTrigger className="w-40 h-7 text-sm">
-                              <SelectValue placeholder={(currentDeal as any)?.representative_name || "Selecionar"} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">Nenhum</SelectItem>
-                              {representatives?.map((rep) => (
-                                <SelectItem key={rep.id} value={rep.id}>
-                                  {rep.name} ({rep.commission_percent}%)
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button variant="outline" size="sm" className="h-7 w-48 justify-start text-sm">
+                                <Search className="h-3 w-3 mr-1" />
+                                {(currentDeal as any)?.representative_name || "Selecionar"}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[280px] p-0" align="end">
+                              <Command>
+                                <CommandInput placeholder="Buscar representante..." />
+                                <CommandList>
+                                  <CommandEmpty>Nenhum representante encontrado.</CommandEmpty>
+                                  <CommandGroup>
+                                    <CommandItem onSelect={() => handleChangeRepresentative(null)}>
+                                      Nenhum
+                                    </CommandItem>
+                                    {representatives?.map((rep) => (
+                                      <CommandItem key={rep.id} value={rep.name} onSelect={() => handleChangeRepresentative(rep.id)}>
+                                        {rep.name} ({rep.commission_percent}%)
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
                           <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setIsEditingRepresentative(false)}><X className="h-3 w-3" /></Button>
                         </div>
                       ) : (

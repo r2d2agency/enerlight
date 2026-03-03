@@ -1300,7 +1300,7 @@ router.put('/deals/:id', async (req, res) => {
     if (!org) return res.status(403).json({ error: 'No organization' });
 
     const { stage_id, title, value, probability, expected_close_date, description, 
-            tags, owner_id, group_id, status, lost_reason, loss_reason_id, custom_fields, representative_id } = req.body;
+            tags, owner_id, group_id, status, lost_reason, loss_reason_id, custom_fields, representative_id, company_id } = req.body;
 
     // Get current deal for history
     const current = await query(`SELECT * FROM crm_deals WHERE id = $1`, [req.params.id]);
@@ -1312,7 +1312,7 @@ router.put('/deals/:id', async (req, res) => {
 
     // Build dynamic update
     const fieldsToUpdate = { stage_id, title, value, probability, expected_close_date, 
-                             description, tags, owner_id, group_id, status, lost_reason, loss_reason_id, representative_id };
+                             description, tags, owner_id, group_id, status, lost_reason, loss_reason_id, representative_id, company_id };
     
     for (const [key, val] of Object.entries(fieldsToUpdate)) {
       if (val !== undefined) {
@@ -1327,14 +1327,6 @@ router.put('/deals/:id', async (req, res) => {
       updates.push(`custom_fields = $${paramIndex}`);
       values.push(JSON.stringify(custom_fields));
       paramIndex++;
-    }
-    
-    for (const [key, val] of Object.entries(fieldsToUpdate)) {
-      if (val !== undefined) {
-        updates.push(`${key} = $${paramIndex}`);
-        values.push(key === 'tags' ? val : val);
-        paramIndex++;
-      }
     }
 
     // Always update activity
@@ -3338,25 +3330,24 @@ router.get('/map-data', async (req, res) => {
       const dealsResult = await query(
         `SELECT d.id, d.title, d.value, d.owner_id,
                 u.name as owner_name,
-                c.phone, c.city, c.state,
-                co.city as company_city, co.state as company_state
+                co.city as company_city, co.state as company_state,
+                co.phone as company_phone
          FROM crm_deals d
-         LEFT JOIN contacts c ON d.contact_id = c.id
          LEFT JOIN crm_companies co ON d.company_id = co.id
          LEFT JOIN users u ON u.id = d.owner_id
          WHERE ${dealWhere}`,
         dealParams
       );
       for (const deal of dealsResult.rows) {
-        const city = deal.city || deal.company_city;
-        const state = deal.state || deal.company_state;
+        const city = deal.company_city;
+        const state = deal.company_state;
         const coords = getCoords(city, state);
         if (coords) {
           locations.push({
             id: deal.id,
             type: 'deal',
             name: deal.title,
-            phone: deal.phone,
+            phone: deal.company_phone,
             city,
             state,
             lat: coords.lat,
