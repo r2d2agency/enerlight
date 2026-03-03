@@ -654,7 +654,7 @@ router.post('/webhook', async (req, res) => {
 router.post('/:connectionId/sync-contacts', authenticate, async (req, res) => {
   try {
     const { connectionId } = req.params;
-    const userId = req.user?.id;
+    const userId = req.userId;
 
     const connection = await getAccessibleConnection(connectionId, userId);
     if (!connection) {
@@ -764,7 +764,7 @@ router.post('/:connectionId/sync-contacts', authenticate, async (req, res) => {
 router.post('/:connectionId/sync-chats', authenticate, async (req, res) => {
   try {
     const { connectionId } = req.params;
-    const userId = req.user?.id;
+    const userId = req.userId;
 
     const connection = await getAccessibleConnection(connectionId, userId);
     if (!connection) {
