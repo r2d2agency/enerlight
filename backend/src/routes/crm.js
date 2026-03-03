@@ -730,8 +730,14 @@ router.get('/companies', async (req, res) => {
     let whereClause = `WHERE c.organization_id = $1`;
 
     if (search) {
+      const searchDigits = search.replace(/\D/g, '');
       params.push(`%${search}%`);
-      whereClause += ` AND (c.name ILIKE $2 OR c.cnpj ILIKE $2 OR c.email ILIKE $2)`;
+      if (searchDigits.length >= 3) {
+        params.push(`%${searchDigits}%`);
+        whereClause += ` AND (c.name ILIKE $2 OR c.cnpj ILIKE $2 OR c.email ILIKE $2 OR REGEXP_REPLACE(c.cnpj, '[^0-9]', '', 'g') ILIKE $3)`;
+      } else {
+        whereClause += ` AND (c.name ILIKE $2 OR c.cnpj ILIKE $2 OR c.email ILIKE $2)`;
+      }
     }
 
     const baseSql = `SELECT c.*, u.name as created_by_name,
