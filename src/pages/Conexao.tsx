@@ -18,6 +18,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { LeadDistributionDialog } from "@/components/conexao/LeadDistributionDialog";
+import { SyncProgressDialog } from "@/components/conexao/SyncProgressDialog";
 
 interface Connection {
   id: string;
@@ -71,11 +72,10 @@ const Conexao = () => {
   // W-API webhook config state
   const [configuringWapiWebhooks, setConfiguringWapiWebhooks] = useState<string | null>(null);
   
-  // W-API contact sync state
-  const [syncingContacts, setSyncingContacts] = useState<string | null>(null);
-  
-  // W-API chat sync state
-  const [syncingChats, setSyncingChats] = useState<string | null>(null);
+  // Sync progress dialog state
+  const [syncDialogOpen, setSyncDialogOpen] = useState(false);
+  const [syncDialogType, setSyncDialogType] = useState<"contacts" | "chats">("contacts");
+  const [syncDialogConnection, setSyncDialogConnection] = useState<Connection | null>(null);
 
   // Webhook viewer state (shows what the backend is actually receiving)
   const [webhookViewerOpen, setWebhookViewerOpen] = useState(false);
@@ -353,80 +353,10 @@ const handleGetQRCode = async (connection: Connection) => {
     }
   };
 
-  const handleSyncWapiContacts = async (connection: Connection) => {
-    const isWapi = connection.provider === 'wapi' || !!connection.instance_id;
-
-    if (!isWapi) {
-      toast.info('Esta ação é apenas para conexões W-API');
-      return;
-    }
-
-    if (connection.status !== 'connected') {
-      toast.warning('A conexão precisa estar conectada para sincronizar contatos');
-      return;
-    }
-
-    setSyncingContacts(connection.id);
-    try {
-      const result = await api<{ 
-        success: boolean; 
-        total: number; 
-        imported: number; 
-        updated: number; 
-        skipped: number;
-        error?: string;
-      }>(`/api/wapi/${connection.id}/sync-contacts`, { method: 'POST' });
-
-      if (result.success) {
-        toast.success(
-          `Sincronização concluída! ${result.imported} novos, ${result.updated} atualizados, ${result.skipped} ignorados (Total: ${result.total})`
-        );
-      } else {
-        toast.error(result.error || 'Erro ao sincronizar contatos');
-      }
-    } catch (error: any) {
-      toast.error(error?.message || 'Erro ao sincronizar contatos');
-    } finally {
-      setSyncingContacts(null);
-    }
-  };
-
-  const handleSyncWapiChats = async (connection: Connection) => {
-    const isWapi = connection.provider === 'wapi' || !!connection.instance_id;
-
-    if (!isWapi) {
-      toast.info('Esta ação é apenas para conexões W-API');
-      return;
-    }
-
-    if (connection.status !== 'connected') {
-      toast.warning('A conexão precisa estar conectada para sincronizar conversas');
-      return;
-    }
-
-    setSyncingChats(connection.id);
-    try {
-      const result = await api<{ 
-        success: boolean; 
-        total: number; 
-        imported: number; 
-        updated: number; 
-        skipped: number;
-        error?: string;
-      }>(`/api/wapi/${connection.id}/sync-chats`, { method: 'POST' });
-
-      if (result.success) {
-        toast.success(
-          `Conversas sincronizadas! ${result.imported} novas, ${result.updated} atualizadas, ${result.skipped} ignoradas (Total: ${result.total})`
-        );
-      } else {
-        toast.error(result.error || 'Erro ao sincronizar conversas');
-      }
-    } catch (error: any) {
-      toast.error(error?.message || 'Erro ao sincronizar conversas');
-    } finally {
-      setSyncingChats(null);
-    }
+  const openSyncDialog = (connection: Connection, type: "contacts" | "chats") => {
+    setSyncDialogConnection(connection);
+    setSyncDialogType(type);
+    setSyncDialogOpen(true);
   };
 
   const handleOpenEditDialog = (connection: Connection) => {
@@ -940,15 +870,10 @@ const handleGetQRCode = async (connection: Connection) => {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleSyncWapiContacts(connection)}
-                        disabled={syncingContacts === connection.id}
+                        onClick={() => openSyncDialog(connection, "contacts")}
                         title="Sincronizar contatos do WhatsApp"
                       >
-                        {syncingContacts === connection.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Download className="h-4 w-4" />
-                        )}
+                        <Download className="h-4 w-4" />
                       </Button>
                     )}
 
@@ -957,15 +882,10 @@ const handleGetQRCode = async (connection: Connection) => {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleSyncWapiChats(connection)}
-                        disabled={syncingChats === connection.id}
+                        onClick={() => openSyncDialog(connection, "chats")}
                         title="Sincronizar conversas do WhatsApp"
                       >
-                        {syncingChats === connection.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <MessageSquare className="h-4 w-4" />
-                        )}
+                        <MessageSquare className="h-4 w-4" />
                       </Button>
                     )}
                     
@@ -1333,6 +1253,17 @@ const handleGetQRCode = async (connection: Connection) => {
           onOpenChange={setLeadDistributionDialogOpen}
           connection={leadDistributionConnection}
         />
+
+        {/* Sync Progress Dialog */}
+        {syncDialogConnection && (
+          <SyncProgressDialog
+            open={syncDialogOpen}
+            onOpenChange={setSyncDialogOpen}
+            connectionId={syncDialogConnection.id}
+            connectionName={syncDialogConnection.name}
+            type={syncDialogType}
+          />
+        )}
       </div>
     </MainLayout>
   );

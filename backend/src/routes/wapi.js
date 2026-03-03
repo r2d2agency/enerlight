@@ -665,7 +665,7 @@ router.post('/:connectionId/sync-contacts', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'Esta conexão não é W-API' });
     }
 
-    console.log(`[W-API] Starting contact sync (fetch-contacts) for connection ${connectionId}`);
+    console.log(`[W-API] Starting contact sync for connection ${connectionId}, instanceId=${connection.instance_id}`);
 
     // Use the proper /contacts/fetch-contacts endpoint with pagination
     const result = await wapiFetchContacts(connection.instance_id, connection.wapi_token, {
@@ -673,13 +673,35 @@ router.post('/:connectionId/sync-contacts', authenticate, async (req, res) => {
       maxPages: 100,
     });
 
+    console.log(`[W-API] fetchContacts result: success=${result.success}, total=${result.total}, error=${result.error || 'none'}`);
+
     if (!result.success) {
       console.error('[W-API] fetchContacts failed:', result.error);
-      return res.status(500).json({ error: result.error || 'Erro ao buscar contatos da W-API' });
+      return res.json({ 
+        success: false, 
+        total: 0, imported: 0, updated: 0, skipped: 0,
+        error: result.error || 'Erro ao buscar contatos da W-API',
+        debug: { 
+          instanceId: connection.instance_id,
+          fetchResult: { success: result.success, total: result.total, error: result.error },
+        }
+      });
     }
 
     const contacts = result.contacts || [];
     console.log(`[W-API] Fetched ${contacts.length} contacts from W-API`);
+
+    if (contacts.length === 0) {
+      return res.json({
+        success: true,
+        total: 0, imported: 0, updated: 0, skipped: 0,
+        debug: {
+          instanceId: connection.instance_id,
+          message: 'W-API retornou 0 contatos. Verifique se a instância tem contatos salvos ou se está conectada.',
+          fetchResult: { success: result.success, total: result.total },
+        }
+      });
+    }
 
     let imported = 0;
     let updated = 0;
@@ -687,7 +709,6 @@ router.post('/:connectionId/sync-contacts', authenticate, async (req, res) => {
 
     for (const contact of contacts) {
       try {
-        // Normalize contact data
         const jid = contact.jid || contact.id || contact.remoteJid || '';
         const isGroup = jid.includes('@g.us');
         if (isGroup) { skipped++; continue; }
@@ -703,7 +724,6 @@ router.post('/:connectionId/sync-contacts', authenticate, async (req, res) => {
         const profilePicture = contact.profilePicture || contact.profilePictureUrl || 
                                contact.imgUrl || contact.picture || null;
 
-        // Check if contact already exists for this connection
         const existing = await query(
           `SELECT id, name, profile_picture_url, is_deleted FROM chat_contacts WHERE connection_id = $1 AND phone = $2`,
           [connectionId, phone]
@@ -765,6 +785,7 @@ router.post('/:connectionId/sync-chats', authenticate, async (req, res) => {
   try {
     const { connectionId } = req.params;
     const userId = req.userId;
+    const { maxDays = 60 } = req.body || {};
 
     const connection = await getAccessibleConnection(connectionId, userId);
     if (!connection) {
@@ -775,17 +796,38 @@ router.post('/:connectionId/sync-chats', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'Esta conexão não é W-API' });
     }
 
-    console.log(`[W-API] Starting chat sync for connection ${connectionId}`);
+    console.log(`[W-API] Starting chat sync for connection ${connectionId}, maxDays=${maxDays}`);
 
     const result = await wapiGetChats(connection.instance_id, connection.wapi_token);
 
+    console.log(`[W-API] getChats result: success=${result.success}, contacts=${result.contacts?.length || 0}, error=${result.error || 'none'}`);
+
     if (!result.success) {
       console.error('[W-API] getChats failed:', result.error);
-      return res.status(500).json({ error: result.error || 'Erro ao buscar chats da W-API' });
+      return res.json({ 
+        success: false, 
+        total: 0, imported: 0, updated: 0, skipped: 0,
+        error: result.error || 'Erro ao buscar chats da W-API',
+        debug: {
+          instanceId: connection.instance_id,
+          fetchResult: { success: result.success, total: result.total, error: result.error },
+        }
+      });
     }
 
     const contacts = result.contacts || [];
     console.log(`[W-API] Fetched ${contacts.length} chats from W-API`);
+
+    if (contacts.length === 0) {
+      return res.json({
+        success: true,
+        total: 0, imported: 0, updated: 0, skipped: 0,
+        debug: {
+          instanceId: connection.instance_id,
+          message: 'W-API retornou 0 conversas. Verifique se a instância está conectada e tem conversas recentes.',
+        }
+      });
+    }
 
     let imported = 0;
     let updated = 0;
