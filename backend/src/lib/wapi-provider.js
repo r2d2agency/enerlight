@@ -1555,22 +1555,43 @@ async function tryContactEndpoint(url, token, { method = 'GET' } = {}) {
 
 /**
  * Fetch contacts from W-API trying multiple endpoint patterns.
- * Falls back to extracting contacts from chats if contact endpoints return empty.
+ * ALWAYS combines contacts endpoint + chats endpoint for completeness.
  */
 export async function fetchContacts(instanceId, token, { perPage = 100, maxPages = 200 } = {}) {
   const encodedInstanceId = encodeURIComponent(instanceId || '');
-  const allContacts = [];
+  const contactsByPhone = new Map(); // deduplicate by phone
   const endpointResults = []; // collect debug info from each attempt
 
+  function addContact(contact) {
+    const jid = contact.jid || contact.id || contact.remoteJid || '';
+    if (jid.includes('@g.us')) return; // skip groups
+    
+    let phone = contact.phone || contact.number || 
+                jid.replace('@s.whatsapp.net', '').replace('@c.us', '').replace(/\D/g, '');
+    if (!phone) return;
+
+    const name = contact.name || contact.pushName || contact.notify || 
+                 contact.verifiedName || contact.formattedName || 
+                 contact.displayName || contact.shortName || 
+                 contact.contact?.name || phone;
+    const profilePicture = contact.profilePicture || contact.profilePictureUrl || 
+                           contact.imgUrl || contact.picture || contact.contact?.profilePictureUrl || null;
+
+    // Only overwrite if new entry has a better name
+    const existing = contactsByPhone.get(phone);
+    if (!existing || (existing.name === phone && name !== phone)) {
+      contactsByPhone.set(phone, { jid: jid || `${phone}@s.whatsapp.net`, phone, name, profilePicture });
+    }
+  }
+
   try {
-    // Primary: use /contacts/fetch-contacts with pagination
-    // Try GET first, if 404 try POST (some W-API versions require POST to trigger fetch)
+    // ===== SOURCE 1: /contacts/fetch-contacts endpoint (paginated) =====
     logInfo('wapi.fetch_contacts_paginated_start', { instanceId, perPage, maxPages });
     
     let page = 1;
     let usePost = false;
+    let contactsFromEndpoint = 0;
     
-    // Test page 1 with GET first
     const testUrl = `${W_API_BASE_URL}/contacts/fetch-contacts?instanceId=${encodedInstanceId}&perPage=${perPage}&page=1`;
     let firstResult = await tryContactEndpoint(testUrl, token, { method: 'GET' });
     
@@ -1581,56 +1602,42 @@ export async function fetchContacts(instanceId, token, { perPage = 100, maxPages
       if ((postResult?.contacts?.length || 0) > (firstResult?.contacts?.length || 0)) {
         firstResult = postResult;
         usePost = true;
-        logInfo('wapi.fetch_contacts_post_works', { instanceId, contacts: postResult.contacts.length });
       }
     }
     
     const method = usePost ? 'POST' : 'GET';
     
-    // Record page 1 debug
     endpointResults.push({
       endpoint: `/contacts/fetch-contacts (page 1, ${method})`,
       statusCode: firstResult?.statusCode || 'N/A',
       contactsFound: firstResult?.contacts?.length || 0,
-      topKeys: firstResult?.topKeys || [],
-      sample: firstResult?.sample || firstResult?.error || 'no response',
     });
     
-    // Add page 1 contacts
     if (firstResult?.contacts?.length > 0) {
-      allContacts.push(...firstResult.contacts);
+      firstResult.contacts.forEach(addContact);
+      contactsFromEndpoint += firstResult.contacts.length;
       page = 2;
       
-      // Continue fetching remaining pages
       while (page <= maxPages) {
         const pageUrl = `${W_API_BASE_URL}/contacts/fetch-contacts?instanceId=${encodedInstanceId}&perPage=${perPage}&page=${page}`;
         const result = await tryContactEndpoint(pageUrl, token, { method });
         const contactsInPage = result?.contacts?.length || 0;
         
         if (contactsInPage > 0) {
-          allContacts.push(...result.contacts);
-          logInfo('wapi.fetch_contacts_page_result', { instanceId, page, contactsInPage, totalSoFar: allContacts.length });
+          result.contacts.forEach(addContact);
+          contactsFromEndpoint += contactsInPage;
+          logInfo('wapi.fetch_contacts_page_result', { instanceId, page, contactsInPage, totalSoFar: contactsByPhone.size });
           page++;
         } else {
-          logInfo('wapi.fetch_contacts_page_empty', { instanceId, page, totalSoFar: allContacts.length });
           break;
         }
       }
     }
     
-    logInfo('wapi.fetch_contacts_paginated_done', { instanceId, totalPages: page - 1, totalContacts: allContacts.length, method });
-    
-    // Add summary to debug
-    endpointResults.push({
-      endpoint: `/contacts/fetch-contacts (total, ${method})`,
-      statusCode: 200,
-      contactsFound: allContacts.length,
-      topKeys: ['paginated'],
-      sample: `${page - 1} páginas percorridas, ${allContacts.length} contatos total (método: ${method})`,
-    });
+    logInfo('wapi.fetch_contacts_endpoint_done', { instanceId, contactsFromEndpoint, uniqueSoFar: contactsByPhone.size });
 
-    // If primary endpoint returned nothing, try fallback endpoints
-    if (allContacts.length === 0) {
+    // If primary endpoint returned nothing, try fallback contact endpoints
+    if (contactsFromEndpoint === 0) {
       const fallbackEndpoints = [
         `${W_API_BASE_URL}/contacts/get-contacts?instanceId=${encodedInstanceId}`,
         `${W_API_BASE_URL}/contacts/list?instanceId=${encodedInstanceId}`,
@@ -1638,68 +1645,92 @@ export async function fetchContacts(instanceId, token, { perPage = 100, maxPages
       ];
 
       for (const endpoint of fallbackEndpoints) {
-        logInfo('wapi.fetch_contacts_trying_fallback', { instanceId, endpoint });
         const result = await tryContactEndpoint(endpoint, token);
-        
-        const shortEndpoint = endpoint.replace(W_API_BASE_URL, '');
         endpointResults.push({
-          endpoint: shortEndpoint,
+          endpoint: endpoint.replace(W_API_BASE_URL, ''),
           statusCode: result?.statusCode || 'N/A',
           contactsFound: result?.contacts?.length || 0,
-          topKeys: result?.topKeys || [],
-          sample: result?.sample || result?.error || 'no response',
         });
 
         if (result && result.contacts.length > 0) {
-          allContacts.push(...result.contacts);
+          result.contacts.forEach(addContact);
+          contactsFromEndpoint += result.contacts.length;
           logInfo('wapi.fetch_contacts_fallback_found', { instanceId, endpoint, count: result.contacts.length });
           break;
         }
       }
     }
 
-    // Fallback: extract contacts from chats if no contacts found
-    let chatFallbackInfo = null;
-    if (allContacts.length === 0) {
-      logInfo('wapi.fetch_contacts_fallback_chats', { instanceId });
-      try {
-        const chatsResult = await getChats(instanceId, token);
-        chatFallbackInfo = {
-          success: chatsResult.success,
-          chatsCount: chatsResult.chats?.length || 0,
-          error: chatsResult.error || null,
-        };
-        const chatsList = chatsResult.contacts || chatsResult.chats || [];
-        if (chatsResult.success && chatsList.length > 0) {
-          for (const chat of chatsList) {
-            const jid = chat.jid || chat.id || chat.remoteJid || '';
-            if (jid.includes('@g.us')) continue; // skip groups
-            
-            const phone = jid.replace('@s.whatsapp.net', '').replace('@c.us', '').replace(/\D/g, '');
-            if (!phone) continue;
-
-            allContacts.push({
-              jid,
-              phone,
-              name: chat.name || chat.pushName || chat.notify || chat.contact?.name || phone,
-              profilePicture: chat.profilePicture || chat.profilePictureUrl || chat.imgUrl || null,
-            });
-          }
-          logInfo('wapi.fetch_contacts_from_chats', { instanceId, count: allContacts.length });
-        }
-      } catch (chatErr) {
-        chatFallbackInfo = { success: false, error: chatErr.message };
-        logWarn('wapi.fetch_contacts_chat_fallback_error', { instanceId, error: chatErr.message });
+    // ===== SOURCE 2: ALWAYS fetch chats to complement contacts =====
+    // Chats contain contacts that may not appear in the contacts endpoint
+    let chatInfo = null;
+    try {
+      logInfo('wapi.fetch_contacts_fetching_chats', { instanceId });
+      const chatsResult = await getChats(instanceId, token, { perPage: 100, maxPages: 200 });
+      const chatsList = chatsResult.contacts || chatsResult.chats || [];
+      chatInfo = {
+        success: chatsResult.success,
+        chatsCount: chatsList.length,
+        error: chatsResult.error || null,
+      };
+      if (chatsResult.success && chatsList.length > 0) {
+        const beforeSize = contactsByPhone.size;
+        chatsList.forEach(addContact);
+        const addedFromChats = contactsByPhone.size - beforeSize;
+        logInfo('wapi.fetch_contacts_chats_merged', { 
+          instanceId, 
+          chatsTotal: chatsList.length, 
+          newFromChats: addedFromChats, 
+          totalUnique: contactsByPhone.size 
+        });
       }
+    } catch (chatErr) {
+      chatInfo = { success: false, error: chatErr.message };
+      logWarn('wapi.fetch_contacts_chat_error', { instanceId, error: chatErr.message });
     }
 
-    const source = allContacts.length > 0 
-      ? (chatFallbackInfo ? 'chats_fallback' : 'fetch-contacts') 
-      : 'none';
+    // ===== SOURCE 3: Also try getAllChatsForSync for even broader coverage =====
+    let allChatsInfo = null;
+    try {
+      const allChatsResult = await getAllChatsForSync(instanceId, token);
+      const allChatsList = allChatsResult.chats || [];
+      allChatsInfo = {
+        success: allChatsResult.success,
+        count: allChatsList.length,
+      };
+      if (allChatsResult.success && allChatsList.length > 0) {
+        const beforeSize = contactsByPhone.size;
+        for (const chat of allChatsList) {
+          const jid = chat.jid || chat.id || chat.remoteJid || '';
+          if (jid.includes('@g.us')) continue;
+          const phone = jid.replace('@s.whatsapp.net', '').replace('@c.us', '').replace(/\D/g, '');
+          if (!phone) continue;
+          addContact({
+            jid,
+            phone,
+            name: chat.name || chat.pushName || chat.notify || chat.contact?.name || phone,
+            profilePicture: chat.profilePicture || chat.profilePictureUrl || chat.imgUrl || null,
+          });
+        }
+        logInfo('wapi.fetch_contacts_allchats_merged', { 
+          instanceId, 
+          allChatsTotal: allChatsList.length, 
+          newAdded: contactsByPhone.size - beforeSize,
+          totalUnique: contactsByPhone.size 
+        });
+      }
+    } catch (err) {
+      allChatsInfo = { success: false, error: err.message };
+    }
+
+    const allContacts = Array.from(contactsByPhone.values());
+
+    const source = contactsFromEndpoint > 0 ? 'contacts+chats' : 'chats_only';
 
     logInfo('wapi.fetch_contacts_complete', {
       instanceId,
       totalFetched: allContacts.length,
+      fromContactsEndpoint: contactsFromEndpoint,
       source,
     });
 
@@ -1709,8 +1740,10 @@ export async function fetchContacts(instanceId, token, { perPage = 100, maxPages
       total: allContacts.length,
       debug: {
         endpointResults,
-        chatFallback: chatFallbackInfo,
+        chatInfo,
+        allChatsInfo,
         source,
+        fromContactsEndpoint: contactsFromEndpoint,
       },
     };
   } catch (error) {
