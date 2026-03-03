@@ -1082,62 +1082,78 @@ export async function getGroups(instanceId, token) {
 
 /**
  * Get all chats from W-API (includes contacts with chat history)
- * Returns an array of chat objects with phone and name
+ * Returns an array of chat objects with phone and name.
+ * Uses paginated /chats/fetch-chats endpoint.
  */
-export async function getChats(instanceId, token) {
+export async function getChats(instanceId, token, { perPage = 100, maxPages = 50 } = {}) {
   const encodedInstanceId = encodeURIComponent(instanceId || '');
 
   try {
-    // W-API uses /chat/get-chats endpoint
-    const response = await fetch(
-      `${W_API_BASE_URL}/chat/get-chats?instanceId=${encodedInstanceId}`,
-      {
-        method: 'GET',
-        headers: getHeaders(token),
+    const allChats = [];
+    let page = 1;
+    let totalPages = 1;
+
+    while (page <= totalPages && page <= maxPages) {
+      const response = await fetch(
+        `${W_API_BASE_URL}/chats/fetch-chats?instanceId=${encodedInstanceId}&perPage=${perPage}&page=${page}`,
+        {
+          method: 'GET',
+          headers: getHeaders(token),
+        }
+      );
+
+      const responseText = await response.text();
+      console.log(
+        `[W-API] getChats for ${instanceId}: page ${page}, HTTP ${response.status}, Body length:`,
+        responseText.length
+      );
+
+      if (!response.ok) {
+        let errMsg = `HTTP ${response.status}`;
+        try {
+          const errData = JSON.parse(responseText);
+          errMsg = errData?.message || errData?.error || errMsg;
+        } catch {
+          // ignore
+        }
+        if (page === 1) {
+          return { success: false, error: errMsg, chats: [] };
+        }
+        break;
       }
-    );
 
-    const responseText = await response.text();
-    console.log(
-      `[W-API] getChats for ${instanceId}: HTTP ${response.status}, Body length:`,
-      responseText.length
-    );
-
-    if (!response.ok) {
-      let errMsg = `HTTP ${response.status}`;
+      let data;
       try {
-        const errData = JSON.parse(responseText);
-        errMsg = errData?.message || errData?.error || errMsg;
+        data = JSON.parse(responseText);
       } catch {
-        // ignore
+        if (page === 1) {
+          return { success: false, error: 'Invalid JSON response', chats: [] };
+        }
+        break;
       }
-      return { success: false, error: errMsg, chats: [] };
+
+      // W-API response: { chats: [...], totalPages, totalChats, page }
+      const chatsArray = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.chats)
+          ? data.chats
+          : Array.isArray(data?.data)
+            ? data.data
+            : Array.isArray(data?.result)
+              ? data.result
+              : [];
+
+      allChats.push(...chatsArray);
+      totalPages = data.totalPages || 1;
+      console.log(`[W-API] getChats page ${page}/${totalPages}: ${chatsArray.length} chats (total so far: ${allChats.length})`);
+      page++;
     }
 
-    let data;
-    try {
-      data = JSON.parse(responseText);
-    } catch {
-      return { success: false, error: 'Invalid JSON response', chats: [] };
-    }
-
-    // W-API response can be in different formats
-    // data might be an array directly, or { data: [...] }, or { result: [...] }, or { chats: [...] }
-    const chatsArray = Array.isArray(data)
-      ? data
-      : Array.isArray(data?.data)
-        ? data.data
-        : Array.isArray(data?.result)
-          ? data.result
-          : Array.isArray(data?.chats)
-            ? data.chats
-            : [];
-
-    console.log(`[W-API] Found ${chatsArray.length} chats`);
+    console.log(`[W-API] Found ${allChats.length} total chats across ${page - 1} pages`);
 
     // Parse and normalize the chats
     const contacts = [];
-    for (const chat of chatsArray) {
+    for (const chat of allChats) {
       // Skip groups
       const jid = chat.jid || chat.id || chat.remoteJid || chat.from || chat.phone || '';
       if (jid.includes('@g.us')) continue;
