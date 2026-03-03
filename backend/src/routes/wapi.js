@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { query } from '../db.js';
 import { authenticate } from '../middleware/auth.js';
-import { getSendAttempts, clearSendAttempts, downloadMedia as wapiDownloadMedia, getChats as wapiGetChats, getGroupInfo as wapiGetGroupInfo, getGroups as wapiGetGroups } from '../lib/wapi-provider.js';
+import { getSendAttempts, clearSendAttempts, downloadMedia as wapiDownloadMedia, getChats as wapiGetChats, getGroupInfo as wapiGetGroupInfo, getGroups as wapiGetGroups, fetchContacts as wapiFetchContacts } from '../lib/wapi-provider.js';
 import { executeFlow, continueFlowWithInput } from '../lib/flow-executor.js';
 import { pauseNurturingOnReply } from './nurturing.js';
 import { processIncomingWithAgent } from '../lib/ai-agent-processor.js';
@@ -648,8 +648,8 @@ router.post('/webhook', async (req, res) => {
 });
 
 /**
- * Sync contacts from W-API getChats endpoint
- * This fetches all conversations and imports contacts into chat_contacts
+ * Sync contacts from W-API using /contacts/fetch-contacts (paginated).
+ * Imports into chat_contacts linked to the connection.
  */
 router.post('/:connectionId/sync-contacts', authenticate, async (req, res) => {
   try {
@@ -661,18 +661,20 @@ router.post('/:connectionId/sync-contacts', authenticate, async (req, res) => {
       return res.status(404).json({ error: 'Conexão não encontrada' });
     }
 
-    // Must be a W-API connection
     if (!connection.instance_id || !connection.wapi_token) {
       return res.status(400).json({ error: 'Esta conexão não é W-API' });
     }
 
-    console.log(`[W-API] Starting contact sync for connection ${connectionId}`);
+    console.log(`[W-API] Starting contact sync (fetch-contacts) for connection ${connectionId}`);
 
-    // Fetch chats from W-API
-    const result = await wapiGetChats(connection.instance_id, connection.wapi_token);
+    // Use the proper /contacts/fetch-contacts endpoint with pagination
+    const result = await wapiFetchContacts(connection.instance_id, connection.wapi_token, {
+      perPage: 100,
+      maxPages: 100,
+    });
 
     if (!result.success) {
-      console.error('[W-API] getChats failed:', result.error);
+      console.error('[W-API] fetchContacts failed:', result.error);
       return res.status(500).json({ error: result.error || 'Erro ao buscar contatos da W-API' });
     }
 
@@ -685,35 +687,57 @@ router.post('/:connectionId/sync-contacts', authenticate, async (req, res) => {
 
     for (const contact of contacts) {
       try {
-        // Check if contact already exists
+        // Normalize contact data
+        const jid = contact.jid || contact.id || contact.remoteJid || '';
+        const isGroup = jid.includes('@g.us');
+        if (isGroup) { skipped++; continue; }
+
+        let phone = contact.phone || contact.number || 
+                     jid.replace('@s.whatsapp.net', '').replace('@c.us', '').replace(/\D/g, '');
+        if (!phone) { skipped++; continue; }
+
+        const name = contact.name || contact.pushName || contact.notify || 
+                     contact.verifiedName || contact.formattedName || 
+                     contact.displayName || contact.shortName || phone;
+
+        const profilePicture = contact.profilePicture || contact.profilePictureUrl || 
+                               contact.imgUrl || contact.picture || null;
+
+        // Check if contact already exists for this connection
         const existing = await query(
-          `SELECT id, name, is_deleted FROM chat_contacts WHERE connection_id = $1 AND phone = $2`,
-          [connectionId, contact.phone]
+          `SELECT id, name, profile_picture_url, is_deleted FROM chat_contacts WHERE connection_id = $1 AND phone = $2`,
+          [connectionId, phone]
         );
 
         if (existing.rows.length > 0) {
-          const existingContact = existing.rows[0];
-          // Update if name changed or was deleted
-          if (existingContact.name !== contact.name || existingContact.is_deleted) {
+          const ex = existing.rows[0];
+          const nameChanged = name && name !== phone && ex.name !== name;
+          const picChanged = profilePicture && ex.profile_picture_url !== profilePicture;
+          
+          if (nameChanged || picChanged || ex.is_deleted) {
             await query(
-              `UPDATE chat_contacts SET name = $1, is_deleted = false, updated_at = NOW() WHERE id = $2`,
-              [contact.name || contact.phone, existingContact.id]
+              `UPDATE chat_contacts SET 
+                name = COALESCE($1, name), 
+                profile_picture_url = COALESCE($2, profile_picture_url),
+                is_deleted = false,
+                updated_at = NOW() 
+               WHERE id = $3`,
+              [nameChanged ? name : null, picChanged ? profilePicture : null, ex.id]
             );
             updated++;
           } else {
             skipped++;
           }
         } else {
-          // Insert new contact
           await query(
             `INSERT INTO chat_contacts (connection_id, phone, name, jid, profile_picture_url, created_at, updated_at)
              VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
-            [connectionId, contact.phone, contact.name || contact.phone, contact.jid || null, contact.profilePicture || null]
+            [connectionId, phone, name, jid || null, profilePicture]
           );
           imported++;
         }
       } catch (err) {
-        console.error('[W-API] Error importing contact:', contact.phone, err.message);
+        console.error('[W-API] Error importing contact:', err.message);
         skipped++;
       }
     }
