@@ -7,9 +7,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { CRMFunnel, useCRMDealMutations, useCRMFunnel, useCRMGroups } from "@/hooks/use-crm";
 import { Slider } from "@/components/ui/slider";
-import { User, Handshake } from "lucide-react";
+import { User, Handshake, Search } from "lucide-react";
 import { CompanySearchSelect } from "@/components/crm/CompanySearchSelect";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
@@ -258,19 +260,35 @@ export function DealFormDialog({ funnel, open, onOpenChange, defaultCompanyId }:
             {/* Representative */}
             <div className="space-y-2">
               <Label className="flex items-center gap-2"><Handshake className="h-4 w-4" /> Representante</Label>
-              <Select value={representativeId || "none"} onValueChange={v => setRepresentativeId(v === "none" ? "" : v)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um representante (opcional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Nenhum</SelectItem>
-                  {repsForDeal?.map(rep => (
-                    <SelectItem key={rep.id} value={rep.id}>
-                      {rep.name} ({rep.commission_percent}%)
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-start font-normal" role="combobox">
+                    <Search className="h-4 w-4 mr-2 shrink-0 opacity-50" />
+                    {representativeId
+                      ? repsForDeal?.find(r => r.id === representativeId)?.name || "Selecionado"
+                      : "Buscar representante (opcional)"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Buscar representante..." />
+                    <CommandList>
+                      <CommandEmpty>Nenhum representante encontrado.</CommandEmpty>
+                      <CommandGroup>
+                        <CommandItem onSelect={() => setRepresentativeId("")}>
+                          Nenhum
+                        </CommandItem>
+                        {repsForDeal?.map(rep => (
+                          <CommandItem key={rep.id} value={rep.name} onSelect={() => setRepresentativeId(rep.id)}>
+                            <Handshake className="h-4 w-4 mr-2" />
+                            {rep.name} ({rep.commission_percent}%)
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div className="space-y-2">
