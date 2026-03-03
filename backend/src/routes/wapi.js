@@ -757,6 +757,119 @@ router.post('/:connectionId/sync-contacts', authenticate, async (req, res) => {
   }
 });
 
+/**
+ * Sync chats from W-API – imports conversations into the system.
+ * Uses wapiGetChats to fetch all chats and creates/updates conversations.
+ */
+router.post('/:connectionId/sync-chats', authenticate, async (req, res) => {
+  try {
+    const { connectionId } = req.params;
+    const userId = req.user?.id;
+
+    const connection = await getAccessibleConnection(connectionId, userId);
+    if (!connection) {
+      return res.status(404).json({ error: 'Conexão não encontrada' });
+    }
+
+    if (!connection.instance_id || !connection.wapi_token) {
+      return res.status(400).json({ error: 'Esta conexão não é W-API' });
+    }
+
+    console.log(`[W-API] Starting chat sync for connection ${connectionId}`);
+
+    const result = await wapiGetChats(connection.instance_id, connection.wapi_token);
+
+    if (!result.success) {
+      console.error('[W-API] getChats failed:', result.error);
+      return res.status(500).json({ error: result.error || 'Erro ao buscar chats da W-API' });
+    }
+
+    const contacts = result.contacts || [];
+    console.log(`[W-API] Fetched ${contacts.length} chats from W-API`);
+
+    let imported = 0;
+    let updated = 0;
+    let skipped = 0;
+
+    for (const contact of contacts) {
+      try {
+        const phone = contact.phone;
+        const jid = contact.jid || `${phone}@s.whatsapp.net`;
+        const name = contact.name || phone;
+        const profilePicture = contact.profilePicture || null;
+
+        if (!phone) { skipped++; continue; }
+
+        // Check if conversation already exists
+        const existing = await query(
+          `SELECT id, contact_name, contact_avatar FROM conversations 
+           WHERE connection_id = $1 AND (contact_phone = $2 OR remote_jid = $3)
+           LIMIT 1`,
+          [connectionId, phone, jid]
+        );
+
+        if (existing.rows.length > 0) {
+          const ex = existing.rows[0];
+          const nameChanged = name && name !== phone && ex.contact_name !== name;
+          const picChanged = profilePicture && ex.contact_avatar !== profilePicture;
+
+          if (nameChanged || picChanged) {
+            await query(
+              `UPDATE conversations SET 
+                contact_name = COALESCE($1, contact_name),
+                contact_avatar = COALESCE($2, contact_avatar),
+                updated_at = NOW()
+               WHERE id = $3`,
+              [nameChanged ? name : null, picChanged ? profilePicture : null, ex.id]
+            );
+            updated++;
+          } else {
+            skipped++;
+          }
+        } else {
+          await query(
+            `INSERT INTO conversations (connection_id, remote_jid, contact_name, contact_phone, contact_avatar, last_message_at, created_at, updated_at)
+             VALUES ($1, $2, $3, $4, $5, NOW(), NOW(), NOW())`,
+            [connectionId, jid, name, phone, profilePicture]
+          );
+          imported++;
+        }
+
+        // Also upsert into chat_contacts
+        const existingContact = await query(
+          `SELECT id FROM chat_contacts WHERE connection_id = $1 AND phone = $2`,
+          [connectionId, phone]
+        );
+
+        if (existingContact.rows.length === 0) {
+          await query(
+            `INSERT INTO chat_contacts (connection_id, phone, name, jid, profile_picture_url, created_at, updated_at)
+             VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+             ON CONFLICT DO NOTHING`,
+            [connectionId, phone, name, jid, profilePicture]
+          );
+        }
+      } catch (err) {
+        console.error('[W-API] Error importing chat:', err.message);
+        skipped++;
+      }
+    }
+
+    console.log(`[W-API] Chat sync complete: imported=${imported}, updated=${updated}, skipped=${skipped}`);
+
+    res.json({
+      success: true,
+      total: contacts.length,
+      imported,
+      updated,
+      skipped,
+    });
+  } catch (error) {
+    console.error('[W-API] Chat sync error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Diagnostics: view/clear last webhook events received by the backend
 router.get('/:connectionId/webhook-events', authenticate, async (req, res) => {
   try {
