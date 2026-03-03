@@ -681,6 +681,29 @@ export function ChatArea({
     setPendingFile({ file, preview });
   }, [inferMessageTypeFromFile]);
 
+  const handlePaste = useCallback((e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.kind === 'file') {
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (!file) continue;
+
+        const inferredType = inferMessageTypeFromFile(file);
+        let preview: string | undefined;
+        if (inferredType === 'image') {
+          preview = URL.createObjectURL(file);
+        }
+
+        setPendingFile({ file, preview });
+        return;
+      }
+    }
+  }, [inferMessageTypeFromFile]);
+
   const looksLikeFilename = (value: string) => {
     const s = value.trim();
     if (!s) return false;
@@ -2330,7 +2353,7 @@ export function ChatArea({
             <div className="flex items-end gap-2 flex-1">
               {/* Message input with mentions */}
               <div className="relative flex-1">
-                <Textarea
+              <Textarea
                   ref={textareaRef}
                   placeholder="Digite uma mensagem... Use @ para mencionar"
                   value={messageText}
@@ -2342,6 +2365,7 @@ export function ChatArea({
                     }
                     handleKeyPress(e);
                   }}
+                  onPaste={handlePaste}
                   className="min-h-[40px] max-h-[120px] resize-none"
                   rows={1}
                 />
