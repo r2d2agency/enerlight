@@ -16,6 +16,7 @@ import { WebhookDiagnosticPanel } from "@/components/conexao/WebhookDiagnosticPa
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { LeadDistributionDialog } from "@/components/conexao/LeadDistributionDialog";
 
 interface Connection {
@@ -48,6 +49,8 @@ const Conexao = () => {
   const [newConnectionApiUrl, setNewConnectionApiUrl] = useState("");
   const [newConnectionApiKey, setNewConnectionApiKey] = useState("");
   const [wapiAutoCreate, setWapiAutoCreate] = useState(true);
+  const [wapiRejectCalls, setWapiRejectCalls] = useState(true);
+  const [wapiCallMessage, setWapiCallMessage] = useState("Não estamos disponíveis no momento.");
   const [planLimits, setPlanLimits] = useState<PlanLimits | null>(null);
   
   // QR Code state
@@ -128,6 +131,8 @@ const Conexao = () => {
     setNewConnectionApiUrl('');
     setNewConnectionApiKey('');
     setWapiAutoCreate(true);
+    setWapiRejectCalls(true);
+    setWapiCallMessage("Não estamos disponíveis no momento.");
   };
 
   const handleCreateConnection = async () => {
@@ -152,7 +157,11 @@ const Conexao = () => {
           // Auto-create via integrator API
           result = await api<Connection>('/api/connections/wapi/auto-create', {
             method: 'POST',
-            body: { name: newConnectionName },
+            body: { 
+              name: newConnectionName,
+              rejectCalls: wapiRejectCalls,
+              callMessage: wapiCallMessage,
+            },
           });
           toast.success('Instância W-API criada automaticamente!');
         } else {
@@ -609,6 +618,33 @@ const handleGetQRCode = async (connection: Connection) => {
                         onCheckedChange={setWapiAutoCreate}
                       />
                     </div>
+
+                    {/* Reject Calls */}
+                    <div className="flex items-center justify-between rounded-lg border p-3">
+                      <div>
+                        <p className="text-sm font-medium">Rejeitar chamadas</p>
+                        <p className="text-xs text-muted-foreground">
+                          Rejeitar chamadas recebidas automaticamente
+                        </p>
+                      </div>
+                      <Switch
+                        checked={wapiRejectCalls}
+                        onCheckedChange={setWapiRejectCalls}
+                      />
+                    </div>
+
+                    {wapiRejectCalls && (
+                      <div className="space-y-2">
+                        <Label>Mensagem de rejeição</Label>
+                        <Textarea
+                          placeholder="Não estamos disponíveis no momento."
+                          value={wapiCallMessage}
+                          onChange={(e) => setWapiCallMessage(e.target.value)}
+                          className="min-h-[80px] resize-none"
+                        />
+                      </div>
+                    )}
+
                     {!wapiAutoCreate && (
                       <>
                         <div className="space-y-2">

@@ -117,33 +117,55 @@ function getHeaders(token) {
 
 /**
  * Configure all webhooks for a W-API instance
- * Called when creating or updating a connection
+ * Uses webhook URLs from system_settings if available
  */
-export async function configureWebhooks(instanceId, token) {
-  const webhookUrl = `${WEBHOOK_BASE_URL}/api/wapi/webhook`;
+export async function configureWebhooks(instanceId, token, dbQuery) {
+  // Load custom webhook URLs from system_settings
+  let customUrls = {};
+  if (dbQuery) {
+    try {
+      const result = await dbQuery(
+        `SELECT key, value FROM system_settings WHERE key LIKE 'wapi_webhook_%'`
+      );
+      for (const row of result.rows) {
+        customUrls[row.key] = row.value;
+      }
+    } catch (e) {
+      logWarn('wapi.webhook_settings_load_failed', { error: e.message });
+    }
+  }
+
+  const fallbackUrl = `${WEBHOOK_BASE_URL}/api/wapi/webhook`;
 
   logInfo('wapi.webhooks_configure_started', {
     instance_id: instanceId,
-    webhook_url: webhookUrl,
+    has_custom_urls: Object.keys(customUrls).length > 0,
   });
   
   const webhookTypes = [
-    { endpoint: 'update-webhook-received', name: 'received' },      // Mensagens recebidas
-    { endpoint: 'update-webhook-delivery', name: 'delivery' },      // Status de entrega
-    { endpoint: 'update-webhook-connected', name: 'connected' },    // Conexão estabelecida
-    { endpoint: 'update-webhook-disconnected', name: 'disconnected' }, // Desconexão
+    { endpoint: 'update-webhook-connected', name: 'connected', settingKey: 'wapi_webhook_connected' },
+    { endpoint: 'update-webhook-disconnected', name: 'disconnected', settingKey: 'wapi_webhook_disconnected' },
+    { endpoint: 'update-webhook-received', name: 'received', settingKey: 'wapi_webhook_message_received' },
+    { endpoint: 'update-webhook-send', name: 'send', settingKey: 'wapi_webhook_message_send' },
+    { endpoint: 'update-webhook-delivery', name: 'delivery', settingKey: 'wapi_webhook_message_status' },
   ];
 
   const results = [];
   
   for (const wh of webhookTypes) {
+    const url = customUrls[wh.settingKey] || fallbackUrl;
+    if (!url) {
+      results.push({ type: wh.name, success: false, error: 'No URL configured' });
+      continue;
+    }
+
     try {
       const response = await fetch(
         `${W_API_BASE_URL}/webhook/${wh.endpoint}?instanceId=${instanceId}`,
         {
           method: 'PUT',
           headers: getHeaders(token),
-          body: JSON.stringify({ url: webhookUrl }),
+          body: JSON.stringify({ url }),
         }
       );
 
@@ -152,6 +174,7 @@ export async function configureWebhooks(instanceId, token) {
         type: wh.name, 
         success: response.ok, 
         status: response.status,
+        url,
         data 
       });
 
@@ -159,7 +182,7 @@ export async function configureWebhooks(instanceId, token) {
         logInfo('wapi.webhook_configured', {
           instance_id: instanceId,
           webhook_type: wh.name,
-          status_code: response.status,
+          url,
         });
       } else {
         logWarn('wapi.webhook_config_failed', {
@@ -167,7 +190,6 @@ export async function configureWebhooks(instanceId, token) {
           webhook_type: wh.name,
           status_code: response.status,
           error: data?.message || data?.error || null,
-          body_preview: JSON.stringify(data).slice(0, 400),
         });
       }
     } catch (error) {

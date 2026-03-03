@@ -133,7 +133,7 @@ router.post('/', async (req, res) => {
     // Auto-configure webhooks for W-API connections
     if (provider === 'wapi') {
       try {
-        const webhookResult = await wapiProvider.configureWebhooks(instance_id, wapi_token);
+        const webhookResult = await wapiProvider.configureWebhooks(instance_id, wapi_token, query);
         console.log('[W-API] Webhook configuration result:', webhookResult);
         connection.webhooks_configured = webhookResult.success;
         connection.webhooks_count = webhookResult.configured;
@@ -276,7 +276,7 @@ router.post('/:id/configure-webhooks', async (req, res) => {
     }
 
     // Configure webhooks
-    const result = await wapiProvider.configureWebhooks(connection.instance_id, connection.wapi_token);
+    const result = await wapiProvider.configureWebhooks(connection.instance_id, connection.wapi_token, query);
 
     // Backfill provider for older rows
     if (connection.provider !== 'wapi') {
@@ -299,7 +299,7 @@ router.post('/:id/configure-webhooks', async (req, res) => {
 // Auto-create W-API instance using integrator token
 router.post('/wapi/auto-create', async (req, res) => {
   try {
-    const { name } = req.body;
+    const { name, rejectCalls = true, callMessage = 'Não estamos disponíveis no momento.' } = req.body;
     if (!name || !name.trim()) {
       return res.status(400).json({ error: 'Nome da conexão é obrigatório' });
     }
@@ -321,7 +321,11 @@ router.post('/wapi/auto-create', async (req, res) => {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${integratorToken}`,
       },
-      body: JSON.stringify({}),
+      body: JSON.stringify({
+        instanceName: name.trim(),
+        rejectCalls: !!rejectCalls,
+        callMessage: callMessage || '',
+      }),
     });
 
     if (!response.ok) {
@@ -357,7 +361,7 @@ router.post('/wapi/auto-create', async (req, res) => {
 
     // Auto-configure webhooks
     try {
-      const webhookResult = await wapiProvider.configureWebhooks(instanceId, wapiToken);
+      const webhookResult = await wapiProvider.configureWebhooks(instanceId, wapiToken, query);
       console.log('[W-API] Auto webhook config result:', webhookResult);
       connection.webhooks_configured = webhookResult.success;
     } catch (webhookError) {
