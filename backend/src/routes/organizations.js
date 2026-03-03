@@ -363,6 +363,10 @@ router.post('/:id([0-9a-fA-F-]{36})/members', async (req, res) => {
       userCreated = true;
     } else {
       userId = userResult.rows[0].id;
+      // Update user name if provided (e.g. re-adding with different name)
+      if (name) {
+        await query(`UPDATE users SET name = $1 WHERE id = $2`, [name, userId]);
+      }
     }
 
     // Add to organization
@@ -446,7 +450,7 @@ router.post('/:id([0-9a-fA-F-]{36})/members', async (req, res) => {
 router.patch('/:id/members/:userId', async (req, res) => {
   try {
     const { id, userId } = req.params;
-    const { role, connection_ids, department_ids } = req.body;
+    const { role, connection_ids, department_ids, name, email } = req.body;
 
     // Check if user is admin/owner
     const memberCheck = await query(
@@ -467,6 +471,17 @@ router.patch('/:id/members/:userId', async (req, res) => {
     
     if (targetCheck.rows[0]?.role === 'owner' && role && role !== 'owner') {
       return res.status(400).json({ error: 'Não é possível alterar o cargo do proprietário' });
+    }
+
+    // Update user name/email if provided
+    if (name || email) {
+      const updates = [];
+      const vals = [];
+      let idx = 1;
+      if (name) { updates.push(`name = $${idx++}`); vals.push(name); }
+      if (email) { updates.push(`email = $${idx++}`); vals.push(email); }
+      vals.push(userId);
+      await query(`UPDATE users SET ${updates.join(', ')} WHERE id = $${idx}`, vals);
     }
 
     // Update role if provided and not owner
