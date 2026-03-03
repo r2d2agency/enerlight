@@ -674,6 +674,7 @@ router.post('/:connectionId/sync-contacts', authenticate, async (req, res) => {
     });
 
     console.log(`[W-API] fetchContacts result: success=${result.success}, total=${result.total}, error=${result.error || 'none'}`);
+    console.log(`[W-API] fetchContacts debug:`, JSON.stringify(result.debug || {}, null, 2));
 
     if (!result.success) {
       console.error('[W-API] fetchContacts failed:', result.error);
@@ -684,6 +685,7 @@ router.post('/:connectionId/sync-contacts', authenticate, async (req, res) => {
         debug: { 
           instanceId: connection.instance_id,
           fetchResult: { success: result.success, total: result.total, error: result.error },
+          ...(result.debug || {}),
         }
       });
     }
@@ -697,8 +699,8 @@ router.post('/:connectionId/sync-contacts', authenticate, async (req, res) => {
         total: 0, imported: 0, updated: 0, skipped: 0,
         debug: {
           instanceId: connection.instance_id,
-          message: 'W-API retornou 0 contatos. Verifique se a instância tem contatos salvos ou se está conectada.',
-          fetchResult: { success: result.success, total: result.total },
+          message: 'W-API retornou 0 contatos em todos os endpoints tentados.',
+          ...(result.debug || {}),
         }
       });
     }
