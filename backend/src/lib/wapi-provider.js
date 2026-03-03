@@ -1669,8 +1669,9 @@ export async function fetchContacts(instanceId, token, { perPage = 100, maxPages
           chatsCount: chatsResult.chats?.length || 0,
           error: chatsResult.error || null,
         };
-        if (chatsResult.success && chatsResult.chats?.length > 0) {
-          for (const chat of chatsResult.chats) {
+        const chatsList = chatsResult.contacts || chatsResult.chats || [];
+        if (chatsResult.success && chatsList.length > 0) {
+          for (const chat of chatsList) {
             const jid = chat.jid || chat.id || chat.remoteJid || '';
             if (jid.includes('@g.us')) continue; // skip groups
             
