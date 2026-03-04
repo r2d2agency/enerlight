@@ -126,6 +126,14 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
     ],
   },
   {
+    title: "Tarefas",
+    icon: ClipboardList,
+    permissionKey: 'can_view_tasks',
+    items: [
+      { name: "Quadros", href: "/tarefas", icon: ClipboardList, permissionKey: 'can_view_tasks' },
+    ],
+  },
+  {
     title: "Homologação",
     icon: ClipboardList,
     moduleKey: 'homologation',

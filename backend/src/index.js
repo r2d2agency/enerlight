@@ -46,6 +46,7 @@ import scheduleBlocksRoutes from './routes/schedule-blocks.js';
 import internalChatRoutes from './routes/internal-chat.js';
 import pushNotificationsRoutes from './routes/push-notifications.js';
 import homologationRoutes from './routes/homologation.js';
+import taskBoardsRoutes from './routes/task-boards.js';
 import { initDatabase } from './init-db.js';
 import { executeNotifications } from './scheduler.js';
 import { executeCampaignMessages } from './campaign-scheduler.js';
@@ -209,6 +210,7 @@ app.use('/api/schedule-blocks', scheduleBlocksRoutes);
 app.use('/api/internal-chat', internalChatRoutes);
 app.use('/api/push', pushNotificationsRoutes);
 app.use('/api/homologation', homologationRoutes);
+app.use('/api/task-boards', taskBoardsRoutes);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
