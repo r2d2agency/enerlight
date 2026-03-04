@@ -53,6 +53,7 @@ const CRMMetas = lazy(() => import("./pages/CRMMetas"));
 const Reunioes = lazy(() => import("./pages/Reunioes"));
 const ComunicacaoInterna = lazy(() => import("./pages/ComunicacaoInterna"));
 const Homologacao = lazy(() => import("./pages/Homologacao"));
+const TarefasKanban = lazy(() => import("./pages/TarefasKanban"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
@@ -137,6 +138,7 @@ const App = () => (
               <Route path="/reunioes" element={<ProtectedRoute><Reunioes /></ProtectedRoute>} />
               <Route path="/comunicacao" element={<ProtectedRoute><ComunicacaoInterna /></ProtectedRoute>} />
               <Route path="/homologacao" element={<ProtectedRoute><Homologacao /></ProtectedRoute>} />
+              <Route path="/tarefas" element={<ProtectedRoute><TarefasKanban /></ProtectedRoute>} />
               <Route path="/f/:slug" element={<PublicFormPage />} />
               <Route path="/politica-privacidade" element={<PoliticaPrivacidade />} />
               <Route path="*" element={<NotFound />} />
