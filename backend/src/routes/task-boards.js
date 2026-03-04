@@ -149,19 +149,23 @@ router.delete('/templates/:id', async (req, res) => {
 router.put('/cards/:id', async (req, res) => {
   try {
     const { title, description, assigned_to, priority, due_date, tags, color, cover_image, is_archived } = req.body;
+    const dueDateVal = due_date || null;
+    const tagsVal = tags ? (Array.isArray(tags) ? tags : []) : null;
     const result = await pool.query(
       `UPDATE task_cards SET 
         title = COALESCE($1, title), description = COALESCE($2, description), 
-        assigned_to = COALESCE($3, assigned_to), priority = COALESCE($4, priority),
-        due_date = $5, tags = COALESCE($6, tags), color = COALESCE($7, color),
-        cover_image = COALESCE($8, cover_image), is_archived = COALESCE($9, is_archived),
+        assigned_to = $3, priority = COALESCE($4, priority),
+        due_date = $5, tags = COALESCE($6, tags), color = $7,
+        cover_image = $8, is_archived = COALESCE($9, is_archived),
         completed_at = CASE WHEN $9 = true THEN NOW() ELSE completed_at END,
         updated_at = NOW()
        WHERE id = $10 RETURNING *`,
-      [title, description, assigned_to, priority, due_date, tags, color, cover_image, is_archived, req.params.id]
+      [title, description, assigned_to || null, priority, dueDateVal, tagsVal, color || null, cover_image || null, is_archived, req.params.id]
     );
+    if (!result.rows[0]) return res.status(404).json({ error: 'Card não encontrado' });
     res.json(result.rows[0]);
   } catch (err) {
+    console.error('PUT /cards/:id error:', err.message, 'body:', JSON.stringify(req.body));
     res.status(500).json({ error: err.message });
   }
 });
