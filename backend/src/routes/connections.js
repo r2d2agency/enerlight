@@ -49,26 +49,7 @@ router.get('/', async (req, res) => {
       return res.json(result.rows);
     }
 
-    // No specific assignments:
-    // Only owner/admin see all org connections; everyone else sees nothing
-    if (isHighRole) {
-      const result = await query(
-        `SELECT c.*, u.name as created_by_name,
-         CASE 
-           WHEN c.provider IS NOT NULL THEN c.provider 
-           WHEN c.instance_id IS NOT NULL AND c.wapi_token IS NOT NULL THEN 'wapi'
-           ELSE 'evolution'
-         END as provider
-         FROM connections c
-         LEFT JOIN users u ON c.user_id = u.id
-         WHERE c.organization_id = $1
-         ORDER BY c.created_at DESC`,
-        [org.organization_id]
-      );
-      return res.json(result.rows);
-    }
-
-    // Non-admin without assignments: empty list
+    // No connection assignments at all: empty list for everyone
     res.json([]);
   } catch (error) {
     console.error('List connections error:', error);
