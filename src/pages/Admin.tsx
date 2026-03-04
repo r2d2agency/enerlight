@@ -68,6 +68,7 @@ interface Plan {
   has_projects: boolean;
   has_internal_chat: boolean;
   has_homologation: boolean;
+  has_tasks: boolean;
   price: number;
   billing_period: string;
   is_active: boolean;
@@ -322,6 +323,7 @@ export default function Admin() {
       has_projects: newPlanProjects,
       has_internal_chat: newPlanInternalChat,
       has_homologation: false,
+      has_tasks: true,
       price: parseFloat(newPlanPrice) || 0,
       billing_period: newPlanPeriod,
       visible_on_signup: newPlanVisibleOnSignup,
@@ -392,6 +394,7 @@ export default function Admin() {
       has_projects: editingPlan.has_projects,
       has_internal_chat: editingPlan.has_internal_chat,
       has_homologation: editingPlan.has_homologation,
+      has_tasks: editingPlan.has_tasks,
       price: editingPlan.price,
       billing_period: editingPlan.billing_period,
       is_active: editingPlan.is_active,
@@ -1102,6 +1105,9 @@ export default function Admin() {
                         )}
                         {plan.has_homologation && (
                           <Badge variant="secondary" className="text-xs">Homologação</Badge>
+                        )}
+                        {plan.has_tasks && (
+                          <Badge variant="secondary" className="text-xs">Tarefas</Badge>
                         )}
                       </div>
                       <div className="flex items-center justify-between pt-2 border-t">
@@ -1959,6 +1965,14 @@ export default function Admin() {
                     id="edit-homologation"
                     checked={editingPlan?.has_homologation || false}
                     onCheckedChange={(v) => setEditingPlan({ ...editingPlan!, has_homologation: v })}
+                  />
+                </div>
+                <div className="flex items-center justify-between rounded-lg border p-3">
+                  <Label htmlFor="edit-tasks">Tarefas</Label>
+                  <Switch
+                    id="edit-tasks"
+                    checked={editingPlan?.has_tasks || false}
+                    onCheckedChange={(v) => setEditingPlan({ ...editingPlan!, has_tasks: v })}
                   />
                 </div>
                 <div className="flex items-center justify-between rounded-lg border p-3">

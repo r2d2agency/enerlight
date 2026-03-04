@@ -18,7 +18,7 @@ import { useSuperadmin } from '@/hooks/use-superadmin';
 import { useCRMGroups, useCRMGroupMembers, useCRMGroupMutations, useCRMFunnels, useCRMGroupFunnels, useCRMGroupFunnelMutations } from '@/hooks/use-crm';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
-import { Building2, Plus, Users, Trash2, UserPlus, Crown, Shield, User, Briefcase, Loader2, Pencil, Link2, Settings, KeyRound, Megaphone, Receipt, UsersRound, CalendarClock, Bot, Layers, MessagesSquare, Upload, Image, ShieldCheck, GitBranch, Edit } from 'lucide-react';
+import { Building2, Plus, Users, Trash2, UserPlus, Crown, Shield, User, Briefcase, Loader2, Pencil, Link2, Settings, KeyRound, Megaphone, Receipt, UsersRound, CalendarClock, Bot, Layers, MessagesSquare, Upload, Image, ShieldCheck, GitBranch, Edit, ClipboardList } from 'lucide-react';
 import { PermissionsDialog } from '@/components/permissions/PermissionsDialog';
 import { PermissionTemplatesTab } from '@/components/admin/PermissionTemplatesTab';
 import { useUpload } from '@/hooks/use-upload';
@@ -140,6 +140,7 @@ export default function Organizacoes() {
     ghost: false,
     projects: false,
     internal_chat: true,
+    tasks: true,
   });
   const [savingModules, setSavingModules] = useState(false);
 
@@ -243,6 +244,7 @@ export default function Organizacoes() {
         ghost: modules.ghost ?? false,
         projects: modules.projects ?? false,
         internal_chat: modules.internal_chat ?? true,
+        tasks: modules.tasks ?? true,
       });
     } catch (error) {
       console.error('Error loading modules:', error);
@@ -1350,6 +1352,26 @@ export default function Organizacoes() {
                           <Switch
                             checked={modulesEnabled.internal_chat}
                             onCheckedChange={(checked) => setModulesEnabled(prev => ({ ...prev, internal_chat: checked }))}
+                            disabled={!canManageOrg}
+                          />
+                        </div>
+
+                        {/* Tasks Module */}
+                        <div className="flex items-center justify-between rounded-lg border p-4">
+                          <div className="flex items-center gap-4">
+                            <div className="h-10 w-10 rounded-lg bg-violet-500/10 flex items-center justify-center">
+                              <ClipboardList className="h-5 w-5 text-violet-500" />
+                            </div>
+                            <div>
+                              <p className="font-medium">Tarefas</p>
+                              <p className="text-sm text-muted-foreground">
+                                Quadros Kanban de tarefas com checklists e prazos
+                              </p>
+                            </div>
+                          </div>
+                          <Switch
+                            checked={modulesEnabled.tasks}
+                            onCheckedChange={(checked) => setModulesEnabled(prev => ({ ...prev, tasks: checked }))}
                             disabled={!canManageOrg}
                           />
                         </div>

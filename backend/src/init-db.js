@@ -3575,6 +3575,18 @@ DO $$ BEGIN
   ALTER TABLE plans ADD COLUMN IF NOT EXISTS has_homologation BOOLEAN DEFAULT false;
 EXCEPTION WHEN others THEN NULL;
 END $$;
+
+-- Plan column for tasks
+DO $$ BEGIN
+  ALTER TABLE plans ADD COLUMN IF NOT EXISTS has_tasks BOOLEAN DEFAULT true;
+EXCEPTION WHEN others THEN NULL;
+END $$;
+
+-- Add tasks to organizations modules_enabled
+UPDATE organizations 
+SET modules_enabled = modules_enabled || '{"tasks": true}'::jsonb
+WHERE modules_enabled IS NOT NULL 
+  AND NOT (modules_enabled ? 'tasks');
 `;
 
 const step46TaskBoards = `
