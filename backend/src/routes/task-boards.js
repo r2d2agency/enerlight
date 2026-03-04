@@ -652,7 +652,7 @@ router.put('/:boardId/columns/reorder', async (req, res) => {
 router.get('/:boardId/cards', async (req, res) => {
   try {
     const { assigned_to, due_from, due_to, status } = req.query;
-    let conditions = ['tc.board_id = $1', 'NOT tc.is_archived'];
+    let conditions = ['tc.board_id = $1', 'tc.is_archived = false'];
     let params = [req.params.boardId];
     let idx = 2;
 
@@ -673,10 +673,42 @@ router.get('/:boardId/cards', async (req, res) => {
       params.push(status);
     }
 
+    // Check if project_id column exists to avoid errors on unpatched DBs
+    let hasProjectCol = false;
+    let hasStatusCol = false;
+    try {
+      const colCheck = await pool.query(
+        `SELECT column_name FROM information_schema.columns WHERE table_name = 'task_cards' AND column_name IN ('project_id','status','notes')`
+      );
+      const cols = colCheck.rows.map(r => r.column_name);
+      hasProjectCol = cols.includes('project_id');
+      hasStatusCol = cols.includes('status');
+    } catch (_) {}
+
+    // If status column doesn't exist, remove status filter
+    if (!hasStatusCol && status) {
+      conditions = conditions.filter(c => !c.includes('tc.status'));
+      params = [req.params.boardId];
+      idx = 2;
+      if (assigned_to) { conditions.push(`tc.assigned_to = $${idx++}`); params.push(assigned_to); }
+      if (due_from) { conditions.push(`tc.due_date >= $${idx++}`); params.push(due_from); }
+      if (due_to) { conditions.push(`tc.due_date <= $${idx++}`); params.push(due_to); }
+    }
+
+    const projectJoin = hasProjectCol ? 'LEFT JOIN projects p ON p.id = tc.project_id' : '';
+    const projectSelect = hasProjectCol ? ', p.title as project_title' : '';
+    const statusSelect = hasStatusCol ? ', tc.status' : ", 'todo' as status";
+    const notesSelect = hasStatusCol ? ', tc.notes' : '';
+
     const result = await pool.query(
-      `SELECT tc.*, u.name as assigned_name, cu.name as creator_name,
+      `SELECT tc.id, tc.board_id, tc.column_id, tc.position, tc.title, tc.description,
+        tc.assigned_to, tc.created_by, tc.priority, tc.due_date, tc.tags, tc.color,
+        tc.cover_image, tc.deal_id, tc.company_id, tc.contact_id,
+        tc.is_archived, tc.completed_at, tc.created_at, tc.updated_at
+        ${statusSelect} ${notesSelect} ${projectSelect},
+        u.name as assigned_name, cu.name as creator_name,
         comp.name as company_name, cont.name as contact_name,
-        d.title as deal_title, p.title as project_title,
+        d.title as deal_title,
         (SELECT COUNT(*) FROM task_card_checklists cl 
          JOIN task_card_checklist_items ci ON ci.checklist_id = cl.id 
          WHERE cl.card_id = tc.id) as total_checklist_items,
@@ -691,13 +723,14 @@ router.get('/:boardId/cards', async (req, res) => {
        LEFT JOIN companies comp ON comp.id = tc.company_id
        LEFT JOIN contacts cont ON cont.id = tc.contact_id
        LEFT JOIN deals d ON d.id = tc.deal_id
-       LEFT JOIN projects p ON p.id = tc.project_id
+       ${projectJoin}
        WHERE ${conditions.join(' AND ')}
        ORDER BY tc.position`,
       params
     );
     res.json(result.rows);
   } catch (err) {
+    console.error('[task-boards] GET cards error:', err.message, err.stack);
     res.status(500).json({ error: err.message });
   }
 });
