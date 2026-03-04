@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -23,6 +23,7 @@ import { FileSpreadsheet, Upload, Check, AlertCircle, Plus, X } from "lucide-rea
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { useProspects } from "@/hooks/use-prospects";
+import { api, API_URL, getAuthToken } from "@/lib/api";
 
 interface Props {
   open: boolean;
@@ -40,6 +41,12 @@ interface FieldMapping {
   newFieldLabel?: string;
 }
 
+interface OrgMember {
+  user_id: string;
+  user_name: string;
+  role: string;
+}
+
 const RESERVED_FIELDS = [
   { key: "name", label: "Nome", required: true, patterns: ["nome", "name", "cliente", "razao", "razão"] },
   { key: "phone", label: "Telefone", required: true, patterns: ["telefone", "phone", "celular", "whatsapp", "fone", "mobile", "tel"] },
@@ -50,6 +57,7 @@ const RESERVED_FIELDS = [
   { key: "address", label: "Endereço", required: false, patterns: ["endereco", "endereço", "address", "logradouro", "rua", "avenida"] },
   { key: "zip_code", label: "CEP", required: false, patterns: ["cep", "zip", "postal", "codigo postal"] },
   { key: "is_company", label: "É Empresa", required: false, patterns: ["empresa", "company", "pj", "cnpj", "corporativo"] },
+  { key: "assigned_to", label: "Vendedor", required: false, patterns: ["vendedor", "responsavel", "responsável", "seller", "assigned", "atribuido", "atribuído"] },
 ];
 
 export default function ProspectImportDialog({ open, onOpenChange }: Props) {
@@ -59,8 +67,32 @@ export default function ProspectImportDialog({ open, onOpenChange }: Props) {
   const [columns, setColumns] = useState<string[]>([]);
   const [data, setData] = useState<ParsedRow[]>([]);
   const [mappings, setMappings] = useState<FieldMapping[]>([]);
+  const [globalAssignedTo, setGlobalAssignedTo] = useState<string>("");
+  const [orgMembers, setOrgMembers] = useState<OrgMember[]>([]);
 
   const { bulkCreate, customFields } = useProspects();
+
+  // Load org members for seller assignment
+  useEffect(() => {
+    if (open) {
+      // Get org id first, then members
+      api<any[]>('/api/organizations')
+        .then(orgs => {
+          if (orgs.length > 0) {
+            return api<any[]>(`/api/organizations/${orgs[0].id}/members`);
+          }
+          return [];
+        })
+        .then(members => {
+          setOrgMembers(members.map((m: any) => ({
+            user_id: m.user_id || m.id,
+            user_name: m.user_name || m.name,
+            role: m.role,
+          })));
+        })
+        .catch(() => {});
+    }
+  }, [open]);
 
   const resetState = () => {
     setStep("upload");
@@ -68,6 +100,7 @@ export default function ProspectImportDialog({ open, onOpenChange }: Props) {
     setColumns([]);
     setData([]);
     setMappings([]);
+    setGlobalAssignedTo("");
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -214,10 +247,16 @@ export default function ProspectImportDialog({ open, onOpenChange }: Props) {
   }, [mappings]);
 
   const handleImport = async () => {
-    const prospects = getMappedData();
+    let prospects = getMappedData();
     if (prospects.length === 0) {
       toast.error("Nenhum prospect válido para importar");
       return;
+    }
+
+    // Inject global assigned_to if set and not mapped from file
+    const hasAssignedMapping = mappings.some(m => m.targetField === "assigned_to");
+    if (globalAssignedTo && globalAssignedTo !== "none" && !hasAssignedMapping) {
+      prospects = prospects.map(p => ({ ...p, assigned_to: globalAssignedTo }));
     }
 
     await bulkCreate.mutateAsync({
@@ -286,6 +325,28 @@ export default function ProspectImportDialog({ open, onOpenChange }: Props) {
                 <strong>{fileName}</strong> - {data.length} linhas encontradas
               </span>
             </div>
+            {/* Global seller assignment */}
+            {orgMembers.length > 0 && !mappings.some(m => m.targetField === "assigned_to") && (
+              <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg shrink-0 mb-4">
+                <Label className="text-sm font-medium mb-2 block">Atribuir vendedor a todos os prospects</Label>
+                <Select value={globalAssignedTo} onValueChange={setGlobalAssignedTo}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Sem atribuição (opcional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sem atribuição</SelectItem>
+                    {orgMembers.map(m => (
+                      <SelectItem key={m.user_id} value={m.user_id}>
+                        {m.user_name} ({m.role})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Ao converter em negociação, será atribuída automaticamente a este vendedor
+                </p>
+              </div>
+            )}
 
             {/* Mapping Table with proper scroll */}
             <div className="flex-1 min-h-0 border rounded-lg overflow-hidden mb-4">

@@ -2858,7 +2858,7 @@ router.post('/prospects/bulk', async (req, res) => {
 
       // Extract custom fields (everything except reserved keys)
       const customFields = {};
-      const reservedKeys = ['name', 'phone', 'source', 'city', 'state', 'address', 'zip_code', 'is_company'];
+      const reservedKeys = ['name', 'phone', 'source', 'city', 'state', 'address', 'zip_code', 'is_company', 'email', 'assigned_to'];
       Object.keys(p).forEach(key => {
         if (!reservedKeys.includes(key) && p[key]) {
           customFields[key] = p[key];
@@ -2867,8 +2867,8 @@ router.post('/prospects/bulk', async (req, res) => {
 
       try {
         await query(
-          `INSERT INTO crm_prospects (organization_id, name, phone, source, city, state, address, zip_code, is_company, custom_fields, created_by)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+          `INSERT INTO crm_prospects (organization_id, name, phone, source, city, state, address, zip_code, is_company, custom_fields, created_by, assigned_to, email)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
           [
             org.organization_id, 
             p.name.trim(), 
@@ -2880,7 +2880,9 @@ router.post('/prospects/bulk', async (req, res) => {
             p.zip_code?.trim() || null,
             p.is_company === true || p.is_company === 'true' || p.is_company === '1',
             JSON.stringify(customFields),
-            req.userId
+            req.userId,
+            p.assigned_to || null,
+            p.email?.trim() || null
           ]
         );
         existingPhones.add(normalizedPhone);
@@ -3069,12 +3071,13 @@ router.post('/prospects/:id/convert', async (req, res) => {
       contact_id = newContact.rows[0].id;
     }
 
-    // Create deal with company if applicable
+    // Create deal with company if applicable - use prospect's assigned_to if set
+    const dealOwner = prospect.assigned_to || req.userId;
     const dealResult = await query(
-      `INSERT INTO crm_deals (organization_id, funnel_id, stage_id, title, contact_id, company_id, assigned_to, source)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, 'prospect')
+      `INSERT INTO crm_deals (organization_id, funnel_id, stage_id, title, contact_id, company_id, assigned_to, owner_id, source)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $7, 'prospect')
        RETURNING id`,
-      [org.organization_id, funnel_id, stage_id, title || prospect.name, contact_id, company_id, req.userId]
+      [org.organization_id, funnel_id, stage_id, title || prospect.name, contact_id, company_id, dealOwner]
     );
     const deal_id = dealResult.rows[0].id;
 
@@ -3179,12 +3182,13 @@ router.post('/prospects/bulk-convert', async (req, res) => {
           companies_created++;
         }
 
-        // Create deal
+        // Create deal - use prospect's assigned_to if set
+        const dealOwner = prospect.assigned_to || req.userId;
         const dealResult = await query(
-          `INSERT INTO crm_deals (organization_id, funnel_id, stage_id, title, contact_id, company_id, source, responsible_id)
-           VALUES ($1, $2, $3, $4, $5, $6, 'prospect', $7)
+          `INSERT INTO crm_deals (organization_id, funnel_id, stage_id, title, contact_id, company_id, source, responsible_id, owner_id, assigned_to)
+           VALUES ($1, $2, $3, $4, $5, $6, 'prospect', $7, $7, $7)
            RETURNING id`,
-          [org.organization_id, funnel_id, stage_id, prospect.name, contactId, companyId, req.userId]
+          [org.organization_id, funnel_id, stage_id, prospect.name, contactId, companyId, dealOwner]
         );
 
         // Mark prospect as converted

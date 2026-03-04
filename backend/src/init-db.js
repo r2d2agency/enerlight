@@ -1793,6 +1793,7 @@ DO $$ BEGIN
     ALTER TABLE crm_prospects ADD COLUMN IF NOT EXISTS zip_code VARCHAR(20);
     ALTER TABLE crm_prospects ADD COLUMN IF NOT EXISTS is_company BOOLEAN DEFAULT false;
     ALTER TABLE crm_prospects ADD COLUMN IF NOT EXISTS email VARCHAR(255);
+    ALTER TABLE crm_prospects ADD COLUMN IF NOT EXISTS assigned_to UUID REFERENCES users(id) ON DELETE SET NULL;
 EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 
 -- Indexes for prospects
