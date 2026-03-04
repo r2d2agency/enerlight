@@ -652,86 +652,107 @@ router.put('/:boardId/columns/reorder', async (req, res) => {
 router.get('/:boardId/cards', async (req, res) => {
   try {
     const { assigned_to, due_from, due_to, status } = req.query;
-    let conditions = ['tc.board_id = $1', 'tc.is_archived = false'];
+
+    // 1) Discover which columns exist on task_cards
+    const colsRes = await pool.query(
+      `SELECT column_name FROM information_schema.columns WHERE table_name = 'task_cards'`
+    );
+    const existingCols = new Set(colsRes.rows.map(r => r.column_name));
+
+    // 2) Discover which tables exist for JOINs
+    const tablesRes = await pool.query(
+      `SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('companies','contacts','deals','projects')`
+    );
+    const existingTables = new Set(tablesRes.rows.map(r => r.table_name));
+
+    // 3) Build WHERE conditions
+    let conditions = ['tc.board_id = $1'];
     let params = [req.params.boardId];
     let idx = 2;
 
-    if (assigned_to) {
+    if (existingCols.has('is_archived')) {
+      conditions.push('tc.is_archived = false');
+    }
+    if (assigned_to && existingCols.has('assigned_to')) {
       conditions.push(`tc.assigned_to = $${idx++}`);
       params.push(assigned_to);
     }
-    if (due_from) {
+    if (due_from && existingCols.has('due_date')) {
       conditions.push(`tc.due_date >= $${idx++}`);
       params.push(due_from);
     }
-    if (due_to) {
+    if (due_to && existingCols.has('due_date')) {
       conditions.push(`tc.due_date <= $${idx++}`);
       params.push(due_to);
     }
-    if (status) {
+    if (status && existingCols.has('status')) {
       conditions.push(`tc.status = $${idx++}`);
       params.push(status);
     }
 
-    // Check if project_id column exists to avoid errors on unpatched DBs
-    let hasProjectCol = false;
-    let hasStatusCol = false;
-    try {
-      const colCheck = await pool.query(
-        `SELECT column_name FROM information_schema.columns WHERE table_name = 'task_cards' AND column_name IN ('project_id','status','notes')`
-      );
-      const cols = colCheck.rows.map(r => r.column_name);
-      hasProjectCol = cols.includes('project_id');
-      hasStatusCol = cols.includes('status');
-    } catch (_) {}
-
-    // If status column doesn't exist, remove status filter
-    if (!hasStatusCol && status) {
-      conditions = conditions.filter(c => !c.includes('tc.status'));
-      params = [req.params.boardId];
-      idx = 2;
-      if (assigned_to) { conditions.push(`tc.assigned_to = $${idx++}`); params.push(assigned_to); }
-      if (due_from) { conditions.push(`tc.due_date >= $${idx++}`); params.push(due_from); }
-      if (due_to) { conditions.push(`tc.due_date <= $${idx++}`); params.push(due_to); }
+    // 4) Build SELECT fields
+    const baseFields = [
+      'tc.id', 'tc.board_id', 'tc.column_id', 'tc.title',
+      'tc.created_at', 'tc.updated_at'
+    ];
+    // Add optional columns if they exist
+    const optionalCols = ['position','description','assigned_to','created_by','priority',
+      'due_date','tags','color','cover_image','deal_id','company_id','contact_id',
+      'project_id','is_archived','completed_at','status','notes'];
+    for (const col of optionalCols) {
+      if (existingCols.has(col)) baseFields.push(`tc.${col}`);
     }
 
-    const projectJoin = hasProjectCol ? 'LEFT JOIN projects p ON p.id = tc.project_id' : '';
-    const projectSelect = hasProjectCol ? ', p.title as project_title' : '';
-    const statusSelect = hasStatusCol ? ', tc.status' : ", 'todo' as status";
-    const notesSelect = hasStatusCol ? ', tc.notes' : '';
+    // 5) Build JOINs and extra selects
+    const joins = [];
+    const extraSelects = [];
 
-    const result = await pool.query(
-      `SELECT tc.id, tc.board_id, tc.column_id, tc.position, tc.title, tc.description,
-        tc.assigned_to, tc.created_by, tc.priority, tc.due_date, tc.tags, tc.color,
-        tc.cover_image, tc.deal_id, tc.company_id, tc.contact_id,
-        tc.is_archived, tc.completed_at, tc.created_at, tc.updated_at
-        ${statusSelect} ${notesSelect} ${projectSelect},
-        u.name as assigned_name, cu.name as creator_name,
-        comp.name as company_name, cont.name as contact_name,
-        d.title as deal_title,
-        (SELECT COUNT(*) FROM task_card_checklists cl 
-         JOIN task_card_checklist_items ci ON ci.checklist_id = cl.id 
-         WHERE cl.card_id = tc.id) as total_checklist_items,
-        (SELECT COUNT(*) FROM task_card_checklists cl 
-         JOIN task_card_checklist_items ci ON ci.checklist_id = cl.id 
-         WHERE cl.card_id = tc.id AND ci.is_checked = true) as completed_checklist_items,
-        (SELECT COUNT(*) FROM task_card_attachments WHERE card_id = tc.id) as attachment_count,
-        (SELECT COUNT(*) FROM task_card_comments WHERE card_id = tc.id) as comment_count
-       FROM task_cards tc
-       LEFT JOIN users u ON u.id = tc.assigned_to
-       LEFT JOIN users cu ON cu.id = tc.created_by
-       LEFT JOIN companies comp ON comp.id = tc.company_id
-       LEFT JOIN contacts cont ON cont.id = tc.contact_id
-       LEFT JOIN deals d ON d.id = tc.deal_id
-       ${projectJoin}
-       WHERE ${conditions.join(' AND ')}
-       ORDER BY tc.position`,
-      params
+    joins.push('LEFT JOIN users u ON u.id = tc.assigned_to');
+    extraSelects.push('u.name as assigned_name');
+
+    if (existingCols.has('created_by')) {
+      joins.push('LEFT JOIN users cu ON cu.id = tc.created_by');
+      extraSelects.push('cu.name as creator_name');
+    }
+    if (existingCols.has('company_id') && existingTables.has('companies')) {
+      joins.push('LEFT JOIN companies comp ON comp.id = tc.company_id');
+      extraSelects.push('comp.name as company_name');
+    }
+    if (existingCols.has('contact_id') && existingTables.has('contacts')) {
+      joins.push('LEFT JOIN contacts cont ON cont.id = tc.contact_id');
+      extraSelects.push('cont.name as contact_name');
+    }
+    if (existingCols.has('deal_id') && existingTables.has('deals')) {
+      joins.push('LEFT JOIN deals d ON d.id = tc.deal_id');
+      extraSelects.push('d.title as deal_title');
+    }
+    if (existingCols.has('project_id') && existingTables.has('projects')) {
+      joins.push('LEFT JOIN projects p ON p.id = tc.project_id');
+      extraSelects.push('p.title as project_title');
+    }
+
+    // Subquery counts (these tables should always exist if task_cards exists)
+    extraSelects.push(
+      `(SELECT COUNT(*) FROM task_card_checklists cl JOIN task_card_checklist_items ci ON ci.checklist_id = cl.id WHERE cl.card_id = tc.id) as total_checklist_items`,
+      `(SELECT COUNT(*) FROM task_card_checklists cl JOIN task_card_checklist_items ci ON ci.checklist_id = cl.id WHERE cl.card_id = tc.id AND ci.is_checked = true) as completed_checklist_items`,
+      `(SELECT COUNT(*) FROM task_card_attachments WHERE card_id = tc.id) as attachment_count`,
+      `(SELECT COUNT(*) FROM task_card_comments WHERE card_id = tc.id) as comment_count`
     );
+
+    const orderCol = existingCols.has('position') ? 'tc.position' : 'tc.created_at';
+
+    const sql = `SELECT ${baseFields.join(', ')}, ${extraSelects.join(', ')}
+       FROM task_cards tc
+       ${joins.join(' ')}
+       WHERE ${conditions.join(' AND ')}
+       ORDER BY ${orderCol}`;
+
+    console.log('[task-boards] cards SQL:', sql);
+    const result = await pool.query(sql, params);
     res.json(result.rows);
   } catch (err) {
     console.error('[task-boards] GET cards error:', err.message, err.stack);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, detail: err.detail || null });
   }
 });
 
