@@ -651,6 +651,28 @@ router.put('/:boardId/columns/reorder', async (req, res) => {
 // GET /:boardId/cards
 router.get('/:boardId/cards', async (req, res) => {
   try {
+    const { assigned_to, due_from, due_to, status } = req.query;
+    let conditions = ['tc.board_id = $1', 'NOT tc.is_archived'];
+    let params = [req.params.boardId];
+    let idx = 2;
+
+    if (assigned_to) {
+      conditions.push(`tc.assigned_to = $${idx++}`);
+      params.push(assigned_to);
+    }
+    if (due_from) {
+      conditions.push(`tc.due_date >= $${idx++}`);
+      params.push(due_from);
+    }
+    if (due_to) {
+      conditions.push(`tc.due_date <= $${idx++}`);
+      params.push(due_to);
+    }
+    if (status) {
+      conditions.push(`tc.status = $${idx++}`);
+      params.push(status);
+    }
+
     const result = await pool.query(
       `SELECT tc.*, u.name as assigned_name, cu.name as creator_name,
         comp.name as company_name, cont.name as contact_name,
@@ -670,9 +692,9 @@ router.get('/:boardId/cards', async (req, res) => {
        LEFT JOIN contacts cont ON cont.id = tc.contact_id
        LEFT JOIN deals d ON d.id = tc.deal_id
        LEFT JOIN projects p ON p.id = tc.project_id
-       WHERE tc.board_id = $1 AND NOT tc.is_archived
+       WHERE ${conditions.join(' AND ')}
        ORDER BY tc.position`,
-      [req.params.boardId]
+      params
     );
     res.json(result.rows);
   } catch (err) {

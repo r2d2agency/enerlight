@@ -2,20 +2,20 @@ import { useState, useMemo, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  Plus, LayoutGrid, Globe, User, Settings, ListChecks,
-  MoreVertical, Trash2, Edit2, Columns, AlertTriangle
+  Plus, LayoutGrid, Globe, User, ListChecks,
+  Trash2, Columns, Filter, CalendarDays, Users, X
 } from "lucide-react";
 import {
   useTaskBoards, useTaskBoardMutations,
   useTaskBoardColumns, useColumnMutations,
   useTaskCards, useCardMutations,
   useOrgMembers, useDueSoonTasks,
-  TaskBoard, TaskCard,
+  TaskBoard, TaskCard, TaskCardFilters,
 } from "@/hooks/use-task-boards";
 import { TaskKanbanBoard } from "@/components/task-boards/TaskKanbanBoard";
 import { TaskCardDetailDialog } from "@/components/task-boards/TaskCardDetailDialog";
@@ -23,9 +23,6 @@ import { CreateCardDialog, CreateBoardDialog } from "@/components/task-boards/Ta
 import { ChecklistTemplatesPanel } from "@/components/task-boards/ChecklistTemplatesPanel";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
-} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -34,12 +31,36 @@ export default function TarefasKanban() {
   const { user } = useAuth();
   const { toast } = useToast();
   const isSuperadmin = !!(user as any)?.is_superadmin;
-  const isAdmin = isSuperadmin || ['owner', 'admin'].includes((user as any)?.role || '');
+  const userRole = (user as any)?.role || 'seller';
+  const isAdmin = isSuperadmin || ['owner', 'admin'].includes(userRole);
+  const isManager = isAdmin || ['manager', 'supervisor'].includes(userRole);
+  const isSeller = !isManager; // vendedor
 
   const { data: boards = [], isLoading: loadingBoards } = useTaskBoards();
   const { createBoard, deleteBoard } = useTaskBoardMutations();
   const { data: members = [] } = useOrgMembers();
   const { data: dueSoonTasks = [] } = useDueSoonTasks();
+
+  // Filters
+  const [filterUser, setFilterUser] = useState<string>("");
+  const [filterStatus, setFilterStatus] = useState<string>("");
+  const [filterDueFrom, setFilterDueFrom] = useState<string>("");
+  const [filterDueTo, setFilterDueTo] = useState<string>("");
+  const [showFilters, setShowFilters] = useState(false);
+
+  // For sellers, always filter by their own user ID on global boards
+  const effectiveFilters = useMemo((): TaskCardFilters => {
+    const f: TaskCardFilters = {};
+    if (filterStatus) f.status = filterStatus;
+    if (filterDueFrom) f.due_from = filterDueFrom;
+    if (filterDueTo) f.due_to = filterDueTo;
+    
+    // Admin/Manager can pick user; seller is forced to self on global boards
+    if (filterUser) {
+      f.assigned_to = filterUser;
+    }
+    return f;
+  }, [filterUser, filterStatus, filterDueFrom, filterDueTo]);
 
   // Show due-soon notifications once
   useEffect(() => {
@@ -72,10 +93,28 @@ export default function TarefasKanban() {
     setTimeout(() => setSelectedBoardId(boards[0].id), 0);
   }
 
+  // For sellers on global boards, force assigned_to = self
+  const appliedFilters = useMemo((): TaskCardFilters => {
+    const f = { ...effectiveFilters };
+    if (isSeller && selectedBoard?.is_global && !f.assigned_to) {
+      f.assigned_to = user?.id;
+    }
+    return f;
+  }, [effectiveFilters, isSeller, selectedBoard, user?.id]);
+
   const { data: columns = [] } = useTaskBoardColumns(selectedBoardId ?? undefined);
-  const { data: cards = [] } = useTaskCards(selectedBoardId ?? undefined);
+  const { data: cards = [] } = useTaskCards(selectedBoardId ?? undefined, appliedFilters);
   const { createCard, moveCard } = useCardMutations(selectedBoardId ?? undefined);
   const { addColumn } = useColumnMutations(selectedBoardId ?? undefined);
+
+  // Visibility: sellers only see global boards + their own personal boards
+  const visibleBoards = useMemo(() => {
+    if (isManager) return boards;
+    return boards.filter(b => b.is_global || b.owner_id === user?.id);
+  }, [boards, isManager, user?.id]);
+
+  const globalBoards = visibleBoards.filter(b => b.is_global);
+  const personalBoards = visibleBoards.filter(b => !b.is_global);
 
   const handleAddCard = (columnId: string) => {
     setCreateCardColumnId(columnId);
@@ -93,8 +132,14 @@ export default function TarefasKanban() {
     setShowAddColumn(false);
   };
 
-  const globalBoards = boards.filter(b => b.is_global);
-  const personalBoards = boards.filter(b => !b.is_global);
+  const clearFilters = () => {
+    setFilterUser("");
+    setFilterStatus("");
+    setFilterDueFrom("");
+    setFilterDueTo("");
+  };
+
+  const hasActiveFilters = filterUser || filterStatus || filterDueFrom || filterDueTo;
 
   return (
     <MainLayout>
@@ -106,6 +151,18 @@ export default function TarefasKanban() {
             <p className="text-sm text-muted-foreground">Organize suas tarefas em quadros Kanban</p>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant={showFilters ? "default" : "outline"}
+              onClick={() => setShowFilters(!showFilters)}
+              className="relative"
+            >
+              <Filter className="h-4 w-4 mr-1" />
+              Filtros
+              {hasActiveFilters && (
+                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-primary rounded-full" />
+              )}
+            </Button>
             <Button size="sm" variant="outline" onClick={() => setActiveTab(activeTab === "templates" ? "boards" : "templates")}>
               <ListChecks className="h-4 w-4 mr-1" />
               Templates
@@ -116,6 +173,82 @@ export default function TarefasKanban() {
             </Button>
           </div>
         </div>
+
+        {/* Filter bar */}
+        {showFilters && (
+          <div className="flex items-center gap-3 px-4 py-2 border-b bg-muted/30 flex-wrap">
+            {/* Status filter (everyone) */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground">Status:</span>
+              <Select value={filterStatus || "all"} onValueChange={(v) => setFilterStatus(v === "all" ? "" : v)}>
+                <SelectTrigger className="h-7 text-xs w-[130px]">
+                  <SelectValue placeholder="Todos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="todo">A Fazer</SelectItem>
+                  <SelectItem value="in_progress">Em Andamento</SelectItem>
+                  <SelectItem value="done">Concluído</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* User filter (admin/manager only) */}
+            {isManager && (
+              <div className="flex items-center gap-1.5">
+                <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                <Select value={filterUser || "all"} onValueChange={(v) => setFilterUser(v === "all" ? "" : v)}>
+                  <SelectTrigger className="h-7 text-xs w-[160px]">
+                    <SelectValue placeholder="Todos os usuários" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os usuários</SelectItem>
+                    {members.map(m => (
+                      <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Date filter (admin/manager) */}
+            {isManager && (
+              <div className="flex items-center gap-1.5">
+                <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  type="date"
+                  value={filterDueFrom}
+                  onChange={(e) => setFilterDueFrom(e.target.value)}
+                  className="h-7 text-xs w-[130px]"
+                  placeholder="De"
+                  title="Prazo a partir de"
+                />
+                <span className="text-xs text-muted-foreground">até</span>
+                <Input
+                  type="date"
+                  value={filterDueTo}
+                  onChange={(e) => setFilterDueTo(e.target.value)}
+                  className="h-7 text-xs w-[130px]"
+                  placeholder="Até"
+                  title="Prazo até"
+                />
+              </div>
+            )}
+
+            {hasActiveFilters && (
+              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={clearFilters}>
+                <X className="h-3 w-3 mr-1" />
+                Limpar
+              </Button>
+            )}
+
+            {isSeller && selectedBoard?.is_global && (
+              <Badge variant="secondary" className="text-[10px]">
+                Mostrando apenas suas tarefas
+              </Badge>
+            )}
+          </div>
+        )}
 
         {activeTab === "templates" ? (
           <div className="p-4">
@@ -139,7 +272,7 @@ export default function TarefasKanban() {
                           board={b}
                           isSelected={selectedBoardId === b.id}
                           onSelect={() => setSelectedBoardId(b.id)}
-                          onDelete={isAdmin && !b.is_global ? () => deleteBoard.mutate(b.id) : undefined}
+                          onDelete={isAdmin ? () => deleteBoard.mutate(b.id) : undefined}
                         />
                       ))}
                       {globalBoards.length === 0 && (
@@ -187,10 +320,17 @@ export default function TarefasKanban() {
                         <Globe className="h-3 w-3 mr-1" />Global
                       </Badge>
                     )}
-                    <Button variant="ghost" size="sm" onClick={() => setShowAddColumn(true)}>
-                      <Columns className="h-4 w-4 mr-1" />
-                      Coluna
-                    </Button>
+                    {isSeller && selectedBoard.is_global && (
+                      <Badge variant="secondary" className="text-[10px]">
+                        <User className="h-3 w-3 mr-1" />Minhas tarefas
+                      </Badge>
+                    )}
+                    {isAdmin && (
+                      <Button variant="ghost" size="sm" onClick={() => setShowAddColumn(true)}>
+                        <Columns className="h-4 w-4 mr-1" />
+                        Coluna
+                      </Button>
+                    )}
                   </div>
 
                   {/* Kanban board */}
