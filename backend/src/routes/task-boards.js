@@ -151,29 +151,34 @@ router.delete('/templates/:id', async (req, res) => {
 // PUT /cards/:id
 router.put('/cards/:id', async (req, res) => {
   try {
-    const { title, description, assigned_to, priority, due_date, tags, color, cover_image, is_archived } = req.body;
+    const { title, description, assigned_to, priority, due_date, tags, color, cover_image, is_archived, status, notes, deal_id, company_id, contact_id, project_id } = req.body;
     const dueDateVal = due_date || null;
     const tagsVal = tags ? (Array.isArray(tags) ? tags : []) : null;
+    
     const result = await pool.query(
       `UPDATE task_cards SET 
         title = COALESCE($1, title), description = COALESCE($2, description), 
         assigned_to = $3, priority = COALESCE($4, priority),
         due_date = $5, tags = COALESCE($6, tags), color = $7,
         cover_image = $8, is_archived = COALESCE($9, is_archived),
-        completed_at = CASE WHEN $9 = true THEN NOW() ELSE completed_at END,
+        completed_at = CASE WHEN $10 = 'done' THEN COALESCE(completed_at, NOW()) WHEN $10 IS NOT NULL AND $10 != 'done' THEN NULL ELSE completed_at END,
+        status = COALESCE($10, status),
+        notes = COALESCE($11, notes),
+        deal_id = $12, company_id = $13, contact_id = $14, project_id = $15,
         updated_at = NOW()
-       WHERE id = $10 RETURNING *`,
-      [title, description, assigned_to || null, priority, dueDateVal, tagsVal, color || null, cover_image || null, is_archived, req.params.id]
+       WHERE id = $16 RETURNING *`,
+      [title, description, assigned_to || null, priority, dueDateVal, tagsVal, color || null, cover_image || null, is_archived, status, notes, deal_id || null, company_id || null, contact_id || null, project_id || null, req.params.id]
     );
     if (!result.rows[0]) return res.status(404).json({ error: 'Card não encontrado' });
     res.json(result.rows[0]);
   } catch (err) {
-    console.error('PUT /cards/:id error:', err.message, 'body:', JSON.stringify(req.body));
+    console.error('PUT /cards/:id error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
 
-// PUT /cards/:id/move
+// PUT /checklist-items/:id (with start_date)
+// (moved below)
 router.put('/cards/:id/move', async (req, res) => {
   try {
     const { column_id, position, board_id } = req.body;
@@ -343,13 +348,13 @@ router.post('/checklists/:checklistId/items', async (req, res) => {
 // PUT /checklist-items/:id
 router.put('/checklist-items/:id', async (req, res) => {
   try {
-    const { text, is_checked, assigned_to, due_date } = req.body;
+    const { text, is_checked, assigned_to, due_date, start_date } = req.body;
     const result = await pool.query(
       `UPDATE task_card_checklist_items SET 
         text = COALESCE($1, text), is_checked = COALESCE($2, is_checked),
-        assigned_to = $3, due_date = $4
-       WHERE id = $5 RETURNING *`,
-      [text, is_checked, assigned_to, due_date, req.params.id]
+        assigned_to = $3, due_date = $4, start_date = $5
+       WHERE id = $6 RETURNING *`,
+      [text, is_checked, assigned_to, due_date || null, start_date || null, req.params.id]
     );
     res.json(result.rows[0]);
   } catch (err) {
@@ -413,6 +418,93 @@ router.delete('/attachments/:id', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ============================================
+// SEARCH ENDPOINTS (for linking)
+// ============================================
+
+router.get('/search/deals', async (req, res) => {
+  try {
+    const { q } = req.query;
+    const result = await pool.query(
+      `SELECT d.id, d.title, d.value, c.name as company_name FROM deals d
+       LEFT JOIN companies c ON c.id = d.company_id
+       WHERE d.organization_id = $1 AND (d.title ILIKE $2 OR c.name ILIKE $2)
+       ORDER BY d.updated_at DESC LIMIT 20`,
+      [req.user.organization_id, `%${q || ''}%`]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.json([]);
+  }
+});
+
+router.get('/search/projects', async (req, res) => {
+  try {
+    const { q } = req.query;
+    const result = await pool.query(
+      `SELECT p.id, p.title, p.status FROM projects p
+       WHERE p.organization_id = $1 AND p.title ILIKE $2
+       ORDER BY p.updated_at DESC LIMIT 20`,
+      [req.user.organization_id, `%${q || ''}%`]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.json([]);
+  }
+});
+
+router.get('/search/contacts', async (req, res) => {
+  try {
+    const { q } = req.query;
+    const result = await pool.query(
+      `SELECT c.id, c.name, c.phone FROM contacts c
+       WHERE c.organization_id = $1 AND (c.name ILIKE $2 OR c.phone ILIKE $2)
+       ORDER BY c.name LIMIT 20`,
+      [req.user.organization_id, `%${q || ''}%`]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.json([]);
+  }
+});
+
+router.get('/search/companies', async (req, res) => {
+  try {
+    const { q } = req.query;
+    const result = await pool.query(
+      `SELECT c.id, c.name, c.cnpj FROM companies c
+       WHERE c.organization_id = $1 AND (c.name ILIKE $2 OR c.cnpj ILIKE $2)
+       ORDER BY c.name LIMIT 20`,
+      [req.user.organization_id, `%${q || ''}%`]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.json([]);
+  }
+});
+
+// GET /due-soon - tasks due within 48h (for notifications)
+router.get('/due-soon', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT tc.id, tc.title, tc.due_date, tc.status, tb.name as board_name
+       FROM task_cards tc
+       JOIN task_boards tb ON tb.id = tc.board_id
+       WHERE tc.organization_id = $1
+         AND tc.status != 'done'
+         AND tc.is_archived = false
+         AND tc.due_date IS NOT NULL
+         AND tc.due_date <= NOW() + INTERVAL '48 hours'
+         AND (tc.assigned_to = $2 OR tb.is_global = true)
+       ORDER BY tc.due_date ASC`,
+      [req.user.organization_id, req.user.id]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.json([]);
   }
 });
 
@@ -561,6 +653,8 @@ router.get('/:boardId/cards', async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT tc.*, u.name as assigned_name, cu.name as creator_name,
+        comp.name as company_name, cont.name as contact_name,
+        d.title as deal_title, p.title as project_title,
         (SELECT COUNT(*) FROM task_card_checklists cl 
          JOIN task_card_checklist_items ci ON ci.checklist_id = cl.id 
          WHERE cl.card_id = tc.id) as total_checklist_items,
@@ -572,6 +666,10 @@ router.get('/:boardId/cards', async (req, res) => {
        FROM task_cards tc
        LEFT JOIN users u ON u.id = tc.assigned_to
        LEFT JOIN users cu ON cu.id = tc.created_by
+       LEFT JOIN companies comp ON comp.id = tc.company_id
+       LEFT JOIN contacts cont ON cont.id = tc.contact_id
+       LEFT JOIN deals d ON d.id = tc.deal_id
+       LEFT JOIN projects p ON p.id = tc.project_id
        WHERE tc.board_id = $1 AND NOT tc.is_archived
        ORDER BY tc.position`,
       [req.params.boardId]
@@ -585,7 +683,7 @@ router.get('/:boardId/cards', async (req, res) => {
 // POST /:boardId/cards
 router.post('/:boardId/cards', async (req, res) => {
   try {
-    const { column_id, title, description, assigned_to, priority, due_date, tags, color, deal_id, company_id, contact_id } = req.body;
+    const { column_id, title, description, assigned_to, priority, due_date, tags, color, deal_id, company_id, contact_id, project_id, status } = req.body;
     
     const board = await pool.query(`SELECT is_global FROM task_boards WHERE id = $1`, [req.params.boardId]);
     const effectiveAssigned = board.rows[0]?.is_global ? (assigned_to || req.user.id) : req.user.id;
@@ -596,9 +694,9 @@ router.post('/:boardId/cards', async (req, res) => {
     );
 
     const result = await pool.query(
-      `INSERT INTO task_cards (organization_id, board_id, column_id, position, title, description, assigned_to, created_by, priority, due_date, tags, color, deal_id, company_id, contact_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING *`,
-      [req.user.organization_id, req.params.boardId, column_id, maxPos.rows[0].next_pos, title, description, effectiveAssigned, req.user.id, priority || 'medium', due_date, tags || [], color, deal_id, company_id, contact_id]
+      `INSERT INTO task_cards (organization_id, board_id, column_id, position, title, description, assigned_to, created_by, priority, due_date, tags, color, deal_id, company_id, contact_id, project_id, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING *`,
+      [req.user.organization_id, req.params.boardId, column_id, maxPos.rows[0].next_pos, title, description, effectiveAssigned, req.user.id, priority || 'medium', due_date, tags || [], color, deal_id, company_id, contact_id, project_id, status || 'todo']
     );
     res.json(result.rows[0]);
   } catch (err) {
