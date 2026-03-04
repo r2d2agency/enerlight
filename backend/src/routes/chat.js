@@ -41,24 +41,8 @@ async function getUserConnections(userId) {
     return specificResult.rows.map(r => r.id);
   }
   
-  // Check if user is in an organization
-  const org = await getUserOrganization(userId);
-  
-  if (org) {
-    // No specific assignments, but in org - return all org connections
-    const orgResult = await query(
-      `SELECT c.id FROM connections c WHERE c.organization_id = $1`,
-      [org.organization_id]
-    );
-    return orgResult.rows.map(r => r.id);
-  }
-  
-  // Fallback: user's own connections (legacy behavior)
-  const ownResult = await query(
-    `SELECT c.id FROM connections c WHERE c.user_id = $1`,
-    [userId]
-  );
-  return ownResult.rows.map(r => r.id);
+  // No connection assignments = no access
+  return [];
 }
 
 // ==========================================
