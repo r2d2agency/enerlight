@@ -41,6 +41,7 @@ interface Plan {
   has_projects: boolean;
   has_internal_chat: boolean;
   has_homologation: boolean;
+  has_tasks: boolean;
   price: number;
   billing_period: string;
   is_active: boolean;
@@ -130,6 +131,7 @@ export function useSuperadmin() {
     has_projects?: boolean;
     has_internal_chat?: boolean;
     has_homologation?: boolean;
+    has_tasks?: boolean;
     price: number;
     billing_period: string;
     visible_on_signup?: boolean;

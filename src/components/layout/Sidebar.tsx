@@ -54,18 +54,18 @@ interface NavItem {
   name: string;
   href: string;
   icon: any;
-  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat' | 'homologation';
+  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat' | 'homologation' | 'tasks';
   adminOnly?: boolean;
   ownerOnly?: boolean;
   superadminOnly?: boolean;
-  permissionKey?: string; // maps to user_permissions.can_view_*
+  permissionKey?: string;
 }
 
 interface NavSection {
   title: string;
   icon: any;
   items: NavItem[];
-  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat' | 'homologation';
+  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat' | 'homologation' | 'tasks';
   adminOnly?: boolean;
   permissionKey?: string;
 }
@@ -128,6 +128,7 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
   {
     title: "Tarefas",
     icon: ClipboardList,
+    moduleKey: 'tasks',
     permissionKey: 'can_view_tasks',
     items: [
       { name: "Quadros", href: "/tarefas", icon: ClipboardList, permissionKey: 'can_view_tasks' },
