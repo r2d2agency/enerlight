@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +15,7 @@ import {
   useTaskBoards, useTaskBoardMutations,
   useTaskBoardColumns, useColumnMutations,
   useTaskCards, useCardMutations,
-  useOrgMembers, useDueSoonTasks,
+  useOrgMembers, useDueSoonTasks, useGlobalDefault,
   TaskBoard, TaskCard, TaskCardFilters,
 } from "@/hooks/use-task-boards";
 import { TaskKanbanBoard } from "@/components/task-boards/TaskKanbanBoard";
@@ -26,10 +27,12 @@ import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { api } from "@/lib/api";
 
 export default function TarefasKanban() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const qc = useQueryClient();
   const isSuperadmin = !!(user as any)?.is_superadmin;
   const userRole = (user as any)?.role || 'seller';
   const isAdmin = isSuperadmin || ['owner', 'admin'].includes(userRole);
@@ -40,6 +43,7 @@ export default function TarefasKanban() {
   const { createBoard, deleteBoard } = useTaskBoardMutations();
   const { data: members = [] } = useOrgMembers();
   const { data: dueSoonTasks = [] } = useDueSoonTasks();
+  const { data: globalDefault } = useGlobalDefault();
 
   // Filters
   const [filterUser, setFilterUser] = useState<string>("");
@@ -105,7 +109,7 @@ export default function TarefasKanban() {
   const { data: columns = [] } = useTaskBoardColumns(selectedBoardId ?? undefined);
   const { data: cards = [] } = useTaskCards(selectedBoardId ?? undefined, appliedFilters);
   const { createCard, moveCard } = useCardMutations(selectedBoardId ?? undefined);
-  const { addColumn } = useColumnMutations(selectedBoardId ?? undefined);
+  const { addColumn, updateColumn, deleteColumn, reorderColumns } = useColumnMutations(selectedBoardId ?? undefined);
 
   // Visibility: sellers only see global boards + their own personal boards
   const visibleBoards = useMemo(() => {
@@ -325,7 +329,7 @@ export default function TarefasKanban() {
                         <User className="h-3 w-3 mr-1" />Minhas tarefas
                       </Badge>
                     )}
-                    {isAdmin && (
+                    {(selectedBoard.is_global ? isAdmin : true) && (
                       <Button variant="ghost" size="sm" onClick={() => setShowAddColumn(true)}>
                         <Columns className="h-4 w-4 mr-1" />
                         Coluna
@@ -339,9 +343,13 @@ export default function TarefasKanban() {
                       columns={columns}
                       cards={cards}
                       isGlobal={selectedBoard.is_global}
+                      canEditColumns={selectedBoard.is_global ? isAdmin : true}
                       onCardClick={setSelectedCard}
                       onAddCard={handleAddCard}
                       onMoveCard={handleMoveCard}
+                      onUpdateColumn={(id, data) => updateColumn.mutate({ id, ...data })}
+                      onDeleteColumn={(id) => deleteColumn.mutate(id)}
+                      onReorderColumns={(ids) => reorderColumns.mutate(ids)}
                     />
                   </div>
                 </>
@@ -372,10 +380,20 @@ export default function TarefasKanban() {
         <CreateCardDialog
           open={showCreateCard}
           onOpenChange={setShowCreateCard}
-          columnId={createCardColumnId}
-          isGlobal={selectedBoard?.is_global || false}
+          columnId={globalDefault?.column_id || createCardColumnId}
+          isGlobal={true}
           members={members}
-          onSubmit={(data) => createCard.mutate(data)}
+          onSubmit={(data) => {
+            const boardId = globalDefault?.board_id || selectedBoardId;
+            if (!boardId) return;
+            api(`/api/task-boards/${boardId}/cards`, { method: "POST", body: { ...data, column_id: globalDefault?.column_id || data.column_id } })
+              .then(() => {
+                qc.invalidateQueries({ queryKey: ["task-cards"] });
+                qc.invalidateQueries({ queryKey: ["task-boards"] });
+                toast({ title: "Tarefa criada" });
+              })
+              .catch(() => toast({ title: "Erro ao criar tarefa", variant: "destructive" }));
+          }}
         />
 
         <TaskCardDetailDialog

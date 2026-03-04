@@ -450,3 +450,48 @@ export function useDueSoonTasks() {
     refetchInterval: 5 * 60 * 1000, // every 5 min
   });
 }
+
+// ============================================
+// GLOBAL DEFAULT (for cross-module task creation)
+// ============================================
+
+export interface GlobalDefault {
+  board_id: string;
+  column_id: string;
+  board_name: string;
+  column_name: string;
+}
+
+export function useGlobalDefault() {
+  return useQuery<GlobalDefault | null>({
+    queryKey: ["task-board-global-default"],
+    queryFn: () => api<GlobalDefault | null>("/api/task-boards/global-default"),
+  });
+}
+
+/**
+ * Creates a task card in the first column of the first global board.
+ * Use from any module (CRM, Chat Interno, etc.)
+ */
+export function useCreateGlobalTask() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const { data: globalDefault } = useGlobalDefault();
+
+  const mutation = useMutation({
+    mutationFn: async (data: { title: string; description?: string; priority?: string; assigned_to?: string; due_date?: string; deal_id?: string; company_id?: string; contact_id?: string; project_id?: string }) => {
+      if (!globalDefault) throw new Error("Nenhum quadro global encontrado");
+      return api<TaskCard>(`/api/task-boards/${globalDefault.board_id}/cards`, {
+        method: "POST",
+        body: { ...data, column_id: globalDefault.column_id },
+      });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["task-cards"] });
+      qc.invalidateQueries({ queryKey: ["task-boards"] });
+      toast({ title: "Tarefa criada no quadro global" });
+    },
+  });
+
+  return { ...mutation, globalDefault };
+}
