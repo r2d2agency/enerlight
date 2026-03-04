@@ -3084,12 +3084,19 @@ CREATE TABLE IF NOT EXISTS user_permissions (
   can_view_connections BOOLEAN DEFAULT false,
   can_view_organizations BOOLEAN DEFAULT false,
   can_view_settings BOOLEAN DEFAULT true,
+  can_view_internal_chat BOOLEAN DEFAULT true,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   UNIQUE(user_id, organization_id)
 );
 CREATE INDEX IF NOT EXISTS idx_user_permissions_user ON user_permissions(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_permissions_org ON user_permissions(organization_id);
+
+-- Add missing column for existing installations
+DO $$ BEGIN
+  ALTER TABLE user_permissions ADD COLUMN IF NOT EXISTS can_view_internal_chat BOOLEAN DEFAULT true;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
 `;
 
 // Step 38: Permission Templates
