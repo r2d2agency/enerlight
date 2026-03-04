@@ -71,9 +71,15 @@ function SortableCard({ card, onClick }: { card: TaskCard; onClick: () => void }
             <GripVertical className="h-4 w-4 text-muted-foreground" />
           </div>
           <div className="flex-1 min-w-0">
-            {/* Priority indicator */}
+            {/* Priority + status indicator */}
             <div className="flex items-center gap-2 mb-1">
               <div className={cn("w-2 h-2 rounded-full", prio.color)} />
+              {card.status === "done" && (
+                <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4 bg-green-500/20 text-green-400">✅</Badge>
+              )}
+              {card.status === "in_progress" && (
+                <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4 bg-blue-500/20 text-blue-400">🔵</Badge>
+              )}
               {card.tags && card.tags.length > 0 && (
                 <div className="flex gap-1 flex-wrap">
                   {card.tags.slice(0, 3).map((tag, i) => (
@@ -86,7 +92,10 @@ function SortableCard({ card, onClick }: { card: TaskCard; onClick: () => void }
             </div>
 
             {/* Title */}
-            <p className="font-medium text-sm leading-tight mb-2 line-clamp-2">{card.title}</p>
+            <p className={cn(
+              "font-medium text-sm leading-tight mb-2 line-clamp-2",
+              card.status === "done" && "line-through text-muted-foreground"
+            )}>{card.title}</p>
 
             {/* Meta row */}
             <div className="flex items-center gap-2 flex-wrap text-muted-foreground">

@@ -3683,6 +3683,15 @@ CREATE INDEX IF NOT EXISTS idx_task_card_comments_card ON task_card_comments(car
 CREATE INDEX IF NOT EXISTS idx_task_card_attachments_card ON task_card_attachments(card_id);
 `;
 
+const step47TaskBoardEnhancements = `
+DO $$ BEGIN
+  ALTER TABLE task_cards ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'todo';
+  ALTER TABLE task_cards ADD COLUMN IF NOT EXISTS notes TEXT;
+  ALTER TABLE task_cards ADD COLUMN IF NOT EXISTS project_id UUID;
+  ALTER TABLE task_card_checklist_items ADD COLUMN IF NOT EXISTS start_date TIMESTAMP WITH TIME ZONE;
+EXCEPTION WHEN others THEN NULL;
+END $$;
+`;
 const migrationSteps = [
   { name: 'Enums', sql: step1Enums, critical: true },
   { name: 'Core Tables (users, plans)', sql: step2CoreTables, critical: true },
@@ -3731,6 +3740,7 @@ const migrationSteps = [
   { name: 'Sales Positions', sql: step44SalesPositions, critical: false },
   { name: 'Homologation Module', sql: step45Homologation, critical: false },
   { name: 'Task Boards Module', sql: step46TaskBoards, critical: false },
+  { name: 'Task Board Enhancements', sql: step47TaskBoardEnhancements, critical: false },
 ];
 
 export async function initDatabase() {

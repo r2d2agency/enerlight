@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,13 +8,13 @@ import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Plus, LayoutGrid, Globe, User, Settings, ListChecks,
-  MoreVertical, Trash2, Edit2, Columns
+  MoreVertical, Trash2, Edit2, Columns, AlertTriangle
 } from "lucide-react";
 import {
   useTaskBoards, useTaskBoardMutations,
   useTaskBoardColumns, useColumnMutations,
   useTaskCards, useCardMutations,
-  useOrgMembers,
+  useOrgMembers, useDueSoonTasks,
   TaskBoard, TaskCard,
 } from "@/hooks/use-task-boards";
 import { TaskKanbanBoard } from "@/components/task-boards/TaskKanbanBoard";
@@ -28,15 +28,29 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
 
 export default function TarefasKanban() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const isSuperadmin = !!(user as any)?.is_superadmin;
   const isAdmin = isSuperadmin || ['owner', 'admin'].includes((user as any)?.role || '');
 
   const { data: boards = [], isLoading: loadingBoards } = useTaskBoards();
   const { createBoard, deleteBoard } = useTaskBoardMutations();
   const { data: members = [] } = useOrgMembers();
+  const { data: dueSoonTasks = [] } = useDueSoonTasks();
+
+  // Show due-soon notifications once
+  useEffect(() => {
+    if (dueSoonTasks.length > 0) {
+      toast({
+        title: `⚠️ ${dueSoonTasks.length} tarefa(s) vencendo em breve`,
+        description: dueSoonTasks.slice(0, 3).map(t => t.title).join(", "),
+        duration: 8000,
+      });
+    }
+  }, [dueSoonTasks.length]);
 
   const [selectedBoardId, setSelectedBoardId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("boards");

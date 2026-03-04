@@ -36,6 +36,7 @@ export interface TaskCard {
   created_by?: string;
   creator_name?: string;
   priority: string;
+  status: string;
   due_date?: string;
   tags?: string[];
   color?: string;
@@ -43,6 +44,12 @@ export interface TaskCard {
   deal_id?: string;
   company_id?: string;
   contact_id?: string;
+  project_id?: string;
+  deal_title?: string;
+  company_name?: string;
+  contact_name?: string;
+  project_title?: string;
+  notes?: string;
   is_archived: boolean;
   completed_at?: string;
   total_checklist_items: number;
@@ -70,6 +77,7 @@ export interface TaskChecklistItem {
   assigned_to?: string;
   assigned_name?: string;
   due_date?: string;
+  start_date?: string;
 }
 
 export interface ChecklistTemplate {
@@ -255,7 +263,7 @@ export function useChecklistMutations(cardId?: string) {
   });
 
   const updateItem = useMutation({
-    mutationFn: ({ id, ...data }: { id: string; text?: string; is_checked?: boolean; assigned_to?: string; due_date?: string }) =>
+    mutationFn: ({ id, ...data }: { id: string; text?: string; is_checked?: boolean; assigned_to?: string; due_date?: string; start_date?: string }) =>
       api<TaskChecklistItem>(`/api/task-boards/checklist-items/${id}`, { method: "PUT", body: data }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["task-checklists", cardId] });
@@ -372,5 +380,60 @@ export function useOrgMembers() {
   return useQuery<OrgMember[]>({
     queryKey: ["task-board-members"],
     queryFn: () => api<OrgMember[]>("/api/task-boards/members"),
+  });
+}
+
+// ============================================
+// SEARCH (for linking)
+// ============================================
+
+export interface SearchDeal { id: string; title: string; value?: number; company_name?: string; }
+export interface SearchProject { id: string; title: string; status?: string; }
+export interface SearchContact { id: string; name: string; phone?: string; }
+export interface SearchCompany { id: string; name: string; cnpj?: string; }
+
+export function useSearchDeals(q: string) {
+  return useQuery<SearchDeal[]>({
+    queryKey: ["task-search-deals", q],
+    queryFn: () => api<SearchDeal[]>(`/api/task-boards/search/deals?q=${encodeURIComponent(q)}`),
+    enabled: q.length >= 1,
+  });
+}
+
+export function useSearchProjects(q: string) {
+  return useQuery<SearchProject[]>({
+    queryKey: ["task-search-projects", q],
+    queryFn: () => api<SearchProject[]>(`/api/task-boards/search/projects?q=${encodeURIComponent(q)}`),
+    enabled: q.length >= 1,
+  });
+}
+
+export function useSearchContacts(q: string) {
+  return useQuery<SearchContact[]>({
+    queryKey: ["task-search-contacts", q],
+    queryFn: () => api<SearchContact[]>(`/api/task-boards/search/contacts?q=${encodeURIComponent(q)}`),
+    enabled: q.length >= 1,
+  });
+}
+
+export function useSearchCompanies(q: string) {
+  return useQuery<SearchCompany[]>({
+    queryKey: ["task-search-companies", q],
+    queryFn: () => api<SearchCompany[]>(`/api/task-boards/search/companies?q=${encodeURIComponent(q)}`),
+    enabled: q.length >= 1,
+  });
+}
+
+// ============================================
+// DUE SOON (notifications)
+// ============================================
+
+export interface DueSoonTask { id: string; title: string; due_date: string; status: string; board_name: string; }
+
+export function useDueSoonTasks() {
+  return useQuery<DueSoonTask[]>({
+    queryKey: ["task-due-soon"],
+    queryFn: () => api<DueSoonTask[]>("/api/task-boards/due-soon"),
+    refetchInterval: 5 * 60 * 1000, // every 5 min
   });
 }
