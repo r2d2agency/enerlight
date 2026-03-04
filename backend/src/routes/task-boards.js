@@ -8,6 +8,7 @@ router.use(authenticate);
 // Middleware to populate req.user with org info
 router.use(async (req, res, next) => {
   try {
+    console.log('[task-boards] middleware userId:', req.userId);
     const result = await pool.query(
       `SELECT u.id, u.name, u.email, om.organization_id, om.role
        FROM users u
@@ -15,14 +16,16 @@ router.use(async (req, res, next) => {
        WHERE u.id = $1 LIMIT 1`,
       [req.userId]
     );
+    console.log('[task-boards] middleware result rows:', result.rows.length);
     if (!result.rows[0]) {
-      return res.status(403).json({ error: 'Usuário sem organização' });
+      return res.status(403).json({ error: 'Usuário sem organização', userId: req.userId });
     }
     req.user = result.rows[0];
+    next();
   } catch (err) {
-    return res.status(500).json({ error: 'Erro ao carregar usuário' });
+    console.error('[task-boards] middleware error:', err.message, err.stack);
+    return res.status(500).json({ error: 'Erro ao carregar usuário: ' + err.message });
   }
-  next();
 });
 
 // ============================================
