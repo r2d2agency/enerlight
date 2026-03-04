@@ -605,10 +605,32 @@ router.put('/:id', async (req, res) => {
 // DELETE /:id
 router.delete('/:id', async (req, res) => {
   try {
-    await pool.query(
-      `DELETE FROM task_boards WHERE id = $1 AND organization_id = $2 AND is_global = false`,
+    const board = await pool.query(
+      `SELECT * FROM task_boards WHERE id = $1 AND organization_id = $2`,
       [req.params.id, req.user.organization_id]
     );
+    if (board.rows.length === 0) {
+      return res.status(404).json({ error: 'Quadro não encontrado' });
+    }
+    const b = board.rows[0];
+    // Global boards: only admin/owner can delete
+    if (b.is_global) {
+      const role = req.user.role || 'seller';
+      const isSuperadmin = req.user.is_superadmin;
+      if (!isSuperadmin && !['owner', 'admin'].includes(role)) {
+        return res.status(403).json({ error: 'Apenas administradores podem excluir quadros globais' });
+      }
+    } else {
+      // Personal boards: only owner can delete
+      if (b.owner_id !== req.user.id) {
+        return res.status(403).json({ error: 'Você só pode excluir seus próprios quadros' });
+      }
+    }
+    // Delete cards, columns, then board
+    await pool.query(`DELETE FROM task_card_checklist_items WHERE card_id IN (SELECT id FROM task_cards WHERE board_id = $1)`, [req.params.id]);
+    await pool.query(`DELETE FROM task_cards WHERE board_id = $1`, [req.params.id]);
+    await pool.query(`DELETE FROM task_board_columns WHERE board_id = $1`, [req.params.id]);
+    await pool.query(`DELETE FROM task_boards WHERE id = $1`, [req.params.id]);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
