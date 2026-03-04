@@ -837,14 +837,14 @@ export function CRMSidePanel({
                   <span className="text-sm font-medium">Qual negociação está em pauta?</span>
                 </div>
                 <Select value={selectedDealId || deals[0]?.id} onValueChange={setSelectedDealId}>
-                  <SelectTrigger className="h-9 text-sm bg-background">
-                    <SelectValue />
+                  <SelectTrigger className="h-9 text-sm bg-background overflow-hidden">
+                    <span className="truncate block max-w-[180px]"><SelectValue /></span>
                   </SelectTrigger>
                   <SelectContent>
                     {deals.map(deal => (
                       <SelectItem key={deal.id} value={deal.id} className="text-sm py-2">
-                        <div className="flex flex-col items-start">
-                          <span className="font-medium">{deal.title}</span>
+                        <div className="flex flex-col items-start max-w-[220px]">
+                          <span className="font-medium truncate w-full">{deal.title}</span>
                           <span className="text-xs text-muted-foreground">
                             {formatCurrency(deal.value)} • {deal.stage_name}
                           </span>
