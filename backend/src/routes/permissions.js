@@ -130,14 +130,23 @@ router.put('/:userId', authenticate, async (req, res) => {
     
     const orgId = callerOrg.rows[0].organization_id;
     
-    // Build upsert
-    const columns = PERMISSION_COLUMNS.filter(c => permissions[c] !== undefined);
+    // Get actual columns from the table to avoid inserting into non-existent columns
+    const colCheck = await query(
+      `SELECT column_name FROM information_schema.columns WHERE table_name = 'user_permissions' AND column_name LIKE 'can_view_%'`
+    );
+    const existingCols = new Set(colCheck.rows.map(r => r.column_name));
+    
+    // Build upsert only with columns that exist in DB AND were sent
+    const columns = PERMISSION_COLUMNS.filter(c => permissions[c] !== undefined && existingCols.has(c));
     const values = columns.map(c => permissions[c]);
     
-    const setClauses = columns.map((c, i) => `${c} = $${i + 3}`).join(', ');
+    if (columns.length === 0) {
+      return res.status(400).json({ error: 'Nenhuma permissão válida para atualizar' });
+    }
+    
     const insertCols = ['user_id', 'organization_id', ...columns].join(', ');
     const insertVals = [userId, orgId, ...values].map((_, i) => `$${i + 1}`).join(', ');
-    const updateClauses = columns.map((c, i) => `${c} = EXCLUDED.${c}`).join(', ');
+    const updateClauses = columns.map(c => `${c} = EXCLUDED.${c}`).join(', ');
     
     await query(
       `INSERT INTO user_permissions (${insertCols}) VALUES (${insertVals})
@@ -148,7 +157,7 @@ router.put('/:userId', authenticate, async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     console.error('Update permissions error:', error);
-    res.status(500).json({ error: 'Erro ao atualizar permissões' });
+    res.status(500).json({ error: error.message || 'Erro ao atualizar permissões' });
   }
 });
 
