@@ -108,7 +108,7 @@ export default function TarefasKanban() {
 
   const { data: columns = [] } = useTaskBoardColumns(selectedBoardId ?? undefined);
   const { data: cards = [] } = useTaskCards(selectedBoardId ?? undefined, appliedFilters);
-  const { createCard, moveCard } = useCardMutations(selectedBoardId ?? undefined);
+  const { createCard, moveCard, deleteCard } = useCardMutations(selectedBoardId ?? undefined);
   const { addColumn, updateColumn, deleteColumn, reorderColumns } = useColumnMutations(selectedBoardId ?? undefined);
 
   // Visibility: sellers only see global boards + their own personal boards
@@ -347,6 +347,11 @@ export default function TarefasKanban() {
                       onCardClick={setSelectedCard}
                       onAddCard={handleAddCard}
                       onMoveCard={handleMoveCard}
+                      onDeleteCard={(cardId) => {
+                        if (confirm("Tem certeza que deseja excluir esta tarefa?")) {
+                          deleteCard.mutate(cardId);
+                        }
+                      }}
                       onUpdateColumn={(id, data) => updateColumn.mutate({ id, ...data })}
                       onDeleteColumn={(id) => deleteColumn.mutate(id)}
                       onReorderColumns={(ids) => reorderColumns.mutate(ids)}
