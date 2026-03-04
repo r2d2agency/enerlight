@@ -21,7 +21,10 @@ async function getUserOrganization(userId) {
 // List connections (respects connection_members restrictions)
 router.get('/', async (req, res) => {
   try {
-    // First check if user has specific connection assignments
+    const org = await getUserOrganization(req.userId);
+    const isHighRole = org && ['owner', 'admin'].includes(org.role);
+
+    // Check if user has specific connection assignments
     const specificResult = await query(
       `SELECT DISTINCT cm.connection_id FROM connection_members cm WHERE cm.user_id = $1`,
       [req.userId]
@@ -46,13 +49,10 @@ router.get('/', async (req, res) => {
       return res.json(result.rows);
     }
 
-    // No specific assignments - check org membership
-    const org = await getUserOrganization(req.userId);
-    
-    let result;
-    if (org) {
-      // Get all connections from user's organization
-      result = await query(
+    // No specific assignments:
+    // Only owner/admin see all org connections; everyone else sees nothing
+    if (isHighRole) {
+      const result = await query(
         `SELECT c.*, u.name as created_by_name,
          CASE 
            WHEN c.provider IS NOT NULL THEN c.provider 
@@ -65,21 +65,11 @@ router.get('/', async (req, res) => {
          ORDER BY c.created_at DESC`,
         [org.organization_id]
       );
-    } else {
-      // Fallback: user without organization sees only their own
-      result = await query(
-        `SELECT *,
-         CASE 
-           WHEN provider IS NOT NULL THEN provider 
-           WHEN instance_id IS NOT NULL AND wapi_token IS NOT NULL THEN 'wapi'
-           ELSE 'evolution'
-         END as provider
-         FROM connections WHERE user_id = $1 ORDER BY created_at DESC`,
-        [req.userId]
-      );
+      return res.json(result.rows);
     }
-    
-    res.json(result.rows);
+
+    // Non-admin without assignments: empty list
+    res.json([]);
   } catch (error) {
     console.error('List connections error:', error);
     res.status(500).json({ error: 'Erro ao listar conexões' });
