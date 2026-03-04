@@ -971,10 +971,25 @@ router.get('/deals/by-phone/:phone', async (req, res) => {
     // Use last 11 digits for matching (handles country code variations)
     const phonePattern = `%${phone.slice(-11)}%`;
 
-     // Search in both contacts table (CRM contacts) AND chat_contacts table
-     // Normalize stored phone values to digits-only so we can match regardless of formatting
-    // NOTE: This JOIN can duplicate deals (multiple contacts), so we dedupe by deal id.
-    // We use DISTINCT ON to keep PostgreSQL happy with ORDER BY expressions.
+    // Build visibility filter: sellers see only their own deals
+    const userGroups = await getUserGroupIds(req.userId);
+    const supervisorGroupIds = userGroups.filter(g => g.is_supervisor).map(g => g.group_id);
+    
+    let visibilityFilter = '';
+    const params = [org.organization_id, phonePattern];
+    
+    if (canManage(org.role)) {
+      // Admin/Owner sees all deals
+      visibilityFilter = '';
+    } else if (supervisorGroupIds.length > 0) {
+      visibilityFilter = ` AND (d.owner_id = $3 OR d.group_id = ANY($4))`;
+      params.push(req.userId, supervisorGroupIds);
+    } else {
+      // Regular seller: only their own deals
+      visibilityFilter = ` AND d.owner_id = $3`;
+      params.push(req.userId);
+    }
+
     const result = await query(
       `SELECT DISTINCT ON (d.id) d.*, 
         c.name as company_name,
@@ -995,9 +1010,10 @@ router.get('/deals/by-phone/:phone', async (req, res) => {
             regexp_replace(COALESCE(cnt.phone, ''), '\\D', '', 'g') LIKE $2
             OR regexp_replace(COALESCE(cc.phone, ''), '\\D', '', 'g') LIKE $2
           )
+          ${visibilityFilter}
        ORDER BY d.id, (d.status = 'open') DESC, d.updated_at DESC
        LIMIT 10`,
-      [org.organization_id, phonePattern]
+      params
     );
 
     res.json(result.rows);
