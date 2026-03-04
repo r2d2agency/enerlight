@@ -194,10 +194,23 @@ export function useColumnMutations(boardId?: string) {
 // CARDS
 // ============================================
 
-export function useTaskCards(boardId?: string) {
+export interface TaskCardFilters {
+  assigned_to?: string;
+  due_from?: string;
+  due_to?: string;
+  status?: string;
+}
+
+export function useTaskCards(boardId?: string, filters?: TaskCardFilters) {
+  const params = new URLSearchParams();
+  if (filters?.assigned_to) params.set("assigned_to", filters.assigned_to);
+  if (filters?.due_from) params.set("due_from", filters.due_from);
+  if (filters?.due_to) params.set("due_to", filters.due_to);
+  if (filters?.status) params.set("status", filters.status);
+  const qs = params.toString();
   return useQuery<TaskCard[]>({
-    queryKey: ["task-cards", boardId],
-    queryFn: () => api<TaskCard[]>(`/api/task-boards/${boardId}/cards`),
+    queryKey: ["task-cards", boardId, qs],
+    queryFn: () => api<TaskCard[]>(`/api/task-boards/${boardId}/cards${qs ? `?${qs}` : ""}`),
     enabled: !!boardId,
   });
 }
