@@ -1,9 +1,9 @@
 import { Router } from 'express';
 import { pool } from '../db.js';
-import { authMiddleware } from '../middleware/auth.js';
+import { authenticate } from '../middleware/auth.js';
 
 const router = Router();
-router.use(authMiddleware);
+router.use(authenticate);
 
 // ============================================
 // BOARDS
