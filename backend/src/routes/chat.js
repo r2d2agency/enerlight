@@ -63,7 +63,7 @@ router.get('/conversations/attendance-counts', authenticate, async (req, res) =>
     // Get user's role and department membership for visibility
     const userOrg = await getUserOrganization(req.userId);
     const isAdminOnly = userOrg && ['owner', 'admin'].includes(userOrg.role);
-    
+    const isManager = userOrg && userOrg.role === 'manager';
     const userDeptsResult = await query(
       `SELECT department_id, role FROM department_members WHERE user_id = $1`,
       [req.userId]
@@ -83,7 +83,7 @@ router.get('/conversations/attendance-counts', authenticate, async (req, res) =>
     const params = [connectionIds];
     let paramIndex = 2;
 
-    if (!isAdminOnly && !isSupervisorInAnyDept) {
+    if (!isAdminOnly && !isManager && !isSupervisorInAnyDept) {
       if (userDepartmentIds.length > 0) {
         visibilityFilter = ` AND (
           conv.assigned_to = $${paramIndex}
@@ -386,6 +386,7 @@ router.get('/conversations', authenticate, async (req, res) => {
     // Get user's role and department membership
     const userOrg = await getUserOrganization(req.userId);
     const isAdminOnly = userOrg && ['owner', 'admin'].includes(userOrg.role);
+    const isManager = userOrg && userOrg.role === 'manager';
     
     // Get all departments the user belongs to
     const userDeptsResult = await query(
@@ -509,7 +510,7 @@ router.get('/conversations', authenticate, async (req, res) => {
       // 4. If department_id IS NULL AND attendance_status != 'waiting' -> only admin/supervisor can see
       // 5. Admin/Supervisor/Owner can see everything
       
-      if (supportsDepartment && !isAdminOnly && !isSupervisorInAnyDept) {
+      if (supportsDepartment && !isAdminOnly && !isManager && !isSupervisorInAnyDept) {
         // Non-admin users: apply visibility restrictions
         if (userDepartmentIds.length > 0) {
           // User has departments: can see their department conversations + assigned to them + waiting without department
