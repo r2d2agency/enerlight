@@ -261,7 +261,7 @@ export default function TarefasKanban() {
         ) : (
           <div className="flex flex-1 overflow-hidden">
             {/* Board Sidebar */}
-            <div className="w-56 border-r flex flex-col bg-muted/30">
+            <div className="w-60 min-w-[240px] border-r flex flex-col bg-muted/30">
               <ScrollArea className="flex-1">
                 <div className="p-3 space-y-4">
                   {/* Global boards */}
@@ -276,7 +276,7 @@ export default function TarefasKanban() {
                           board={b}
                           isSelected={selectedBoardId === b.id}
                           onSelect={() => setSelectedBoardId(b.id)}
-                          onDelete={isAdmin ? () => deleteBoard.mutate(b.id) : undefined}
+                          onDelete={isAdmin ? () => { if (confirm("Tem certeza que deseja excluir este quadro e todas as suas tarefas?")) deleteBoard.mutate(b.id); } : undefined}
                         />
                       ))}
                       {globalBoards.length === 0 && (
@@ -299,7 +299,7 @@ export default function TarefasKanban() {
                           board={b}
                           isSelected={selectedBoardId === b.id}
                           onSelect={() => setSelectedBoardId(b.id)}
-                          onDelete={() => deleteBoard.mutate(b.id)}
+                          onDelete={() => { if (confirm("Tem certeza que deseja excluir este quadro e todas as suas tarefas?")) deleteBoard.mutate(b.id); }}
                         />
                       ))}
                       {personalBoards.length === 0 && (
@@ -452,14 +452,14 @@ function BoardItem({ board, isSelected, onSelect, onDelete }: {
       onClick={onSelect}
     >
       <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: board.color }} />
-      <span className="truncate flex-1">{board.name}</span>
-      <Badge variant="secondary" className="text-[9px] h-4 px-1">
+      <span className="truncate flex-1 min-w-0">{board.name}</span>
+      <Badge variant="secondary" className="text-[9px] h-4 px-1 flex-shrink-0">
         {board.card_count}
       </Badge>
       {onDelete && (
         <Button
           variant="ghost" size="sm"
-          className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100"
+          className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 flex-shrink-0"
           onClick={(e) => { e.stopPropagation(); onDelete(); }}
         >
           <Trash2 className="h-3 w-3 text-destructive" />
