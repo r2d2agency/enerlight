@@ -1,20 +1,21 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { 
   DndContext, DragOverlay, closestCorners, 
-  DragStartEvent, DragEndEvent, DragOverEvent,
+  DragStartEvent, DragEndEvent,
   PointerSensor, useSensor, useSensors, MeasuringStrategy,
   useDroppable
 } from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
+import { SortableContext, verticalListSortingStrategy, useSortable, horizontalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Input } from "@/components/ui/input";
 import { 
-  Plus, MoreVertical, Calendar, Paperclip, MessageSquare, 
-  CheckSquare, AlertTriangle, Clock, GripVertical
+  Plus, Calendar, Paperclip, MessageSquare, 
+  CheckSquare, AlertTriangle, GripVertical, Pencil, Trash2, Check, X, GripHorizontal
 } from "lucide-react";
 import { TaskCard, TaskBoardColumn } from "@/hooks/use-task-boards";
 import { format, isPast, isToday } from "date-fns";
@@ -25,9 +26,13 @@ interface TaskKanbanBoardProps {
   columns: TaskBoardColumn[];
   cards: TaskCard[];
   isGlobal: boolean;
+  canEditColumns: boolean;
   onCardClick: (card: TaskCard) => void;
   onAddCard: (columnId: string) => void;
   onMoveCard: (cardId: string, columnId: string, position: number) => void;
+  onUpdateColumn?: (id: string, data: { name?: string; color?: string }) => void;
+  onDeleteColumn?: (id: string) => void;
+  onReorderColumns?: (columnIds: string[]) => void;
 }
 
 const priorityConfig: Record<string, { color: string; label: string }> = {
@@ -63,7 +68,6 @@ function SortableCard({ card, onClick }: { card: TaskCard; onClick: () => void }
         )}
         onClick={onClick}
       >
-        {/* Drag handle + Color stripe */}
         <div className="flex items-start gap-2">
           <div 
             {...listeners} 
@@ -72,7 +76,6 @@ function SortableCard({ card, onClick }: { card: TaskCard; onClick: () => void }
             <GripVertical className="h-4 w-4 text-muted-foreground" />
           </div>
           <div className="flex-1 min-w-0">
-            {/* Priority + status indicator */}
             <div className="flex items-center gap-2 mb-1">
               <div className={cn("w-2 h-2 rounded-full", prio.color)} />
               {card.status === "done" && (
@@ -92,13 +95,11 @@ function SortableCard({ card, onClick }: { card: TaskCard; onClick: () => void }
               )}
             </div>
 
-            {/* Title */}
             <p className={cn(
               "font-medium text-sm leading-tight mb-2 line-clamp-2",
               card.status === "done" && "line-through text-muted-foreground"
             )}>{card.title}</p>
 
-            {/* Meta row */}
             <div className="flex items-center gap-2 flex-wrap text-muted-foreground">
               {card.due_date && (
                 <Tooltip>
@@ -161,34 +162,95 @@ function SortableCard({ card, onClick }: { card: TaskCard; onClick: () => void }
   );
 }
 
-function KanbanColumnComponent({ 
-  column, cards, onCardClick, onAddCard 
+function SortableColumn({ 
+  column, cards, onCardClick, onAddCard, canEdit, onUpdate, onDelete 
 }: { 
   column: TaskBoardColumn; 
   cards: TaskCard[]; 
   onCardClick: (card: TaskCard) => void;
   onAddCard: () => void;
+  canEdit: boolean;
+  onUpdate?: (id: string, data: { name?: string }) => void;
+  onDelete?: (id: string) => void;
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id: column.id });
+  const { setNodeRef: setDropRef, isOver } = useDroppable({ id: column.id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ 
+    id: `col-${column.id}`,
+    disabled: !canEdit,
+  });
+
+  const [editing, setEditing] = useState(false);
+  const [editName, setEditName] = useState(column.name);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const handleSaveName = () => {
+    if (editName.trim() && editName.trim() !== column.name) {
+      onUpdate?.(column.id, { name: editName.trim() });
+    }
+    setEditing(false);
+  };
 
   return (
-    <div className={cn(
+    <div ref={setNodeRef} style={style} {...attributes} className={cn(
       "w-72 flex-shrink-0 flex flex-col max-h-full rounded-lg transition-colors",
-      isOver && "bg-primary/5 ring-2 ring-primary/20"
+      isOver && "bg-primary/5 ring-2 ring-primary/20",
+      isDragging && "ring-2 ring-primary/30"
     )}>
       {/* Column Header */}
-      <div className="flex items-center gap-2 p-3 mb-2">
-        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: column.color }} />
-        <h3 className="font-semibold text-sm flex-1">{column.name}</h3>
-        <Badge variant="secondary" className="text-[10px] h-5 px-1.5">
-          {cards.length}
-        </Badge>
+      <div className="flex items-center gap-2 p-3 mb-2 group/header">
+        {canEdit && (
+          <div {...listeners} className="cursor-grab active:cursor-grabbing opacity-0 group-hover/header:opacity-60 transition-opacity">
+            <GripHorizontal className="h-4 w-4 text-muted-foreground" />
+          </div>
+        )}
+        <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: column.color }} />
+        
+        {editing ? (
+          <div className="flex items-center gap-1 flex-1">
+            <Input
+              ref={inputRef}
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              className="h-6 text-sm px-1"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleSaveName();
+                if (e.key === "Escape") setEditing(false);
+              }}
+              autoFocus
+            />
+            <Button variant="ghost" size="icon" className="h-5 w-5" onClick={handleSaveName}><Check className="h-3 w-3" /></Button>
+            <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => setEditing(false)}><X className="h-3 w-3" /></Button>
+          </div>
+        ) : (
+          <>
+            <h3 className="font-semibold text-sm flex-1">{column.name}</h3>
+            <Badge variant="secondary" className="text-[10px] h-5 px-1.5">
+              {cards.length}
+            </Badge>
+            {canEdit && !column.is_default && (
+              <div className="flex items-center opacity-0 group-hover/header:opacity-100 transition-opacity">
+                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => { setEditName(column.name); setEditing(true); }}>
+                  <Pencil className="h-3 w-3" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-5 w-5 text-destructive" onClick={() => onDelete?.(column.id)}>
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       {/* Cards list - droppable area */}
       <SortableContext items={cards.map(c => c.id)} strategy={verticalListSortingStrategy}>
         <div 
-          ref={setNodeRef}
+          ref={setDropRef}
           className="flex-1 overflow-y-auto space-y-2 px-1 pb-2 min-h-[80px]"
         >
           {cards.map(card => (
@@ -216,8 +278,9 @@ function KanbanColumnComponent({
   );
 }
 
-export function TaskKanbanBoard({ columns, cards, isGlobal, onCardClick, onAddCard, onMoveCard }: TaskKanbanBoardProps) {
+export function TaskKanbanBoard({ columns, cards, isGlobal, canEditColumns, onCardClick, onAddCard, onMoveCard, onUpdateColumn, onDeleteColumn, onReorderColumns }: TaskKanbanBoardProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeType, setActiveType] = useState<"card" | "column" | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -232,9 +295,14 @@ export function TaskKanbanBoard({ columns, cards, isGlobal, onCardClick, onAddCa
   }, [columns, cards]);
 
   const activeCard = useMemo(() => {
-    if (!activeId) return null;
+    if (!activeId || activeType !== "card") return null;
     return cards.find(c => c.id === activeId) || null;
-  }, [activeId, cards]);
+  }, [activeId, activeType, cards]);
+
+  const activeColumn = useMemo(() => {
+    if (!activeId || activeType !== "column") return null;
+    return columns.find(c => `col-${c.id}` === activeId) || null;
+  }, [activeId, activeType, columns]);
 
   const findColumnForCard = (cardId: string) => {
     for (const [colId, colCards] of Object.entries(cardsByColumn)) {
@@ -244,35 +312,70 @@ export function TaskKanbanBoard({ columns, cards, isGlobal, onCardClick, onAddCa
   };
 
   function handleDragStart(event: DragStartEvent) {
-    setActiveId(event.active.id as string);
+    const id = event.active.id as string;
+    if (id.startsWith("col-")) {
+      setActiveId(id);
+      setActiveType("column");
+    } else {
+      setActiveId(id);
+      setActiveType("card");
+    }
   }
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     setActiveId(null);
+    setActiveType(null);
     if (!over) return;
 
-    const cardId = active.id as string;
-    const targetId = over.id as string;
-    if (cardId === targetId) return;
+    const activeIdStr = active.id as string;
+    const overIdStr = over.id as string;
 
-    const isColumn = columns.some(c => c.id === targetId);
-    let targetColumnId: string;
-    let position = 0;
+    // Column reorder
+    if (activeIdStr.startsWith("col-") && overIdStr.startsWith("col-")) {
+      const fromColId = activeIdStr.replace("col-", "");
+      const toColId = overIdStr.replace("col-", "");
+      if (fromColId === toColId) return;
 
-    if (isColumn) {
-      targetColumnId = targetId;
-      position = (cardsByColumn[targetId]?.length || 0);
-    } else {
-      const col = findColumnForCard(targetId);
-      if (!col) return;
-      targetColumnId = col;
-      const idx = cardsByColumn[col]?.findIndex(c => c.id === targetId) || 0;
-      position = idx;
+      const currentOrder = columns.map(c => c.id);
+      const fromIdx = currentOrder.indexOf(fromColId);
+      const toIdx = currentOrder.indexOf(toColId);
+      if (fromIdx === -1 || toIdx === -1) return;
+
+      const newOrder = [...currentOrder];
+      newOrder.splice(fromIdx, 1);
+      newOrder.splice(toIdx, 0, fromColId);
+      onReorderColumns?.(newOrder);
+      return;
     }
 
-    onMoveCard(cardId, targetColumnId, position);
+    // Card move
+    if (!activeIdStr.startsWith("col-")) {
+      const cardId = activeIdStr;
+      const targetId = overIdStr;
+      if (cardId === targetId) return;
+
+      // Check if dropping on a column
+      const isColumn = columns.some(c => c.id === targetId);
+      let targetColumnId: string;
+      let position = 0;
+
+      if (isColumn) {
+        targetColumnId = targetId;
+        position = (cardsByColumn[targetId]?.length || 0);
+      } else {
+        const col = findColumnForCard(targetId);
+        if (!col) return;
+        targetColumnId = col;
+        const idx = cardsByColumn[col]?.findIndex(c => c.id === targetId) || 0;
+        position = idx;
+      }
+
+      onMoveCard(cardId, targetColumnId, position);
+    }
   }
+
+  const columnSortableIds = columns.map(c => `col-${c.id}`);
 
   return (
     <DndContext
@@ -283,17 +386,22 @@ export function TaskKanbanBoard({ columns, cards, isGlobal, onCardClick, onAddCa
       measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
     >
       <ScrollArea className="w-full h-full">
-        <div className="flex gap-4 p-4 min-w-max items-start" style={{ minHeight: "calc(100vh - 200px)" }}>
-          {columns.map(col => (
-            <KanbanColumnComponent
-              key={col.id}
-              column={col}
-              cards={cardsByColumn[col.id] || []}
-              onCardClick={onCardClick}
-              onAddCard={() => onAddCard(col.id)}
-            />
-          ))}
-        </div>
+        <SortableContext items={columnSortableIds} strategy={horizontalListSortingStrategy}>
+          <div className="flex gap-4 p-4 min-w-max items-start" style={{ minHeight: "calc(100vh - 200px)" }}>
+            {columns.map(col => (
+              <SortableColumn
+                key={col.id}
+                column={col}
+                cards={cardsByColumn[col.id] || []}
+                onCardClick={onCardClick}
+                onAddCard={() => onAddCard(col.id)}
+                canEdit={canEditColumns}
+                onUpdate={onUpdateColumn}
+                onDelete={onDeleteColumn}
+              />
+            ))}
+          </div>
+        </SortableContext>
         <ScrollBar orientation="horizontal" />
       </ScrollArea>
 
@@ -303,6 +411,10 @@ export function TaskKanbanBoard({ columns, cards, isGlobal, onCardClick, onAddCa
             <div className="bg-card border rounded-lg p-3">
               <p className="font-medium text-sm">{activeCard.title}</p>
             </div>
+          </div>
+        ) : activeColumn ? (
+          <div className="rotate-1 scale-105 shadow-2xl w-72 bg-muted/80 border rounded-lg p-3">
+            <p className="font-semibold text-sm">{activeColumn.name}</p>
           </div>
         ) : null}
       </DragOverlay>

@@ -508,6 +508,25 @@ router.get('/due-soon', async (req, res) => {
   }
 });
 
+// GET /global-default - returns global board ID + first column ID
+router.get('/global-default', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT tb.id as board_id, tbc.id as column_id, tb.name as board_name, tbc.name as column_name
+       FROM task_boards tb
+       JOIN task_board_columns tbc ON tbc.board_id = tb.id
+       WHERE tb.organization_id = $1 AND tb.is_global = true
+       ORDER BY tb.created_at ASC, tbc.position ASC
+       LIMIT 1`,
+      [req.user.organization_id]
+    );
+    if (!result.rows[0]) return res.json(null);
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.json(null);
+  }
+});
+
 // ============================================
 // DYNAMIC ROUTES (with :boardId parameter) — MUST come after static routes
 // ============================================
