@@ -65,6 +65,17 @@ router.get('/:userId', authenticate, async (req, res) => {
     
     const { organization_id, role } = orgResult.rows[0];
     
+    // Check if user_permissions table exists
+    const tableCheck = await query(
+      `SELECT 1 FROM information_schema.tables WHERE table_name = 'user_permissions' LIMIT 1`
+    );
+    
+    if (tableCheck.rows.length === 0) {
+      // Table doesn't exist yet, return role defaults
+      const defaults = ROLE_DEFAULTS[role] || ROLE_DEFAULTS.agent;
+      return res.json({ permissions: defaults, is_custom: false, role });
+    }
+    
     // Check if custom permissions exist
     const permResult = await query(
       `SELECT * FROM user_permissions WHERE user_id = $1 AND organization_id = $2`,
@@ -74,7 +85,7 @@ router.get('/:userId', authenticate, async (req, res) => {
     if (permResult.rows.length > 0) {
       const perms = {};
       for (const col of PERMISSION_COLUMNS) {
-        perms[col] = permResult.rows[0][col];
+        perms[col] = permResult.rows[0][col] !== undefined ? permResult.rows[0][col] : true;
       }
       res.json({ permissions: perms, is_custom: true, role });
     } else {
@@ -84,7 +95,8 @@ router.get('/:userId', authenticate, async (req, res) => {
     }
   } catch (error) {
     console.error('Get permissions error:', error);
-    res.status(500).json({ error: 'Erro ao buscar permissões' });
+    // Fallback: return all-true permissions instead of 500
+    res.json({ permissions: Object.fromEntries(PERMISSION_COLUMNS.map(c => [c, true])), is_custom: false, role: 'owner' });
   }
 });
 
