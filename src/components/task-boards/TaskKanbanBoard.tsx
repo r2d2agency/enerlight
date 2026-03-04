@@ -2,7 +2,8 @@ import { useState, useMemo } from "react";
 import { 
   DndContext, DragOverlay, closestCorners, 
   DragStartEvent, DragEndEvent, DragOverEvent,
-  PointerSensor, useSensor, useSensors, MeasuringStrategy 
+  PointerSensor, useSensor, useSensors, MeasuringStrategy,
+  useDroppable
 } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -168,8 +169,13 @@ function KanbanColumnComponent({
   onCardClick: (card: TaskCard) => void;
   onAddCard: () => void;
 }) {
+  const { setNodeRef, isOver } = useDroppable({ id: column.id });
+
   return (
-    <div className="w-72 flex-shrink-0 flex flex-col max-h-full">
+    <div className={cn(
+      "w-72 flex-shrink-0 flex flex-col max-h-full rounded-lg transition-colors",
+      isOver && "bg-primary/5 ring-2 ring-primary/20"
+    )}>
       {/* Column Header */}
       <div className="flex items-center gap-2 p-3 mb-2">
         <div className="w-3 h-3 rounded-full" style={{ backgroundColor: column.color }} />
@@ -179,12 +185,20 @@ function KanbanColumnComponent({
         </Badge>
       </div>
 
-      {/* Cards list */}
+      {/* Cards list - droppable area */}
       <SortableContext items={cards.map(c => c.id)} strategy={verticalListSortingStrategy}>
-        <div className="flex-1 overflow-y-auto space-y-2 px-1 pb-2 min-h-[60px]">
+        <div 
+          ref={setNodeRef}
+          className="flex-1 overflow-y-auto space-y-2 px-1 pb-2 min-h-[80px]"
+        >
           {cards.map(card => (
             <SortableCard key={card.id} card={card} onClick={() => onCardClick(card)} />
           ))}
+          {cards.length === 0 && (
+            <div className="text-center text-muted-foreground text-xs py-4 border border-dashed rounded-md">
+              Arraste cards aqui
+            </div>
+          )}
         </div>
       </SortableContext>
 
