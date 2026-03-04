@@ -5,6 +5,26 @@ import { authenticate } from '../middleware/auth.js';
 const router = Router();
 router.use(authenticate);
 
+// Middleware to populate req.user with org info
+router.use(async (req, res, next) => {
+  try {
+    const result = await pool.query(
+      `SELECT u.id, u.name, u.email, om.organization_id, om.role
+       FROM users u
+       JOIN organization_members om ON om.user_id = u.id
+       WHERE u.id = $1 LIMIT 1`,
+      [req.userId]
+    );
+    if (!result.rows[0]) {
+      return res.status(403).json({ error: 'Usuário sem organização' });
+    }
+    req.user = result.rows[0];
+  } catch (err) {
+    return res.status(500).json({ error: 'Erro ao carregar usuário' });
+  }
+  next();
+});
+
 // ============================================
 // STATIC ROUTES FIRST (before /:boardId dynamic routes)
 // ============================================
