@@ -856,7 +856,7 @@ export default function Organizacoes() {
                                         Conexões permitidas
                                       </Label>
                                       <p className="text-xs text-muted-foreground mb-2">
-                                        Selecione as conexões que este usuário pode acessar. Se nenhuma for selecionada, ele verá todas.
+                                        Selecione as conexões que este usuário pode acessar. Sem seleção = sem acesso a nenhuma conexão.
                                       </p>
                                       <div className="space-y-2 border rounded-md p-3 max-h-40 overflow-y-auto">
                                         {connections.map((conn) => (
@@ -940,7 +940,7 @@ export default function Organizacoes() {
                                     </TableCell>
                                     <TableCell>
                                       {assignedConns.length === 0 ? (
-                                        <span className="text-muted-foreground text-sm">Todas</span>
+                                        <span className="text-destructive text-sm font-medium">Nenhuma</span>
                                       ) : (
                                         <div className="flex flex-wrap gap-1">
                                           {assignedConns.slice(0, 2).map((c) => (
@@ -1498,8 +1498,8 @@ export default function Organizacoes() {
                     ))}
                   </div>
                 )}
-                <p className="text-xs text-muted-foreground">
-                  Sem seleção = acesso a todas as conexões
+                <p className="text-xs text-destructive/80">
+                  Sem seleção = sem acesso a nenhuma conexão
                 </p>
               </div>
 
