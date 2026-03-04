@@ -28,7 +28,25 @@ function isViewOnlyRole(role) {
 // 2. If user is in an organization but no connection_members -> all org connections
 // 3. Fallback: connections created by the user
 async function getUserConnections(userId) {
-  // First check if user has specific connection assignments
+  // Check user role - owner/admin sees ALL org connections
+  const orgResult = await query(
+    `SELECT om.organization_id, om.role 
+     FROM organization_members om 
+     WHERE om.user_id = $1 LIMIT 1`,
+    [userId]
+  );
+  const userOrg = orgResult.rows[0] || null;
+  
+  if (userOrg && ['owner', 'admin'].includes(userOrg.role)) {
+    // Owner/Admin: return ALL connections in the organization
+    const allConns = await query(
+      `SELECT id FROM connections WHERE organization_id = $1`,
+      [userOrg.organization_id]
+    );
+    return allConns.rows.map(r => r.id);
+  }
+
+  // Other roles: check specific connection assignments
   const specificResult = await query(
     `SELECT DISTINCT cm.connection_id as id
      FROM connection_members cm
@@ -37,7 +55,6 @@ async function getUserConnections(userId) {
   );
   
   if (specificResult.rows.length > 0) {
-    // User has specific connections assigned - return only those
     return specificResult.rows.map(r => r.id);
   }
   
