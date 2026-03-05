@@ -78,6 +78,7 @@ import { useNavigate } from "react-router-dom";
 import { api } from "@/lib/api";
 import { useAIAgents, AIAgent } from "@/hooks/use-ai-agents";
 import { TaskDialog } from "@/components/crm/TaskDialog";
+import { CompanyDialog } from "@/components/crm/CompanyDialog";
 import { MeetingScheduleDialog } from "./MeetingScheduleDialog";
 import { SendEmailDialog } from "@/components/email/SendEmailDialog";
 import { EnrollSequenceDialog } from "@/components/nurturing/EnrollSequenceDialog";
@@ -173,11 +174,9 @@ export function CRMSidePanel({
     expected_close_date: "",
   });
 
-  // Company assignment states
   const [isAssigningCompany, setIsAssigningCompany] = useState(false);
-  const [isCreatingCompany, setIsCreatingCompany] = useState(false);
-  const [newCompanyName, setNewCompanyName] = useState("");
-  const [savingCompany, setSavingCompany] = useState(false);
+  const [showCompanyDialog, setShowCompanyDialog] = useState(false);
+  
 
   // Task and Meeting dialogs
   const [showTaskDialog, setShowTaskDialog] = useState(false);
@@ -462,26 +461,18 @@ export function CRMSidePanel({
     }
   };
 
-  const handleCreateAndAssignCompany = async () => {
-    if (!selectedDeal || !newCompanyName.trim()) return;
-    setSavingCompany(true);
+  const handleCompanyCreatedFromDialog = async (newCompany: any) => {
+    if (!selectedDeal || !newCompany?.id) return;
     try {
-      const newCompany = await createCompany.mutateAsync({ name: newCompanyName.trim() });
-      if (newCompany?.id) {
-        await updateDeal.mutateAsync({
-          id: selectedDeal.id,
-          company_id: newCompany.id,
-        });
-        await refetchDeals();
-        refetchCompany();
-        setIsCreatingCompany(false);
-        setNewCompanyName("");
-        toast.success("Empresa criada e atribuída!");
-      }
+      await updateDeal.mutateAsync({
+        id: selectedDeal.id,
+        company_id: newCompany.id,
+      });
+      await refetchDeals();
+      refetchCompany();
+      toast.success("Empresa criada e atribuída!");
     } catch (error) {
-      toast.error("Erro ao criar empresa");
-    } finally {
-      setSavingCompany(false);
+      toast.error("Erro ao atribuir empresa");
     }
   };
 
@@ -593,7 +584,7 @@ export function CRMSidePanel({
 
   return (
     <div className={cn(
-      "relative flex flex-col bg-card",
+      "relative flex flex-col bg-card overflow-hidden",
       isMobile 
         ? "w-full h-full" 
         : "w-80 h-full border-l"
@@ -800,7 +791,7 @@ export function CRMSidePanel({
         </Button>
       </div>
 
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 min-h-0">
         {loadingDeals ? (
           <div className="flex items-center justify-center p-8">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -1094,49 +1085,11 @@ export function CRMSidePanel({
                           className="flex-1 h-7 text-xs"
                           onClick={() => {
                             setIsAssigningCompany(false);
-                            setIsCreatingCompany(true);
+                            setShowCompanyDialog(true);
                           }}
                         >
                           <Plus className="h-3 w-3 mr-1" />
                           Criar nova
-                        </Button>
-                      </div>
-                    </div>
-                  ) : isCreatingCompany ? (
-                    <div className="space-y-3">
-                      <div>
-                        <Label className="text-xs">Nome da empresa</Label>
-                        <Input
-                          value={newCompanyName}
-                          onChange={(e) => setNewCompanyName(e.target.value)}
-                          placeholder="Digite o nome..."
-                          className="h-8 text-xs mt-1"
-                        />
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="flex-1 h-7 text-xs"
-                          onClick={() => {
-                            setIsCreatingCompany(false);
-                            setNewCompanyName("");
-                          }}
-                        >
-                          Cancelar
-                        </Button>
-                        <Button
-                          size="sm"
-                          className="flex-1 h-7 text-xs"
-                          onClick={handleCreateAndAssignCompany}
-                          disabled={!newCompanyName.trim() || savingCompany}
-                        >
-                          {savingCompany ? (
-                            <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                          ) : (
-                            <Save className="h-3 w-3 mr-1" />
-                          )}
-                          Criar
                         </Button>
                       </div>
                     </div>
@@ -1216,7 +1169,7 @@ export function CRMSidePanel({
                           size="sm"
                           variant="secondary"
                           className="flex-1 h-7 text-xs"
-                          onClick={() => setIsCreatingCompany(true)}
+                          onClick={() => setShowCompanyDialog(true)}
                         >
                           <Plus className="h-3 w-3 mr-1" />
                           Criar
@@ -1835,6 +1788,14 @@ export function CRMSidePanel({
         contactName={contactName}
         conversationId={conversationId}
         dealId={selectedDeal?.id}
+      />
+
+      {/* Company Dialog for creation with CNPJ lookup */}
+      <CompanyDialog
+        company={null}
+        open={showCompanyDialog}
+        onOpenChange={setShowCompanyDialog}
+        onCreated={handleCompanyCreatedFromDialog}
       />
     </div>
   );

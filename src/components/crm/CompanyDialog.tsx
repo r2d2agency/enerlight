@@ -51,9 +51,10 @@ interface CompanyDialogProps {
   company: CRMCompany | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onCreated?: (company: any) => void;
 }
 
-export function CompanyDialog({ company, open, onOpenChange }: CompanyDialogProps) {
+export function CompanyDialog({ company, open, onOpenChange, onCreated }: CompanyDialogProps) {
   const [formData, setFormData] = useState({
     name: "",
     cnpj: "",
@@ -217,7 +218,7 @@ export function CompanyDialog({ company, open, onOpenChange }: CompanyDialogProp
     );
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const data = {
       ...formData,
       segment_id: formData.segment_id || undefined,
@@ -227,7 +228,10 @@ export function CompanyDialog({ company, open, onOpenChange }: CompanyDialogProp
     if (company) {
       updateCompany.mutate({ id: company.id, ...data } as any);
     } else {
-      createCompany.mutate(data as any);
+      const created = await createCompany.mutateAsync(data as any);
+      if (onCreated && created) {
+        onCreated(created);
+      }
     }
     onOpenChange(false);
   };
