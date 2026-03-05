@@ -16,6 +16,7 @@ interface CreateCardDialogProps {
   columnId: string;
   isGlobal: boolean;
   members: OrgMember[];
+  defaultAssignedTo?: string;
   onSubmit: (data: {
     column_id: string;
     title: string;
@@ -26,11 +27,11 @@ interface CreateCardDialogProps {
   }) => void;
 }
 
-export function CreateCardDialog({ open, onOpenChange, columnId, isGlobal, members, onSubmit }: CreateCardDialogProps) {
+export function CreateCardDialog({ open, onOpenChange, columnId, isGlobal, members, defaultAssignedTo, onSubmit }: CreateCardDialogProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("medium");
-  const [assignedTo, setAssignedTo] = useState("");
+  const [assignedTo, setAssignedTo] = useState(defaultAssignedTo || "");
   const [dueDate, setDueDate] = useState("");
 
   const handleSubmit = () => {
@@ -46,7 +47,7 @@ export function CreateCardDialog({ open, onOpenChange, columnId, isGlobal, membe
     setTitle("");
     setDescription("");
     setPriority("medium");
-    setAssignedTo("");
+    setAssignedTo(defaultAssignedTo || "");
     setDueDate("");
     onOpenChange(false);
   };
@@ -103,21 +104,19 @@ export function CreateCardDialog({ open, onOpenChange, columnId, isGlobal, membe
             </div>
           </div>
 
-          {isGlobal && (
-            <div>
-              <Label>Responsável</Label>
-              <Select value={assignedTo} onValueChange={setAssignedTo}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecionar..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {members.map(m => (
-                    <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+          <div>
+            <Label>Responsável</Label>
+            <Select value={assignedTo} onValueChange={setAssignedTo}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecionar..." />
+              </SelectTrigger>
+              <SelectContent>
+                {members.map(m => (
+                  <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         <DialogFooter>

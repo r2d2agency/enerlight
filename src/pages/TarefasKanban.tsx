@@ -27,7 +27,7 @@ import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { api } from "@/lib/api";
+
 
 export default function TarefasKanban() {
   const { user } = useAuth();
@@ -385,19 +385,13 @@ export default function TarefasKanban() {
         <CreateCardDialog
           open={showCreateCard}
           onOpenChange={setShowCreateCard}
-          columnId={globalDefault?.column_id || createCardColumnId}
-          isGlobal={true}
+          columnId={createCardColumnId}
+          isGlobal={selectedBoard?.is_global || false}
           members={members}
+          defaultAssignedTo={user?.id}
           onSubmit={(data) => {
-            const boardId = globalDefault?.board_id || selectedBoardId;
-            if (!boardId) return;
-            api(`/api/task-boards/${boardId}/cards`, { method: "POST", body: { ...data, column_id: globalDefault?.column_id || data.column_id } })
-              .then(() => {
-                qc.invalidateQueries({ queryKey: ["task-cards"] });
-                qc.invalidateQueries({ queryKey: ["task-boards"] });
-                toast({ title: "Tarefa criada" });
-              })
-              .catch(() => toast({ title: "Erro ao criar tarefa", variant: "destructive" }));
+            if (!selectedBoardId) return;
+            createCard.mutate(data);
           }}
         />
 
