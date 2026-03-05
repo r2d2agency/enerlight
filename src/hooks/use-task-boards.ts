@@ -222,7 +222,11 @@ export function useCardMutations(boardId?: string) {
   const createCard = useMutation({
     mutationFn: (data: Partial<TaskCard>) =>
       api<TaskCard>(`/api/task-boards/${boardId}/cards`, { method: "POST", body: data }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["task-cards", boardId] }); toast({ title: "Tarefa criada" }); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["task-cards"] });
+      qc.invalidateQueries({ queryKey: ["task-boards"] });
+      toast({ title: "Tarefa criada" });
+    },
   });
 
   const updateCard = useMutation({
@@ -242,7 +246,11 @@ export function useCardMutations(boardId?: string) {
 
   const deleteCard = useMutation({
     mutationFn: (id: string) => api(`/api/task-boards/cards/${id}`, { method: "DELETE" }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["task-cards", boardId] }); toast({ title: "Tarefa excluída" }); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["task-cards"] });
+      qc.invalidateQueries({ queryKey: ["task-boards"] });
+      toast({ title: "Tarefa excluída" });
+    },
   });
 
   return { createCard, updateCard, moveCard, deleteCard };
