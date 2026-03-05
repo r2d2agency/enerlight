@@ -94,6 +94,12 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
       { key: 'can_view_internal_chat', label: 'Chat Interno', description: 'Comunicação entre equipe' },
     ],
   },
+  {
+    title: 'Integrações',
+    items: [
+      { key: 'can_view_lead_gleego', label: 'Lead Gleego', description: 'Prospecção de leads via Gleego' },
+    ],
+  },
 ];
 
 const ALL_KEYS = PERMISSION_GROUPS.flatMap(g => g.items.map(i => i.key));
