@@ -96,7 +96,7 @@ router.post('/register', async (req, res) => {
 
       // Get plan modules for organization
       const planModulesResult = await query(
-         `SELECT has_campaigns, has_asaas_integration, has_whatsapp_groups, has_scheduled_messages, has_chatbots, has_chat, has_crm, has_group_secretary, has_projects FROM plans WHERE id = $1`,
+         `SELECT has_campaigns, has_asaas_integration, has_whatsapp_groups, has_scheduled_messages, has_chatbots, has_chat, has_crm, has_group_secretary, has_ghost, has_projects, has_homologation, has_tasks, has_lead_gleego FROM plans WHERE id = $1`,
         [selectedPlan.id]
       );
       
@@ -111,7 +111,11 @@ router.post('/register', async (req, res) => {
           chat: plan.has_chat ?? true,
           crm: plan.has_crm ?? true,
           group_secretary: plan.has_group_secretary ?? false,
-          projects: plan.has_projects ?? false
+          ghost: plan.has_ghost ?? false,
+          projects: plan.has_projects ?? false,
+          homologation: plan.has_homologation ?? false,
+          tasks: plan.has_tasks !== false,
+          lead_gleego: plan.has_lead_gleego ?? false,
         };
       }
     }
@@ -239,8 +243,14 @@ router.post('/login', async (req, res) => {
       chatbots: true,
       chat: true,
       crm: true,
+      ai_agents: true,
+      group_secretary: true,
+      ghost: true,
       projects: true,
-      homologation: true
+      internal_chat: true,
+      homologation: true,
+      tasks: true,
+      lead_gleego: true,
     };
     
     // Only superadmin bypasses module restrictions - owners/admins follow plan settings
@@ -380,8 +390,14 @@ router.get('/me', async (req, res) => {
       chatbots: true,
       chat: true,
       crm: true,
+      ai_agents: true,
+      group_secretary: true,
+      ghost: true,
       projects: true,
-      homologation: true
+      internal_chat: true,
+      homologation: true,
+      tasks: true,
+      lead_gleego: true,
     };
     
     // Only superadmin bypasses module restrictions - owners/admins follow plan settings
