@@ -141,6 +141,7 @@ export default function Organizacoes() {
     projects: false,
     internal_chat: true,
     tasks: true,
+    lead_gleego: false,
   });
   const [savingModules, setSavingModules] = useState(false);
 
@@ -245,6 +246,7 @@ export default function Organizacoes() {
         projects: modules.projects ?? false,
         internal_chat: modules.internal_chat ?? true,
         tasks: modules.tasks ?? true,
+        lead_gleego: modules.lead_gleego ?? false,
       });
     } catch (error) {
       console.error('Error loading modules:', error);
@@ -1372,6 +1374,21 @@ export default function Organizacoes() {
                           <Switch
                             checked={modulesEnabled.tasks}
                             onCheckedChange={(checked) => setModulesEnabled(prev => ({ ...prev, tasks: checked }))}
+                            disabled={!canManageOrg}
+                          />
+                        </div>
+
+                        {/* Lead Gleego Module */}
+                        <div className="flex items-center justify-between rounded-lg border p-4">
+                          <div>
+                            <p className="text-sm font-medium">Lead Gleego</p>
+                            <p className="text-xs text-muted-foreground">
+                              Prospecção de leads via plataforma Gleego
+                            </p>
+                          </div>
+                          <Switch
+                            checked={modulesEnabled.lead_gleego}
+                            onCheckedChange={(checked) => setModulesEnabled(prev => ({ ...prev, lead_gleego: checked }))}
                             disabled={!canManageOrg}
                           />
                         </div>
