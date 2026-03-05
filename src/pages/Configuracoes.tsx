@@ -47,7 +47,8 @@ const Configuracoes = () => {
   const [loadingLeadGleego, setLoadingLeadGleego] = useState(false);
   const [savingLeadGleego, setSavingLeadGleego] = useState(false);
 
-  const showLeadGleegoTab = modulesEnabled.lead_gleego;
+  const isAdminRole = ['owner', 'admin', 'manager'].includes(user?.role || '');
+  const showLeadGleegoTab = modulesEnabled.lead_gleego || isAdminRole;
 
   useEffect(() => {
     if (showLeadGleegoTab) {
