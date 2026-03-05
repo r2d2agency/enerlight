@@ -246,14 +246,16 @@ function SortableColumn({
             <Badge variant="secondary" className="text-[10px] h-5 px-1.5">
               {cards.length}
             </Badge>
-            {canEdit && !column.is_default && (
+            {canEdit && (
               <div className="flex items-center opacity-0 group-hover/header:opacity-100 transition-opacity">
                 <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => { setEditName(column.name); setEditing(true); }}>
                   <Pencil className="h-3 w-3" />
                 </Button>
-                <Button variant="ghost" size="icon" className="h-5 w-5 text-destructive" onClick={() => onDelete?.(column.id)}>
-                  <Trash2 className="h-3 w-3" />
-                </Button>
+                {!column.is_default && (
+                  <Button variant="ghost" size="icon" className="h-5 w-5 text-destructive" onClick={() => onDelete?.(column.id)}>
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                )}
               </div>
             )}
           </>
