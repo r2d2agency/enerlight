@@ -83,6 +83,12 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
     ],
   },
   {
+    title: 'Integrações',
+    items: [
+      { key: 'can_view_lead_gleego', label: 'Lead Gleego', description: 'Prospecção via Lead Gleego' },
+    ],
+  },
+  {
     title: 'Comunicação Interna',
     items: [
       { key: 'can_view_internal_chat', label: 'Chat Interno', description: 'Comunicação entre equipe' },

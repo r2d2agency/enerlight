@@ -51,6 +51,7 @@ export interface UserPermissions {
   can_view_organizations: boolean;
   can_view_settings: boolean;
   can_view_internal_chat: boolean;
+  can_view_lead_gleego: boolean;
   can_view_homologation: boolean;
 }
 
