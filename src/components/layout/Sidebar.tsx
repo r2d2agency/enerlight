@@ -54,7 +54,7 @@ interface NavItem {
   name: string;
   href: string;
   icon: any;
-  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat' | 'homologation' | 'tasks';
+  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat' | 'homologation' | 'tasks' | 'lead_gleego';
   adminOnly?: boolean;
   ownerOnly?: boolean;
   superadminOnly?: boolean;
@@ -65,7 +65,7 @@ interface NavSection {
   title: string;
   icon: any;
   items: NavItem[];
-  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat' | 'homologation' | 'tasks';
+  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat' | 'homologation' | 'tasks' | 'lead_gleego';
   adminOnly?: boolean;
   permissionKey?: string;
 }
@@ -141,6 +141,15 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
     permissionKey: 'can_view_homologation',
     items: [
       { name: "Quadros", href: "/homologacao", icon: ClipboardList, permissionKey: 'can_view_homologation' },
+    ],
+  },
+  {
+    title: "Lead Gleego",
+    icon: Zap,
+    moduleKey: 'lead_gleego',
+    permissionKey: 'can_view_lead_gleego',
+    items: [
+      { name: "Lead Gleego", href: "/lead-gleego", icon: Zap, moduleKey: 'lead_gleego' as const, permissionKey: 'can_view_lead_gleego' },
     ],
   },
   {

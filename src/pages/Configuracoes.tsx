@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings, Shield, Bell, Save, Sun, Moon, Monitor, Volume2, VolumeX, BellRing, Smartphone, User, Lock, Loader2, Mail, FileText, Sparkles } from "lucide-react";
+import { Settings, Shield, Bell, Save, Sun, Moon, Monitor, Volume2, VolumeX, BellRing, Smartphone, User, Lock, Loader2, Mail, FileText, Sparkles, Zap } from "lucide-react";
 import { useTheme, Theme } from "@/hooks/use-theme";
 import { useNotificationSound, NOTIFICATION_SOUNDS, NotificationSoundId } from "@/hooks/use-notification-sound";
 import { toast } from "sonner";
@@ -21,7 +21,7 @@ import { AIConfigPanel } from "@/components/settings/AIConfigPanel";
 import { WorkSchedulePanel } from "@/components/settings/WorkSchedulePanel";
 
 const Configuracoes = () => {
-  const { user } = useAuth();
+  const { user, modulesEnabled } = useAuth();
   const { theme, setTheme } = useTheme();
   const {
     settings: notifSettings,
@@ -41,6 +41,46 @@ const Configuracoes = () => {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+
+  // Lead Gleego config
+  const [leadGleegoApiKey, setLeadGleegoApiKey] = useState("");
+  const [loadingLeadGleego, setLoadingLeadGleego] = useState(false);
+  const [savingLeadGleego, setSavingLeadGleego] = useState(false);
+
+  const showLeadGleegoTab = modulesEnabled.lead_gleego;
+
+  useEffect(() => {
+    if (showLeadGleegoTab) {
+      loadLeadGleegoConfig();
+    }
+  }, [showLeadGleegoTab]);
+
+  const loadLeadGleegoConfig = async () => {
+    setLoadingLeadGleego(true);
+    try {
+      const data = await api<{ api_key: string; enabled: boolean }>("/api/organizations/lead-gleego/config");
+      setLeadGleegoApiKey(data.api_key || "");
+    } catch {
+      // ignore
+    } finally {
+      setLoadingLeadGleego(false);
+    }
+  };
+
+  const handleSaveLeadGleegoKey = async () => {
+    setSavingLeadGleego(true);
+    try {
+      await api("/api/organizations/lead-gleego/config", {
+        method: "PUT",
+        body: { api_key: leadGleegoApiKey.trim() },
+      });
+      toast.success("Chave do Lead Gleego salva com sucesso!");
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao salvar chave");
+    } finally {
+      setSavingLeadGleego(false);
+    }
+  };
 
   const handleUpdateProfile = async () => {
     const trimmedName = displayName.trim();
@@ -109,7 +149,7 @@ const Configuracoes = () => {
         </div>
 
         <Tabs defaultValue="geral" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 lg:w-[600px]">
+          <TabsList className={`grid w-full ${showLeadGleegoTab ? 'grid-cols-5' : 'grid-cols-4'} lg:w-[${showLeadGleegoTab ? '750' : '600'}px]`}>
             <TabsTrigger value="geral" className="flex items-center gap-2">
               <Settings className="h-4 w-4" />
               Geral
@@ -122,6 +162,12 @@ const Configuracoes = () => {
               <Mail className="h-4 w-4" />
               E-mail
             </TabsTrigger>
+            {showLeadGleegoTab && (
+              <TabsTrigger value="lead-gleego" className="flex items-center gap-2">
+                <Zap className="h-4 w-4" />
+                Lead Gleego
+              </TabsTrigger>
+            )}
             <TabsTrigger value="docs" className="flex items-center gap-2">
               <FileText className="h-4 w-4" />
               Recursos
@@ -600,6 +646,57 @@ const Configuracoes = () => {
             <SMTPConfigPanel />
             <EmailTemplatesPanel />
           </TabsContent>
+
+          {/* Lead Gleego Tab */}
+          {showLeadGleegoTab && (
+            <TabsContent value="lead-gleego" className="mt-6">
+              <Card className="animate-fade-in shadow-card max-w-xl">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Zap className="h-5 w-5 text-primary" />
+                    Lead Gleego - Configuração
+                  </CardTitle>
+                  <CardDescription>
+                    Configure a chave de API para integração SSO com o Lead Gleego.
+                    Esta chave permite que os usuários acessem o Lead Extractor com login automático.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="leadGleegoKey">Chave de API (SSO_API_KEY)</Label>
+                    <Input
+                      id="leadGleegoKey"
+                      type="password"
+                      value={leadGleegoApiKey}
+                      onChange={(e) => setLeadGleegoApiKey(e.target.value)}
+                      placeholder="gleego-sso-chave-secreta-..."
+                      disabled={loadingLeadGleego}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Esta chave deve ser a mesma configurada no sistema Lead Extractor
+                    </p>
+                  </div>
+                  <Button
+                    onClick={handleSaveLeadGleegoKey}
+                    disabled={savingLeadGleego || loadingLeadGleego}
+                    className="w-full"
+                  >
+                    {savingLeadGleego ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Salvando...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4 mr-2" />
+                        Salvar Chave
+                      </>
+                    )}
+                  </Button>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
 
           {/* Features Documentation Tab */}
           <TabsContent value="docs" className="mt-6">
