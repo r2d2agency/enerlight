@@ -3712,6 +3712,26 @@ DO $$ BEGIN
 EXCEPTION WHEN others THEN NULL;
 END $$;
 `;
+
+const step48LeadGleego = `
+-- Plan column for Lead Gleego
+DO $$ BEGIN
+  ALTER TABLE plans ADD COLUMN IF NOT EXISTS has_lead_gleego BOOLEAN DEFAULT false;
+EXCEPTION WHEN others THEN NULL;
+END $$;
+
+-- Organization column for Lead Gleego API Key
+DO $$ BEGIN
+  ALTER TABLE organizations ADD COLUMN IF NOT EXISTS lead_gleego_api_key TEXT;
+EXCEPTION WHEN others THEN NULL;
+END $$;
+
+-- Add lead_gleego to organizations modules_enabled
+UPDATE organizations 
+SET modules_enabled = modules_enabled || '{"lead_gleego": false}'::jsonb
+WHERE modules_enabled IS NOT NULL 
+  AND NOT (modules_enabled ? 'lead_gleego');
+`;
 const migrationSteps = [
   { name: 'Enums', sql: step1Enums, critical: true },
   { name: 'Core Tables (users, plans)', sql: step2CoreTables, critical: true },
@@ -3761,6 +3781,7 @@ const migrationSteps = [
   { name: 'Homologation Module', sql: step45Homologation, critical: false },
   { name: 'Task Boards Module', sql: step46TaskBoards, critical: false },
   { name: 'Task Board Enhancements', sql: step47TaskBoardEnhancements, critical: false },
+  { name: 'Lead Gleego Module', sql: step48LeadGleego, critical: false },
 ];
 
 export async function initDatabase() {

@@ -17,6 +17,7 @@ interface ModulesEnabled {
   internal_chat: boolean;
   homologation: boolean;
   tasks: boolean;
+  lead_gleego: boolean;
 }
 
 export interface UserPermissions {
@@ -98,6 +99,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     internal_chat: true,
     homologation: false,
     tasks: true,
+    lead_gleego: false,
   };
 
   const refreshUser = async () => {

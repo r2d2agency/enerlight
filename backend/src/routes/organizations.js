@@ -967,4 +967,121 @@ router.put('/work-schedule', async (req, res) => {
   }
 });
 
+// ============================================
+// LEAD GLEEGO SSO
+// ============================================
+
+// Get Lead Gleego config
+router.get('/lead-gleego/config', async (req, res) => {
+  try {
+    const org = await query(
+      `SELECT o.lead_gleego_api_key, o.modules_enabled
+       FROM organizations o
+       JOIN organization_members om ON om.organization_id = o.id
+       WHERE om.user_id = $1`,
+      [req.userId]
+    );
+
+    if (org.rows.length === 0) {
+      return res.status(404).json({ error: 'Organização não encontrada' });
+    }
+
+    const row = org.rows[0];
+    res.json({
+      api_key: row.lead_gleego_api_key || '',
+      enabled: row.modules_enabled?.lead_gleego || false
+    });
+  } catch (error) {
+    console.error('Get lead gleego config error:', error);
+    res.status(500).json({ error: 'Erro ao buscar configuração' });
+  }
+});
+
+// Update Lead Gleego API Key
+router.put('/lead-gleego/config', async (req, res) => {
+  try {
+    const { api_key } = req.body;
+
+    // Check user is admin/owner
+    const memberCheck = await query(
+      `SELECT om.role, om.organization_id FROM organization_members om WHERE om.user_id = $1`,
+      [req.userId]
+    );
+
+    if (memberCheck.rows.length === 0) {
+      return res.status(403).json({ error: 'Acesso negado' });
+    }
+
+    const { role, organization_id } = memberCheck.rows[0];
+    if (!['owner', 'admin'].includes(role)) {
+      return res.status(403).json({ error: 'Apenas administradores podem configurar o Lead Gleego' });
+    }
+
+    await query(
+      `UPDATE organizations SET lead_gleego_api_key = $1, updated_at = NOW() WHERE id = $2`,
+      [api_key || null, organization_id]
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Update lead gleego config error:', error);
+    res.status(500).json({ error: 'Erro ao atualizar configuração' });
+  }
+});
+
+// Lead Gleego SSO - get redirect URL
+router.post('/lead-gleego/sso', async (req, res) => {
+  try {
+    // Get user email and org
+    const userResult = await query(`SELECT email FROM users WHERE id = $1`, [req.userId]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Usuário não encontrado' });
+    }
+
+    const orgResult = await query(
+      `SELECT o.lead_gleego_api_key, o.modules_enabled
+       FROM organizations o
+       JOIN organization_members om ON om.organization_id = o.id
+       WHERE om.user_id = $1`,
+      [req.userId]
+    );
+
+    if (orgResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Organização não encontrada' });
+    }
+
+    const org = orgResult.rows[0];
+    if (!org.modules_enabled?.lead_gleego) {
+      return res.status(403).json({ error: 'Módulo Lead Gleego não está habilitado para esta organização' });
+    }
+
+    if (!org.lead_gleego_api_key) {
+      return res.status(400).json({ error: 'Chave de API do Lead Gleego não configurada. Configure nas Configurações.' });
+    }
+
+    const email = userResult.rows[0].email;
+
+    // Request SSO token from Lead Extractor
+    const response = await fetch('https://backlead.gleego.com.br/api/auth/token-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: email,
+        apiKey: org.lead_gleego_api_key
+      })
+    });
+
+    const data = await response.json();
+
+    if (data.token) {
+      res.json({ redirect_url: `https://lead.gleego.com.br/login?token=${data.token}` });
+    } else {
+      res.status(400).json({ error: data.message || 'Usuário não encontrado no Lead Extractor. Verifique se o email está cadastrado.' });
+    }
+  } catch (error) {
+    console.error('Lead Gleego SSO error:', error);
+    res.status(500).json({ error: 'Erro ao autenticar no Lead Gleego' });
+  }
+});
+
 export default router;
