@@ -48,6 +48,9 @@ CREATE TABLE IF NOT EXISTS user_permissions (
   -- Comunicação Interna
   can_view_internal_chat BOOLEAN DEFAULT true,
 
+  -- Integrações
+  can_view_lead_gleego BOOLEAN DEFAULT false,
+
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 
