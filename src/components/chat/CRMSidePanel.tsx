@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
@@ -164,6 +165,7 @@ export function CRMSidePanel({
   const [consultPrompt, setConsultPrompt] = useState("");
   const [consultResponse, setConsultResponse] = useState("");
   const [consulting, setConsulting] = useState(false);
+  const [showAIResponseModal, setShowAIResponseModal] = useState(false);
 
   // Edit states
   const [isEditingDeal, setIsEditingDeal] = useState(false);
@@ -384,6 +386,7 @@ export function CRMSidePanel({
         auth: true,
       });
       setConsultResponse(data.response || 'Sem resposta');
+      setShowAIResponseModal(true);
     } catch (error) {
       console.error("Error consulting agent:", error);
       toast.error("Erro ao consultar agente de IA");
@@ -1658,20 +1661,15 @@ export function CRMSidePanel({
                       )}
 
                       {consultResponse && !consulting && (
-                        <div className="space-y-2">
-                          <div className="p-3 rounded-lg bg-muted/50 border text-xs leading-relaxed whitespace-pre-wrap max-h-[300px] overflow-y-auto">
-                            {consultResponse}
-                          </div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="w-full h-7 text-[10px] gap-1"
-                            onClick={handleCopyResponse}
-                          >
-                            <Copy className="h-3 w-3" />
-                            Copiar resposta
-                          </Button>
-                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full h-7 text-[10px] gap-1"
+                          onClick={() => setShowAIResponseModal(true)}
+                        >
+                          <Brain className="h-3 w-3" />
+                          Ver resposta da IA
+                        </Button>
                       )}
 
                       {/* Activate for autonomous mode */}
@@ -1797,6 +1795,31 @@ export function CRMSidePanel({
         onOpenChange={setShowCompanyDialog}
         onCreated={handleCompanyCreatedFromDialog}
       />
+      {/* AI Response Modal */}
+      <Dialog open={showAIResponseModal} onOpenChange={setShowAIResponseModal}>
+        <DialogContent className="sm:max-w-lg max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Brain className="h-5 w-5 text-primary" />
+              Resposta da IA {consultAgent?.name ? `— ${consultAgent.name}` : ''}
+            </DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="max-h-[55vh]">
+            <div className="p-4 rounded-lg bg-muted/50 border text-sm leading-relaxed whitespace-pre-wrap">
+              {consultResponse}
+            </div>
+          </ScrollArea>
+          <DialogFooter className="flex gap-2 sm:gap-2">
+            <Button variant="outline" onClick={handleCopyResponse} className="gap-2">
+              <Copy className="h-4 w-4" />
+              Copiar
+            </Button>
+            <Button onClick={() => setShowAIResponseModal(false)}>
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
