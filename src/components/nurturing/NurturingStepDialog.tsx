@@ -259,14 +259,14 @@ export function NurturingStepDialog({
               <div className="space-y-2">
                 <Label>Mensagem WhatsApp</Label>
                 <Textarea
-                  placeholder="Olá {{nome}}, tudo bem?&#10;&#10;Gostaria de saber como posso ajudar..."
+                  placeholder="Olá {nome}, tudo bem?&#10;&#10;Gostaria de saber como posso ajudar..."
                   value={whatsappContent}
                   onChange={(e) => setWhatsappContent(e.target.value)}
                   rows={6}
                   className="resize-none"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Use {"{{variavel}}"} para personalização. Ex: {"{{nome}}"}, {"{{empresa}}"}
+                  Use {"{variavel}"} para personalização. Ex: {"{nome}"}, {"{empresa}"}
                 </p>
               </div>
 
