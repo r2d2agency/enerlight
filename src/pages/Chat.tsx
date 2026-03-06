@@ -967,48 +967,48 @@ const Chat = () => {
 
               <ResizablePanel defaultSize={72} minSize={40} className="min-w-0">
 
-          {/* Chat Area - Full width on mobile, show back button */}
-          {(!isMobile || selectedConversation) && (
-            <ChatArea
-              conversation={selectedConversation}
-              messages={messages}
-              loading={loadingMessages}
-              sending={sendingMessage}
-              tags={tags}
-              team={team}
-              syncingHistory={syncingHistory}
-              isAdmin={isAdmin}
-              userRole={userRole}
-              onSyncHistory={handleSyncHistory}
-              onSendMessage={handleSendMessage}
-              onLoadMore={handleLoadMoreMessages}
-              hasMore={hasMoreMessages}
-              onAddTag={handleAddTag}
-              onRemoveTag={handleRemoveTag}
-              onAssign={handleAssign}
-              onArchive={handleArchive}
-              onTransfer={handleTransfer}
-              onCreateTag={handleCreateTag}
-              onDeleteConversation={async () => {
-                if (!selectedConversation) return;
-                try {
-                  await api(`/api/chat/conversations/${selectedConversation.id}`, { method: 'DELETE' });
-                  toast.success('Conversa excluída');
-                  setSelectedConversation(null);
-                  setMessages([]);
-                  loadConversations();
-                } catch (error: any) {
-                  toast.error(error.message || 'Erro ao excluir conversa');
-                }
-              }}
-              onReleaseConversation={handleReleaseConversation}
-              onFinishConversation={() => handleFinishConversation()}
-              onReopenConversation={() => handleReopenConversation()}
-              onDepartmentChange={() => loadConversations()}
-              isMobile={isMobile}
-              onMobileBack={handleMobileBack}
-              onOpenCRM={modulesEnabled.crm || (modulesEnabled.projects && isDesignerUser) ? () => setCrmPanelOpen(true) : undefined}
-            />
+              <ChatArea
+                conversation={selectedConversation}
+                messages={messages}
+                loading={loadingMessages}
+                sending={sendingMessage}
+                tags={tags}
+                team={team}
+                syncingHistory={syncingHistory}
+                isAdmin={isAdmin}
+                userRole={userRole}
+                onSyncHistory={handleSyncHistory}
+                onSendMessage={handleSendMessage}
+                onLoadMore={handleLoadMoreMessages}
+                hasMore={hasMoreMessages}
+                onAddTag={handleAddTag}
+                onRemoveTag={handleRemoveTag}
+                onAssign={handleAssign}
+                onArchive={handleArchive}
+                onTransfer={handleTransfer}
+                onCreateTag={handleCreateTag}
+                onDeleteConversation={async () => {
+                  if (!selectedConversation) return;
+                  try {
+                    await api(`/api/chat/conversations/${selectedConversation.id}`, { method: 'DELETE' });
+                    toast.success('Conversa excluída');
+                    setSelectedConversation(null);
+                    setMessages([]);
+                    loadConversations();
+                  } catch (error: any) {
+                    toast.error(error.message || 'Erro ao excluir conversa');
+                  }
+                }}
+                onReleaseConversation={handleReleaseConversation}
+                onFinishConversation={() => handleFinishConversation()}
+                onReopenConversation={() => handleReopenConversation()}
+                onDepartmentChange={() => loadConversations()}
+                isMobile={false}
+                onMobileBack={handleMobileBack}
+                onOpenCRM={modulesEnabled.crm || (modulesEnabled.projects && isDesignerUser) ? () => setCrmPanelOpen(true) : undefined}
+              />
+              </ResizablePanel>
+            </ResizablePanelGroup>
           )}
 
           {/* Side Panel - Desktop */}
@@ -1062,7 +1062,6 @@ const Chat = () => {
               </SheetContent>
             </Sheet>
           )}
-        </div>
       </div>
 
       {/* New Conversation Dialog */}
