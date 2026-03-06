@@ -1794,6 +1794,31 @@ export function CRMSidePanel({
         onOpenChange={setShowCompanyDialog}
         onCreated={handleCompanyCreatedFromDialog}
       />
+      {/* AI Response Modal */}
+      <Dialog open={showAIResponseModal} onOpenChange={setShowAIResponseModal}>
+        <DialogContent className="sm:max-w-lg max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Brain className="h-5 w-5 text-primary" />
+              Resposta da IA {consultAgent?.name ? `— ${consultAgent.name}` : ''}
+            </DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="max-h-[55vh]">
+            <div className="p-4 rounded-lg bg-muted/50 border text-sm leading-relaxed whitespace-pre-wrap">
+              {consultResponse}
+            </div>
+          </ScrollArea>
+          <DialogFooter className="flex gap-2 sm:gap-2">
+            <Button variant="outline" onClick={handleCopyResponse} className="gap-2">
+              <Copy className="h-4 w-4" />
+              Copiar
+            </Button>
+            <Button onClick={() => setShowAIResponseModal(false)}>
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
