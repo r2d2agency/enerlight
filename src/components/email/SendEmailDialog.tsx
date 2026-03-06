@@ -49,7 +49,7 @@ export function SendEmailDialog({
   const { data: smtpStatus, isLoading: loadingStatus } = useSMTPStatus();
   const { data: templates = [] } = useEmailTemplates();
   const sendEmail = useSendEmail();
-  const { uploadFile, uploading } = useUpload();
+  const { uploadFile, isUploading: uploading } = useUpload();
 
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
