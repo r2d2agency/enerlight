@@ -42,13 +42,13 @@ export const useContacts = () => {
     }
   }, []);
 
-  const createList = useCallback(async (name: string): Promise<ContactList> => {
+  const createList = useCallback(async (name: string, connectionId?: string): Promise<ContactList> => {
     setLoading(true);
     setError(null);
     try {
       const data = await api<ContactList>('/api/contacts/lists', {
         method: 'POST',
-        body: { name },
+        body: { name, connection_id: connectionId || undefined },
       });
       return data;
     } catch (err) {
