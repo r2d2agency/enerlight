@@ -19,6 +19,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -34,6 +41,7 @@ import {
   X,
   Phone,
   UserPlus,
+  Wifi,
 } from "lucide-react";
 import { useContacts, ContactList, Contact } from "@/hooks/use-contacts";
 import { ExcelImportDialog } from "@/components/contatos/ExcelImportDialog";
@@ -65,17 +73,21 @@ const Contatos = () => {
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isAddContactOpen, setIsAddContactOpen] = useState(false);
   const [newListName, setNewListName] = useState("");
+  const [newListConnectionId, setNewListConnectionId] = useState<string>("");
   const [newContactName, setNewContactName] = useState("");
   const [newContactPhone, setNewContactPhone] = useState("");
   const [newContactValidated, setNewContactValidated] = useState<boolean | null>(null);
   const [isValidatingNewContact, setIsValidatingNewContact] = useState(false);
   const [isLoadingContacts, setIsLoadingContacts] = useState(false);
+  const [filterConnectionId, setFilterConnectionId] = useState<string>("all");
+  const [availableConnections, setAvailableConnections] = useState<Array<{ id: string; name: string }>>([]);
   const [editingContact, setEditingContact] = useState<string | null>(null);
   const [validatingContact, setValidatingContact] = useState<string | null>(null);
 
-  // Load lists on mount
+  // Load lists and connections on mount
   useEffect(() => {
     loadLists();
+    loadAvailableConnections();
   }, []);
 
   // Load contacts when list changes
@@ -93,6 +105,18 @@ const Contatos = () => {
       setLists(data);
     } catch (err) {
       toast.error("Erro ao carregar listas");
+    }
+  };
+
+  const loadAvailableConnections = async () => {
+    try {
+      const orgs = await api<Array<{ id: string }>>('/api/organizations');
+      if (orgs.length > 0) {
+        const conns = await api<Array<{ id: string; name: string }>>(`/api/organizations/${orgs[0].id}/connections`);
+        setAvailableConnections(conns);
+      }
+    } catch {
+      // ignore
     }
   };
 
@@ -114,9 +138,10 @@ const Contatos = () => {
       return;
     }
     try {
-      await createList(newListName);
+      await createList(newListName, newListConnectionId || undefined);
       toast.success("Lista criada com sucesso!");
       setNewListName("");
+      setNewListConnectionId("");
       setIsCreateListOpen(false);
       loadLists();
     } catch (err) {
@@ -302,54 +327,93 @@ const Contatos = () => {
       contact.phone.includes(searchTerm)
   );
 
-  const totalContacts = lists.reduce((sum, list) => sum + Number(list.contact_count || 0), 0);
+  const filteredLists = filterConnectionId === "all" 
+    ? lists 
+    : filterConnectionId === "none" 
+      ? lists.filter(l => !l.connection_id) 
+      : lists.filter(l => l.connection_id === filterConnectionId);
+
+  const totalContacts = filteredLists.reduce((sum, list) => sum + Number(list.contact_count || 0), 0);
 
   return (
     <MainLayout>
       <div className="space-y-8">
         {/* Header */}
-        <div className="flex items-center justify-between animate-slide-up">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-slide-up">
           <div>
             <h1 className="text-3xl font-bold text-foreground">Contatos</h1>
             <p className="mt-1 text-muted-foreground">
               Gerencie suas listas de contatos
             </p>
           </div>
-          <Dialog open={isCreateListOpen} onOpenChange={setIsCreateListOpen}>
-            <DialogTrigger asChild>
-              <Button variant="gradient">
-                <Plus className="h-4 w-4" />
-                Nova Lista
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>Criar Nova Lista</DialogTitle>
-                <DialogDescription>
-                  Crie uma lista para organizar seus contatos
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="listName">Nome da Lista</Label>
-                  <Input
-                    id="listName"
-                    placeholder="Ex: Clientes Janeiro"
-                    value={newListName}
-                    onChange={(e) => setNewListName(e.target.value)}
-                  />
+          <div className="flex items-center gap-3">
+            {availableConnections.length > 0 && (
+              <Select value={filterConnectionId} onValueChange={setFilterConnectionId}>
+                <SelectTrigger className="w-[200px]">
+                  <Wifi className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <SelectValue placeholder="Filtrar por conexão" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as conexões</SelectItem>
+                  <SelectItem value="none">Sem conexão</SelectItem>
+                  {availableConnections.map((conn) => (
+                    <SelectItem key={conn.id} value={conn.id}>{conn.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <Dialog open={isCreateListOpen} onOpenChange={setIsCreateListOpen}>
+              <DialogTrigger asChild>
+                <Button variant="gradient">
+                  <Plus className="h-4 w-4" />
+                  Nova Lista
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Criar Nova Lista</DialogTitle>
+                  <DialogDescription>
+                    Crie uma lista para organizar seus contatos
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="listName">Nome da Lista</Label>
+                    <Input
+                      id="listName"
+                      placeholder="Ex: Clientes Janeiro"
+                      value={newListName}
+                      onChange={(e) => setNewListName(e.target.value)}
+                    />
+                  </div>
+                  {availableConnections.length > 0 && (
+                    <div className="space-y-2">
+                      <Label>Conexão (opcional)</Label>
+                      <Select value={newListConnectionId || "_none"} onValueChange={(v) => setNewListConnectionId(v === "_none" ? "" : v)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Nenhuma conexão" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="_none">Nenhuma conexão</SelectItem>
+                          {availableConnections.map((conn) => (
+                            <SelectItem key={conn.id} value={conn.id}>{conn.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                 </div>
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setIsCreateListOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button variant="gradient" onClick={handleCreateList} disabled={loading}>
-                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Criar Lista"}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setIsCreateListOpen(false)}>
+                    Cancelar
+                  </Button>
+                  <Button variant="gradient" onClick={handleCreateList} disabled={loading}>
+                    {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Criar Lista"}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
 
         {/* Lists Grid */}
@@ -367,18 +431,18 @@ const Contatos = () => {
               <div>
                 <p className="font-semibold text-foreground">Todas as Listas</p>
                 <p className="text-sm text-muted-foreground">
-                  {totalContacts} contatos em {lists.length} listas
+                  {totalContacts} contatos em {filteredLists.length} listas
                 </p>
               </div>
             </CardContent>
           </Card>
 
-          {loading && lists.length === 0 ? (
+          {loading && filteredLists.length === 0 ? (
             <div className="col-span-2 flex items-center justify-center p-8">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
           ) : (
-            lists.map((list, index) => (
+            filteredLists.map((list, index) => (
               <Card
                 key={list.id}
                 className={`cursor-pointer transition-all duration-200 hover:shadow-elevated animate-fade-in ${
@@ -394,9 +458,17 @@ const Contatos = () => {
                     </div>
                     <div>
                       <p className="font-semibold text-foreground">{list.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {list.contact_count || 0} contatos
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm text-muted-foreground">
+                          {list.contact_count || 0} contatos
+                        </p>
+                        {list.connection_name && (
+                          <Badge variant="outline" className="text-xs">
+                            <Wifi className="h-3 w-3 mr-1" />
+                            {list.connection_name}
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">

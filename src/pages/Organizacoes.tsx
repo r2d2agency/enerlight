@@ -18,7 +18,7 @@ import { useSuperadmin } from '@/hooks/use-superadmin';
 import { useCRMGroups, useCRMGroupMembers, useCRMGroupMutations, useCRMFunnels, useCRMGroupFunnels, useCRMGroupFunnelMutations } from '@/hooks/use-crm';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
-import { Building2, Plus, Users, Trash2, UserPlus, Crown, Shield, User, Briefcase, Loader2, Pencil, Link2, Settings, KeyRound, Megaphone, Receipt, UsersRound, CalendarClock, Bot, Layers, MessagesSquare, Upload, Image, ShieldCheck, GitBranch, Edit, ClipboardList } from 'lucide-react';
+import { Building2, Plus, Users, Trash2, UserPlus, Crown, Shield, User, Briefcase, Loader2, Pencil, Link2, Settings, KeyRound, Megaphone, Receipt, UsersRound, CalendarClock, Bot, Layers, MessagesSquare, Upload, Image, ShieldCheck, GitBranch, Edit, ClipboardList, UserX, UserCheck } from 'lucide-react';
 import { PermissionsDialog } from '@/components/permissions/PermissionsDialog';
 import { PermissionTemplatesTab } from '@/components/admin/PermissionTemplatesTab';
 import { useUpload } from '@/hooks/use-upload';
@@ -49,6 +49,7 @@ interface OrganizationMember {
   name: string;
   email: string;
   role: 'owner' | 'admin' | 'manager' | 'agent';
+  is_active: boolean;
   assigned_connections: AssignedConnection[];
   assigned_departments: AssignedDepartment[];
   created_at: string;
@@ -457,6 +458,22 @@ export default function Organizacoes() {
       setConnectionIds(connectionIds.filter(id => id !== connId));
     } else {
       setConnectionIds([...connectionIds, connId]);
+    }
+  };
+
+  const handleToggleMemberActive = async (member: OrganizationMember) => {
+    if (!selectedOrg) return;
+    try {
+      const result = await api<{ success: boolean; is_active: boolean }>(
+        `/api/organizations/${selectedOrg.id}/members/${member.user_id}/toggle-active`,
+        { method: 'PATCH' }
+      );
+      if (result.success) {
+        toast.success(result.is_active ? 'Usuário ativado!' : 'Usuário desativado!');
+        loadMembers(selectedOrg.id);
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao alterar status');
     }
   };
 
@@ -910,6 +927,7 @@ export default function Organizacoes() {
                               <TableRow>
                                 <TableHead>Usuário</TableHead>
                                 <TableHead>Função</TableHead>
+                                <TableHead>Status</TableHead>
                                 <TableHead>Conexões</TableHead>
                                 <TableHead>Departamentos</TableHead>
                                 <TableHead>Desde</TableHead>
@@ -921,8 +939,9 @@ export default function Organizacoes() {
                                 const RoleIcon = roleLabels[member.role].icon;
                                 const assignedConns = member.assigned_connections || [];
                                 const assignedDepts = member.assigned_departments || [];
+                                const isActive = member.is_active !== false;
                                 return (
-                                  <TableRow key={member.id}>
+                                  <TableRow key={member.id} className={!isActive ? 'opacity-50' : ''}>
                                     <TableCell>
                                       <div className="flex items-center gap-3">
                                         <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center">
@@ -939,6 +958,26 @@ export default function Organizacoes() {
                                         <RoleIcon className="h-3 w-3 mr-1" />
                                         {roleLabels[member.role].label}
                                       </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                      {canManageOrg && member.role !== 'owner' ? (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className={isActive ? 'text-green-600 hover:text-green-700' : 'text-destructive hover:text-destructive'}
+                                          onClick={() => handleToggleMemberActive(member)}
+                                        >
+                                          {isActive ? (
+                                            <><UserCheck className="h-4 w-4 mr-1" /> Ativo</>
+                                          ) : (
+                                            <><UserX className="h-4 w-4 mr-1" /> Inativo</>
+                                          )}
+                                        </Button>
+                                      ) : (
+                                        <Badge variant={isActive ? 'secondary' : 'destructive'} className="text-xs">
+                                          {isActive ? 'Ativo' : 'Inativo'}
+                                        </Badge>
+                                      )}
                                     </TableCell>
                                     <TableCell>
                                       {assignedConns.length === 0 ? (
