@@ -1062,6 +1062,7 @@ const Chat = () => {
               </SheetContent>
             </Sheet>
           )}
+        </div>
       </div>
 
       {/* New Conversation Dialog */}
