@@ -10,7 +10,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { CRMFunnel, useCRMDealMutations, useCRMFunnel, useCRMGroups } from "@/hooks/use-crm";
+import { useCRMCustomFields } from "@/hooks/use-crm-config";
 import { Slider } from "@/components/ui/slider";
+import { Separator } from "@/components/ui/separator";
 import { User, Handshake, Search } from "lucide-react";
 import { CompanySearchSelect } from "@/components/crm/CompanySearchSelect";
 import { useAuth } from "@/contexts/AuthContext";
@@ -45,6 +47,7 @@ export function DealFormDialog({ funnel, open, onOpenChange, defaultCompanyId }:
   const [description, setDescription] = useState("");
   const [groupId, setGroupId] = useState("");
   const [representativeId, setRepresentativeId] = useState("");
+  const [customFieldValues, setCustomFieldValues] = useState<Record<string, any>>({});
   
   const [mode, setMode] = useState<"company" | "contact">("company");
   const [contactName, setContactName] = useState("");
@@ -54,7 +57,10 @@ export function DealFormDialog({ funnel, open, onOpenChange, defaultCompanyId }:
   const { data: groups } = useCRMGroups();
   const { data: myGroups } = useMyGroups();
   const { data: repsForDeal } = useRepresentativesForDeal();
+  const { data: customFields = [] } = useCRMCustomFields('deal');
   const { createDeal } = useCRMDealMutations();
+
+  const activeCustomFields = customFields.filter(f => f.is_active);
 
   // Auto-fill group for non-managers
   useEffect(() => {
@@ -98,6 +104,7 @@ export function DealFormDialog({ funnel, open, onOpenChange, defaultCompanyId }:
       representative_id: representativeId || undefined,
       contact_name: mode === "contact" ? contactName : undefined,
       contact_phone: mode === "contact" ? contactPhone : undefined,
+      custom_fields: Object.keys(customFieldValues).length > 0 ? customFieldValues : undefined,
     } as any);
 
     resetForm();
@@ -116,6 +123,7 @@ export function DealFormDialog({ funnel, open, onOpenChange, defaultCompanyId }:
     setContactName("");
     setContactPhone("");
     setMode("company");
+    setCustomFieldValues({});
   };
 
   const isValid = () => {
@@ -125,7 +133,6 @@ export function DealFormDialog({ funnel, open, onOpenChange, defaultCompanyId }:
     return false;
   };
 
-  // Derive group name for display
   const userGroupName = !canManage && myGroups?.length
     ? myGroups.map(g => g.name).join(", ")
     : null;
@@ -148,7 +155,6 @@ export function DealFormDialog({ funnel, open, onOpenChange, defaultCompanyId }:
               />
             </div>
 
-            {/* Company or Contact Selection */}
             <div className="space-y-2">
               <Label>Vincular a *</Label>
               <Tabs value={mode} onValueChange={(v) => setMode(v as "company" | "contact")}>
@@ -161,22 +167,12 @@ export function DealFormDialog({ funnel, open, onOpenChange, defaultCompanyId }:
                     Contato
                   </TabsTrigger>
                 </TabsList>
-
                 <TabsContent value="company" className="mt-3">
                   <CompanySearchSelect value={companyId} onSelect={setCompanyId} />
                 </TabsContent>
-
                 <TabsContent value="contact" className="mt-3 space-y-3">
-                  <Input
-                    value={contactName}
-                    onChange={(e) => setContactName(e.target.value)}
-                    placeholder="Nome do contato"
-                  />
-                  <Input
-                    value={contactPhone}
-                    onChange={(e) => setContactPhone(e.target.value)}
-                    placeholder="Telefone (WhatsApp)"
-                  />
+                  <Input value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder="Nome do contato" />
+                  <Input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="Telefone (WhatsApp)" />
                 </TabsContent>
               </Tabs>
             </div>
@@ -188,13 +184,9 @@ export function DealFormDialog({ funnel, open, onOpenChange, defaultCompanyId }:
                   <SelectValue placeholder="Selecione a etapa" />
                 </SelectTrigger>
                 <SelectContent>
-                  {funnelData?.stages
-                    ?.filter((s) => !s.is_final)
-                    .map((stage) => (
-                      <SelectItem key={stage.id} value={stage.id!}>
-                        {stage.name}
-                      </SelectItem>
-                    ))}
+                  {funnelData?.stages?.filter((s) => !s.is_final).map((stage) => (
+                    <SelectItem key={stage.id} value={stage.id!}>{stage.name}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -202,37 +194,19 @@ export function DealFormDialog({ funnel, open, onOpenChange, defaultCompanyId }:
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Valor (R$)</Label>
-                <Input
-                  type="number"
-                  value={value}
-                  onChange={(e) => setValue(e.target.value)}
-                  placeholder="0,00"
-                  min={0}
-                  step={0.01}
-                />
+                <Input type="number" value={value} onChange={(e) => setValue(e.target.value)} placeholder="0,00" min={0} step={0.01} />
               </div>
               <div className="space-y-2">
                 <Label>Fechamento previsto</Label>
-                <Input
-                  type="date"
-                  value={expectedCloseDate}
-                  onChange={(e) => setExpectedCloseDate(e.target.value)}
-                />
+                <Input type="date" value={expectedCloseDate} onChange={(e) => setExpectedCloseDate(e.target.value)} />
               </div>
             </div>
 
             <div className="space-y-2">
               <Label>Probabilidade de fechamento: {probability}%</Label>
-              <Slider
-                value={[probability]}
-                onValueChange={([val]) => setProbability(val)}
-                min={0}
-                max={100}
-                step={5}
-              />
+              <Slider value={[probability]} onValueChange={([val]) => setProbability(val)} min={0} max={100} step={5} />
             </div>
 
-            {/* Group: managers can select, vendedores see auto-filled read-only */}
             {canManage ? (
               <div className="space-y-2">
                 <Label>Grupo</Label>
@@ -243,9 +217,7 @@ export function DealFormDialog({ funnel, open, onOpenChange, defaultCompanyId }:
                   <SelectContent>
                     <SelectItem value="none">Nenhum</SelectItem>
                     {groups?.map((group) => (
-                      <SelectItem key={group.id} value={group.id}>
-                        {group.name}
-                      </SelectItem>
+                      <SelectItem key={group.id} value={group.id}>{group.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -257,7 +229,6 @@ export function DealFormDialog({ funnel, open, onOpenChange, defaultCompanyId }:
               </div>
             ) : null}
 
-            {/* Representative */}
             <div className="space-y-2">
               <Label className="flex items-center gap-2"><Handshake className="h-4 w-4" /> Representante</Label>
               <Popover>
@@ -275,9 +246,7 @@ export function DealFormDialog({ funnel, open, onOpenChange, defaultCompanyId }:
                     <CommandList>
                       <CommandEmpty>Nenhum representante encontrado.</CommandEmpty>
                       <CommandGroup>
-                        <CommandItem onSelect={() => setRepresentativeId("")}>
-                          Nenhum
-                        </CommandItem>
+                        <CommandItem onSelect={() => setRepresentativeId("")}>Nenhum</CommandItem>
                         {repsForDeal?.map(rep => (
                           <CommandItem key={rep.id} value={rep.name} onSelect={() => setRepresentativeId(rep.id)}>
                             <Handshake className="h-4 w-4 mr-2" />
@@ -293,26 +262,67 @@ export function DealFormDialog({ funnel, open, onOpenChange, defaultCompanyId }:
 
             <div className="space-y-2">
               <Label>Descrição</Label>
-              <Textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Detalhes da negociação..."
-                rows={3}
-              />
+              <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Detalhes da negociação..." rows={3} />
             </div>
+
+            {/* Custom Fields */}
+            {activeCustomFields.length > 0 && (
+              <>
+                <Separator />
+                <div className="space-y-3">
+                  <Label className="text-xs font-medium text-muted-foreground uppercase">Campos Personalizados</Label>
+                  {activeCustomFields.map((field) => (
+                    <div key={field.id} className="space-y-1.5">
+                      <Label className="text-sm">
+                        {field.field_label}
+                        {field.is_required && <span className="text-destructive ml-1">*</span>}
+                      </Label>
+                      {field.field_type === 'select' ? (
+                        <Select
+                          value={customFieldValues[field.field_name] || ""}
+                          onValueChange={(val) => setCustomFieldValues(prev => ({ ...prev, [field.field_name]: val }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder={`Selecione ${field.field_label}`} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {field.options?.map(opt => (
+                              <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : field.field_type === 'boolean' ? (
+                        <Select
+                          value={customFieldValues[field.field_name] !== undefined ? String(customFieldValues[field.field_name]) : ""}
+                          onValueChange={(val) => setCustomFieldValues(prev => ({ ...prev, [field.field_name]: val === 'true' }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="true">Sim</SelectItem>
+                            <SelectItem value="false">Não</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Input
+                          type={field.field_type === 'number' ? 'number' : field.field_type === 'date' ? 'date' : field.field_type === 'datetime' ? 'datetime-local' : field.field_type === 'time' ? 'time' : 'text'}
+                          value={customFieldValues[field.field_name] || ""}
+                          onChange={(e) => setCustomFieldValues(prev => ({ ...prev, [field.field_name]: e.target.value }))}
+                          placeholder={field.field_label}
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </ScrollArea>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancelar
-          </Button>
-          <Button 
-            onClick={handleSave} 
-            disabled={!isValid()}
-          >
-            Criar Negociação
-          </Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+          <Button onClick={handleSave} disabled={!isValid()}>Criar Negociação</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
