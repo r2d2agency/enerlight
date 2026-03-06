@@ -402,6 +402,7 @@ export default function TarefasKanban() {
           boardId={selectedBoardId || ""}
           isGlobal={selectedBoard?.is_global || false}
           members={members}
+          boards={boards}
         />
 
         {/* Add column dialog */}
