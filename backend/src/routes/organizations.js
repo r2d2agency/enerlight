@@ -552,7 +552,57 @@ router.patch('/:id/members/:userId', async (req, res) => {
   }
 });
 
-// Get organization departments (for member assignment)
+// Toggle member active status
+router.patch('/:id([0-9a-fA-F-]{36})/members/:userId/toggle-active', async (req, res) => {
+  try {
+    const { id, userId } = req.params;
+
+    // Check if user is admin/owner
+    const memberCheck = await query(
+      `SELECT role FROM organization_members 
+       WHERE organization_id = $1 AND user_id = $2 AND role IN ('owner', 'admin')`,
+      [id, req.userId]
+    );
+    
+    if (memberCheck.rows.length === 0) {
+      return res.status(403).json({ error: 'Apenas admins podem ativar/desativar membros' });
+    }
+
+    // Don't allow deactivating owner
+    const targetCheck = await query(
+      `SELECT role, COALESCE(is_active, true) as is_active FROM organization_members WHERE organization_id = $1 AND user_id = $2`,
+      [id, userId]
+    );
+
+    if (targetCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Membro não encontrado' });
+    }
+
+    if (targetCheck.rows[0].role === 'owner') {
+      return res.status(400).json({ error: 'Não é possível desativar o proprietário' });
+    }
+
+    const newStatus = !targetCheck.rows[0].is_active;
+
+    // Try to add is_active column if it doesn't exist
+    try {
+      await query(`ALTER TABLE organization_members ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true`);
+    } catch (e) {
+      // column may already exist
+    }
+
+    await query(
+      `UPDATE organization_members SET is_active = $1 WHERE organization_id = $2 AND user_id = $3`,
+      [newStatus, id, userId]
+    );
+
+    res.json({ success: true, is_active: newStatus });
+  } catch (error) {
+    console.error('Toggle member active error:', error);
+    res.status(500).json({ error: 'Erro ao alterar status do membro' });
+  }
+});
+
 router.get('/:id([0-9a-fA-F-]{36})/departments', async (req, res) => {
   try {
     const { id } = req.params;
