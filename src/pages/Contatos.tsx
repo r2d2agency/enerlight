@@ -84,9 +84,10 @@ const Contatos = () => {
   const [editingContact, setEditingContact] = useState<string | null>(null);
   const [validatingContact, setValidatingContact] = useState<string | null>(null);
 
-  // Load lists on mount
+  // Load lists and connections on mount
   useEffect(() => {
     loadLists();
+    loadAvailableConnections();
   }, []);
 
   // Load contacts when list changes
