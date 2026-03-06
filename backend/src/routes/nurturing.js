@@ -531,33 +531,57 @@ router.post('/:id/enroll', authenticate, async (req, res) => {
       }
     }
 
-    // Create enrollment (upsert)
-    const result = await query(
-      `INSERT INTO nurturing_enrollments 
-        (sequence_id, organization_id, contact_phone, contact_email, contact_name,
-         conversation_id, deal_id, current_step, status, next_step_at, variables)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, 0, 'active', $8, $9)
-       ON CONFLICT (sequence_id, contact_phone) 
-       DO UPDATE SET 
-         status = 'active',
-         current_step = 0,
-         next_step_at = $8,
-         paused_at = NULL,
-         variables = $9,
-         updated_at = NOW()
-       RETURNING *`,
-      [
-        id,
-        userOrg.organization_id,
-        contact_phone,
-        contact_email,
-        contact_name,
-        conversation_id,
-        deal_id,
-        nextStepAt.toISOString(),
-        JSON.stringify(variables)
-      ]
-    );
+    // Check if already enrolled (avoid duplicates)
+    let existingEnrollment = null;
+    if (contact_phone) {
+      const existing = await query(
+        `SELECT id FROM nurturing_enrollments 
+         WHERE sequence_id = $1 AND contact_phone = $2 AND status IN ('active', 'paused')`,
+        [id, contact_phone]
+      );
+      existingEnrollment = existing.rows[0];
+    } else if (contact_email) {
+      const existing = await query(
+        `SELECT id FROM nurturing_enrollments 
+         WHERE sequence_id = $1 AND contact_email = $2 AND status IN ('active', 'paused')`,
+        [id, contact_email]
+      );
+      existingEnrollment = existing.rows[0];
+    }
+
+    let result;
+    if (existingEnrollment) {
+      // Re-activate existing enrollment
+      result = await query(
+        `UPDATE nurturing_enrollments SET
+          status = 'active', current_step = 0, next_step_at = $1,
+          paused_at = NULL, variables = $2, contact_name = COALESCE($3, contact_name),
+          conversation_id = COALESCE($4, conversation_id), deal_id = COALESCE($5, deal_id),
+          updated_at = NOW()
+         WHERE id = $6 RETURNING *`,
+        [nextStepAt.toISOString(), JSON.stringify(variables), contact_name, conversation_id, deal_id, existingEnrollment.id]
+      );
+    } else {
+      // Create new enrollment
+      result = await query(
+        `INSERT INTO nurturing_enrollments 
+          (sequence_id, organization_id, contact_phone, contact_email, contact_name,
+           conversation_id, deal_id, current_step, status, next_step_at, variables)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, 0, 'active', $8, $9)
+         RETURNING *`,
+        [
+          id,
+          userOrg.organization_id,
+          contact_phone || null,
+          contact_email || null,
+          contact_name || null,
+          conversation_id || null,
+          deal_id || null,
+          nextStepAt.toISOString(),
+          JSON.stringify(variables)
+        ]
+      );
+    }
 
     // Update sequence stats
     await query(
