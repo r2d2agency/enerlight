@@ -802,8 +802,8 @@ router.post('/:boardId/cards', async (req, res) => {
   try {
     const { column_id, title, description, assigned_to, priority, due_date, tags, color, deal_id, company_id, contact_id, project_id, status } = req.body;
     
-    const board = await pool.query(`SELECT is_global FROM task_boards WHERE id = $1`, [req.params.boardId]);
-    const effectiveAssigned = board.rows[0]?.is_global ? (assigned_to || req.user.id) : req.user.id;
+    // Allow assigning to others on any board; default to self if not specified
+    const effectiveAssigned = assigned_to || req.user.id;
 
     const maxPos = await pool.query(
       `SELECT COALESCE(MAX(position), -1) + 1 as next_pos FROM task_cards WHERE column_id = $1`,
