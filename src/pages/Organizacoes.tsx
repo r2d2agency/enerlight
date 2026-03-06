@@ -927,6 +927,7 @@ export default function Organizacoes() {
                               <TableRow>
                                 <TableHead>Usuário</TableHead>
                                 <TableHead>Função</TableHead>
+                                <TableHead>Status</TableHead>
                                 <TableHead>Conexões</TableHead>
                                 <TableHead>Departamentos</TableHead>
                                 <TableHead>Desde</TableHead>
@@ -938,8 +939,9 @@ export default function Organizacoes() {
                                 const RoleIcon = roleLabels[member.role].icon;
                                 const assignedConns = member.assigned_connections || [];
                                 const assignedDepts = member.assigned_departments || [];
+                                const isActive = member.is_active !== false;
                                 return (
-                                  <TableRow key={member.id}>
+                                  <TableRow key={member.id} className={!isActive ? 'opacity-50' : ''}>
                                     <TableCell>
                                       <div className="flex items-center gap-3">
                                         <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center">
