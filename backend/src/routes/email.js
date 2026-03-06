@@ -495,7 +495,8 @@ router.post('/send', async (req, res) => {
       variables,
       context_type,
       context_id,
-      send_immediately
+      send_immediately,
+      attachments
     } = req.body;
 
     if (!to_email) {
@@ -559,7 +560,7 @@ router.post('/send', async (req, res) => {
 
         const transporter = createTransporter(smtpConfig);
 
-        await transporter.sendMail({
+        const mailOptions = {
           from: `"${smtpConfig.from_name}" <${smtpConfig.from_email}>`,
           to: to_name ? `"${to_name}" <${to_email}>` : to_email,
           cc: cc?.join(', '),
@@ -568,7 +569,17 @@ router.post('/send', async (req, res) => {
           subject: finalSubject,
           html: finalBodyHtml,
           text: finalBodyText,
-        });
+        };
+
+        // Add attachments if provided
+        if (attachments && Array.isArray(attachments) && attachments.length > 0) {
+          mailOptions.attachments = attachments.map(att => ({
+            filename: att.filename,
+            path: att.path,
+          }));
+        }
+
+        await transporter.sendMail(mailOptions);
 
         // Update queue status
         await query(
