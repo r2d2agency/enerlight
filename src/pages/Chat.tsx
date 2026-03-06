@@ -965,7 +965,7 @@ const Chat = () => {
 
               <ResizableHandle withHandle />
 
-              <ResizablePanel defaultSize={72} minSize={40} className="min-w-0">
+              <ResizablePanel defaultSize={72} minSize={40} className="min-w-0 overflow-hidden">
 
               <ChatArea
                 conversation={selectedConversation}
