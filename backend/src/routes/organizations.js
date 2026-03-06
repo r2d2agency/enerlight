@@ -252,11 +252,12 @@ router.get('/:id([0-9a-fA-F-]{36})/members', async (req, res) => {
       `SELECT 
         om.*, 
         u.name, 
-        u.email
+        u.email,
+        COALESCE(om.is_active, true) as is_active
        FROM organization_members om
        JOIN users u ON u.id = om.user_id
        WHERE om.organization_id = $1
-       ORDER BY om.created_at`,
+       ORDER BY COALESCE(om.is_active, true) DESC, om.created_at`,
       [id]
     );
 
