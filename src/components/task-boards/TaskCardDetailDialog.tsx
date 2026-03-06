@@ -18,10 +18,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import {
   Calendar, CheckSquare, Clock, FileText, MessageSquare, Paperclip,
   Plus, Trash2, User, X, Send, ListChecks, Tag, Briefcase, Building2,
-  Contact, FolderKanban, StickyNote, BarChart3, AlertTriangle
+  Contact, FolderKanban, StickyNote, BarChart3, AlertTriangle, ArrowRightLeft
 } from "lucide-react";
 import {
-  TaskCard, TaskChecklist, TaskChecklistItem, TaskComment, TaskAttachment,
+  TaskCard, TaskBoard, TaskChecklist, TaskChecklistItem, TaskComment, TaskAttachment,
   OrgMember, ChecklistTemplate,
   useCardChecklists, useChecklistMutations,
   useCardComments, useCommentMutations,
@@ -42,6 +42,7 @@ interface TaskCardDetailDialogProps {
   boardId: string;
   isGlobal: boolean;
   members: OrgMember[];
+  boards?: TaskBoard[];
 }
 
 const statusConfig: Record<string, { label: string; color: string; icon: string }> = {
@@ -202,7 +203,7 @@ function MiniGanttChart({ checklists }: { checklists: TaskChecklist[] }) {
 // MAIN DIALOG
 // ============================================
 export function TaskCardDetailDialog({
-  open, onOpenChange, card, boardId, isGlobal, members
+  open, onOpenChange, card, boardId, isGlobal, members, boards = []
 }: TaskCardDetailDialogProps) {
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
@@ -221,7 +222,7 @@ export function TaskCardDetailDialog({
   const checklistMut = useChecklistMutations(card?.id);
   const commentMut = useCommentMutations(card?.id);
   const attachmentMut = useAttachmentMutations(card?.id);
-  const { updateCard } = useCardMutations(boardId);
+  const { updateCard, moveCard } = useCardMutations(boardId);
 
   // Sync form when card changes
   useEffect(() => {
@@ -714,6 +715,30 @@ export function TaskCardDetailDialog({
 
               {/* Actions */}
               <div className="space-y-1">
+                {/* Move to another board */}
+                {boards.filter(b => b.id !== boardId).length > 0 && (
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-muted-foreground px-2">Mover para outro quadro</p>
+                    {boards.filter(b => b.id !== boardId).map(b => (
+                      <Button
+                        key={b.id}
+                        variant="ghost" size="sm" className="w-full justify-start text-xs"
+                        onClick={() => {
+                          moveCard.mutate({ id: card.id, board_id: b.id });
+                          onOpenChange(false);
+                          toast({ title: `Tarefa movida para "${b.name}"` });
+                        }}
+                      >
+                        <ArrowRightLeft className="h-3.5 w-3.5 mr-2" />
+                        {b.name}
+                        {b.is_global && <Badge variant="secondary" className="ml-auto text-[9px]">Global</Badge>}
+                      </Button>
+                    ))}
+                  </div>
+                )}
+
+                <Separator />
+
                 <Button
                   variant="ghost" size="sm" className="w-full justify-start text-destructive hover:text-destructive"
                   onClick={() => {
