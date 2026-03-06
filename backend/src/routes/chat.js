@@ -37,16 +37,7 @@ async function getUserConnections(userId) {
   );
   const userOrg = orgResult.rows[0] || null;
   
-  if (userOrg && ['owner', 'admin'].includes(userOrg.role)) {
-    // Owner/Admin: return ALL connections in the organization
-    const allConns = await query(
-      `SELECT id FROM connections WHERE organization_id = $1`,
-      [userOrg.organization_id]
-    );
-    return allConns.rows.map(r => r.id);
-  }
-
-  // Other roles: check specific connection assignments
+  // All roles: check specific connection assignments
   const specificResult = await query(
     `SELECT DISTINCT cm.connection_id as id
      FROM connection_members cm
@@ -56,6 +47,15 @@ async function getUserConnections(userId) {
   
   if (specificResult.rows.length > 0) {
     return specificResult.rows.map(r => r.id);
+  }
+  
+  // Owner/Admin without connection_members: fallback to ALL org connections
+  if (userOrg && ['owner', 'admin'].includes(userOrg.role)) {
+    const allConns = await query(
+      `SELECT id FROM connections WHERE organization_id = $1`,
+      [userOrg.organization_id]
+    );
+    return allConns.rows.map(r => r.id);
   }
   
   // No connection assignments = no access
