@@ -906,8 +906,8 @@ const Chat = () => {
 
           {/* Desktop: resizable panels */}
           {!isMobile && (
-            <ResizablePanelGroup direction="horizontal" className="h-full">
-              <ResizablePanel defaultSize={28} minSize={20} maxSize={45} className="min-w-0">
+            <ResizablePanelGroup direction="horizontal" className="h-full w-full overflow-hidden">
+              <ResizablePanel defaultSize={28} minSize={20} maxSize={45} className="min-w-0 overflow-hidden">
                 <ConversationList
                   conversations={conversations}
                   selectedId={selectedConversation?.id || null}
@@ -965,7 +965,7 @@ const Chat = () => {
 
               <ResizableHandle withHandle />
 
-              <ResizablePanel defaultSize={72} minSize={40} className="min-w-0">
+              <ResizablePanel defaultSize={72} minSize={40} className="min-w-0 overflow-hidden">
 
               <ChatArea
                 conversation={selectedConversation}
