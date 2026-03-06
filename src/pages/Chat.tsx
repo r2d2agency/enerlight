@@ -93,6 +93,12 @@ const Chat = () => {
       department: 'all',
     };
   });
+  const handleFiltersChange = (newFilters: typeof filters) => {
+    if (newFilters.connection !== filters.connection) {
+      localStorage.setItem('chat_selected_connection', newFilters.connection);
+    }
+    setFilters(newFilters);
+  };
   const [activeTab, setActiveTab] = useState<'chats' | 'groups'>('chats');
 
   // Keep latest loader for intervals / effects without stale closures
