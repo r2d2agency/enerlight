@@ -90,7 +90,8 @@ const Chat = () => {
       connection: savedConnection,
       is_group: false,
       attendance_status: 'attending' as 'waiting' | 'attending' | 'finished',
-    department: 'all',
+      department: 'all',
+    };
   });
   const [activeTab, setActiveTab] = useState<'chats' | 'groups'>('chats');
 
