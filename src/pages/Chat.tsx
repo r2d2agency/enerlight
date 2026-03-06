@@ -13,7 +13,7 @@ import { api } from "@/lib/api";
 import { chatEvents } from "@/lib/chat-events";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { MessageSquare, Users, Bell, RefreshCw } from "lucide-react";
+import { MessageSquare, Users, Bell, RefreshCw, ChevronLeft } from "lucide-react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -916,7 +916,7 @@ const Chat = () => {
           {/* Desktop: resizable panels */}
           {!isMobile && (
             <ResizablePanelGroup direction="horizontal" className="h-full w-full overflow-hidden">
-              <ResizablePanel defaultSize={28} minSize={20} maxSize={45} className="min-w-0 overflow-hidden">
+              <ResizablePanel defaultSize={crmPanelOpen ? 24 : 28} minSize={18} maxSize={45} className="min-w-0 overflow-hidden">
                 <ConversationList
                   conversations={conversations}
                   selectedId={selectedConversation?.id || null}
@@ -974,72 +974,87 @@ const Chat = () => {
 
               <ResizableHandle withHandle />
 
-              <ResizablePanel defaultSize={72} minSize={40} className="min-w-0 overflow-hidden">
+              <ResizablePanel defaultSize={crmPanelOpen ? 48 : 72} minSize={30} className="min-w-0 overflow-hidden relative">
+                <ChatArea
+                  conversation={selectedConversation}
+                  messages={messages}
+                  loading={loadingMessages}
+                  sending={sendingMessage}
+                  tags={tags}
+                  team={team}
+                  syncingHistory={syncingHistory}
+                  isAdmin={isAdmin}
+                  userRole={userRole}
+                  onSyncHistory={handleSyncHistory}
+                  onSendMessage={handleSendMessage}
+                  onLoadMore={handleLoadMoreMessages}
+                  hasMore={hasMoreMessages}
+                  onAddTag={handleAddTag}
+                  onRemoveTag={handleRemoveTag}
+                  onAssign={handleAssign}
+                  onArchive={handleArchive}
+                  onTransfer={handleTransfer}
+                  onCreateTag={handleCreateTag}
+                  onDeleteConversation={async () => {
+                    if (!selectedConversation) return;
+                    try {
+                      await api(`/api/chat/conversations/${selectedConversation.id}`, { method: 'DELETE' });
+                      toast.success('Conversa excluída');
+                      setSelectedConversation(null);
+                      setMessages([]);
+                      loadConversations();
+                    } catch (error: any) {
+                      toast.error(error.message || 'Erro ao excluir conversa');
+                    }
+                  }}
+                  onReleaseConversation={handleReleaseConversation}
+                  onFinishConversation={() => handleFinishConversation()}
+                  onReopenConversation={() => handleReopenConversation()}
+                  onDepartmentChange={() => loadConversations()}
+                  isMobile={false}
+                  onMobileBack={handleMobileBack}
+                  onOpenCRM={modulesEnabled.crm || (modulesEnabled.projects && isDesignerUser) ? () => setCrmPanelOpen(!crmPanelOpen) : undefined}
+                />
 
-              <ChatArea
-                conversation={selectedConversation}
-                messages={messages}
-                loading={loadingMessages}
-                sending={sendingMessage}
-                tags={tags}
-                team={team}
-                syncingHistory={syncingHistory}
-                isAdmin={isAdmin}
-                userRole={userRole}
-                onSyncHistory={handleSyncHistory}
-                onSendMessage={handleSendMessage}
-                onLoadMore={handleLoadMoreMessages}
-                hasMore={hasMoreMessages}
-                onAddTag={handleAddTag}
-                onRemoveTag={handleRemoveTag}
-                onAssign={handleAssign}
-                onArchive={handleArchive}
-                onTransfer={handleTransfer}
-                onCreateTag={handleCreateTag}
-                onDeleteConversation={async () => {
-                  if (!selectedConversation) return;
-                  try {
-                    await api(`/api/chat/conversations/${selectedConversation.id}`, { method: 'DELETE' });
-                    toast.success('Conversa excluída');
-                    setSelectedConversation(null);
-                    setMessages([]);
-                    loadConversations();
-                  } catch (error: any) {
-                    toast.error(error.message || 'Erro ao excluir conversa');
-                  }
-                }}
-                onReleaseConversation={handleReleaseConversation}
-                onFinishConversation={() => handleFinishConversation()}
-                onReopenConversation={() => handleReopenConversation()}
-                onDepartmentChange={() => loadConversations()}
-                isMobile={false}
-                onMobileBack={handleMobileBack}
-                onOpenCRM={modulesEnabled.crm || (modulesEnabled.projects && isDesignerUser) ? () => setCrmPanelOpen(true) : undefined}
-              />
+                {/* Chevron tab to open CRM panel - visible when closed */}
+                {!crmPanelOpen && selectedConversation && (modulesEnabled.crm || (modulesEnabled.projects && isDesignerUser)) && (
+                  <button
+                    onClick={() => setCrmPanelOpen(true)}
+                    className="absolute top-1/2 -translate-y-1/2 right-0 z-20 h-16 w-5 flex items-center justify-center bg-primary/10 hover:bg-primary/20 border border-r-0 border-border rounded-l-md transition-colors"
+                    title="Abrir painel CRM"
+                  >
+                    <ChevronLeft className="h-4 w-4 text-primary" />
+                  </button>
+                )}
               </ResizablePanel>
+
+              {/* CRM/Project Side Panel as resizable column */}
+              {crmPanelOpen && selectedConversation && (
+                <>
+                  <ResizableHandle withHandle />
+                  <ResizablePanel defaultSize={28} minSize={20} maxSize={45} className="min-w-0 overflow-hidden">
+                    {(modulesEnabled.projects && isDesignerUser) ? (
+                      <ProjectSidePanel
+                        conversationId={selectedConversation.id}
+                        contactPhone={selectedConversation.remote_jid?.replace('@s.whatsapp.net', '').replace('@g.us', '') || null}
+                        contactName={selectedConversation.contact_name || selectedConversation.group_name || null}
+                        isOpen={true}
+                        onToggle={() => setCrmPanelOpen(false)}
+                      />
+                    ) : (
+                      <CRMSidePanel
+                        conversationId={selectedConversation.id}
+                        contactPhone={selectedConversation.remote_jid?.replace('@s.whatsapp.net', '').replace('@g.us', '') || null}
+                        contactName={selectedConversation.contact_name || selectedConversation.group_name || null}
+                        isOpen={true}
+                        onToggle={() => setCrmPanelOpen(false)}
+                        chatMessages={messages.map(m => ({ id: m.id, content: m.content || '', sender: m.from_me ? 'me' : 'contact', timestamp: m.timestamp }))}
+                      />
+                    )}
+                  </ResizablePanel>
+                </>
+              )}
             </ResizablePanelGroup>
-          )}
-
-          {/* Side Panel - Desktop */}
-          {!isMobile && selectedConversation && (modulesEnabled.projects && isDesignerUser) && (
-            <ProjectSidePanel
-              conversationId={selectedConversation.id}
-              contactPhone={selectedConversation.remote_jid?.replace('@s.whatsapp.net', '').replace('@g.us', '') || null}
-              contactName={selectedConversation.contact_name || selectedConversation.group_name || null}
-              isOpen={crmPanelOpen}
-              onToggle={() => setCrmPanelOpen(!crmPanelOpen)}
-            />
-          )}
-
-          {!isMobile && selectedConversation && modulesEnabled.crm && !(modulesEnabled.projects && isDesignerUser) && (
-            <CRMSidePanel
-              conversationId={selectedConversation.id}
-              contactPhone={selectedConversation.remote_jid?.replace('@s.whatsapp.net', '').replace('@g.us', '') || null}
-              contactName={selectedConversation.contact_name || selectedConversation.group_name || null}
-              isOpen={crmPanelOpen}
-              onToggle={() => setCrmPanelOpen(!crmPanelOpen)}
-              chatMessages={messages.map(m => ({ id: m.id, content: m.content || '', sender: m.from_me ? 'me' : 'contact', timestamp: m.timestamp }))}
-            />
           )}
 
           {/* Side Panel - Mobile Sheet */}
