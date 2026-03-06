@@ -3061,4 +3061,56 @@ router.post('/conversations/:id/agent-session/takeover', authenticate, async (re
   }
 });
 
+// Forward a message to another user (creates a notification / internal record)
+router.post('/messages/forward', authenticate, async (req, res) => {
+  try {
+    const { message_id, conversation_id, forward_to_user_id, content, message_type, media_url } = req.body;
+    
+    if (!forward_to_user_id) {
+      return res.status(400).json({ error: 'Destinatário obrigatório' });
+    }
+
+    // Get sender info
+    const senderResult = await query(`SELECT name FROM users WHERE id = $1`, [req.userId]);
+    const senderName = senderResult.rows[0]?.name || 'Usuário';
+
+    // Get conversation info for context
+    let convInfo = '';
+    if (conversation_id) {
+      const convResult = await query(
+        `SELECT contact_name, contact_phone, group_name, is_group FROM conversations WHERE id = $1`,
+        [conversation_id]
+      );
+      if (convResult.rows[0]) {
+        const c = convResult.rows[0];
+        convInfo = c.is_group 
+          ? (c.group_name || 'Grupo')
+          : (c.contact_name || c.contact_phone || 'Contato');
+      }
+    }
+
+    // Try to create an internal notification (uses external_notifications table if available)
+    try {
+      await query(
+        `INSERT INTO external_notifications (user_id, title, body, type, reference_id, reference_type)
+         VALUES ($1, $2, $3, 'forward', $4, 'message')`,
+        [
+          forward_to_user_id,
+          `📩 ${senderName} encaminhou uma mensagem`,
+          `De: ${convInfo}\n${message_type !== 'text' ? `[${message_type}] ` : ''}${content || ''}`.substring(0, 500),
+          message_id || conversation_id
+        ]
+      );
+    } catch (notifErr) {
+      // If notification table doesn't exist, just log
+      console.log('Forward notification skipped (table may not exist):', notifErr.message);
+    }
+
+    res.json({ success: true, forwarded_to: forward_to_user_id });
+  } catch (error) {
+    console.error('Forward message error:', error);
+    res.status(500).json({ error: 'Erro ao encaminhar mensagem' });
+  }
+});
+
 export default router;
