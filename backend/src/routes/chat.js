@@ -1436,10 +1436,25 @@ router.post('/conversations/:id/messages', authenticate, async (req, res) => {
     const savedMessage = messageResult.rows[0];
 
     // Update conversation last_message_at immediately
-    await query(
-      `UPDATE conversations SET last_message_at = NOW(), updated_at = NOW() WHERE id = $1`,
-      [id]
-    );
+    // If conversation is 'waiting', auto-accept it and assign to the sender
+    const convStatus = conversation.attendance_status;
+    if (convStatus === 'waiting' || !convStatus) {
+      await query(
+        `UPDATE conversations 
+         SET last_message_at = NOW(), updated_at = NOW(),
+             attendance_status = 'attending',
+             accepted_by = $2,
+             accepted_at = NOW(),
+             assigned_to = $2
+         WHERE id = $1`,
+        [id, req.userId]
+      );
+    } else {
+      await query(
+        `UPDATE conversations SET last_message_at = NOW(), updated_at = NOW() WHERE id = $1`,
+        [id]
+      );
+    }
 
     // ============================================================
     // Return response immediately (optimistic)
