@@ -73,11 +73,14 @@ const Contatos = () => {
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isAddContactOpen, setIsAddContactOpen] = useState(false);
   const [newListName, setNewListName] = useState("");
+  const [newListConnectionId, setNewListConnectionId] = useState<string>("");
   const [newContactName, setNewContactName] = useState("");
   const [newContactPhone, setNewContactPhone] = useState("");
   const [newContactValidated, setNewContactValidated] = useState<boolean | null>(null);
   const [isValidatingNewContact, setIsValidatingNewContact] = useState(false);
   const [isLoadingContacts, setIsLoadingContacts] = useState(false);
+  const [filterConnectionId, setFilterConnectionId] = useState<string>("all");
+  const [availableConnections, setAvailableConnections] = useState<Array<{ id: string; name: string }>>([]);
   const [editingContact, setEditingContact] = useState<string | null>(null);
   const [validatingContact, setValidatingContact] = useState<string | null>(null);
 
