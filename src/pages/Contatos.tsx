@@ -339,48 +339,81 @@ const Contatos = () => {
     <MainLayout>
       <div className="space-y-8">
         {/* Header */}
-        <div className="flex items-center justify-between animate-slide-up">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-slide-up">
           <div>
             <h1 className="text-3xl font-bold text-foreground">Contatos</h1>
             <p className="mt-1 text-muted-foreground">
               Gerencie suas listas de contatos
             </p>
           </div>
-          <Dialog open={isCreateListOpen} onOpenChange={setIsCreateListOpen}>
-            <DialogTrigger asChild>
-              <Button variant="gradient">
-                <Plus className="h-4 w-4" />
-                Nova Lista
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>Criar Nova Lista</DialogTitle>
-                <DialogDescription>
-                  Crie uma lista para organizar seus contatos
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="listName">Nome da Lista</Label>
-                  <Input
-                    id="listName"
-                    placeholder="Ex: Clientes Janeiro"
-                    value={newListName}
-                    onChange={(e) => setNewListName(e.target.value)}
-                  />
+          <div className="flex items-center gap-3">
+            {availableConnections.length > 0 && (
+              <Select value={filterConnectionId} onValueChange={setFilterConnectionId}>
+                <SelectTrigger className="w-[200px]">
+                  <Wifi className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <SelectValue placeholder="Filtrar por conexão" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as conexões</SelectItem>
+                  <SelectItem value="none">Sem conexão</SelectItem>
+                  {availableConnections.map((conn) => (
+                    <SelectItem key={conn.id} value={conn.id}>{conn.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <Dialog open={isCreateListOpen} onOpenChange={setIsCreateListOpen}>
+              <DialogTrigger asChild>
+                <Button variant="gradient">
+                  <Plus className="h-4 w-4" />
+                  Nova Lista
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Criar Nova Lista</DialogTitle>
+                  <DialogDescription>
+                    Crie uma lista para organizar seus contatos
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="listName">Nome da Lista</Label>
+                    <Input
+                      id="listName"
+                      placeholder="Ex: Clientes Janeiro"
+                      value={newListName}
+                      onChange={(e) => setNewListName(e.target.value)}
+                    />
+                  </div>
+                  {availableConnections.length > 0 && (
+                    <div className="space-y-2">
+                      <Label>Conexão (opcional)</Label>
+                      <Select value={newListConnectionId || "_none"} onValueChange={(v) => setNewListConnectionId(v === "_none" ? "" : v)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Nenhuma conexão" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="_none">Nenhuma conexão</SelectItem>
+                          {availableConnections.map((conn) => (
+                            <SelectItem key={conn.id} value={conn.id}>{conn.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                 </div>
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setIsCreateListOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button variant="gradient" onClick={handleCreateList} disabled={loading}>
-                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Criar Lista"}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setIsCreateListOpen(false)}>
+                    Cancelar
+                  </Button>
+                  <Button variant="gradient" onClick={handleCreateList} disabled={loading}>
+                    {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Criar Lista"}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
 
         {/* Lists Grid */}
