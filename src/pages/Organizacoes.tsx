@@ -461,6 +461,22 @@ export default function Organizacoes() {
     }
   };
 
+  const handleToggleMemberActive = async (member: OrganizationMember) => {
+    if (!selectedOrg) return;
+    try {
+      const result = await api<{ success: boolean; is_active: boolean }>(
+        `/api/organizations/${selectedOrg.id}/members/${member.user_id}/toggle-active`,
+        { method: 'PATCH' }
+      );
+      if (result.success) {
+        toast.success(result.is_active ? 'Usuário ativado!' : 'Usuário desativado!');
+        loadMembers(selectedOrg.id);
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao alterar status');
+    }
+  };
+
   const canManageOrg = selectedOrg?.role === 'owner' || selectedOrg?.role === 'admin';
 
   // CRM Group handlers
