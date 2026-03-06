@@ -327,7 +327,13 @@ const Contatos = () => {
       contact.phone.includes(searchTerm)
   );
 
-  const totalContacts = lists.reduce((sum, list) => sum + Number(list.contact_count || 0), 0);
+  const filteredLists = filterConnectionId === "all" 
+    ? lists 
+    : filterConnectionId === "none" 
+      ? lists.filter(l => !l.connection_id) 
+      : lists.filter(l => l.connection_id === filterConnectionId);
+
+  const totalContacts = filteredLists.reduce((sum, list) => sum + Number(list.contact_count || 0), 0);
 
   return (
     <MainLayout>
