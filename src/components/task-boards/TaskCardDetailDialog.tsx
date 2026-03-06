@@ -18,7 +18,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import {
   Calendar, CheckSquare, Clock, FileText, MessageSquare, Paperclip,
   Plus, Trash2, User, X, Send, ListChecks, Tag, Briefcase, Building2,
-  Contact, FolderKanban, StickyNote, BarChart3, AlertTriangle
+  Contact, FolderKanban, StickyNote, BarChart3, AlertTriangle, ArrowRightLeft
 } from "lucide-react";
 import {
   TaskCard, TaskChecklist, TaskChecklistItem, TaskComment, TaskAttachment,
