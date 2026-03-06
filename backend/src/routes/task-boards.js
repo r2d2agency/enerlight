@@ -186,7 +186,22 @@ router.put('/cards/:id/move', async (req, res) => {
     const values = [];
     let idx = 1;
 
-    if (board_id) { updates.push(`board_id = $${idx++}`); values.push(board_id); }
+    if (board_id) {
+      updates.push(`board_id = $${idx++}`);
+      values.push(board_id);
+      
+      // If moving to a different board and no column_id specified, use first column of target board
+      if (!column_id) {
+        const firstCol = await pool.query(
+          `SELECT id FROM task_board_columns WHERE board_id = $1 ORDER BY position ASC LIMIT 1`,
+          [board_id]
+        );
+        if (firstCol.rows[0]) {
+          updates.push(`column_id = $${idx++}`);
+          values.push(firstCol.rows[0].id);
+        }
+      }
+    }
     if (column_id) { updates.push(`column_id = $${idx++}`); values.push(column_id); }
     if (position !== undefined) { updates.push(`position = $${idx++}`); values.push(position); }
     updates.push(`updated_at = NOW()`);
