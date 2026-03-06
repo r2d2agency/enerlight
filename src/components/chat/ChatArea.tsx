@@ -84,6 +84,7 @@ import {
   Building2,
   Briefcase,
   Sparkles,
+  Forward,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
