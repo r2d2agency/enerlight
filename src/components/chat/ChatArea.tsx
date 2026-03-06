@@ -1964,17 +1964,28 @@ export function ChatArea({
                 )}
               </div>
 
-              {/* Reply button - right side for sent messages */}
+              {/* Action buttons - right side for sent messages */}
               {msg.from_me && msg.message_type !== 'system' && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity self-center ml-1"
-                  onClick={() => setReplyingTo(msg)}
-                  title="Responder"
-                >
-                  <Reply className="h-3 w-3" />
-                </Button>
+                <div className="flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity self-center ml-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={() => setReplyingTo(msg)}
+                    title="Responder"
+                  >
+                    <Reply className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={() => setForwardingMessage(msg)}
+                    title="Encaminhar"
+                  >
+                    <Forward className="h-3 w-3" />
+                  </Button>
+                </div>
               )}
             </div>
           )})}
