@@ -379,7 +379,7 @@ export function NurturingStepDialog({
               <div className="space-y-2">
                 <Label>Assunto do Email</Label>
                 <Input
-                  placeholder="Olá {{nome}}, tenho uma proposta especial..."
+                  placeholder="Olá {nome}, tenho uma proposta especial..."
                   value={emailSubject}
                   onChange={(e) => setEmailSubject(e.target.value)}
                 />
@@ -393,7 +393,7 @@ export function NurturingStepDialog({
                   placeholder="Comece a escrever seu email..."
                 />
                 <p className="text-xs text-muted-foreground">
-                  Use {"{{variavel}}"} para personalização. Ex: {"{{nome}}"}, {"{{empresa}}"}
+                  Use {"{variavel}"} para personalização. Ex: {"{nome}"}, {"{empresa}"}
                 </p>
               </div>
             </div>
