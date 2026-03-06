@@ -164,6 +164,7 @@ export function CRMSidePanel({
   const [consultPrompt, setConsultPrompt] = useState("");
   const [consultResponse, setConsultResponse] = useState("");
   const [consulting, setConsulting] = useState(false);
+  const [showAIResponseModal, setShowAIResponseModal] = useState(false);
 
   // Edit states
   const [isEditingDeal, setIsEditingDeal] = useState(false);
