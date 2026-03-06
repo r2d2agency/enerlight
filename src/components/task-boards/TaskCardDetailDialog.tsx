@@ -203,7 +203,7 @@ function MiniGanttChart({ checklists }: { checklists: TaskChecklist[] }) {
 // MAIN DIALOG
 // ============================================
 export function TaskCardDetailDialog({
-  open, onOpenChange, card, boardId, isGlobal, members
+  open, onOpenChange, card, boardId, isGlobal, members, boards = []
 }: TaskCardDetailDialogProps) {
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
