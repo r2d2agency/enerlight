@@ -385,6 +385,7 @@ export function CRMSidePanel({
         auth: true,
       });
       setConsultResponse(data.response || 'Sem resposta');
+      setShowAIResponseModal(true);
     } catch (error) {
       console.error("Error consulting agent:", error);
       toast.error("Erro ao consultar agente de IA");
