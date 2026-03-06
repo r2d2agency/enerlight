@@ -19,6 +19,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -34,6 +41,7 @@ import {
   X,
   Phone,
   UserPlus,
+  Wifi,
 } from "lucide-react";
 import { useContacts, ContactList, Contact } from "@/hooks/use-contacts";
 import { ExcelImportDialog } from "@/components/contatos/ExcelImportDialog";
