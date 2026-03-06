@@ -960,6 +960,26 @@ export default function Organizacoes() {
                                       </Badge>
                                     </TableCell>
                                     <TableCell>
+                                      {canManageOrg && member.role !== 'owner' ? (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className={isActive ? 'text-green-600 hover:text-green-700' : 'text-destructive hover:text-destructive'}
+                                          onClick={() => handleToggleMemberActive(member)}
+                                        >
+                                          {isActive ? (
+                                            <><UserCheck className="h-4 w-4 mr-1" /> Ativo</>
+                                          ) : (
+                                            <><UserX className="h-4 w-4 mr-1" /> Inativo</>
+                                          )}
+                                        </Button>
+                                      ) : (
+                                        <Badge variant={isActive ? 'secondary' : 'destructive'} className="text-xs">
+                                          {isActive ? 'Ativo' : 'Inativo'}
+                                        </Badge>
+                                      )}
+                                    </TableCell>
+                                    <TableCell>
                                       {assignedConns.length === 0 ? (
                                         <span className="text-destructive text-sm font-medium">Nenhuma</span>
                                       ) : (
