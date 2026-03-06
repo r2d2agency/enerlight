@@ -80,16 +80,25 @@ const Chat = () => {
   const [newConversationOpen, setNewConversationOpen] = useState(false);
   const [crmPanelOpen, setCrmPanelOpen] = useState(false);
   const [attendanceCounts, setAttendanceCounts] = useState<{ waiting: number; attending: number; finished: number }>({ waiting: 0, attending: 0, finished: 0 });
-  const [filters, setFilters] = useState({
-    search: '',
-    tag: 'all',
-    assigned: 'all',
-    archived: false,
-    connection: 'all',
-    is_group: false, // false = individual chats, true = group chats
-    attendance_status: 'attending' as 'waiting' | 'attending' | 'finished',
-    department: 'all',
+  const [filters, setFilters] = useState(() => {
+    const savedConnection = localStorage.getItem('chat_selected_connection') || 'all';
+    return {
+      search: '',
+      tag: 'all',
+      assigned: 'all',
+      archived: false,
+      connection: savedConnection,
+      is_group: false,
+      attendance_status: 'attending' as 'waiting' | 'attending' | 'finished',
+      department: 'all',
+    };
   });
+  const handleFiltersChange = (newFilters: typeof filters) => {
+    if (newFilters.connection !== filters.connection) {
+      localStorage.setItem('chat_selected_connection', newFilters.connection);
+    }
+    setFilters(newFilters);
+  };
   const [activeTab, setActiveTab] = useState<'chats' | 'groups'>('chats');
 
   // Keep latest loader for intervals / effects without stale closures
@@ -816,7 +825,7 @@ const Chat = () => {
                 loading={loading}
                 onRefresh={loadConversations}
                 filters={filters}
-                onFiltersChange={setFilters}
+                onFiltersChange={handleFiltersChange}
                 isAdmin={isAdmin}
                 connections={connections}
                 onNewConversation={activeTab === 'chats' ? () => setNewConversationOpen(true) : undefined}
@@ -917,7 +926,7 @@ const Chat = () => {
                   loading={loading}
                   onRefresh={loadConversations}
                   filters={filters}
-                  onFiltersChange={setFilters}
+                  onFiltersChange={handleFiltersChange}
                   isAdmin={isAdmin}
                   connections={connections}
                   onNewConversation={activeTab === 'chats' ? () => setNewConversationOpen(true) : undefined}
