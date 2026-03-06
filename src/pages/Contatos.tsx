@@ -108,6 +108,18 @@ const Contatos = () => {
     }
   };
 
+  const loadAvailableConnections = async () => {
+    try {
+      const orgs = await api<Array<{ id: string }>>('/api/organizations');
+      if (orgs.length > 0) {
+        const conns = await api<Array<{ id: string; name: string }>>(`/api/organizations/${orgs[0].id}/connections`);
+        setAvailableConnections(conns);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
   const loadContacts = async (listId: string) => {
     setIsLoadingContacts(true);
     try {
@@ -126,9 +138,10 @@ const Contatos = () => {
       return;
     }
     try {
-      await createList(newListName);
+      await createList(newListName, newListConnectionId || undefined);
       toast.success("Lista criada com sucesso!");
       setNewListName("");
+      setNewListConnectionId("");
       setIsCreateListOpen(false);
       loadLists();
     } catch (err) {
