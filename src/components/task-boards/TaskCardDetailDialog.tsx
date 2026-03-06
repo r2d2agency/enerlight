@@ -21,7 +21,7 @@ import {
   Contact, FolderKanban, StickyNote, BarChart3, AlertTriangle, ArrowRightLeft
 } from "lucide-react";
 import {
-  TaskCard, TaskChecklist, TaskChecklistItem, TaskComment, TaskAttachment,
+  TaskCard, TaskBoard, TaskChecklist, TaskChecklistItem, TaskComment, TaskAttachment,
   OrgMember, ChecklistTemplate,
   useCardChecklists, useChecklistMutations,
   useCardComments, useCommentMutations,
