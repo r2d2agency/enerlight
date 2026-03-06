@@ -1660,20 +1660,15 @@ export function CRMSidePanel({
                       )}
 
                       {consultResponse && !consulting && (
-                        <div className="space-y-2">
-                          <div className="p-3 rounded-lg bg-muted/50 border text-xs leading-relaxed whitespace-pre-wrap max-h-[300px] overflow-y-auto">
-                            {consultResponse}
-                          </div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="w-full h-7 text-[10px] gap-1"
-                            onClick={handleCopyResponse}
-                          >
-                            <Copy className="h-3 w-3" />
-                            Copiar resposta
-                          </Button>
-                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full h-7 text-[10px] gap-1"
+                          onClick={() => setShowAIResponseModal(true)}
+                        >
+                          <Brain className="h-3 w-3" />
+                          Ver resposta da IA
+                        </Button>
                       )}
 
                       {/* Activate for autonomous mode */}
