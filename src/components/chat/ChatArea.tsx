@@ -1374,12 +1374,6 @@ export function ChatArea({
                       Reabrir conversa
                     </DropdownMenuItem>
                   )}
-                  {!!onSyncHistory && (
-                    <DropdownMenuItem onClick={() => setShowSyncDialog(true)}>
-                      <RefreshCw className="h-4 w-4 mr-2" />
-                      Sincronizar histórico
-                    </DropdownMenuItem>
-                  )}
                   <DropdownMenuSeparator />
                 </>
               )}
