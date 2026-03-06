@@ -2640,48 +2640,6 @@ export function ChatArea({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Sync Dialog */}
-      <Dialog open={showSyncDialog} onOpenChange={setShowSyncDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Sincronizar histórico</DialogTitle>
-            <DialogDescription>
-              Importa mensagens antigas do WhatsApp para esta conversa.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <Select value={syncDays} onValueChange={setSyncDays}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione o período" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="1">Último 1 dia</SelectItem>
-                <SelectItem value="3">Últimos 3 dias</SelectItem>
-                <SelectItem value="7">Últimos 7 dias</SelectItem>
-                <SelectItem value="30">Últimos 30 dias</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              Dica: use isso quando mídias antigas não aparecem ou para recuperar histórico.
-            </p>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowSyncDialog(false)}>
-              Cancelar
-            </Button>
-            <Button
-              onClick={async () => {
-                if (!onSyncHistory) return;
-                await onSyncHistory(parseInt(syncDays, 10));
-                setShowSyncDialog(false);
-              }}
-              disabled={!onSyncHistory || !!syncingHistory}
-            >
-              {syncingHistory ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Sincronizar'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Create Tag Dialog */}
       <Dialog open={showTagDialog} onOpenChange={setShowTagDialog}>

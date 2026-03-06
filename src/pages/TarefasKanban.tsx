@@ -59,12 +59,14 @@ export default function TarefasKanban() {
     if (filterDueFrom) f.due_from = filterDueFrom;
     if (filterDueTo) f.due_to = filterDueTo;
     
-    // Admin/Manager can pick user; seller is forced to self on global boards
-    if (filterUser) {
+    // Sellers are forced to only see their own tasks
+    if (isSeller && user?.id) {
+      f.assigned_to = user.id;
+    } else if (filterUser) {
       f.assigned_to = filterUser;
     }
     return f;
-  }, [filterUser, filterStatus, filterDueFrom, filterDueTo]);
+  }, [filterUser, filterStatus, filterDueFrom, filterDueTo, isSeller, user?.id]);
 
   // Show due-soon notifications once
   useEffect(() => {
