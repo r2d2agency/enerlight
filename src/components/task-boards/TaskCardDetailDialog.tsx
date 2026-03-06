@@ -715,6 +715,30 @@ export function TaskCardDetailDialog({
 
               {/* Actions */}
               <div className="space-y-1">
+                {/* Move to another board */}
+                {boards.filter(b => b.id !== boardId).length > 0 && (
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-muted-foreground px-2">Mover para outro quadro</p>
+                    {boards.filter(b => b.id !== boardId).map(b => (
+                      <Button
+                        key={b.id}
+                        variant="ghost" size="sm" className="w-full justify-start text-xs"
+                        onClick={() => {
+                          moveCard.mutate({ id: card.id, board_id: b.id });
+                          onOpenChange(false);
+                          toast({ title: `Tarefa movida para "${b.name}"` });
+                        }}
+                      >
+                        <ArrowRightLeft className="h-3.5 w-3.5 mr-2" />
+                        {b.name}
+                        {b.is_global && <Badge variant="secondary" className="ml-auto text-[9px]">Global</Badge>}
+                      </Button>
+                    ))}
+                  </div>
+                )}
+
+                <Separator />
+
                 <Button
                   variant="ghost" size="sm" className="w-full justify-start text-destructive hover:text-destructive"
                   onClick={() => {
