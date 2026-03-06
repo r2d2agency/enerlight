@@ -42,6 +42,7 @@ interface TaskCardDetailDialogProps {
   boardId: string;
   isGlobal: boolean;
   members: OrgMember[];
+  boards?: TaskBoard[];
 }
 
 const statusConfig: Record<string, { label: string; color: string; icon: string }> = {
