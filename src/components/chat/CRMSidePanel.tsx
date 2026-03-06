@@ -558,41 +558,17 @@ export function CRMSidePanel({
     return null;
   };
 
-  // Toggle button (always visible)
-  const ToggleButton = () => {
-    if (isMobile) return null;
-    return (
-      <Button
-        variant="outline"
-        size="icon"
-        onClick={onToggle}
-        className={cn(
-          "absolute top-1/2 -translate-y-1/2 z-20 h-12 w-6 rounded-l-md rounded-r-none border-r-0 bg-background shadow-md hover:bg-muted",
-          "-left-6"
-        )}
-        title={isOpen ? "Fechar painel CRM" : "Abrir painel CRM"}
-      >
-        {isOpen ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-      </Button>
-    );
-  };
-
   if (!isOpen) {
-    return (
-      <div className="relative">
-        <ToggleButton />
-      </div>
-    );
+    return null;
   }
 
   return (
     <div className={cn(
-      "relative flex flex-col bg-card overflow-hidden",
+      "relative flex flex-col bg-card overflow-hidden h-full",
       isMobile 
-        ? "w-full h-full" 
-        : "w-80 h-full border-l"
+        ? "w-full" 
+        : "w-full"
     )}>
-      <ToggleButton />
       
       {/* Header */}
       <div className="flex items-center justify-between p-3 border-b bg-muted/30">
