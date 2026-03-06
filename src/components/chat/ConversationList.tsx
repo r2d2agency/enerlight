@@ -163,6 +163,25 @@ export function ConversationList({
   const [profilePictures, setProfilePictures] = useState<Record<string, string>>({});
   const [myDepartments, setMyDepartments] = useState<Department[]>([]);
   const [allDepartments, setAllDepartments] = useState<Department[]>([]);
+
+  // Generate stable colors for connections
+  const connectionColors = (() => {
+    const palette = [
+      'hsl(var(--primary))',
+      'hsl(142, 71%, 45%)',   // green
+      'hsl(262, 83%, 58%)',   // purple
+      'hsl(24, 95%, 53%)',    // orange
+      'hsl(199, 89%, 48%)',   // sky blue
+      'hsl(346, 77%, 50%)',   // rose
+      'hsl(47, 96%, 53%)',    // amber
+      'hsl(173, 80%, 40%)',   // teal
+    ];
+    const map: Record<string, string> = {};
+    const uniqueIds = [...new Set(conversations.map(c => c.connection_id))];
+    uniqueIds.forEach((id, i) => { map[id] = palette[i % palette.length]; });
+    return map;
+  })();
+  const hasMultipleConnections = Object.keys(connectionColors).length > 1;
   const { toast } = useToast();
 
   // Load departments
