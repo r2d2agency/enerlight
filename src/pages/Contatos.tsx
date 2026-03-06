@@ -437,12 +437,12 @@ const Contatos = () => {
             </CardContent>
           </Card>
 
-          {loading && lists.length === 0 ? (
+          {loading && filteredLists.length === 0 ? (
             <div className="col-span-2 flex items-center justify-center p-8">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
           ) : (
-            lists.map((list, index) => (
+            filteredLists.map((list, index) => (
               <Card
                 key={list.id}
                 className={`cursor-pointer transition-all duration-200 hover:shadow-elevated animate-fade-in ${
@@ -458,9 +458,17 @@ const Contatos = () => {
                     </div>
                     <div>
                       <p className="font-semibold text-foreground">{list.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {list.contact_count || 0} contatos
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm text-muted-foreground">
+                          {list.contact_count || 0} contatos
+                        </p>
+                        {list.connection_name && (
+                          <Badge variant="outline" className="text-xs">
+                            <Wifi className="h-3 w-3 mr-1" />
+                            {list.connection_name}
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
