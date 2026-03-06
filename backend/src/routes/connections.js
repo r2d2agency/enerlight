@@ -67,24 +67,6 @@ router.get('/', async (req, res) => {
       return res.json(result.rows);
     }
 
-    // No connection_members: Owner/Admin fallback to all org connections
-    if (isHighRole && org) {
-      const result = await query(
-        `SELECT c.*, u.name as created_by_name,
-         CASE 
-           WHEN c.provider IS NOT NULL THEN c.provider 
-           WHEN c.instance_id IS NOT NULL AND c.wapi_token IS NOT NULL THEN 'wapi'
-           ELSE 'evolution'
-         END as provider
-         FROM connections c
-         LEFT JOIN users u ON c.user_id = u.id
-         WHERE c.organization_id = $1
-         ORDER BY c.created_at DESC`,
-        [org.organization_id]
-      );
-      return res.json(result.rows);
-    }
-
     // No connection assignments at all: empty list
     res.json([]);
   } catch (error) {
