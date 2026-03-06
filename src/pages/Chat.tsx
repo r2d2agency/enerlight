@@ -926,7 +926,7 @@ const Chat = () => {
                   loading={loading}
                   onRefresh={loadConversations}
                   filters={filters}
-                  onFiltersChange={setFilters}
+                  onFiltersChange={handleFiltersChange}
                   isAdmin={isAdmin}
                   connections={connections}
                   onNewConversation={activeTab === 'chats' ? () => setNewConversationOpen(true) : undefined}
