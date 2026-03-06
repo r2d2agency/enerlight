@@ -431,7 +431,7 @@ const Contatos = () => {
               <div>
                 <p className="font-semibold text-foreground">Todas as Listas</p>
                 <p className="text-sm text-muted-foreground">
-                  {totalContacts} contatos em {lists.length} listas
+                  {totalContacts} contatos em {filteredLists.length} listas
                 </p>
               </div>
             </CardContent>
