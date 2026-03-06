@@ -15,6 +15,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { MessageSquare, Users, Bell, RefreshCw } from "lucide-react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { useNotificationSound } from "@/hooks/use-notification-sound";
@@ -803,12 +804,9 @@ const Chat = () => {
         )}
 
         <div className="flex flex-1 overflow-hidden min-w-0 w-full">
-          {/* Conversation List - Hide on mobile when chat is open */}
-          {(!isMobile || !selectedConversation) && (
-            <div className={cn(
-              "flex-shrink-0 overflow-hidden min-w-0",
-              isMobile ? "w-full h-full max-w-full" : "w-[350px]"
-            )}>
+          {/* Mobile: show one at a time */}
+          {isMobile && (!selectedConversation ? (
+            <div className="w-full h-full">
               <ConversationList
                 conversations={conversations}
                 selectedId={selectedConversation?.id || null}
@@ -854,10 +852,8 @@ const Chat = () => {
                     if (conv) {
                       selectedIdRef.current = conv.id;
                       setSelectedConversation(conv);
-                      // Load messages and scroll to the specific message if provided
                       const msgs = await getMessages(conversationId);
                       setMessages(msgs);
-                      // TODO: scroll to messageId if provided
                     }
                   } catch (error: any) {
                     toast.error('Erro ao abrir conversa');
@@ -865,10 +861,7 @@ const Chat = () => {
                 }}
               />
             </div>
-          )}
-
-          {/* Chat Area - Full width on mobile, show back button */}
-          {(!isMobile || selectedConversation) && (
+          ) : (
             <ChatArea
               conversation={selectedConversation}
               messages={messages}
@@ -909,6 +902,113 @@ const Chat = () => {
               onMobileBack={handleMobileBack}
               onOpenCRM={modulesEnabled.crm || (modulesEnabled.projects && isDesignerUser) ? () => setCrmPanelOpen(true) : undefined}
             />
+          ))}
+
+          {/* Desktop: resizable panels */}
+          {!isMobile && (
+            <ResizablePanelGroup direction="horizontal" className="h-full">
+              <ResizablePanel defaultSize={28} minSize={20} maxSize={45} className="min-w-0">
+                <ConversationList
+                  conversations={conversations}
+                  selectedId={selectedConversation?.id || null}
+                  onSelect={handleMobileSelectConversation}
+                  tags={tags}
+                  team={team}
+                  loading={loading}
+                  onRefresh={loadConversations}
+                  filters={filters}
+                  onFiltersChange={setFilters}
+                  isAdmin={isAdmin}
+                  connections={connections}
+                  onNewConversation={activeTab === 'chats' ? () => setNewConversationOpen(true) : undefined}
+                  onAcceptConversation={handleAcceptConversation}
+                  onReleaseConversation={async (id) => {
+                    try {
+                      await releaseConversation(id);
+                      loadConversations();
+                      toast.success('Conversa liberada');
+                    } catch (error: any) {
+                      toast.error(error.message || 'Erro ao liberar conversa');
+                    }
+                  }}
+                  onArchiveConversation={async (id) => {
+                    try {
+                      await updateConversation(id, { is_archived: true });
+                      loadConversations();
+                      toast.success('Conversa arquivada');
+                    } catch (error: any) {
+                      toast.error(error.message || 'Erro ao arquivar conversa');
+                    }
+                  }}
+                  onFinishConversation={async (id) => {
+                    await handleFinishConversation(id);
+                  }}
+                  onReopenConversation={async (id) => {
+                    await handleReopenConversation(id);
+                  }}
+                  attendanceCounts={attendanceCounts}
+                  onGlobalSearchSelect={async (conversationId, messageId) => {
+                    try {
+                      const conv = await getConversation(conversationId);
+                      if (conv) {
+                        selectedIdRef.current = conv.id;
+                        setSelectedConversation(conv);
+                        const msgs = await getMessages(conversationId);
+                        setMessages(msgs);
+                      }
+                    } catch (error: any) {
+                      toast.error('Erro ao abrir conversa');
+                    }
+                  }}
+                />
+              </ResizablePanel>
+
+              <ResizableHandle withHandle />
+
+              <ResizablePanel defaultSize={72} minSize={40} className="min-w-0">
+
+              <ChatArea
+                conversation={selectedConversation}
+                messages={messages}
+                loading={loadingMessages}
+                sending={sendingMessage}
+                tags={tags}
+                team={team}
+                syncingHistory={syncingHistory}
+                isAdmin={isAdmin}
+                userRole={userRole}
+                onSyncHistory={handleSyncHistory}
+                onSendMessage={handleSendMessage}
+                onLoadMore={handleLoadMoreMessages}
+                hasMore={hasMoreMessages}
+                onAddTag={handleAddTag}
+                onRemoveTag={handleRemoveTag}
+                onAssign={handleAssign}
+                onArchive={handleArchive}
+                onTransfer={handleTransfer}
+                onCreateTag={handleCreateTag}
+                onDeleteConversation={async () => {
+                  if (!selectedConversation) return;
+                  try {
+                    await api(`/api/chat/conversations/${selectedConversation.id}`, { method: 'DELETE' });
+                    toast.success('Conversa excluída');
+                    setSelectedConversation(null);
+                    setMessages([]);
+                    loadConversations();
+                  } catch (error: any) {
+                    toast.error(error.message || 'Erro ao excluir conversa');
+                  }
+                }}
+                onReleaseConversation={handleReleaseConversation}
+                onFinishConversation={() => handleFinishConversation()}
+                onReopenConversation={() => handleReopenConversation()}
+                onDepartmentChange={() => loadConversations()}
+                isMobile={false}
+                onMobileBack={handleMobileBack}
+                onOpenCRM={modulesEnabled.crm || (modulesEnabled.projects && isDesignerUser) ? () => setCrmPanelOpen(true) : undefined}
+              />
+              </ResizablePanel>
+            </ResizablePanelGroup>
           )}
 
           {/* Side Panel - Desktop */}
