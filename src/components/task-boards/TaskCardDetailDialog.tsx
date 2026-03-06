@@ -222,7 +222,7 @@ export function TaskCardDetailDialog({
   const checklistMut = useChecklistMutations(card?.id);
   const commentMut = useCommentMutations(card?.id);
   const attachmentMut = useAttachmentMutations(card?.id);
-  const { updateCard } = useCardMutations(boardId);
+  const { updateCard, moveCard } = useCardMutations(boardId);
 
   // Sync form when card changes
   useEffect(() => {
