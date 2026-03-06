@@ -2824,6 +2824,88 @@ export function ChatArea({
           if (!open) setSelectedDeal(null);
         }}
       />
+      {/* Forward Message Dialog */}
+      <Dialog open={!!forwardingMessage} onOpenChange={(open) => { if (!open) { setForwardingMessage(null); setForwardTo(""); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Forward className="h-5 w-5" />
+              Encaminhar Mensagem
+            </DialogTitle>
+            <DialogDescription>
+              Escolha um membro da equipe para encaminhar esta mensagem.
+            </DialogDescription>
+          </DialogHeader>
+
+          {forwardingMessage && (
+            <div className="p-3 rounded-lg bg-muted text-sm max-h-24 overflow-hidden">
+              {forwardingMessage.message_type !== 'text' && (
+                <span className="italic text-muted-foreground">
+                  {forwardingMessage.message_type === 'image' && '📷 Imagem'}
+                  {forwardingMessage.message_type === 'video' && '🎥 Vídeo'}
+                  {forwardingMessage.message_type === 'audio' && '🎤 Áudio'}
+                  {forwardingMessage.message_type === 'document' && '📄 Documento'}
+                  {forwardingMessage.content && ' — '}
+                </span>
+              )}
+              {forwardingMessage.content && (
+                <span className="line-clamp-3">{forwardingMessage.content}</span>
+              )}
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <Label>Encaminhar para</Label>
+            <Select value={forwardTo} onValueChange={setForwardTo}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione um membro" />
+              </SelectTrigger>
+              <SelectContent>
+                {team
+                  .filter(m => m.id !== user?.id)
+                  .map(member => (
+                    <SelectItem key={member.id} value={member.id}>
+                      {member.name}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setForwardingMessage(null); setForwardTo(""); }}>
+              Cancelar
+            </Button>
+            <Button
+              disabled={!forwardTo || !forwardingMessage}
+              onClick={async () => {
+                if (!forwardingMessage || !forwardTo || !conversation) return;
+                try {
+                  await api('/api/chat/messages/forward', {
+                    method: 'POST',
+                    body: {
+                      message_id: forwardingMessage.id,
+                      conversation_id: conversation.id,
+                      forward_to_user_id: forwardTo,
+                      content: forwardingMessage.content,
+                      message_type: forwardingMessage.message_type,
+                      media_url: forwardingMessage.media_url,
+                    },
+                  });
+                  toast.success("Mensagem encaminhada!");
+                  setForwardingMessage(null);
+                  setForwardTo("");
+                } catch (err: any) {
+                  toast.error(err.message || "Erro ao encaminhar mensagem");
+                }
+              }}
+            >
+              <Forward className="h-4 w-4 mr-2" />
+              Encaminhar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
