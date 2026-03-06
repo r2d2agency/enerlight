@@ -626,8 +626,10 @@ export function ConversationList({
                 <div
                   className={cn(
                     "flex items-start gap-3 p-4 cursor-pointer transition-colors hover:bg-accent/50 group",
-                    selectedId === conv.id && "bg-accent"
+                    selectedId === conv.id && "bg-accent",
+                    hasMultipleConnections && "border-l-[3px]"
                   )}
+                  style={hasMultipleConnections ? { borderLeftColor: connectionColors[conv.connection_id] || 'transparent' } : undefined}
                 >
                   {/* Avatar with profile picture */}
                   <Avatar 
