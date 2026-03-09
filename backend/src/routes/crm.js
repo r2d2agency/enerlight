@@ -2992,7 +2992,7 @@ router.post('/prospects/:id/convert', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
-    const { funnel_id, title, create_company, company_name } = req.body;
+    const { funnel_id, title, create_company, company_name, owner_id } = req.body;
     if (!funnel_id) {
       return res.status(400).json({ error: 'Funnel ID is required' });
     }
