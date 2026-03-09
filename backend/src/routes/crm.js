@@ -3100,7 +3100,7 @@ router.post('/prospects/bulk-convert', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
-    const { prospect_ids, funnel_id, create_companies } = req.body;
+    const { prospect_ids, funnel_id, create_companies, owner_id } = req.body;
     if (!Array.isArray(prospect_ids) || prospect_ids.length === 0 || !funnel_id) {
       return res.status(400).json({ error: 'prospect_ids array and funnel_id are required' });
     }
