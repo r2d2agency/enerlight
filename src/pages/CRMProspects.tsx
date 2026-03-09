@@ -214,6 +214,7 @@ export default function CRMProspects() {
       return;
     }
     setBulkConvertFunnelId(funnels?.[0]?.id || "");
+    setBulkOwnerId("");
     setShowBulkConvertDialog(true);
   };
 
