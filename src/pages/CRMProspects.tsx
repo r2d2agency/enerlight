@@ -67,7 +67,8 @@ export default function CRMProspects() {
     state: "",
     address: "",
     zip_code: "",
-    is_company: false
+    is_company: false,
+    assigned_to: ""
   });
   
   // Convert form
@@ -113,7 +114,10 @@ export default function CRMProspects() {
       toast.error("Nome e telefone são obrigatórios");
       return;
     }
-    await createProspect.mutateAsync(newProspect);
+    await createProspect.mutateAsync({
+      ...newProspect,
+      assigned_to: newProspect.assigned_to || undefined,
+    });
     setNewProspect({ 
       name: "", 
       phone: "", 
@@ -122,7 +126,8 @@ export default function CRMProspects() {
       state: "",
       address: "",
       zip_code: "",
-      is_company: false
+      is_company: false,
+      assigned_to: ""
     });
     setShowAddDialog(false);
   };
@@ -335,6 +340,7 @@ export default function CRMProspects() {
                   <TableHead>Telefone</TableHead>
                   <TableHead>Localização</TableHead>
                   <TableHead>Origem</TableHead>
+                  <TableHead>Vendedor</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Criado em</TableHead>
@@ -344,13 +350,13 @@ export default function CRMProspects() {
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8">
+                    <TableCell colSpan={10} className="text-center py-8">
                       Carregando...
                     </TableCell>
                   </TableRow>
                 ) : filteredProspects.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8">
+                    <TableCell colSpan={10} className="text-center py-8">
                       <div className="flex flex-col items-center gap-2">
                         <Users className="h-8 w-8 text-muted-foreground" />
                         <p className="text-muted-foreground">Nenhum prospect encontrado</p>
@@ -386,6 +392,15 @@ export default function CRMProspects() {
                           <Badge variant="secondary">{prospect.source}</Badge>
                         ) : (
                           <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {prospect.assigned_to ? (
+                          <span className="text-sm">
+                            {orgMembers.find(m => m.id === prospect.assigned_to)?.name || "—"}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">—</span>
                         )}
                       </TableCell>
                       <TableCell>
@@ -524,6 +539,23 @@ export default function CRMProspects() {
               </div>
             </div>
             
+            {/* Seller assignment */}
+            {orgMembers.length > 0 && (
+              <div className="space-y-2 border-t pt-4">
+                <Label>Vendedor Responsável</Label>
+                <select
+                  className="w-full p-2 border rounded-md bg-background text-sm"
+                  value={newProspect.assigned_to}
+                  onChange={(e) => setNewProspect(p => ({ ...p, assigned_to: e.target.value }))}
+                >
+                  <option value="">Sem atribuição</option>
+                  {orgMembers.map((m) => (
+                    <option key={m.id} value={m.id}>{m.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             {/* Company checkbox */}
             <div className="flex items-center space-x-2 border-t pt-4">
               <Checkbox

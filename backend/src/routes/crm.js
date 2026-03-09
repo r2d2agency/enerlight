@@ -2757,12 +2757,21 @@ router.get('/prospects', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
+    let visibilityFilter = '';
+    const params = [org.organization_id];
+
+    // Non-admin users only see prospects assigned to them
+    if (!canManage(org.role)) {
+      visibilityFilter = ` AND assigned_to = $2`;
+      params.push(req.userId);
+    }
+
     const result = await query(
-      `SELECT id, name, phone, source, converted_at, converted_deal_id, created_at
+      `SELECT id, name, phone, source, city, state, address, zip_code, is_company, assigned_to, converted_at, converted_deal_id, created_at, email, custom_fields
        FROM crm_prospects
-       WHERE organization_id = $1
+       WHERE organization_id = $1${visibilityFilter}
        ORDER BY created_at DESC`,
-      [org.organization_id]
+      params
     );
     res.json(result.rows);
   } catch (error) {
@@ -2778,7 +2787,7 @@ router.post('/prospects', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
-    const { name, phone, source, city, state, address, zip_code, is_company } = req.body;
+    const { name, phone, source, city, state, address, zip_code, is_company, assigned_to } = req.body;
     if (!name || !phone) {
       return res.status(400).json({ error: 'Name and phone are required' });
     }
@@ -2799,8 +2808,8 @@ router.post('/prospects', async (req, res) => {
     }
 
     const result = await query(
-      `INSERT INTO crm_prospects (organization_id, name, phone, source, city, state, address, zip_code, is_company, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      `INSERT INTO crm_prospects (organization_id, name, phone, source, city, state, address, zip_code, is_company, created_by, assigned_to)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        RETURNING *`,
       [
         org.organization_id, 
@@ -2812,7 +2821,8 @@ router.post('/prospects', async (req, res) => {
         address?.trim() || null,
         zip_code?.trim() || null,
         is_company === true,
-        req.userId
+        req.userId,
+        assigned_to || null
       ]
     );
     res.status(201).json(result.rows[0]);
