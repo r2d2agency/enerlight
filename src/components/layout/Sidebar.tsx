@@ -97,6 +97,7 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
       { name: "Empresas", href: "/crm/empresas", icon: Building2, permissionKey: 'can_view_companies' },
       { name: "Mapa", href: "/mapa", icon: Map, permissionKey: 'can_view_map' },
       { name: "Agenda", href: "/crm/agenda", icon: CalendarDays, permissionKey: 'can_view_calendar' },
+      { name: "Reuniões", href: "/reunioes", icon: Presentation, permissionKey: 'can_view_crm' },
       { name: "Tarefas", href: "/crm/tarefas", icon: ClipboardList, permissionKey: 'can_view_tasks' },
       { name: "Relatórios", href: "/crm/relatorios", icon: BarChart3, permissionKey: 'can_view_reports' },
       { name: "Representantes", href: "/crm/representantes", icon: Handshake, permissionKey: 'can_view_crm' },
@@ -122,7 +123,6 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
     permissionKey: 'can_view_projects',
     items: [
       { name: "Kanban", href: "/projetos", icon: FolderKanban, permissionKey: 'can_view_projects' },
-      { name: "Reuniões", href: "/reunioes", icon: Presentation, permissionKey: 'can_view_projects' },
     ],
   },
   {
