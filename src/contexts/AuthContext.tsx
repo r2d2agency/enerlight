@@ -53,6 +53,10 @@ export interface UserPermissions {
   can_view_internal_chat: boolean;
   can_view_lead_gleego: boolean;
   can_view_homologation: boolean;
+  can_delete_deals: boolean;
+  can_delete_projects: boolean;
+  can_delete_tasks: boolean;
+  can_delete_homologation: boolean;
 }
 
 interface User {
