@@ -114,6 +114,7 @@ async function convertToDeal(data: {
   title?: string;
   create_company?: boolean;
   company_name?: string;
+  owner_id?: string;
 }): Promise<{ deal_id: string; company_id?: string }> {
   const res = await fetch(`${API_URL}/api/crm/prospects/${data.prospect_id}/convert`, {
     method: "POST",
