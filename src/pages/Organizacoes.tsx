@@ -940,7 +940,8 @@ export default function Organizacoes() {
                             </TableHeader>
                             <TableBody>
                               {members.map((member) => {
-                                const RoleIcon = roleLabels[member.role].icon;
+                                const roleInfo = getRole(member.role);
+                                const RoleIcon = roleInfo.icon;
                                 const assignedConns = member.assigned_connections || [];
                                 const assignedDepts = member.assigned_departments || [];
                                 const isActive = member.is_active !== false;
