@@ -67,7 +67,13 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
     ],
   },
   {
-    title: 'Disparos',
+    title: 'Homologação',
+    items: [
+      { key: 'can_view_homologation', label: 'Homologação', description: 'Quadros de homologação' },
+      { key: 'can_delete_homologation', label: 'Excluir Homologação', description: 'Permite excluir itens de homologação' },
+    ],
+  },
+  {
     items: [
       { key: 'can_view_campaigns', label: 'Campanhas', description: 'Listas, mensagens e campanhas' },
       { key: 'can_view_sequences', label: 'Sequências', description: 'Sequências de nurturing' },
