@@ -129,7 +129,7 @@ interface ChatAreaProps {
   team: TeamMember[];
   isAdmin?: boolean;
   userRole?: string; // Role do usuário: 'owner', 'admin', 'manager', 'agent'
-  onSyncHistory?: (days: number) => Promise<void>;
+  assignedConnectionIds?: string[]; // IDs de conexões atribuídas ao supervisor
   onSendMessage: (content: string, type?: string, mediaUrl?: string, quotedMessageId?: string, mediaMimetype?: string) => Promise<void>;
   onLoadMore: () => void;
   hasMore: boolean;
