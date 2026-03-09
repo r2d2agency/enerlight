@@ -3071,8 +3071,8 @@ router.post('/prospects/:id/convert', async (req, res) => {
       contact_id = newContact.rows[0].id;
     }
 
-    // Create deal with company if applicable - use prospect's assigned_to if set
-    const dealOwner = prospect.assigned_to || req.userId;
+    // Create deal with company if applicable - use explicit owner_id, then prospect's assigned_to, then current user
+    const dealOwner = owner_id || prospect.assigned_to || req.userId;
     const dealResult = await query(
       `INSERT INTO crm_deals (organization_id, funnel_id, stage_id, title, contact_id, company_id, assigned_to, owner_id, source)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $7, 'prospect')
