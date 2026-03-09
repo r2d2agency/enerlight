@@ -233,6 +233,7 @@ function downloadToUploads(url, messageType, hintedMime, redirectCount = 0) {
             const h = (hintedMime || mime || '').toLowerCase();
             if (h.includes('spreadsheetml') || h.includes('ms-excel')) return 'xlsx';
             if (h.includes('wordprocessingml') || h.includes('msword')) return 'docx';
+            if (h.includes('presentationml.slideshow')) return 'ppsx';
             if (h.includes('presentationml') || h.includes('powerpoint') || h.includes('ms-powerpoint')) return 'pptx';
             return 'zip';
           }
