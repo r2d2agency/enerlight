@@ -627,6 +627,7 @@ export default function CRMProspects() {
               />
             </div>
             
+            {canSelectSeller && (
             <div className="space-y-2">
               <Label>Vendedor Responsável</Label>
               <select
@@ -640,6 +641,7 @@ export default function CRMProspects() {
                 ))}
               </select>
             </div>
+            )}
 
             {/* Create Company Option */}
             <div className="border-t pt-4 space-y-3">
