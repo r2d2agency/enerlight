@@ -299,10 +299,9 @@ const Contatos = () => {
         }))
       );
       
-      if (result.duplicates > 0) {
-        toast.success(`${result.imported} contatos importados! (${result.duplicates} duplicados ignorados)`);
-      } else {
-        toast.success(`${result.imported} contatos importados com sucesso!`);
+      // Only show toast on final batch (the dialog handles progress)
+      if (result.imported > 0 || result.duplicates > 0) {
+        toast.success(`${result.imported} contatos importados${result.duplicates > 0 ? ` (${result.duplicates} duplicados)` : ''}`);
       }
       
       loadContacts(selectedList);
