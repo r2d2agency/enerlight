@@ -592,6 +592,20 @@ export default function CRMProspects() {
               />
             </div>
             
+            <div className="space-y-2">
+              <Label>Vendedor Responsável</Label>
+              <select
+                className="w-full p-2 border rounded-md bg-background text-sm"
+                value={convertForm.owner_id}
+                onChange={(e) => setConvertForm(f => ({ ...f, owner_id: e.target.value }))}
+              >
+                <option value="">Manter padrão (atribuído ao prospect)</option>
+                {orgMembers.map((m) => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+              </select>
+            </div>
+
             {/* Create Company Option */}
             <div className="border-t pt-4 space-y-3">
               <div className="flex items-center space-x-2">
