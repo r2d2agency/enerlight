@@ -75,10 +75,12 @@ export default function CRMProspects() {
     funnel_id: "", 
     title: "",
     create_company: false,
-    company_name: ""
+    company_name: "",
+    owner_id: ""
   });
   const [bulkConvertFunnelId, setBulkConvertFunnelId] = useState("");
   const [bulkCreateCompanies, setBulkCreateCompanies] = useState(false);
+  const [bulkOwnerId, setBulkOwnerId] = useState("");
 
   const filteredProspects = useMemo(() => {
     if (!search.trim()) return prospects;
