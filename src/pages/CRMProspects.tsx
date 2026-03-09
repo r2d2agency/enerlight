@@ -539,6 +539,23 @@ export default function CRMProspects() {
               </div>
             </div>
             
+            {/* Seller assignment */}
+            {orgMembers.length > 0 && (
+              <div className="space-y-2 border-t pt-4">
+                <Label>Vendedor Responsável</Label>
+                <select
+                  className="w-full p-2 border rounded-md bg-background text-sm"
+                  value={newProspect.assigned_to}
+                  onChange={(e) => setNewProspect(p => ({ ...p, assigned_to: e.target.value }))}
+                >
+                  <option value="">Sem atribuição</option>
+                  {orgMembers.map((m) => (
+                    <option key={m.id} value={m.id}>{m.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             {/* Company checkbox */}
             <div className="flex items-center space-x-2 border-t pt-4">
               <Checkbox
