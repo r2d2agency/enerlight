@@ -36,7 +36,7 @@ import {
 
 export default function CRMNegociacoes() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { user } = useAuth();
+  const { user, userPermissions } = useAuth();
   const [selectedFunnelId, setSelectedFunnelId] = useState<string | null>(null);
   const [selectedDeal, setSelectedDeal] = useState<CRMDeal | null>(null);
   const [dealDetailOpen, setDealDetailOpen] = useState(false);
