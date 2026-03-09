@@ -335,6 +335,7 @@ export default function CRMProspects() {
                   <TableHead>Telefone</TableHead>
                   <TableHead>Localização</TableHead>
                   <TableHead>Origem</TableHead>
+                  <TableHead>Vendedor</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Criado em</TableHead>
