@@ -70,12 +70,16 @@ interface OrgDepartment {
   is_active: boolean;
 }
 
-const roleLabels = {
+const roleLabels: Record<string, { label: string; icon: typeof Crown; color: string }> = {
   owner: { label: 'Proprietário', icon: Crown, color: 'bg-amber-500' },
   admin: { label: 'Admin', icon: Shield, color: 'bg-blue-500' },
   manager: { label: 'Gerente', icon: Briefcase, color: 'bg-green-500' },
-  agent: { label: 'Vendedor', icon: User, color: 'bg-gray-500' }
+  supervisor: { label: 'Supervisor', icon: ShieldCheck, color: 'bg-purple-500' },
+  designer: { label: 'Projetista', icon: Layers, color: 'bg-teal-500' },
+  agent: { label: 'Vendedor', icon: User, color: 'bg-gray-500' },
 };
+
+const getRole = (role: string) => roleLabels[role] || { label: role, icon: User, color: 'bg-gray-500' };
 
 export default function Organizacoes() {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
