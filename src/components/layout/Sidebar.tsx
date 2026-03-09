@@ -123,7 +123,6 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
     permissionKey: 'can_view_projects',
     items: [
       { name: "Kanban", href: "/projetos", icon: FolderKanban, permissionKey: 'can_view_projects' },
-      { name: "Reuniões", href: "/reunioes", icon: Presentation, permissionKey: 'can_view_projects' },
     ],
   },
   {
