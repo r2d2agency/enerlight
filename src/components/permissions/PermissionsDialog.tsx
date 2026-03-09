@@ -236,7 +236,7 @@ export function PermissionsDialog({ open, onOpenChange, userId, userName, userRo
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <ScrollArea className="flex-1 min-h-0 -mx-6 px-6">
+          <ScrollArea className="flex-1 min-h-0 max-h-[calc(90vh-200px)] -mx-6 px-6">
             <div className="space-y-6 pb-4">
               {/* Template selector */}
               {templates.length > 0 && (
