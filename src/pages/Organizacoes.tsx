@@ -959,9 +959,9 @@ export default function Organizacoes() {
                                       </div>
                                     </TableCell>
                                     <TableCell>
-                                      <Badge variant="secondary" className={`${roleLabels[member.role].color} text-white`}>
+                                      <Badge variant="secondary" className={`${roleInfo.color} text-white`}>
                                         <RoleIcon className="h-3 w-3 mr-1" />
-                                        {roleLabels[member.role].label}
+                                        {roleInfo.label}
                                       </Badge>
                                     </TableCell>
                                     <TableCell>
