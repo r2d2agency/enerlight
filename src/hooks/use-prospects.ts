@@ -140,6 +140,7 @@ async function bulkConvert(data: {
   prospect_ids: string[]; 
   funnel_id: string;
   create_companies?: boolean;
+  owner_id?: string;
 }): Promise<{ converted: number; skipped: number; companies_created?: number }> {
   const res = await fetch(`${API_URL}/api/crm/prospects/bulk-convert`, {
     method: "POST",
