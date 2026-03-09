@@ -350,11 +350,11 @@ export default function TarefasKanban() {
                       onCardClick={setSelectedCard}
                       onAddCard={handleAddCard}
                       onMoveCard={handleMoveCard}
-                      onDeleteCard={(cardId) => {
+                      onDeleteCard={canDeleteTasks ? (cardId) => {
                         if (confirm("Tem certeza que deseja excluir esta tarefa?")) {
                           deleteCard.mutate(cardId);
                         }
-                      }}
+                      } : undefined}
                       onUpdateColumn={(id, data) => updateColumn.mutate({ id, ...data })}
                       onDeleteColumn={(id) => deleteColumn.mutate(id)}
                       onReorderColumns={(ids) => reorderColumns.mutate(ids)}
