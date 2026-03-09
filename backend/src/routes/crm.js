@@ -3581,10 +3581,18 @@ router.get('/org-members', async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
+    // Check caller role
+    const callerRole = await query(
+      `SELECT om.role FROM organization_members om WHERE om.user_id = $1 AND om.organization_id = $2`,
+      [req.userId, org.organization_id]
+    );
+    const role = callerRole.rows[0]?.role || 'seller';
+    const showAll = ['owner', 'admin', 'manager', 'supervisor'].includes(role);
+
     const result = await query(
       `SELECT u.id, u.name, u.email FROM users u
        JOIN organization_members om ON om.user_id = u.id
-       WHERE om.organization_id = $1 AND COALESCE(om.is_active, true) = true
+       WHERE om.organization_id = $1 ${showAll ? '' : 'AND COALESCE(om.is_active, true) = true'}
        ORDER BY u.name`,
       [org.organization_id]
     );
