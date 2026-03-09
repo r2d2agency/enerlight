@@ -247,19 +247,36 @@ router.get('/:id([0-9a-fA-F-]{36})/members', async (req, res) => {
       return res.status(403).json({ error: 'Acesso negado' });
     }
 
-    // Query básica que não depende de tabelas que podem não existir
-    const result = await query(
-      `SELECT 
-        om.*, 
-        u.name, 
-        u.email,
-        COALESCE(om.is_active, true) as is_active
-       FROM organization_members om
-       JOIN users u ON u.id = om.user_id
-       WHERE om.organization_id = $1
-       ORDER BY COALESCE(om.is_active, true) DESC, om.created_at`,
-      [id]
-    );
+    // Query básica - resiliente a colunas que podem não existir
+    let result;
+    try {
+      result = await query(
+        `SELECT 
+          om.*, 
+          u.name, 
+          u.email,
+          COALESCE(om.is_active, true) as is_active
+         FROM organization_members om
+         JOIN users u ON u.id = om.user_id
+         WHERE om.organization_id = $1
+         ORDER BY COALESCE(om.is_active, true) DESC, om.created_at`,
+        [id]
+      );
+    } catch (mainErr) {
+      console.log('Fallback query without is_active:', mainErr.message);
+      result = await query(
+        `SELECT 
+          om.*, 
+          u.name, 
+          u.email,
+          true as is_active
+         FROM organization_members om
+         JOIN users u ON u.id = om.user_id
+         WHERE om.organization_id = $1
+         ORDER BY om.created_at`,
+        [id]
+      );
+    }
 
     // Tentar buscar conexões atribuídas (não falha se tabela não existir)
     let connectionAssignments = {};
