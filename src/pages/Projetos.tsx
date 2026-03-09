@@ -37,7 +37,7 @@ import {
 } from "@/hooks/use-projects";
 
 export default function Projetos() {
-  const { user } = useAuth();
+  const { user, userPermissions } = useAuth();
   const { data: stages = [], isLoading: loadingStages } = useProjectStages();
   const { data: projects = [], isLoading: loadingProjects } = useProjects();
   const { data: templates = [] } = useProjectTemplates();
