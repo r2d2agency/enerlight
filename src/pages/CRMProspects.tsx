@@ -58,6 +58,8 @@ export default function CRMProspects() {
   const { prospects, isLoading, createProspect, deleteProspect, convertToDeal, bulkDelete, bulkConvert } = useProspects();
   const { data: funnels } = useCRMFunnels();
   const { data: orgMembers = [] } = useCRMOrgMembers();
+  const { user } = useAuth();
+  const canSelectSeller = ['owner', 'admin', 'manager', 'supervisor'].includes(user?.role || '');
 
   // New prospect form
   const [newProspect, setNewProspect] = useState({ 
