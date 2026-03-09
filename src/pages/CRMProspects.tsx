@@ -42,6 +42,7 @@ import {
 } from "lucide-react";
 import { useProspects, Prospect } from "@/hooks/use-prospects";
 import { useCRMFunnels } from "@/hooks/use-crm";
+import { useCRMOrgMembers } from "@/hooks/use-sales-positions";
 import ProspectImportDialog from "@/components/crm/ProspectImportDialog";
 
 export default function CRMProspects() {
@@ -55,6 +56,7 @@ export default function CRMProspects() {
   
   const { prospects, isLoading, createProspect, deleteProspect, convertToDeal, bulkDelete, bulkConvert } = useProspects();
   const { data: funnels } = useCRMFunnels();
+  const { data: orgMembers = [] } = useCRMOrgMembers();
 
   // New prospect form
   const [newProspect, setNewProspect] = useState({ 
@@ -73,10 +75,12 @@ export default function CRMProspects() {
     funnel_id: "", 
     title: "",
     create_company: false,
-    company_name: ""
+    company_name: "",
+    owner_id: ""
   });
   const [bulkConvertFunnelId, setBulkConvertFunnelId] = useState("");
   const [bulkCreateCompanies, setBulkCreateCompanies] = useState(false);
+  const [bulkOwnerId, setBulkOwnerId] = useState("");
 
   const filteredProspects = useMemo(() => {
     if (!search.trim()) return prospects;
@@ -141,7 +145,8 @@ export default function CRMProspects() {
       funnel_id: funnels?.[0]?.id || "", 
       title: prospect.name,
       create_company: prospect.is_company || false,
-      company_name: prospect.is_company ? prospect.name : ""
+      company_name: prospect.is_company ? prospect.name : "",
+      owner_id: ""
     });
     setShowConvertDialog(true);
   };
@@ -161,6 +166,7 @@ export default function CRMProspects() {
       title: convertForm.title || convertingProspect.name,
       create_company: convertForm.create_company,
       company_name: convertForm.company_name.trim() || undefined,
+      owner_id: convertForm.owner_id || undefined,
     });
     setShowConvertDialog(false);
     setConvertingProspect(null);
@@ -195,6 +201,7 @@ export default function CRMProspects() {
       prospect_ids: unconvertedIds,
       funnel_id: bulkConvertFunnelId,
       create_companies: bulkCreateCompanies,
+      owner_id: bulkOwnerId || undefined,
     });
     setShowBulkConvertDialog(false);
     setSelectedIds([]);
@@ -207,6 +214,7 @@ export default function CRMProspects() {
       return;
     }
     setBulkConvertFunnelId(funnels?.[0]?.id || "");
+    setBulkOwnerId("");
     setShowBulkConvertDialog(true);
   };
 
@@ -584,6 +592,20 @@ export default function CRMProspects() {
               />
             </div>
             
+            <div className="space-y-2">
+              <Label>Vendedor Responsável</Label>
+              <select
+                className="w-full p-2 border rounded-md bg-background text-sm"
+                value={convertForm.owner_id}
+                onChange={(e) => setConvertForm(f => ({ ...f, owner_id: e.target.value }))}
+              >
+                <option value="">Manter padrão (atribuído ao prospect)</option>
+                {orgMembers.map((m) => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+              </select>
+            </div>
+
             {/* Create Company Option */}
             <div className="border-t pt-4 space-y-3">
               <div className="flex items-center space-x-2">
@@ -656,6 +678,20 @@ export default function CRMProspects() {
               </select>
             </div>
             
+            <div className="space-y-2">
+              <Label>Vendedor Responsável</Label>
+              <select
+                className="w-full p-2 border rounded-md bg-background text-sm"
+                value={bulkOwnerId}
+                onChange={(e) => setBulkOwnerId(e.target.value)}
+              >
+                <option value="">Manter padrão (atribuído ao prospect)</option>
+                {orgMembers.map((m) => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+              </select>
+            </div>
+
             {/* Create Companies Option */}
             <div className="flex items-center space-x-2 border-t pt-4">
               <Checkbox

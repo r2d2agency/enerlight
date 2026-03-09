@@ -114,6 +114,7 @@ async function convertToDeal(data: {
   title?: string;
   create_company?: boolean;
   company_name?: string;
+  owner_id?: string;
 }): Promise<{ deal_id: string; company_id?: string }> {
   const res = await fetch(`${API_URL}/api/crm/prospects/${data.prospect_id}/convert`, {
     method: "POST",
@@ -139,6 +140,7 @@ async function bulkConvert(data: {
   prospect_ids: string[]; 
   funnel_id: string;
   create_companies?: boolean;
+  owner_id?: string;
 }): Promise<{ converted: number; skipped: number; companies_created?: number }> {
   const res = await fetch(`${API_URL}/api/crm/prospects/bulk-convert`, {
     method: "POST",

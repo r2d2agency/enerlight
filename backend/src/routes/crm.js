@@ -2992,7 +2992,7 @@ router.post('/prospects/:id/convert', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
-    const { funnel_id, title, create_company, company_name } = req.body;
+    const { funnel_id, title, create_company, company_name, owner_id } = req.body;
     if (!funnel_id) {
       return res.status(400).json({ error: 'Funnel ID is required' });
     }
@@ -3071,8 +3071,8 @@ router.post('/prospects/:id/convert', async (req, res) => {
       contact_id = newContact.rows[0].id;
     }
 
-    // Create deal with company if applicable - use prospect's assigned_to if set
-    const dealOwner = prospect.assigned_to || req.userId;
+    // Create deal with company if applicable - use explicit owner_id, then prospect's assigned_to, then current user
+    const dealOwner = owner_id || prospect.assigned_to || req.userId;
     const dealResult = await query(
       `INSERT INTO crm_deals (organization_id, funnel_id, stage_id, title, contact_id, company_id, assigned_to, owner_id, source)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $7, 'prospect')
@@ -3100,7 +3100,7 @@ router.post('/prospects/bulk-convert', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
-    const { prospect_ids, funnel_id, create_companies } = req.body;
+    const { prospect_ids, funnel_id, create_companies, owner_id } = req.body;
     if (!Array.isArray(prospect_ids) || prospect_ids.length === 0 || !funnel_id) {
       return res.status(400).json({ error: 'prospect_ids array and funnel_id are required' });
     }
@@ -3182,8 +3182,8 @@ router.post('/prospects/bulk-convert', async (req, res) => {
           companies_created++;
         }
 
-        // Create deal - use prospect's assigned_to if set
-        const dealOwner = prospect.assigned_to || req.userId;
+        // Create deal - use explicit owner_id, then prospect's assigned_to, then current user
+        const dealOwner = owner_id || prospect.assigned_to || req.userId;
         const dealResult = await query(
           `INSERT INTO crm_deals (organization_id, funnel_id, stage_id, title, contact_id, company_id, source, responsible_id, owner_id, assigned_to)
            VALUES ($1, $2, $3, $4, $5, $6, 'prospect', $7, $7, $7)
