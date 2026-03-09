@@ -329,7 +329,7 @@ export default function CRMNegociacoes() {
               </ToggleGroup>
 
               {/* Selection mode toggle (admin only) */}
-              {canManage && (
+              {canDeleteDeals && (
                 <Button 
                   variant={selectionMode ? "default" : "outline"} 
                   size="sm" 
