@@ -105,6 +105,7 @@ function extFromMime(mime) {
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
     'application/vnd.ms-powerpoint': 'ppt',
     'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx',
+    'application/vnd.openxmlformats-officedocument.presentationml.slideshow': 'ppsx',
     'text/plain': 'txt',
     'text/csv': 'csv',
     'application/csv': 'csv',
