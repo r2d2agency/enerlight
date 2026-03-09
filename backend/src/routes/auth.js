@@ -417,7 +417,7 @@ router.get('/me', async (req, res) => {
         const row = permResult.rows[0];
         userPermissions = {};
         for (const key of Object.keys(row)) {
-          if (key.startsWith('can_view_')) {
+          if (key.startsWith('can_view_') || key.startsWith('can_delete_')) {
             userPermissions[key] = row[key];
           }
         }
