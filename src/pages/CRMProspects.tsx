@@ -145,7 +145,8 @@ export default function CRMProspects() {
       funnel_id: funnels?.[0]?.id || "", 
       title: prospect.name,
       create_company: prospect.is_company || false,
-      company_name: prospect.is_company ? prospect.name : ""
+      company_name: prospect.is_company ? prospect.name : "",
+      owner_id: ""
     });
     setShowConvertDialog(true);
   };
