@@ -678,6 +678,20 @@ export default function CRMProspects() {
               </select>
             </div>
             
+            <div className="space-y-2">
+              <Label>Vendedor Responsável</Label>
+              <select
+                className="w-full p-2 border rounded-md bg-background text-sm"
+                value={bulkOwnerId}
+                onChange={(e) => setBulkOwnerId(e.target.value)}
+              >
+                <option value="">Manter padrão (atribuído ao prospect)</option>
+                {orgMembers.map((m) => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+              </select>
+            </div>
+
             {/* Create Companies Option */}
             <div className="flex items-center space-x-2 border-t pt-4">
               <Checkbox
