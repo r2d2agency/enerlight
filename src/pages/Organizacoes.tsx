@@ -644,8 +644,8 @@ export default function Organizacoes() {
                           <p className="font-medium truncate">{org.name}</p>
                           <p className="text-xs text-muted-foreground">/{org.slug}</p>
                         </div>
-                        <Badge variant="secondary" className={`${roleLabels[org.role].color} text-white text-xs`}>
-                          {roleLabels[org.role].label}
+                        <Badge variant="secondary" className={`${getRole(org.role).color} text-white text-xs`}>
+                          {getRole(org.role).label}
                         </Badge>
                       </div>
                     </button>
