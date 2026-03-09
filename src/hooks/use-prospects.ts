@@ -6,15 +6,18 @@ export interface Prospect {
   id: string;
   name: string;
   phone: string;
+  email?: string;
   source?: string;
   city?: string;
   state?: string;
   address?: string;
   zip_code?: string;
   is_company?: boolean;
+  assigned_to?: string;
   converted_at?: string;
   converted_deal_id?: string;
   created_at: string;
+  custom_fields?: Record<string, string>;
 }
 
 async function fetchProspects(): Promise<Prospect[]> {

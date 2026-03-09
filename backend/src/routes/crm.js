@@ -2757,12 +2757,21 @@ router.get('/prospects', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
+    let visibilityFilter = '';
+    const params = [org.organization_id];
+
+    // Non-admin users only see prospects assigned to them
+    if (!canManage(org.role)) {
+      visibilityFilter = ` AND assigned_to = $2`;
+      params.push(req.userId);
+    }
+
     const result = await query(
-      `SELECT id, name, phone, source, converted_at, converted_deal_id, created_at
+      `SELECT id, name, phone, source, city, state, address, zip_code, is_company, assigned_to, converted_at, converted_deal_id, created_at, email, custom_fields
        FROM crm_prospects
-       WHERE organization_id = $1
+       WHERE organization_id = $1${visibilityFilter}
        ORDER BY created_at DESC`,
-      [org.organization_id]
+      params
     );
     res.json(result.rows);
   } catch (error) {
