@@ -397,6 +397,7 @@ export default function CRMProspects() {
                         ) : (
                           <span className="text-muted-foreground text-sm">—</span>
                         )}
+                      </TableCell>
                       <TableCell>
                         {prospect.is_company ? (
                           <Badge variant="outline" className="border-blue-500 text-blue-600">
