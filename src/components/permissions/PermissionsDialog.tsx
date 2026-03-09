@@ -55,12 +55,14 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
     title: 'Projetos',
     items: [
       { key: 'can_view_projects', label: 'Projetos', description: 'Kanban de projetos' },
+      { key: 'can_delete_projects', label: 'Excluir Projetos', description: 'Permite excluir projetos' },
     ],
   },
   {
     title: 'Tarefas',
     items: [
       { key: 'can_view_tasks', label: 'Tarefas', description: 'Quadros Kanban de tarefas' },
+      { key: 'can_delete_tasks', label: 'Excluir Tarefas', description: 'Permite excluir tarefas/cards' },
     ],
   },
   {
