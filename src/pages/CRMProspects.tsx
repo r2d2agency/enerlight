@@ -715,6 +715,7 @@ export default function CRMProspects() {
               </select>
             </div>
             
+            {canSelectSeller && (
             <div className="space-y-2">
               <Label>Vendedor Responsável</Label>
               <select
@@ -728,6 +729,7 @@ export default function CRMProspects() {
                 ))}
               </select>
             </div>
+            )}
 
             {/* Create Companies Option */}
             <div className="flex items-center space-x-2 border-t pt-4">
