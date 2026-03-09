@@ -166,6 +166,7 @@ export default function CRMProspects() {
       title: convertForm.title || convertingProspect.name,
       create_company: convertForm.create_company,
       company_name: convertForm.company_name.trim() || undefined,
+      owner_id: convertForm.owner_id || undefined,
     });
     setShowConvertDialog(false);
     setConvertingProspect(null);
