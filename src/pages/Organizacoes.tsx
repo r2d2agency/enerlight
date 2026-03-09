@@ -48,7 +48,7 @@ interface OrganizationMember {
   user_id: string;
   name: string;
   email: string;
-  role: 'owner' | 'admin' | 'manager' | 'agent';
+  role: string;
   is_active: boolean;
   assigned_connections: AssignedConnection[];
   assigned_departments: AssignedDepartment[];
@@ -70,12 +70,16 @@ interface OrgDepartment {
   is_active: boolean;
 }
 
-const roleLabels = {
+const roleLabels: Record<string, { label: string; icon: typeof Crown; color: string }> = {
   owner: { label: 'Proprietário', icon: Crown, color: 'bg-amber-500' },
   admin: { label: 'Admin', icon: Shield, color: 'bg-blue-500' },
   manager: { label: 'Gerente', icon: Briefcase, color: 'bg-green-500' },
-  agent: { label: 'Vendedor', icon: User, color: 'bg-gray-500' }
+  supervisor: { label: 'Supervisor', icon: ShieldCheck, color: 'bg-purple-500' },
+  designer: { label: 'Projetista', icon: Layers, color: 'bg-teal-500' },
+  agent: { label: 'Vendedor', icon: User, color: 'bg-gray-500' },
 };
+
+const getRole = (role: string) => roleLabels[role] || { label: role, icon: User, color: 'bg-gray-500' };
 
 export default function Organizacoes() {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
@@ -640,8 +644,8 @@ export default function Organizacoes() {
                           <p className="font-medium truncate">{org.name}</p>
                           <p className="text-xs text-muted-foreground">/{org.slug}</p>
                         </div>
-                        <Badge variant="secondary" className={`${roleLabels[org.role].color} text-white text-xs`}>
-                          {roleLabels[org.role].label}
+                        <Badge variant="secondary" className={`${getRole(org.role).color} text-white text-xs`}>
+                          {getRole(org.role).label}
                         </Badge>
                       </div>
                     </button>
@@ -936,7 +940,8 @@ export default function Organizacoes() {
                             </TableHeader>
                             <TableBody>
                               {members.map((member) => {
-                                const RoleIcon = roleLabels[member.role].icon;
+                                const roleInfo = getRole(member.role);
+                                const RoleIcon = roleInfo.icon;
                                 const assignedConns = member.assigned_connections || [];
                                 const assignedDepts = member.assigned_departments || [];
                                 const isActive = member.is_active !== false;
@@ -954,9 +959,9 @@ export default function Organizacoes() {
                                       </div>
                                     </TableCell>
                                     <TableCell>
-                                      <Badge variant="secondary" className={`${roleLabels[member.role].color} text-white`}>
+                                      <Badge variant="secondary" className={`${roleInfo.color} text-white`}>
                                         <RoleIcon className="h-3 w-3 mr-1" />
-                                        {roleLabels[member.role].label}
+                                        {roleInfo.label}
                                       </Badge>
                                     </TableCell>
                                     <TableCell>
@@ -1662,7 +1667,7 @@ export default function Organizacoes() {
           onOpenChange={setPermDialogOpen}
           userId={permMember.user_id}
           userName={permMember.name}
-          userRole={roleLabels[permMember.role]?.label || permMember.role}
+          userRole={getRole(permMember.role).label}
         />
       )}
 
