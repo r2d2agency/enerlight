@@ -542,8 +542,8 @@ export default function CRMProspects() {
               </div>
             </div>
             
-            {/* Seller assignment */}
-            {orgMembers.length > 0 && (
+            {/* Seller assignment - only for admins/managers */}
+            {canSelectSeller && orgMembers.length > 0 && (
               <div className="space-y-2 border-t pt-4">
                 <Label>Vendedor Responsável</Label>
                 <select
