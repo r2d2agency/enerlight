@@ -479,6 +479,7 @@ export default function Projetos() {
           onOpenChange={(o) => { if (!o) setSelectedProject(null); }}
           stages={stages}
           canEdit={canEdit}
+          canDelete={canDelete}
           onMove={handleMoveProject}
         />
       )}
