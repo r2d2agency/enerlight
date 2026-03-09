@@ -41,6 +41,7 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
     title: 'CRM',
     items: [
       { key: 'can_view_crm', label: 'Negociações', description: 'Kanban de negociações' },
+      { key: 'can_delete_deals', label: 'Excluir Negociações', description: 'Permite excluir negociações' },
       { key: 'can_view_prospects', label: 'Prospects', description: 'Gestão de prospects' },
       { key: 'can_view_companies', label: 'Empresas', description: 'Cadastro de empresas' },
       { key: 'can_view_map', label: 'Mapa', description: 'Visualização em mapa' },
