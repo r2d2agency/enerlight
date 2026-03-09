@@ -201,6 +201,7 @@ export default function CRMProspects() {
       prospect_ids: unconvertedIds,
       funnel_id: bulkConvertFunnelId,
       create_companies: bulkCreateCompanies,
+      owner_id: bulkOwnerId || undefined,
     });
     setShowBulkConvertDialog(false);
     setSelectedIds([]);
