@@ -67,9 +67,10 @@ const Chat = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [tags, setTags] = useState<ConversationTag[]>([]);
   const [team, setTeam] = useState<TeamMember[]>([]);
-  const [connections, setConnections] = useState<{ id: string; name: string; phone_number: string | null; status: string }[]>([]);
+  const [connections, setConnections] = useState<{ id: string; name: string; phone_number: string | null; status: string; is_assigned?: boolean }[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [userRole, setUserRole] = useState<string>('');
+  const [assignedConnectionIds, setAssignedConnectionIds] = useState<string[]>([]);
   
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sendingMessage, setSendingMessage] = useState(false);
@@ -232,8 +233,16 @@ const Chat = () => {
 
   const loadConnections = async () => {
     try {
-      const data = await getConnections();
+      const data = await getConnections() as any[];
       setConnections(data);
+      // Track assigned connections for supervisor mode logic
+      const assigned = data.filter((c: any) => c.is_assigned === true).map((c: any) => c.id);
+      if (assigned.length > 0) {
+        setAssignedConnectionIds(assigned);
+      } else {
+        // If no is_assigned flags, all connections are assigned (owner/admin/agent)
+        setAssignedConnectionIds(data.map((c: any) => c.id));
+      }
     } catch (error) {
       console.error('Error loading connections:', error);
     }
@@ -881,6 +890,7 @@ const Chat = () => {
               syncingHistory={syncingHistory}
               isAdmin={isAdmin}
               userRole={userRole}
+              assignedConnectionIds={assignedConnectionIds}
               onSyncHistory={handleSyncHistory}
               onSendMessage={handleSendMessage}
               onLoadMore={handleLoadMoreMessages}
@@ -985,6 +995,7 @@ const Chat = () => {
                   syncingHistory={syncingHistory}
                   isAdmin={isAdmin}
                   userRole={userRole}
+                  assignedConnectionIds={assignedConnectionIds}
                   onSyncHistory={handleSyncHistory}
                   onSendMessage={handleSendMessage}
                   onLoadMore={handleLoadMoreMessages}

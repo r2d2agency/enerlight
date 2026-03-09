@@ -129,6 +129,7 @@ interface ChatAreaProps {
   team: TeamMember[];
   isAdmin?: boolean;
   userRole?: string; // Role do usuário: 'owner', 'admin', 'manager', 'agent'
+  assignedConnectionIds?: string[]; // IDs de conexões atribuídas ao supervisor
   onSyncHistory?: (days: number) => Promise<void>;
   onSendMessage: (content: string, type?: string, mediaUrl?: string, quotedMessageId?: string, mediaMimetype?: string) => Promise<void>;
   onLoadMore: () => void;
@@ -176,6 +177,7 @@ export function ChatArea({
   team,
   isAdmin = false,
   userRole,
+  assignedConnectionIds = [],
   onSyncHistory,
   onSendMessage,
   onLoadMore,
@@ -195,8 +197,8 @@ export function ChatArea({
   onMobileBack,
   onOpenCRM,
 }: ChatAreaProps) {
-  // Manager (Supervisor) = apenas visualização
-  const isViewOnly = userRole === 'manager';
+  // Manager (Supervisor) = view-only ONLY on unassigned connections
+  const isViewOnly = userRole === 'manager' && conversation != null && !assignedConnectionIds.includes(conversation.connection_id);
   
   // Departments
   const { getDepartments, transferToDepartment } = useDepartments();
