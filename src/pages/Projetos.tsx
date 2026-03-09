@@ -852,19 +852,21 @@ function ProjectDetailDialog({ project, open, onOpenChange, stages, canEdit, can
                 }}>
                   <Edit className="h-3.5 w-3.5 mr-1" /> Editar
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-destructive hover:bg-destructive/10"
-                  onClick={() => {
-                    if (window.confirm("Tem certeza que deseja excluir este projeto? Esta ação não pode ser desfeita.")) {
-                      projectMut.remove.mutate(project.id);
-                      onOpenChange(false);
-                    }
-                  }}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                {canDelete && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                    onClick={() => {
+                      if (window.confirm("Tem certeza que deseja excluir este projeto? Esta ação não pode ser desfeita.")) {
+                        projectMut.remove.mutate(project.id);
+                        onOpenChange(false);
+                      }
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
             )}
           </div>
