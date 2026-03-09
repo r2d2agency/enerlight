@@ -995,6 +995,7 @@ const Chat = () => {
                   syncingHistory={syncingHistory}
                   isAdmin={isAdmin}
                   userRole={userRole}
+                  assignedConnectionIds={assignedConnectionIds}
                   onSyncHistory={handleSyncHistory}
                   onSendMessage={handleSendMessage}
                   onLoadMore={handleLoadMoreMessages}
