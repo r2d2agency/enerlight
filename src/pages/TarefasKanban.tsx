@@ -30,7 +30,7 @@ import { useToast } from "@/hooks/use-toast";
 
 
 export default function TarefasKanban() {
-  const { user } = useAuth();
+  const { user, userPermissions } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
   const isSuperadmin = !!(user as any)?.is_superadmin;
