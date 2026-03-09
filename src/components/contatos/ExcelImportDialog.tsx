@@ -80,20 +80,31 @@ export function ExcelImportDialog({
   const [mapping, setMapping] = useState<ColumnMapping>({ name: "", phone: "" });
   const [contacts, setContacts] = useState<ImportedContact[]>([]);
   const [isImporting, setIsImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState(0);
+  const [importTotal, setImportTotal] = useState(0);
+  const [importedSoFar, setImportedSoFar] = useState(0);
   const [isValidatingAll, setIsValidatingAll] = useState(false);
   const [validationProgress, setValidationProgress] = useState(0);
   const [editingContact, setEditingContact] = useState<string | null>(null);
   const [importOnlyValidated, setImportOnlyValidated] = useState(false);
+  const [isGoogleFormat, setIsGoogleFormat] = useState(false);
+  const [googleNameColumns, setGoogleNameColumns] = useState<string[]>([]);
+
   const resetState = () => {
     setStep("upload");
     setColumns([]);
     setMapping({ name: "", phone: "" });
     setContacts([]);
     setIsImporting(false);
+    setImportProgress(0);
+    setImportTotal(0);
+    setImportedSoFar(0);
     setIsValidatingAll(false);
     setValidationProgress(0);
     setEditingContact(null);
     setImportOnlyValidated(false);
+    setIsGoogleFormat(false);
+    setGoogleNameColumns([]);
   };
 
   const handleClose = () => {
@@ -101,74 +112,215 @@ export function ExcelImportDialog({
     onOpenChange(false);
   };
 
-  const parseExcelFile = useCallback((file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const data = new Uint8Array(e.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: "array" });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const jsonData = XLSX.utils.sheet_to_json<Record<string, string>>(worksheet, {
-          header: 1,
-          raw: false,
-        });
+  // Parse CSV properly handling quoted fields with commas
+  const parseCSV = (text: string): string[][] => {
+    const rows: string[][] = [];
+    let currentRow: string[] = [];
+    let currentField = "";
+    let inQuotes = false;
 
-        if (jsonData.length < 2) {
-          alert("Arquivo vazio ou sem dados válidos");
-          return;
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+      const nextChar = text[i + 1];
+
+      if (inQuotes) {
+        if (char === '"' && nextChar === '"') {
+          currentField += '"';
+          i++; // skip next quote
+        } else if (char === '"') {
+          inQuotes = false;
+        } else {
+          currentField += char;
         }
-
-        const headers = (jsonData[0] as unknown as string[]).map(h => String(h || "").trim());
-        setColumns(headers.filter(Boolean));
-
-        // Auto-detect mapping
-        const autoMapping: ColumnMapping = { name: "", phone: "" };
-        headers.forEach((header) => {
-          const lowerHeader = header.toLowerCase();
-          if (lowerHeader.includes("nome") || lowerHeader === "name") {
-            autoMapping.name = header;
+      } else {
+        if (char === '"') {
+          inQuotes = true;
+        } else if (char === ',') {
+          currentRow.push(currentField.trim());
+          currentField = "";
+        } else if (char === '\n' || (char === '\r' && nextChar === '\n')) {
+          currentRow.push(currentField.trim());
+          if (currentRow.some(f => f !== "")) {
+            rows.push(currentRow);
           }
-          if (
-            lowerHeader.includes("telefone") ||
-            lowerHeader.includes("whatsapp") ||
-            lowerHeader.includes("phone") ||
-            lowerHeader.includes("numero") ||
-            lowerHeader.includes("celular")
-          ) {
-            autoMapping.phone = header;
-          }
-        });
-        setMapping(autoMapping);
+          currentRow = [];
+          currentField = "";
+          if (char === '\r') i++; // skip \n
+        } else {
+          currentField += char;
+        }
+      }
+    }
+    // Last field/row
+    currentRow.push(currentField.trim());
+    if (currentRow.some(f => f !== "")) {
+      rows.push(currentRow);
+    }
+    return rows;
+  };
 
-        // Parse contacts
-        const rows = jsonData.slice(1) as unknown as string[][];
-        const parsedContacts: ImportedContact[] = rows
-          .filter(row => row && row.length > 0)
-          .map((row, index) => {
-            const rawData: Record<string, string> = {};
-            headers.forEach((header, i) => {
-              rawData[header] = String(row[i] || "").trim();
+  const detectGoogleFormat = (headers: string[]): boolean => {
+    const googleHeaders = ["First Name", "Last Name", "Phone 1 - Value", "Organization Name"];
+    return googleHeaders.filter(h => headers.includes(h)).length >= 2;
+  };
+
+  const parseFile = useCallback((file: File) => {
+    const isCSV = file.name.toLowerCase().endsWith(".csv");
+
+    if (isCSV) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const text = e.target?.result as string;
+          const rows = parseCSV(text);
+
+          if (rows.length < 2) {
+            alert("Arquivo vazio ou sem dados válidos");
+            return;
+          }
+
+          const headers = rows[0].map(h => h.trim());
+          setColumns(headers.filter(Boolean));
+
+          const isGoogle = detectGoogleFormat(headers);
+          setIsGoogleFormat(isGoogle);
+
+          // Auto-detect mapping
+          const autoMapping: ColumnMapping = { name: "", phone: "" };
+
+          if (isGoogle) {
+            // Google Contacts: combine First Name + Middle Name + Last Name + Organization Name
+            const nameColsFound: string[] = [];
+            if (headers.includes("First Name")) nameColsFound.push("First Name");
+            if (headers.includes("Middle Name")) nameColsFound.push("Middle Name");
+            if (headers.includes("Last Name")) nameColsFound.push("Last Name");
+            setGoogleNameColumns(nameColsFound);
+
+            // Use special marker for combined name
+            autoMapping.name = "__google_combined__";
+
+            // Phone mapping
+            const phoneCol = headers.find(h => h === "Phone 1 - Value");
+            if (phoneCol) autoMapping.phone = phoneCol;
+          } else {
+            headers.forEach((header) => {
+              const lowerHeader = header.toLowerCase();
+              if (!autoMapping.name && (lowerHeader.includes("nome") || lowerHeader === "name" || lowerHeader === "first name")) {
+                autoMapping.name = header;
+              }
+              if (!autoMapping.phone && (
+                lowerHeader.includes("telefone") ||
+                lowerHeader.includes("whatsapp") ||
+                lowerHeader.includes("phone") ||
+                lowerHeader.includes("numero") ||
+                lowerHeader.includes("celular")
+              )) {
+                autoMapping.phone = header;
+              }
             });
-            return {
-              id: `contact-${index}`,
-              name: "",
-              phone: "",
-              isValidWhatsApp: null,
-              isValidating: false,
-              selected: true,
-              rawData,
-            };
+          }
+          setMapping(autoMapping);
+
+          // Parse contacts
+          const dataRows = rows.slice(1);
+          const parsedContacts: ImportedContact[] = dataRows
+            .filter(row => row && row.length > 0)
+            .map((row, index) => {
+              const rawData: Record<string, string> = {};
+              headers.forEach((header, i) => {
+                rawData[header] = (row[i] || "").trim();
+              });
+              return {
+                id: `contact-${index}`,
+                name: "",
+                phone: "",
+                isValidWhatsApp: null,
+                isValidating: false,
+                selected: true,
+                rawData,
+              };
+            });
+
+          setContacts(parsedContacts);
+          setStep("mapping");
+        } catch (error) {
+          console.error("Error parsing CSV:", error);
+          alert("Erro ao processar arquivo CSV.");
+        }
+      };
+      reader.readAsText(file, "UTF-8");
+    } else {
+      // Excel file
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = new Uint8Array(e.target?.result as ArrayBuffer);
+          const workbook = XLSX.read(data, { type: "array" });
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          const jsonData = XLSX.utils.sheet_to_json<Record<string, string>>(worksheet, {
+            header: 1,
+            raw: false,
           });
 
-        setContacts(parsedContacts);
-        setStep("mapping");
-      } catch (error) {
-        console.error("Error parsing Excel:", error);
-        alert("Erro ao processar arquivo. Verifique o formato.");
-      }
-    };
-    reader.readAsArrayBuffer(file);
+          if (jsonData.length < 2) {
+            alert("Arquivo vazio ou sem dados válidos");
+            return;
+          }
+
+          const headers = (jsonData[0] as unknown as string[]).map(h => String(h || "").trim());
+          setColumns(headers.filter(Boolean));
+          setIsGoogleFormat(false);
+          setGoogleNameColumns([]);
+
+          // Auto-detect mapping
+          const autoMapping: ColumnMapping = { name: "", phone: "" };
+          headers.forEach((header) => {
+            const lowerHeader = header.toLowerCase();
+            if (lowerHeader.includes("nome") || lowerHeader === "name") {
+              autoMapping.name = header;
+            }
+            if (
+              lowerHeader.includes("telefone") ||
+              lowerHeader.includes("whatsapp") ||
+              lowerHeader.includes("phone") ||
+              lowerHeader.includes("numero") ||
+              lowerHeader.includes("celular")
+            ) {
+              autoMapping.phone = header;
+            }
+          });
+          setMapping(autoMapping);
+
+          // Parse contacts
+          const rows = jsonData.slice(1) as unknown as string[][];
+          const parsedContacts: ImportedContact[] = rows
+            .filter(row => row && row.length > 0)
+            .map((row, index) => {
+              const rawData: Record<string, string> = {};
+              headers.forEach((header, i) => {
+                rawData[header] = String(row[i] || "").trim();
+              });
+              return {
+                id: `contact-${index}`,
+                name: "",
+                phone: "",
+                isValidWhatsApp: null,
+                isValidating: false,
+                selected: true,
+                rawData,
+              };
+            });
+
+          setContacts(parsedContacts);
+          setStep("mapping");
+        } catch (error) {
+          console.error("Error parsing Excel:", error);
+          alert("Erro ao processar arquivo. Verifique o formato.");
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
   }, []);
 
   const handleDrop = useCallback(
@@ -176,54 +328,91 @@ export function ExcelImportDialog({
       e.preventDefault();
       setIsDragging(false);
       const file = e.dataTransfer.files[0];
-      if (file && (file.name.endsWith(".xlsx") || file.name.endsWith(".xls"))) {
-        parseExcelFile(file);
+      if (file && (file.name.endsWith(".xlsx") || file.name.endsWith(".xls") || file.name.endsWith(".csv"))) {
+        parseFile(file);
       } else {
-        alert("Por favor, envie um arquivo Excel (.xlsx ou .xls)");
+        alert("Por favor, envie um arquivo Excel (.xlsx, .xls) ou CSV (.csv)");
       }
     },
-    [parseExcelFile]
+    [parseFile]
   );
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      parseExcelFile(file);
+      parseFile(file);
     }
   };
 
+  const buildGoogleName = (rawData: Record<string, string>): string => {
+    const parts = [
+      rawData["First Name"] || "",
+      rawData["Middle Name"] || "",
+      rawData["Last Name"] || "",
+    ].filter(Boolean).join(" ").trim();
+    
+    // If no name parts, use Organization Name or Nickname
+    if (!parts) {
+      return rawData["Organization Name"] || rawData["Nickname"] || "Sem nome";
+    }
+    return parts;
+  };
+
+  const normalizeGooglePhone = (phone: string): string => {
+    if (!phone) return "";
+    // Handle Google's ":::" separator (multiple numbers in one field)
+    const firstNumber = phone.split(":::")[0].trim();
+    // Remove all non-numeric characters
+    let normalized = firstNumber.replace(/\D/g, "");
+    // Add Brazil country code if needed
+    if (normalized.length === 10 || normalized.length === 11) {
+      normalized = "55" + normalized;
+    }
+    return normalized;
+  };
+
   const applyMapping = () => {
-    if (!mapping.name || !mapping.phone) {
+    if (isGoogleFormat && mapping.name === "__google_combined__") {
+      if (!mapping.phone) {
+        alert("Selecione a coluna de telefone");
+        return;
+      }
+    } else if (!mapping.name || !mapping.phone) {
       alert("Selecione as colunas obrigatórias (Nome e Telefone)");
       return;
     }
 
-    const mappedContacts = contacts.map((contact) => ({
-      ...contact,
-      name: contact.rawData[mapping.name] || "Sem nome",
-      phone: normalizePhone(contact.rawData[mapping.phone] || ""),
-    }));
+    const mappedContacts = contacts.map((contact) => {
+      let name: string;
+      let phone: string;
 
-    setContacts(mappedContacts.filter(c => c.phone));
+      if (isGoogleFormat && mapping.name === "__google_combined__") {
+        name = buildGoogleName(contact.rawData);
+        phone = normalizeGooglePhone(contact.rawData[mapping.phone] || "");
+      } else {
+        name = contact.rawData[mapping.name] || "Sem nome";
+        phone = normalizePhone(contact.rawData[mapping.phone] || "");
+      }
+
+      return { ...contact, name, phone };
+    });
+
+    // Filter contacts with valid phone numbers
+    setContacts(mappedContacts.filter(c => c.phone && c.phone.length >= 10));
     setStep("preview");
   };
 
   const normalizePhone = (phone: string): string => {
-    // Remove all non-numeric characters
     let normalized = phone.replace(/\D/g, "");
-    
-    // Add Brazil country code if not present
     if (normalized.length === 10 || normalized.length === 11) {
       normalized = "55" + normalized;
     }
-    
     return normalized;
   };
 
   const validateSingleContact = async (contactId: string) => {
     if (!validateWhatsApp) return;
 
-    // Normalize phone before validating
     setContacts((prev) =>
       prev.map((c) =>
         c.id === contactId ? { ...c, phone: normalizePhone(c.phone), isValidating: true } : c
@@ -261,7 +450,6 @@ export function ExcelImportDialog({
     setIsValidatingAll(true);
     setValidationProgress(0);
 
-    // First normalize all phones
     setContacts((prev) =>
       prev.map((c) =>
         c.selected ? { ...c, phone: normalizePhone(c.phone) } : c
@@ -302,7 +490,6 @@ export function ExcelImportDialog({
       validated++;
       setValidationProgress((validated / selectedContacts.length) * 100);
 
-      // Small delay to avoid overwhelming the API
       await new Promise((r) => setTimeout(r, 500));
     }
 
@@ -338,7 +525,6 @@ export function ExcelImportDialog({
       .filter((c) => c.selected)
       .filter((c) => {
         if (importOnlyValidated) return c.isValidWhatsApp === true;
-        // default: allow not-yet-validated (null) and validated (true), but never invalid (false)
         return c.isValidWhatsApp === null || c.isValidWhatsApp === true;
       })
       .map((c) => ({
@@ -354,8 +540,22 @@ export function ExcelImportDialog({
     }
 
     setIsImporting(true);
+    setImportTotal(contactsToImport.length);
+    setImportedSoFar(0);
+    setImportProgress(0);
+
+    const BATCH_SIZE = 100;
+    let totalImported = 0;
+    let totalDuplicates = 0;
+
     try {
-      await onImport(contactsToImport);
+      for (let i = 0; i < contactsToImport.length; i += BATCH_SIZE) {
+        const batch = contactsToImport.slice(i, i + BATCH_SIZE);
+        await onImport(batch);
+        totalImported += batch.length;
+        setImportedSoFar(totalImported);
+        setImportProgress((totalImported / contactsToImport.length) * 100);
+      }
       handleClose();
     } catch (error) {
       console.error("Import error:", error);
@@ -377,12 +577,22 @@ export function ExcelImportDialog({
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <FileSpreadsheet className="h-5 w-5 text-primary" />
-            Importar Contatos do Excel
+            Importar Contatos
           </DialogTitle>
           <DialogDescription>
-            {step === "upload" && "Arraste um arquivo Excel ou clique para selecionar"}
-            {step === "mapping" && "Mapeie as colunas da planilha para os campos"}
-            {step === "preview" && "Revise e valide os contatos antes de importar"}
+            {step === "upload" && "Arraste um arquivo Excel ou CSV (Google Contacts) para importar"}
+            {step === "mapping" && (
+              <>
+                Mapeie as colunas da planilha para os campos
+                {isGoogleFormat && (
+                  <Badge variant="secondary" className="ml-2">
+                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                    Google Contacts detectado
+                  </Badge>
+                )}
+              </>
+            )}
+            {step === "preview" && `${contacts.length} contatos encontrados — revise antes de importar`}
           </DialogDescription>
         </DialogHeader>
 
@@ -417,7 +627,7 @@ export function ExcelImportDialog({
               onDrop={handleDrop}
             >
               <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <p className="text-lg font-medium mb-2">Arraste seu arquivo Excel aqui</p>
+              <p className="text-lg font-medium mb-2">Arraste seu arquivo aqui</p>
               <p className="text-muted-foreground mb-4">ou</p>
               <Label htmlFor="file-upload" className="cursor-pointer">
                 <Button variant="outline" asChild>
@@ -426,13 +636,13 @@ export function ExcelImportDialog({
                 <Input
                   id="file-upload"
                   type="file"
-                  accept=".xlsx,.xls"
+                  accept=".xlsx,.xls,.csv"
                   className="hidden"
                   onChange={handleFileSelect}
                 />
               </Label>
               <p className="text-xs text-muted-foreground mt-4">
-                Formatos suportados: .xlsx, .xls
+                Formatos suportados: .xlsx, .xls, .csv (Google Contacts)
               </p>
             </div>
           )}
@@ -440,47 +650,88 @@ export function ExcelImportDialog({
           {/* Mapping Step */}
           {step === "mapping" && (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Coluna Nome *</Label>
-                  <Select value={mapping.name} onValueChange={(v) => setMapping((m) => ({ ...m, name: v }))}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione a coluna" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {columns.map((col) => (
-                        <SelectItem key={col} value={col}>{col}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+              {isGoogleFormat ? (
+                <>
+                  <div className="rounded-lg bg-green-500/10 border border-green-500/20 p-4">
+                    <p className="text-sm font-medium text-green-700 dark:text-green-400 flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4" />
+                      Formato Google Contacts detectado automaticamente
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Nome será formado por: {googleNameColumns.join(" + ") || "First Name + Last Name"} (com fallback para Organization Name)
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Nome (combinado automaticamente)</Label>
+                      <Input value="First Name + Last Name + Organization" disabled className="bg-muted" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Coluna Telefone *</Label>
+                      <Select value={mapping.phone} onValueChange={(v) => setMapping((m) => ({ ...m, phone: v }))}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione a coluna" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {columns.filter(c => c.toLowerCase().includes("phone") || c.toLowerCase().includes("telefone")).map((col) => (
+                            <SelectItem key={col} value={col}>{col}</SelectItem>
+                          ))}
+                          <SelectItem value="__show_all__" disabled className="text-xs text-muted-foreground">── Todas as colunas ──</SelectItem>
+                          {columns.map((col) => (
+                            <SelectItem key={`all-${col}`} value={col}>{col}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Coluna Nome *</Label>
+                    <Select value={mapping.name} onValueChange={(v) => setMapping((m) => ({ ...m, name: v }))}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione a coluna" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {columns.map((col) => (
+                          <SelectItem key={col} value={col}>{col}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Coluna Telefone/WhatsApp *</Label>
+                    <Select value={mapping.phone} onValueChange={(v) => setMapping((m) => ({ ...m, phone: v }))}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione a coluna" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {columns.map((col) => (
+                          <SelectItem key={col} value={col}>{col}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label>Coluna Telefone/WhatsApp *</Label>
-                  <Select value={mapping.phone} onValueChange={(v) => setMapping((m) => ({ ...m, phone: v }))}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione a coluna" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {columns.map((col) => (
-                        <SelectItem key={col} value={col}>{col}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+              )}
 
               <div className="rounded-lg bg-muted/50 p-4">
-                <p className="text-sm font-medium mb-2">Colunas detectadas:</p>
-                <div className="flex flex-wrap gap-2">
-                  {columns.map((col) => (
-                    <Badge key={col} variant="secondary">{col}</Badge>
+                <p className="text-sm font-medium mb-2">Colunas detectadas ({columns.length}):</p>
+                <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto">
+                  {columns.slice(0, 20).map((col) => (
+                    <Badge key={col} variant="secondary" className="text-xs">{col}</Badge>
                   ))}
+                  {columns.length > 20 && (
+                    <Badge variant="outline" className="text-xs">+{columns.length - 20} mais</Badge>
+                  )}
                 </div>
               </div>
 
               <div className="rounded-lg bg-accent/50 p-4">
                 <p className="text-sm text-muted-foreground">
-                  <strong>Dica:</strong> As outras colunas serão salvas como campos personalizados e podem ser usadas como variáveis nas mensagens (ex: {"{cidade}"}, {"{empresa}"}).
+                  <strong>{contacts.length}</strong> registros encontrados no arquivo. Sem limite de importação.
                 </p>
               </div>
 
@@ -555,6 +806,25 @@ export function ExcelImportDialog({
 
               {isValidatingAll && (
                 <Progress value={validationProgress} className="h-2" />
+              )}
+
+              {/* Import Progress */}
+              {isImporting && (
+                <div className="space-y-2 p-4 rounded-lg bg-primary/5 border border-primary/20">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium text-primary flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Importando contatos...
+                    </span>
+                    <span className="text-muted-foreground">
+                      {importedSoFar} / {importTotal}
+                    </span>
+                  </div>
+                  <Progress value={importProgress} className="h-3" />
+                  <p className="text-xs text-muted-foreground">
+                    {Math.round(importProgress)}% concluído
+                  </p>
+                </div>
               )}
 
               {/* Table */}
@@ -672,7 +942,7 @@ export function ExcelImportDialog({
                   {isImporting ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      Importando...
+                      Importando {importedSoFar}/{importTotal}...
                     </>
                   ) : (
                     <>
