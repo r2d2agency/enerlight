@@ -390,6 +390,14 @@ export default function CRMProspects() {
                         )}
                       </TableCell>
                       <TableCell>
+                        {prospect.assigned_to ? (
+                          <span className="text-sm">
+                            {orgMembers.find(m => m.id === prospect.assigned_to)?.name || "—"}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">—</span>
+                        )}
+                      <TableCell>
                         {prospect.is_company ? (
                           <Badge variant="outline" className="border-blue-500 text-blue-600">
                             <Building2 className="h-3 w-3 mr-1" />
