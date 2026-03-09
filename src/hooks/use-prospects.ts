@@ -37,6 +37,7 @@ interface CreateProspectData {
   address?: string;
   zip_code?: string;
   is_company?: boolean;
+  assigned_to?: string;
 }
 
 async function createProspect(data: CreateProspectData): Promise<Prospect> {
