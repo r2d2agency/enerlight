@@ -685,12 +685,13 @@ function TaskChecklistItem({ task, projectId, isCompleted, orgMembers, taskMut, 
 // ========================
 // Project Detail Dialog
 // ========================
-function ProjectDetailDialog({ project, open, onOpenChange, stages, canEdit, onMove }: {
+function ProjectDetailDialog({ project, open, onOpenChange, stages, canEdit, canDelete, onMove }: {
   project: Project;
   open: boolean;
   onOpenChange: (o: boolean) => void;
   stages: ProjectStage[];
   canEdit: boolean;
+  canDelete: boolean;
   onMove: (projectId: string, stageId: string) => void;
 }) {
   const { user } = useAuth();
