@@ -839,15 +839,30 @@ function ProjectDetailDialog({ project, open, onOpenChange, stages, canEdit, onM
               <DialogTitle className="text-lg truncate">{project.title}</DialogTitle>
             </div>
             {canEdit && (
-              <Button variant="outline" size="sm" className="shrink-0" onClick={() => {
-                setEditTitle(project.title);
-                setEditPriority(project.priority);
-                setEditAssignedTo(project.assigned_to || "");
-                setEditDueDate(project.due_date ? safeFormatDate(project.due_date, "yyyy-MM-dd") : "");
-                setEditingProject(!editingProject);
-              }}>
-                <Edit className="h-3.5 w-3.5 mr-1" /> Editar
-              </Button>
+              <div className="flex items-center gap-1 shrink-0">
+                <Button variant="outline" size="sm" onClick={() => {
+                  setEditTitle(project.title);
+                  setEditPriority(project.priority);
+                  setEditAssignedTo(project.assigned_to || "");
+                  setEditDueDate(project.due_date ? safeFormatDate(project.due_date, "yyyy-MM-dd") : "");
+                  setEditingProject(!editingProject);
+                }}>
+                  <Edit className="h-3.5 w-3.5 mr-1" /> Editar
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                  onClick={() => {
+                    if (window.confirm("Tem certeza que deseja excluir este projeto? Esta ação não pode ser desfeita.")) {
+                      projectMut.remove.mutate(project.id);
+                      onOpenChange(false);
+                    }
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
             )}
           </div>
           <div className="flex flex-wrap items-center gap-2 pt-1">
