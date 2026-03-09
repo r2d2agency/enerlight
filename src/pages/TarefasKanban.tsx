@@ -279,7 +279,7 @@ export default function TarefasKanban() {
                           board={b}
                           isSelected={selectedBoardId === b.id}
                           onSelect={() => setSelectedBoardId(b.id)}
-                          onDelete={isAdmin ? () => { if (confirm("Tem certeza que deseja excluir este quadro e todas as suas tarefas?")) deleteBoard.mutate(b.id); } : undefined}
+                          onDelete={(isAdmin || canDeleteTasks) ? () => { if (confirm("Tem certeza que deseja excluir este quadro e todas as suas tarefas?")) deleteBoard.mutate(b.id); } : undefined}
                         />
                       ))}
                       {globalBoards.length === 0 && (
