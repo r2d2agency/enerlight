@@ -67,7 +67,8 @@ export default function CRMProspects() {
     state: "",
     address: "",
     zip_code: "",
-    is_company: false
+    is_company: false,
+    assigned_to: ""
   });
   
   // Convert form
