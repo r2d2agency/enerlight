@@ -135,7 +135,7 @@ router.put('/:userId', authenticate, async (req, res) => {
     
     // Get actual columns from the table to avoid inserting into non-existent columns
     const colCheck = await query(
-      `SELECT column_name FROM information_schema.columns WHERE table_name = 'user_permissions' AND column_name LIKE 'can_view_%'`
+      `SELECT column_name FROM information_schema.columns WHERE table_name = 'user_permissions' AND (column_name LIKE 'can_view_%' OR column_name LIKE 'can_delete_%')`
     );
     const existingCols = new Set(colCheck.rows.map(r => r.column_name));
     
