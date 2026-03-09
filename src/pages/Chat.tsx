@@ -233,8 +233,16 @@ const Chat = () => {
 
   const loadConnections = async () => {
     try {
-      const data = await getConnections();
+      const data = await getConnections() as any[];
       setConnections(data);
+      // Track assigned connections for supervisor mode logic
+      const assigned = data.filter((c: any) => c.is_assigned === true).map((c: any) => c.id);
+      if (assigned.length > 0) {
+        setAssignedConnectionIds(assigned);
+      } else {
+        // If no is_assigned flags, all connections are assigned (owner/admin/agent)
+        setAssignedConnectionIds(data.map((c: any) => c.id));
+      }
     } catch (error) {
       console.error('Error loading connections:', error);
     }

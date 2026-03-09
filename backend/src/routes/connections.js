@@ -30,8 +30,11 @@ router.get('/', async (req, res) => {
       [req.userId]
     );
     
-    // Owner/Admin sees ALL connections in the organization (for admin/management pages)
-    if (isHighRole && org) {
+    const assignedConnIds = specificResult.rows.map(r => r.connection_id);
+
+    // Owner/Admin/Manager/Supervisor sees ALL connections in the organization
+    const isManagerRole = org && ['manager', 'supervisor'].includes(org.role);
+    if ((isHighRole || isManagerRole) && org) {
       const result = await query(
         `SELECT c.*, u.name as created_by_name,
          CASE 
@@ -45,12 +48,19 @@ router.get('/', async (req, res) => {
          ORDER BY c.created_at DESC`,
         [org.organization_id]
       );
+      // For managers, mark which connections are assigned to them
+      if (isManagerRole) {
+        const rows = result.rows.map(r => ({
+          ...r,
+          is_assigned: assignedConnIds.includes(r.id),
+        }));
+        return res.json(rows);
+      }
       return res.json(result.rows);
     }
 
-    if (specificResult.rows.length > 0) {
+    if (assignedConnIds.length > 0) {
       // User has specific connections assigned - return only those
-      const connIds = specificResult.rows.map(r => r.connection_id);
       const result = await query(
         `SELECT c.*, u.name as created_by_name,
          CASE 
@@ -62,7 +72,7 @@ router.get('/', async (req, res) => {
          LEFT JOIN users u ON c.user_id = u.id
          WHERE c.id = ANY($1)
          ORDER BY c.created_at DESC`,
-        [connIds]
+        [assignedConnIds]
       );
       return res.json(result.rows);
     }
