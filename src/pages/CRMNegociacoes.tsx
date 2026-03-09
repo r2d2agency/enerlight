@@ -108,9 +108,10 @@ export default function CRMNegociacoes() {
   
   const currentFunnel = funnels?.find((f) => f.id === currentFunnelId) || null;
   const canManage = user?.role && ['owner', 'admin', 'manager'].includes(user.role);
+  const canDeleteDeals = canManage || (userPermissions as any)?.can_delete_deals === true;
 
   // Single deal delete handler (for card menu)
-  const handleDeleteDeal = canManage ? (dealId: string) => {
+  const handleDeleteDeal = canDeleteDeals ? (dealId: string) => {
     setSingleDeleteDealId(dealId);
   } : undefined;
 
