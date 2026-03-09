@@ -1667,7 +1667,7 @@ export default function Organizacoes() {
           onOpenChange={setPermDialogOpen}
           userId={permMember.user_id}
           userName={permMember.name}
-          userRole={roleLabels[permMember.role]?.label || permMember.role}
+          userRole={getRole(permMember.role).label}
         />
       )}
 
