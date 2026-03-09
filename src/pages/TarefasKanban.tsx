@@ -30,7 +30,7 @@ import { useToast } from "@/hooks/use-toast";
 
 
 export default function TarefasKanban() {
-  const { user } = useAuth();
+  const { user, userPermissions } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
   const isSuperadmin = !!(user as any)?.is_superadmin;
@@ -38,6 +38,7 @@ export default function TarefasKanban() {
   const isAdmin = isSuperadmin || ['owner', 'admin'].includes(userRole);
   const isManager = isAdmin || ['manager', 'supervisor'].includes(userRole);
   const isSeller = !isManager; // vendedor
+  const canDeleteTasks = isAdmin || (userPermissions as any)?.can_delete_tasks === true;
 
   const { data: boards = [], isLoading: loadingBoards } = useTaskBoards();
   const { createBoard, deleteBoard } = useTaskBoardMutations();
@@ -278,7 +279,7 @@ export default function TarefasKanban() {
                           board={b}
                           isSelected={selectedBoardId === b.id}
                           onSelect={() => setSelectedBoardId(b.id)}
-                          onDelete={isAdmin ? () => { if (confirm("Tem certeza que deseja excluir este quadro e todas as suas tarefas?")) deleteBoard.mutate(b.id); } : undefined}
+                          onDelete={(isAdmin || canDeleteTasks) ? () => { if (confirm("Tem certeza que deseja excluir este quadro e todas as suas tarefas?")) deleteBoard.mutate(b.id); } : undefined}
                         />
                       ))}
                       {globalBoards.length === 0 && (
@@ -349,11 +350,11 @@ export default function TarefasKanban() {
                       onCardClick={setSelectedCard}
                       onAddCard={handleAddCard}
                       onMoveCard={handleMoveCard}
-                      onDeleteCard={(cardId) => {
+                      onDeleteCard={canDeleteTasks ? (cardId) => {
                         if (confirm("Tem certeza que deseja excluir esta tarefa?")) {
                           deleteCard.mutate(cardId);
                         }
-                      }}
+                      } : undefined}
                       onUpdateColumn={(id, data) => updateColumn.mutate({ id, ...data })}
                       onDeleteColumn={(id) => deleteColumn.mutate(id)}
                       onReorderColumns={(ids) => reorderColumns.mutate(ids)}

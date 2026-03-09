@@ -37,7 +37,7 @@ import {
 } from "@/hooks/use-projects";
 
 export default function Projetos() {
-  const { user } = useAuth();
+  const { user, userPermissions } = useAuth();
   const { data: stages = [], isLoading: loadingStages } = useProjectStages();
   const { data: projects = [], isLoading: loadingProjects } = useProjects();
   const { data: templates = [] } = useProjectTemplates();
@@ -71,6 +71,7 @@ export default function Projetos() {
   const isAdmin = ['owner', 'admin', 'manager'].includes(user?.role || '');
   const isDesignerUser = designerCheck?.isDesigner || false;
   const canEdit = isAdmin || isDesignerUser;
+  const canDelete = isAdmin || (userPermissions as any)?.can_delete_projects === true;
 
   // Group projects by stage
   const projectsByStage = useMemo(() => {
@@ -478,6 +479,7 @@ export default function Projetos() {
           onOpenChange={(o) => { if (!o) setSelectedProject(null); }}
           stages={stages}
           canEdit={canEdit}
+          canDelete={canDelete}
           onMove={handleMoveProject}
         />
       )}
@@ -683,12 +685,13 @@ function TaskChecklistItem({ task, projectId, isCompleted, orgMembers, taskMut, 
 // ========================
 // Project Detail Dialog
 // ========================
-function ProjectDetailDialog({ project, open, onOpenChange, stages, canEdit, onMove }: {
+function ProjectDetailDialog({ project, open, onOpenChange, stages, canEdit, canDelete, onMove }: {
   project: Project;
   open: boolean;
   onOpenChange: (o: boolean) => void;
   stages: ProjectStage[];
   canEdit: boolean;
+  canDelete: boolean;
   onMove: (projectId: string, stageId: string) => void;
 }) {
   const { user } = useAuth();
@@ -849,19 +852,21 @@ function ProjectDetailDialog({ project, open, onOpenChange, stages, canEdit, onM
                 }}>
                   <Edit className="h-3.5 w-3.5 mr-1" /> Editar
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-destructive hover:bg-destructive/10"
-                  onClick={() => {
-                    if (window.confirm("Tem certeza que deseja excluir este projeto? Esta ação não pode ser desfeita.")) {
-                      projectMut.remove.mutate(project.id);
-                      onOpenChange(false);
-                    }
-                  }}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                {canDelete && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                    onClick={() => {
+                      if (window.confirm("Tem certeza que deseja excluir este projeto? Esta ação não pode ser desfeita.")) {
+                        projectMut.remove.mutate(project.id);
+                        onOpenChange(false);
+                      }
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
             )}
           </div>

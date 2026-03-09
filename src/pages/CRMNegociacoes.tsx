@@ -36,7 +36,7 @@ import {
 
 export default function CRMNegociacoes() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { user } = useAuth();
+  const { user, userPermissions } = useAuth();
   const [selectedFunnelId, setSelectedFunnelId] = useState<string | null>(null);
   const [selectedDeal, setSelectedDeal] = useState<CRMDeal | null>(null);
   const [dealDetailOpen, setDealDetailOpen] = useState(false);
@@ -108,9 +108,10 @@ export default function CRMNegociacoes() {
   
   const currentFunnel = funnels?.find((f) => f.id === currentFunnelId) || null;
   const canManage = user?.role && ['owner', 'admin', 'manager'].includes(user.role);
+  const canDeleteDeals = canManage || (userPermissions as any)?.can_delete_deals === true;
 
   // Single deal delete handler (for card menu)
-  const handleDeleteDeal = canManage ? (dealId: string) => {
+  const handleDeleteDeal = canDeleteDeals ? (dealId: string) => {
     setSingleDeleteDealId(dealId);
   } : undefined;
 
@@ -328,7 +329,7 @@ export default function CRMNegociacoes() {
               </ToggleGroup>
 
               {/* Selection mode toggle (admin only) */}
-              {canManage && (
+              {canDeleteDeals && (
                 <Button 
                   variant={selectionMode ? "default" : "outline"} 
                   size="sm" 

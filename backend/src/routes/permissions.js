@@ -14,7 +14,8 @@ const PERMISSION_COLUMNS = [
   'can_view_projects', 'can_view_campaigns', 'can_view_sequences',
   'can_view_external_flows', 'can_view_webhooks', 'can_view_ctwa',
   'can_view_billing', 'can_view_connections', 'can_view_organizations', 'can_view_settings',
-  'can_view_internal_chat', 'can_view_lead_gleego',
+  'can_view_internal_chat', 'can_view_lead_gleego', 'can_view_homologation',
+  'can_delete_deals', 'can_delete_projects', 'can_delete_tasks', 'can_delete_homologation',
 ];
 
 // Default permissions for each role
@@ -33,6 +34,7 @@ const ROLE_DEFAULTS = {
     can_view_external_flows: false, can_view_webhooks: false, can_view_ctwa: false,
     can_view_billing: false, can_view_connections: false, can_view_organizations: false,
     can_view_settings: true, can_view_internal_chat: true, can_view_lead_gleego: false,
+    can_delete_deals: true, can_delete_projects: true, can_delete_tasks: true, can_delete_homologation: true,
   },
   agent: {
     can_view_chat: true, can_view_chatbots: false, can_view_flows: false,
@@ -46,6 +48,7 @@ const ROLE_DEFAULTS = {
     can_view_external_flows: false, can_view_webhooks: false, can_view_ctwa: false,
     can_view_billing: false, can_view_connections: false, can_view_organizations: false,
     can_view_settings: true, can_view_internal_chat: true, can_view_lead_gleego: false,
+    can_delete_deals: false, can_delete_projects: false, can_delete_tasks: false, can_delete_homologation: false,
   },
 };
 
@@ -132,7 +135,7 @@ router.put('/:userId', authenticate, async (req, res) => {
     
     // Get actual columns from the table to avoid inserting into non-existent columns
     const colCheck = await query(
-      `SELECT column_name FROM information_schema.columns WHERE table_name = 'user_permissions' AND column_name LIKE 'can_view_%'`
+      `SELECT column_name FROM information_schema.columns WHERE table_name = 'user_permissions' AND (column_name LIKE 'can_view_%' OR column_name LIKE 'can_delete_%')`
     );
     const existingCols = new Set(colCheck.rows.map(r => r.column_name));
     

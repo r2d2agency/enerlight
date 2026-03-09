@@ -51,6 +51,12 @@ CREATE TABLE IF NOT EXISTS user_permissions (
   -- Integrações
   can_view_lead_gleego BOOLEAN DEFAULT false,
 
+  -- Ações de exclusão
+  can_delete_deals BOOLEAN DEFAULT false,
+  can_delete_projects BOOLEAN DEFAULT false,
+  can_delete_tasks BOOLEAN DEFAULT false,
+  can_delete_homologation BOOLEAN DEFAULT false,
+
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 
