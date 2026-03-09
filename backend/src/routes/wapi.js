@@ -105,6 +105,7 @@ function extFromMime(mime) {
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
     'application/vnd.ms-powerpoint': 'ppt',
     'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx',
+    'application/vnd.openxmlformats-officedocument.presentationml.slideshow': 'ppsx',
     'text/plain': 'txt',
     'text/csv': 'csv',
     'application/csv': 'csv',
@@ -232,6 +233,7 @@ function downloadToUploads(url, messageType, hintedMime, redirectCount = 0) {
             const h = (hintedMime || mime || '').toLowerCase();
             if (h.includes('spreadsheetml') || h.includes('ms-excel')) return 'xlsx';
             if (h.includes('wordprocessingml') || h.includes('msword')) return 'docx';
+            if (h.includes('presentationml.slideshow')) return 'ppsx';
             if (h.includes('presentationml') || h.includes('powerpoint') || h.includes('ms-powerpoint')) return 'pptx';
             return 'zip';
           }
@@ -262,6 +264,7 @@ function downloadToUploads(url, messageType, hintedMime, redirectCount = 0) {
             docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
             ppt: 'application/vnd.ms-powerpoint',
             pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            ppsx: 'application/vnd.openxmlformats-officedocument.presentationml.slideshow',
             csv: 'text/csv',
             txt: 'text/plain',
             zip: 'application/zip',
