@@ -196,8 +196,8 @@ export function ChatArea({
   onMobileBack,
   onOpenCRM,
 }: ChatAreaProps) {
-  // Manager (Supervisor) = apenas visualização
-  const isViewOnly = userRole === 'manager';
+  // Manager (Supervisor) = view-only ONLY on unassigned connections
+  const isViewOnly = userRole === 'manager' && conversation != null && !assignedConnectionIds.includes(conversation.connection_id);
   
   // Departments
   const { getDepartments, transferToDepartment } = useDepartments();
