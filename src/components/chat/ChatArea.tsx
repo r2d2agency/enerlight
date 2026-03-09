@@ -176,6 +176,7 @@ export function ChatArea({
   team,
   isAdmin = false,
   userRole,
+  assignedConnectionIds = [],
   onSyncHistory,
   onSendMessage,
   onLoadMore,
