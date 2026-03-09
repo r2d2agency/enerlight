@@ -38,6 +38,7 @@ export default function TarefasKanban() {
   const isAdmin = isSuperadmin || ['owner', 'admin'].includes(userRole);
   const isManager = isAdmin || ['manager', 'supervisor'].includes(userRole);
   const isSeller = !isManager; // vendedor
+  const canDeleteTasks = isAdmin || (userPermissions as any)?.can_delete_tasks === true;
 
   const { data: boards = [], isLoading: loadingBoards } = useTaskBoards();
   const { createBoard, deleteBoard } = useTaskBoardMutations();
