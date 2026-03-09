@@ -264,6 +264,7 @@ function downloadToUploads(url, messageType, hintedMime, redirectCount = 0) {
             docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
             ppt: 'application/vnd.ms-powerpoint',
             pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            ppsx: 'application/vnd.openxmlformats-officedocument.presentationml.slideshow',
             csv: 'text/csv',
             txt: 'text/plain',
             zip: 'application/zip',
