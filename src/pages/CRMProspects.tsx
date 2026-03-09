@@ -114,7 +114,10 @@ export default function CRMProspects() {
       toast.error("Nome e telefone são obrigatórios");
       return;
     }
-    await createProspect.mutateAsync(newProspect);
+    await createProspect.mutateAsync({
+      ...newProspect,
+      assigned_to: newProspect.assigned_to || undefined,
+    });
     setNewProspect({ 
       name: "", 
       phone: "", 
@@ -123,7 +126,8 @@ export default function CRMProspects() {
       state: "",
       address: "",
       zip_code: "",
-      is_company: false
+      is_company: false,
+      assigned_to: ""
     });
     setShowAddDialog(false);
   };
