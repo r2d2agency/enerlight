@@ -43,6 +43,7 @@ import {
 import { useProspects, Prospect } from "@/hooks/use-prospects";
 import { useCRMFunnels } from "@/hooks/use-crm";
 import { useCRMOrgMembers } from "@/hooks/use-sales-positions";
+import { useAuth } from "@/contexts/AuthContext";
 import ProspectImportDialog from "@/components/crm/ProspectImportDialog";
 
 export default function CRMProspects() {
@@ -57,6 +58,8 @@ export default function CRMProspects() {
   const { prospects, isLoading, createProspect, deleteProspect, convertToDeal, bulkDelete, bulkConvert } = useProspects();
   const { data: funnels } = useCRMFunnels();
   const { data: orgMembers = [] } = useCRMOrgMembers();
+  const { user } = useAuth();
+  const canSelectSeller = ['owner', 'admin', 'manager', 'supervisor'].includes(user?.role || '');
 
   // New prospect form
   const [newProspect, setNewProspect] = useState({ 
@@ -539,8 +542,8 @@ export default function CRMProspects() {
               </div>
             </div>
             
-            {/* Seller assignment */}
-            {orgMembers.length > 0 && (
+            {/* Seller assignment - only for admins/managers */}
+            {canSelectSeller && orgMembers.length > 0 && (
               <div className="space-y-2 border-t pt-4">
                 <Label>Vendedor Responsável</Label>
                 <select
@@ -624,6 +627,7 @@ export default function CRMProspects() {
               />
             </div>
             
+            {canSelectSeller && (
             <div className="space-y-2">
               <Label>Vendedor Responsável</Label>
               <select
@@ -637,6 +641,7 @@ export default function CRMProspects() {
                 ))}
               </select>
             </div>
+            )}
 
             {/* Create Company Option */}
             <div className="border-t pt-4 space-y-3">
@@ -710,6 +715,7 @@ export default function CRMProspects() {
               </select>
             </div>
             
+            {canSelectSeller && (
             <div className="space-y-2">
               <Label>Vendedor Responsável</Label>
               <select
@@ -723,6 +729,7 @@ export default function CRMProspects() {
                 ))}
               </select>
             </div>
+            )}
 
             {/* Create Companies Option */}
             <div className="flex items-center space-x-2 border-t pt-4">
