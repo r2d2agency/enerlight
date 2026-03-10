@@ -566,11 +566,11 @@ router.post('/:id/apply-template', async (req, res) => {
   }
 });
 
-// Delete project (admin/manager only)
+// Delete project (admin/manager/designer)
 router.delete('/:id', async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
-    if (!org || !canManage(org.role)) return res.status(403).json({ error: 'Forbidden' });
+    if (!org || !(await canEditProject(req.userId, org))) return res.status(403).json({ error: 'Forbidden' });
     await query(`DELETE FROM projects WHERE id = $1 AND organization_id = $2`, [req.params.id, org.organization_id]);
     res.json({ success: true });
   } catch (e) {
