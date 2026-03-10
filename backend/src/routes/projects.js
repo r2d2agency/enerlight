@@ -325,11 +325,12 @@ router.get('/templates/:id/tasks', async (req, res) => {
   }
 });
 
-// Check if user is in a "projects" group (must be before /:id)
+// Check if user is in a "projects" group or has designer role (must be before /:id)
 router.get('/check-designer', async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
     if (!org) return res.json({ isDesigner: false });
+    if (org.role === 'designer') return res.json({ isDesigner: true });
     const r = await query(
       `SELECT 1 FROM crm_user_group_members gm
        JOIN crm_user_groups g ON g.id = gm.group_id
