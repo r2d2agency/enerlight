@@ -2591,7 +2591,8 @@ router.get('/contacts', authenticate, async (req, res) => {
       console.warn('Auto-populate chat contacts failed (non-critical):', autoPopulateError.message);
     }
 
-    let sql = `
+    // Build chat_contacts query
+    let chatSql = `
       SELECT 
         cc.id,
         cc.name,
@@ -2612,24 +2613,88 @@ router.get('/contacts', authenticate, async (req, res) => {
         AND (cc.jid IS NULL OR cc.jid NOT LIKE '%@g.us')
     `;
 
-    const params = [connectionIds];
-    let paramIndex = 2;
+    const chatParams = [connectionIds];
+    let chatParamIndex = 2;
 
     if (connection && connection !== 'all') {
-      sql += ` AND cc.connection_id = $${paramIndex}`;
-      params.push(connection);
-      paramIndex++;
+      chatSql += ` AND cc.connection_id = $${chatParamIndex}`;
+      chatParams.push(connection);
+      chatParamIndex++;
     }
 
     if (search) {
-      sql += ` AND (cc.name ILIKE $${paramIndex} OR cc.phone ILIKE $${paramIndex})`;
-      params.push(`%${search}%`);
-      paramIndex++;
+      chatSql += ` AND (cc.name ILIKE $${chatParamIndex} OR cc.phone ILIKE $${chatParamIndex})`;
+      chatParams.push(`%${search}%`);
+      chatParamIndex++;
     }
 
-    sql += ` ORDER BY cc.name ASC NULLS LAST LIMIT 200`;
+    chatSql += ` ORDER BY cc.name ASC NULLS LAST LIMIT 200`;
 
-    const result = await query(sql, params);
+    const chatResult = await query(chatSql, chatParams);
+
+    // Also search in contacts table (campaign/list contacts) to include imported contacts
+    // that may not be in chat_contacts yet
+    let listContactsSql = `
+      SELECT DISTINCT ON (ct.phone)
+        ct.id,
+        ct.name,
+        ct.phone,
+        NULL as jid,
+        cl.connection_id,
+        cn.name as connection_name,
+        false as has_conversation,
+        ct.created_at
+      FROM contacts ct
+      JOIN contact_lists cl ON cl.id = ct.list_id
+      JOIN connections cn ON cn.id = cl.connection_id
+      WHERE cl.connection_id = ANY($1)
+        AND ct.phone IS NOT NULL AND ct.phone <> ''
+    `;
+    const listParams = [connectionIds];
+    let listParamIndex = 2;
+
+    if (connection && connection !== 'all') {
+      listContactsSql += ` AND cl.connection_id = $${listParamIndex}`;
+      listParams.push(connection);
+      listParamIndex++;
+    }
+
+    if (search) {
+      listContactsSql += ` AND (ct.name ILIKE $${listParamIndex} OR ct.phone ILIKE $${listParamIndex})`;
+      listParams.push(`%${search}%`);
+      listParamIndex++;
+    }
+
+    listContactsSql += ` ORDER BY ct.phone, ct.created_at DESC LIMIT 200`;
+
+    let listResult;
+    try {
+      listResult = await query(listContactsSql, listParams);
+    } catch (e) {
+      console.warn('List contacts query failed (non-critical):', e.message);
+      listResult = { rows: [] };
+    }
+
+    // Merge results: chat_contacts first, then list contacts not already present
+    const seenPhones = new Set(chatResult.rows.map(r => (r.phone || '').replace(/\D/g, '')));
+    const mergedRows = [...chatResult.rows];
+
+    for (const row of listResult.rows) {
+      const cleanPhone = (row.phone || '').replace(/\D/g, '');
+      if (cleanPhone && !seenPhones.has(cleanPhone)) {
+        seenPhones.add(cleanPhone);
+        mergedRows.push(row);
+      }
+    }
+
+    // Sort merged results by name and limit
+    mergedRows.sort((a, b) => {
+      const nameA = (a.name || '').toLowerCase();
+      const nameB = (b.name || '').toLowerCase();
+      return nameA.localeCompare(nameB);
+    });
+
+    const result = { rows: mergedRows.slice(0, 300) };
     res.json(result.rows);
   } catch (error) {
     console.error('Get chat contacts error:', error);
