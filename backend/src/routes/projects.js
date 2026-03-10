@@ -250,7 +250,7 @@ router.get('/templates', async (req, res) => {
 router.post('/templates', async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
-    if (!org || !canManage(org.role)) return res.status(403).json({ error: 'Forbidden' });
+    if (!org || !(await canEditProject(req.userId, org))) return res.status(403).json({ error: 'Forbidden' });
     const { name, description, tasks } = req.body;
     const r = await query(
       `INSERT INTO project_templates (organization_id, name, description, created_by)
