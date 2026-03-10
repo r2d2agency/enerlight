@@ -108,7 +108,13 @@ router.get('/conversations/attendance-counts', authenticate, async (req, res) =>
     const params = [connectionIds];
     let paramIndex = 2;
 
-    if (!isAdminOnly && !isManager && !isSupervisorInAnyDept) {
+    // Check if user has specific connection assignments
+    const hasSpecificConns = await (async () => {
+      const r = await query('SELECT COUNT(*) as cnt FROM connection_members WHERE user_id = $1', [req.userId]);
+      return parseInt(r.rows[0]?.cnt || 0) > 0;
+    })();
+
+    if (!isAdminOnly && !isManager && !isSupervisorInAnyDept && !hasSpecificConns) {
       if (userDepartmentIds.length > 0) {
         visibilityFilter = ` AND (
           conv.assigned_to = $${paramIndex}
