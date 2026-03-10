@@ -129,9 +129,10 @@ async function isDesigner(userId, orgId) {
   }
 }
 
-// Permission: can edit projects (admin/manager/designer)
+// Permission: can edit projects (admin/manager/designer/supervisor)
 async function canEditProject(userId, org) {
   if (canManage(org.role)) return true;
+  if (['designer', 'supervisor'].includes(org.role)) return true;
   return isDesigner(userId, org.organization_id);
 }
 
