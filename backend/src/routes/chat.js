@@ -435,6 +435,13 @@ router.get('/conversations', authenticate, async (req, res) => {
       filterDepartmentIds = [department];
     }
 
+    // Check if user has specific connection assignments (pre-computed before buildQuery)
+    let hasSpecificConnections = false;
+    try {
+      const connCheckResult = await query('SELECT COUNT(*) as cnt FROM connection_members WHERE user_id = $1', [req.userId]);
+      hasSpecificConnections = parseInt(connCheckResult.rows[0]?.cnt || 0) > 0;
+    } catch (e) { /* table may not exist */ }
+
     const buildQuery = (supportsAttendance = true, supportsDepartment = true) => {
       let sql = `
         SELECT 
@@ -464,40 +471,34 @@ router.get('/conversations', authenticate, async (req, res) => {
       const params = [connectionIds];
       let paramIndex = 2;
 
-      // IMPORTANT: Only show conversations with messages (unless explicitly requested)
       if (includeEmpty !== 'true') {
         sql += ` AND EXISTS (SELECT 1 FROM chat_messages cm WHERE cm.conversation_id = conv.id)`;
       }
 
-      // Filter by group status
       if (is_group === 'true') {
         sql += ` AND COALESCE(conv.is_group, false) = true`;
       } else if (is_group === 'false') {
         sql += ` AND COALESCE(conv.is_group, false) = false`;
       }
 
-      // Filter by archived status
       if (archived === 'true') {
         sql += ` AND conv.is_archived = true`;
       } else {
         sql += ` AND conv.is_archived = false`;
       }
 
-      // Filter by connection
       if (connection && connection !== 'all') {
         sql += ` AND conv.connection_id = $${paramIndex}`;
         params.push(connection);
         paramIndex++;
       }
 
-      // Filter by search
       if (search) {
         sql += ` AND (conv.contact_name ILIKE $${paramIndex} OR conv.contact_phone ILIKE $${paramIndex} OR conv.group_name ILIKE $${paramIndex})`;
         params.push(`%${search}%`);
         paramIndex++;
       }
 
-      // Filter by tag
       if (tag) {
         sql += ` AND EXISTS (
           SELECT 1 FROM conversation_tag_links ctl 
@@ -507,7 +508,6 @@ router.get('/conversations', authenticate, async (req, res) => {
         paramIndex++;
       }
 
-      // Filter by assigned user
       if (assigned === 'me') {
         sql += ` AND conv.assigned_to = $${paramIndex}`;
         params.push(req.userId);
@@ -520,7 +520,6 @@ router.get('/conversations', authenticate, async (req, res) => {
         paramIndex++;
       }
 
-      // Filter by attendance status
       if (supportsAttendance) {
         if (attendance_status === 'waiting') {
           sql += ` AND conv.attendance_status = 'waiting'`;
@@ -531,22 +530,7 @@ router.get('/conversations', authenticate, async (req, res) => {
         }
       }
 
-      // ========================================
       // DEPARTMENT-BASED VISIBILITY FILTER
-      // ========================================
-      // Logic:
-      // 1. If assigned_to = current user -> can see (my conversation)
-      // 2. If department_id is in user's departments -> can see
-      // 3. If department_id IS NULL AND attendance_status = 'waiting' -> can see (general queue)
-      // 4. If department_id IS NULL AND attendance_status != 'waiting' -> only admin/supervisor can see
-      // 5. Admin/Supervisor/Owner can see everything
-      
-      // Check if user has specific connection assignments (meaning they were given access to those connections)
-      const hasSpecificConnections = await (async () => {
-        const r = await query('SELECT COUNT(*) as cnt FROM connection_members WHERE user_id = $1', [req.userId]);
-        return parseInt(r.rows[0]?.cnt || 0) > 0;
-      })();
-
       if (supportsDepartment && !isAdminOnly && !isManager && !isSupervisorInAnyDept && !hasSpecificConnections) {
         // Non-admin users WITHOUT specific connections: apply department visibility restrictions
         if (userDepartmentIds.length > 0) {
