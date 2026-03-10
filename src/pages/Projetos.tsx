@@ -71,7 +71,7 @@ export default function Projetos() {
   const isAdmin = ['owner', 'admin', 'manager'].includes(user?.role || '');
   const isDesignerUser = designerCheck?.isDesigner || false;
   const canEdit = isAdmin || isDesignerUser;
-  const canDelete = isAdmin || (userPermissions as any)?.can_delete_projects === true;
+  const canDelete = isAdmin || isDesignerUser || (userPermissions as any)?.can_delete_projects === true;
 
   // Group projects by stage
   const projectsByStage = useMemo(() => {
