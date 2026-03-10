@@ -108,7 +108,13 @@ router.get('/conversations/attendance-counts', authenticate, async (req, res) =>
     const params = [connectionIds];
     let paramIndex = 2;
 
-    if (!isAdminOnly && !isManager && !isSupervisorInAnyDept) {
+    // Check if user has specific connection assignments
+    const hasSpecificConns = await (async () => {
+      const r = await query('SELECT COUNT(*) as cnt FROM connection_members WHERE user_id = $1', [req.userId]);
+      return parseInt(r.rows[0]?.cnt || 0) > 0;
+    })();
+
+    if (!isAdminOnly && !isManager && !isSupervisorInAnyDept && !hasSpecificConns) {
       if (userDepartmentIds.length > 0) {
         visibilityFilter = ` AND (
           conv.assigned_to = $${paramIndex}
@@ -535,10 +541,15 @@ router.get('/conversations', authenticate, async (req, res) => {
       // 4. If department_id IS NULL AND attendance_status != 'waiting' -> only admin/supervisor can see
       // 5. Admin/Supervisor/Owner can see everything
       
-      if (supportsDepartment && !isAdminOnly && !isManager && !isSupervisorInAnyDept) {
-        // Non-admin users: apply visibility restrictions
+      // Check if user has specific connection assignments (meaning they were given access to those connections)
+      const hasSpecificConnections = await (async () => {
+        const r = await query('SELECT COUNT(*) as cnt FROM connection_members WHERE user_id = $1', [req.userId]);
+        return parseInt(r.rows[0]?.cnt || 0) > 0;
+      })();
+
+      if (supportsDepartment && !isAdminOnly && !isManager && !isSupervisorInAnyDept && !hasSpecificConnections) {
+        // Non-admin users WITHOUT specific connections: apply department visibility restrictions
         if (userDepartmentIds.length > 0) {
-          // User has departments: can see their department conversations + assigned to them + waiting without department
           sql += ` AND (
             conv.assigned_to = $${paramIndex}
             OR conv.department_id = ANY($${paramIndex + 1}::uuid[])
@@ -548,7 +559,6 @@ router.get('/conversations', authenticate, async (req, res) => {
           params.push(userDepartmentIds);
           paramIndex += 2;
         } else {
-          // User has no departments: can only see assigned to them + waiting without department
           sql += ` AND (
             conv.assigned_to = $${paramIndex}
             OR (conv.department_id IS NULL AND conv.attendance_status = 'waiting')
@@ -557,6 +567,8 @@ router.get('/conversations', authenticate, async (req, res) => {
           paramIndex++;
         }
       }
+      // Users WITH specific connection assignments: getUserConnections already filters by their connections,
+      // so they see all conversations from those connections (no extra department filter needed)
 
       // Additional filter by specific department (when user explicitly selects one)
       if (supportsDepartment && filterDepartmentIds && filterDepartmentIds.length > 0) {
