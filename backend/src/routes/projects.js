@@ -129,9 +129,10 @@ async function isDesigner(userId, orgId) {
   }
 }
 
-// Permission: can edit projects (admin/manager/designer)
+// Permission: can edit projects (admin/manager/designer/supervisor)
 async function canEditProject(userId, org) {
   if (canManage(org.role)) return true;
+  if (['designer', 'supervisor'].includes(org.role)) return true;
   return isDesigner(userId, org.organization_id);
 }
 
@@ -324,11 +325,12 @@ router.get('/templates/:id/tasks', async (req, res) => {
   }
 });
 
-// Check if user is in a "projects" group (must be before /:id)
+// Check if user is in a "projects" group or has designer role (must be before /:id)
 router.get('/check-designer', async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
     if (!org) return res.json({ isDesigner: false });
+    if (org.role === 'designer') return res.json({ isDesigner: true });
     const r = await query(
       `SELECT 1 FROM crm_user_group_members gm
        JOIN crm_user_groups g ON g.id = gm.group_id
@@ -564,11 +566,11 @@ router.post('/:id/apply-template', async (req, res) => {
   }
 });
 
-// Delete project (admin/manager only)
+// Delete project (admin/manager/designer)
 router.delete('/:id', async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
-    if (!org || !canManage(org.role)) return res.status(403).json({ error: 'Forbidden' });
+    if (!org || !(await canEditProject(req.userId, org))) return res.status(403).json({ error: 'Forbidden' });
     await query(`DELETE FROM projects WHERE id = $1 AND organization_id = $2`, [req.params.id, org.organization_id]);
     res.json({ success: true });
   } catch (e) {
