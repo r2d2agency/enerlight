@@ -30,6 +30,14 @@ BEGIN
     BEGIN
       ALTER TYPE app_role ADD VALUE IF NOT EXISTS 'user';
     EXCEPTION WHEN duplicate_object THEN NULL; END;
+
+    BEGIN
+      ALTER TYPE app_role ADD VALUE IF NOT EXISTS 'supervisor';
+    EXCEPTION WHEN duplicate_object THEN NULL; END;
+
+    BEGIN
+      ALTER TYPE app_role ADD VALUE IF NOT EXISTS 'designer';
+    EXCEPTION WHEN duplicate_object THEN NULL; END;
   END IF;
 END $$;
 `;
