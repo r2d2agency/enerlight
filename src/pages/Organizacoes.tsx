@@ -1521,6 +1521,8 @@ export default function Organizacoes() {
                     <SelectContent>
                       <SelectItem value="admin">Admin - Gerencia tudo</SelectItem>
                       <SelectItem value="manager">Gerente - Gerencia equipe</SelectItem>
+                      <SelectItem value="supervisor">Supervisor - Supervisiona equipe</SelectItem>
+                      <SelectItem value="designer">Projetista - Módulo de projetos</SelectItem>
                       <SelectItem value="agent">Vendedor - Acesso operacional</SelectItem>
                     </SelectContent>
                   </Select>
