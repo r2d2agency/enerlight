@@ -277,7 +277,7 @@ router.post('/templates', async (req, res) => {
 router.patch('/templates/:id', async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
-    if (!org || !canManage(org.role)) return res.status(403).json({ error: 'Forbidden' });
+    if (!org || !(await canEditProject(req.userId, org))) return res.status(403).json({ error: 'Forbidden' });
     const { name, description, tasks } = req.body;
     await query(
       `UPDATE project_templates SET name = COALESCE($1, name), description = COALESCE($2, description)
