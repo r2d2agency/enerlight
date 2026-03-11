@@ -89,6 +89,7 @@ router.get('/conversations/attendance-counts', authenticate, async (req, res) =>
     const userOrg = await getUserOrganization(req.userId);
     const isAdminOnly = userOrg && ['owner', 'admin'].includes(userOrg.role);
     const isManager = userOrg && userOrg.role === 'manager';
+    const isDesignerRole = userOrg && userOrg.role === 'designer';
     const userDeptsResult = await query(
       `SELECT department_id, role FROM department_members WHERE user_id = $1`,
       [req.userId]
