@@ -146,7 +146,7 @@ router.get('/conversations/attendance-counts', authenticate, async (req, res) =>
           COUNT(*) FILTER (WHERE conv.attendance_status = 'attending' OR conv.attendance_status IS NULL) as attending,
           COUNT(*) FILTER (WHERE conv.attendance_status = 'finished') as finished
         FROM conversations conv
-        WHERE conv.connection_id = ANY($1)
+        WHERE conv.connection_id = ANY($1::uuid[])
           AND conv.is_archived = false
           AND EXISTS (SELECT 1 FROM chat_messages cm WHERE cm.conversation_id = conv.id)
           ${groupFilter}
@@ -164,7 +164,7 @@ router.get('/conversations/attendance-counts', authenticate, async (req, res) =>
         const result = await query(`
           SELECT COUNT(*) as total
           FROM conversations conv
-          WHERE conv.connection_id = ANY($1)
+          WHERE conv.connection_id = ANY($1::uuid[])
             AND conv.is_archived = false
             AND EXISTS (SELECT 1 FROM chat_messages cm WHERE cm.conversation_id = conv.id)
             ${groupFilter}
@@ -221,7 +221,7 @@ router.get('/conversations/attendance-stats', authenticate, async (req, res) => 
           COUNT(*) FILTER (WHERE conv.attendance_status = 'attending' OR conv.attendance_status IS NULL) as attending,
           COUNT(*) FILTER (WHERE conv.attendance_status = 'finished') as finished
         FROM conversations conv
-        WHERE conv.connection_id = ANY($1)
+        WHERE conv.connection_id = ANY($1::uuid[])
           AND conv.is_archived = false
           ${dateFilter}
           ${groupFilter}
@@ -285,7 +285,7 @@ router.get('/conversations/user-avg-time', authenticate, async (req, res) => {
           ) as avg_minutes
         FROM conversations conv
         JOIN users u ON u.id = conv.accepted_by
-        WHERE conv.connection_id = ANY($1)
+        WHERE conv.connection_id = ANY($1::uuid[])
           AND conv.attendance_status = 'finished'
           AND conv.accepted_at IS NOT NULL
           AND conv.accepted_at >= NOW() - INTERVAL '${days} days'
@@ -347,7 +347,7 @@ router.get('/messages/search', authenticate, async (req, res) => {
         conv.is_group
       FROM chat_messages m
       JOIN conversations conv ON conv.id = m.conversation_id
-      WHERE conv.connection_id = ANY($1)
+      WHERE conv.connection_id = ANY($1::uuid[])
         AND m.content ILIKE $2
         AND m.content IS NOT NULL
         AND m.content != ''
@@ -394,7 +394,7 @@ router.get('/conversations/unread', authenticate, async (req, res) => {
         (SELECT message_type FROM chat_messages WHERE conversation_id = conv.id ORDER BY timestamp DESC LIMIT 1) as last_message_type
       FROM conversations conv
       JOIN connections conn ON conn.id = conv.connection_id
-      WHERE conv.connection_id = ANY($1)
+      WHERE conv.connection_id = ANY($1::uuid[])
         AND conv.unread_count > 0
         AND conv.is_archived = false
       ORDER BY conv.last_message_at DESC NULLS LAST
@@ -621,13 +621,13 @@ router.get('/stats', authenticate, async (req, res) => {
 
     // Total conversations
     const totalResult = await query(
-      `SELECT COUNT(*) as count FROM conversations WHERE connection_id = ANY($1) AND is_archived = false`,
+      `SELECT COUNT(*) as count FROM conversations WHERE connection_id = ANY($1::uuid[]) AND is_archived = false`,
       [connectionIds]
     );
 
     // Unread conversations
     const unreadResult = await query(
-      `SELECT COUNT(*) as count FROM conversations WHERE connection_id = ANY($1) AND unread_count > 0 AND is_archived = false`,
+      `SELECT COUNT(*) as count FROM conversations WHERE connection_id = ANY($1::uuid[]) AND unread_count > 0 AND is_archived = false`,
       [connectionIds]
     );
 
@@ -635,7 +635,7 @@ router.get('/stats', authenticate, async (req, res) => {
     const todayResult = await query(
       `SELECT COUNT(*) as count FROM chat_messages m
        JOIN conversations c ON c.id = m.conversation_id
-       WHERE c.connection_id = ANY($1) AND m.timestamp >= CURRENT_DATE`,
+       WHERE c.connection_id = ANY($1::uuid[]) AND m.timestamp >= CURRENT_DATE`,
       [connectionIds]
     );
 
@@ -643,7 +643,7 @@ router.get('/stats', authenticate, async (req, res) => {
     const weekResult = await query(
       `SELECT COUNT(*) as count FROM chat_messages m
        JOIN conversations c ON c.id = m.conversation_id
-       WHERE c.connection_id = ANY($1) AND m.timestamp >= CURRENT_DATE - INTERVAL '7 days'`,
+       WHERE c.connection_id = ANY($1::uuid[]) AND m.timestamp >= CURRENT_DATE - INTERVAL '7 days'`,
       [connectionIds]
     );
 
@@ -652,7 +652,7 @@ router.get('/stats', authenticate, async (req, res) => {
       `SELECT conn.name as connection_name, COUNT(*) as count
        FROM conversations conv
        JOIN connections conn ON conn.id = conv.connection_id
-       WHERE conv.connection_id = ANY($1) AND conv.is_archived = false
+       WHERE conv.connection_id = ANY($1::uuid[]) AND conv.is_archived = false
        GROUP BY conn.name
        ORDER BY count DESC`,
       [connectionIds]
@@ -664,7 +664,7 @@ router.get('/stats', authenticate, async (req, res) => {
          CASE WHEN assigned_to IS NOT NULL THEN 'assigned' ELSE 'unassigned' END as status,
          COUNT(*) as count
        FROM conversations
-       WHERE connection_id = ANY($1) AND is_archived = false
+       WHERE connection_id = ANY($1::uuid[]) AND is_archived = false
        GROUP BY CASE WHEN assigned_to IS NOT NULL THEN 'assigned' ELSE 'unassigned' END`,
       [connectionIds]
     );
@@ -725,7 +725,7 @@ router.get('/conversations/by-phone/:phone', authenticate, async (req, res) => {
       FROM conversations conv
       JOIN connections conn ON conn.id = conv.connection_id
       LEFT JOIN users u ON u.id = conv.assigned_to
-      WHERE conv.connection_id = ANY($1)
+      WHERE conv.connection_id = ANY($1::uuid[])
         AND (
           regexp_replace(COALESCE(conv.contact_phone, ''), '\\D', '', 'g') LIKE '%' || $2 || '%'
           OR regexp_replace(COALESCE(conv.remote_jid, ''), '\\D', '', 'g') LIKE '%' || $2 || '%'
@@ -1203,13 +1203,13 @@ router.post('/conversations/cleanup-duplicates', authenticate, async (req, res) 
         SELECT id, contact_phone, connection_id, remote_jid,
                (SELECT COUNT(*) FROM chat_messages WHERE conversation_id = conversations.id) as msg_count
         FROM conversations 
-        WHERE connection_id = ANY($1)
+        WHERE connection_id = ANY($1::uuid[])
           AND remote_jid LIKE '%@lid'
       ),
       normal_conversations AS (
         SELECT contact_phone, connection_id
         FROM conversations 
-        WHERE connection_id = ANY($1)
+        WHERE connection_id = ANY($1::uuid[])
           AND remote_jid LIKE '%@s.whatsapp.net'
       )
       SELECT lc.id, lc.contact_phone, lc.remote_jid, lc.msg_count
@@ -1299,7 +1299,7 @@ router.post('/conversations/cleanup-empty', authenticate, async (req, res) => {
     // Find and delete conversations with no messages
     const result = await query(`
       DELETE FROM conversations
-      WHERE connection_id = ANY($1)
+      WHERE connection_id = ANY($1::uuid[])
         AND id NOT IN (
           SELECT DISTINCT conversation_id FROM chat_messages WHERE conversation_id IS NOT NULL
         )
@@ -2086,7 +2086,7 @@ router.get('/scheduled/count', authenticate, async (req, res) => {
     const result = await query(
       `SELECT COUNT(*) as count
        FROM scheduled_messages
-       WHERE connection_id = ANY($1) AND status = 'pending'`,
+       WHERE connection_id = ANY($1::uuid[]) AND status = 'pending'`,
       [connectionIds]
     );
 
@@ -2122,7 +2122,7 @@ router.get('/scheduled/all', authenticate, async (req, res) => {
       LEFT JOIN users u ON u.id = sm.sender_id
       LEFT JOIN conversations c ON c.id = sm.conversation_id
       LEFT JOIN connections conn ON conn.id = sm.connection_id
-      WHERE sm.connection_id = ANY($1)
+      WHERE sm.connection_id = ANY($1::uuid[])
     `;
     
     const params = [connectionIds];
@@ -2198,7 +2198,7 @@ router.get('/scheduled-messages-by-phone', authenticate, async (req, res) => {
       FROM scheduled_messages sm
       LEFT JOIN users u ON u.id = sm.sender_id
       LEFT JOIN conversations c ON c.id = sm.conversation_id
-      WHERE sm.connection_id = ANY($1) 
+      WHERE sm.connection_id = ANY($1::uuid[]) 
         AND sm.status = 'pending'
         AND (c.contact_phone LIKE '%' || $2 || '%' OR c.remote_jid LIKE '%' || $2 || '%')
       ORDER BY sm.scheduled_at ASC`,
@@ -2242,7 +2242,7 @@ router.post('/schedule-message-by-phone', authenticate, async (req, res) => {
     const convResult = await query(
       `SELECT c.id, c.connection_id 
        FROM conversations c
-       WHERE c.connection_id = ANY($1) 
+       WHERE c.connection_id = ANY($1::uuid[]) 
          AND (c.contact_phone LIKE '%' || $2 || '%' OR c.remote_jid LIKE '%' || $2 || '%')
        ORDER BY c.last_message_at DESC NULLS LAST
        LIMIT 1`,
@@ -2362,7 +2362,7 @@ router.get('/contacts/conversations', authenticate, async (req, res) => {
         conv.unread_count
       FROM conversations conv
       JOIN connections conn ON conn.id = conv.connection_id
-      WHERE conv.connection_id = ANY($1) AND conv.is_archived = false
+      WHERE conv.connection_id = ANY($1::uuid[]) AND conv.is_archived = false
       ORDER BY conv.contact_name NULLS LAST, conv.contact_phone
       `,
       [connectionIds]
@@ -2578,7 +2578,7 @@ router.get('/contacts', authenticate, async (req, res) => {
            NOW(),
            false
          FROM conversations conv
-         WHERE conv.connection_id = ANY($1)
+         WHERE conv.connection_id = ANY($1::uuid[])
            AND conv.contact_phone IS NOT NULL
            AND conv.contact_phone <> ''
            AND (conv.remote_jid IS NULL OR conv.remote_jid NOT LIKE '%@g.us')
@@ -2612,7 +2612,7 @@ router.get('/contacts', authenticate, async (req, res) => {
         cc.created_at
       FROM chat_contacts cc
       JOIN connections c ON c.id = cc.connection_id
-      WHERE cc.connection_id = ANY($1)
+      WHERE cc.connection_id = ANY($1::uuid[])
         AND COALESCE(cc.is_deleted, false) = false
         AND (cc.jid IS NULL OR cc.jid NOT LIKE '%@g.us')
     `;
@@ -2651,7 +2651,7 @@ router.get('/contacts', authenticate, async (req, res) => {
       FROM contacts ct
       JOIN contact_lists cl ON cl.id = ct.list_id
       JOIN connections cn ON cn.id = cl.connection_id
-      WHERE cl.connection_id = ANY($1)
+      WHERE cl.connection_id = ANY($1::uuid[])
         AND ct.phone IS NOT NULL AND ct.phone <> ''
     `;
     const listParams = [connectionIds];
