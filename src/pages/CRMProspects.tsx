@@ -41,7 +41,7 @@ import {
   Users,
 } from "lucide-react";
 import { useProspects, Prospect } from "@/hooks/use-prospects";
-import { useCRMFunnels } from "@/hooks/use-crm";
+import { useCRMFunnels, useCRMGroups, useCRMGroupMembers } from "@/hooks/use-crm";
 import { useCRMOrgMembers } from "@/hooks/use-sales-positions";
 import { useAuth } from "@/contexts/AuthContext";
 import ProspectImportDialog from "@/components/crm/ProspectImportDialog";
@@ -49,6 +49,7 @@ import ProspectImportDialog from "@/components/crm/ProspectImportDialog";
 export default function CRMProspects() {
   const [search, setSearch] = useState("");
   const [sellerFilter, setSellerFilter] = useState("");
+  const [groupFilter, setGroupFilter] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showImport, setShowImport] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -59,8 +60,17 @@ export default function CRMProspects() {
   const { prospects, isLoading, createProspect, deleteProspect, convertToDeal, bulkDelete, bulkConvert } = useProspects();
   const { data: funnels } = useCRMFunnels();
   const { data: orgMembers = [] } = useCRMOrgMembers();
+  const { data: groups = [] } = useCRMGroups();
+  const { data: groupMembers = [] } = useCRMGroupMembers(groupFilter || null);
   const { user } = useAuth();
   const canSelectSeller = ['owner', 'admin', 'manager', 'supervisor'].includes(user?.role || '');
+
+  const visibleSellers = useMemo(() => {
+    const active = orgMembers.filter(m => m.is_active !== false);
+    if (!groupFilter) return active;
+    const memberIds = new Set(groupMembers.map(gm => gm.user_id));
+    return active.filter(m => memberIds.has(m.id));
+  }, [orgMembers, groupFilter, groupMembers]);
 
   // New prospect form
   const [newProspect, setNewProspect] = useState({ 
@@ -89,6 +99,13 @@ export default function CRMProspects() {
 
   const filteredProspects = useMemo(() => {
     let filtered = prospects;
+    if (groupFilter && groupMembers.length > 0) {
+      const memberIds = new Set(groupMembers.map(gm => gm.user_id));
+      filtered = filtered.filter(p => {
+        const assignedId = p.assigned_to || (p as any).created_by;
+        return assignedId && memberIds.has(assignedId);
+      });
+    }
     if (sellerFilter) {
       filtered = filtered.filter(p => {
         const assignedId = p.assigned_to || (p as any).created_by;
@@ -104,7 +121,7 @@ export default function CRMProspects() {
       );
     }
     return filtered;
-  }, [prospects, search, sellerFilter]);
+  }, [prospects, search, sellerFilter, groupFilter, groupMembers]);
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -251,16 +268,28 @@ export default function CRMProspects() {
             />
           </div>
           {canSelectSeller && (
-            <select
-              className="h-10 px-3 border rounded-md bg-background text-sm min-w-[160px]"
-              value={sellerFilter}
-              onChange={(e) => setSellerFilter(e.target.value)}
-            >
-              <option value="">Todos os vendedores</option>
-              {orgMembers.filter(m => m.is_active !== false).map(m => (
-                <option key={m.id} value={m.id}>{m.name}</option>
-              ))}
-            </select>
+            <div className="flex gap-2">
+              <select
+                className="h-10 px-3 border rounded-md bg-background text-sm min-w-[140px]"
+                value={groupFilter}
+                onChange={(e) => { setGroupFilter(e.target.value); setSellerFilter(""); }}
+              >
+                <option value="">Todos os grupos</option>
+                {groups.map(g => (
+                  <option key={g.id} value={g.id}>{g.name}</option>
+                ))}
+              </select>
+              <select
+                className="h-10 px-3 border rounded-md bg-background text-sm min-w-[160px]"
+                value={sellerFilter}
+                onChange={(e) => setSellerFilter(e.target.value)}
+              >
+                <option value="">Todos os vendedores</option>
+                {visibleSellers.map(m => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+              </select>
+            </div>
           )}
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setShowImport(true)}>
