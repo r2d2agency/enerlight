@@ -49,8 +49,8 @@ router.get('/', async (req, res) => {
       return res.json(result.rows.map(r => ({ ...r, is_assigned: true })));
     }
 
-    // No assignments: Owner/Admin fallback to ALL org connections
-    const isHighRole = ['owner', 'admin'].includes(org.role);
+    // No assignments: Owner/Admin/Manager/Supervisor fallback to ALL org connections
+    const isHighRole = ['owner', 'admin', 'manager', 'supervisor'].includes(org.role);
     if (isHighRole) {
       const result = await query(
         `SELECT c.*, u.name as created_by_name,
@@ -68,7 +68,7 @@ router.get('/', async (req, res) => {
       return res.json(result.rows);
     }
 
-    // No assignments and not owner/admin: empty
+    // No assignments and not high role: empty
     res.json([]);
   } catch (error) {
     console.error('List connections error:', error);
