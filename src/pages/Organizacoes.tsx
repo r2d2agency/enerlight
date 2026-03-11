@@ -1709,18 +1709,18 @@ export default function Organizacoes() {
 
       {/* Group Members Dialog */}
       <Dialog open={crmMembersDialogOpen} onOpenChange={setCrmMembersDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[85vh] flex flex-col overflow-hidden">
           <DialogHeader>
             <DialogTitle>Membros do Grupo: {editingCrmGroup?.name}</DialogTitle>
             <DialogDescription>Adicione ou remova membros deste grupo</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pr-1">
             <div>
               <Label className="mb-2 block">Membros atuais</Label>
               {crmGroupMembers?.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-2">Nenhum membro adicionado</p>
               ) : (
-                <div className="space-y-2 max-h-48 overflow-y-auto">
+                <div className="space-y-2">
                   {crmGroupMembers?.map((member) => (
                     <div key={member.user_id} className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
                       <div className="flex items-center gap-2">
@@ -1748,36 +1748,34 @@ export default function Organizacoes() {
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
               ) : (
-                <ScrollArea className="max-h-48">
-                  <div className="space-y-2">
-                    {crmOrgMembers
-                      .filter(m => !crmGroupMembers?.some(gm => gm.user_id === m.user_id))
-                      .map((member) => (
-                        <div key={member.user_id} className="flex items-center justify-between p-2 rounded-lg border">
-                          <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground font-medium text-sm">
-                              {member.name?.[0]?.toUpperCase() || '?'}
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium">{member.name}</p>
-                              <p className="text-xs text-muted-foreground">{member.email}</p>
-                            </div>
+                <div className="space-y-2">
+                  {crmOrgMembers
+                    .filter(m => !crmGroupMembers?.some(gm => gm.user_id === m.user_id) && m.is_active !== false)
+                    .map((member) => (
+                      <div key={member.user_id} className="flex items-center justify-between p-2 rounded-lg border">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground font-medium text-sm">
+                            {member.name?.[0]?.toUpperCase() || '?'}
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Button variant="outline" size="sm" onClick={() => handleAddCrmMember(member.user_id, true)}>
-                              + Gerente
-                            </Button>
-                            <Button variant="default" size="sm" onClick={() => handleAddCrmMember(member.user_id, false)}>
-                              + Vendedor
-                            </Button>
+                          <div>
+                            <p className="text-sm font-medium">{member.name}</p>
+                            <p className="text-xs text-muted-foreground">{member.email}</p>
                           </div>
                         </div>
-                      ))}
-                    {crmOrgMembers.filter(m => !crmGroupMembers?.some(gm => gm.user_id === m.user_id)).length === 0 && (
-                      <p className="text-sm text-muted-foreground py-2 text-center">Todos os usuários já foram adicionados</p>
-                    )}
-                  </div>
-                </ScrollArea>
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" size="sm" onClick={() => handleAddCrmMember(member.user_id, true)}>
+                            + Gerente
+                          </Button>
+                          <Button variant="default" size="sm" onClick={() => handleAddCrmMember(member.user_id, false)}>
+                            + Vendedor
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  {crmOrgMembers.filter(m => !crmGroupMembers?.some(gm => gm.user_id === m.user_id) && m.is_active !== false).length === 0 && (
+                    <p className="text-sm text-muted-foreground py-2 text-center">Todos os usuários já foram adicionados</p>
+                  )}
+                </div>
               )}
             </div>
           </div>
