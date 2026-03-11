@@ -275,47 +275,60 @@ export default function CRMProspects() {
     <MainLayout>
       <div className="space-y-4">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-between">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por nome, telefone ou origem..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          {canSelectSeller && (
-            <div className="flex gap-2">
-              <select
-                className="h-10 px-3 border rounded-md bg-background text-sm min-w-[140px]"
-                value={groupFilter}
-                onChange={(e) => { setGroupFilter(e.target.value); setSellerFilter(""); }}
-              >
-                <option value="">Todos os grupos</option>
-                {groups.map(g => (
-                  <option key={g.id} value={g.id}>{g.name}</option>
-                ))}
-              </select>
-              <select
-                className="h-10 px-3 border rounded-md bg-background text-sm min-w-[160px]"
-                value={sellerFilter}
-                onChange={(e) => setSellerFilter(e.target.value)}
-              >
-                <option value="">Todos os vendedores</option>
-                {visibleSellers.map(m => (
-                  <option key={m.id} value={m.id}>{m.name}</option>
-                ))}
-              </select>
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col sm:flex-row gap-4 justify-between">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por nome, telefone ou origem..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-10"
+              />
             </div>
-          )}
-          <div className="flex gap-2 items-center">
+            {canSelectSeller && (
+              <div className="flex gap-2">
+                <select
+                  className="h-10 px-3 border rounded-md bg-background text-sm min-w-[140px]"
+                  value={groupFilter}
+                  onChange={(e) => { setGroupFilter(e.target.value); setSellerFilter(""); }}
+                >
+                  <option value="">Todos os grupos</option>
+                  {groups.map(g => (
+                    <option key={g.id} value={g.id}>{g.name}</option>
+                  ))}
+                </select>
+                <select
+                  className="h-10 px-3 border rounded-md bg-background text-sm min-w-[160px]"
+                  value={sellerFilter}
+                  onChange={(e) => setSellerFilter(e.target.value)}
+                >
+                  <option value="">Todos os vendedores</option>
+                  {visibleSellers.map(m => (
+                    <option key={m.id} value={m.id}>{m.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setShowImport(true)}>
+                <Upload className="h-4 w-4 mr-2" />
+                Importar
+              </Button>
+              <Button onClick={() => setShowAddDialog(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Novo Prospect
+              </Button>
+            </div>
+          </div>
+          {/* Date filter row - visible to all */}
+          <div className="flex gap-2 items-center flex-wrap">
+            <span className="text-sm text-muted-foreground">Filtrar por data:</span>
             <Input
               type="date"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
-              className="h-10 w-[140px] text-sm"
-              placeholder="Data início"
+              className="h-9 w-[150px] text-sm"
               title="Data início"
             />
             <span className="text-muted-foreground text-sm">até</span>
@@ -323,8 +336,7 @@ export default function CRMProspects() {
               type="date"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
-              className="h-10 w-[140px] text-sm"
-              placeholder="Data fim"
+              className="h-9 w-[150px] text-sm"
               title="Data fim"
             />
             {(dateFrom || dateTo) && (
@@ -332,16 +344,6 @@ export default function CRMProspects() {
                 Limpar
               </Button>
             )}
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setShowImport(true)}>
-              <Upload className="h-4 w-4 mr-2" />
-              Importar
-            </Button>
-            <Button onClick={() => setShowAddDialog(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Prospect
-            </Button>
           </div>
         </div>
 
