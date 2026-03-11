@@ -547,7 +547,7 @@ router.get('/org-members', requireAuth, async (req, res) => {
     const result = await query(
       `SELECT u.id, u.name, u.email FROM users u
        JOIN organization_members om ON om.user_id = u.id
-       WHERE om.organization_id = $1 ORDER BY u.name`,
+       WHERE om.organization_id = $1 AND COALESCE(om.is_active, true) = true ORDER BY u.name`,
       [org.organization_id]
     );
     res.json(result.rows);

@@ -3608,9 +3608,9 @@ router.get('/org-members', async (req, res) => {
     const showAll = ['owner', 'admin', 'manager', 'supervisor'].includes(role);
 
     const result = await query(
-      `SELECT u.id, u.name, u.email FROM users u
+      `SELECT u.id, u.name, u.email, COALESCE(om.is_active, true) as is_active FROM users u
        JOIN organization_members om ON om.user_id = u.id
-       WHERE om.organization_id = $1 ${showAll ? '' : 'AND COALESCE(om.is_active, true) = true'}
+       WHERE om.organization_id = $1
        ORDER BY u.name`,
       [org.organization_id]
     );
