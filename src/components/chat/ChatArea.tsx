@@ -252,6 +252,9 @@ export function ChatArea({
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [forwardingMessage, setForwardingMessage] = useState<ChatMessage | null>(null);
   const [forwardTo, setForwardTo] = useState<string>("");
+  const [forwardMode, setForwardMode] = useState<'team' | 'conversation'>('conversation');
+  const [forwardConversations, setForwardConversations] = useState<Array<{ id: string; name: string }>>([]);
+  const [forwardSearch, setForwardSearch] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
