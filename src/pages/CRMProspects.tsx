@@ -48,6 +48,7 @@ import ProspectImportDialog from "@/components/crm/ProspectImportDialog";
 
 export default function CRMProspects() {
   const [search, setSearch] = useState("");
+  const [sellerFilter, setSellerFilter] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showImport, setShowImport] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
