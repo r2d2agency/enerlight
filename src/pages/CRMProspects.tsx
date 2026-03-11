@@ -536,7 +536,7 @@ export default function CRMProspects() {
                                 Converter para Negociação
                               </DropdownMenuItem>
                             )}
-                            {(canSelectSeller || prospect.assigned_to === user?.id) && (
+                            {(
                               <DropdownMenuItem
                                 className="text-destructive"
                                 onClick={() => handleDelete(prospect.id)}
