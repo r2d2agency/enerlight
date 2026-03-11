@@ -16,6 +16,7 @@ export interface OrgMember {
   id: string;
   name: string;
   email: string;
+  is_active?: boolean;
 }
 
 export function useSalesPositions() {
