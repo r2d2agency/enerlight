@@ -532,7 +532,7 @@ router.get('/conversations', authenticate, async (req, res) => {
       }
 
       // DEPARTMENT-BASED VISIBILITY FILTER
-      if (supportsDepartment && !isAdminOnly && !isManager && !isSupervisorInAnyDept && !hasSpecificConnections) {
+      if (supportsDepartment && !isAdminOnly && !isManager && !isDesigner && !isSupervisorInAnyDept && !hasSpecificConnections) {
         // Non-admin users WITHOUT specific connections: apply department visibility restrictions
         if (userDepartmentIds.length > 0) {
           sql += ` AND (
