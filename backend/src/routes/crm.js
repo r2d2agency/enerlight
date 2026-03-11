@@ -2762,7 +2762,7 @@ router.get('/prospects', async (req, res) => {
 
     // Non-admin users only see prospects assigned to them
     if (!canManage(org.role)) {
-      visibilityFilter = ` AND assigned_to = $2`;
+      visibilityFilter = ` AND (p.assigned_to = $2 OR (p.assigned_to IS NULL AND p.created_by = $2))`;
       params.push(req.userId);
     }
 
