@@ -657,7 +657,7 @@ export function ConversationList({
           </div>
         ) : (
           <div className="divide-y">
-            {conversations.map((conv) => {
+            {conversations.filter(c => !showFavoritesOnly || c.is_pinned).map((conv) => {
               // Use the actual conversation status, not the filter
               const isWaiting = conv.attendance_status === 'waiting';
               const isAttending = conv.attendance_status === 'attending';
