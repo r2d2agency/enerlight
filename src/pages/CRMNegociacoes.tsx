@@ -478,6 +478,19 @@ export default function CRMNegociacoes() {
               <span>Filtros:</span>
             </div>
 
+            <Select value={groupFilter} onValueChange={(v) => { setGroupFilter(v); setOwnerFilter("all"); }}>
+              <SelectTrigger className="w-[180px]">
+                <Users className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Grupo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os grupos</SelectItem>
+                {groups.map((g) => (
+                  <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
             <Select value={ownerFilter} onValueChange={setOwnerFilter}>
               <SelectTrigger className="w-[180px]">
                 <User className="h-4 w-4 mr-2" />
@@ -486,7 +499,7 @@ export default function CRMNegociacoes() {
               <SelectContent>
                 <SelectItem value="all">Todos</SelectItem>
                 <SelectItem value="mine">Minhas negociações</SelectItem>
-                {teamMembers?.map((member) => (
+                {filteredTeamMembers.map((member) => (
                   <SelectItem key={member.user_id} value={member.user_id}>
                     {member.name}
                   </SelectItem>
