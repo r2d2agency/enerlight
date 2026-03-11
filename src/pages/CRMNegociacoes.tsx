@@ -10,8 +10,8 @@ import { FunnelEditorDialog } from "@/components/crm/FunnelEditorDialog";
 import { WinCelebration } from "@/components/crm/WinCelebration";
 import { LossReasonDialog } from "@/components/crm/LossReasonDialog";
 import { CRMImportDialog } from "@/components/crm/CRMImportDialog";
-import { useCRMFunnels, useCRMFunnel, useCRMDeals, useCRMMyTeam, useCRMDealMutations, useCRMDeal, CRMDeal, CRMFunnel } from "@/hooks/use-crm";
-import { Plus, Settings, Loader2, Filter, User, ArrowUpDown, CalendarIcon, X, LayoutGrid, List, Trophy, XCircle, Pause, FileSpreadsheet, CheckSquare, Trash2, ArrowRight } from "lucide-react";
+import { useCRMFunnels, useCRMFunnel, useCRMDeals, useCRMMyTeam, useCRMDealMutations, useCRMDeal, useCRMGroups, useCRMGroupMembers, CRMDeal, CRMFunnel } from "@/hooks/use-crm";
+import { Plus, Settings, Loader2, Filter, User, ArrowUpDown, CalendarIcon, X, LayoutGrid, List, Trophy, XCircle, Pause, FileSpreadsheet, CheckSquare, Trash2, ArrowRight, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { parseISO, format, startOfDay, endOfDay, isWithinInterval } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -92,7 +92,15 @@ export default function CRMNegociacoes() {
   
   const { data: funnels, isLoading: loadingFunnels } = useCRMFunnels();
   const { data: teamMembers } = useCRMMyTeam();
+  const { data: groups = [] } = useCRMGroups();
+  const { data: groupMembers = [] } = useCRMGroupMembers(groupFilter !== "all" ? groupFilter : null);
   const { updateDeal, bulkDeleteDeals, bulkMoveDeals } = useCRMDealMutations();
+
+  const filteredTeamMembers = useMemo(() => {
+    if (groupFilter === "all" || !groupMembers.length) return teamMembers || [];
+    const memberIds = new Set(groupMembers.map(gm => gm.user_id));
+    return (teamMembers || []).filter(m => memberIds.has(m.user_id));
+  }, [teamMembers, groupFilter, groupMembers]);
   
   // Auto-select first funnel
   const currentFunnelId = selectedFunnelId || funnels?.[0]?.id || null;
@@ -470,6 +478,19 @@ export default function CRMNegociacoes() {
               <span>Filtros:</span>
             </div>
 
+            <Select value={groupFilter} onValueChange={(v) => { setGroupFilter(v); setOwnerFilter("all"); }}>
+              <SelectTrigger className="w-[180px]">
+                <Users className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Grupo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os grupos</SelectItem>
+                {groups.map((g) => (
+                  <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
             <Select value={ownerFilter} onValueChange={setOwnerFilter}>
               <SelectTrigger className="w-[180px]">
                 <User className="h-4 w-4 mr-2" />
@@ -478,7 +499,7 @@ export default function CRMNegociacoes() {
               <SelectContent>
                 <SelectItem value="all">Todos</SelectItem>
                 <SelectItem value="mine">Minhas negociações</SelectItem>
-                {teamMembers?.map((member) => (
+                {filteredTeamMembers.map((member) => (
                   <SelectItem key={member.user_id} value={member.user_id}>
                     {member.name}
                   </SelectItem>
