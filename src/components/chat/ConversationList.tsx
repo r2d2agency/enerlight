@@ -52,6 +52,8 @@ import {
   SearchCode,
   Users,
   Building2,
+  Star,
+  Pin,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
