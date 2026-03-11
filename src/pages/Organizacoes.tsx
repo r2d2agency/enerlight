@@ -160,7 +160,7 @@ export default function Organizacoes() {
   const [selectedCrmGroupId, setSelectedCrmGroupId] = useState<string | null>(null);
   const { data: crmGroupMembers } = useCRMGroupMembers(selectedCrmGroupId);
   const [crmMembersDialogOpen, setCrmMembersDialogOpen] = useState(false);
-  const [crmOrgMembers, setCrmOrgMembers] = useState<Array<{ user_id: string; name: string; email: string }>>([]);
+  const [crmOrgMembers, setCrmOrgMembers] = useState<Array<{ user_id: string; name: string; email: string; is_active?: boolean }>>([]);
   const [loadingCrmOrgMembers, setLoadingCrmOrgMembers] = useState(false);
   const [funnelAssignGroupId, setFunnelAssignGroupId] = useState<string | null>(null);
   const [funnelAssignDialogOpen, setFunnelAssignDialogOpen] = useState(false);
