@@ -5,59 +5,107 @@ import { authenticate } from '../middleware/auth.js';
 const router = Router();
 router.use(authenticate);
 
-// Validate WhatsApp numbers via Evolution API
+// Validate WhatsApp numbers - supports Evolution API and W-API
 async function validateWhatsAppNumbers(connectionId, phones) {
   try {
-    // Get connection details
     const connResult = await query(
-      'SELECT api_url, api_key, instance_name FROM connections WHERE id = $1',
+      `SELECT api_url, api_key, instance_name, provider, instance_id, wapi_token 
+       FROM connections WHERE id = $1`,
       [connectionId]
     );
 
-    if (connResult.rows.length === 0) {
-      return null; // No connection, skip validation
+    if (connResult.rows.length === 0) return null;
+
+    const conn = connResult.rows[0];
+    const provider = conn.provider || 'evolution';
+
+    if (provider === 'wapi') {
+      return await validateWhatsAppNumbersWAPI(conn, phones);
+    } else {
+      return await validateWhatsAppNumbersEvolution(conn, phones);
     }
-
-    const { api_url, api_key, instance_name } = connResult.rows[0];
-
-    if (!api_url || !api_key || !instance_name) {
-      return null; // Connection not properly configured
-    }
-
-    // Call Evolution API to validate numbers
-    const response = await fetch(`${api_url}/chat/whatsappNumbers/${instance_name}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': api_key,
-      },
-      body: JSON.stringify({ numbers: phones }),
-    });
-
-    if (!response.ok) {
-      console.error('WhatsApp validation failed:', response.status);
-      return null;
-    }
-
-    const data = await response.json();
-    
-    // Create a map of phone -> exists
-    const validMap = {};
-    if (Array.isArray(data)) {
-      for (const item of data) {
-        if (item.jid) {
-          // Extract phone from jid (e.g., "5511999999999@s.whatsapp.net")
-          const phone = item.jid.split('@')[0];
-          validMap[phone] = item.exists === true;
-        }
-      }
-    }
-
-    return validMap;
   } catch (error) {
     console.error('Error validating WhatsApp numbers:', error);
     return null;
   }
+}
+
+// W-API validation: uses GET /contacts/phone-exists per number
+async function validateWhatsAppNumbersWAPI(conn, phones) {
+  const { instance_id, wapi_token } = conn;
+  if (!instance_id || !wapi_token) return null;
+
+  const validMap = {};
+  const BATCH_SIZE = 5; // parallel requests in batches to avoid rate limiting
+
+  for (let i = 0; i < phones.length; i += BATCH_SIZE) {
+    const batch = phones.slice(i, i + BATCH_SIZE);
+    const results = await Promise.allSettled(
+      batch.map(async (phone) => {
+        const url = `https://api.w-api.app/v1/contacts/phone-exists?instanceId=${instance_id}&phoneNumber=${phone}`;
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: { 'Authorization': `Bearer ${wapi_token}` },
+        });
+
+        if (!response.ok) {
+          console.error(`W-API phone-exists failed for ${phone}: ${response.status}`);
+          return { phone, exists: null };
+        }
+
+        const data = await response.json();
+        return { phone, exists: data.exists === true };
+      })
+    );
+
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
+        const { phone, exists } = result.value;
+        if (exists !== null) {
+          validMap[phone] = exists;
+        }
+      }
+    }
+
+    // Small delay between batches to avoid rate limiting
+    if (i + BATCH_SIZE < phones.length) {
+      await new Promise(r => setTimeout(r, 500));
+    }
+  }
+
+  return validMap;
+}
+
+// Evolution API validation (original logic)
+async function validateWhatsAppNumbersEvolution(conn, phones) {
+  const { api_url, api_key, instance_name } = conn;
+  if (!api_url || !api_key || !instance_name) return null;
+
+  const response = await fetch(`${api_url}/chat/whatsappNumbers/${instance_name}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': api_key,
+    },
+    body: JSON.stringify({ numbers: phones }),
+  });
+
+  if (!response.ok) {
+    console.error('WhatsApp validation failed:', response.status);
+    return null;
+  }
+
+  const data = await response.json();
+  const validMap = {};
+  if (Array.isArray(data)) {
+    for (const item of data) {
+      if (item.jid) {
+        const phone = item.jid.split('@')[0];
+        validMap[phone] = item.exists === true;
+      }
+    }
+  }
+  return validMap;
 }
 
 // Helper to get user's organization
