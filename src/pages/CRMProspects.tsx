@@ -126,7 +126,7 @@ export default function CRMProspects() {
       );
     }
     return filtered;
-  }, [prospects, search, sellerFilter, groupFilter, groupMembers, isSeller, user?.id]);
+  }, [prospects, search, sellerFilter, groupFilter, groupMembers]);
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
