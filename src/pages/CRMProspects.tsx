@@ -102,13 +102,7 @@ export default function CRMProspects() {
   const filteredProspects = useMemo(() => {
     let filtered = prospects;
 
-    // Vendedores só veem prospects atribuídos a eles
-    if (isSeller && user?.id) {
-      filtered = filtered.filter(p => {
-        const assignedId = p.assigned_to || (p as any).created_by;
-        return assignedId === user.id;
-      });
-    }
+    // Backend já filtra para vendedores, não precisa filtrar novamente no frontend
 
     if (groupFilter && groupMembers.length > 0) {
       const memberIds = new Set(groupMembers.map(gm => gm.user_id));
