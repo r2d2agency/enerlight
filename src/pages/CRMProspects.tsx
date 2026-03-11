@@ -128,8 +128,18 @@ export default function CRMProspects() {
         p.source?.toLowerCase().includes(term)
       );
     }
+    if (dateFrom) {
+      const from = new Date(dateFrom);
+      from.setHours(0, 0, 0, 0);
+      filtered = filtered.filter(p => new Date(p.created_at) >= from);
+    }
+    if (dateTo) {
+      const to = new Date(dateTo);
+      to.setHours(23, 59, 59, 999);
+      filtered = filtered.filter(p => new Date(p.created_at) <= to);
+    }
     return filtered;
-  }, [prospects, search, sellerFilter, groupFilter, groupMembers]);
+  }, [prospects, search, sellerFilter, groupFilter, groupMembers, dateFrom, dateTo]);
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
