@@ -250,6 +250,18 @@ export default function CRMProspects() {
               className="pl-10"
             />
           </div>
+          {canSelectSeller && (
+            <select
+              className="h-10 px-3 border rounded-md bg-background text-sm min-w-[160px]"
+              value={sellerFilter}
+              onChange={(e) => setSellerFilter(e.target.value)}
+            >
+              <option value="">Todos os vendedores</option>
+              {orgMembers.filter(m => m.is_active !== false).map(m => (
+                <option key={m.id} value={m.id}>{m.name}</option>
+              ))}
+            </select>
+          )}
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setShowImport(true)}>
               <Upload className="h-4 w-4 mr-2" />
