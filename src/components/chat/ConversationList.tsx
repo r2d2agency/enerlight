@@ -830,8 +830,8 @@ export function ConversationList({
                     )}
                   </div>
 
-                  {/* Admin actions - only on desktop */}
-                  {!isMobile && isAdmin && (
+                  {/* Actions dropdown - visible to all on desktop */}
+                  {!isMobile && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button
@@ -844,17 +844,30 @@ export function ConversationList({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          className="text-destructive focus:text-destructive"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setConversationToDelete(conv);
-                            setDeleteDialogOpen(true);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Excluir conversa
-                        </DropdownMenuItem>
+                        {onPinConversation && (
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onPinConversation(conv.id, !conv.is_pinned);
+                            }}
+                          >
+                            <Star className={cn("h-4 w-4 mr-2", conv.is_pinned && "text-amber-500 fill-amber-500")} />
+                            {conv.is_pinned ? 'Remover favorito' : 'Marcar como favorito'}
+                          </DropdownMenuItem>
+                        )}
+                        {isAdmin && (
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setConversationToDelete(conv);
+                              setDeleteDialogOpen(true);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Excluir conversa
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   )}
