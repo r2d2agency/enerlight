@@ -99,6 +99,13 @@ export default function CRMProspects() {
 
   const filteredProspects = useMemo(() => {
     let filtered = prospects;
+    if (groupFilter && groupMembers.length > 0) {
+      const memberIds = new Set(groupMembers.map(gm => gm.user_id));
+      filtered = filtered.filter(p => {
+        const assignedId = p.assigned_to || (p as any).created_by;
+        return assignedId && memberIds.has(assignedId);
+      });
+    }
     if (sellerFilter) {
       filtered = filtered.filter(p => {
         const assignedId = p.assigned_to || (p as any).created_by;
@@ -114,7 +121,7 @@ export default function CRMProspects() {
       );
     }
     return filtered;
-  }, [prospects, search, sellerFilter]);
+  }, [prospects, search, sellerFilter, groupFilter, groupMembers]);
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
