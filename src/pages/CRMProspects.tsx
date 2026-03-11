@@ -60,8 +60,17 @@ export default function CRMProspects() {
   const { prospects, isLoading, createProspect, deleteProspect, convertToDeal, bulkDelete, bulkConvert } = useProspects();
   const { data: funnels } = useCRMFunnels();
   const { data: orgMembers = [] } = useCRMOrgMembers();
+  const { data: groups = [] } = useCRMGroups();
+  const { data: groupMembers = [] } = useCRMGroupMembers(groupFilter || null);
   const { user } = useAuth();
   const canSelectSeller = ['owner', 'admin', 'manager', 'supervisor'].includes(user?.role || '');
+
+  const visibleSellers = useMemo(() => {
+    const active = orgMembers.filter(m => m.is_active !== false);
+    if (!groupFilter) return active;
+    const memberIds = new Set(groupMembers.map(gm => gm.user_id));
+    return active.filter(m => memberIds.has(m.id));
+  }, [orgMembers, groupFilter, groupMembers]);
 
   // New prospect form
   const [newProspect, setNewProspect] = useState({ 
