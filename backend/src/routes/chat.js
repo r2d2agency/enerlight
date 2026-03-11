@@ -44,15 +44,7 @@ async function getUserConnections(userId) {
     [userId]
   );
   
-  // Manager/Supervisor sees ALL org connections (supervisor mode for unassigned)
-  if (userOrg && ['manager', 'supervisor'].includes(userOrg.role)) {
-    const allConns = await query(
-      `SELECT id FROM connections WHERE organization_id = $1`,
-      [userOrg.organization_id]
-    );
-    return allConns.rows.map(r => r.id);
-  }
-
+  // If user has specific connection assignments, use only those
   if (specificResult.rows.length > 0) {
     return specificResult.rows.map(r => r.id);
   }
