@@ -382,7 +382,7 @@ export default function CRMProspects() {
               <Send className="h-4 w-4 mr-2" />
               Criar Campanha
             </Button>
-            {canSelectSeller && (
+            {(canSelectSeller || isSeller) && (
               <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
                 <Trash2 className="h-4 w-4 mr-2" />
                 Excluir
@@ -507,7 +507,7 @@ export default function CRMProspects() {
                                 Converter para Negociação
                               </DropdownMenuItem>
                             )}
-                            {canSelectSeller && (
+                            {(canSelectSeller || prospect.assigned_to === user?.id) && (
                               <DropdownMenuItem
                                 className="text-destructive"
                                 onClick={() => handleDelete(prospect.id)}
