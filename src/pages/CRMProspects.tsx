@@ -88,14 +88,23 @@ export default function CRMProspects() {
   const [bulkOwnerId, setBulkOwnerId] = useState("");
 
   const filteredProspects = useMemo(() => {
-    if (!search.trim()) return prospects;
-    const term = search.toLowerCase();
-    return prospects.filter(p =>
-      p.name?.toLowerCase().includes(term) ||
-      p.phone?.toLowerCase().includes(term) ||
-      p.source?.toLowerCase().includes(term)
-    );
-  }, [prospects, search]);
+    let filtered = prospects;
+    if (sellerFilter) {
+      filtered = filtered.filter(p => {
+        const assignedId = p.assigned_to || (p as any).created_by;
+        return assignedId === sellerFilter;
+      });
+    }
+    if (search.trim()) {
+      const term = search.toLowerCase();
+      filtered = filtered.filter(p =>
+        p.name?.toLowerCase().includes(term) ||
+        p.phone?.toLowerCase().includes(term) ||
+        p.source?.toLowerCase().includes(term)
+      );
+    }
+    return filtered;
+  }, [prospects, search, sellerFilter]);
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
