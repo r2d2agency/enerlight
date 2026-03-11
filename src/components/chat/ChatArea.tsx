@@ -252,6 +252,9 @@ export function ChatArea({
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [forwardingMessage, setForwardingMessage] = useState<ChatMessage | null>(null);
   const [forwardTo, setForwardTo] = useState<string>("");
+  const [forwardMode, setForwardMode] = useState<'team' | 'conversation'>('conversation');
+  const [forwardConversations, setForwardConversations] = useState<Array<{ id: string; name: string }>>([]);
+  const [forwardSearch, setForwardSearch] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -2827,7 +2830,7 @@ export function ChatArea({
         }}
       />
       {/* Forward Message Dialog */}
-      <Dialog open={!!forwardingMessage} onOpenChange={(open) => { if (!open) { setForwardingMessage(null); setForwardTo(""); } }}>
+      <Dialog open={!!forwardingMessage} onOpenChange={(open) => { if (!open) { setForwardingMessage(null); setForwardTo(""); setForwardSearch(""); } }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -2835,7 +2838,7 @@ export function ChatArea({
               Encaminhar Mensagem
             </DialogTitle>
             <DialogDescription>
-              Escolha um membro da equipe para encaminhar esta mensagem.
+              Escolha para onde encaminhar esta mensagem.
             </DialogDescription>
           </DialogHeader>
 
@@ -2856,26 +2859,100 @@ export function ChatArea({
             </div>
           )}
 
+          {/* Mode tabs */}
+          <div className="flex gap-1 bg-muted/50 p-1 rounded-lg">
+            <button
+              onClick={() => { setForwardMode('conversation'); setForwardTo(""); }}
+              className={cn(
+                "flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
+                forwardMode === 'conversation' ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <MessageSquare className="h-3 w-3 inline mr-1" />
+              Conversa
+            </button>
+            <button
+              onClick={() => { setForwardMode('team'); setForwardTo(""); }}
+              className={cn(
+                "flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
+                forwardMode === 'team' ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <UserPlus className="h-3 w-3 inline mr-1" />
+              Membro da Equipe
+            </button>
+          </div>
+
           <div className="space-y-2">
-            <Label>Encaminhar para</Label>
-            <Select value={forwardTo} onValueChange={setForwardTo}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione um membro" />
-              </SelectTrigger>
-              <SelectContent>
-                {team
-                  .filter(m => m.id !== user?.id)
-                  .map(member => (
-                    <SelectItem key={member.id} value={member.id}>
-                      {member.name}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
+            {forwardMode === 'conversation' ? (
+              <>
+                <Label>Encaminhar para conversa</Label>
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar conversa..."
+                    value={forwardSearch}
+                    onChange={async (e) => {
+                      setForwardSearch(e.target.value);
+                      if (e.target.value.length >= 2) {
+                        try {
+                          const results = await api<Array<{ id: string; contact_name: string; contact_phone: string; group_name: string; is_group: boolean }>>(`/api/chat/conversations?search=${encodeURIComponent(e.target.value)}&archived=false`);
+                          setForwardConversations(results.filter(c => c.id !== conversation?.id).map(c => ({
+                            id: c.id,
+                            name: c.is_group ? (c.group_name || 'Grupo') : (c.contact_name || c.contact_phone || 'Desconhecido'),
+                          })));
+                        } catch { setForwardConversations([]); }
+                      } else {
+                        setForwardConversations([]);
+                      }
+                    }}
+                    className="pl-8 h-9 text-sm"
+                  />
+                </div>
+                <ScrollArea className="max-h-48">
+                  <div className="space-y-1">
+                    {forwardConversations.length === 0 && forwardSearch.length >= 2 && (
+                      <p className="text-xs text-muted-foreground text-center py-3">Nenhuma conversa encontrada</p>
+                    )}
+                    {forwardConversations.map(c => (
+                      <button
+                        key={c.id}
+                        onClick={() => setForwardTo(c.id)}
+                        className={cn(
+                          "w-full flex items-center gap-2 p-2 rounded-md text-sm text-left transition-colors",
+                          forwardTo === c.id ? "bg-primary/10 border border-primary/30" : "hover:bg-muted"
+                        )}
+                      >
+                        <MessageSquare className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <span className="truncate">{c.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </>
+            ) : (
+              <>
+                <Label>Encaminhar para membro</Label>
+                <Select value={forwardTo} onValueChange={setForwardTo}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um membro" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {team
+                      .filter(m => m.id !== user?.id)
+                      .map(member => (
+                        <SelectItem key={member.id} value={member.id}>
+                          {member.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </>
+            )}
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setForwardingMessage(null); setForwardTo(""); }}>
+            <Button variant="outline" onClick={() => { setForwardingMessage(null); setForwardTo(""); setForwardSearch(""); }}>
               Cancelar
             </Button>
             <Button
@@ -2888,15 +2965,16 @@ export function ChatArea({
                     body: {
                       message_id: forwardingMessage.id,
                       conversation_id: conversation.id,
-                      forward_to_user_id: forwardTo,
+                      ...(forwardMode === 'team' ? { forward_to_user_id: forwardTo } : { forward_to_conversation_id: forwardTo }),
                       content: forwardingMessage.content,
                       message_type: forwardingMessage.message_type,
                       media_url: forwardingMessage.media_url,
                     },
                   });
-                  toast.success("Mensagem encaminhada!");
+                  toast.success(forwardMode === 'conversation' ? "Mensagem encaminhada para a conversa!" : "Mensagem encaminhada!");
                   setForwardingMessage(null);
                   setForwardTo("");
+                  setForwardSearch("");
                 } catch (err: any) {
                   toast.error(err.message || "Erro ao encaminhar mensagem");
                 }

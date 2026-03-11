@@ -52,6 +52,8 @@ import {
   SearchCode,
   Users,
   Building2,
+  Star,
+  Pin,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -163,6 +165,7 @@ export function ConversationList({
   const [profilePictures, setProfilePictures] = useState<Record<string, string>>({});
   const [myDepartments, setMyDepartments] = useState<Department[]>([]);
   const [allDepartments, setAllDepartments] = useState<Department[]>([]);
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
   // Generate stable colors for connections
   const connectionColors = (() => {
@@ -573,6 +576,19 @@ export function ConversationList({
           )}
 
           <Button
+            variant={showFavoritesOnly ? "default" : "ghost"}
+            size="icon"
+            className={cn(
+              "h-8 w-8 flex-shrink-0 transition-colors",
+              showFavoritesOnly && "bg-amber-500 hover:bg-amber-600 text-white"
+            )}
+            onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+            title={showFavoritesOnly ? "Ver todas" : "Ver favoritas"}
+          >
+            <Star className="h-3 w-3" />
+          </Button>
+
+          <Button
             variant={filters.archived ? "default" : "ghost"}
             size="icon"
             className={cn(
@@ -601,6 +617,21 @@ export function ConversationList({
             </Button>
           </div>
         )}
+        {/* Favorites mode banner */}
+        {showFavoritesOnly && (
+          <div className="flex items-center gap-2 px-3 py-2 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-600 dark:text-amber-400">
+            <Star className="h-4 w-4 flex-shrink-0" />
+            <span className="text-xs font-medium">Exibindo conversas favoritas</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="ml-auto h-6 px-2 text-xs text-amber-600 dark:text-amber-400 hover:bg-amber-500/20"
+              onClick={() => setShowFavoritesOnly(false)}
+            >
+              Ver todas
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Conversation List */}
@@ -609,14 +640,24 @@ export function ConversationList({
           <div className="flex items-center justify-center p-8">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
-        ) : conversations.length === 0 ? (
+        ) : conversations.filter(c => !showFavoritesOnly || c.is_pinned).length === 0 ? (
           <div className="flex flex-col items-center justify-center p-8 text-muted-foreground">
-            <MessageSquare className="h-12 w-12 mb-2 opacity-50" />
-            <p className="text-sm">Nenhuma conversa encontrada</p>
+            {showFavoritesOnly ? (
+              <>
+                <Star className="h-12 w-12 mb-2 opacity-50" />
+                <p className="text-sm">Nenhuma conversa favorita</p>
+                <p className="text-xs mt-1">Clique na ⭐ para marcar favoritas</p>
+              </>
+            ) : (
+              <>
+                <MessageSquare className="h-12 w-12 mb-2 opacity-50" />
+                <p className="text-sm">Nenhuma conversa encontrada</p>
+              </>
+            )}
           </div>
         ) : (
           <div className="divide-y">
-            {conversations.map((conv) => {
+            {conversations.filter(c => !showFavoritesOnly || c.is_pinned).map((conv) => {
               // Use the actual conversation status, not the filter
               const isWaiting = conv.attendance_status === 'waiting';
               const isAttending = conv.attendance_status === 'attending';
@@ -658,11 +699,16 @@ export function ConversationList({
                   {/* Content */}
                   <div className="flex-1 min-w-0" onClick={() => onSelect(conv)}>
                     <div className="flex items-start justify-between gap-2">
-                      <span className="font-medium truncate flex-1 min-w-0">
-                        {conv.is_group 
-                          ? (conv.group_name || 'Grupo sem nome')
-                          : (conv.contact_name || conv.contact_phone || 'Desconhecido')}
-                      </span>
+                      <div className="flex items-center gap-1 flex-1 min-w-0">
+                        {conv.is_pinned && (
+                          <Star className="h-3 w-3 text-amber-500 fill-amber-500 flex-shrink-0" />
+                        )}
+                        <span className="font-medium truncate min-w-0">
+                          {conv.is_group 
+                            ? (conv.group_name || 'Grupo sem nome')
+                            : (conv.contact_name || conv.contact_phone || 'Desconhecido')}
+                        </span>
+                      </div>
                       <span className="text-[10px] text-muted-foreground whitespace-nowrap ml-1">
                         {conv.last_message_at
                           ? formatDistanceToNow(new Date(conv.last_message_at), {
@@ -784,8 +830,8 @@ export function ConversationList({
                     )}
                   </div>
 
-                  {/* Admin actions - only on desktop */}
-                  {!isMobile && isAdmin && (
+                  {/* Actions dropdown - visible to all on desktop */}
+                  {!isMobile && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button
@@ -798,17 +844,30 @@ export function ConversationList({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          className="text-destructive focus:text-destructive"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setConversationToDelete(conv);
-                            setDeleteDialogOpen(true);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Excluir conversa
-                        </DropdownMenuItem>
+                        {onPinConversation && (
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onPinConversation(conv.id, !conv.is_pinned);
+                            }}
+                          >
+                            <Star className={cn("h-4 w-4 mr-2", conv.is_pinned && "text-amber-500 fill-amber-500")} />
+                            {conv.is_pinned ? 'Remover favorito' : 'Marcar como favorito'}
+                          </DropdownMenuItem>
+                        )}
+                        {isAdmin && (
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setConversationToDelete(conv);
+                              setDeleteDialogOpen(true);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Excluir conversa
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   )}

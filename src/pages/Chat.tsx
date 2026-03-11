@@ -965,6 +965,15 @@ const Chat = () => {
                   onReopenConversation={async (id) => {
                     await handleReopenConversation(id);
                   }}
+                  onPinConversation={async (id, pinned) => {
+                    try {
+                      await pinConversation(id, pinned);
+                      setConversations(prev => prev.map(c => c.id === id ? { ...c, is_pinned: pinned } : c));
+                      toast.success(pinned ? 'Conversa marcada como favorita' : 'Favorito removido');
+                    } catch (error: any) {
+                      toast.error(error.message || 'Erro ao favoritar conversa');
+                    }
+                  }}
                   attendanceCounts={attendanceCounts}
                   onGlobalSearchSelect={async (conversationId, messageId) => {
                     try {
