@@ -576,6 +576,19 @@ export function ConversationList({
           )}
 
           <Button
+            variant={showFavoritesOnly ? "default" : "ghost"}
+            size="icon"
+            className={cn(
+              "h-8 w-8 flex-shrink-0 transition-colors",
+              showFavoritesOnly && "bg-amber-500 hover:bg-amber-600 text-white"
+            )}
+            onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+            title={showFavoritesOnly ? "Ver todas" : "Ver favoritas"}
+          >
+            <Star className="h-3 w-3" />
+          </Button>
+
+          <Button
             variant={filters.archived ? "default" : "ghost"}
             size="icon"
             className={cn(
