@@ -699,11 +699,16 @@ export function ConversationList({
                   {/* Content */}
                   <div className="flex-1 min-w-0" onClick={() => onSelect(conv)}>
                     <div className="flex items-start justify-between gap-2">
-                      <span className="font-medium truncate flex-1 min-w-0">
-                        {conv.is_group 
-                          ? (conv.group_name || 'Grupo sem nome')
-                          : (conv.contact_name || conv.contact_phone || 'Desconhecido')}
-                      </span>
+                      <div className="flex items-center gap-1 flex-1 min-w-0">
+                        {conv.is_pinned && (
+                          <Star className="h-3 w-3 text-amber-500 fill-amber-500 flex-shrink-0" />
+                        )}
+                        <span className="font-medium truncate min-w-0">
+                          {conv.is_group 
+                            ? (conv.group_name || 'Grupo sem nome')
+                            : (conv.contact_name || conv.contact_phone || 'Desconhecido')}
+                        </span>
+                      </div>
                       <span className="text-[10px] text-muted-foreground whitespace-nowrap ml-1">
                         {conv.last_message_at
                           ? formatDistanceToNow(new Date(conv.last_message_at), {
