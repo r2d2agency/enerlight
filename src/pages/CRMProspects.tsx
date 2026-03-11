@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { format } from "date-fns";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,6 +51,8 @@ export default function CRMProspects() {
   const [search, setSearch] = useState("");
   const [sellerFilter, setSellerFilter] = useState("");
   const [groupFilter, setGroupFilter] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showImport, setShowImport] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -125,8 +128,18 @@ export default function CRMProspects() {
         p.source?.toLowerCase().includes(term)
       );
     }
+    if (dateFrom) {
+      const from = new Date(dateFrom);
+      from.setHours(0, 0, 0, 0);
+      filtered = filtered.filter(p => new Date(p.created_at) >= from);
+    }
+    if (dateTo) {
+      const to = new Date(dateTo);
+      to.setHours(23, 59, 59, 999);
+      filtered = filtered.filter(p => new Date(p.created_at) <= to);
+    }
     return filtered;
-  }, [prospects, search, sellerFilter, groupFilter, groupMembers]);
+  }, [prospects, search, sellerFilter, groupFilter, groupMembers, dateFrom, dateTo]);
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -296,6 +309,30 @@ export default function CRMProspects() {
               </select>
             </div>
           )}
+          <div className="flex gap-2 items-center">
+            <Input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="h-10 w-[140px] text-sm"
+              placeholder="Data início"
+              title="Data início"
+            />
+            <span className="text-muted-foreground text-sm">até</span>
+            <Input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="h-10 w-[140px] text-sm"
+              placeholder="Data fim"
+              title="Data fim"
+            />
+            {(dateFrom || dateTo) && (
+              <Button variant="ghost" size="sm" onClick={() => { setDateFrom(""); setDateTo(""); }}>
+                Limpar
+              </Button>
+            )}
+          </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setShowImport(true)}>
               <Upload className="h-4 w-4 mr-2" />
@@ -376,12 +413,10 @@ export default function CRMProspects() {
               <Send className="h-4 w-4 mr-2" />
               Criar Campanha
             </Button>
-            {(canSelectSeller || isSeller) && (
-              <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
-                <Trash2 className="h-4 w-4 mr-2" />
-                Excluir
-              </Button>
-            )}
+            <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
+              <Trash2 className="h-4 w-4 mr-2" />
+              Excluir
+            </Button>
           </div>
         )}
 
@@ -501,15 +536,13 @@ export default function CRMProspects() {
                                 Converter para Negociação
                               </DropdownMenuItem>
                             )}
-                            {(canSelectSeller || prospect.assigned_to === user?.id) && (
-                              <DropdownMenuItem
+                            <DropdownMenuItem
                                 className="text-destructive"
                                 onClick={() => handleDelete(prospect.id)}
                               >
                                 <Trash2 className="h-4 w-4 mr-2" />
                                 Excluir
                               </DropdownMenuItem>
-                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
