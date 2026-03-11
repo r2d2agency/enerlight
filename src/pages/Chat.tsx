@@ -243,6 +243,16 @@ const Chat = () => {
         // If no is_assigned flags, all connections are assigned (owner/admin/agent)
         setAssignedConnectionIds(data.map((c: any) => c.id));
       }
+
+      // Validate saved connection filter - reset if stale/invalid
+      const savedConn = localStorage.getItem('chat_selected_connection');
+      if (savedConn && savedConn !== 'all') {
+        const connIds = data.map((c: any) => c.id);
+        if (!connIds.includes(savedConn)) {
+          localStorage.setItem('chat_selected_connection', 'all');
+          setFilters(prev => ({ ...prev, connection: 'all' }));
+        }
+      }
     } catch (error) {
       console.error('Error loading connections:', error);
     }
