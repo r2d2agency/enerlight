@@ -22,7 +22,15 @@ async function getUserOrganization(userId) {
 router.get('/', async (req, res) => {
   try {
     const org = await getUserOrganization(req.userId);
-    if (!org) return res.json([]);
+
+    const baseSelect = `SELECT c.*, u.name as created_by_name,
+         CASE 
+           WHEN c.provider IS NOT NULL THEN c.provider 
+           WHEN c.instance_id IS NOT NULL AND c.wapi_token IS NOT NULL THEN 'wapi'
+           ELSE 'evolution'
+         END as provider
+         FROM connections c
+         LEFT JOIN users u ON c.user_id = u.id`;
 
     // Check if user has specific connection assignments
     const specificResult = await query(
@@ -34,33 +42,30 @@ router.get('/', async (req, res) => {
     if (assignedConnIds.length > 0) {
       // User has assigned connections - return only those
       const result = await query(
-        `SELECT c.*, u.name as created_by_name,
-         CASE 
-           WHEN c.provider IS NOT NULL THEN c.provider 
-           WHEN c.instance_id IS NOT NULL AND c.wapi_token IS NOT NULL THEN 'wapi'
-           ELSE 'evolution'
-         END as provider
-         FROM connections c
-         LEFT JOIN users u ON c.user_id = u.id
-         WHERE c.id = ANY($1)
+        `${baseSelect}
+         WHERE c.id = ANY($1::uuid[])
          ORDER BY c.created_at DESC`,
         [assignedConnIds]
       );
       return res.json(result.rows.map(r => ({ ...r, is_assigned: true })));
     }
 
+    // User without organization membership: fallback to own created connections
+    if (!org) {
+      const ownResult = await query(
+        `${baseSelect}
+         WHERE c.user_id = $1
+         ORDER BY c.created_at DESC`,
+        [req.userId]
+      );
+      return res.json(ownResult.rows);
+    }
+
     // No assignments: Owner/Admin/Manager/Supervisor fallback to ALL org connections
     const isHighRole = ['owner', 'admin', 'manager', 'supervisor'].includes(org.role);
     if (isHighRole) {
       const result = await query(
-        `SELECT c.*, u.name as created_by_name,
-         CASE 
-           WHEN c.provider IS NOT NULL THEN c.provider 
-           WHEN c.instance_id IS NOT NULL AND c.wapi_token IS NOT NULL THEN 'wapi'
-           ELSE 'evolution'
-         END as provider
-         FROM connections c
-         LEFT JOIN users u ON c.user_id = u.id
+        `${baseSelect}
          WHERE c.organization_id = $1
          ORDER BY c.created_at DESC`,
         [org.organization_id]

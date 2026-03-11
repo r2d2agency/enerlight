@@ -565,7 +565,7 @@ export function ConversationList({
                 <SelectValue placeholder="Conexão" />
               </SelectTrigger>
               <SelectContent>
-                {connections.length > 1 && <SelectItem value="all">Todas</SelectItem>}
+                <SelectItem value="all">Todas</SelectItem>
                 {connections.map(conn => (
                   <SelectItem key={conn.id} value={conn.id}>
                     {conn.name || conn.id.slice(0, 8)}

@@ -450,6 +450,8 @@ router.get('/conversations', authenticate, async (req, res) => {
       hasSpecificConnections = parseInt(connCheckResult.rows[0]?.cnt || 0) > 0;
     } catch (e) { /* table may not exist */ }
 
+    const allowedConnectionIds = new Set(connectionIds.map(id => String(id)));
+
     const buildQuery = (supportsAttendance = true, supportsDepartment = true) => {
       let sql = `
         SELECT 
@@ -496,9 +498,14 @@ router.get('/conversations', authenticate, async (req, res) => {
       }
 
       if (connection && connection !== 'all') {
-        sql += ` AND conv.connection_id = $${paramIndex}`;
-        params.push(connection);
-        paramIndex++;
+        const requestedConnection = String(connection);
+        if (allowedConnectionIds.has(requestedConnection)) {
+          sql += ` AND conv.connection_id = $${paramIndex}`;
+          params.push(requestedConnection);
+          paramIndex++;
+        } else {
+          console.log(`[GET /conversations] Ignoring inaccessible connection filter: ${requestedConnection}`);
+        }
       }
 
       if (search) {
