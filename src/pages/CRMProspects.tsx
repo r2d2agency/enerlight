@@ -41,7 +41,7 @@ import {
   Users,
 } from "lucide-react";
 import { useProspects, Prospect } from "@/hooks/use-prospects";
-import { useCRMFunnels } from "@/hooks/use-crm";
+import { useCRMFunnels, useCRMGroups, useCRMGroupMembers } from "@/hooks/use-crm";
 import { useCRMOrgMembers } from "@/hooks/use-sales-positions";
 import { useAuth } from "@/contexts/AuthContext";
 import ProspectImportDialog from "@/components/crm/ProspectImportDialog";
