@@ -97,8 +97,19 @@ export default function CRMProspects() {
   const [bulkCreateCompanies, setBulkCreateCompanies] = useState(false);
   const [bulkOwnerId, setBulkOwnerId] = useState("");
 
+  const isSeller = user?.role === 'seller';
+
   const filteredProspects = useMemo(() => {
     let filtered = prospects;
+
+    // Vendedores só veem prospects atribuídos a eles
+    if (isSeller && user?.id) {
+      filtered = filtered.filter(p => {
+        const assignedId = p.assigned_to || (p as any).created_by;
+        return assignedId === user.id;
+      });
+    }
+
     if (groupFilter && groupMembers.length > 0) {
       const memberIds = new Set(groupMembers.map(gm => gm.user_id));
       filtered = filtered.filter(p => {
@@ -121,7 +132,7 @@ export default function CRMProspects() {
       );
     }
     return filtered;
-  }, [prospects, search, sellerFilter, groupFilter, groupMembers]);
+  }, [prospects, search, sellerFilter, groupFilter, groupMembers, isSeller, user?.id]);
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
