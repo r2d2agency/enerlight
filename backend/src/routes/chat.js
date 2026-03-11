@@ -473,7 +473,7 @@ router.get('/conversations', authenticate, async (req, res) => {
         LEFT JOIN users u ON u.id = conv.assigned_to
         ${supportsAttendance ? 'LEFT JOIN users ua ON ua.id = conv.accepted_by' : ''}
         ${supportsDepartment ? 'LEFT JOIN departments d ON d.id = conv.department_id' : ''}
-        WHERE conv.connection_id = ANY($1)
+        WHERE conv.connection_id = ANY($1::uuid[])
       `;
 
       const params = [connectionIds];
