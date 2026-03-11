@@ -44,15 +44,7 @@ async function getUserConnections(userId) {
     [userId]
   );
   
-  // Manager/Supervisor sees ALL org connections (supervisor mode for unassigned)
-  if (userOrg && ['manager', 'supervisor'].includes(userOrg.role)) {
-    const allConns = await query(
-      `SELECT id FROM connections WHERE organization_id = $1`,
-      [userOrg.organization_id]
-    );
-    return allConns.rows.map(r => r.id);
-  }
-
+  // If user has specific connection assignments, use only those
   if (specificResult.rows.length > 0) {
     return specificResult.rows.map(r => r.id);
   }
@@ -115,7 +107,7 @@ router.get('/conversations/attendance-counts', authenticate, async (req, res) =>
       return parseInt(r.rows[0]?.cnt || 0) > 0;
     })();
 
-    if (!isAdminOnly && !isManager && !isDesignerRole && !isSupervisorInAnyDept && !hasSpecificConns) {
+    if (!isAdminOnly && !isDesignerRole && !isSupervisorInAnyDept && !hasSpecificConns) {
       if (userDepartmentIds.length > 0) {
         visibilityFilter = ` AND (
           conv.assigned_to = $${paramIndex}
@@ -533,7 +525,7 @@ router.get('/conversations', authenticate, async (req, res) => {
       }
 
       // DEPARTMENT-BASED VISIBILITY FILTER
-      if (supportsDepartment && !isAdminOnly && !isManager && !isDesigner && !isSupervisorInAnyDept && !hasSpecificConnections) {
+      if (supportsDepartment && !isAdminOnly && !isDesigner && !isSupervisorInAnyDept && !hasSpecificConnections) {
         // Non-admin users WITHOUT specific connections: apply department visibility restrictions
         if (userDepartmentIds.length > 0) {
           sql += ` AND (
