@@ -43,17 +43,20 @@ async function getUserConnections(userId) {
     specificResult = await query(
       `SELECT DISTINCT cm.connection_id as id
        FROM connection_members cm
+       JOIN connections c ON c.id = cm.connection_id
        WHERE cm.user_id = $1`,
       [userId]
     );
-    console.log(`[getUserConnections] connection_members found: ${specificResult.rows.length}`, specificResult.rows.map(r => r.id));
+    console.log(`[getUserConnections] connection_members found: ${specificResult.rows.length}`, JSON.stringify(specificResult.rows.map(r => r.id)));
   } catch (err) {
     console.log(`[getUserConnections] connection_members table error: ${err.message}`);
   }
   
   // If user has specific connection assignments, use only those
   if (specificResult.rows.length > 0) {
-    return specificResult.rows.map(r => r.id);
+    const ids = specificResult.rows.map(r => r.id);
+    console.log(`[getUserConnections] returning assigned connections:`, JSON.stringify(ids));
+    return ids;
   }
   
   // Owner/Admin/Manager/Supervisor without connection_members: fallback to ALL org connections
