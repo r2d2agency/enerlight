@@ -418,6 +418,7 @@ router.get('/conversations', authenticate, async (req, res) => {
     const userOrg = await getUserOrganization(req.userId);
     const isAdminOnly = userOrg && ['owner', 'admin'].includes(userOrg.role);
     const isManager = userOrg && userOrg.role === 'manager';
+    const isDesigner = userOrg && userOrg.role === 'designer';
     
     // Get all departments the user belongs to
     const userDeptsResult = await query(
