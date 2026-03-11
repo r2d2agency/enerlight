@@ -92,7 +92,15 @@ export default function CRMNegociacoes() {
   
   const { data: funnels, isLoading: loadingFunnels } = useCRMFunnels();
   const { data: teamMembers } = useCRMMyTeam();
+  const { data: groups = [] } = useCRMGroups();
+  const { data: groupMembers = [] } = useCRMGroupMembers(groupFilter !== "all" ? groupFilter : null);
   const { updateDeal, bulkDeleteDeals, bulkMoveDeals } = useCRMDealMutations();
+
+  const filteredTeamMembers = useMemo(() => {
+    if (groupFilter === "all" || !groupMembers.length) return teamMembers || [];
+    const memberIds = new Set(groupMembers.map(gm => gm.user_id));
+    return (teamMembers || []).filter(m => memberIds.has(m.user_id));
+  }, [teamMembers, groupFilter, groupMembers]);
   
   // Auto-select first funnel
   const currentFunnelId = selectedFunnelId || funnels?.[0]?.id || null;
