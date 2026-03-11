@@ -115,7 +115,7 @@ router.get('/conversations/attendance-counts', authenticate, async (req, res) =>
       return parseInt(r.rows[0]?.cnt || 0) > 0;
     })();
 
-    if (!isAdminOnly && !isManager && !isSupervisorInAnyDept && !hasSpecificConns) {
+    if (!isAdminOnly && !isManager && !isDesignerRole && !isSupervisorInAnyDept && !hasSpecificConns) {
       if (userDepartmentIds.length > 0) {
         visibilityFilter = ` AND (
           conv.assigned_to = $${paramIndex}
