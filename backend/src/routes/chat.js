@@ -3135,9 +3135,9 @@ router.post('/conversations/:id/agent-session/takeover', authenticate, async (re
 // Forward a message to another user (creates a notification / internal record)
 router.post('/messages/forward', authenticate, async (req, res) => {
   try {
-    const { message_id, conversation_id, forward_to_user_id, content, message_type, media_url } = req.body;
+    const { message_id, conversation_id, forward_to_user_id, forward_to_conversation_id, content, message_type, media_url } = req.body;
     
-    if (!forward_to_user_id) {
+    if (!forward_to_user_id && !forward_to_conversation_id) {
       return res.status(400).json({ error: 'Destinatário obrigatório' });
     }
 
@@ -3160,7 +3160,71 @@ router.post('/messages/forward', authenticate, async (req, res) => {
       }
     }
 
-    // Try to create an internal notification (uses external_notifications table if available)
+    // Forward to a WhatsApp conversation (send the message via WhatsApp)
+    if (forward_to_conversation_id) {
+      const connectionIds = await getUserConnections(req.userId);
+      const targetConv = await query(
+        `SELECT c.*, conn.api_url, conn.api_key, conn.instance_name, conn.provider, conn.instance_id, conn.wapi_token
+         FROM conversations c
+         JOIN connections conn ON conn.id = c.connection_id
+         WHERE c.id = $1 AND c.connection_id = ANY($2)`,
+        [forward_to_conversation_id, connectionIds]
+      );
+      
+      if (targetConv.rows.length === 0) {
+        return res.status(404).json({ error: 'Conversa de destino não encontrada' });
+      }
+      
+      const target = targetConv.rows[0];
+      const forwardPrefix = `*Encaminhado de ${convInfo}:*\n`;
+      const forwardContent = `${forwardPrefix}${content || ''}`;
+      
+      // Build to address
+      const isGroup = String(target.remote_jid || '').includes('@g.us') || target.is_group === true;
+      let to;
+      if (isGroup) {
+        to = target.remote_jid;
+      } else {
+        const jid = String(target.remote_jid || '');
+        if (jid.includes('@lid') && target.contact_phone) {
+          to = target.contact_phone;
+        } else {
+          to = jid.replace('@s.whatsapp.net', '').replace('@c.us', '').replace('@lid', '');
+        }
+      }
+      
+      // Save message to DB
+      const savedMsg = await query(
+        `INSERT INTO chat_messages (conversation_id, from_me, sender_id, sender_name, content, message_type, media_url, status, timestamp)
+         VALUES ($1, true, $2, $3, $4, $5, $6, 'pending', NOW()) RETURNING *`,
+        [forward_to_conversation_id, req.userId, senderName, forwardContent, message_type || 'text', media_url || null]
+      );
+
+      // Update last_message on target conversation
+      await query(
+        `UPDATE conversations SET last_message = $1, last_message_at = NOW(), last_message_type = $2, updated_at = NOW() WHERE id = $3`,
+        [forwardContent, message_type || 'text', forward_to_conversation_id]
+      );
+
+      // Send via WhatsApp in background
+      (async () => {
+        try {
+          const result = await whatsappProvider.sendMessage(target, to, forwardContent, message_type || 'text', media_url || null);
+          if (result.success) {
+            await query(`UPDATE chat_messages SET message_id = $1, status = 'sent' WHERE id = $2`, [result.messageId || null, savedMsg.rows[0].id]);
+          } else {
+            throw new Error(result.error || 'Falha ao enviar');
+          }
+        } catch (err) {
+          console.error('Forward send error:', err.message);
+          await query(`UPDATE chat_messages SET status = 'failed', error_message = $1 WHERE id = $2`, [err.message, savedMsg.rows[0].id]).catch(() => {});
+        }
+      })();
+      
+      return res.json({ success: true, forwarded_to_conversation: forward_to_conversation_id });
+    }
+
+    // Forward to team member (internal notification)
     try {
       await query(
         `INSERT INTO external_notifications (user_id, title, body, type, reference_id, reference_type)
@@ -3173,7 +3237,6 @@ router.post('/messages/forward', authenticate, async (req, res) => {
         ]
       );
     } catch (notifErr) {
-      // If notification table doesn't exist, just log
       console.log('Forward notification skipped (table may not exist):', notifErr.message);
     }
 
