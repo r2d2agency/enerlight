@@ -309,6 +309,30 @@ export default function CRMProspects() {
               </select>
             </div>
           )}
+          <div className="flex gap-2 items-center">
+            <Input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="h-10 w-[140px] text-sm"
+              placeholder="Data início"
+              title="Data início"
+            />
+            <span className="text-muted-foreground text-sm">até</span>
+            <Input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="h-10 w-[140px] text-sm"
+              placeholder="Data fim"
+              title="Data fim"
+            />
+            {(dateFrom || dateTo) && (
+              <Button variant="ghost" size="sm" onClick={() => { setDateFrom(""); setDateTo(""); }}>
+                Limpar
+              </Button>
+            )}
+          </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setShowImport(true)}>
               <Upload className="h-4 w-4 mr-2" />
