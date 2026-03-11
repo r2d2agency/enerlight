@@ -2767,10 +2767,12 @@ router.get('/prospects', async (req, res) => {
     }
 
     const result = await query(
-      `SELECT id, name, phone, source, city, state, address, zip_code, is_company, assigned_to, converted_at, converted_deal_id, created_at, email, custom_fields
-       FROM crm_prospects
-       WHERE organization_id = $1${visibilityFilter}
-       ORDER BY created_at DESC`,
+      `SELECT p.id, p.name, p.phone, p.source, p.city, p.state, p.address, p.zip_code, p.is_company, p.assigned_to, p.converted_at, p.converted_deal_id, p.created_at, p.email, p.custom_fields, p.created_by,
+              u.name as assigned_name
+       FROM crm_prospects p
+       LEFT JOIN users u ON u.id = COALESCE(p.assigned_to, p.created_by)
+       WHERE p.organization_id = $1${visibilityFilter}
+       ORDER BY p.created_at DESC`,
       params
     );
     res.json(result.rows);

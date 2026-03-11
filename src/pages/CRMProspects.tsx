@@ -398,9 +398,9 @@ export default function CRMProspects() {
                         )}
                       </TableCell>
                       <TableCell>
-                        {prospect.assigned_to ? (
+                        {(prospect as any).assigned_name ? (
                           <span className="text-sm">
-                            {orgMembers.find(m => m.id === prospect.assigned_to)?.name || "—"}
+                            {(prospect as any).assigned_name}
                           </span>
                         ) : (
                           <span className="text-muted-foreground text-sm">—</span>
