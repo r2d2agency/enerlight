@@ -412,8 +412,10 @@ router.get('/conversations/unread', authenticate, async (req, res) => {
 router.get('/conversations', authenticate, async (req, res) => {
   try {
     const connectionIds = await getUserConnections(req.userId);
+    console.log(`[GET /conversations] userId=${req.userId}, connectionIds=${JSON.stringify(connectionIds)}, query=`, req.query);
     
     if (connectionIds.length === 0) {
+      console.log(`[GET /conversations] No connections found, returning empty array`);
       return res.json([]);
     }
 
