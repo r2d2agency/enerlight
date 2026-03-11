@@ -578,9 +578,12 @@ router.get('/conversations', authenticate, async (req, res) => {
     let result;
     try {
       const { sql, params } = buildQuery(true, true);
+      console.log(`[GET /conversations] SQL params[0] (connectionIds):`, JSON.stringify(params[0]));
       result = await query(sql, params);
+      console.log(`[GET /conversations] returned ${result.rows.length} conversations`);
     } catch (error) {
       const message = String(error?.message || '');
+      console.error(`[GET /conversations] Query error:`, message);
       const missingAttendanceColumns = /attendance_status|accepted_by|accepted_at/i.test(message);
       const missingDepartmentColumn = /department_id/i.test(message);
       
