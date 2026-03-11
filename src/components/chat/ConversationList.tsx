@@ -165,6 +165,7 @@ export function ConversationList({
   const [profilePictures, setProfilePictures] = useState<Record<string, string>>({});
   const [myDepartments, setMyDepartments] = useState<Department[]>([]);
   const [allDepartments, setAllDepartments] = useState<Department[]>([]);
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
   // Generate stable colors for connections
   const connectionColors = (() => {
