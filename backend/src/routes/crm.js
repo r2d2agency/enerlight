@@ -3083,13 +3083,22 @@ router.post('/prospects/:id/convert', async (req, res) => {
 
     // Create deal with company if applicable - use explicit owner_id, then prospect's assigned_to, then current user
     const dealOwner = owner_id || prospect.assigned_to || req.userId;
+    const resolvedCompanyId = company_id || (await ensureDefaultCompanyId(org.organization_id, req.userId));
     const dealResult = await query(
-      `INSERT INTO crm_deals (organization_id, funnel_id, stage_id, title, contact_id, company_id, assigned_to, owner_id, source)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $7, 'prospect')
+      `INSERT INTO crm_deals (organization_id, funnel_id, stage_id, title, company_id, owner_id, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING id`,
-      [org.organization_id, funnel_id, stage_id, title || prospect.name, contact_id, company_id, dealOwner]
+      [org.organization_id, funnel_id, stage_id, title || prospect.name, resolvedCompanyId, dealOwner, req.userId]
     );
     const deal_id = dealResult.rows[0].id;
+
+    // Link contact to deal via junction table
+    if (contact_id) {
+      await query(
+        `INSERT INTO crm_deal_contacts (deal_id, contact_id, is_primary) VALUES ($1, $2, true) ON CONFLICT DO NOTHING`,
+        [deal_id, contact_id]
+      );
+    }
 
     // Mark prospect as converted
     await query(
@@ -3194,12 +3203,21 @@ router.post('/prospects/bulk-convert', async (req, res) => {
 
         // Create deal - use explicit owner_id, then prospect's assigned_to, then current user
         const dealOwner = owner_id || prospect.assigned_to || req.userId;
+        const resolvedCompanyId = companyId || (await ensureDefaultCompanyId(org.organization_id, req.userId));
         const dealResult = await query(
-          `INSERT INTO crm_deals (organization_id, funnel_id, stage_id, title, contact_id, company_id, source, responsible_id, owner_id, assigned_to)
-           VALUES ($1, $2, $3, $4, $5, $6, 'prospect', $7, $7, $7)
+          `INSERT INTO crm_deals (organization_id, funnel_id, stage_id, title, company_id, owner_id, created_by)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)
            RETURNING id`,
-          [org.organization_id, funnel_id, stage_id, prospect.name, contactId, companyId, dealOwner]
+          [org.organization_id, funnel_id, stage_id, prospect.name, resolvedCompanyId, dealOwner, req.userId]
         );
+
+        // Link contact to deal via junction table
+        if (contactId) {
+          await query(
+            `INSERT INTO crm_deal_contacts (deal_id, contact_id, is_primary) VALUES ($1, $2, true) ON CONFLICT DO NOTHING`,
+            [dealResult.rows[0].id, contactId]
+          );
+        }
 
         // Mark prospect as converted
         await query(
