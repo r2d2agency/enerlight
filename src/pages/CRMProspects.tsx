@@ -507,13 +507,15 @@ export default function CRMProspects() {
                                 Converter para Negociação
                               </DropdownMenuItem>
                             )}
-                            <DropdownMenuItem
-                              className="text-destructive"
-                              onClick={() => handleDelete(prospect.id)}
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Excluir
-                            </DropdownMenuItem>
+                            {canSelectSeller && (
+                              <DropdownMenuItem
+                                className="text-destructive"
+                                onClick={() => handleDelete(prospect.id)}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Excluir
+                              </DropdownMenuItem>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
