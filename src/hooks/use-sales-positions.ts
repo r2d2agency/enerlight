@@ -29,6 +29,8 @@ export function useCRMOrgMembers() {
   return useQuery({
     queryKey: ["crm-org-members"],
     queryFn: () => api<OrgMember[]>("/api/crm/org-members"),
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
   });
 }
 
