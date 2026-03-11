@@ -48,6 +48,7 @@ import ProspectImportDialog from "@/components/crm/ProspectImportDialog";
 
 export default function CRMProspects() {
   const [search, setSearch] = useState("");
+  const [sellerFilter, setSellerFilter] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showImport, setShowImport] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -87,14 +88,23 @@ export default function CRMProspects() {
   const [bulkOwnerId, setBulkOwnerId] = useState("");
 
   const filteredProspects = useMemo(() => {
-    if (!search.trim()) return prospects;
-    const term = search.toLowerCase();
-    return prospects.filter(p =>
-      p.name?.toLowerCase().includes(term) ||
-      p.phone?.toLowerCase().includes(term) ||
-      p.source?.toLowerCase().includes(term)
-    );
-  }, [prospects, search]);
+    let filtered = prospects;
+    if (sellerFilter) {
+      filtered = filtered.filter(p => {
+        const assignedId = p.assigned_to || (p as any).created_by;
+        return assignedId === sellerFilter;
+      });
+    }
+    if (search.trim()) {
+      const term = search.toLowerCase();
+      filtered = filtered.filter(p =>
+        p.name?.toLowerCase().includes(term) ||
+        p.phone?.toLowerCase().includes(term) ||
+        p.source?.toLowerCase().includes(term)
+      );
+    }
+    return filtered;
+  }, [prospects, search, sellerFilter]);
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -240,6 +250,18 @@ export default function CRMProspects() {
               className="pl-10"
             />
           </div>
+          {canSelectSeller && (
+            <select
+              className="h-10 px-3 border rounded-md bg-background text-sm min-w-[160px]"
+              value={sellerFilter}
+              onChange={(e) => setSellerFilter(e.target.value)}
+            >
+              <option value="">Todos os vendedores</option>
+              {orgMembers.filter(m => m.is_active !== false).map(m => (
+                <option key={m.id} value={m.id}>{m.name}</option>
+              ))}
+            </select>
+          )}
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setShowImport(true)}>
               <Upload className="h-4 w-4 mr-2" />
