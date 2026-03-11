@@ -261,16 +261,28 @@ export default function CRMProspects() {
             />
           </div>
           {canSelectSeller && (
-            <select
-              className="h-10 px-3 border rounded-md bg-background text-sm min-w-[160px]"
-              value={sellerFilter}
-              onChange={(e) => setSellerFilter(e.target.value)}
-            >
-              <option value="">Todos os vendedores</option>
-              {orgMembers.filter(m => m.is_active !== false).map(m => (
-                <option key={m.id} value={m.id}>{m.name}</option>
-              ))}
-            </select>
+            <div className="flex gap-2">
+              <select
+                className="h-10 px-3 border rounded-md bg-background text-sm min-w-[140px]"
+                value={groupFilter}
+                onChange={(e) => { setGroupFilter(e.target.value); setSellerFilter(""); }}
+              >
+                <option value="">Todos os grupos</option>
+                {groups.map(g => (
+                  <option key={g.id} value={g.id}>{g.name}</option>
+                ))}
+              </select>
+              <select
+                className="h-10 px-3 border rounded-md bg-background text-sm min-w-[160px]"
+                value={sellerFilter}
+                onChange={(e) => setSellerFilter(e.target.value)}
+              >
+                <option value="">Todos os vendedores</option>
+                {visibleSellers.map(m => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+              </select>
+            </div>
           )}
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setShowImport(true)}>
