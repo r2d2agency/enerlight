@@ -3601,16 +3601,15 @@ router.get('/org-members', async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
-    // Check caller role
-    const callerRole = await query(
-      `SELECT om.role FROM organization_members om WHERE om.user_id = $1 AND om.organization_id = $2`,
-      [req.userId, org.organization_id]
+
+    // Check if is_active column exists
+    const colCheck = await query(
+      `SELECT 1 FROM information_schema.columns WHERE table_name = 'organization_members' AND column_name = 'is_active' LIMIT 1`
     );
-    const role = callerRole.rows[0]?.role || 'seller';
-    const showAll = ['owner', 'admin', 'manager', 'supervisor'].includes(role);
+    const hasIsActive = colCheck.rows.length > 0;
 
     const result = await query(
-      `SELECT u.id, u.name, u.email, COALESCE(om.is_active, true) as is_active FROM users u
+      `SELECT u.id, u.name, u.email${hasIsActive ? ', COALESCE(om.is_active, true) as is_active' : ', true as is_active'} FROM users u
        JOIN organization_members om ON om.user_id = u.id
        WHERE om.organization_id = $1
        ORDER BY u.name`,
