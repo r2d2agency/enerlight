@@ -35,29 +35,38 @@ async function getUserConnections(userId) {
     [userId]
   );
   const userOrg = orgResult.rows[0] || null;
+  console.log(`[getUserConnections] userId=${userId}, org=${userOrg?.organization_id}, role=${userOrg?.role}`);
   
   // All roles: check specific connection assignments
-  const specificResult = await query(
-    `SELECT DISTINCT cm.connection_id as id
-     FROM connection_members cm
-     WHERE cm.user_id = $1`,
-    [userId]
-  );
+  let specificResult = { rows: [] };
+  try {
+    specificResult = await query(
+      `SELECT DISTINCT cm.connection_id as id
+       FROM connection_members cm
+       WHERE cm.user_id = $1`,
+      [userId]
+    );
+    console.log(`[getUserConnections] connection_members found: ${specificResult.rows.length}`, specificResult.rows.map(r => r.id));
+  } catch (err) {
+    console.log(`[getUserConnections] connection_members table error: ${err.message}`);
+  }
   
   // If user has specific connection assignments, use only those
   if (specificResult.rows.length > 0) {
     return specificResult.rows.map(r => r.id);
   }
   
-  // Owner/Admin without connection_members: fallback to ALL org connections
-  if (userOrg && ['owner', 'admin'].includes(userOrg.role)) {
+  // Owner/Admin/Manager/Supervisor without connection_members: fallback to ALL org connections
+  if (userOrg && ['owner', 'admin', 'manager', 'supervisor'].includes(userOrg.role)) {
     const allConns = await query(
       `SELECT id FROM connections WHERE organization_id = $1`,
       [userOrg.organization_id]
     );
+    console.log(`[getUserConnections] fallback to all org connections: ${allConns.rows.length}`);
     return allConns.rows.map(r => r.id);
   }
   
+  console.log(`[getUserConnections] NO connections found for user`);
   // No connection assignments = no access
   return [];
 }
