@@ -450,6 +450,8 @@ router.get('/conversations', authenticate, async (req, res) => {
       hasSpecificConnections = parseInt(connCheckResult.rows[0]?.cnt || 0) > 0;
     } catch (e) { /* table may not exist */ }
 
+    const allowedConnectionIds = new Set(connectionIds.map(id => String(id)));
+
     const buildQuery = (supportsAttendance = true, supportsDepartment = true) => {
       let sql = `
         SELECT 
