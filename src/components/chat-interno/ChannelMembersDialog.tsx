@@ -55,7 +55,7 @@ export function ChannelMembersDialog({ channelId, channelName, open, onOpenChang
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[85vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Users className="h-5 w-5 text-primary" />
@@ -109,8 +109,8 @@ export function ChannelMembersDialog({ channelId, channelName, open, onOpenChang
               className="pl-8 h-9 text-sm"
             />
           </div>
-          <ScrollArea className="max-h-48">
-            <div className="space-y-1">
+          <ScrollArea className="flex-1 min-h-0 max-h-[300px]">
+            <div className="space-y-1 pr-3">
               {availableUsers.length === 0 ? (
                 <p className="text-xs text-muted-foreground text-center py-3">
                   {search ? "Nenhum usuário encontrado" : "Todos os usuários já são membros"}

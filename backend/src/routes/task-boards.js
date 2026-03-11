@@ -40,7 +40,7 @@ router.get('/members', async (req, res) => {
     const result = await pool.query(
       `SELECT u.id, u.name, u.email FROM users u
        JOIN organization_members om ON om.user_id = u.id
-       WHERE om.organization_id = $1
+       WHERE om.organization_id = $1 AND COALESCE(om.is_active, true) = true
        ORDER BY u.name`,
       [req.user.organization_id]
     );

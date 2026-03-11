@@ -534,7 +534,7 @@ router.get('/org-members', async (req, res) => {
     const orgId = await getUserOrg(req.userId);
     if (!orgId) return res.json([]);
     const result = await pool.query(
-      `SELECT u.id, u.name, u.email FROM organization_members om JOIN users u ON u.id = om.user_id WHERE om.organization_id = $1 ORDER BY u.name`,
+      `SELECT u.id, u.name, u.email FROM organization_members om JOIN users u ON u.id = om.user_id WHERE om.organization_id = $1 AND COALESCE(om.is_active, true) = true ORDER BY u.name`,
       [orgId]
     );
     res.json(result.rows);
