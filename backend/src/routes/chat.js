@@ -89,6 +89,7 @@ router.get('/conversations/attendance-counts', authenticate, async (req, res) =>
     const userOrg = await getUserOrganization(req.userId);
     const isAdminOnly = userOrg && ['owner', 'admin'].includes(userOrg.role);
     const isManager = userOrg && userOrg.role === 'manager';
+    const isDesignerRole = userOrg && userOrg.role === 'designer';
     const userDeptsResult = await query(
       `SELECT department_id, role FROM department_members WHERE user_id = $1`,
       [req.userId]
@@ -114,7 +115,7 @@ router.get('/conversations/attendance-counts', authenticate, async (req, res) =>
       return parseInt(r.rows[0]?.cnt || 0) > 0;
     })();
 
-    if (!isAdminOnly && !isManager && !isSupervisorInAnyDept && !hasSpecificConns) {
+    if (!isAdminOnly && !isManager && !isDesignerRole && !isSupervisorInAnyDept && !hasSpecificConns) {
       if (userDepartmentIds.length > 0) {
         visibilityFilter = ` AND (
           conv.assigned_to = $${paramIndex}
@@ -418,6 +419,7 @@ router.get('/conversations', authenticate, async (req, res) => {
     const userOrg = await getUserOrganization(req.userId);
     const isAdminOnly = userOrg && ['owner', 'admin'].includes(userOrg.role);
     const isManager = userOrg && userOrg.role === 'manager';
+    const isDesigner = userOrg && userOrg.role === 'designer';
     
     // Get all departments the user belongs to
     const userDeptsResult = await query(
@@ -531,7 +533,7 @@ router.get('/conversations', authenticate, async (req, res) => {
       }
 
       // DEPARTMENT-BASED VISIBILITY FILTER
-      if (supportsDepartment && !isAdminOnly && !isManager && !isSupervisorInAnyDept && !hasSpecificConnections) {
+      if (supportsDepartment && !isAdminOnly && !isManager && !isDesigner && !isSupervisorInAnyDept && !hasSpecificConnections) {
         // Non-admin users WITHOUT specific connections: apply department visibility restrictions
         if (userDepartmentIds.length > 0) {
           sql += ` AND (

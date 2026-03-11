@@ -1299,7 +1299,7 @@ export function CRMSidePanel({
                     </div>
                   </AccordionTrigger>
                   <AccordionContent>
-                    <div className="space-y-2">
+                    <div className="space-y-2 max-h-[50vh] overflow-y-auto pr-1">
                       {contactProjects.map((project) => {
                         const progress = project.total_tasks > 0
                           ? Math.round((project.completed_tasks / project.total_tasks) * 100)
