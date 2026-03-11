@@ -22,45 +22,17 @@ async function getUserOrganization(userId) {
 router.get('/', async (req, res) => {
   try {
     const org = await getUserOrganization(req.userId);
-    const isHighRole = org && ['owner', 'admin'].includes(org.role);
+    if (!org) return res.json([]);
 
     // Check if user has specific connection assignments
     const specificResult = await query(
       `SELECT DISTINCT cm.connection_id FROM connection_members cm WHERE cm.user_id = $1`,
       [req.userId]
     );
-    
     const assignedConnIds = specificResult.rows.map(r => r.connection_id);
 
-    // Owner/Admin/Manager/Supervisor sees ALL connections in the organization
-    const isManagerRole = org && ['manager', 'supervisor'].includes(org.role);
-    if ((isHighRole || isManagerRole) && org) {
-      const result = await query(
-        `SELECT c.*, u.name as created_by_name,
-         CASE 
-           WHEN c.provider IS NOT NULL THEN c.provider 
-           WHEN c.instance_id IS NOT NULL AND c.wapi_token IS NOT NULL THEN 'wapi'
-           ELSE 'evolution'
-         END as provider
-         FROM connections c
-         LEFT JOIN users u ON c.user_id = u.id
-         WHERE c.organization_id = $1
-         ORDER BY c.created_at DESC`,
-        [org.organization_id]
-      );
-      // For managers, mark which connections are assigned to them
-      if (isManagerRole) {
-        const rows = result.rows.map(r => ({
-          ...r,
-          is_assigned: assignedConnIds.includes(r.id),
-        }));
-        return res.json(rows);
-      }
-      return res.json(result.rows);
-    }
-
     if (assignedConnIds.length > 0) {
-      // User has specific connections assigned - return only those
+      // User has assigned connections - return only those
       const result = await query(
         `SELECT c.*, u.name as created_by_name,
          CASE 
@@ -74,10 +46,29 @@ router.get('/', async (req, res) => {
          ORDER BY c.created_at DESC`,
         [assignedConnIds]
       );
+      return res.json(result.rows.map(r => ({ ...r, is_assigned: true })));
+    }
+
+    // No assignments: Owner/Admin fallback to ALL org connections
+    const isHighRole = ['owner', 'admin'].includes(org.role);
+    if (isHighRole) {
+      const result = await query(
+        `SELECT c.*, u.name as created_by_name,
+         CASE 
+           WHEN c.provider IS NOT NULL THEN c.provider 
+           WHEN c.instance_id IS NOT NULL AND c.wapi_token IS NOT NULL THEN 'wapi'
+           ELSE 'evolution'
+         END as provider
+         FROM connections c
+         LEFT JOIN users u ON c.user_id = u.id
+         WHERE c.organization_id = $1
+         ORDER BY c.created_at DESC`,
+        [org.organization_id]
+      );
       return res.json(result.rows);
     }
 
-    // No connection assignments at all: empty list
+    // No assignments and not owner/admin: empty
     res.json([]);
   } catch (error) {
     console.error('List connections error:', error);
