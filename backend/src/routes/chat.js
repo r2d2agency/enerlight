@@ -498,9 +498,14 @@ router.get('/conversations', authenticate, async (req, res) => {
       }
 
       if (connection && connection !== 'all') {
-        sql += ` AND conv.connection_id = $${paramIndex}`;
-        params.push(connection);
-        paramIndex++;
+        const requestedConnection = String(connection);
+        if (allowedConnectionIds.has(requestedConnection)) {
+          sql += ` AND conv.connection_id = $${paramIndex}`;
+          params.push(requestedConnection);
+          paramIndex++;
+        } else {
+          console.log(`[GET /conversations] Ignoring inaccessible connection filter: ${requestedConnection}`);
+        }
       }
 
       if (search) {

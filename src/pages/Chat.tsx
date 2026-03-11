@@ -245,26 +245,26 @@ const Chat = () => {
         setAssignedConnectionIds(data.map((c: any) => c.id));
       }
 
-      // Validate saved connection filter - reset if stale/invalid
-      const savedConn = localStorage.getItem('chat_selected_connection');
-      if (savedConn && savedConn !== 'all') {
-        const connIds = data.map((c: any) => c.id);
-        if (!connIds.includes(savedConn)) {
-          // Saved connection no longer accessible - reset
-          if (data.length === 1) {
-            // Auto-select single connection
-            localStorage.setItem('chat_selected_connection', data[0].id);
-            setFilters(prev => ({ ...prev, connection: data[0].id }));
-          } else {
-            localStorage.setItem('chat_selected_connection', 'all');
-            setFilters(prev => ({ ...prev, connection: 'all' }));
-          }
+      // Reconcile connection filter with current access (handles single-connection users)
+      setFilters(prev => {
+        const accessibleIds = new Set(data.map((c: any) => c.id));
+        let nextConnection = prev.connection;
+
+        if (data.length === 1) {
+          nextConnection = data[0].id;
+        } else if (data.length === 0) {
+          nextConnection = 'all';
+        } else if (nextConnection !== 'all' && !accessibleIds.has(nextConnection)) {
+          nextConnection = 'all';
         }
-      } else if ((!savedConn || savedConn === 'all') && data.length === 1) {
-        // Single connection user - auto-select it instead of 'all'
-        localStorage.setItem('chat_selected_connection', data[0].id);
-        setFilters(prev => ({ ...prev, connection: data[0].id }));
-      }
+
+        if (nextConnection !== prev.connection) {
+          localStorage.setItem('chat_selected_connection', nextConnection);
+          return { ...prev, connection: nextConnection };
+        }
+
+        return prev;
+      });
     } catch (error) {
       console.error('Error loading connections:', error);
     }
