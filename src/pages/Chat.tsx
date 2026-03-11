@@ -234,6 +234,7 @@ const Chat = () => {
   const loadConnections = async () => {
     try {
       const data = await getConnections() as any[];
+      console.log('[Chat] loadConnections: received', data.length, 'connections', data.map((c: any) => ({ id: c.id, name: c.name, is_assigned: c.is_assigned })));
       setConnections(data);
       // Track assigned connections for supervisor mode logic
       const assigned = data.filter((c: any) => c.is_assigned === true).map((c: any) => c.id);
@@ -249,9 +250,20 @@ const Chat = () => {
       if (savedConn && savedConn !== 'all') {
         const connIds = data.map((c: any) => c.id);
         if (!connIds.includes(savedConn)) {
-          localStorage.setItem('chat_selected_connection', 'all');
-          setFilters(prev => ({ ...prev, connection: 'all' }));
+          // Saved connection no longer accessible - reset
+          if (data.length === 1) {
+            // Auto-select single connection
+            localStorage.setItem('chat_selected_connection', data[0].id);
+            setFilters(prev => ({ ...prev, connection: data[0].id }));
+          } else {
+            localStorage.setItem('chat_selected_connection', 'all');
+            setFilters(prev => ({ ...prev, connection: 'all' }));
+          }
         }
+      } else if ((!savedConn || savedConn === 'all') && data.length === 1) {
+        // Single connection user - auto-select it instead of 'all'
+        localStorage.setItem('chat_selected_connection', data[0].id);
+        setFilters(prev => ({ ...prev, connection: data[0].id }));
       }
     } catch (error) {
       console.error('Error loading connections:', error);

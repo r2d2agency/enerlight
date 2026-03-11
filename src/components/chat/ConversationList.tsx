@@ -554,18 +554,18 @@ export function ConversationList({
             </Select>
           )}
 
-          {/* Connection filter - show when user has 2+ connections */}
-          {connections && connections.length > 1 && (
+          {/* Connection filter - show when user has connections */}
+          {connections && connections.length >= 1 && (
             <Select
               value={filters.connection}
               onValueChange={(v) => onFiltersChange({ ...filters, connection: v })}
             >
-              <SelectTrigger className="flex-1 h-8 text-xs min-w-[70px] max-w-[100px]">
+              <SelectTrigger className="flex-1 h-8 text-xs min-w-[70px] max-w-[120px]">
                 <Phone className="h-3 w-3 mr-1" />
                 <SelectValue placeholder="Conexão" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todas</SelectItem>
+                {connections.length > 1 && <SelectItem value="all">Todas</SelectItem>}
                 {connections.map(conn => (
                   <SelectItem key={conn.id} value={conn.id}>
                     {conn.name || conn.id.slice(0, 8)}
