@@ -617,6 +617,21 @@ export function ConversationList({
             </Button>
           </div>
         )}
+        {/* Favorites mode banner */}
+        {showFavoritesOnly && (
+          <div className="flex items-center gap-2 px-3 py-2 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-600 dark:text-amber-400">
+            <Star className="h-4 w-4 flex-shrink-0" />
+            <span className="text-xs font-medium">Exibindo conversas favoritas</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="ml-auto h-6 px-2 text-xs text-amber-600 dark:text-amber-400 hover:bg-amber-500/20"
+              onClick={() => setShowFavoritesOnly(false)}
+            >
+              Ver todas
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Conversation List */}
@@ -625,10 +640,20 @@ export function ConversationList({
           <div className="flex items-center justify-center p-8">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
-        ) : conversations.length === 0 ? (
+        ) : conversations.filter(c => !showFavoritesOnly || c.is_pinned).length === 0 ? (
           <div className="flex flex-col items-center justify-center p-8 text-muted-foreground">
-            <MessageSquare className="h-12 w-12 mb-2 opacity-50" />
-            <p className="text-sm">Nenhuma conversa encontrada</p>
+            {showFavoritesOnly ? (
+              <>
+                <Star className="h-12 w-12 mb-2 opacity-50" />
+                <p className="text-sm">Nenhuma conversa favorita</p>
+                <p className="text-xs mt-1">Clique na ⭐ para marcar favoritas</p>
+              </>
+            ) : (
+              <>
+                <MessageSquare className="h-12 w-12 mb-2 opacity-50" />
+                <p className="text-sm">Nenhuma conversa encontrada</p>
+              </>
+            )}
           </div>
         ) : (
           <div className="divide-y">
