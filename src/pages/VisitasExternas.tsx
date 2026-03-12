@@ -237,9 +237,10 @@ export default function VisitasExternas() {
               </div>
             ) : (
               <div className="divide-y min-w-[600px]">
-                {visits.map(visit => {
-                  const isOverdue = visit.visit_date && isPast(parseISO(visit.visit_date)) && visit.status === "scheduled";
-                  const isDueToday = visit.visit_date && isToday(parseISO(visit.visit_date));
+                {visits.map((visit) => {
+                  const visitDateOnly = getVisitDateOnly(visit.visit_date);
+                  const isOverdue = Boolean(visitDateOnly) && visitDateOnly < todayDateOnly && visit.status === "scheduled";
+                  const isDueToday = visitDateOnly === todayDateOnly;
 
                   return (
                     <div
