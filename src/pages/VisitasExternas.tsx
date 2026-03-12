@@ -14,8 +14,7 @@ import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 
 // We'll reuse the TaskCardDetailDialog for full detail view
-import { lazy, Suspense } from "react";
-const TaskCardDetailDialog = lazy(() => import("@/components/task-boards/TaskCardDetailDialog").then(m => ({ default: m.default || (m as any).TaskCardDetailDialog })));
+import { TaskCardDetailDialog } from "@/components/task-boards/TaskCardDetailDialog";
 
 export default function VisitasExternas() {
   const { user } = useAuth();
