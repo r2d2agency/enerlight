@@ -3815,6 +3815,7 @@ const migrationSteps = [
   { name: 'Task Boards Module', sql: step46TaskBoards, critical: false },
   { name: 'Task Board Enhancements', sql: step47TaskBoardEnhancements, critical: false },
   { name: 'Lead Gleego Module', sql: step48LeadGleego, critical: false },
+  { name: 'Task Card Type Column', sql: step49TaskCardType, critical: false },
 ];
 
 export async function initDatabase() {
