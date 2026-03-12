@@ -60,6 +60,8 @@ export default function CRMAgenda() {
   const [blockDialogOpen, setBlockDialogOpen] = useState(false);
   const [editingBlock, setEditingBlock] = useState<ScheduleBlock | null>(null);
   const [blockDefaultDate, setBlockDefaultDate] = useState<Date | null>(null);
+  const [visitDealId, setVisitDealId] = useState<string | null>(null);
+  const [visitDealDialogOpen, setVisitDealDialogOpen] = useState(false);
 
   const { data: allTasks, isLoading } = useCRMTasks({ period: "all" });
   const { completeTask } = useCRMTaskMutations();
