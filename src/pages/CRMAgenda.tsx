@@ -655,6 +655,9 @@ export default function CRMAgenda() {
                                     {task.assigned_to_name && <span className="flex items-center gap-1"><Users className="h-3 w-3" />{task.assigned_to_name}</span>}
                                   </div>
                                 </div>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={(e) => { e.stopPropagation(); deleteTask.mutate(task.id); }}>
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
                               </div>
                             </Card>
                           ))}
