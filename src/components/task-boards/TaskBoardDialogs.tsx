@@ -45,10 +45,12 @@ export function CreateCardDialog({ open, onOpenChange, columnId, isGlobal, membe
       priority,
       assigned_to: assignedTo || undefined,
       due_date: dueDate || undefined,
+      type: cardType,
     });
     setTitle("");
     setDescription("");
     setPriority("medium");
+    setCardType("task");
     setAssignedTo(defaultAssignedTo || "");
     setDueDate("");
     onOpenChange(false);
