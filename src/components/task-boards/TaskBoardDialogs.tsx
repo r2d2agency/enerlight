@@ -88,6 +88,22 @@ export function CreateCardDialog({ open, onOpenChange, columnId, isGlobal, membe
 
           <div className="grid grid-cols-2 gap-4">
             <div>
+              <Label>Tipo</Label>
+              <Select value={cardType} onValueChange={setCardType}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="task">Tarefa</SelectItem>
+                  <SelectItem value="external_visit">Visita Externa</SelectItem>
+                  <SelectItem value="call">Ligação</SelectItem>
+                  <SelectItem value="meeting">Reunião</SelectItem>
+                  <SelectItem value="follow_up">Follow-up</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
               <Label>Prioridade</Label>
               <Select value={priority} onValueChange={setPriority}>
                 <SelectTrigger>
