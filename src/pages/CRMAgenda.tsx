@@ -583,6 +583,40 @@ export default function CRMAgenda() {
                             );
                           })}
 
+                          {/* External Visits */}
+                          {dayVisits.map((visit) => (
+                            <Card
+                              key={visit.id}
+                              className="p-4 cursor-pointer hover:bg-muted/50 transition-colors bg-emerald-50 border-emerald-200 dark:bg-emerald-900/10 dark:border-emerald-800"
+                              onClick={() => handleOpenVisitDeal(visit)}
+                            >
+                              <div className="flex items-start gap-4">
+                                <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center mt-0.5 flex-shrink-0">
+                                  <MapPin className="h-3 w-3" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 text-xs">
+                                      <MapPin className="h-3 w-3 mr-1" />Visita Externa
+                                    </Badge>
+                                    {visit.start_time && (
+                                      <span className="text-sm text-muted-foreground flex items-center gap-1">
+                                        <Clock className="h-3 w-3" />
+                                        {visit.start_time.slice(0, 5)}{visit.end_time ? ` - ${visit.end_time.slice(0, 5)}` : ''}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <h4 className="font-medium">{visit.title}</h4>
+                                  <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                                    {visit.deal_title && <span className="flex items-center gap-1"><Kanban className="h-3 w-3" />{visit.deal_title}</span>}
+                                    {visit.address && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{visit.address}</span>}
+                                    {visit.participants?.length > 0 && <span className="flex items-center gap-1"><Users className="h-3 w-3" />{visit.participants.map(p => p.user_name).join(", ")}</span>}
+                                  </div>
+                                </div>
+                              </div>
+                            </Card>
+                          ))}
+
                           {/* CRM Tasks */}
                           {dayTasks.map((task) => (
                             <Card
