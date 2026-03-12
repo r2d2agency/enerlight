@@ -276,6 +276,66 @@ BEGIN
     END IF;
 END $$;
 
+const step50ExternalVisits = `
+CREATE TABLE IF NOT EXISTS crm_external_visits (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE NOT NULL,
+  deal_id UUID REFERENCES crm_deals(id) ON DELETE CASCADE NOT NULL,
+  title VARCHAR(500) NOT NULL,
+  description TEXT,
+  visit_date DATE NOT NULL,
+  start_time TIME,
+  end_time TIME,
+  address TEXT,
+  status VARCHAR(50) DEFAULT 'scheduled',
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS crm_external_visit_participants (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  visit_id UUID REFERENCES crm_external_visits(id) ON DELETE CASCADE NOT NULL,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(visit_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS crm_external_visit_notes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  visit_id UUID REFERENCES crm_external_visits(id) ON DELETE CASCADE NOT NULL,
+  content TEXT NOT NULL,
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS crm_external_visit_checklist (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  visit_id UUID REFERENCES crm_external_visits(id) ON DELETE CASCADE NOT NULL,
+  text VARCHAR(500) NOT NULL,
+  is_checked BOOLEAN DEFAULT false,
+  position INTEGER DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS crm_external_visit_attachments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  visit_id UUID REFERENCES crm_external_visits(id) ON DELETE CASCADE NOT NULL,
+  file_name VARCHAR(500) NOT NULL,
+  file_url TEXT NOT NULL,
+  file_type VARCHAR(100),
+  file_size INTEGER,
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ext_visits_deal ON crm_external_visits(deal_id);
+CREATE INDEX IF NOT EXISTS idx_ext_visits_org ON crm_external_visits(organization_id);
+CREATE INDEX IF NOT EXISTS idx_ext_visits_date ON crm_external_visits(visit_date);
+CREATE INDEX IF NOT EXISTS idx_ext_visit_participants_visit ON crm_external_visit_participants(visit_id);
+CREATE INDEX IF NOT EXISTS idx_ext_visit_participants_user ON crm_external_visit_participants(user_id);
+`;
+
 
 -- Connection Members
 CREATE TABLE IF NOT EXISTS connection_members (
