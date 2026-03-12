@@ -96,6 +96,12 @@ export default function CRMAgenda() {
   });
   const { remove: removeBlock } = useScheduleBlockMutations();
 
+  // External visits
+  const { data: externalVisits = [] } = useExternalVisits({
+    start_date: dateRange.dateFrom,
+    end_date: dateRange.dateTo,
+  });
+
   // Group tasks by date
   const tasksByDate = useMemo(() => {
     if (!allTasks) return new Map<string, CRMTask[]>();
@@ -135,6 +141,19 @@ export default function CRMAgenda() {
     });
     return map;
   }, [scheduleBlocks]);
+
+  // Group external visits by date
+  const visitsByDate = useMemo(() => {
+    const map = new Map<string, ExternalVisit[]>();
+    externalVisits.forEach((visit) => {
+      if (visit.visit_date) {
+        const dateKey = visit.visit_date.split("T")[0];
+        const existing = map.get(dateKey) || [];
+        map.set(dateKey, [...existing, visit]);
+      }
+    });
+    return map;
+  }, [externalVisits]);
 
   const viewDays = useMemo(() => {
     if (viewMode === "month") {
