@@ -293,7 +293,10 @@ export function TaskCardDetailDialog({
     if (status === "done") toast({ title: "Tarefa concluída! 🎉" });
   };
 
-  const handleLinkDeal = (dealId: string) => {
+  const handleChangeType = (type: string) => {
+    updateCard.mutate({ id: card.id, type } as any);
+  };
+
     updateCard.mutate({ id: card.id, deal_id: dealId } as any);
   };
   const handleLinkProject = (projectId: string) => {
