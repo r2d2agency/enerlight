@@ -89,8 +89,12 @@ export default function VisitasExternas() {
 
   const hasActiveFilters = startDate || endDate || (canViewAll && selectedUser !== "all") || statusFilter;
   const totalVisits = visits.length;
-  const todayVisits = visits.filter(v => v.visit_date && isToday(parseISO(v.visit_date))).length;
-  const overdueVisits = visits.filter(v => v.visit_date && isPast(parseISO(v.visit_date)) && v.status === "scheduled").length;
+  const todayDateOnly = format(new Date(), "yyyy-MM-dd");
+  const todayVisits = visits.filter((v) => getVisitDateOnly(v.visit_date) === todayDateOnly).length;
+  const overdueVisits = visits.filter((v) => {
+    const visitDateOnly = getVisitDateOnly(v.visit_date);
+    return Boolean(visitDateOnly) && visitDateOnly < todayDateOnly && v.status === "scheduled";
+  }).length;
   const doneVisits = visits.filter(v => v.status === "completed").length;
 
   const handleOpenDeal = (visit: ExternalVisitListItem) => {
