@@ -24,6 +24,7 @@ interface CreateCardDialogProps {
     priority: string;
     assigned_to?: string;
     due_date?: string;
+    type?: string;
   }) => void;
 }
 
