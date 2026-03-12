@@ -306,20 +306,18 @@ export default function VisitasExternas() {
 
       {/* Detail Dialog - reuses the full TaskCardDetailDialog */}
       {selectedCard && (
-        <Suspense fallback={null}>
-          <TaskCardDetailDialog
-            open={detailOpen}
-            onOpenChange={(open) => {
-              setDetailOpen(open);
-              if (!open) setSelectedCard(null);
-            }}
-            card={selectedCard}
-            boardId={selectedCard.board_id}
-            isGlobal={true}
-            members={members}
-            boards={boards}
-          />
-        </Suspense>
+        <TaskCardDetailDialog
+          open={detailOpen}
+          onOpenChange={(open) => {
+            setDetailOpen(open);
+            if (!open) setSelectedCard(null);
+          }}
+          card={selectedCard}
+          boardId={selectedCard.board_id}
+          isGlobal={true}
+          members={members}
+          boards={boards}
+        />
       )}
     </MainLayout>
   );
