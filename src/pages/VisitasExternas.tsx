@@ -11,7 +11,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useCRMMyTeam } from "@/hooks/use-crm";
 import { CheckCircle, AlertTriangle, Calendar as CalendarIcon, MapPin, Loader2, Filter, X, User, Users, Clock } from "lucide-react";
-import { format, parseISO, isToday, isPast } from "date-fns";
+import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { DealDetailDialog } from "@/components/crm/DealDetailDialog";
