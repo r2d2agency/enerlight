@@ -670,6 +670,10 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
                 </Badge>
               )}
             </TabsTrigger>
+            <TabsTrigger value="visits" className="text-xs sm:text-sm">
+              <MapPin className="h-3 w-3 mr-1" />
+              Visitas
+            </TabsTrigger>
             <TabsTrigger value="history" className="text-xs sm:text-sm">Histórico</TabsTrigger>
           </TabsList>
 
