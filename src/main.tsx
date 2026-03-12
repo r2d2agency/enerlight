@@ -5,6 +5,11 @@ import "./index.css";
 // Initialize PWA install prompt handler
 import "./lib/pwa";
 
+// Auto-reload when dynamic imports fail (stale chunks after deploy)
+window.addEventListener('vite:preloadError', () => {
+  window.location.reload();
+});
+
 // Initialize theme before render to prevent flash
 const savedTheme = localStorage.getItem('app-theme') || 'dark';
 const effectiveTheme = savedTheme === 'system' 
