@@ -816,7 +816,7 @@ router.get('/:boardId/cards', async (req, res) => {
 // POST /:boardId/cards
 router.post('/:boardId/cards', async (req, res) => {
   try {
-    const { column_id, title, description, assigned_to, priority, due_date, tags, color, deal_id, company_id, contact_id, project_id, status } = req.body;
+    const { column_id, title, description, assigned_to, priority, due_date, tags, color, deal_id, company_id, contact_id, project_id, status, type } = req.body;
     
     // Allow assigning to others on any board; default to self if not specified
     const effectiveAssigned = assigned_to || req.user.id;
@@ -827,9 +827,9 @@ router.post('/:boardId/cards', async (req, res) => {
     );
 
     const result = await pool.query(
-      `INSERT INTO task_cards (organization_id, board_id, column_id, position, title, description, assigned_to, created_by, priority, due_date, tags, color, deal_id, company_id, contact_id, project_id, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING *`,
-      [req.user.organization_id, req.params.boardId, column_id, maxPos.rows[0].next_pos, title, description, effectiveAssigned, req.user.id, priority || 'medium', due_date, tags || [], color, deal_id, company_id, contact_id, project_id, status || 'todo']
+      `INSERT INTO task_cards (organization_id, board_id, column_id, position, title, description, assigned_to, created_by, priority, due_date, tags, color, deal_id, company_id, contact_id, project_id, status, type)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18) RETURNING *`,
+      [req.user.organization_id, req.params.boardId, column_id, maxPos.rows[0].next_pos, title, description, effectiveAssigned, req.user.id, priority || 'medium', due_date, tags || [], color, deal_id, company_id, contact_id, project_id, status || 'todo', type || 'task']
     );
     res.json(result.rows[0]);
   } catch (err) {

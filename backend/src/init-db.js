@@ -3746,6 +3746,13 @@ EXCEPTION WHEN others THEN NULL;
 END $$;
 `;
 
+const step49TaskCardType = `
+DO $$ BEGIN
+  ALTER TABLE task_cards ADD COLUMN IF NOT EXISTS type VARCHAR(50) DEFAULT 'task';
+EXCEPTION WHEN others THEN NULL;
+END $$;
+`;
+
 const step48LeadGleego = `
 -- Plan column for Lead Gleego
 DO $$ BEGIN
