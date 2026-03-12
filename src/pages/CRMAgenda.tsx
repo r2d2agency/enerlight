@@ -10,7 +10,9 @@ import { ScheduleBlockDialog } from "@/components/agenda/ScheduleBlockDialog";
 import { useCRMTasks, useCRMTaskMutations, CRMTask } from "@/hooks/use-crm";
 import { useGoogleCalendarStatus, useGoogleCalendarEvents, GoogleCalendarEvent } from "@/hooks/use-google-calendar";
 import { useScheduleBlocks, useScheduleBlockMutations, ScheduleBlock, BLOCK_REASONS } from "@/hooks/use-schedule-blocks";
-import { 
+import { useExternalVisits, ExternalVisit } from "@/hooks/use-external-visits";
+import { DealDetailDialog } from "@/components/crm/DealDetailDialog";
+import {
   Plus, 
   ChevronLeft, 
   ChevronRight, 
@@ -27,7 +29,8 @@ import {
   ExternalLink,
   Ban,
   Trash2,
-  Repeat
+  Repeat,
+  MapPin
 } from "lucide-react";
 import { 
   format, 
@@ -58,6 +61,8 @@ export default function CRMAgenda() {
   const [blockDialogOpen, setBlockDialogOpen] = useState(false);
   const [editingBlock, setEditingBlock] = useState<ScheduleBlock | null>(null);
   const [blockDefaultDate, setBlockDefaultDate] = useState<Date | null>(null);
+  const [visitDealId, setVisitDealId] = useState<string | null>(null);
+  const [visitDealDialogOpen, setVisitDealDialogOpen] = useState(false);
 
   const { data: allTasks, isLoading } = useCRMTasks({ period: "all" });
   const { completeTask } = useCRMTaskMutations();
@@ -91,6 +96,12 @@ export default function CRMAgenda() {
     date_to: dateRange.dateTo,
   });
   const { remove: removeBlock } = useScheduleBlockMutations();
+
+  // External visits
+  const { data: externalVisits = [] } = useExternalVisits({
+    start_date: dateRange.dateFrom,
+    end_date: dateRange.dateTo,
+  });
 
   // Group tasks by date
   const tasksByDate = useMemo(() => {
@@ -131,6 +142,19 @@ export default function CRMAgenda() {
     });
     return map;
   }, [scheduleBlocks]);
+
+  // Group external visits by date
+  const visitsByDate = useMemo(() => {
+    const map = new Map<string, ExternalVisit[]>();
+    externalVisits.forEach((visit) => {
+      if (visit.visit_date) {
+        const dateKey = visit.visit_date.split("T")[0];
+        const existing = map.get(dateKey) || [];
+        map.set(dateKey, [...existing, visit]);
+      }
+    });
+    return map;
+  }, [externalVisits]);
 
   const viewDays = useMemo(() => {
     if (viewMode === "month") {
@@ -230,6 +254,16 @@ export default function CRMAgenda() {
     return blocksByDate.get(format(selectedDate, "yyyy-MM-dd")) || [];
   }, [selectedDate, blocksByDate]);
 
+  const selectedDayVisits = useMemo(() => {
+    if (!selectedDate) return [];
+    return visitsByDate.get(format(selectedDate, "yyyy-MM-dd")) || [];
+  }, [selectedDate, visitsByDate]);
+
+  const handleOpenVisitDeal = (visit: ExternalVisit) => {
+    setVisitDealId(visit.deal_id);
+    setVisitDealDialogOpen(true);
+  };
+
   // Render a block pill (for calendar cells)
   const renderBlockPill = (block: ScheduleBlock) => {
     const info = BLOCK_REASONS[block.reason] || BLOCK_REASONS.other;
@@ -293,10 +327,11 @@ export default function CRMAgenda() {
                   const dayTasks = tasksByDate.get(dateKey) || [];
                   const dayGoogleEvents = googleEventsByDate.get(dateKey) || [];
                   const dayBlocks = blocksByDate.get(dateKey) || [];
+                  const dayVisits = visitsByDate.get(dateKey) || [];
                   const isCurrentMonth = day.getMonth() === currentDate.getMonth();
                   const isSelected = selectedDate && isSameDay(day, selectedDate);
                   const hasBlock = dayBlocks.length > 0;
-                  const totalItems = dayTasks.length + dayGoogleEvents.length + dayBlocks.length;
+                  const totalItems = dayTasks.length + dayGoogleEvents.length + dayBlocks.length + dayVisits.length;
 
                   return (
                     <div
@@ -321,8 +356,19 @@ export default function CRMAgenda() {
                       <div className="space-y-1">
                         {/* Blocks first */}
                         {dayBlocks.slice(0, 1).map(renderBlockPill)}
+                        {/* External Visits */}
+                        {dayVisits.slice(0, 1).map((visit) => (
+                          <button
+                            key={visit.id}
+                            onClick={(e) => { e.stopPropagation(); handleOpenVisitDeal(visit); }}
+                            className="w-full text-left text-xs px-1.5 py-0.5 rounded truncate flex items-center gap-1 bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800"
+                          >
+                            <MapPin className="h-3 w-3" />
+                            <span className="truncate">{visit.title}</span>
+                          </button>
+                        ))}
                         {/* CRM Tasks */}
-                        {dayTasks.slice(0, hasBlock ? 1 : 2).map((task) => (
+                        {dayTasks.slice(0, Math.max(0, 2 - dayBlocks.length - dayVisits.length)).map((task) => (
                           <button
                             key={task.id}
                             onClick={(e) => { e.stopPropagation(); handleEditTask(task); }}
@@ -337,7 +383,7 @@ export default function CRMAgenda() {
                           </button>
                         ))}
                         {/* Google Events */}
-                        {dayGoogleEvents.slice(0, Math.max(0, 3 - dayTasks.length - dayBlocks.length)).map((event) => (
+                        {dayGoogleEvents.slice(0, Math.max(0, 3 - dayTasks.length - dayBlocks.length - dayVisits.length)).map((event) => (
                           <button
                             key={event.id}
                             onClick={(e) => { e.stopPropagation(); if (event.htmlLink) window.open(event.htmlLink, "_blank"); }}
@@ -364,6 +410,7 @@ export default function CRMAgenda() {
                   const dayTasks = tasksByDate.get(dateKey) || [];
                   const dayGoogleEvents = googleEventsByDate.get(dateKey) || [];
                   const dayBlocks = blocksByDate.get(dateKey) || [];
+                  const dayVisits = visitsByDate.get(dateKey) || [];
                   const isSelected = selectedDate && isSameDay(day, selectedDate);
                   const hasBlock = dayBlocks.length > 0;
 
@@ -404,6 +451,20 @@ export default function CRMAgenda() {
                             </button>
                           );
                         })}
+                        {/* External Visits */}
+                        {dayVisits.map((visit) => (
+                          <button
+                            key={visit.id}
+                            onClick={(e) => { e.stopPropagation(); handleOpenVisitDeal(visit); }}
+                            className="w-full text-left text-xs p-2 rounded border bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800"
+                          >
+                            <div className="flex items-center gap-1 mb-1">
+                              <MapPin className="h-3 w-3" />
+                              <span className="font-medium truncate">{visit.title}</span>
+                            </div>
+                            {visit.start_time && <div className="text-[10px] opacity-75">{visit.start_time.slice(0, 5)}</div>}
+                          </button>
+                        ))}
                         {/* CRM Tasks */}
                         {dayTasks.map((task) => (
                           <button
@@ -460,7 +521,8 @@ export default function CRMAgenda() {
                       const dayTasks = tasksByDate.get(dateKey) || [];
                       const dayGoogleEvents = googleEventsByDate.get(dateKey) || [];
                       const dayBlocks = blocksByDate.get(dateKey) || [];
-                      const hasAny = dayTasks.length > 0 || dayGoogleEvents.length > 0 || dayBlocks.length > 0;
+                      const dayVisits = visitsByDate.get(dateKey) || [];
+                      const hasAny = dayTasks.length > 0 || dayGoogleEvents.length > 0 || dayBlocks.length > 0 || dayVisits.length > 0;
                       
                       if (!hasAny) {
                         return (
@@ -520,6 +582,40 @@ export default function CRMAgenda() {
                               </Card>
                             );
                           })}
+
+                          {/* External Visits */}
+                          {dayVisits.map((visit) => (
+                            <Card
+                              key={visit.id}
+                              className="p-4 cursor-pointer hover:bg-muted/50 transition-colors bg-emerald-50 border-emerald-200 dark:bg-emerald-900/10 dark:border-emerald-800"
+                              onClick={() => handleOpenVisitDeal(visit)}
+                            >
+                              <div className="flex items-start gap-4">
+                                <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center mt-0.5 flex-shrink-0">
+                                  <MapPin className="h-3 w-3" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 text-xs">
+                                      <MapPin className="h-3 w-3 mr-1" />Visita Externa
+                                    </Badge>
+                                    {visit.start_time && (
+                                      <span className="text-sm text-muted-foreground flex items-center gap-1">
+                                        <Clock className="h-3 w-3" />
+                                        {visit.start_time.slice(0, 5)}{visit.end_time ? ` - ${visit.end_time.slice(0, 5)}` : ''}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <h4 className="font-medium">{visit.title}</h4>
+                                  <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                                    {visit.deal_title && <span className="flex items-center gap-1"><Kanban className="h-3 w-3" />{visit.deal_title}</span>}
+                                    {visit.address && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{visit.address}</span>}
+                                    {visit.participants?.length > 0 && <span className="flex items-center gap-1"><Users className="h-3 w-3" />{visit.participants.map(p => p.user_name).join(", ")}</span>}
+                                  </div>
+                                </div>
+                              </div>
+                            </Card>
+                          ))}
 
                           {/* CRM Tasks */}
                           {dayTasks.map((task) => (
@@ -622,7 +718,7 @@ export default function CRMAgenda() {
                 </div>
               </div>
 
-              {selectedDayTasks.length === 0 && selectedDayGoogleEvents.length === 0 && selectedDayBlocks.length === 0 ? (
+              {selectedDayTasks.length === 0 && selectedDayGoogleEvents.length === 0 && selectedDayBlocks.length === 0 && selectedDayVisits.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <CalendarIcon className="h-8 w-8 mx-auto mb-2 opacity-50" />
                   <p className="text-sm">Nenhum compromisso</p>
@@ -658,6 +754,31 @@ export default function CRMAgenda() {
                       </Card>
                     );
                   })}
+
+                  {/* External Visits */}
+                  {selectedDayVisits.map((visit) => (
+                    <Card
+                      key={visit.id}
+                      className="p-3 cursor-pointer hover:bg-muted/50 transition-colors bg-emerald-50 border-emerald-200 dark:bg-emerald-900/10 dark:border-emerald-800"
+                      onClick={() => handleOpenVisitDeal(visit)}
+                    >
+                      <div className="flex items-start gap-2">
+                        <div className="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center mt-0.5 flex-shrink-0">
+                          <MapPin className="h-3 w-3" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1 mb-1">
+                            <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300">📍 Visita</span>
+                            {visit.start_time && (
+                              <span className="text-xs text-muted-foreground">{visit.start_time.slice(0, 5)}</span>
+                            )}
+                          </div>
+                          <h4 className="text-sm font-medium truncate">{visit.title}</h4>
+                          {visit.deal_title && <p className="text-xs text-muted-foreground truncate mt-1">{visit.deal_title}</p>}
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
 
                   {/* Tasks */}
                   {selectedDayTasks.map((task) => (
@@ -724,6 +845,16 @@ export default function CRMAgenda() {
         block={editingBlock}
         defaultDate={blockDefaultDate}
       />
+      {visitDealId && (
+        <DealDetailDialog
+          deal={{ id: visitDealId } as any}
+          open={visitDealDialogOpen}
+          onOpenChange={(open) => {
+            setVisitDealDialogOpen(open);
+            if (!open) setVisitDealId(null);
+          }}
+        />
+      )}
     </MainLayout>
   );
 }
