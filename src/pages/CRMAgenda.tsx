@@ -755,6 +755,31 @@ export default function CRMAgenda() {
                     );
                   })}
 
+                  {/* External Visits */}
+                  {selectedDayVisits.map((visit) => (
+                    <Card
+                      key={visit.id}
+                      className="p-3 cursor-pointer hover:bg-muted/50 transition-colors bg-emerald-50 border-emerald-200 dark:bg-emerald-900/10 dark:border-emerald-800"
+                      onClick={() => handleOpenVisitDeal(visit)}
+                    >
+                      <div className="flex items-start gap-2">
+                        <div className="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center mt-0.5 flex-shrink-0">
+                          <MapPin className="h-3 w-3" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1 mb-1">
+                            <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300">📍 Visita</span>
+                            {visit.start_time && (
+                              <span className="text-xs text-muted-foreground">{visit.start_time.slice(0, 5)}</span>
+                            )}
+                          </div>
+                          <h4 className="text-sm font-medium truncate">{visit.title}</h4>
+                          {visit.deal_title && <p className="text-xs text-muted-foreground truncate mt-1">{visit.deal_title}</p>}
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+
                   {/* Tasks */}
                   {selectedDayTasks.map((task) => (
                     <Card
