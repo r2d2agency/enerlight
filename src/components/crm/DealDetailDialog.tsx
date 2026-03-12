@@ -34,6 +34,7 @@ import { PredictiveAnalyticsCard } from "./PredictiveAnalytics";
 import { useProjectsByDeal, useProjectMutations, useProjectTemplates, Project } from "@/hooks/use-projects";
 import { FolderKanban } from "lucide-react";
 import { DealProjectCard } from "./DealProjectCard";
+import { ExternalVisitTab } from "./ExternalVisitTab";
 
 interface ChatContact {
   id: string;
