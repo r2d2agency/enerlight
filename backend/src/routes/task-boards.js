@@ -151,7 +151,7 @@ router.delete('/templates/:id', async (req, res) => {
 // PUT /cards/:id
 router.put('/cards/:id', async (req, res) => {
   try {
-    const { title, description, assigned_to, priority, due_date, tags, color, cover_image, is_archived, status, notes, deal_id, company_id, contact_id, project_id } = req.body;
+    const { title, description, assigned_to, priority, due_date, tags, color, cover_image, is_archived, status, notes, deal_id, company_id, contact_id, project_id, type } = req.body;
     const dueDateVal = due_date || null;
     const tagsVal = tags ? (Array.isArray(tags) ? tags : []) : null;
     
@@ -165,9 +165,10 @@ router.put('/cards/:id', async (req, res) => {
         status = COALESCE($10, status),
         notes = COALESCE($11, notes),
         deal_id = $12, company_id = $13, contact_id = $14, project_id = $15,
+        type = COALESCE($16, type),
         updated_at = NOW()
-       WHERE id = $16 RETURNING *`,
-      [title, description, assigned_to || null, priority, dueDateVal, tagsVal, color || null, cover_image || null, is_archived, status, notes, deal_id || null, company_id || null, contact_id || null, project_id || null, req.params.id]
+       WHERE id = $17 RETURNING *`,
+      [title, description, assigned_to || null, priority, dueDateVal, tagsVal, color || null, cover_image || null, is_archived, status, notes, deal_id || null, company_id || null, contact_id || null, project_id || null, type, req.params.id]
     );
     if (!result.rows[0]) return res.status(404).json({ error: 'Card não encontrado' });
     res.json(result.rows[0]);
