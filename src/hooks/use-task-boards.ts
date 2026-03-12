@@ -37,6 +37,7 @@ export interface TaskCard {
   creator_name?: string;
   priority: string;
   status: string;
+  type?: string;
   due_date?: string;
   tags?: string[];
   color?: string;
@@ -50,6 +51,8 @@ export interface TaskCard {
   contact_name?: string;
   project_title?: string;
   notes?: string;
+  board_name?: string;
+  column_name?: string;
   is_archived: boolean;
   completed_at?: string;
   total_checklist_items: number;
