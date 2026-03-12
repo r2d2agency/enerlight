@@ -126,6 +126,7 @@ const Login = () => {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       disabled={isLoading}
+                      autoComplete="current-password"
                       className="pr-10"
                     />
                     <Button
