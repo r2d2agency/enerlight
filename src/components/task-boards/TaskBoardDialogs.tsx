@@ -32,6 +32,7 @@ export function CreateCardDialog({ open, onOpenChange, columnId, isGlobal, membe
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("medium");
+  const [cardType, setCardType] = useState("task");
   const [assignedTo, setAssignedTo] = useState(defaultAssignedTo || "");
   const [dueDate, setDueDate] = useState("");
 
