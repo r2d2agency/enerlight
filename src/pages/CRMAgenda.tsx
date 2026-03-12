@@ -410,6 +410,7 @@ export default function CRMAgenda() {
                   const dayTasks = tasksByDate.get(dateKey) || [];
                   const dayGoogleEvents = googleEventsByDate.get(dateKey) || [];
                   const dayBlocks = blocksByDate.get(dateKey) || [];
+                  const dayVisits = visitsByDate.get(dateKey) || [];
                   const isSelected = selectedDate && isSameDay(day, selectedDate);
                   const hasBlock = dayBlocks.length > 0;
 
