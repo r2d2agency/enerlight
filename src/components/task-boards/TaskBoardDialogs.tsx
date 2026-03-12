@@ -24,6 +24,7 @@ interface CreateCardDialogProps {
     priority: string;
     assigned_to?: string;
     due_date?: string;
+    type?: string;
   }) => void;
 }
 
@@ -31,6 +32,7 @@ export function CreateCardDialog({ open, onOpenChange, columnId, isGlobal, membe
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("medium");
+  const [cardType, setCardType] = useState("task");
   const [assignedTo, setAssignedTo] = useState(defaultAssignedTo || "");
   const [dueDate, setDueDate] = useState("");
 
@@ -43,10 +45,12 @@ export function CreateCardDialog({ open, onOpenChange, columnId, isGlobal, membe
       priority,
       assigned_to: assignedTo || undefined,
       due_date: dueDate || undefined,
+      type: cardType,
     });
     setTitle("");
     setDescription("");
     setPriority("medium");
+    setCardType("task");
     setAssignedTo(defaultAssignedTo || "");
     setDueDate("");
     onOpenChange(false);
@@ -83,6 +87,22 @@ export function CreateCardDialog({ open, onOpenChange, columnId, isGlobal, membe
           </div>
 
           <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Tipo</Label>
+              <Select value={cardType} onValueChange={setCardType}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="task">Tarefa</SelectItem>
+                  <SelectItem value="external_visit">Visita Externa</SelectItem>
+                  <SelectItem value="call">Ligação</SelectItem>
+                  <SelectItem value="meeting">Reunião</SelectItem>
+                  <SelectItem value="follow_up">Follow-up</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <div>
               <Label>Prioridade</Label>
               <Select value={priority} onValueChange={setPriority}>
