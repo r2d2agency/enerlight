@@ -443,7 +443,22 @@ const Chat = () => {
           conv = await getConversation(conversationId);
         } else if (phone) {
           // Fetch conversation by phone number
-          conv = await api<Conversation>(`/api/chat/conversations/by-phone/${encodeURIComponent(phone)}`);
+          try {
+            conv = await api<Conversation>(`/api/chat/conversations/by-phone/${encodeURIComponent(phone)}`);
+          } catch {
+            // No conversation exists yet — create one using the first available connection
+            const userConns = connections.length > 0 ? connections : [];
+            const activeConn = userConns.find(c => c.status === 'connected') || userConns[0];
+            if (activeConn) {
+              conv = await api<Conversation>('/api/chat/conversations', {
+                method: 'POST',
+                body: { contact_phone: phone, connection_id: activeConn.id },
+              });
+            } else {
+              toast.error('Nenhuma conexão ativa para iniciar conversa');
+              return;
+            }
+          }
         } else {
           return;
         }
