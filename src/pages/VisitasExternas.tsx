@@ -30,6 +30,21 @@ interface ExternalVisitListItem {
   participants: { id: string; user_id: string; user_name: string }[];
 }
 
+const DATE_ONLY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+
+const getVisitDateOnly = (value?: string) => {
+  if (!value) return "";
+  const [dateOnly] = value.split("T");
+  return DATE_ONLY_REGEX.test(dateOnly) ? dateOnly : "";
+};
+
+const formatVisitDateBR = (value?: string) => {
+  const dateOnly = getVisitDateOnly(value);
+  if (!dateOnly) return "—";
+  const [year, month, day] = dateOnly.split("-");
+  return `${day}/${month}/${year}`;
+};
+
 export default function VisitasExternas() {
   const { user } = useAuth();
   const { data: teamMembers = [] } = useCRMMyTeam();
