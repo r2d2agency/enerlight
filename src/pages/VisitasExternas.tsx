@@ -3,84 +3,45 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TaskDialog } from "@/components/crm/TaskDialog";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useCRMTasks, useCRMTaskMutations, CRMTask } from "@/hooks/use-crm";
+import { useTaskCardsByType, TaskCard, useOrgMembers, useCardMutations, useTaskBoards, useTaskBoardColumns } from "@/hooks/use-task-boards";
 import { useAuth } from "@/contexts/AuthContext";
-import { useOrganizations } from "@/hooks/use-organizations";
-import { Plus, CheckCircle, Clock, AlertTriangle, Calendar as CalendarIcon, MapPin, Trash2, Loader2, Filter, X, Building2, User } from "lucide-react";
+import { Plus, CheckCircle, AlertTriangle, Calendar as CalendarIcon, MapPin, Loader2, Filter, X, Building2, User, Trash2, ClipboardList } from "lucide-react";
 import { format, parseISO, isToday, isPast } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 
-interface OrgMember {
-  id: string;
-  user_id: string;
-  name: string;
-  email: string;
-  role: string;
-}
+// We'll reuse the TaskCardDetailDialog for full detail view
+import { lazy, Suspense } from "react";
+const TaskCardDetailDialog = lazy(() => import("@/components/task-boards/TaskCardDetailDialog").then(m => ({ default: m.default || (m as any).TaskCardDetailDialog })));
 
 export default function VisitasExternas() {
   const { user } = useAuth();
-  const { getMembers } = useOrganizations();
-
-  const [period, setPeriod] = useState("all");
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingTask, setEditingTask] = useState<CRMTask | null>(null);
+  const { data: members = [] } = useOrgMembers();
 
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [selectedUser, setSelectedUser] = useState<string>("all");
   const [showFilters, setShowFilters] = useState(false);
-  const [orgMembers, setOrgMembers] = useState<OrgMember[]>([]);
+  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [selectedCard, setSelectedCard] = useState<TaskCard | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
 
   const isAdmin = user?.role && ['owner', 'admin', 'manager'].includes(user.role);
   const isSuperadmin = (user as any)?.is_superadmin === true;
   const canViewAll = isAdmin || isSuperadmin;
 
-  useEffect(() => {
-    if (canViewAll && user?.organization_id) {
-      getMembers(user.organization_id).then(members => {
-        setOrgMembers(members);
-      });
-    }
-  }, [canViewAll, user?.organization_id, getMembers]);
-
-  const taskFilters = {
-    period: startDate && endDate ? undefined : (period === "all" ? undefined : period),
-    status: period === "completed" ? "completed" : (period === "all" ? undefined : "pending"),
+  const filters = {
     assigned_to: canViewAll ? selectedUser : undefined,
     start_date: startDate ? format(startDate, "yyyy-MM-dd") : undefined,
     end_date: endDate ? format(endDate, "yyyy-MM-dd") : undefined,
-    view_all: canViewAll && selectedUser === "all",
-    type: "external_visit",
+    status: statusFilter || undefined,
   };
 
-  const { data: tasks, isLoading } = useCRMTasks(taskFilters);
-  const { completeTask, deleteTask } = useCRMTaskMutations();
-
-  const handleNewVisit = () => {
-    setEditingTask(null);
-    setDialogOpen(true);
-  };
-
-  const handleEditTask = (task: CRMTask) => {
-    setEditingTask(task);
-    setDialogOpen(true);
-  };
-
-  const handleComplete = (id: string) => {
-    completeTask.mutate(id);
-  };
-
-  const handleDelete = (id: string) => {
-    if (confirm("Tem certeza que deseja excluir esta visita?")) {
-      deleteTask.mutate(id);
-    }
-  };
+  const { data: visits, isLoading } = useTaskCardsByType("external_visit", filters);
+  const { data: boards } = useTaskBoards();
 
   const clearDateFilter = () => {
     setStartDate(undefined);
@@ -97,18 +58,24 @@ export default function VisitasExternas() {
   };
 
   const priorityLabels: Record<string, string> = {
-    urgent: "Urgente",
-    high: "Alta",
-    medium: "Média",
-    low: "Baixa",
+    urgent: "Urgente", high: "Alta", medium: "Média", low: "Baixa",
   };
 
-  const hasActiveFilters = startDate || endDate || (canViewAll && selectedUser !== "all");
+  const statusLabels: Record<string, string> = {
+    todo: "A Fazer", in_progress: "Em Andamento", done: "Concluído",
+  };
 
-  const pendingVisits = tasks?.filter(t => t.status === "pending") || [];
-  const completedVisits = tasks?.filter(t => t.status === "completed") || [];
-  const overdueVisits = pendingVisits.filter(t => t.due_date && isPast(parseISO(t.due_date)));
-  const todayVisits = pendingVisits.filter(t => t.due_date && isToday(parseISO(t.due_date)));
+  const hasActiveFilters = startDate || endDate || (canViewAll && selectedUser !== "all") || statusFilter;
+
+  const totalVisits = visits?.length || 0;
+  const todayVisits = visits?.filter(v => v.due_date && isToday(parseISO(v.due_date))).length || 0;
+  const overdueVisits = visits?.filter(v => v.due_date && isPast(parseISO(v.due_date)) && v.status !== "done").length || 0;
+  const doneVisits = visits?.filter(v => v.status === "done").length || 0;
+
+  const handleOpenDetail = (card: TaskCard) => {
+    setSelectedCard(card);
+    setDetailOpen(true);
+  };
 
   return (
     <MainLayout>
@@ -120,7 +87,7 @@ export default function VisitasExternas() {
               <MapPin className="h-6 w-6 text-primary" />
               Visitas Externas
             </h1>
-            <p className="text-muted-foreground">Gerencie suas visitas externas agendadas</p>
+            <p className="text-muted-foreground">Tarefas do tipo Visita Externa em todos os quadros</p>
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -135,14 +102,10 @@ export default function VisitasExternas() {
                 <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full" />
               )}
             </Button>
-            <Button onClick={handleNewVisit}>
-              <Plus className="h-4 w-4 mr-2" />
-              Nova Visita
-            </Button>
           </div>
         </div>
 
-        {/* Filters Panel */}
+        {/* Filters */}
         {showFilters && (
           <Card>
             <CardContent className="p-4">
@@ -184,27 +147,35 @@ export default function VisitasExternas() {
                     <span className="text-sm text-muted-foreground">Vendedor:</span>
                     <Select value={selectedUser} onValueChange={setSelectedUser}>
                       <SelectTrigger className="w-[200px]">
-                        <SelectValue placeholder="Selecionar vendedor" />
+                        <SelectValue placeholder="Todos" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">Todos</SelectItem>
-                        {orgMembers.map((member) => (
-                          <SelectItem key={member.user_id} value={member.user_id}>
-                            {member.name}
-                          </SelectItem>
+                        {members.map((m) => (
+                          <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
                 )}
 
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Status:</span>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-[160px]">
+                      <SelectValue placeholder="Todos" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all_statuses">Todos</SelectItem>
+                      <SelectItem value="todo">A Fazer</SelectItem>
+                      <SelectItem value="in_progress">Em Andamento</SelectItem>
+                      <SelectItem value="done">Concluído</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 {hasActiveFilters && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => { clearDateFilter(); setSelectedUser("all"); }}
-                    className="text-muted-foreground"
-                  >
+                  <Button variant="ghost" size="sm" onClick={() => { clearDateFilter(); setSelectedUser("all"); setStatusFilter(""); }} className="text-muted-foreground">
                     Limpar filtros
                   </Button>
                 )}
@@ -215,48 +186,35 @@ export default function VisitasExternas() {
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card className={cn("cursor-pointer transition-colors", period === "all" && !startDate && "ring-2 ring-primary")} onClick={() => { setPeriod("all"); clearDateFilter(); }}>
+          <Card>
             <CardContent className="p-4 text-center">
               <MapPin className="h-5 w-5 mx-auto mb-2 text-primary" />
-              <p className="text-2xl font-bold">{(tasks?.length) || 0}</p>
+              <p className="text-2xl font-bold">{totalVisits}</p>
               <p className="text-xs text-muted-foreground">Total</p>
             </CardContent>
           </Card>
-          <Card className={cn("cursor-pointer transition-colors", period === "today" && !startDate && "ring-2 ring-primary")} onClick={() => { setPeriod("today"); clearDateFilter(); }}>
+          <Card>
             <CardContent className="p-4 text-center">
               <CalendarIcon className="h-5 w-5 mx-auto mb-2 text-blue-500" />
-              <p className="text-2xl font-bold">{todayVisits.length}</p>
+              <p className="text-2xl font-bold">{todayVisits}</p>
               <p className="text-xs text-muted-foreground">Hoje</p>
             </CardContent>
           </Card>
-          <Card className={cn("cursor-pointer transition-colors", period === "overdue" && !startDate && "ring-2 ring-primary")} onClick={() => { setPeriod("overdue"); clearDateFilter(); }}>
+          <Card>
             <CardContent className="p-4 text-center">
               <AlertTriangle className="h-5 w-5 mx-auto mb-2 text-red-500" />
-              <p className="text-2xl font-bold">{overdueVisits.length}</p>
+              <p className="text-2xl font-bold">{overdueVisits}</p>
               <p className="text-xs text-muted-foreground">Atrasadas</p>
             </CardContent>
           </Card>
-          <Card className={cn("cursor-pointer transition-colors", period === "completed" && !startDate && "ring-2 ring-primary")} onClick={() => { setPeriod("completed"); clearDateFilter(); }}>
+          <Card>
             <CardContent className="p-4 text-center">
               <CheckCircle className="h-5 w-5 mx-auto mb-2 text-green-500" />
-              <p className="text-2xl font-bold">{completedVisits.length}</p>
+              <p className="text-2xl font-bold">{doneVisits}</p>
               <p className="text-xs text-muted-foreground">Concluídas</p>
             </CardContent>
           </Card>
         </div>
-
-        {/* Active filter indicator */}
-        {(startDate && endDate) && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <CalendarIcon className="h-4 w-4" />
-            <span>
-              Exibindo visitas de {format(startDate, "dd/MM/yyyy", { locale: ptBR })} até {format(endDate, "dd/MM/yyyy", { locale: ptBR })}
-            </span>
-            {selectedUser !== "all" && (
-              <span>• {orgMembers.find(m => m.user_id === selectedUser)?.name || "Vendedor selecionado"}</span>
-            )}
-          </div>
-        )}
 
         {/* Visit List */}
         <Card className="min-w-0 overflow-hidden">
@@ -265,66 +223,56 @@ export default function VisitasExternas() {
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
-            ) : !tasks?.length ? (
+            ) : !visits?.length ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <MapPin className="h-12 w-12 text-muted-foreground mb-4" />
                 <h3 className="text-lg font-medium mb-2">Nenhuma visita encontrada</h3>
-                <p className="text-muted-foreground mb-4">Agende visitas externas para acompanhar seus atendimentos presenciais.</p>
-                <Button onClick={handleNewVisit}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Agendar Visita
-                </Button>
+                <p className="text-muted-foreground mb-4">
+                  Crie uma tarefa do tipo "Visita Externa" em qualquer quadro de tarefas para vê-la aqui.
+                </p>
               </div>
             ) : (
               <div className="divide-y min-w-[600px]">
-                {tasks.map((task) => {
-                  const isOverdue = task.due_date && isPast(parseISO(task.due_date)) && task.status === "pending";
-                  const isDueToday = task.due_date && isToday(parseISO(task.due_date));
+                {visits.map((visit) => {
+                  const isOverdue = visit.due_date && isPast(parseISO(visit.due_date)) && visit.status !== "done";
+                  const isDueToday = visit.due_date && isToday(parseISO(visit.due_date));
 
                   return (
                     <div
-                      key={task.id}
+                      key={visit.id}
                       className={cn(
-                        "flex items-center gap-4 p-4 hover:bg-muted/50 transition-colors",
-                        isOverdue && task.status === "pending" && "bg-red-50 dark:bg-red-900/10",
-                        task.status === "completed" && "bg-green-50 dark:bg-green-900/10"
+                        "flex items-center gap-4 p-4 hover:bg-muted/50 transition-colors cursor-pointer",
+                        isOverdue && "bg-red-50 dark:bg-red-900/10",
+                        visit.status === "done" && "bg-green-50 dark:bg-green-900/10"
                       )}
+                      onClick={() => handleOpenDetail(visit)}
                     >
-                      {/* Complete button */}
-                      <button
-                        onClick={() => task.status === "pending" && handleComplete(task.id)}
-                        className={cn(
-                          "w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors",
-                          task.status === "completed"
-                            ? "bg-green-500 border-green-500 text-white"
-                            : isOverdue
-                              ? "border-red-500 hover:border-red-600 hover:bg-red-50"
-                              : "border-muted-foreground hover:border-primary hover:bg-primary/10"
-                        )}
-                      >
-                        {task.status === "completed" && <CheckCircle className="h-4 w-4" />}
-                      </button>
+                      {/* Status icon */}
+                      <div className={cn(
+                        "w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0",
+                        visit.status === "done" ? "bg-green-500 border-green-500 text-white" :
+                        visit.status === "in_progress" ? "bg-blue-500 border-blue-500 text-white" :
+                        isOverdue ? "border-red-500" : "border-muted-foreground"
+                      )}>
+                        {visit.status === "done" && <CheckCircle className="h-4 w-4" />}
+                      </div>
 
-                      {/* Visit info */}
-                      <div className="flex-1 min-w-0 cursor-pointer" onClick={() => handleEditTask(task)}>
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <MapPin className="h-4 w-4 text-primary shrink-0" />
-                          <p className={cn("font-medium truncate", task.status === "completed" && "line-through text-muted-foreground")}>
-                            {task.title}
+                          <p className={cn("font-medium truncate", visit.status === "done" && "line-through text-muted-foreground")}>
+                            {visit.title}
                           </p>
                         </div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          {task.deal_title && <span className="truncate flex items-center gap-1"><Building2 className="h-3 w-3" />{task.deal_title}</span>}
-                          {task.company_name && (
-                            <>
-                              {task.deal_title && <span>•</span>}
-                              <span className="truncate">{task.company_name}</span>
-                            </>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
+                          {visit.board_name && (
+                            <span className="flex items-center gap-1"><ClipboardList className="h-3 w-3" />{visit.board_name}</span>
                           )}
-                          {task.assigned_to_name && (
+                          {visit.assigned_name && (
                             <>
                               <span>•</span>
-                              <span className="truncate flex items-center gap-1"><User className="h-3 w-3" />{task.assigned_to_name}</span>
+                              <span className="flex items-center gap-1"><User className="h-3 w-3" />{visit.assigned_name}</span>
                             </>
                           )}
                         </div>
@@ -332,21 +280,21 @@ export default function VisitasExternas() {
 
                       {/* Meta */}
                       <div className="flex items-center gap-3 shrink-0">
-                        <Badge variant="outline" className={getPriorityColor(task.priority)}>
-                          {priorityLabels[task.priority]}
+                        <Badge variant="outline" className={cn("text-xs", statusLabels[visit.status] ? "" : "")}>
+                          {statusLabels[visit.status] || visit.status}
                         </Badge>
-                        {task.due_date && (
+                        <Badge variant="outline" className={getPriorityColor(visit.priority)}>
+                          {priorityLabels[visit.priority] || visit.priority}
+                        </Badge>
+                        {visit.due_date && (
                           <span className={cn(
                             "text-sm whitespace-nowrap",
                             isOverdue && "text-red-600 font-medium",
                             isDueToday && !isOverdue && "text-primary font-medium"
                           )}>
-                            {format(parseISO(task.due_date), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                            {format(parseISO(visit.due_date), "dd/MM/yyyy", { locale: ptBR })}
                           </span>
                         )}
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDelete(task.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
                       </div>
                     </div>
                   );
@@ -357,11 +305,23 @@ export default function VisitasExternas() {
         </Card>
       </div>
 
-      <TaskDialog
-        task={editingTask}
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-      />
+      {/* Detail Dialog - reuses the full TaskCardDetailDialog */}
+      {selectedCard && (
+        <Suspense fallback={null}>
+          <TaskCardDetailDialog
+            open={detailOpen}
+            onOpenChange={(open) => {
+              setDetailOpen(open);
+              if (!open) setSelectedCard(null);
+            }}
+            card={selectedCard}
+            boardId={selectedCard.board_id}
+            isGlobal={true}
+            members={members}
+            boards={boards}
+          />
+        </Suspense>
+      )}
     </MainLayout>
   );
 }
