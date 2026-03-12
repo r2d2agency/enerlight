@@ -124,6 +124,7 @@ export default function CRMTarefas() {
     email: "Email",
     meeting: "Reunião",
     follow_up: "Follow-up",
+    external_visit: "Visita Externa",
   };
 
   const hasActiveFilters = startDate || endDate || (canViewAll && selectedUser !== "all");
