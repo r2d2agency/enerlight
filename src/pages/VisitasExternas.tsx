@@ -11,7 +11,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useCRMMyTeam } from "@/hooks/use-crm";
 import { CheckCircle, AlertTriangle, Calendar as CalendarIcon, MapPin, Loader2, Filter, X, User, Users, Clock } from "lucide-react";
-import { format, parseISO, isToday, isPast } from "date-fns";
+import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { DealDetailDialog } from "@/components/crm/DealDetailDialog";
@@ -29,6 +29,21 @@ interface ExternalVisitListItem {
   created_by_name?: string;
   participants: { id: string; user_id: string; user_name: string }[];
 }
+
+const DATE_ONLY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+
+const getVisitDateOnly = (value?: string) => {
+  if (!value) return "";
+  const [dateOnly] = value.split("T");
+  return DATE_ONLY_REGEX.test(dateOnly) ? dateOnly : "";
+};
+
+const formatVisitDateBR = (value?: string) => {
+  const dateOnly = getVisitDateOnly(value);
+  if (!dateOnly) return "—";
+  const [year, month, day] = dateOnly.split("-");
+  return `${day}/${month}/${year}`;
+};
 
 export default function VisitasExternas() {
   const { user } = useAuth();
@@ -74,8 +89,12 @@ export default function VisitasExternas() {
 
   const hasActiveFilters = startDate || endDate || (canViewAll && selectedUser !== "all") || statusFilter;
   const totalVisits = visits.length;
-  const todayVisits = visits.filter(v => v.visit_date && isToday(parseISO(v.visit_date))).length;
-  const overdueVisits = visits.filter(v => v.visit_date && isPast(parseISO(v.visit_date)) && v.status === "scheduled").length;
+  const todayDateOnly = format(new Date(), "yyyy-MM-dd");
+  const todayVisits = visits.filter((v) => getVisitDateOnly(v.visit_date) === todayDateOnly).length;
+  const overdueVisits = visits.filter((v) => {
+    const visitDateOnly = getVisitDateOnly(v.visit_date);
+    return Boolean(visitDateOnly) && visitDateOnly < todayDateOnly && v.status === "scheduled";
+  }).length;
   const doneVisits = visits.filter(v => v.status === "completed").length;
 
   const handleOpenDeal = (visit: ExternalVisitListItem) => {
@@ -218,9 +237,10 @@ export default function VisitasExternas() {
               </div>
             ) : (
               <div className="divide-y min-w-[600px]">
-                {visits.map(visit => {
-                  const isOverdue = visit.visit_date && isPast(parseISO(visit.visit_date)) && visit.status === "scheduled";
-                  const isDueToday = visit.visit_date && isToday(parseISO(visit.visit_date));
+                {visits.map((visit) => {
+                  const visitDateOnly = getVisitDateOnly(visit.visit_date);
+                  const isOverdue = Boolean(visitDateOnly) && visitDateOnly < todayDateOnly && visit.status === "scheduled";
+                  const isDueToday = visitDateOnly === todayDateOnly;
 
                   return (
                     <div
@@ -265,7 +285,7 @@ export default function VisitasExternas() {
                           isOverdue && "text-destructive font-medium",
                           isDueToday && !isOverdue && "text-primary font-medium"
                         )}>
-                          {format(parseISO(visit.visit_date), "dd/MM/yyyy", { locale: ptBR })}
+                          {formatVisitDateBR(visit.visit_date)}
                         </span>
                       </div>
                     </div>
