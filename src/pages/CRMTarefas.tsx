@@ -97,6 +97,7 @@ export default function CRMTarefas() {
       case "email": return <Mail className="h-4 w-4" />;
       case "meeting": return <Users className="h-4 w-4" />;
       case "follow_up": return <MessageSquare className="h-4 w-4" />;
+      case "external_visit": return <Map className="h-4 w-4" />;
       default: return <CheckCircle className="h-4 w-4" />;
     }
   };
