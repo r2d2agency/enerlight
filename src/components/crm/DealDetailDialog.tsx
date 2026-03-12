@@ -1603,6 +1603,10 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
               </div>
             </TabsContent>
 
+            <TabsContent value="visits" className="m-0">
+              {deal?.id && <ExternalVisitTab dealId={deal.id} dealTitle={currentDeal?.title || ""} />}
+            </TabsContent>
+
             <TabsContent value="history" className="m-0">
               <div className="space-y-3">
                 {fullDeal?.history?.map((item: any) => (
