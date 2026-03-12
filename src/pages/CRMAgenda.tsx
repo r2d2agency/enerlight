@@ -65,7 +65,7 @@ export default function CRMAgenda() {
   const [visitDealDialogOpen, setVisitDealDialogOpen] = useState(false);
 
   const { data: allTasks, isLoading } = useCRMTasks({ period: "all" });
-  const { completeTask } = useCRMTaskMutations();
+  const { completeTask, deleteTask } = useCRMTaskMutations();
   const { data: googleStatus } = useGoogleCalendarStatus();
 
   // Date range for fetching
@@ -655,6 +655,9 @@ export default function CRMAgenda() {
                                     {task.assigned_to_name && <span className="flex items-center gap-1"><Users className="h-3 w-3" />{task.assigned_to_name}</span>}
                                   </div>
                                 </div>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={(e) => { e.stopPropagation(); deleteTask.mutate(task.id); }}>
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
                               </div>
                             </Card>
                           ))}
@@ -805,6 +808,9 @@ export default function CRMAgenda() {
                           <h4 className={cn("text-sm font-medium truncate", task.status === "completed" && "line-through")}>{task.title}</h4>
                           {task.deal_title && <p className="text-xs text-muted-foreground truncate mt-1">{task.deal_title}</p>}
                         </div>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={(e) => { e.stopPropagation(); deleteTask.mutate(task.id); }}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
                       </div>
                     </Card>
                   ))}
