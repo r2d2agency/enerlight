@@ -458,7 +458,32 @@ export function useDueSoonTasks() {
   return useQuery<DueSoonTask[]>({
     queryKey: ["task-due-soon"],
     queryFn: () => api<DueSoonTask[]>("/api/task-boards/due-soon"),
-    refetchInterval: 5 * 60 * 1000, // every 5 min
+    refetchInterval: 5 * 60 * 1000,
+  });
+}
+
+// ============================================
+// BY TYPE (for Visitas Externas, etc.)
+// ============================================
+
+export interface TaskCardsByTypeFilters {
+  assigned_to?: string;
+  start_date?: string;
+  end_date?: string;
+  status?: string;
+}
+
+export function useTaskCardsByType(type: string, filters?: TaskCardsByTypeFilters) {
+  const params = new URLSearchParams();
+  if (filters?.assigned_to && filters.assigned_to !== 'all') params.set("assigned_to", filters.assigned_to);
+  if (filters?.start_date) params.set("start_date", filters.start_date);
+  if (filters?.end_date) params.set("end_date", filters.end_date);
+  if (filters?.status) params.set("status", filters.status);
+  const qs = params.toString();
+  return useQuery<TaskCard[]>({
+    queryKey: ["task-cards-by-type", type, qs],
+    queryFn: () => api<TaskCard[]>(`/api/task-boards/by-type/${type}${qs ? `?${qs}` : ""}`),
+    enabled: !!type,
   });
 }
 
