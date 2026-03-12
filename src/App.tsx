@@ -9,8 +9,23 @@ import { useBranding } from "@/hooks/use-branding";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { Loader2 } from "lucide-react";
 
+// Auto-reload helper for stale chunks after deploy
+const lazyRetry = (importFn: () => Promise<any>) =>
+  lazy(() =>
+    importFn().catch(() => {
+      // If chunk fails to load (404 after new deploy), reload once
+      const reloaded = sessionStorage.getItem('chunk-reload');
+      if (!reloaded) {
+        sessionStorage.setItem('chunk-reload', '1');
+        window.location.reload();
+      }
+      sessionStorage.removeItem('chunk-reload');
+      return importFn();
+    })
+  );
+
 // Lazy load all pages for code splitting
-const LandingPage = lazy(() => import("./pages/LandingPage"));
+const LandingPage = lazyRetry(() => import("./pages/LandingPage"));
 const Index = lazy(() => import("./pages/Index"));
 const Login = lazy(() => import("./pages/Login"));
 const Cadastro = lazy(() => import("./pages/Cadastro"));
