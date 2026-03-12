@@ -472,7 +472,7 @@ export function ExternalVisitTab({ dealId, dealTitle }: ExternalVisitTabProps) {
                     <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
                       <span className="flex items-center gap-1">
                         <CalendarIcon className="h-3 w-3" />
-                        {format(parseISO(visit.visit_date), "dd/MM/yyyy", { locale: ptBR })}
+                        {(() => { const parts = (visit.visit_date || "").split("T")[0].split("-"); return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : "—"; })()}
                       </span>
                       {visit.start_time && (
                         <span className="flex items-center gap-1">
@@ -536,6 +536,45 @@ export function ExternalVisitTab({ dealId, dealTitle }: ExternalVisitTabProps) {
                       >
                         <Trash2 className="h-3 w-3 mr-1" /> Excluir
                       </Button>
+                    </div>
+
+                    {/* Editable Date & Time */}
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <Label className="text-xs">Data</Label>
+                        <Input
+                          type="date"
+                          className="h-8 text-xs"
+                          value={visit.visit_date?.split("T")[0] || ""}
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              mutations.update.mutate({ visitId: visit.id, visit_date: e.target.value });
+                            }
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Início</Label>
+                        <Input
+                          type="time"
+                          className="h-8 text-xs"
+                          value={visit.start_time?.slice(0, 5) || ""}
+                          onChange={(e) => {
+                            mutations.update.mutate({ visitId: visit.id, start_time: e.target.value });
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Fim</Label>
+                        <Input
+                          type="time"
+                          className="h-8 text-xs"
+                          value={visit.end_time?.slice(0, 5) || ""}
+                          onChange={(e) => {
+                            mutations.update.mutate({ visitId: visit.id, end_time: e.target.value });
+                          }}
+                        />
+                      </div>
                     </div>
 
                     {/* Description & Address */}
