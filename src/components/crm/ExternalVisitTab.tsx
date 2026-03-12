@@ -538,6 +538,45 @@ export function ExternalVisitTab({ dealId, dealTitle }: ExternalVisitTabProps) {
                       </Button>
                     </div>
 
+                    {/* Editable Date & Time */}
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <Label className="text-xs">Data</Label>
+                        <Input
+                          type="date"
+                          className="h-8 text-xs"
+                          value={visit.visit_date?.split("T")[0] || ""}
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              mutations.update.mutate({ visitId: visit.id, visit_date: e.target.value });
+                            }
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Início</Label>
+                        <Input
+                          type="time"
+                          className="h-8 text-xs"
+                          value={visit.start_time?.slice(0, 5) || ""}
+                          onChange={(e) => {
+                            mutations.update.mutate({ visitId: visit.id, start_time: e.target.value });
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Fim</Label>
+                        <Input
+                          type="time"
+                          className="h-8 text-xs"
+                          value={visit.end_time?.slice(0, 5) || ""}
+                          onChange={(e) => {
+                            mutations.update.mutate({ visitId: visit.id, end_time: e.target.value });
+                          }}
+                        />
+                      </div>
+                    </div>
+
                     {/* Description & Address */}
                     {visit.description && <p className="text-sm text-muted-foreground">{visit.description}</p>}
                     {visit.address && (
