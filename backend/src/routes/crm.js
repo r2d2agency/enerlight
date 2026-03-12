@@ -3115,6 +3115,42 @@ router.post('/prospects/:id/convert', async (req, res) => {
       [deal_id, req.params.id]
     );
 
+    // Also add contact to chat_contacts for the deal owner's connection
+    // so clicking "Chat" in the deal will find the contact
+    try {
+      const ownerConnections = await query(
+        `SELECT DISTINCT cm.connection_id 
+         FROM connection_members cm
+         JOIN connections c ON c.id = cm.connection_id AND c.organization_id = $1 AND c.status = 'connected'
+         WHERE cm.user_id = $2
+         LIMIT 1`,
+        [org.organization_id, dealOwner]
+      );
+      
+      let connectionId = ownerConnections.rows[0]?.connection_id;
+      
+      // Fallback: any active connection in the org
+      if (!connectionId) {
+        const anyConn = await query(
+          `SELECT id FROM connections WHERE organization_id = $1 AND status = 'connected' LIMIT 1`,
+          [org.organization_id]
+        );
+        connectionId = anyConn.rows[0]?.id;
+      }
+
+      if (connectionId && prospect.phone) {
+        await query(
+          `INSERT INTO chat_contacts (connection_id, phone, name, created_by, created_at, updated_at, is_deleted)
+           VALUES ($1, $2, $3, $4, NOW(), NOW(), false)
+           ON CONFLICT (connection_id, phone)
+           DO UPDATE SET name = COALESCE(NULLIF($3, ''), chat_contacts.name), is_deleted = false, updated_at = NOW()`,
+          [connectionId, prospect.phone.replace(/\D/g, ''), prospect.name, dealOwner]
+        );
+      }
+    } catch (chatContactErr) {
+      console.warn('Non-critical: failed to add chat_contact on prospect conversion:', chatContactErr.message);
+    }
+
     res.json({ deal_id, company_id });
   } catch (error) {
     console.error('Error converting prospect:', error);
