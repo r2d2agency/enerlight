@@ -521,7 +521,8 @@ export default function CRMAgenda() {
                       const dayTasks = tasksByDate.get(dateKey) || [];
                       const dayGoogleEvents = googleEventsByDate.get(dateKey) || [];
                       const dayBlocks = blocksByDate.get(dateKey) || [];
-                      const hasAny = dayTasks.length > 0 || dayGoogleEvents.length > 0 || dayBlocks.length > 0;
+                      const dayVisits = visitsByDate.get(dateKey) || [];
+                      const hasAny = dayTasks.length > 0 || dayGoogleEvents.length > 0 || dayBlocks.length > 0 || dayVisits.length > 0;
                       
                       if (!hasAny) {
                         return (
