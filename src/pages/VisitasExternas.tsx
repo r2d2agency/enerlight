@@ -36,7 +36,7 @@ export default function VisitasExternas() {
     assigned_to: canViewAll ? selectedUser : undefined,
     start_date: startDate ? format(startDate, "yyyy-MM-dd") : undefined,
     end_date: endDate ? format(endDate, "yyyy-MM-dd") : undefined,
-    status: statusFilter || undefined,
+    status: statusFilter && statusFilter !== "all_statuses" ? statusFilter : undefined,
   };
 
   const { data: visits, isLoading } = useTaskCardsByType("external_visit", filters);
