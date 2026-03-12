@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useCRMTasks, useCRMTaskCounts, useCRMTaskMutations, CRMTask } from "@/hooks/use-crm";
 import { useAuth } from "@/contexts/AuthContext";
 import { useOrganizations } from "@/hooks/use-organizations";
-import { Plus, CheckCircle, Clock, AlertTriangle, Calendar as CalendarIcon, Phone, Mail, MessageSquare, Users, Trash2, Loader2, Filter, X } from "lucide-react";
+import { Plus, CheckCircle, Clock, AlertTriangle, Calendar as CalendarIcon, Phone, Mail, MessageSquare, Users, Trash2, Loader2, Filter, X, Map } from "lucide-react";
 import { format, parseISO, isToday, isPast } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
