@@ -65,7 +65,7 @@ export default function CRMAgenda() {
   const [visitDealDialogOpen, setVisitDealDialogOpen] = useState(false);
 
   const { data: allTasks, isLoading } = useCRMTasks({ period: "all" });
-  const { completeTask } = useCRMTaskMutations();
+  const { completeTask, deleteTask } = useCRMTaskMutations();
   const { data: googleStatus } = useGoogleCalendarStatus();
 
   // Date range for fetching
