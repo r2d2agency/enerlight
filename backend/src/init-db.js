@@ -3823,6 +3823,7 @@ const migrationSteps = [
   { name: 'Task Board Enhancements', sql: step47TaskBoardEnhancements, critical: false },
   { name: 'Lead Gleego Module', sql: step48LeadGleego, critical: false },
   { name: 'Task Card Type Column', sql: step49TaskCardType, critical: false },
+  { name: 'External Visits Module', sql: step50ExternalVisits, critical: false },
 ];
 
 export async function initDatabase() {
