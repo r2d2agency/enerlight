@@ -543,7 +543,50 @@ router.get('/global-default', async (req, res) => {
   }
 });
 
-// ============================================
+// GET /by-type/:type - List task cards by type across all boards
+router.get('/by-type/:type', async (req, res) => {
+  try {
+    const { assigned_to, start_date, end_date, status } = req.query;
+    let sql = `SELECT tc.*, u.name as assigned_name, cu.name as creator_name,
+      tb.name as board_name, tbc.name as column_name
+      FROM task_cards tc
+      LEFT JOIN users u ON u.id = tc.assigned_to
+      LEFT JOIN users cu ON cu.id = tc.created_by
+      LEFT JOIN task_boards tb ON tb.id = tc.board_id
+      LEFT JOIN task_board_columns tbc ON tbc.id = tc.column_id
+      WHERE tc.organization_id = $1 AND tc.type = $2 AND NOT COALESCE(tc.is_archived, false)`;
+    const params = [req.user.organization_id, req.params.type];
+    let idx = 3;
+
+    const isAdmin = ['owner','admin','manager','supervisor'].includes(req.user.role);
+    if (!isAdmin) {
+      sql += ` AND tc.assigned_to = $${idx++}`;
+      params.push(req.user.id);
+    } else if (assigned_to && assigned_to !== 'all') {
+      sql += ` AND tc.assigned_to = $${idx++}`;
+      params.push(assigned_to);
+    }
+
+    if (start_date && end_date) {
+      sql += ` AND tc.due_date >= $${idx} AND tc.due_date < $${idx + 1}::date + INTERVAL '1 day'`;
+      params.push(start_date, end_date);
+      idx += 2;
+    }
+
+    if (status) {
+      sql += ` AND tc.status = $${idx++}`;
+      params.push(status);
+    }
+
+    sql += ` ORDER BY tc.due_date ASC NULLS LAST, tc.created_at DESC`;
+    const result = await pool.query(sql, params);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching cards by type:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // DYNAMIC ROUTES (with :boardId parameter) — MUST come after static routes
 // ============================================
 
