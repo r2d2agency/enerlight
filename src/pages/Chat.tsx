@@ -434,6 +434,8 @@ const Chat = () => {
     const phone = params.get('phone');
     
     if (!conversationId && !phone) return;
+    // Wait for connections to load before trying to create a conversation
+    if (!conversationId && phone && connections.length === 0) return;
 
     (async () => {
       try {
@@ -446,9 +448,10 @@ const Chat = () => {
           try {
             conv = await api<Conversation>(`/api/chat/conversations/by-phone/${encodeURIComponent(phone)}`);
           } catch {
-            // No conversation exists yet — create one using the first available connection
-            const userConns = connections.length > 0 ? connections : [];
-            const activeConn = userConns.find(c => c.status === 'connected') || userConns[0];
+            // No conversation exists yet — create one using the user's active connection
+            // Prefer assigned connections, then any connected one
+            const assignedConns = connections.filter(c => c.is_assigned && c.status === 'connected');
+            const activeConn = assignedConns[0] || connections.find(c => c.status === 'connected') || connections[0];
             if (activeConn) {
               conv = await api<Conversation>('/api/chat/conversations', {
                 method: 'POST',
@@ -469,7 +472,7 @@ const Chat = () => {
         toast.error('Não foi possível abrir a conversa');
       }
     })();
-  }, [location.search, getConversation, handleSelectConversation]);
+  }, [location.search, connections, getConversation, handleSelectConversation]);
 
   const handleLoadMoreMessages = async () => {
     if (!selectedConversation || messages.length === 0) return;
