@@ -718,7 +718,7 @@ export default function CRMAgenda() {
                 </div>
               </div>
 
-              {selectedDayTasks.length === 0 && selectedDayGoogleEvents.length === 0 && selectedDayBlocks.length === 0 ? (
+              {selectedDayTasks.length === 0 && selectedDayGoogleEvents.length === 0 && selectedDayBlocks.length === 0 && selectedDayVisits.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <CalendarIcon className="h-8 w-8 mx-auto mb-2 opacity-50" />
                   <p className="text-sm">Nenhum compromisso</p>
