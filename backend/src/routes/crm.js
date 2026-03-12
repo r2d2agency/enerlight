@@ -1916,6 +1916,13 @@ router.get('/tasks', async (req, res) => {
       paramIndex++;
     }
 
+    // Type filter
+    if (type) {
+      sql += ` AND t.type = $${paramIndex}`;
+      params.push(type);
+      paramIndex++;
+    }
+
     sql += ` ORDER BY t.due_date ASC NULLS LAST, t.priority DESC`;
 
     const result = await query(sql, params);
