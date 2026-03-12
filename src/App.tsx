@@ -70,6 +70,7 @@ const ComunicacaoInterna = lazyRetry(() => import("./pages/ComunicacaoInterna"))
 const Homologacao = lazyRetry(() => import("./pages/Homologacao"));
 const TarefasKanban = lazyRetry(() => import("./pages/TarefasKanban"));
 const LeadGleego = lazyRetry(() => import("./pages/LeadGleego"));
+const VisitasExternas = lazyRetry(() => import("./pages/VisitasExternas"));
 const NotFound = lazyRetry(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
