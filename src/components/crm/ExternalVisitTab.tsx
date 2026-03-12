@@ -472,7 +472,7 @@ export function ExternalVisitTab({ dealId, dealTitle }: ExternalVisitTabProps) {
                     <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
                       <span className="flex items-center gap-1">
                         <CalendarIcon className="h-3 w-3" />
-                        {format(parseISO(visit.visit_date), "dd/MM/yyyy", { locale: ptBR })}
+                        {(() => { const parts = (visit.visit_date || "").split("T")[0].split("-"); return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : "—"; })()}
                       </span>
                       {visit.start_time && (
                         <span className="flex items-center gap-1">
