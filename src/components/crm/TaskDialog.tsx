@@ -256,6 +256,7 @@ export function TaskDialog({ task, dealId, companyId, open, onOpenChange, defaul
     { value: "email", label: "Email" },
     { value: "meeting", label: "Reunião" },
     { value: "follow_up", label: "Follow-up" },
+    { value: "external_visit", label: "Visita Externa" },
   ];
 
   const priorityOptions = [

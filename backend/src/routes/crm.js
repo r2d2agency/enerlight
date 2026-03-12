@@ -1855,7 +1855,7 @@ router.get('/tasks', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
-    const { period, status, assigned_to, deal_id, start_date, end_date, view_all } = req.query;
+    const { period, status, assigned_to, deal_id, start_date, end_date, view_all, type } = req.query;
     
     let sql = `SELECT t.*, 
       d.title as deal_title,
@@ -1913,6 +1913,13 @@ router.get('/tasks', async (req, res) => {
     if (deal_id) {
       sql += ` AND t.deal_id = $${paramIndex}`;
       params.push(deal_id);
+      paramIndex++;
+    }
+
+    // Type filter
+    if (type) {
+      sql += ` AND t.type = $${paramIndex}`;
+      params.push(type);
       paramIndex++;
     }
 

@@ -586,6 +586,7 @@ export function useCRMTasks(filters?: {
   start_date?: string;
   end_date?: string;
   view_all?: boolean;
+  type?: string;
 }) {
   const params = new URLSearchParams();
   if (filters?.period) params.append("period", filters.period);
@@ -595,6 +596,7 @@ export function useCRMTasks(filters?: {
   if (filters?.start_date) params.append("start_date", filters.start_date);
   if (filters?.end_date) params.append("end_date", filters.end_date);
   if (filters?.view_all) params.append("view_all", "true");
+  if (filters?.type) params.append("type", filters.type);
 
   return useQuery({
     queryKey: ["crm-tasks", filters],

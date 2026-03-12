@@ -99,6 +99,7 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
       { name: "Agenda", href: "/crm/agenda", icon: CalendarDays, permissionKey: 'can_view_calendar' },
       { name: "Reuniões", href: "/reunioes", icon: Presentation, permissionKey: 'can_view_crm' },
       { name: "Tarefas", href: "/crm/tarefas", icon: ClipboardList, permissionKey: 'can_view_tasks' },
+      { name: "Visitas Externas", href: "/crm/visitas-externas", icon: Map, permissionKey: 'can_view_tasks' },
       { name: "Relatórios", href: "/crm/relatorios", icon: BarChart3, permissionKey: 'can_view_reports' },
       { name: "Representantes", href: "/crm/representantes", icon: Handshake, permissionKey: 'can_view_crm' },
       { name: "Metas", href: "/crm/metas", icon: Target, permissionKey: 'can_view_crm' },
