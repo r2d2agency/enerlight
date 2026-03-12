@@ -15,7 +15,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { CRMDeal, CRMTask, CRMStage, useCRMDeal, useCRMDealMutations, useCRMTaskMutations, useCRMFunnel, useCRMFunnels, useCRMCompanies, useCRMMyTeam } from "@/hooks/use-crm";
 import { useRepresentativesForDeal } from "@/hooks/use-representatives";
 import { api } from "@/lib/api";
-import { Building2, User, Phone, Calendar as CalendarIcon, Clock, CheckCircle, Plus, Trash2, Paperclip, MessageSquare, ChevronRight, Edit2, Save, X, FileText, Image, Loader2, Upload, Search, UserPlus, Building, Mail, Video, Send, ClipboardList, RefreshCw, Flame, ArrowRightLeft } from "lucide-react";
+import { Building2, User, Phone, Calendar as CalendarIcon, Clock, CheckCircle, Plus, Trash2, Paperclip, MessageSquare, ChevronRight, Edit2, Save, X, FileText, Image, Loader2, Upload, Search, UserPlus, Building, Mail, Video, Send, ClipboardList, RefreshCw, Flame, ArrowRightLeft, MapPin } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -34,6 +34,7 @@ import { PredictiveAnalyticsCard } from "./PredictiveAnalytics";
 import { useProjectsByDeal, useProjectMutations, useProjectTemplates, Project } from "@/hooks/use-projects";
 import { FolderKanban } from "lucide-react";
 import { DealProjectCard } from "./DealProjectCard";
+import { ExternalVisitTab } from "./ExternalVisitTab";
 
 interface ChatContact {
   id: string;
@@ -668,6 +669,10 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
                   {dealProjects.length}
                 </Badge>
               )}
+            </TabsTrigger>
+            <TabsTrigger value="visits" className="text-xs sm:text-sm">
+              <MapPin className="h-3 w-3 mr-1" />
+              Visitas
             </TabsTrigger>
             <TabsTrigger value="history" className="text-xs sm:text-sm">Histórico</TabsTrigger>
           </TabsList>
@@ -1596,6 +1601,10 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
                   <p className="text-center text-muted-foreground py-8">Nenhum projeto vinculado</p>
                 )}
               </div>
+            </TabsContent>
+
+            <TabsContent value="visits" className="m-0">
+              {deal?.id && <ExternalVisitTab dealId={deal.id} dealTitle={currentDeal?.title || ""} />}
             </TabsContent>
 
             <TabsContent value="history" className="m-0">
