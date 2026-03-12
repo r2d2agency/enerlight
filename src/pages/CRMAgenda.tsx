@@ -845,6 +845,16 @@ export default function CRMAgenda() {
         block={editingBlock}
         defaultDate={blockDefaultDate}
       />
+      {visitDealId && (
+        <DealDetailDialog
+          deal={{ id: visitDealId } as any}
+          open={visitDealDialogOpen}
+          onOpenChange={(open) => {
+            setVisitDealDialogOpen(open);
+            if (!open) setVisitDealId(null);
+          }}
+        />
+      )}
     </MainLayout>
   );
 }
