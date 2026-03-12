@@ -29,7 +29,8 @@ import {
   ExternalLink,
   Ban,
   Trash2,
-  Repeat
+  Repeat,
+  MapPin
 } from "lucide-react";
 import { 
   format, 
