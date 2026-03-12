@@ -253,6 +253,16 @@ export default function CRMAgenda() {
     return blocksByDate.get(format(selectedDate, "yyyy-MM-dd")) || [];
   }, [selectedDate, blocksByDate]);
 
+  const selectedDayVisits = useMemo(() => {
+    if (!selectedDate) return [];
+    return visitsByDate.get(format(selectedDate, "yyyy-MM-dd")) || [];
+  }, [selectedDate, visitsByDate]);
+
+  const handleOpenVisitDeal = (visit: ExternalVisit) => {
+    setVisitDealId(visit.deal_id);
+    setVisitDealDialogOpen(true);
+  };
+
   // Render a block pill (for calendar cells)
   const renderBlockPill = (block: ScheduleBlock) => {
     const info = BLOCK_REASONS[block.reason] || BLOCK_REASONS.other;
