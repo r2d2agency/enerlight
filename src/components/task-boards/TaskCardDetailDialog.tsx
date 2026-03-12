@@ -293,6 +293,10 @@ export function TaskCardDetailDialog({
     if (status === "done") toast({ title: "Tarefa concluída! 🎉" });
   };
 
+  const handleChangeType = (type: string) => {
+    updateCard.mutate({ id: card.id, type } as any);
+  };
+
   const handleLinkDeal = (dealId: string) => {
     updateCard.mutate({ id: card.id, deal_id: dealId } as any);
   };
@@ -613,7 +617,22 @@ export function TaskCardDetailDialog({
                 </Select>
               </div>
 
-              {/* Assignee */}
+              {/* Type */}
+              <div>
+                <Label className="text-xs font-semibold text-muted-foreground mb-1 block">Tipo</Label>
+                <Select value={card.type || "task"} onValueChange={handleChangeType}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="task">📋 Tarefa</SelectItem>
+                    <SelectItem value="external_visit">📍 Visita Externa</SelectItem>
+                    <SelectItem value="call">📞 Ligação</SelectItem>
+                    <SelectItem value="meeting">👥 Reunião</SelectItem>
+                    <SelectItem value="follow_up">💬 Follow-up</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               {isGlobal && (
                 <div>
                   <Label className="text-xs font-semibold text-muted-foreground mb-1 block">Responsável</Label>

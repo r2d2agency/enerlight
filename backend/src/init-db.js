@@ -3746,6 +3746,13 @@ EXCEPTION WHEN others THEN NULL;
 END $$;
 `;
 
+const step49TaskCardType = `
+DO $$ BEGIN
+  ALTER TABLE task_cards ADD COLUMN IF NOT EXISTS type VARCHAR(50) DEFAULT 'task';
+EXCEPTION WHEN others THEN NULL;
+END $$;
+`;
+
 const step48LeadGleego = `
 -- Plan column for Lead Gleego
 DO $$ BEGIN
@@ -3815,6 +3822,7 @@ const migrationSteps = [
   { name: 'Task Boards Module', sql: step46TaskBoards, critical: false },
   { name: 'Task Board Enhancements', sql: step47TaskBoardEnhancements, critical: false },
   { name: 'Lead Gleego Module', sql: step48LeadGleego, critical: false },
+  { name: 'Task Card Type Column', sql: step49TaskCardType, critical: false },
 ];
 
 export async function initDatabase() {

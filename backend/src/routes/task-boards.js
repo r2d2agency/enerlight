@@ -151,7 +151,7 @@ router.delete('/templates/:id', async (req, res) => {
 // PUT /cards/:id
 router.put('/cards/:id', async (req, res) => {
   try {
-    const { title, description, assigned_to, priority, due_date, tags, color, cover_image, is_archived, status, notes, deal_id, company_id, contact_id, project_id } = req.body;
+    const { title, description, assigned_to, priority, due_date, tags, color, cover_image, is_archived, status, notes, deal_id, company_id, contact_id, project_id, type } = req.body;
     const dueDateVal = due_date || null;
     const tagsVal = tags ? (Array.isArray(tags) ? tags : []) : null;
     
@@ -165,9 +165,10 @@ router.put('/cards/:id', async (req, res) => {
         status = COALESCE($10, status),
         notes = COALESCE($11, notes),
         deal_id = $12, company_id = $13, contact_id = $14, project_id = $15,
+        type = COALESCE($16, type),
         updated_at = NOW()
-       WHERE id = $16 RETURNING *`,
-      [title, description, assigned_to || null, priority, dueDateVal, tagsVal, color || null, cover_image || null, is_archived, status, notes, deal_id || null, company_id || null, contact_id || null, project_id || null, req.params.id]
+       WHERE id = $17 RETURNING *`,
+      [title, description, assigned_to || null, priority, dueDateVal, tagsVal, color || null, cover_image || null, is_archived, status, notes, deal_id || null, company_id || null, contact_id || null, project_id || null, type, req.params.id]
     );
     if (!result.rows[0]) return res.status(404).json({ error: 'Card não encontrado' });
     res.json(result.rows[0]);
@@ -542,7 +543,50 @@ router.get('/global-default', async (req, res) => {
   }
 });
 
-// ============================================
+// GET /by-type/:type - List task cards by type across all boards
+router.get('/by-type/:type', async (req, res) => {
+  try {
+    const { assigned_to, start_date, end_date, status } = req.query;
+    let sql = `SELECT tc.*, u.name as assigned_name, cu.name as creator_name,
+      tb.name as board_name, tbc.name as column_name
+      FROM task_cards tc
+      LEFT JOIN users u ON u.id = tc.assigned_to
+      LEFT JOIN users cu ON cu.id = tc.created_by
+      LEFT JOIN task_boards tb ON tb.id = tc.board_id
+      LEFT JOIN task_board_columns tbc ON tbc.id = tc.column_id
+      WHERE tc.organization_id = $1 AND tc.type = $2 AND NOT COALESCE(tc.is_archived, false)`;
+    const params = [req.user.organization_id, req.params.type];
+    let idx = 3;
+
+    const isAdmin = ['owner','admin','manager','supervisor'].includes(req.user.role);
+    if (!isAdmin) {
+      sql += ` AND tc.assigned_to = $${idx++}`;
+      params.push(req.user.id);
+    } else if (assigned_to && assigned_to !== 'all') {
+      sql += ` AND tc.assigned_to = $${idx++}`;
+      params.push(assigned_to);
+    }
+
+    if (start_date && end_date) {
+      sql += ` AND tc.due_date >= $${idx} AND tc.due_date < $${idx + 1}::date + INTERVAL '1 day'`;
+      params.push(start_date, end_date);
+      idx += 2;
+    }
+
+    if (status) {
+      sql += ` AND tc.status = $${idx++}`;
+      params.push(status);
+    }
+
+    sql += ` ORDER BY tc.due_date ASC NULLS LAST, tc.created_at DESC`;
+    const result = await pool.query(sql, params);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching cards by type:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // DYNAMIC ROUTES (with :boardId parameter) — MUST come after static routes
 // ============================================
 
@@ -815,7 +859,7 @@ router.get('/:boardId/cards', async (req, res) => {
 // POST /:boardId/cards
 router.post('/:boardId/cards', async (req, res) => {
   try {
-    const { column_id, title, description, assigned_to, priority, due_date, tags, color, deal_id, company_id, contact_id, project_id, status } = req.body;
+    const { column_id, title, description, assigned_to, priority, due_date, tags, color, deal_id, company_id, contact_id, project_id, status, type } = req.body;
     
     // Allow assigning to others on any board; default to self if not specified
     const effectiveAssigned = assigned_to || req.user.id;
@@ -826,9 +870,9 @@ router.post('/:boardId/cards', async (req, res) => {
     );
 
     const result = await pool.query(
-      `INSERT INTO task_cards (organization_id, board_id, column_id, position, title, description, assigned_to, created_by, priority, due_date, tags, color, deal_id, company_id, contact_id, project_id, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING *`,
-      [req.user.organization_id, req.params.boardId, column_id, maxPos.rows[0].next_pos, title, description, effectiveAssigned, req.user.id, priority || 'medium', due_date, tags || [], color, deal_id, company_id, contact_id, project_id, status || 'todo']
+      `INSERT INTO task_cards (organization_id, board_id, column_id, position, title, description, assigned_to, created_by, priority, due_date, tags, color, deal_id, company_id, contact_id, project_id, status, type)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18) RETURNING *`,
+      [req.user.organization_id, req.params.boardId, column_id, maxPos.rows[0].next_pos, title, description, effectiveAssigned, req.user.id, priority || 'medium', due_date, tags || [], color, deal_id, company_id, contact_id, project_id, status || 'todo', type || 'task']
     );
     res.json(result.rows[0]);
   } catch (err) {
