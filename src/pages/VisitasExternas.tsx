@@ -285,7 +285,7 @@ export default function VisitasExternas() {
                           isOverdue && "text-destructive font-medium",
                           isDueToday && !isOverdue && "text-primary font-medium"
                         )}>
-                          {format(parseISO(visit.visit_date), "dd/MM/yyyy", { locale: ptBR })}
+                          {formatVisitDateBR(visit.visit_date)}
                         </span>
                       </div>
                     </div>
