@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS task_cards (
     deal_id UUID,
     company_id UUID,
     contact_id UUID,
+    type VARCHAR(50) DEFAULT 'task',
     is_archived BOOLEAN DEFAULT false,
     completed_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
