@@ -5298,4 +5298,246 @@ router.post('/import', async (req, res) => {
   }
 });
 
+// ==========================================
+// EXTERNAL VISITS
+// ==========================================
+
+// List visits for a deal
+router.get('/deals/:dealId/external-visits', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const visits = await query(
+      `SELECT v.*, u.name as created_by_name
+       FROM crm_external_visits v
+       LEFT JOIN users u ON u.id = v.created_by
+       WHERE v.deal_id = $1 AND v.organization_id = $2
+       ORDER BY v.visit_date DESC, v.start_time DESC`,
+      [req.params.dealId, org.organization_id]
+    );
+
+    // Fetch participants, notes, checklist, attachments for each visit
+    const result = await Promise.all(visits.rows.map(async (visit) => {
+      const [participants, notes, checklist, attachments] = await Promise.all([
+        query(`SELECT p.id, p.user_id, u.name as user_name FROM crm_external_visit_participants p JOIN users u ON u.id = p.user_id WHERE p.visit_id = $1`, [visit.id]),
+        query(`SELECT n.id, n.content, u.name as created_by_name, n.created_at FROM crm_external_visit_notes n LEFT JOIN users u ON u.id = n.created_by WHERE n.visit_id = $1 ORDER BY n.created_at DESC`, [visit.id]),
+        query(`SELECT * FROM crm_external_visit_checklist WHERE visit_id = $1 ORDER BY position, created_at`, [visit.id]),
+        query(`SELECT * FROM crm_external_visit_attachments WHERE visit_id = $1 ORDER BY created_at DESC`, [visit.id]),
+      ]);
+      return { ...visit, participants: participants.rows, notes: notes.rows, checklist: checklist.rows, attachments: attachments.rows };
+    }));
+
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// List all visits for organization (for VisitasExternas page and agenda)
+router.get('/external-visits', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const { start_date, end_date, user_id, status } = req.query;
+    let sql = `SELECT v.*, u.name as created_by_name, d.title as deal_title, d.id as deal_id
+               FROM crm_external_visits v
+               LEFT JOIN users u ON u.id = v.created_by
+               LEFT JOIN crm_deals d ON d.id = v.deal_id
+               WHERE v.organization_id = $1`;
+    const params = [org.organization_id];
+    let idx = 2;
+
+    if (start_date) { sql += ` AND v.visit_date >= $${idx}`; params.push(start_date); idx++; }
+    if (end_date) { sql += ` AND v.visit_date <= $${idx}`; params.push(end_date); idx++; }
+    if (status) { sql += ` AND v.status = $${idx}`; params.push(status); idx++; }
+    if (user_id && user_id !== 'all') {
+      sql += ` AND (v.created_by = $${idx} OR EXISTS (SELECT 1 FROM crm_external_visit_participants p WHERE p.visit_id = v.id AND p.user_id = $${idx}))`;
+      params.push(user_id); idx++;
+    }
+
+    sql += ` ORDER BY v.visit_date DESC, v.start_time DESC`;
+    const result = await query(sql, params);
+
+    // Also fetch participant names
+    const visits = await Promise.all(result.rows.map(async (visit) => {
+      const participants = await query(
+        `SELECT p.id, p.user_id, u.name as user_name FROM crm_external_visit_participants p JOIN users u ON u.id = p.user_id WHERE p.visit_id = $1`,
+        [visit.id]
+      );
+      return { ...visit, participants: participants.rows };
+    }));
+
+    res.json(visits);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create visit
+router.post('/deals/:dealId/external-visits', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const { title, description, visit_date, start_time, end_time, address, participant_ids } = req.body;
+
+    const result = await query(
+      `INSERT INTO crm_external_visits (organization_id, deal_id, title, description, visit_date, start_time, end_time, address, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [org.organization_id, req.params.dealId, title, description, visit_date, start_time || null, end_time || null, address, req.userId]
+    );
+    const visit = result.rows[0];
+
+    // Add participants
+    if (participant_ids?.length > 0) {
+      for (const uid of participant_ids) {
+        await query(
+          `INSERT INTO crm_external_visit_participants (visit_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+          [visit.id, uid]
+        );
+      }
+    }
+
+    // Also add creator as participant
+    await query(
+      `INSERT INTO crm_external_visit_participants (visit_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+      [visit.id, req.userId]
+    );
+
+    // Add to deal attachments (central files) - link via deal history
+    await query(
+      `INSERT INTO crm_deal_history (deal_id, user_id, action, from_value, to_value)
+       VALUES ($1, $2, 'visit_scheduled', '', $3)`,
+      [req.params.dealId, req.userId, title]
+    );
+
+    res.json(visit);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update visit
+router.patch('/external-visits/:id', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const { status, title, description, address, visit_date, start_time, end_time } = req.body;
+    const sets = [];
+    const params = [];
+    let idx = 1;
+
+    if (status !== undefined) { sets.push(`status = $${idx}`); params.push(status); idx++; }
+    if (title !== undefined) { sets.push(`title = $${idx}`); params.push(title); idx++; }
+    if (description !== undefined) { sets.push(`description = $${idx}`); params.push(description); idx++; }
+    if (address !== undefined) { sets.push(`address = $${idx}`); params.push(address); idx++; }
+    if (visit_date !== undefined) { sets.push(`visit_date = $${idx}`); params.push(visit_date); idx++; }
+    if (start_time !== undefined) { sets.push(`start_time = $${idx}`); params.push(start_time); idx++; }
+    if (end_time !== undefined) { sets.push(`end_time = $${idx}`); params.push(end_time); idx++; }
+    sets.push(`updated_at = NOW()`);
+
+    params.push(req.params.id, org.organization_id);
+    await query(`UPDATE crm_external_visits SET ${sets.join(', ')} WHERE id = $${idx} AND organization_id = $${idx + 1}`, params);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete visit
+router.delete('/external-visits/:id', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+    await query(`DELETE FROM crm_external_visits WHERE id = $1 AND organization_id = $2`, [req.params.id, org.organization_id]);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Add note to visit
+router.post('/external-visits/:id/notes', async (req, res) => {
+  try {
+    const { content } = req.body;
+    const result = await query(
+      `INSERT INTO crm_external_visit_notes (visit_id, content, created_by) VALUES ($1, $2, $3) RETURNING *`,
+      [req.params.id, content, req.userId]
+    );
+    res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Checklist CRUD
+router.post('/external-visits/:id/checklist', async (req, res) => {
+  try {
+    const { text } = req.body;
+    const maxPos = await query(`SELECT COALESCE(MAX(position), -1) + 1 as next FROM crm_external_visit_checklist WHERE visit_id = $1`, [req.params.id]);
+    const result = await query(
+      `INSERT INTO crm_external_visit_checklist (visit_id, text, position) VALUES ($1, $2, $3) RETURNING *`,
+      [req.params.id, text, maxPos.rows[0].next]
+    );
+    res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.patch('/external-visit-checklist/:id', async (req, res) => {
+  try {
+    const { is_checked } = req.body;
+    await query(`UPDATE crm_external_visit_checklist SET is_checked = $1 WHERE id = $2`, [is_checked, req.params.id]);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.delete('/external-visit-checklist/:id', async (req, res) => {
+  try {
+    await query(`DELETE FROM crm_external_visit_checklist WHERE id = $1`, [req.params.id]);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Attachments
+router.post('/external-visits/:id/attachments', async (req, res) => {
+  try {
+    const { file_name, file_url, file_type, file_size } = req.body;
+    const result = await query(
+      `INSERT INTO crm_external_visit_attachments (visit_id, file_name, file_url, file_type, file_size, created_by) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [req.params.id, file_name, file_url, file_type, file_size, req.userId]
+    );
+
+    // Also add to deal's central attachments
+    const visit = await query(`SELECT deal_id FROM crm_external_visits WHERE id = $1`, [req.params.id]);
+    if (visit.rows[0]?.deal_id) {
+      await query(
+        `INSERT INTO crm_deal_attachments (deal_id, name, url, mimetype, size, uploaded_by) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT DO NOTHING`,
+        [visit.rows[0].deal_id, file_name, file_url, file_type || 'application/octet-stream', file_size || 0, req.userId]
+      );
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.delete('/external-visit-attachments/:id', async (req, res) => {
+  try {
+    await query(`DELETE FROM crm_external_visit_attachments WHERE id = $1`, [req.params.id]);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
