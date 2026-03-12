@@ -297,6 +297,7 @@ export function TaskCardDetailDialog({
     updateCard.mutate({ id: card.id, type } as any);
   };
 
+  const handleLinkDeal = (dealId: string) => {
     updateCard.mutate({ id: card.id, deal_id: dealId } as any);
   };
   const handleLinkProject = (projectId: string) => {
