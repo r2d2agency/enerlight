@@ -10,7 +10,9 @@ import { ScheduleBlockDialog } from "@/components/agenda/ScheduleBlockDialog";
 import { useCRMTasks, useCRMTaskMutations, CRMTask } from "@/hooks/use-crm";
 import { useGoogleCalendarStatus, useGoogleCalendarEvents, GoogleCalendarEvent } from "@/hooks/use-google-calendar";
 import { useScheduleBlocks, useScheduleBlockMutations, ScheduleBlock, BLOCK_REASONS } from "@/hooks/use-schedule-blocks";
-import { 
+import { useExternalVisits, ExternalVisit } from "@/hooks/use-external-visits";
+import { DealDetailDialog } from "@/components/crm/DealDetailDialog";
+import {
   Plus, 
   ChevronLeft, 
   ChevronRight, 
