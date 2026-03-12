@@ -808,6 +808,9 @@ export default function CRMAgenda() {
                           <h4 className={cn("text-sm font-medium truncate", task.status === "completed" && "line-through")}>{task.title}</h4>
                           {task.deal_title && <p className="text-xs text-muted-foreground truncate mt-1">{task.deal_title}</p>}
                         </div>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={(e) => { e.stopPropagation(); deleteTask.mutate(task.id); }}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
                       </div>
                     </Card>
                   ))}
