@@ -326,10 +326,11 @@ export default function CRMAgenda() {
                   const dayTasks = tasksByDate.get(dateKey) || [];
                   const dayGoogleEvents = googleEventsByDate.get(dateKey) || [];
                   const dayBlocks = blocksByDate.get(dateKey) || [];
+                  const dayVisits = visitsByDate.get(dateKey) || [];
                   const isCurrentMonth = day.getMonth() === currentDate.getMonth();
                   const isSelected = selectedDate && isSameDay(day, selectedDate);
                   const hasBlock = dayBlocks.length > 0;
-                  const totalItems = dayTasks.length + dayGoogleEvents.length + dayBlocks.length;
+                  const totalItems = dayTasks.length + dayGoogleEvents.length + dayBlocks.length + dayVisits.length;
 
                   return (
                     <div
@@ -354,8 +355,19 @@ export default function CRMAgenda() {
                       <div className="space-y-1">
                         {/* Blocks first */}
                         {dayBlocks.slice(0, 1).map(renderBlockPill)}
+                        {/* External Visits */}
+                        {dayVisits.slice(0, 1).map((visit) => (
+                          <button
+                            key={visit.id}
+                            onClick={(e) => { e.stopPropagation(); handleOpenVisitDeal(visit); }}
+                            className="w-full text-left text-xs px-1.5 py-0.5 rounded truncate flex items-center gap-1 bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800"
+                          >
+                            <MapPin className="h-3 w-3" />
+                            <span className="truncate">{visit.title}</span>
+                          </button>
+                        ))}
                         {/* CRM Tasks */}
-                        {dayTasks.slice(0, hasBlock ? 1 : 2).map((task) => (
+                        {dayTasks.slice(0, Math.max(0, 2 - dayBlocks.length - dayVisits.length)).map((task) => (
                           <button
                             key={task.id}
                             onClick={(e) => { e.stopPropagation(); handleEditTask(task); }}
@@ -370,7 +382,7 @@ export default function CRMAgenda() {
                           </button>
                         ))}
                         {/* Google Events */}
-                        {dayGoogleEvents.slice(0, Math.max(0, 3 - dayTasks.length - dayBlocks.length)).map((event) => (
+                        {dayGoogleEvents.slice(0, Math.max(0, 3 - dayTasks.length - dayBlocks.length - dayVisits.length)).map((event) => (
                           <button
                             key={event.id}
                             onClick={(e) => { e.stopPropagation(); if (event.htmlLink) window.open(event.htmlLink, "_blank"); }}
