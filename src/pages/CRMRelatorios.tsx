@@ -52,7 +52,7 @@ import {
   Upload,
   ShoppingCart,
   Filter,
-  FunnelIcon,
+  Filter as FilterIcon,
 } from "lucide-react";
 import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
