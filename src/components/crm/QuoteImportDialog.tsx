@@ -159,8 +159,8 @@ export function QuoteImportDialog({ open, onOpenChange, orgMembers }: QuoteImpor
   }, [rows]);
 
   const totals = useMemo(() => {
-    const won = rows.filter(r => r.status === "won");
-    const open = rows.filter(r => r.status === "open");
+    const won = rows.filter((r) => r.status === "won");
+    const open = rows.filter((r) => r.status === "open");
     return {
       total: rows.length,
       wonCount: won.length,
@@ -169,6 +169,38 @@ export function QuoteImportDialog({ open, onOpenChange, orgMembers }: QuoteImpor
       openValue: open.reduce((s, r) => s + r.value, 0),
     };
   }, [rows]);
+
+  useEffect(() => {
+    if (step !== "mapping" || rows.length === 0 || autoMappingApplied || savedMappings.length === 0) return;
+
+    const suggested = buildSuggestedMappings(rows, savedMappings);
+
+    setSellerMapping((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const [sellerName, userId] of Object.entries(suggested.sellerMap)) {
+        if (!next[sellerName]) {
+          next[sellerName] = userId;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+
+    setFunnelMapping((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const [sellerName, selectedFunnelId] of Object.entries(suggested.funnelMap)) {
+        if (!next[sellerName]) {
+          next[sellerName] = selectedFunnelId;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+
+    setAutoMappingApplied(true);
+  }, [step, rows, autoMappingApplied, savedMappings]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
