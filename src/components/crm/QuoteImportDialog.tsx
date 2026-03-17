@@ -206,35 +206,39 @@ export function QuoteImportDialog({ open, onOpenChange, orgMembers }: QuoteImpor
         )}
 
         {step === "mapping" && (
-          <div className="flex-1 overflow-hidden flex flex-col gap-4">
-            {/* Stats */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <Card className="p-3 text-center">
-                <div className="text-2xl font-bold">{totals.total}</div>
-                <div className="text-xs text-muted-foreground">Total</div>
-              </Card>
-              <Card className="p-3 text-center">
-                <div className="text-2xl font-bold text-green-600">{totals.wonCount}</div>
-                <div className="text-xs text-muted-foreground">Confirmados</div>
-              </Card>
-              <Card className="p-3 text-center">
-                <div className="text-2xl font-bold text-blue-600">{totals.openCount}</div>
-                <div className="text-xs text-muted-foreground">Abertos</div>
-              </Card>
-              <Card className="p-3 text-center">
-                <div className="text-lg font-bold">{formatCurrency(totals.wonValue + totals.openValue)}</div>
-                <div className="text-xs text-muted-foreground">Valor Total</div>
-              </Card>
-            </div>
+          <ScrollArea className="flex-1 min-h-0">
+            <div className="flex flex-col gap-4 pr-4">
+              {/* Stats */}
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                <Card className="p-3 text-center">
+                  <div className="text-2xl font-bold">{totals.total}</div>
+                  <div className="text-xs text-muted-foreground">Total</div>
+                </Card>
+                <Card className="p-3 text-center">
+                  <div className="text-2xl font-bold text-green-600">{totals.wonCount}</div>
+                  <div className="text-xs text-muted-foreground">Confirmados</div>
+                </Card>
+                <Card className="p-3 text-center">
+                  <div className="text-lg font-bold text-green-600">{formatCurrency(totals.wonValue)}</div>
+                  <div className="text-xs text-muted-foreground">Valor Confirmados</div>
+                </Card>
+                <Card className="p-3 text-center">
+                  <div className="text-2xl font-bold text-blue-600">{totals.openCount}</div>
+                  <div className="text-xs text-muted-foreground">Abertos</div>
+                </Card>
+                <Card className="p-3 text-center">
+                  <div className="text-lg font-bold text-blue-600">{formatCurrency(totals.openValue)}</div>
+                  <div className="text-xs text-muted-foreground">Valor Abertos</div>
+                </Card>
+              </div>
 
-            <div className="space-y-1">
-              <h4 className="text-sm font-medium">Vincular Vendedores → Usuário e Funil</h4>
-              <p className="text-xs text-muted-foreground">
-                Cada vendedor pode ter seu próprio funil. As negociações confirmadas irão para a última etapa e as abertas para "Orçamento".
-              </p>
-            </div>
+              <div className="space-y-1">
+                <h4 className="text-sm font-medium">Vincular Vendedores → Usuário e Funil</h4>
+                <p className="text-xs text-muted-foreground">
+                  Cada vendedor pode ter seu próprio funil. As negociações confirmadas irão para a última etapa e as abertas para "Orçamento".
+                </p>
+              </div>
 
-            <ScrollArea className="flex-1 max-h-[400px] border rounded-lg">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -293,13 +297,13 @@ export function QuoteImportDialog({ open, onOpenChange, orgMembers }: QuoteImpor
                   ))}
                 </TableBody>
               </Table>
-            </ScrollArea>
 
-            <div className="text-xs text-muted-foreground flex items-center gap-1">
-              <AlertCircle className="h-3 w-3" />
-              Duplicatas são detectadas pelo número do pedido.
+              <div className="text-xs text-muted-foreground flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" />
+                Duplicatas são detectadas pelo número do pedido.
+              </div>
             </div>
-          </div>
+          </ScrollArea>
         )}
 
         {step === "importing" && (
