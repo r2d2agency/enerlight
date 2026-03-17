@@ -468,7 +468,18 @@ export function QuoteImportDialog({ open, onOpenChange, orgMembers }: QuoteImpor
         <DialogFooter className="shrink-0">
           {step === "mapping" && (
             <>
-              <Button variant="outline" onClick={() => { setStep("upload"); setRows([]); }}>Voltar</Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setStep("upload");
+                  setRows([]);
+                  setSellerMapping({});
+                  setFunnelMapping({});
+                  setAutoMappingApplied(false);
+                }}
+              >
+                Voltar
+              </Button>
               <Button onClick={handleImport} disabled={importing}>
                 Importar {rows.length} Orçamentos
               </Button>
