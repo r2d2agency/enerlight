@@ -5565,6 +5565,29 @@ router.delete('/external-visit-attachments/:id', async (req, res) => {
 // IMPORT QUOTES (Orçamentos ERP) → CRM Deals
 // ============================================
 
+router.get('/quote-import-mappings', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const result = await query(
+      `SELECT m.seller_name, m.channel, m.quote_status, m.user_id, u.name AS user_name,
+              m.funnel_id, f.name AS funnel_name, m.stage_id, s.name AS stage_name, m.updated_at
+       FROM crm_quote_import_mappings m
+       LEFT JOIN users u ON u.id = m.user_id
+       LEFT JOIN crm_funnels f ON f.id = m.funnel_id
+       LEFT JOIN crm_stages s ON s.id = m.stage_id
+       WHERE m.organization_id = $1
+       ORDER BY m.updated_at DESC`,
+      [org.organization_id],
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.post('/import-quotes', async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
@@ -5580,23 +5603,78 @@ router.post('/import-quotes', async (req, res) => {
     const stats = { created: 0, skipped: 0, won: 0, open: 0, errors: [], companiesCreated: 0 };
     const companyCache = {};
 
-    // Load existing companies
-    const existingCompanies = await query(
-      `SELECT id, name FROM crm_companies WHERE organization_id = $1`, [orgId]
-    );
-    for (const c of existingCompanies.rows) {
-      companyCache[c.name.trim().toUpperCase()] = c.id;
-    }
-
     // Cache stages per funnel
     const stageCache = {};
     async function getStages(funnelId) {
       if (stageCache[funnelId]) return stageCache[funnelId];
       const result = await query(
-        `SELECT id, name, position, is_final FROM crm_stages WHERE funnel_id = $1 ORDER BY position`, [funnelId]
+        `SELECT id, name, position, is_final FROM crm_stages WHERE funnel_id = $1 ORDER BY position`,
+        [funnelId],
       );
       stageCache[funnelId] = result.rows;
       return result.rows;
+    }
+
+    async function resolveStageId(funnelId, isWon) {
+      const stages = await getStages(funnelId);
+      if (!stages.length) return null;
+
+      if (isWon) {
+        const finalStage = stages.find((stage) => stage.is_final) || stages[stages.length - 1];
+        return finalStage?.id || null;
+      }
+
+      const orcamentoStage = stages.find(
+        (stage) => stage.name.toLowerCase().includes('orçamento') || stage.name.toLowerCase().includes('orcamento'),
+      );
+
+      return orcamentoStage?.id || stages[0]?.id || null;
+    }
+
+    async function saveImportMapping({ sellerName, channel, status, ownerId, funnelId }) {
+      if (!sellerName || !funnelId) return;
+
+      const stageId = await resolveStageId(funnelId, status === 'won');
+      if (!stageId) return;
+
+      await query(
+        `INSERT INTO crm_quote_import_mappings (
+          organization_id, seller_name, channel, quote_status, user_id, funnel_id, stage_id
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7)
+        ON CONFLICT (organization_id, seller_name, channel, quote_status)
+        DO UPDATE SET
+          user_id = EXCLUDED.user_id,
+          funnel_id = EXCLUDED.funnel_id,
+          stage_id = EXCLUDED.stage_id,
+          updated_at = NOW()`,
+        [orgId, sellerName, channel, status, ownerId, funnelId, stageId],
+      );
+    }
+
+    // Persist selected mappings for future imports (seller + channel + etapa/status)
+    const persistedMappingKeys = new Set();
+    for (const row of rows) {
+      const sellerName = String(row.seller_name || '').trim();
+      const ownerId = sellerMapping?.[sellerName] || null;
+      const funnelId = funnelMapping?.[sellerName] || null;
+      if (!sellerName || !funnelId) continue;
+
+      const channel = String(row.channel || '').trim();
+      const quoteStatus = row.status === 'won' ? 'won' : 'open';
+      const mappingKey = `${sellerName}::${channel}::${quoteStatus}`;
+      if (persistedMappingKeys.has(mappingKey)) continue;
+
+      persistedMappingKeys.add(mappingKey);
+      await saveImportMapping({ sellerName, channel, status: quoteStatus, ownerId, funnelId });
+    }
+
+    // Load existing companies
+    const existingCompanies = await query(
+      `SELECT id, name FROM crm_companies WHERE organization_id = $1`,
+      [orgId],
+    );
+    for (const company of existingCompanies.rows) {
+      companyCache[company.name.trim().toUpperCase()] = company.id;
     }
 
     async function getOrCreateCompany(companyName) {
@@ -5604,7 +5682,7 @@ router.post('/import-quotes', async (req, res) => {
       if (companyCache[key]) return companyCache[key];
       const result = await query(
         `INSERT INTO crm_companies (organization_id, name, created_by) VALUES ($1, $2, $3) RETURNING id`,
-        [orgId, companyName.trim(), req.userId]
+        [orgId, companyName.trim(), req.userId],
       );
       companyCache[key] = result.rows[0].id;
       stats.companiesCreated++;
@@ -5613,7 +5691,7 @@ router.post('/import-quotes', async (req, res) => {
 
     for (const row of rows) {
       try {
-        const sellerName = (row.seller_name || '').trim();
+        const sellerName = String(row.seller_name || '').trim();
         const ownerId = sellerMapping?.[sellerName] || null;
         const funnelId = funnelMapping?.[sellerName] || null;
 
@@ -5623,32 +5701,25 @@ router.post('/import-quotes', async (req, res) => {
           continue;
         }
 
-        if (!row.client_name) { stats.skipped++; continue; }
+        if (!row.client_name) {
+          stats.skipped++;
+          continue;
+        }
 
         // Check duplicate by order_number in this org
         if (row.order_number) {
           const dup = await query(
             `SELECT id FROM crm_deals WHERE organization_id = $1 AND custom_fields->>'order_number' = $2 LIMIT 1`,
-            [orgId, String(row.order_number)]
+            [orgId, String(row.order_number)],
           );
-          if (dup.rows.length > 0) { stats.skipped++; continue; }
+          if (dup.rows.length > 0) {
+            stats.skipped++;
+            continue;
+          }
         }
-
-        const companyId = await getOrCreateCompany(row.client_name);
-        const stages = await getStages(funnelId);
 
         const isWon = row.status === 'won';
-
-        // Won → last stage (is_final or highest position); Open → first stage (Orçamento or lowest position)
-        let stageId;
-        if (isWon) {
-          const finalStage = stages.find(s => s.is_final) || stages[stages.length - 1];
-          stageId = finalStage?.id;
-        } else {
-          // Find "Orçamento" stage or first stage
-          const orcStage = stages.find(s => s.name.toLowerCase().includes('orçamento') || s.name.toLowerCase().includes('orcamento'));
-          stageId = orcStage?.id || stages[0]?.id;
-        }
+        const stageId = await resolveStageId(funnelId, isWon);
 
         if (!stageId) {
           stats.errors.push(`Sem etapas no funil para: ${sellerName}`);
@@ -5656,9 +5727,12 @@ router.post('/import-quotes', async (req, res) => {
           continue;
         }
 
+        const companyId = await getOrCreateCompany(row.client_name);
+
         // Get max position
         const maxPos = await query(
-          `SELECT COALESCE(MAX(position), -1) as mp FROM crm_deals WHERE stage_id = $1`, [stageId]
+          `SELECT COALESCE(MAX(position), -1) as mp FROM crm_deals WHERE stage_id = $1`,
+          [stageId],
         );
         const position = (maxPos.rows[0]?.mp || 0) + 1;
 
@@ -5679,14 +5753,23 @@ router.post('/import-quotes', async (req, res) => {
             last_activity_at, created_by, created_at, updated_at
           ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$16)`,
           [
-            orgId, funnelId, stageId, position, companyId, ownerId,
-            title, row.value || 0, isWon ? 'won' : 'open',
+            orgId,
+            funnelId,
+            stageId,
+            position,
+            companyId,
+            ownerId,
+            title,
+            row.value || 0,
+            isWon ? 'won' : 'open',
             isWon ? new Date() : null,
             row.observation || null,
             row.channel ? [row.channel] : null,
             JSON.stringify(customFields),
-            new Date(), req.userId, new Date()
-          ]
+            new Date(),
+            req.userId,
+            new Date(),
+          ],
         );
 
         if (isWon) stats.won++; else stats.open++;

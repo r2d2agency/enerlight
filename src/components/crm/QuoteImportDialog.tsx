@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -6,11 +6,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card } from "@/components/ui/card";
-import { Upload, Loader2, FileSpreadsheet, Check, AlertCircle, ArrowRight } from "lucide-react";
+import { Upload, Loader2, FileSpreadsheet, Check, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
-import { api, API_URL, getAuthToken } from "@/lib/api";
+import { api } from "@/lib/api";
 import { useCRMFunnels, CRMFunnel } from "@/hooks/use-crm";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 
 interface QuoteImportDialogProps {
@@ -35,6 +35,16 @@ interface ParsedRow {
   channel: string;
 }
 
+interface QuoteImportMapping {
+  seller_name: string;
+  channel: string;
+  quote_status: "open" | "won";
+  user_id: string | null;
+  funnel_id: string | null;
+  stage_id: string | null;
+  updated_at: string;
+}
+
 function formatCurrency(v: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 }
@@ -44,6 +54,76 @@ function parseValue(val: any): number {
   if (!val) return 0;
   const s = String(val).replace(/R\$\s*/g, "").replace(/\./g, "").replace(",", ".").trim();
   return parseFloat(s) || 0;
+}
+
+function normalizeMappingValue(value?: string | null) {
+  return (value || "").trim().toLowerCase();
+}
+
+function buildMappingKey(seller: string, channel: string, status: "open" | "won") {
+  return `${normalizeMappingValue(seller)}::${normalizeMappingValue(channel)}::${status}`;
+}
+
+function getMostFrequent(votes: Map<string, number>) {
+  let bestValue = "";
+  let bestCount = -1;
+
+  for (const [value, count] of votes.entries()) {
+    if (count > bestCount) {
+      bestValue = value;
+      bestCount = count;
+    }
+  }
+
+  return bestValue || null;
+}
+
+function buildSuggestedMappings(rows: ParsedRow[], mappings: QuoteImportMapping[]) {
+  const sellerMap: Record<string, string> = {};
+  const funnelMap: Record<string, string> = {};
+
+  if (!rows.length || !mappings.length) return { sellerMap, funnelMap };
+
+  const sortedMappings = [...mappings].sort(
+    (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
+  );
+
+  const exactMappings = new Map<string, QuoteImportMapping>();
+  const latestBySeller = new Map<string, QuoteImportMapping>();
+
+  for (const mapping of sortedMappings) {
+    const exactKey = buildMappingKey(mapping.seller_name, mapping.channel || "", mapping.quote_status);
+    if (!exactMappings.has(exactKey)) exactMappings.set(exactKey, mapping);
+
+    const sellerKey = normalizeMappingValue(mapping.seller_name);
+    if (!latestBySeller.has(sellerKey)) latestBySeller.set(sellerKey, mapping);
+  }
+
+  const sellerNames = Array.from(new Set(rows.map((row) => row.seller_name).filter(Boolean)));
+
+  for (const sellerName of sellerNames) {
+    const sellerRows = rows.filter((row) => normalizeMappingValue(row.seller_name) === normalizeMappingValue(sellerName));
+    const userVotes = new Map<string, number>();
+    const funnelVotes = new Map<string, number>();
+
+    for (const row of sellerRows) {
+      const exact = exactMappings.get(buildMappingKey(row.seller_name, row.channel || "", row.status));
+      const fallback = latestBySeller.get(normalizeMappingValue(row.seller_name));
+      const selected = exact || fallback;
+      if (!selected) continue;
+
+      if (selected.user_id) userVotes.set(selected.user_id, (userVotes.get(selected.user_id) || 0) + 1);
+      if (selected.funnel_id) funnelVotes.set(selected.funnel_id, (funnelVotes.get(selected.funnel_id) || 0) + 1);
+    }
+
+    const bestUser = getMostFrequent(userVotes);
+    const bestFunnel = getMostFrequent(funnelVotes);
+
+    if (bestUser) sellerMap[sellerName] = bestUser;
+    if (bestFunnel) funnelMap[sellerName] = bestFunnel;
+  }
+
+  return { sellerMap, funnelMap };
 }
 
 export function QuoteImportDialog({ open, onOpenChange, orgMembers }: QuoteImportDialogProps) {
@@ -57,6 +137,14 @@ export function QuoteImportDialog({ open, onOpenChange, orgMembers }: QuoteImpor
   const [step, setStep] = useState<"upload" | "mapping" | "importing" | "done">("upload");
   const [result, setResult] = useState<any>(null);
   const [importing, setImporting] = useState(false);
+  const [autoMappingApplied, setAutoMappingApplied] = useState(false);
+
+  const { data: savedMappings = [] } = useQuery({
+    queryKey: ["quote-import-mappings"],
+    queryFn: () => api<QuoteImportMapping[]>("/api/crm/quote-import-mappings"),
+    enabled: open,
+    staleTime: 1000 * 60 * 5,
+  });
 
   const sellers = useMemo(() => {
     const map = new Map<string, { count: number; total: number; won: number; open: number }>();
@@ -71,8 +159,8 @@ export function QuoteImportDialog({ open, onOpenChange, orgMembers }: QuoteImpor
   }, [rows]);
 
   const totals = useMemo(() => {
-    const won = rows.filter(r => r.status === "won");
-    const open = rows.filter(r => r.status === "open");
+    const won = rows.filter((r) => r.status === "won");
+    const open = rows.filter((r) => r.status === "open");
     return {
       total: rows.length,
       wonCount: won.length,
@@ -81,6 +169,38 @@ export function QuoteImportDialog({ open, onOpenChange, orgMembers }: QuoteImpor
       openValue: open.reduce((s, r) => s + r.value, 0),
     };
   }, [rows]);
+
+  useEffect(() => {
+    if (step !== "mapping" || rows.length === 0 || autoMappingApplied || savedMappings.length === 0) return;
+
+    const suggested = buildSuggestedMappings(rows, savedMappings);
+
+    setSellerMapping((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const [sellerName, userId] of Object.entries(suggested.sellerMap)) {
+        if (!next[sellerName]) {
+          next[sellerName] = userId;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+
+    setFunnelMapping((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const [sellerName, selectedFunnelId] of Object.entries(suggested.funnelMap)) {
+        if (!next[sellerName]) {
+          next[sellerName] = selectedFunnelId;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+
+    setAutoMappingApplied(true);
+  }, [step, rows, autoMappingApplied, savedMappings]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -134,6 +254,9 @@ export function QuoteImportDialog({ open, onOpenChange, orgMembers }: QuoteImpor
         }
 
         setRows(mapped);
+        setSellerMapping({});
+        setFunnelMapping({});
+        setAutoMappingApplied(false);
         setStep("mapping");
         toast.success(`${mapped.length} orçamentos encontrados`);
       } catch {
@@ -176,6 +299,7 @@ export function QuoteImportDialog({ open, onOpenChange, orgMembers }: QuoteImpor
     setRows([]);
     setSellerMapping({});
     setFunnelMapping({});
+    setAutoMappingApplied(false);
     setResult(null);
     onOpenChange(false);
   };
@@ -344,7 +468,18 @@ export function QuoteImportDialog({ open, onOpenChange, orgMembers }: QuoteImpor
         <DialogFooter className="shrink-0">
           {step === "mapping" && (
             <>
-              <Button variant="outline" onClick={() => { setStep("upload"); setRows([]); }}>Voltar</Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setStep("upload");
+                  setRows([]);
+                  setSellerMapping({});
+                  setFunnelMapping({});
+                  setAutoMappingApplied(false);
+                }}
+              >
+                Voltar
+              </Button>
               <Button onClick={handleImport} disabled={importing}>
                 Importar {rows.length} Orçamentos
               </Button>

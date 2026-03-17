@@ -3870,6 +3870,26 @@ CREATE TABLE IF NOT EXISTS erp_seller_user_mapping (
   UNIQUE(organization_id, seller_name)
 );
 `;
+
+const step52QuoteImportMappings = `
+CREATE TABLE IF NOT EXISTS crm_quote_import_mappings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  seller_name VARCHAR(255) NOT NULL,
+  channel VARCHAR(100) NOT NULL DEFAULT '',
+  quote_status VARCHAR(20) NOT NULL DEFAULT 'open',
+  user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  funnel_id UUID REFERENCES crm_funnels(id) ON DELETE SET NULL,
+  stage_id UUID REFERENCES crm_stages(id) ON DELETE SET NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(organization_id, seller_name, channel, quote_status)
+);
+
+CREATE INDEX IF NOT EXISTS idx_crm_quote_import_mappings_org ON crm_quote_import_mappings(organization_id);
+CREATE INDEX IF NOT EXISTS idx_crm_quote_import_mappings_seller ON crm_quote_import_mappings(organization_id, seller_name);
+`;
+
 const migrationSteps = [
   { name: 'Enums', sql: step1Enums, critical: true },
   { name: 'Core Tables (users, plans)', sql: step2CoreTables, critical: true },
@@ -3923,6 +3943,7 @@ const migrationSteps = [
   { name: 'Task Card Type Column', sql: step49TaskCardType, critical: false },
   { name: 'External Visits Module', sql: step50ExternalVisits, critical: false },
   { name: 'ERP Billing Records', sql: step51ERPBilling, critical: false },
+  { name: 'Quote Import Mappings', sql: step52QuoteImportMappings, critical: false },
 ];
 
 export async function initDatabase() {
