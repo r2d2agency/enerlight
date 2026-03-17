@@ -2662,6 +2662,37 @@ router.get('/reports/sales', async (req, res) => {
     const totalClosed = summary.won.count + summary.lost.count;
     const winRate = totalClosed > 0 ? (summary.won.count / totalClosed * 100) : 0;
 
+    // Quotes (orçamentos gerados) — deals that have order_number in custom_fields
+    const quotesResult = await query(
+      `SELECT 
+         COUNT(*) as total,
+         COUNT(*) FILTER (WHERE d.status = 'won') as won,
+         COUNT(*) FILTER (WHERE d.status = 'open') as open,
+         COUNT(*) FILTER (WHERE d.status = 'lost') as lost,
+         COALESCE(SUM(d.value), 0) as total_value,
+         COALESCE(SUM(d.value) FILTER (WHERE d.status = 'won'), 0) as won_value,
+         COALESCE(SUM(d.value) FILTER (WHERE d.status = 'open'), 0) as open_value
+       FROM crm_deals d
+       WHERE d.organization_id = $1
+         AND d.created_at >= $2::date
+         AND d.created_at <= ($3::date + interval '1 day')
+         AND d.custom_fields->>'order_number' IS NOT NULL
+         AND d.custom_fields->>'order_number' != ''
+         ${funnelFilter}`,
+      params
+    );
+
+    const quotesRow = quotesResult.rows[0] || {};
+    const quotes = {
+      total: parseInt(quotesRow.total || 0),
+      won: parseInt(quotesRow.won || 0),
+      open: parseInt(quotesRow.open || 0),
+      lost: parseInt(quotesRow.lost || 0),
+      totalValue: parseFloat(quotesRow.total_value || 0),
+      wonValue: parseFloat(quotesRow.won_value || 0),
+      openValue: parseFloat(quotesRow.open_value || 0),
+    };
+
     res.json({
       timeline: timelineResult.rows.map(row => ({
         period: row.period,
@@ -2676,6 +2707,7 @@ router.get('/reports/sales', async (req, res) => {
         ...summary,
         winRate: parseFloat(winRate.toFixed(1)),
         totalValue: summary.open.value + summary.won.value + summary.lost.value,
+        quotes,
       },
       byFunnel: byFunnelResult.rows.map(row => ({
         funnelId: row.funnel_id,
