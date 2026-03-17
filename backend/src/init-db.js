@@ -238,6 +238,16 @@ EXCEPTION
     WHEN duplicate_column THEN null;
 END $$;
 
+-- Meta WhatsApp Business API columns
+DO $$ BEGIN
+    ALTER TABLE connections ADD COLUMN IF NOT EXISTS meta_waba_id VARCHAR(255);
+    ALTER TABLE connections ADD COLUMN IF NOT EXISTS meta_phone_number_id VARCHAR(255);
+    ALTER TABLE connections ADD COLUMN IF NOT EXISTS meta_access_token TEXT;
+    ALTER TABLE connections ADD COLUMN IF NOT EXISTS meta_app_secret VARCHAR(500);
+EXCEPTION
+    WHEN duplicate_column THEN null;
+END $$;
+
 -- Ensure nullable Evolution-only columns (required by Evolution, but unused by W-API)
 DO $$ BEGIN
     ALTER TABLE connections ALTER COLUMN api_url DROP NOT NULL;
