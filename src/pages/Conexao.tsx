@@ -171,9 +171,21 @@ const Conexao = () => {
     try {
       let result: Connection & { qrCode?: string };
 
-      if (newConnectionProvider === 'wapi') {
+      if (newConnectionProvider === 'meta') {
+        result = await api<Connection>('/api/connections', {
+          method: 'POST',
+          body: {
+            provider: 'meta',
+            name: newConnectionName,
+            meta_waba_id: metaWabaId,
+            meta_phone_number_id: metaPhoneNumberId,
+            meta_access_token: metaAccessToken,
+            meta_app_secret: metaAppSecret,
+          },
+        });
+        toast.success('Conexão Meta WhatsApp Business criada!');
+      } else if (newConnectionProvider === 'wapi') {
         if (wapiAutoCreate) {
-          // Auto-create via integrator API
           result = await api<Connection>('/api/connections/wapi/auto-create', {
             method: 'POST',
             body: { 
@@ -184,7 +196,6 @@ const Conexao = () => {
           });
           toast.success('Instância W-API criada automaticamente!');
         } else {
-          // Manual W-API connection
           result = await api<Connection>('/api/connections', {
             method: 'POST',
             body: {
@@ -197,7 +208,6 @@ const Conexao = () => {
           toast.success('Conexão W-API criada com sucesso!');
         }
       } else {
-        // Create Evolution API connection
         result = await api<Connection & { qrCode?: string }>('/api/evolution/create', {
           method: 'POST',
           body: { name: newConnectionName },
