@@ -351,6 +351,12 @@ export default function CRMNegociacoes() {
               )}
 
               {canManage && (
+                <Button variant="outline" size="sm" onClick={() => setQuoteImportOpen(true)} className="hidden lg:flex">
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Orçamentos
+                </Button>
+              )}
+              {canManage && (
                 <Button variant="outline" size="sm" onClick={() => setImportOpen(true)} className="hidden lg:flex">
                   <FileSpreadsheet className="h-4 w-4 mr-2" />
                   Importar
