@@ -4719,6 +4719,14 @@ router.get('/goals/dashboard', async (req, res) => {
       WHERE g.organization_id = $1 AND g.is_active = true`;
     const goalsParams = [org.organization_id];
 
+    const isManager = ['owner', 'admin', 'manager'].includes(org.role);
+
+    // Non-managers only see goals for their groups or individual goals
+    if (!isManager) {
+      goalsParams.push(req.userId);
+      goalsQuery += ` AND (g.target_user_id = $${goalsParams.length} OR g.target_group_id IN (SELECT gm.group_id FROM crm_user_group_members gm WHERE gm.user_id = $${goalsParams.length}))`;
+    }
+
     if (user_id) {
       goalsParams.push(user_id);
       goalsQuery += ` AND (g.target_user_id = $${goalsParams.length} OR g.type = 'group')`;
