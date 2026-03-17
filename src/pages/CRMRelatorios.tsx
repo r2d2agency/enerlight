@@ -35,6 +35,8 @@ import {
   usePipelineVelocity,
 } from "@/hooks/use-crm-reports";
 import { useCRMFunnels } from "@/hooks/use-crm";
+import { useERPBillingSummary } from "@/hooks/use-erp-billing";
+import { ERPBillingImportDialog } from "@/components/crm/ERPBillingImportDialog";
 import {
   CalendarIcon,
   TrendingUp,
@@ -46,6 +48,8 @@ import {
   BarChart3,
   PieChartIcon,
   Activity,
+  FileSpreadsheet,
+  Upload,
 } from "lucide-react";
 import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -82,8 +86,16 @@ export default function CRMRelatorios() {
   const [selectedFunnel, setSelectedFunnel] = useState<string>("all");
   const [groupBy, setGroupBy] = useState<"day" | "week" | "month">("day");
   const [activeTab, setActiveTab] = useState("overview");
+  const [showBillingImport, setShowBillingImport] = useState(false);
 
   const { data: funnels } = useCRMFunnels();
+
+  const billingStartDate = dateRange?.from?.toISOString().split("T")[0];
+  const billingEndDate = dateRange?.to?.toISOString().split("T")[0];
+  const { data: billingSummary } = useERPBillingSummary({
+    startDate: billingStartDate,
+    endDate: billingEndDate,
+  });
 
   const { data: salesData, isLoading } = useCRMSalesReport({
     startDate: dateRange?.from?.toISOString().split("T")[0],
@@ -316,6 +328,10 @@ export default function CRMRelatorios() {
                 <TabsTrigger value="team" className="gap-2">
                   <Users className="h-4 w-4" />
                   Equipe
+                </TabsTrigger>
+                <TabsTrigger value="billing" className="gap-2">
+                  <FileSpreadsheet className="h-4 w-4" />
+                  Faturamento
                 </TabsTrigger>
               </TabsList>
 
@@ -984,10 +1000,199 @@ export default function CRMRelatorios() {
                   </CardContent>
                 </Card>
               </TabsContent>
+              {/* Billing Tab */}
+              <TabsContent value="billing" className="mt-6 space-y-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold">Faturamento ERP</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Dados importados da planilha de faturamento do ERP
+                    </p>
+                  </div>
+                  <Button onClick={() => setShowBillingImport(true)}>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Importar Planilha
+                  </Button>
+                </div>
+
+                {billingSummary ? (
+                  <>
+                    {/* KPI Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <Card>
+                        <CardContent className="pt-6">
+                          <p className="text-sm text-muted-foreground">Total Faturado</p>
+                          <p className="text-2xl font-bold">{formatCurrency(billingSummary.total.value)}</p>
+                          <p className="text-sm text-muted-foreground">{billingSummary.total.orders} pedidos</p>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="pt-6">
+                          <p className="text-sm text-muted-foreground">Vendedores</p>
+                          <p className="text-2xl font-bold">{new Set(billingSummary.bySeller.map(s => s.seller_name)).size}</p>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="pt-6">
+                          <p className="text-sm text-muted-foreground">Canais</p>
+                          <p className="text-2xl font-bold">{billingSummary.byChannel.length}</p>
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    {/* By Seller */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Ranking de Faturamento por Vendedor</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        {billingSummary.bySeller.length > 0 ? (
+                          <>
+                            <ResponsiveContainer width="100%" height={300}>
+                              <BarChart data={billingSummary.bySeller.reduce((acc, s) => {
+                                const existing = acc.find(a => a.seller_name === s.seller_name);
+                                if (existing) {
+                                  existing.total_value += s.total_value;
+                                  existing.order_count += s.order_count;
+                                } else {
+                                  acc.push({ ...s });
+                                }
+                                return acc;
+                              }, [] as typeof billingSummary.bySeller).sort((a, b) => b.total_value - a.total_value)}>
+                                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                                <XAxis dataKey="seller_name" tick={{ fontSize: 10 }} angle={-20} textAnchor="end" height={80} />
+                                <YAxis tickFormatter={(v) => `R$${(v/1000).toFixed(0)}k`} />
+                                <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                                <Bar dataKey="total_value" fill="hsl(var(--primary))" name="Faturado" radius={[4, 4, 0, 0]} />
+                              </BarChart>
+                            </ResponsiveContainer>
+
+                            <Table className="mt-4">
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Vendedor</TableHead>
+                                  <TableHead>Canal</TableHead>
+                                  <TableHead className="text-right">Pedidos</TableHead>
+                                  <TableHead className="text-right">Total Faturado</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {billingSummary.bySeller.map((s, i) => (
+                                  <TableRow key={`${s.seller_name}-${s.channel}-${i}`}>
+                                    <TableCell className="font-medium">{s.user_name || s.seller_name}</TableCell>
+                                    <TableCell>
+                                      {s.channel && <Badge variant="outline">{s.channel}</Badge>}
+                                    </TableCell>
+                                    <TableCell className="text-right">{s.order_count}</TableCell>
+                                    <TableCell className="text-right font-medium">{formatCurrency(s.total_value)}</TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </>
+                        ) : (
+                          <div className="flex items-center justify-center h-[200px] text-muted-foreground">
+                            Nenhum dado de faturamento importado para o período
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    {/* By Channel + Timeline */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>Por Canal</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          {billingSummary.byChannel.length > 0 ? (
+                            <ResponsiveContainer width="100%" height={250}>
+                              <PieChart>
+                                <Pie
+                                  data={billingSummary.byChannel}
+                                  dataKey="total_value"
+                                  nameKey="channel"
+                                  cx="50%"
+                                  cy="50%"
+                                  outerRadius={80}
+                                  label={({ channel, total_value }) => `${channel}: ${formatCurrency(total_value)}`}
+                                >
+                                  {billingSummary.byChannel.map((_, i) => (
+                                    <Cell key={i} fill={`hsl(${(i * 60 + 200) % 360}, 70%, 50%)`} />
+                                  ))}
+                                </Pie>
+                                <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                              </PieChart>
+                            </ResponsiveContainer>
+                          ) : (
+                            <div className="flex items-center justify-center h-[200px] text-muted-foreground">
+                              Sem dados
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>Faturamento Diário</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          {billingSummary.timeline.length > 0 ? (
+                            <ResponsiveContainer width="100%" height={250}>
+                              <AreaChart data={billingSummary.timeline}>
+                                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                                <XAxis dataKey="period" tick={{ fontSize: 11 }} />
+                                <YAxis tickFormatter={(v) => `R$${(v/1000).toFixed(0)}k`} />
+                                <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                                <Area type="monotone" dataKey="total_value" stroke="hsl(var(--primary))" fill="hsl(var(--primary)/0.2)" name="Faturado" />
+                              </AreaChart>
+                            </ResponsiveContainer>
+                          ) : (
+                            <div className="flex items-center justify-center h-[200px] text-muted-foreground">
+                              Sem dados
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    {/* By State */}
+                    {billingSummary.byState.length > 0 && (
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>Por Estado (UF)</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                            {billingSummary.byState.map(s => (
+                              <div key={s.state} className="p-3 border rounded-lg text-center">
+                                <p className="font-bold text-lg">{s.state}</p>
+                                <p className="text-sm text-muted-foreground">{s.order_count} pedidos</p>
+                                <p className="text-sm font-medium">{formatCurrency(s.total_value)}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-12 gap-4">
+                    <FileSpreadsheet className="h-16 w-16 text-muted-foreground" />
+                    <p className="text-muted-foreground">Importe sua planilha de faturamento do ERP para visualizar os dados aqui.</p>
+                    <Button onClick={() => setShowBillingImport(true)}>
+                      <Upload className="h-4 w-4 mr-2" />
+                      Importar Planilha
+                    </Button>
+                  </div>
+                )}
+              </TabsContent>
             </Tabs>
           </>
         )}
       </div>
+
+      <ERPBillingImportDialog open={showBillingImport} onOpenChange={setShowBillingImport} />
     </MainLayout>
   );
 }
