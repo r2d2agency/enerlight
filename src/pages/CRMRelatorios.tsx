@@ -224,6 +224,19 @@ export default function CRMRelatorios() {
               </SelectContent>
             </Select>
 
+            {/* User Filter */}
+            <Select value={filterUserId} onValueChange={setFilterUserId}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Todos usuários" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos usuários</SelectItem>
+                {teamMembers?.map((m) => (
+                  <SelectItem key={m.user_id} value={m.user_id}>{m.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
             {/* Group By */}
             <Select value={groupBy} onValueChange={(v) => setGroupBy(v as typeof groupBy)}>
               <SelectTrigger className="w-[140px]">
