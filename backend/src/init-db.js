@@ -3827,6 +3827,39 @@ SET modules_enabled = modules_enabled || '{"lead_gleego": false}'::jsonb
 WHERE modules_enabled IS NOT NULL 
   AND NOT (modules_enabled ? 'lead_gleego');
 `;
+
+const step51ERPBilling = `
+CREATE TABLE IF NOT EXISTS erp_billing_records (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  client_name VARCHAR(500),
+  order_number VARCHAR(100),
+  order_value NUMERIC(15,2) NOT NULL DEFAULT 0,
+  state VARCHAR(10),
+  seller_name VARCHAR(255) NOT NULL,
+  billing_date DATE NOT NULL,
+  order_date DATE,
+  channel VARCHAR(100),
+  linked_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  import_batch_id UUID,
+  imported_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_erp_billing_org ON erp_billing_records(organization_id);
+CREATE INDEX IF NOT EXISTS idx_erp_billing_date ON erp_billing_records(billing_date);
+CREATE INDEX IF NOT EXISTS idx_erp_billing_seller ON erp_billing_records(seller_name);
+CREATE INDEX IF NOT EXISTS idx_erp_billing_user ON erp_billing_records(linked_user_id);
+CREATE INDEX IF NOT EXISTS idx_erp_billing_batch ON erp_billing_records(import_batch_id);
+
+CREATE TABLE IF NOT EXISTS erp_seller_user_mapping (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  seller_name VARCHAR(255) NOT NULL,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(organization_id, seller_name)
+);
+`;
 const migrationSteps = [
   { name: 'Enums', sql: step1Enums, critical: true },
   { name: 'Core Tables (users, plans)', sql: step2CoreTables, critical: true },
