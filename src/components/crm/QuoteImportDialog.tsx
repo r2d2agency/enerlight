@@ -35,6 +35,16 @@ interface ParsedRow {
   channel: string;
 }
 
+interface QuoteImportMapping {
+  seller_name: string;
+  channel: string;
+  quote_status: "open" | "won";
+  user_id: string | null;
+  funnel_id: string | null;
+  stage_id: string | null;
+  updated_at: string;
+}
+
 function formatCurrency(v: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 }
@@ -44,6 +54,76 @@ function parseValue(val: any): number {
   if (!val) return 0;
   const s = String(val).replace(/R\$\s*/g, "").replace(/\./g, "").replace(",", ".").trim();
   return parseFloat(s) || 0;
+}
+
+function normalizeMappingValue(value?: string | null) {
+  return (value || "").trim().toLowerCase();
+}
+
+function buildMappingKey(seller: string, channel: string, status: "open" | "won") {
+  return `${normalizeMappingValue(seller)}::${normalizeMappingValue(channel)}::${status}`;
+}
+
+function getMostFrequent(votes: Map<string, number>) {
+  let bestValue = "";
+  let bestCount = -1;
+
+  for (const [value, count] of votes.entries()) {
+    if (count > bestCount) {
+      bestValue = value;
+      bestCount = count;
+    }
+  }
+
+  return bestValue || null;
+}
+
+function buildSuggestedMappings(rows: ParsedRow[], mappings: QuoteImportMapping[]) {
+  const sellerMap: Record<string, string> = {};
+  const funnelMap: Record<string, string> = {};
+
+  if (!rows.length || !mappings.length) return { sellerMap, funnelMap };
+
+  const sortedMappings = [...mappings].sort(
+    (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
+  );
+
+  const exactMappings = new Map<string, QuoteImportMapping>();
+  const latestBySeller = new Map<string, QuoteImportMapping>();
+
+  for (const mapping of sortedMappings) {
+    const exactKey = buildMappingKey(mapping.seller_name, mapping.channel || "", mapping.quote_status);
+    if (!exactMappings.has(exactKey)) exactMappings.set(exactKey, mapping);
+
+    const sellerKey = normalizeMappingValue(mapping.seller_name);
+    if (!latestBySeller.has(sellerKey)) latestBySeller.set(sellerKey, mapping);
+  }
+
+  const sellerNames = Array.from(new Set(rows.map((row) => row.seller_name).filter(Boolean)));
+
+  for (const sellerName of sellerNames) {
+    const sellerRows = rows.filter((row) => normalizeMappingValue(row.seller_name) === normalizeMappingValue(sellerName));
+    const userVotes = new Map<string, number>();
+    const funnelVotes = new Map<string, number>();
+
+    for (const row of sellerRows) {
+      const exact = exactMappings.get(buildMappingKey(row.seller_name, row.channel || "", row.status));
+      const fallback = latestBySeller.get(normalizeMappingValue(row.seller_name));
+      const selected = exact || fallback;
+      if (!selected) continue;
+
+      if (selected.user_id) userVotes.set(selected.user_id, (userVotes.get(selected.user_id) || 0) + 1);
+      if (selected.funnel_id) funnelVotes.set(selected.funnel_id, (funnelVotes.get(selected.funnel_id) || 0) + 1);
+    }
+
+    const bestUser = getMostFrequent(userVotes);
+    const bestFunnel = getMostFrequent(funnelVotes);
+
+    if (bestUser) sellerMap[sellerName] = bestUser;
+    if (bestFunnel) funnelMap[sellerName] = bestFunnel;
+  }
+
+  return { sellerMap, funnelMap };
 }
 
 export function QuoteImportDialog({ open, onOpenChange, orgMembers }: QuoteImportDialogProps) {
