@@ -717,6 +717,7 @@ export default function CRMNegociacoes() {
       />
 
       <CRMImportDialog open={importOpen} onOpenChange={setImportOpen} orgMembers={orgMembers} />
+      <QuoteImportDialog open={quoteImportOpen} onOpenChange={setQuoteImportOpen} orgMembers={orgMembers} />
 
       {/* Bulk delete confirmation */}
       <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
