@@ -155,7 +155,12 @@ const Conexao = () => {
       return;
     }
 
-    if (newConnectionProvider === 'wapi' && !wapiAutoCreate) {
+    if (newConnectionProvider === 'meta') {
+      if (!metaWabaId.trim() || !metaPhoneNumberId.trim() || !metaAccessToken.trim()) {
+        toast.error('WABA ID, Phone Number ID e Access Token são obrigatórios');
+        return;
+      }
+    } else if (newConnectionProvider === 'wapi' && !wapiAutoCreate) {
       if (!newConnectionInstanceId.trim() || !newConnectionWapiToken.trim()) {
         toast.error('Instance ID e Token são obrigatórios para W-API');
         return;
