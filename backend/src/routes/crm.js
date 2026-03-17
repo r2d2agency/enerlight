@@ -2623,14 +2623,17 @@ router.get('/reports/sales', async (req, res) => {
       [org.organization_id, startDate, endDate]
     );
 
-    // By owner (top performers)
+    // By owner (top performers) — enriched with quotes & orders (confirmed quotes)
     const byOwnerResult = await query(
       `SELECT 
          u.id as user_id,
          u.name as user_name,
          COUNT(*) FILTER (WHERE d.status = 'won') as won_count,
          COALESCE(SUM(d.value) FILTER (WHERE d.status = 'won'), 0) as won_value,
-         COUNT(*) as total_deals
+         COUNT(*) as total_deals,
+         COUNT(*) FILTER (WHERE d.custom_fields->>'order_number' IS NOT NULL AND d.custom_fields->>'order_number' != '') as quote_count,
+         COUNT(*) FILTER (WHERE d.status = 'won' AND d.custom_fields->>'order_number' IS NOT NULL AND d.custom_fields->>'order_number' != '') as order_count,
+         COALESCE(SUM(d.value) FILTER (WHERE d.status = 'won' AND d.custom_fields->>'order_number' IS NOT NULL AND d.custom_fields->>'order_number' != ''), 0) as order_value
        FROM crm_deals d
        JOIN users u ON u.id = d.owner_id
        WHERE d.organization_id = $1
@@ -2639,59 +2642,50 @@ router.get('/reports/sales', async (req, res) => {
          ${funnelFilter}
        GROUP BY u.id, u.name
        ORDER BY won_value DESC
-       LIMIT 10`,
+       LIMIT 20`,
       params
     );
 
-    // Win rate calculation
-    const summary = {
-      open: { count: 0, value: 0 },
-      won: { count: 0, value: 0 },
-      lost: { count: 0, value: 0 },
+    // Sales funnel summary: Negociações → Orçamentos → Pedidos (Vendas)
+    const totalDeals = (summary.open.count + summary.won.count + summary.lost.count);
+    const salesFunnel = {
+      deals: { count: totalDeals, value: summary.open.value + summary.won.value + summary.lost.value },
+      quotes: { count: quotes.total, value: quotes.totalValue },
+      orders: { count: quotes.won, value: quotes.wonValue },
     };
-    
-    summaryResult.rows.forEach(row => {
-      if (summary[row.status]) {
-        summary[row.status] = {
-          count: parseInt(row.count),
-          value: parseFloat(row.total_value),
-        };
-      }
-    });
 
-    const totalClosed = summary.won.count + summary.lost.count;
-    const winRate = totalClosed > 0 ? (summary.won.count / totalClosed * 100) : 0;
-
-    // Quotes (orçamentos gerados) — deals that have order_number in custom_fields
-    const quotesResult = await query(
-      `SELECT 
-         COUNT(*) as total,
-         COUNT(*) FILTER (WHERE d.status = 'won') as won,
-         COUNT(*) FILTER (WHERE d.status = 'open') as open,
-         COUNT(*) FILTER (WHERE d.status = 'lost') as lost,
-         COALESCE(SUM(d.value), 0) as total_value,
-         COALESCE(SUM(d.value) FILTER (WHERE d.status = 'won'), 0) as won_value,
-         COALESCE(SUM(d.value) FILTER (WHERE d.status = 'open'), 0) as open_value
-       FROM crm_deals d
-       WHERE d.organization_id = $1
-         AND d.created_at >= $2::date
-         AND d.created_at <= ($3::date + interval '1 day')
-         AND d.custom_fields->>'order_number' IS NOT NULL
-         AND d.custom_fields->>'order_number' != ''
-         ${funnelFilter}`,
-      params
-    );
-
-    const quotesRow = quotesResult.rows[0] || {};
-    const quotes = {
-      total: parseInt(quotesRow.total || 0),
-      won: parseInt(quotesRow.won || 0),
-      open: parseInt(quotesRow.open || 0),
-      lost: parseInt(quotesRow.lost || 0),
-      totalValue: parseFloat(quotesRow.total_value || 0),
-      wonValue: parseFloat(quotesRow.won_value || 0),
-      openValue: parseFloat(quotesRow.open_value || 0),
-    };
+    // Quotes by channel (group_id name as channel proxy)
+    let quotesByChannel = [];
+    try {
+      const chResult = await query(
+        `SELECT 
+           COALESCE(ug.name, 'Sem canal') as channel,
+           COUNT(*) as total,
+           COUNT(*) FILTER (WHERE d.status = 'won') as won,
+           COUNT(*) FILTER (WHERE d.status = 'open') as open,
+           COALESCE(SUM(d.value), 0) as total_value,
+           COALESCE(SUM(d.value) FILTER (WHERE d.status = 'won'), 0) as won_value
+         FROM crm_deals d
+         LEFT JOIN crm_user_groups ug ON ug.id = d.group_id
+         WHERE d.organization_id = $1
+           AND d.created_at >= $2::date
+           AND d.created_at <= ($3::date + interval '1 day')
+           AND d.custom_fields->>'order_number' IS NOT NULL
+           AND d.custom_fields->>'order_number' != ''
+           ${funnelFilter}
+         GROUP BY ug.name
+         ORDER BY total_value DESC`,
+        params
+      );
+      quotesByChannel = chResult.rows.map(r => ({
+        channel: r.channel,
+        total: parseInt(r.total),
+        won: parseInt(r.won),
+        open: parseInt(r.open),
+        totalValue: parseFloat(r.total_value),
+        wonValue: parseFloat(r.won_value),
+      }));
+    } catch (_) {}
 
     res.json({
       timeline: timelineResult.rows.map(row => ({
@@ -2709,6 +2703,8 @@ router.get('/reports/sales', async (req, res) => {
         totalValue: summary.open.value + summary.won.value + summary.lost.value,
         quotes,
       },
+      salesFunnel,
+      quotesByChannel,
       byFunnel: byFunnelResult.rows.map(row => ({
         funnelId: row.funnel_id,
         funnelName: row.funnel_name,
@@ -2724,11 +2720,14 @@ router.get('/reports/sales', async (req, res) => {
         wonCount: parseInt(row.won_count),
         wonValue: parseFloat(row.won_value),
         totalDeals: parseInt(row.total_deals),
+        quoteCount: parseInt(row.quote_count),
+        orderCount: parseInt(row.order_count),
+        orderValue: parseFloat(row.order_value),
       })),
     });
   } catch (error) {
     if (error.code === '42P01') {
-      return res.json({ timeline: [], summary: { open: { count: 0, value: 0 }, won: { count: 0, value: 0 }, lost: { count: 0, value: 0 }, winRate: 0, totalValue: 0 }, byFunnel: [], byOwner: [] });
+      return res.json({ timeline: [], summary: { open: { count: 0, value: 0 }, won: { count: 0, value: 0 }, lost: { count: 0, value: 0 }, winRate: 0, totalValue: 0 }, salesFunnel: { deals: { count: 0, value: 0 }, quotes: { count: 0, value: 0 }, orders: { count: 0, value: 0 } }, quotesByChannel: [], byFunnel: [], byOwner: [] });
     }
     console.error('Error fetching sales report:', error);
     res.status(500).json({ error: error.message });
