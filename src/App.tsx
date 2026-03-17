@@ -120,6 +120,7 @@ const App = () => (
               <Route path="/" element={<Login />} />
               <Route path="/dashboard" element={<ProtectedRoute><Index /></ProtectedRoute>} />
               <Route path="/conexao" element={<ProtectedRoute><Conexao /></ProtectedRoute>} />
+              <Route path="/meta-templates" element={<ProtectedRoute><MetaTemplates /></ProtectedRoute>} />
               <Route path="/contatos" element={<ProtectedRoute><Contatos /></ProtectedRoute>} />
               <Route path="/mensagens" element={<ProtectedRoute><Mensagens /></ProtectedRoute>} />
               <Route path="/campanhas" element={<ProtectedRoute><Campanhas /></ProtectedRoute>} />
