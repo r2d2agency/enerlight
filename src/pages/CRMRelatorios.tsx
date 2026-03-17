@@ -240,7 +240,7 @@ export default function CRMRelatorios() {
         ) : (
           <>
             {/* KPI Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
               <Card>
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
@@ -304,6 +304,28 @@ export default function CRMRelatorios() {
                     </div>
                     <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center">
                       <Target className="h-6 w-6 text-amber-600" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Orçamentos Gerados */}
+              <Card className="border-blue-200 dark:border-blue-800">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Orçamentos Gerados</p>
+                      <p className="text-2xl font-bold text-blue-600">{summary.quotes?.total || 0}</p>
+                      <div className="flex gap-2 text-xs mt-0.5">
+                        <span className="text-green-600">{summary.quotes?.won || 0} ganhos</span>
+                        <span className="text-muted-foreground">{summary.quotes?.open || 0} abertos</span>
+                      </div>
+                      <p className="text-sm text-blue-600 mt-0.5">
+                        {formatCurrency(summary.quotes?.totalValue || 0)}
+                      </p>
+                    </div>
+                    <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center">
+                      <FileSpreadsheet className="h-6 w-6 text-blue-600" />
                     </div>
                   </div>
                 </CardContent>

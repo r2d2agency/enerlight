@@ -2662,6 +2662,37 @@ router.get('/reports/sales', async (req, res) => {
     const totalClosed = summary.won.count + summary.lost.count;
     const winRate = totalClosed > 0 ? (summary.won.count / totalClosed * 100) : 0;
 
+    // Quotes (orçamentos gerados) — deals that have order_number in custom_fields
+    const quotesResult = await query(
+      `SELECT 
+         COUNT(*) as total,
+         COUNT(*) FILTER (WHERE d.status = 'won') as won,
+         COUNT(*) FILTER (WHERE d.status = 'open') as open,
+         COUNT(*) FILTER (WHERE d.status = 'lost') as lost,
+         COALESCE(SUM(d.value), 0) as total_value,
+         COALESCE(SUM(d.value) FILTER (WHERE d.status = 'won'), 0) as won_value,
+         COALESCE(SUM(d.value) FILTER (WHERE d.status = 'open'), 0) as open_value
+       FROM crm_deals d
+       WHERE d.organization_id = $1
+         AND d.created_at >= $2::date
+         AND d.created_at <= ($3::date + interval '1 day')
+         AND d.custom_fields->>'order_number' IS NOT NULL
+         AND d.custom_fields->>'order_number' != ''
+         ${funnelFilter}`,
+      params
+    );
+
+    const quotesRow = quotesResult.rows[0] || {};
+    const quotes = {
+      total: parseInt(quotesRow.total || 0),
+      won: parseInt(quotesRow.won || 0),
+      open: parseInt(quotesRow.open || 0),
+      lost: parseInt(quotesRow.lost || 0),
+      totalValue: parseFloat(quotesRow.total_value || 0),
+      wonValue: parseFloat(quotesRow.won_value || 0),
+      openValue: parseFloat(quotesRow.open_value || 0),
+    };
+
     res.json({
       timeline: timelineResult.rows.map(row => ({
         period: row.period,
@@ -2676,6 +2707,7 @@ router.get('/reports/sales', async (req, res) => {
         ...summary,
         winRate: parseFloat(winRate.toFixed(1)),
         totalValue: summary.open.value + summary.won.value + summary.lost.value,
+        quotes,
       },
       byFunnel: byFunnelResult.rows.map(row => ({
         funnelId: row.funnel_id,
@@ -5706,19 +5738,46 @@ router.post('/import-quotes', async (req, res) => {
           continue;
         }
 
-        // Check duplicate by order_number in this org
+        // Check existing deal by order_number — update if found
         if (row.order_number) {
           const dup = await query(
-            `SELECT id FROM crm_deals WHERE organization_id = $1 AND custom_fields->>'order_number' = $2 LIMIT 1`,
+            `SELECT id, status FROM crm_deals WHERE organization_id = $1 AND custom_fields->>'order_number' = $2 LIMIT 1`,
             [orgId, String(row.order_number)],
           );
           if (dup.rows.length > 0) {
-            stats.skipped++;
+            const existingId = dup.rows[0].id;
+            const customFields = {};
+            if (row.order_number) customFields.order_number = String(row.order_number);
+            if (row.contact_name) customFields.contato = row.contact_name;
+            if (row.client_group) customFields.grupo_cliente = row.client_group;
+            if (row.observation) customFields.observacao = row.observation;
+
+            const updateStageId = await resolveStageId(funnelId, isWon);
+            await query(
+              `UPDATE crm_deals SET
+                value = $1, status = $2, stage_id = COALESCE($3, stage_id),
+                won_at = $4, owner_id = COALESCE($5, owner_id),
+                custom_fields = custom_fields || $6::jsonb,
+                tags = COALESCE($7, tags),
+                updated_at = NOW(), last_activity_at = NOW()
+              WHERE id = $8`,
+              [
+                row.value || 0,
+                isWon ? 'won' : 'open',
+                updateStageId,
+                isWon ? new Date() : null,
+                ownerId,
+                JSON.stringify(customFields),
+                row.channel ? [row.channel] : null,
+                existingId,
+              ],
+            );
+            if (isWon) stats.won++; else stats.open++;
+            stats.updated = (stats.updated || 0) + 1;
             continue;
           }
         }
 
-        const isWon = row.status === 'won';
         const stageId = await resolveStageId(funnelId, isWon);
 
         if (!stageId) {

@@ -11,12 +11,23 @@ export interface SalesTimelineData {
   openValue: number;
 }
 
+export interface QuotesSummary {
+  total: number;
+  won: number;
+  open: number;
+  lost: number;
+  totalValue: number;
+  wonValue: number;
+  openValue: number;
+}
+
 export interface SalesSummary {
   open: { count: number; value: number };
   won: { count: number; value: number };
   lost: { count: number; value: number };
   winRate: number;
   totalValue: number;
+  quotes?: QuotesSummary;
 }
 
 export interface FunnelSalesData {
