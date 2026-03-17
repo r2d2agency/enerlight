@@ -285,7 +285,7 @@ export function QuoteImportDialog({ open, onOpenChange, orgMembers }: QuoteImpor
       setResult(res.stats);
       setStep("done");
       qc.invalidateQueries({ queryKey: ["crm"] });
-      toast.success(`${res.stats.created} negociações criadas!`);
+      toast.success(`${res.stats.created} criadas, ${res.stats.updated || 0} atualizadas!`);
     } catch (err: any) {
       toast.error(err.message || "Erro ao importar");
       setStep("mapping");
