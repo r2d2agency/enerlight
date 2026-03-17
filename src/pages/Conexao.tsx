@@ -46,7 +46,7 @@ const Conexao = () => {
   const [creating, setCreating] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [newConnectionName, setNewConnectionName] = useState("");
-  const [newConnectionProvider, setNewConnectionProvider] = useState<'evolution' | 'wapi'>('evolution');
+  const [newConnectionProvider, setNewConnectionProvider] = useState<'evolution' | 'wapi' | 'meta'>('evolution');
   const [newConnectionInstanceId, setNewConnectionInstanceId] = useState("");
   const [newConnectionWapiToken, setNewConnectionWapiToken] = useState("");
   const [newConnectionApiUrl, setNewConnectionApiUrl] = useState("");
@@ -54,6 +54,11 @@ const Conexao = () => {
   const [wapiAutoCreate, setWapiAutoCreate] = useState(true);
   const [wapiRejectCalls, setWapiRejectCalls] = useState(true);
   const [wapiCallMessage, setWapiCallMessage] = useState("Não estamos disponíveis no momento.");
+  // Meta fields
+  const [metaWabaId, setMetaWabaId] = useState("");
+  const [metaPhoneNumberId, setMetaPhoneNumberId] = useState("");
+  const [metaAccessToken, setMetaAccessToken] = useState("");
+  const [metaAppSecret, setMetaAppSecret] = useState("");
   const [planLimits, setPlanLimits] = useState<PlanLimits | null>(null);
   
   // QR Code state
