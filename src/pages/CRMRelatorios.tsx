@@ -90,8 +90,10 @@ export default function CRMRelatorios() {
   const [groupBy, setGroupBy] = useState<"day" | "week" | "month">("day");
   const [activeTab, setActiveTab] = useState("overview");
   const [showBillingImport, setShowBillingImport] = useState(false);
+  const [filterUserId, setFilterUserId] = useState<string>("all");
 
   const { data: funnels } = useCRMFunnels();
+  const { data: teamMembers } = useCRMMyTeam();
 
   const billingStartDate = dateRange?.from?.toISOString().split("T")[0];
   const billingEndDate = dateRange?.to?.toISOString().split("T")[0];
