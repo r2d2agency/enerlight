@@ -3912,6 +3912,7 @@ const migrationSteps = [
   { name: 'Lead Gleego Module', sql: step48LeadGleego, critical: false },
   { name: 'Task Card Type Column', sql: step49TaskCardType, critical: false },
   { name: 'External Visits Module', sql: step50ExternalVisits, critical: false },
+  { name: 'ERP Billing Records', sql: step51ERPBilling, critical: false },
 ];
 
 export async function initDatabase() {
