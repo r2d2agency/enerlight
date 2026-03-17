@@ -443,7 +443,7 @@ export function QuoteImportDialog({ open, onOpenChange, orgMembers }: QuoteImpor
               <Check className="h-8 w-8 text-green-600" />
             </div>
             <div className="text-center">
-              <p className="font-medium text-lg">{result.created} negociações criadas</p>
+              <p className="font-medium text-lg">{result.created} criadas, {result.updated || 0} atualizadas</p>
               <div className="flex gap-3 justify-center mt-1">
                 <Badge className="bg-green-600">{result.won} ganhas</Badge>
                 <Badge variant="secondary">{result.open} abertas</Badge>
@@ -452,7 +452,7 @@ export function QuoteImportDialog({ open, onOpenChange, orgMembers }: QuoteImpor
                 <p className="text-sm text-muted-foreground mt-1">{result.companiesCreated} empresas criadas</p>
               )}
               {result.skipped > 0 && (
-                <p className="text-sm text-muted-foreground">{result.skipped} ignorados (duplicados/sem funil)</p>
+                <p className="text-sm text-muted-foreground">{result.skipped} ignorados (sem funil)</p>
               )}
               {result.errors?.length > 0 && (
                 <ScrollArea className="max-h-[100px] mt-2 text-left">
