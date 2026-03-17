@@ -199,11 +199,11 @@ export default function CRMMetas() {
             ) : dashboard ? (
               <>
                 {/* KPI Cards */}
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
                   <Card>
                     <CardContent className="pt-4">
                       <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-                        <Briefcase className="h-4 w-4" /> Novos Negócios
+                        <Briefcase className="h-4 w-4" /> Negócios
                       </div>
                       <p className="text-2xl font-bold">{dashboard.kpis.new_deals}</p>
                     </CardContent>
@@ -227,17 +227,35 @@ export default function CRMMetas() {
                   <Card>
                     <CardContent className="pt-4">
                       <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-                        <UserPlus className="h-4 w-4 text-blue-500" /> Clientes Novos
+                        <Briefcase className="h-4 w-4 text-blue-500" /> Orçamentos
                       </div>
-                      <p className="text-2xl font-bold text-blue-600">{dashboard.kpis.new_clients}</p>
+                      <p className="text-2xl font-bold text-blue-600">{(dashboard.kpis as any).quotes || 0}</p>
                     </CardContent>
                   </Card>
                   <Card>
                     <CardContent className="pt-4">
                       <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-                        <RefreshCw className="h-4 w-4 text-purple-500" /> Recorrentes
+                        <TrendingUp className="h-4 w-4 text-green-500" /> Pedidos
                       </div>
-                      <p className="text-2xl font-bold text-purple-600">{dashboard.kpis.recurring_clients}</p>
+                      <p className="text-2xl font-bold text-green-600">{(dashboard.kpis as any).orders || 0}</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-4">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                        <DollarSign className="h-4 w-4 text-amber-500" /> Faturamento
+                      </div>
+                      <p className="text-2xl font-bold text-amber-600">{formatCurrency((dashboard.kpis as any).billing_total || 0)}</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-4">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                        <Target className="h-4 w-4 text-purple-500" /> Conversão
+                      </div>
+                      <p className="text-2xl font-bold text-purple-600">
+                        {(dashboard.kpis as any).quotes > 0 ? (((dashboard.kpis as any).orders / (dashboard.kpis as any).quotes) * 100).toFixed(0) : 0}%
+                      </p>
                     </CardContent>
                   </Card>
                 </div>
