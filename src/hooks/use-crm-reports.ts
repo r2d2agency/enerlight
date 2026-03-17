@@ -46,11 +46,31 @@ export interface OwnerSalesData {
   wonCount: number;
   wonValue: number;
   totalDeals: number;
+  quoteCount: number;
+  orderCount: number;
+  orderValue: number;
+}
+
+export interface SalesFunnelData {
+  deals: { count: number; value: number };
+  quotes: { count: number; value: number };
+  orders: { count: number; value: number };
+}
+
+export interface QuotesByChannelData {
+  channel: string;
+  total: number;
+  won: number;
+  open: number;
+  totalValue: number;
+  wonValue: number;
 }
 
 export interface SalesReportData {
   timeline: SalesTimelineData[];
   summary: SalesSummary;
+  salesFunnel: SalesFunnelData;
+  quotesByChannel: QuotesByChannelData[];
   byFunnel: FunnelSalesData[];
   byOwner: OwnerSalesData[];
 }

@@ -2623,14 +2623,17 @@ router.get('/reports/sales', async (req, res) => {
       [org.organization_id, startDate, endDate]
     );
 
-    // By owner (top performers)
+    // By owner (top performers) — enriched with quotes & orders (confirmed quotes)
     const byOwnerResult = await query(
       `SELECT 
          u.id as user_id,
          u.name as user_name,
          COUNT(*) FILTER (WHERE d.status = 'won') as won_count,
          COALESCE(SUM(d.value) FILTER (WHERE d.status = 'won'), 0) as won_value,
-         COUNT(*) as total_deals
+         COUNT(*) as total_deals,
+         COUNT(*) FILTER (WHERE d.custom_fields->>'order_number' IS NOT NULL AND d.custom_fields->>'order_number' != '') as quote_count,
+         COUNT(*) FILTER (WHERE d.status = 'won' AND d.custom_fields->>'order_number' IS NOT NULL AND d.custom_fields->>'order_number' != '') as order_count,
+         COALESCE(SUM(d.value) FILTER (WHERE d.status = 'won' AND d.custom_fields->>'order_number' IS NOT NULL AND d.custom_fields->>'order_number' != ''), 0) as order_value
        FROM crm_deals d
        JOIN users u ON u.id = d.owner_id
        WHERE d.organization_id = $1
@@ -2639,59 +2642,50 @@ router.get('/reports/sales', async (req, res) => {
          ${funnelFilter}
        GROUP BY u.id, u.name
        ORDER BY won_value DESC
-       LIMIT 10`,
+       LIMIT 20`,
       params
     );
 
-    // Win rate calculation
-    const summary = {
-      open: { count: 0, value: 0 },
-      won: { count: 0, value: 0 },
-      lost: { count: 0, value: 0 },
+    // Sales funnel summary: Negociações → Orçamentos → Pedidos (Vendas)
+    const totalDeals = (summary.open.count + summary.won.count + summary.lost.count);
+    const salesFunnel = {
+      deals: { count: totalDeals, value: summary.open.value + summary.won.value + summary.lost.value },
+      quotes: { count: quotes.total, value: quotes.totalValue },
+      orders: { count: quotes.won, value: quotes.wonValue },
     };
-    
-    summaryResult.rows.forEach(row => {
-      if (summary[row.status]) {
-        summary[row.status] = {
-          count: parseInt(row.count),
-          value: parseFloat(row.total_value),
-        };
-      }
-    });
 
-    const totalClosed = summary.won.count + summary.lost.count;
-    const winRate = totalClosed > 0 ? (summary.won.count / totalClosed * 100) : 0;
-
-    // Quotes (orçamentos gerados) — deals that have order_number in custom_fields
-    const quotesResult = await query(
-      `SELECT 
-         COUNT(*) as total,
-         COUNT(*) FILTER (WHERE d.status = 'won') as won,
-         COUNT(*) FILTER (WHERE d.status = 'open') as open,
-         COUNT(*) FILTER (WHERE d.status = 'lost') as lost,
-         COALESCE(SUM(d.value), 0) as total_value,
-         COALESCE(SUM(d.value) FILTER (WHERE d.status = 'won'), 0) as won_value,
-         COALESCE(SUM(d.value) FILTER (WHERE d.status = 'open'), 0) as open_value
-       FROM crm_deals d
-       WHERE d.organization_id = $1
-         AND d.created_at >= $2::date
-         AND d.created_at <= ($3::date + interval '1 day')
-         AND d.custom_fields->>'order_number' IS NOT NULL
-         AND d.custom_fields->>'order_number' != ''
-         ${funnelFilter}`,
-      params
-    );
-
-    const quotesRow = quotesResult.rows[0] || {};
-    const quotes = {
-      total: parseInt(quotesRow.total || 0),
-      won: parseInt(quotesRow.won || 0),
-      open: parseInt(quotesRow.open || 0),
-      lost: parseInt(quotesRow.lost || 0),
-      totalValue: parseFloat(quotesRow.total_value || 0),
-      wonValue: parseFloat(quotesRow.won_value || 0),
-      openValue: parseFloat(quotesRow.open_value || 0),
-    };
+    // Quotes by channel (group_id name as channel proxy)
+    let quotesByChannel = [];
+    try {
+      const chResult = await query(
+        `SELECT 
+           COALESCE(ug.name, 'Sem canal') as channel,
+           COUNT(*) as total,
+           COUNT(*) FILTER (WHERE d.status = 'won') as won,
+           COUNT(*) FILTER (WHERE d.status = 'open') as open,
+           COALESCE(SUM(d.value), 0) as total_value,
+           COALESCE(SUM(d.value) FILTER (WHERE d.status = 'won'), 0) as won_value
+         FROM crm_deals d
+         LEFT JOIN crm_user_groups ug ON ug.id = d.group_id
+         WHERE d.organization_id = $1
+           AND d.created_at >= $2::date
+           AND d.created_at <= ($3::date + interval '1 day')
+           AND d.custom_fields->>'order_number' IS NOT NULL
+           AND d.custom_fields->>'order_number' != ''
+           ${funnelFilter}
+         GROUP BY ug.name
+         ORDER BY total_value DESC`,
+        params
+      );
+      quotesByChannel = chResult.rows.map(r => ({
+        channel: r.channel,
+        total: parseInt(r.total),
+        won: parseInt(r.won),
+        open: parseInt(r.open),
+        totalValue: parseFloat(r.total_value),
+        wonValue: parseFloat(r.won_value),
+      }));
+    } catch (_) {}
 
     res.json({
       timeline: timelineResult.rows.map(row => ({
@@ -2709,6 +2703,8 @@ router.get('/reports/sales', async (req, res) => {
         totalValue: summary.open.value + summary.won.value + summary.lost.value,
         quotes,
       },
+      salesFunnel,
+      quotesByChannel,
       byFunnel: byFunnelResult.rows.map(row => ({
         funnelId: row.funnel_id,
         funnelName: row.funnel_name,
@@ -2724,11 +2720,14 @@ router.get('/reports/sales', async (req, res) => {
         wonCount: parseInt(row.won_count),
         wonValue: parseFloat(row.won_value),
         totalDeals: parseInt(row.total_deals),
+        quoteCount: parseInt(row.quote_count),
+        orderCount: parseInt(row.order_count),
+        orderValue: parseFloat(row.order_value),
       })),
     });
   } catch (error) {
     if (error.code === '42P01') {
-      return res.json({ timeline: [], summary: { open: { count: 0, value: 0 }, won: { count: 0, value: 0 }, lost: { count: 0, value: 0 }, winRate: 0, totalValue: 0 }, byFunnel: [], byOwner: [] });
+      return res.json({ timeline: [], summary: { open: { count: 0, value: 0 }, won: { count: 0, value: 0 }, lost: { count: 0, value: 0 }, winRate: 0, totalValue: 0 }, salesFunnel: { deals: { count: 0, value: 0 }, quotes: { count: 0, value: 0 }, orders: { count: 0, value: 0 } }, quotesByChannel: [], byFunnel: [], byOwner: [] });
     }
     console.error('Error fetching sales report:', error);
     res.status(500).json({ error: error.message });
@@ -4827,44 +4826,123 @@ router.get('/goals/dashboard', async (req, res) => {
       recurringClientsCount = parseInt(recurring.rows[0]?.cnt || '0');
     } catch (_) {}
 
+    // Quote & order KPIs (orçamentos gerados e pedidos/confirmados)
+    let quotesCount = 0, ordersCount = 0, quotesValue = 0, ordersValue = 0;
+    try {
+      const qr = await query(
+        `SELECT 
+           COUNT(*) as quotes,
+           COUNT(*) FILTER (WHERE d.status = 'won') as orders,
+           COALESCE(SUM(d.value), 0) as quotes_value,
+           COALESCE(SUM(d.value) FILTER (WHERE d.status = 'won'), 0) as orders_value
+         FROM crm_deals d
+         JOIN crm_funnels f ON f.id = d.funnel_id
+         WHERE f.organization_id = $1 AND d.created_at::date >= $2::date AND d.created_at::date <= $3::date
+           AND d.custom_fields->>'order_number' IS NOT NULL AND d.custom_fields->>'order_number' != ''${kpiUserFilter}`,
+        kpiParams
+      );
+      quotesCount = parseInt(qr.rows[0]?.quotes || '0');
+      ordersCount = parseInt(qr.rows[0]?.orders || '0');
+      quotesValue = parseFloat(qr.rows[0]?.quotes_value || '0');
+      ordersValue = parseFloat(qr.rows[0]?.orders_value || '0');
+    } catch (_) {}
+
+    // ERP billing (faturamento) KPIs
+    let billingTotal = 0, billingOrders = 0;
+    try {
+      const br = await query(
+        `SELECT COALESCE(SUM(order_value),0) as total, COUNT(*) as cnt
+         FROM erp_billing_records
+         WHERE organization_id = $1 AND billing_date >= $2::date AND billing_date <= $3::date${kpiUserFilter ? kpiUserFilter.replace('d.owner_id', 'user_id') : ''}`,
+        kpiParams
+      );
+      billingTotal = parseFloat(br.rows[0]?.total || '0');
+      billingOrders = parseInt(br.rows[0]?.cnt || '0');
+    } catch (_) {}
+
     const kpis = {
       new_deals: parseInt(newDealsResult.rows[0]?.cnt || '0'),
       closed_deals: parseInt(closedDealsResult.rows[0]?.cnt || '0'),
       won_value: parseFloat(closedDealsResult.rows[0]?.total || '0'),
       new_clients: newClientsCount,
       recurring_clients: recurringClientsCount,
+      quotes: quotesCount,
+      orders: ordersCount,
+      quotes_value: quotesValue,
+      orders_value: ordersValue,
+      billing_total: billingTotal,
+      billing_orders: billingOrders,
     };
 
     // Calculate progress for each goal
     const progress = [];
+
+    // Helper to calculate metric value for a specific user
+    async function calcMetricForUser(metric, userId) {
+      const up = [org.organization_id, sd, ed, userId];
+      const uf = ` AND d.owner_id = $4`;
+      const quoteFilter = ` AND d.custom_fields->>'order_number' IS NOT NULL AND d.custom_fields->>'order_number' != ''`;
+      switch (metric) {
+        case 'new_deals': {
+          const r = await query(`SELECT COUNT(*) as cnt FROM crm_deals d JOIN crm_funnels f ON f.id=d.funnel_id WHERE f.organization_id=$1 AND d.created_at::date>=$2::date AND d.created_at::date<=$3::date${uf}`, up);
+          return parseInt(r.rows[0]?.cnt || '0');
+        }
+        case 'closed_deals': {
+          const r = await query(`SELECT COUNT(*) as cnt FROM crm_deals d JOIN crm_funnels f ON f.id=d.funnel_id WHERE f.organization_id=$1 AND d.status='won' AND d.won_at::date>=$2::date AND d.won_at::date<=$3::date${uf}`, up);
+          return parseInt(r.rows[0]?.cnt || '0');
+        }
+        case 'won_value': {
+          const r = await query(`SELECT COALESCE(SUM(d.value),0) as total FROM crm_deals d JOIN crm_funnels f ON f.id=d.funnel_id WHERE f.organization_id=$1 AND d.status='won' AND d.won_at::date>=$2::date AND d.won_at::date<=$3::date${uf}`, up);
+          return parseFloat(r.rows[0]?.total || '0');
+        }
+        case 'quotes_total':
+        case 'quotes_by_channel': {
+          const r = await query(`SELECT COUNT(*) as cnt FROM crm_deals d JOIN crm_funnels f ON f.id=d.funnel_id WHERE f.organization_id=$1 AND d.created_at::date>=$2::date AND d.created_at::date<=$3::date${uf}${quoteFilter}`, up);
+          return parseInt(r.rows[0]?.cnt || '0');
+        }
+        case 'orders_total':
+        case 'orders_by_channel': {
+          const r = await query(`SELECT COUNT(*) as cnt FROM crm_deals d JOIN crm_funnels f ON f.id=d.funnel_id WHERE f.organization_id=$1 AND d.status='won' AND d.won_at::date>=$2::date AND d.won_at::date<=$3::date${uf}${quoteFilter}`, up);
+          return parseInt(r.rows[0]?.cnt || '0');
+        }
+        case 'billing_total':
+        case 'billing_by_channel': {
+          try {
+            const r = await query(`SELECT COALESCE(SUM(order_value),0) as total FROM erp_billing_records WHERE organization_id=$1 AND billing_date>=$2::date AND billing_date<=$3::date AND user_id=$4`, up);
+            return parseFloat(r.rows[0]?.total || '0');
+          } catch (_) { return 0; }
+        }
+        case 'conversion_rate': {
+          const r = await query(`SELECT COUNT(*) FILTER (WHERE d.status='won') as won, COUNT(*) FILTER (WHERE d.custom_fields->>'order_number' IS NOT NULL AND d.custom_fields->>'order_number' != '') as quotes FROM crm_deals d JOIN crm_funnels f ON f.id=d.funnel_id WHERE f.organization_id=$1 AND d.created_at::date>=$2::date AND d.created_at::date<=$3::date${uf}`, up);
+          const q = parseInt(r.rows[0]?.quotes || '0');
+          const w = parseInt(r.rows[0]?.won || '0');
+          return q > 0 ? Math.round((w / q) * 100) : 0;
+        }
+        default: return 0;
+      }
+    }
+
+    const metricMap = {
+      new_deals: kpis.new_deals,
+      closed_deals: kpis.closed_deals,
+      won_value: kpis.won_value,
+      new_clients: kpis.new_clients,
+      recurring_clients: kpis.recurring_clients,
+      quotes_total: kpis.quotes,
+      quotes_by_channel: kpis.quotes,
+      orders_total: kpis.orders,
+      orders_by_channel: kpis.orders,
+      billing_total: kpis.billing_total,
+      billing_by_channel: kpis.billing_total,
+      conversion_rate: kpis.quotes > 0 ? Math.round((kpis.orders / kpis.quotes) * 100) : 0,
+    };
+
     for (const goal of goalsResult.rows) {
       let currentValue = 0;
-      const metricMap = {
-        new_deals: kpis.new_deals,
-        closed_deals: kpis.closed_deals,
-        won_value: kpis.won_value,
-        new_clients: kpis.new_clients,
-        recurring_clients: kpis.recurring_clients,
-      };
 
-      // If goal is individual and we have user_id filter or the goal has a target_user_id
       if (goal.type === 'individual' && goal.target_user_id) {
-        // Recalculate for specific user if not already filtered
         if (!user_id || user_id !== goal.target_user_id) {
-          const userParams = [org.organization_id, sd, ed, goal.target_user_id];
-          const uf = ` AND d.owner_id = $4`;
-          if (goal.metric === 'new_deals') {
-            const r = await query(`SELECT COUNT(*) as cnt FROM crm_deals d JOIN crm_funnels f ON f.id=d.funnel_id WHERE f.organization_id=$1 AND d.created_at::date>=$2::date AND d.created_at::date<=$3::date${uf}`, userParams);
-            currentValue = parseInt(r.rows[0]?.cnt || '0');
-          } else if (goal.metric === 'closed_deals') {
-            const r = await query(`SELECT COUNT(*) as cnt FROM crm_deals d JOIN crm_funnels f ON f.id=d.funnel_id WHERE f.organization_id=$1 AND d.status='won' AND d.won_at::date>=$2::date AND d.won_at::date<=$3::date${uf}`, userParams);
-            currentValue = parseInt(r.rows[0]?.cnt || '0');
-          } else if (goal.metric === 'won_value') {
-            const r = await query(`SELECT COALESCE(SUM(d.value),0) as total FROM crm_deals d JOIN crm_funnels f ON f.id=d.funnel_id WHERE f.organization_id=$1 AND d.status='won' AND d.won_at::date>=$2::date AND d.won_at::date<=$3::date${uf}`, userParams);
-            currentValue = parseFloat(r.rows[0]?.total || '0');
-          } else {
-            currentValue = metricMap[goal.metric] || 0;
-          }
+          currentValue = await calcMetricForUser(goal.metric, goal.target_user_id);
         } else {
           currentValue = metricMap[goal.metric] || 0;
         }
