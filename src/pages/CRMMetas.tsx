@@ -33,6 +33,13 @@ const METRICS = [
   { value: "won_value", label: "Valor Ganho (R$)", icon: DollarSign },
   { value: "new_clients", label: "Clientes Novos", icon: UserPlus },
   { value: "recurring_clients", label: "Clientes Recorrentes", icon: RefreshCw },
+  { value: "quotes_total", label: "Orçamentos Geral", icon: Briefcase },
+  { value: "quotes_by_channel", label: "Orçamentos por Canal", icon: Briefcase },
+  { value: "orders_total", label: "Pedidos Geral", icon: TrendingUp },
+  { value: "orders_by_channel", label: "Pedidos por Canal", icon: TrendingUp },
+  { value: "billing_total", label: "Faturamento Geral (R$)", icon: DollarSign },
+  { value: "billing_by_channel", label: "Faturamento por Canal (R$)", icon: DollarSign },
+  { value: "conversion_rate", label: "Taxa de Conversão (%)", icon: Target },
 ];
 
 const PERIODS = [
