@@ -23,12 +23,14 @@ import { SyncProgressDialog } from "@/components/conexao/SyncProgressDialog";
 interface Connection {
   id: string;
   name: string;
-  provider?: 'evolution' | 'wapi';
+  provider?: 'evolution' | 'wapi' | 'meta';
   instance_name: string;
   instance_id?: string;
   status: string;
   phone_number?: string;
   show_groups?: boolean;
+  meta_waba_id?: string;
+  meta_phone_number_id?: string;
   created_at: string;
 }
 
@@ -44,7 +46,7 @@ const Conexao = () => {
   const [creating, setCreating] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [newConnectionName, setNewConnectionName] = useState("");
-  const [newConnectionProvider, setNewConnectionProvider] = useState<'evolution' | 'wapi'>('evolution');
+  const [newConnectionProvider, setNewConnectionProvider] = useState<'evolution' | 'wapi' | 'meta'>('evolution');
   const [newConnectionInstanceId, setNewConnectionInstanceId] = useState("");
   const [newConnectionWapiToken, setNewConnectionWapiToken] = useState("");
   const [newConnectionApiUrl, setNewConnectionApiUrl] = useState("");
@@ -52,6 +54,11 @@ const Conexao = () => {
   const [wapiAutoCreate, setWapiAutoCreate] = useState(true);
   const [wapiRejectCalls, setWapiRejectCalls] = useState(true);
   const [wapiCallMessage, setWapiCallMessage] = useState("Não estamos disponíveis no momento.");
+  // Meta fields
+  const [metaWabaId, setMetaWabaId] = useState("");
+  const [metaPhoneNumberId, setMetaPhoneNumberId] = useState("");
+  const [metaAccessToken, setMetaAccessToken] = useState("");
+  const [metaAppSecret, setMetaAppSecret] = useState("");
   const [planLimits, setPlanLimits] = useState<PlanLimits | null>(null);
   
   // QR Code state
@@ -136,6 +143,10 @@ const Conexao = () => {
     setWapiAutoCreate(true);
     setWapiRejectCalls(true);
     setWapiCallMessage("Não estamos disponíveis no momento.");
+    setMetaWabaId('');
+    setMetaPhoneNumberId('');
+    setMetaAccessToken('');
+    setMetaAppSecret('');
   };
 
   const handleCreateConnection = async () => {
@@ -144,7 +155,12 @@ const Conexao = () => {
       return;
     }
 
-    if (newConnectionProvider === 'wapi' && !wapiAutoCreate) {
+    if (newConnectionProvider === 'meta') {
+      if (!metaWabaId.trim() || !metaPhoneNumberId.trim() || !metaAccessToken.trim()) {
+        toast.error('WABA ID, Phone Number ID e Access Token são obrigatórios');
+        return;
+      }
+    } else if (newConnectionProvider === 'wapi' && !wapiAutoCreate) {
       if (!newConnectionInstanceId.trim() || !newConnectionWapiToken.trim()) {
         toast.error('Instance ID e Token são obrigatórios para W-API');
         return;
@@ -155,9 +171,21 @@ const Conexao = () => {
     try {
       let result: Connection & { qrCode?: string };
 
-      if (newConnectionProvider === 'wapi') {
+      if (newConnectionProvider === 'meta') {
+        result = await api<Connection>('/api/connections', {
+          method: 'POST',
+          body: {
+            provider: 'meta',
+            name: newConnectionName,
+            meta_waba_id: metaWabaId,
+            meta_phone_number_id: metaPhoneNumberId,
+            meta_access_token: metaAccessToken,
+            meta_app_secret: metaAppSecret,
+          },
+        });
+        toast.success('Conexão Meta WhatsApp Business criada!');
+      } else if (newConnectionProvider === 'wapi') {
         if (wapiAutoCreate) {
-          // Auto-create via integrator API
           result = await api<Connection>('/api/connections/wapi/auto-create', {
             method: 'POST',
             body: { 
@@ -168,7 +196,6 @@ const Conexao = () => {
           });
           toast.success('Instância W-API criada automaticamente!');
         } else {
-          // Manual W-API connection
           result = await api<Connection>('/api/connections', {
             method: 'POST',
             body: {
@@ -181,7 +208,6 @@ const Conexao = () => {
           toast.success('Conexão W-API criada com sucesso!');
         }
       } else {
-        // Create Evolution API connection
         result = await api<Connection & { qrCode?: string }>('/api/evolution/create', {
           method: 'POST',
           body: { name: newConnectionName },
@@ -537,7 +563,7 @@ const handleGetQRCode = async (connection: Connection) => {
                   <Label>Provedor</Label>
                   <Select 
                     value={newConnectionProvider} 
-                    onValueChange={(value: 'evolution' | 'wapi') => setNewConnectionProvider(value)}
+                    onValueChange={(value: 'evolution' | 'wapi' | 'meta') => setNewConnectionProvider(value)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o provedor" />
@@ -555,12 +581,20 @@ const handleGetQRCode = async (connection: Connection) => {
                           <span>W-API</span>
                         </div>
                       </SelectItem>
+                      <SelectItem value="meta">
+                        <div className="flex items-center gap-2">
+                          <MessageSquare className="h-4 w-4" />
+                          <span>API Meta (WhatsApp Business)</span>
+                        </div>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
                     {newConnectionProvider === 'evolution' 
                       ? 'Evolution API: Gera QR Code para conexão' 
-                      : 'W-API: Cria instância automaticamente ou use dados manuais'}
+                      : newConnectionProvider === 'wapi'
+                      ? 'W-API: Cria instância automaticamente ou use dados manuais'
+                      : 'Meta Cloud API: Conexão oficial com WABA, templates e mensagens em massa'}
                   </p>
                 </div>
 
@@ -637,6 +671,55 @@ const handleGetQRCode = async (connection: Connection) => {
                         </div>
                       </>
                     )}
+                  </>
+                )}
+
+                {/* Meta specific fields */}
+                {newConnectionProvider === 'meta' && (
+                  <>
+                    <div className="space-y-2">
+                      <Label>WABA ID (WhatsApp Business Account)</Label>
+                      <Input 
+                        placeholder="Ex: 123456789012345"
+                        value={metaWabaId}
+                        onChange={(e) => setMetaWabaId(e.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Encontre em Meta Business Suite → Configurações → WhatsApp
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Phone Number ID</Label>
+                      <Input 
+                        placeholder="Ex: 123456789012345"
+                        value={metaPhoneNumberId}
+                        onChange={(e) => setMetaPhoneNumberId(e.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        ID do número de telefone registrado na API Meta
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Access Token (Permanente)</Label>
+                      <Input 
+                        type="password"
+                        placeholder="Token de acesso da API Meta"
+                        value={metaAccessToken}
+                        onChange={(e) => setMetaAccessToken(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>App Secret (opcional)</Label>
+                      <Input 
+                        type="password"
+                        placeholder="Secret do aplicativo Meta"
+                        value={metaAppSecret}
+                        onChange={(e) => setMetaAppSecret(e.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Usado para validar webhooks de entrada
+                      </p>
+                    </div>
                   </>
                 )}
               </div>

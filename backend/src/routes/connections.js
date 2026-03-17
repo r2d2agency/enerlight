@@ -91,11 +91,19 @@ router.post('/', async (req, res) => {
       instance_name, 
       instance_id,
       wapi_token,
-      name 
+      name,
+      meta_waba_id,
+      meta_phone_number_id,
+      meta_access_token,
+      meta_app_secret
     } = req.body;
 
     // Validate based on provider
-    if (provider === 'wapi') {
+    if (provider === 'meta') {
+      if (!meta_waba_id || !meta_phone_number_id || !meta_access_token) {
+        return res.status(400).json({ error: 'WABA ID, Phone Number ID e Access Token são obrigatórios para Meta' });
+      }
+    } else if (provider === 'wapi') {
       if (!instance_id || !wapi_token) {
         return res.status(400).json({ error: 'Instance ID e Token são obrigatórios para W-API' });
       }
@@ -108,8 +116,8 @@ router.post('/', async (req, res) => {
     const org = await getUserOrganization(req.userId);
 
     const result = await query(
-      `INSERT INTO connections (user_id, organization_id, provider, api_url, api_key, instance_name, instance_id, wapi_token, name)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      `INSERT INTO connections (user_id, organization_id, provider, api_url, api_key, instance_name, instance_id, wapi_token, name, meta_waba_id, meta_phone_number_id, meta_access_token, meta_app_secret, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *`,
       [
         req.userId, 
         org?.organization_id || null, 
@@ -119,7 +127,12 @@ router.post('/', async (req, res) => {
         instance_name || null,
         instance_id || null,
         wapi_token || null,
-        name || instance_name || instance_id
+        name || instance_name || instance_id || 'Meta WhatsApp',
+        meta_waba_id || null,
+        meta_phone_number_id || null,
+        meta_access_token || null,
+        meta_app_secret || null,
+        provider === 'meta' ? 'connected' : 'disconnected'
       ]
     );
 

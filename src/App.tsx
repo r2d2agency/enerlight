@@ -30,6 +30,7 @@ const Index = lazyRetry(() => import("./pages/Index"));
 const Login = lazyRetry(() => import("./pages/Login"));
 const Cadastro = lazyRetry(() => import("./pages/Cadastro"));
 const Conexao = lazyRetry(() => import("./pages/Conexao"));
+const MetaTemplates = lazyRetry(() => import("./pages/MetaTemplates"));
 const Contatos = lazyRetry(() => import("./pages/Contatos"));
 const Mensagens = lazyRetry(() => import("./pages/Mensagens"));
 const Campanhas = lazyRetry(() => import("./pages/Campanhas"));
@@ -119,6 +120,7 @@ const App = () => (
               <Route path="/" element={<Login />} />
               <Route path="/dashboard" element={<ProtectedRoute><Index /></ProtectedRoute>} />
               <Route path="/conexao" element={<ProtectedRoute><Conexao /></ProtectedRoute>} />
+              <Route path="/meta-templates" element={<ProtectedRoute><MetaTemplates /></ProtectedRoute>} />
               <Route path="/contatos" element={<ProtectedRoute><Contatos /></ProtectedRoute>} />
               <Route path="/mensagens" element={<ProtectedRoute><Mensagens /></ProtectedRoute>} />
               <Route path="/campanhas" element={<ProtectedRoute><Campanhas /></ProtectedRoute>} />
