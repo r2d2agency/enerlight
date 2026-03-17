@@ -10,6 +10,7 @@ import { FunnelEditorDialog } from "@/components/crm/FunnelEditorDialog";
 import { WinCelebration } from "@/components/crm/WinCelebration";
 import { LossReasonDialog } from "@/components/crm/LossReasonDialog";
 import { CRMImportDialog } from "@/components/crm/CRMImportDialog";
+import { QuoteImportDialog } from "@/components/crm/QuoteImportDialog";
 import { useCRMFunnels, useCRMFunnel, useCRMDeals, useCRMMyTeam, useCRMDealMutations, useCRMDeal, useCRMGroups, useCRMGroupMembers, CRMDeal, CRMFunnel } from "@/hooks/use-crm";
 import { Plus, Settings, Loader2, Filter, User, ArrowUpDown, CalendarIcon, X, LayoutGrid, List, Trophy, XCircle, Pause, FileSpreadsheet, CheckSquare, Trash2, ArrowRight, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -55,12 +56,13 @@ export default function CRMNegociacoes() {
   const [funnelEditorOpen, setFunnelEditorOpen] = useState(false);
   const [editingFunnel, setEditingFunnel] = useState<CRMFunnel | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [quoteImportOpen, setQuoteImportOpen] = useState(false);
 
   // Org members for import mapping
   const { data: orgMembers = [] } = useQuery<{ id: string; name: string; email: string }[]>({
     queryKey: ["internal-org-members"],
     queryFn: () => api("/api/internal-chat/org-members"),
-    enabled: importOpen,
+    enabled: importOpen || quoteImportOpen,
   });
   
   // View mode
@@ -348,6 +350,12 @@ export default function CRMNegociacoes() {
                 </Button>
               )}
 
+              {canManage && (
+                <Button variant="outline" size="sm" onClick={() => setQuoteImportOpen(true)} className="hidden lg:flex">
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Orçamentos
+                </Button>
+              )}
               {canManage && (
                 <Button variant="outline" size="sm" onClick={() => setImportOpen(true)} className="hidden lg:flex">
                   <FileSpreadsheet className="h-4 w-4 mr-2" />
@@ -709,6 +717,7 @@ export default function CRMNegociacoes() {
       />
 
       <CRMImportDialog open={importOpen} onOpenChange={setImportOpen} orgMembers={orgMembers} />
+      <QuoteImportDialog open={quoteImportOpen} onOpenChange={setQuoteImportOpen} orgMembers={orgMembers} />
 
       {/* Bulk delete confirmation */}
       <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
