@@ -5540,4 +5540,145 @@ router.delete('/external-visit-attachments/:id', async (req, res) => {
   }
 });
 
+// ============================================
+// IMPORT QUOTES (Orçamentos ERP) → CRM Deals
+// ============================================
+
+router.post('/import-quotes', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const { rows, sellerMapping, funnelMapping } = req.body;
+    // sellerMapping: { "SELLER NAME": "user-uuid" }
+    // funnelMapping: { "SELLER NAME": "funnel-uuid" }
+
+    if (!rows?.length) return res.status(400).json({ error: 'No rows to import' });
+
+    const orgId = org.organization_id;
+    const stats = { created: 0, skipped: 0, won: 0, open: 0, errors: [], companiesCreated: 0 };
+    const companyCache = {};
+
+    // Load existing companies
+    const existingCompanies = await query(
+      `SELECT id, name FROM crm_companies WHERE organization_id = $1`, [orgId]
+    );
+    for (const c of existingCompanies.rows) {
+      companyCache[c.name.trim().toUpperCase()] = c.id;
+    }
+
+    // Cache stages per funnel
+    const stageCache = {};
+    async function getStages(funnelId) {
+      if (stageCache[funnelId]) return stageCache[funnelId];
+      const result = await query(
+        `SELECT id, name, position, is_final FROM crm_stages WHERE funnel_id = $1 ORDER BY position`, [funnelId]
+      );
+      stageCache[funnelId] = result.rows;
+      return result.rows;
+    }
+
+    async function getOrCreateCompany(companyName) {
+      const key = companyName.trim().toUpperCase();
+      if (companyCache[key]) return companyCache[key];
+      const result = await query(
+        `INSERT INTO crm_companies (organization_id, name, created_by) VALUES ($1, $2, $3) RETURNING id`,
+        [orgId, companyName.trim(), req.userId]
+      );
+      companyCache[key] = result.rows[0].id;
+      stats.companiesCreated++;
+      return result.rows[0].id;
+    }
+
+    for (const row of rows) {
+      try {
+        const sellerName = (row.seller_name || '').trim();
+        const ownerId = sellerMapping?.[sellerName] || null;
+        const funnelId = funnelMapping?.[sellerName] || null;
+
+        if (!funnelId) {
+          stats.errors.push(`Sem funil para vendedor: ${sellerName} (Pedido ${row.order_number})`);
+          stats.skipped++;
+          continue;
+        }
+
+        if (!row.client_name) { stats.skipped++; continue; }
+
+        // Check duplicate by order_number in this org
+        if (row.order_number) {
+          const dup = await query(
+            `SELECT id FROM crm_deals WHERE organization_id = $1 AND custom_fields->>'order_number' = $2 LIMIT 1`,
+            [orgId, String(row.order_number)]
+          );
+          if (dup.rows.length > 0) { stats.skipped++; continue; }
+        }
+
+        const companyId = await getOrCreateCompany(row.client_name);
+        const stages = await getStages(funnelId);
+
+        const isWon = row.status === 'won';
+
+        // Won → last stage (is_final or highest position); Open → first stage (Orçamento or lowest position)
+        let stageId;
+        if (isWon) {
+          const finalStage = stages.find(s => s.is_final) || stages[stages.length - 1];
+          stageId = finalStage?.id;
+        } else {
+          // Find "Orçamento" stage or first stage
+          const orcStage = stages.find(s => s.name.toLowerCase().includes('orçamento') || s.name.toLowerCase().includes('orcamento'));
+          stageId = orcStage?.id || stages[0]?.id;
+        }
+
+        if (!stageId) {
+          stats.errors.push(`Sem etapas no funil para: ${sellerName}`);
+          stats.skipped++;
+          continue;
+        }
+
+        // Get max position
+        const maxPos = await query(
+          `SELECT COALESCE(MAX(position), -1) as mp FROM crm_deals WHERE stage_id = $1`, [stageId]
+        );
+        const position = (maxPos.rows[0]?.mp || 0) + 1;
+
+        const customFields = {};
+        if (row.order_number) customFields.order_number = String(row.order_number);
+        if (row.contact_name) customFields.contato = row.contact_name;
+        if (row.client_group) customFields.grupo_cliente = row.client_group;
+        if (row.observation) customFields.observacao = row.observation;
+
+        const title = row.contact_name
+          ? `${row.client_name} - ${row.contact_name}`
+          : row.client_name;
+
+        await query(
+          `INSERT INTO crm_deals (
+            organization_id, funnel_id, stage_id, position, company_id, owner_id,
+            title, value, status, won_at, description, tags, custom_fields,
+            last_activity_at, created_by, created_at, updated_at
+          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$16)`,
+          [
+            orgId, funnelId, stageId, position, companyId, ownerId,
+            title, row.value || 0, isWon ? 'won' : 'open',
+            isWon ? new Date() : null,
+            row.observation || null,
+            row.channel ? [row.channel] : null,
+            JSON.stringify(customFields),
+            new Date(), req.userId, new Date()
+          ]
+        );
+
+        if (isWon) stats.won++; else stats.open++;
+        stats.created++;
+      } catch (err) {
+        stats.errors.push(`Erro pedido ${row.order_number}: ${err.message}`);
+      }
+    }
+
+    res.json({ success: true, stats });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
