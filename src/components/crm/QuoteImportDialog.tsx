@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -10,7 +10,7 @@ import { Upload, Loader2, FileSpreadsheet, Check, AlertCircle, ArrowRight } from
 import { toast } from "sonner";
 import { api, API_URL, getAuthToken } from "@/lib/api";
 import { useCRMFunnels, CRMFunnel } from "@/hooks/use-crm";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 
 interface QuoteImportDialogProps {
