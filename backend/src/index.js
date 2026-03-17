@@ -212,6 +212,7 @@ app.use('/api/internal-chat', internalChatRoutes);
 app.use('/api/push', pushNotificationsRoutes);
 app.use('/api/homologation', homologationRoutes);
 app.use('/api/task-boards', taskBoardsRoutes);
+app.use('/api/erp-billing', erpBillingRoutes);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
