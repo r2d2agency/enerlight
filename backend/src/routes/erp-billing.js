@@ -2,6 +2,7 @@ import express from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import crypto from 'crypto';
 import XLSX from 'xlsx';
 import { query } from '../db.js';
 import { authenticate } from '../middleware/auth.js';
