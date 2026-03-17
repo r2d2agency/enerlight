@@ -30,6 +30,7 @@ const Index = lazyRetry(() => import("./pages/Index"));
 const Login = lazyRetry(() => import("./pages/Login"));
 const Cadastro = lazyRetry(() => import("./pages/Cadastro"));
 const Conexao = lazyRetry(() => import("./pages/Conexao"));
+const MetaTemplates = lazyRetry(() => import("./pages/MetaTemplates"));
 const Contatos = lazyRetry(() => import("./pages/Contatos"));
 const Mensagens = lazyRetry(() => import("./pages/Mensagens"));
 const Campanhas = lazyRetry(() => import("./pages/Campanhas"));
