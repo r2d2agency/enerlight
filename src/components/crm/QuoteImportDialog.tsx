@@ -182,7 +182,7 @@ export function QuoteImportDialog({ open, onOpenChange, orgMembers }: QuoteImpor
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+      <DialogContent className="max-w-4xl max-h-[90vh] !flex !flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileSpreadsheet className="h-5 w-5" />
@@ -206,104 +206,106 @@ export function QuoteImportDialog({ open, onOpenChange, orgMembers }: QuoteImpor
         )}
 
         {step === "mapping" && (
-          <ScrollArea className="flex-1 min-h-0">
-            <div className="flex flex-col gap-4 pr-4">
-              {/* Stats */}
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                <Card className="p-3 text-center">
-                  <div className="text-2xl font-bold">{totals.total}</div>
-                  <div className="text-xs text-muted-foreground">Total</div>
-                </Card>
-                <Card className="p-3 text-center">
-                  <div className="text-2xl font-bold text-green-600">{totals.wonCount}</div>
-                  <div className="text-xs text-muted-foreground">Confirmados</div>
-                </Card>
-                <Card className="p-3 text-center">
-                  <div className="text-lg font-bold text-green-600">{formatCurrency(totals.wonValue)}</div>
-                  <div className="text-xs text-muted-foreground">Valor Confirmados</div>
-                </Card>
-                <Card className="p-3 text-center">
-                  <div className="text-2xl font-bold text-blue-600">{totals.openCount}</div>
-                  <div className="text-xs text-muted-foreground">Abertos</div>
-                </Card>
-                <Card className="p-3 text-center">
-                  <div className="text-lg font-bold text-blue-600">{formatCurrency(totals.openValue)}</div>
-                  <div className="text-xs text-muted-foreground">Valor Abertos</div>
-                </Card>
-              </div>
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <ScrollArea className="h-full max-h-[calc(90vh-220px)]">
+              <div className="flex flex-col gap-4 pr-4 pb-2">
+                {/* Stats */}
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                  <Card className="p-3 text-center">
+                    <div className="text-2xl font-bold">{totals.total}</div>
+                    <div className="text-xs text-muted-foreground">Total</div>
+                  </Card>
+                  <Card className="p-3 text-center">
+                    <div className="text-2xl font-bold text-primary">{totals.wonCount}</div>
+                    <div className="text-xs text-muted-foreground">Confirmados</div>
+                  </Card>
+                  <Card className="p-3 text-center">
+                    <div className="text-lg font-bold text-primary">{formatCurrency(totals.wonValue)}</div>
+                    <div className="text-xs text-muted-foreground">Valor Confirmados</div>
+                  </Card>
+                  <Card className="p-3 text-center">
+                    <div className="text-2xl font-bold text-foreground">{totals.openCount}</div>
+                    <div className="text-xs text-muted-foreground">Abertos</div>
+                  </Card>
+                  <Card className="p-3 text-center">
+                    <div className="text-lg font-bold text-foreground">{formatCurrency(totals.openValue)}</div>
+                    <div className="text-xs text-muted-foreground">Valor Abertos</div>
+                  </Card>
+                </div>
 
-              <div className="space-y-1">
-                <h4 className="text-sm font-medium">Vincular Vendedores → Usuário e Funil</h4>
-                <p className="text-xs text-muted-foreground">
-                  Cada vendedor pode ter seu próprio funil. As negociações confirmadas irão para a última etapa e as abertas para "Orçamento".
-                </p>
-              </div>
+                <div className="space-y-1">
+                  <h4 className="text-sm font-medium">Vincular Vendedores → Usuário e Funil</h4>
+                  <p className="text-xs text-muted-foreground">
+                    Cada vendedor pode ter seu próprio funil. As negociações confirmadas irão para a última etapa e as abertas para "Orçamento".
+                  </p>
+                </div>
 
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Vendedor</TableHead>
-                    <TableHead className="w-20">Qtd</TableHead>
-                    <TableHead>Total</TableHead>
-                    <TableHead>Usuário</TableHead>
-                    <TableHead>Funil</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sellers.map(([name, info]) => (
-                    <TableRow key={name}>
-                      <TableCell>
-                        <div>
-                          <span className="font-medium text-sm">{name}</span>
-                          <div className="flex gap-1 mt-0.5">
-                            <Badge variant="outline" className="text-[10px] px-1">{info.won} ganhas</Badge>
-                            <Badge variant="secondary" className="text-[10px] px-1">{info.open} abertas</Badge>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-sm">{info.count}</TableCell>
-                      <TableCell className="text-sm font-medium">{formatCurrency(info.total)}</TableCell>
-                      <TableCell>
-                        <Select
-                          value={sellerMapping[name] || ""}
-                          onValueChange={(v) => setSellerMapping(prev => ({ ...prev, [name]: v }))}
-                        >
-                          <SelectTrigger className="w-[160px] h-8 text-xs">
-                            <SelectValue placeholder="Usuário..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {orgMembers.map(u => (
-                              <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell>
-                        <Select
-                          value={funnelMapping[name] || ""}
-                          onValueChange={(v) => setFunnelMapping(prev => ({ ...prev, [name]: v }))}
-                        >
-                          <SelectTrigger className="w-[160px] h-8 text-xs">
-                            <SelectValue placeholder="Funil..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {funnels.filter((f: CRMFunnel) => f.is_active).map((f: CRMFunnel) => (
-                              <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Vendedor</TableHead>
+                      <TableHead className="w-20">Qtd</TableHead>
+                      <TableHead>Total</TableHead>
+                      <TableHead>Usuário</TableHead>
+                      <TableHead>Funil</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {sellers.map(([name, info]) => (
+                      <TableRow key={name}>
+                        <TableCell>
+                          <div>
+                            <span className="font-medium text-sm">{name}</span>
+                            <div className="flex gap-1 mt-0.5">
+                              <Badge variant="outline" className="text-[10px] px-1">{info.won} ganhas</Badge>
+                              <Badge variant="secondary" className="text-[10px] px-1">{info.open} abertas</Badge>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-sm">{info.count}</TableCell>
+                        <TableCell className="text-sm font-medium">{formatCurrency(info.total)}</TableCell>
+                        <TableCell>
+                          <Select
+                            value={sellerMapping[name] || ""}
+                            onValueChange={(v) => setSellerMapping(prev => ({ ...prev, [name]: v }))}
+                          >
+                            <SelectTrigger className="w-[160px] h-8 text-xs">
+                              <SelectValue placeholder="Usuário..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {orgMembers.map(u => (
+                                <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell>
+                          <Select
+                            value={funnelMapping[name] || ""}
+                            onValueChange={(v) => setFunnelMapping(prev => ({ ...prev, [name]: v }))}
+                          >
+                            <SelectTrigger className="w-[160px] h-8 text-xs">
+                              <SelectValue placeholder="Funil..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {funnels.filter((f: CRMFunnel) => f.is_active).map((f: CRMFunnel) => (
+                                <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
 
-              <div className="text-xs text-muted-foreground flex items-center gap-1">
-                <AlertCircle className="h-3 w-3" />
-                Duplicatas são detectadas pelo número do pedido.
+                <div className="text-xs text-muted-foreground flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  Duplicatas são detectadas pelo número do pedido.
+                </div>
               </div>
-            </div>
-          </ScrollArea>
+            </ScrollArea>
+          </div>
         )}
 
         {step === "importing" && (
@@ -341,7 +343,7 @@ export function QuoteImportDialog({ open, onOpenChange, orgMembers }: QuoteImpor
           </div>
         )}
 
-        <DialogFooter>
+        <DialogFooter className="shrink-0">
           {step === "mapping" && (
             <>
               <Button variant="outline" onClick={() => { setStep("upload"); setRows([]); }}>Voltar</Button>
