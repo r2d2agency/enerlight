@@ -487,6 +487,18 @@ export default function CRMMetas() {
               </div>
             )}
 
+            {form.type === "group" && (
+              <div className="space-y-2">
+                <Label>Grupo *</Label>
+                <Select value={form.target_group_id} onValueChange={v => setForm(f => ({ ...f, target_group_id: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Selecione o grupo..." /></SelectTrigger>
+                  <SelectContent>
+                    {groups?.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Valor da Meta *</Label>
