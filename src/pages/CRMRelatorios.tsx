@@ -34,7 +34,7 @@ import {
   useWinLossAnalysis,
   usePipelineVelocity,
 } from "@/hooks/use-crm-reports";
-import { useCRMFunnels } from "@/hooks/use-crm";
+import { useCRMFunnels, useCRMMyTeam } from "@/hooks/use-crm";
 import { useERPBillingSummary } from "@/hooks/use-erp-billing";
 import { ERPBillingImportDialog } from "@/components/crm/ERPBillingImportDialog";
 import {
@@ -50,6 +50,9 @@ import {
   Activity,
   FileSpreadsheet,
   Upload,
+  ShoppingCart,
+  Filter,
+  FunnelIcon,
 } from "lucide-react";
 import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
