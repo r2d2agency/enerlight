@@ -751,58 +751,59 @@ export default function CRMRelatorios() {
               <TabsContent value="team" className="mt-6">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Top Vendedores</CardTitle>
-                    <CardDescription>Ranking por valor de negociações ganhas</CardDescription>
+                    <CardTitle>Desempenho por Funcionário</CardTitle>
+                    <CardDescription>Orçamentos, pedidos, vendas e conversão por vendedor</CardDescription>
                   </CardHeader>
                   <CardContent>
                     {salesData?.byOwner && salesData.byOwner.length > 0 ? (
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="w-[50px]">#</TableHead>
-                            <TableHead>Vendedor</TableHead>
-                            <TableHead className="text-center">Ganhas</TableHead>
-                            <TableHead className="text-center">Total</TableHead>
-                            <TableHead className="text-center">Taxa</TableHead>
-                            <TableHead className="text-right">Valor Ganho</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {salesData.byOwner.map((owner, index) => {
-                            const winRate =
-                              owner.totalDeals > 0
-                                ? (owner.wonCount / owner.totalDeals) * 100
-                                : 0;
-                            return (
-                              <TableRow key={owner.userId}>
-                                <TableCell>
-                                  <Badge
-                                    variant={index < 3 ? "default" : "secondary"}
-                                    className={cn(
-                                      index === 0 && "bg-yellow-500",
-                                      index === 1 && "bg-gray-400",
-                                      index === 2 && "bg-amber-600"
-                                    )}
-                                  >
-                                    {index + 1}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="font-medium">{owner.userName}</TableCell>
-                                <TableCell className="text-center text-green-600">
-                                  {owner.wonCount}
-                                </TableCell>
-                                <TableCell className="text-center">{owner.totalDeals}</TableCell>
-                                <TableCell className="text-center">
-                                  <Badge variant="outline">{winRate.toFixed(0)}%</Badge>
-                                </TableCell>
-                                <TableCell className="text-right font-medium text-green-600">
-                                  {formatCurrency(owner.wonValue)}
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
+                      <div className="overflow-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-[50px]">#</TableHead>
+                              <TableHead>Vendedor</TableHead>
+                              <TableHead className="text-center">Negociações</TableHead>
+                              <TableHead className="text-center">Orçamentos</TableHead>
+                              <TableHead className="text-center">Pedidos</TableHead>
+                              <TableHead className="text-center">Conversão</TableHead>
+                              <TableHead className="text-right">Valor Vendas</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {salesData.byOwner.map((owner, index) => {
+                              const convRate = owner.quoteCount > 0
+                                ? ((owner.orderCount / owner.quoteCount) * 100).toFixed(0)
+                                : "—";
+                              return (
+                                <TableRow key={owner.userId}>
+                                  <TableCell>
+                                    <Badge
+                                      variant={index < 3 ? "default" : "secondary"}
+                                      className={cn(
+                                        index === 0 && "bg-yellow-500",
+                                        index === 1 && "bg-gray-400",
+                                        index === 2 && "bg-amber-600"
+                                      )}
+                                    >
+                                      {index + 1}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="font-medium">{owner.userName}</TableCell>
+                                  <TableCell className="text-center">{owner.totalDeals}</TableCell>
+                                  <TableCell className="text-center text-blue-600 font-medium">{owner.quoteCount}</TableCell>
+                                  <TableCell className="text-center text-green-600 font-medium">{owner.orderCount}</TableCell>
+                                  <TableCell className="text-center">
+                                    <Badge variant="outline">{convRate}{convRate !== "—" ? "%" : ""}</Badge>
+                                  </TableCell>
+                                  <TableCell className="text-right font-medium text-green-600">
+                                    {formatCurrency(owner.orderValue)}
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
                     ) : (
                       <div className="flex items-center justify-center h-[200px] text-muted-foreground">
                         Nenhum vendedor com negociações no período
