@@ -299,6 +299,7 @@ export function QuoteImportDialog({ open, onOpenChange, orgMembers }: QuoteImpor
     setRows([]);
     setSellerMapping({});
     setFunnelMapping({});
+    setAutoMappingApplied(false);
     setResult(null);
     onOpenChange(false);
   };
