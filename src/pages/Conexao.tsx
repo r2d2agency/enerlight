@@ -563,7 +563,7 @@ const handleGetQRCode = async (connection: Connection) => {
                   <Label>Provedor</Label>
                   <Select 
                     value={newConnectionProvider} 
-                    onValueChange={(value: 'evolution' | 'wapi') => setNewConnectionProvider(value)}
+                    onValueChange={(value: 'evolution' | 'wapi' | 'meta') => setNewConnectionProvider(value)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o provedor" />
@@ -581,12 +581,20 @@ const handleGetQRCode = async (connection: Connection) => {
                           <span>W-API</span>
                         </div>
                       </SelectItem>
+                      <SelectItem value="meta">
+                        <div className="flex items-center gap-2">
+                          <MessageSquare className="h-4 w-4" />
+                          <span>API Meta (WhatsApp Business)</span>
+                        </div>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
                     {newConnectionProvider === 'evolution' 
                       ? 'Evolution API: Gera QR Code para conexão' 
-                      : 'W-API: Cria instância automaticamente ou use dados manuais'}
+                      : newConnectionProvider === 'wapi'
+                      ? 'W-API: Cria instância automaticamente ou use dados manuais'
+                      : 'Meta Cloud API: Conexão oficial com WABA, templates e mensagens em massa'}
                   </p>
                 </div>
 
