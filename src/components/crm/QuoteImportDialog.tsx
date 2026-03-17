@@ -254,6 +254,9 @@ export function QuoteImportDialog({ open, onOpenChange, orgMembers }: QuoteImpor
         }
 
         setRows(mapped);
+        setSellerMapping({});
+        setFunnelMapping({});
+        setAutoMappingApplied(false);
         setStep("mapping");
         toast.success(`${mapped.length} orçamentos encontrados`);
       } catch {
