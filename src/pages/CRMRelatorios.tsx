@@ -35,6 +35,8 @@ import {
   usePipelineVelocity,
 } from "@/hooks/use-crm-reports";
 import { useCRMFunnels } from "@/hooks/use-crm";
+import { useERPBillingSummary } from "@/hooks/use-erp-billing";
+import { ERPBillingImportDialog } from "@/components/crm/ERPBillingImportDialog";
 import {
   CalendarIcon,
   TrendingUp,
