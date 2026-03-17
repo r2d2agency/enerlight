@@ -214,6 +214,7 @@ app.use('/api/push', pushNotificationsRoutes);
 app.use('/api/homologation', homologationRoutes);
 app.use('/api/task-boards', taskBoardsRoutes);
 app.use('/api/erp-billing', erpBillingRoutes);
+app.use('/api/meta', metaTemplatesRoutes);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
