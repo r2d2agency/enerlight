@@ -329,6 +329,10 @@ export default function CRMRelatorios() {
                   <Users className="h-4 w-4" />
                   Equipe
                 </TabsTrigger>
+                <TabsTrigger value="billing" className="gap-2">
+                  <FileSpreadsheet className="h-4 w-4" />
+                  Faturamento
+                </TabsTrigger>
               </TabsList>
 
               {/* Overview Tab */}
