@@ -673,6 +673,55 @@ const handleGetQRCode = async (connection: Connection) => {
                     )}
                   </>
                 )}
+
+                {/* Meta specific fields */}
+                {newConnectionProvider === 'meta' && (
+                  <>
+                    <div className="space-y-2">
+                      <Label>WABA ID (WhatsApp Business Account)</Label>
+                      <Input 
+                        placeholder="Ex: 123456789012345"
+                        value={metaWabaId}
+                        onChange={(e) => setMetaWabaId(e.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Encontre em Meta Business Suite → Configurações → WhatsApp
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Phone Number ID</Label>
+                      <Input 
+                        placeholder="Ex: 123456789012345"
+                        value={metaPhoneNumberId}
+                        onChange={(e) => setMetaPhoneNumberId(e.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        ID do número de telefone registrado na API Meta
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Access Token (Permanente)</Label>
+                      <Input 
+                        type="password"
+                        placeholder="Token de acesso da API Meta"
+                        value={metaAccessToken}
+                        onChange={(e) => setMetaAccessToken(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>App Secret (opcional)</Label>
+                      <Input 
+                        type="password"
+                        placeholder="Secret do aplicativo Meta"
+                        value={metaAppSecret}
+                        onChange={(e) => setMetaAppSecret(e.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Usado para validar webhooks de entrada
+                      </p>
+                    </div>
+                  </>
+                )}
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => { setShowCreateDialog(false); resetCreateForm(); }}>
