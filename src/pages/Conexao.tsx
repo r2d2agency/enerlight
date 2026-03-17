@@ -143,6 +143,10 @@ const Conexao = () => {
     setWapiAutoCreate(true);
     setWapiRejectCalls(true);
     setWapiCallMessage("Não estamos disponíveis no momento.");
+    setMetaWabaId('');
+    setMetaPhoneNumberId('');
+    setMetaAccessToken('');
+    setMetaAppSecret('');
   };
 
   const handleCreateConnection = async () => {
