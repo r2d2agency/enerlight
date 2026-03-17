@@ -86,8 +86,16 @@ export default function CRMRelatorios() {
   const [selectedFunnel, setSelectedFunnel] = useState<string>("all");
   const [groupBy, setGroupBy] = useState<"day" | "week" | "month">("day");
   const [activeTab, setActiveTab] = useState("overview");
+  const [showBillingImport, setShowBillingImport] = useState(false);
 
   const { data: funnels } = useCRMFunnels();
+
+  const billingStartDate = dateRange?.from?.toISOString().split("T")[0];
+  const billingEndDate = dateRange?.to?.toISOString().split("T")[0];
+  const { data: billingSummary } = useERPBillingSummary({
+    startDate: billingStartDate,
+    endDate: billingEndDate,
+  });
 
   const { data: salesData, isLoading } = useCRMSalesReport({
     startDate: dateRange?.from?.toISOString().split("T")[0],
