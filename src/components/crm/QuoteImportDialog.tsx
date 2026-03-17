@@ -6,9 +6,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card } from "@/components/ui/card";
-import { Upload, Loader2, FileSpreadsheet, Check, AlertCircle, ArrowRight } from "lucide-react";
+import { Upload, Loader2, FileSpreadsheet, Check, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
-import { api, API_URL, getAuthToken } from "@/lib/api";
+import { api } from "@/lib/api";
 import { useCRMFunnels, CRMFunnel } from "@/hooks/use-crm";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
