@@ -4609,24 +4609,37 @@ async function ensureGoalsTable() {
   }
 }
 
-// List goals
+// List goals (filtered by user's groups for non-admin roles)
 router.get('/goals', async (req, res) => {
   try {
     await ensureGoalsTable();
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
-    const result = await query(
-      `SELECT g.*,
+    const isManager = ['owner', 'admin', 'manager'].includes(org.role);
+
+    let sql = `SELECT g.*,
         u.name as target_user_name,
         ug.name as target_group_name
        FROM crm_goals g
        LEFT JOIN users u ON u.id = g.target_user_id
        LEFT JOIN crm_user_groups ug ON ug.id = g.target_group_id
-       WHERE g.organization_id = $1
-       ORDER BY g.created_at DESC`,
-      [org.organization_id]
-    );
+       WHERE g.organization_id = $1`;
+    const params = [org.organization_id];
+
+    // Non-managers only see goals for their groups or their individual goals
+    if (!isManager) {
+      params.push(req.userId);
+      sql += ` AND (
+        g.target_user_id = $${params.length}
+        OR g.target_group_id IN (
+          SELECT gm.group_id FROM crm_user_group_members gm WHERE gm.user_id = $${params.length}
+        )
+      )`;
+    }
+
+    sql += ` ORDER BY g.created_at DESC`;
+    const result = await query(sql, params);
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching goals:', error);
