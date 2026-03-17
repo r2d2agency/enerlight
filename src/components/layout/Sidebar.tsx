@@ -182,6 +182,7 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
     items: [
       { name: "Cobrança", href: "/cobranca", icon: Receipt, moduleKey: 'billing', permissionKey: 'can_view_billing' },
       { name: "Conexões", href: "/conexao", icon: Plug, permissionKey: 'can_view_connections' },
+      { name: "Templates Meta", href: "/meta-templates", icon: MessageSquare, permissionKey: 'can_view_connections' },
       { name: "Organizações", href: "/organizacoes", icon: Building2, permissionKey: 'can_view_organizations' },
     ],
   },
