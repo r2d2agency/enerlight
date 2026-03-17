@@ -23,12 +23,14 @@ import { SyncProgressDialog } from "@/components/conexao/SyncProgressDialog";
 interface Connection {
   id: string;
   name: string;
-  provider?: 'evolution' | 'wapi';
+  provider?: 'evolution' | 'wapi' | 'meta';
   instance_name: string;
   instance_id?: string;
   status: string;
   phone_number?: string;
   show_groups?: boolean;
+  meta_waba_id?: string;
+  meta_phone_number_id?: string;
   created_at: string;
 }
 
