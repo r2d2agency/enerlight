@@ -257,90 +257,19 @@ export default function CRMRelatorios() {
           </div>
         ) : (
           <>
-            {/* KPI Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Total em Aberto</p>
-                      <p className="text-2xl font-bold">{summary.open.count}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {formatCurrency(summary.open.value)}
-                      </p>
-                    </div>
-                    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                      <Activity className="h-6 w-6 text-primary" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Negociações Ganhas</p>
-                      <p className="text-2xl font-bold text-green-600">{summary.won.count}</p>
-                      <p className="text-sm text-green-600">
-                        {formatCurrency(summary.won.value)}
-                      </p>
-                    </div>
-                    <div className="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center">
-                      <TrendingUp className="h-6 w-6 text-green-600" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Negociações Perdidas</p>
-                      <p className="text-2xl font-bold text-red-600">{summary.lost.count}</p>
-                      <p className="text-sm text-red-600">
-                        {formatCurrency(summary.lost.value)}
-                      </p>
-                    </div>
-                    <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center">
-                      <TrendingDown className="h-6 w-6 text-red-600" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Taxa de Conversão</p>
-                      <p className="text-2xl font-bold">{summary.winRate}%</p>
-                      <p className="text-sm text-muted-foreground">
-                        de fechamento
-                      </p>
-                    </div>
-                    <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center">
-                      <Target className="h-6 w-6 text-amber-600" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Orçamentos Gerados */}
+            {/* KPI Cards - Row 1: Orçamentos, Pedidos, Faturamento */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Card className="border-blue-200 dark:border-blue-800">
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-muted-foreground">Orçamentos Gerados</p>
+                      <p className="text-sm text-muted-foreground">Orçamentos no Mês</p>
                       <p className="text-2xl font-bold text-blue-600">{summary.quotes?.total || 0}</p>
+                      <p className="text-sm text-blue-600">{formatCurrency(summary.quotes?.totalValue || 0)}</p>
                       <div className="flex gap-2 text-xs mt-0.5">
-                        <span className="text-green-600">{summary.quotes?.won || 0} ganhos</span>
+                        <span className="text-green-600">{summary.quotes?.won || 0} confirmados</span>
                         <span className="text-muted-foreground">{summary.quotes?.open || 0} abertos</span>
                       </div>
-                      <p className="text-sm text-blue-600 mt-0.5">
-                        {formatCurrency(summary.quotes?.totalValue || 0)}
-                      </p>
                     </div>
                     <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center">
                       <FileSpreadsheet className="h-6 w-6 text-blue-600" />
@@ -348,7 +277,157 @@ export default function CRMRelatorios() {
                   </div>
                 </CardContent>
               </Card>
+
+              <Card className="border-green-200 dark:border-green-800">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Pedidos no Mês</p>
+                      <p className="text-2xl font-bold text-green-600">{summary.quotes?.won || 0}</p>
+                      <p className="text-sm text-green-600">{formatCurrency(summary.quotes?.wonValue || 0)}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {(summary.quotes?.total || 0) > 0
+                          ? `${(((summary.quotes?.won || 0) / (summary.quotes?.total || 1)) * 100).toFixed(0)}% conversão`
+                          : "—"}
+                      </p>
+                    </div>
+                    <div className="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center">
+                      <ShoppingCart className="h-6 w-6 text-green-600" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-amber-200 dark:border-amber-800">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Faturamento ERP</p>
+                      <p className="text-2xl font-bold text-amber-600">{formatCurrency(billingSummary?.total?.value || 0)}</p>
+                      <p className="text-sm text-muted-foreground">{billingSummary?.total?.orders || 0} pedidos</p>
+                    </div>
+                    <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center">
+                      <DollarSign className="h-6 w-6 text-amber-600" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
+
+            {/* KPI Cards - Row 2: Negociações */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <Card>
+                <CardContent className="pt-6">
+                  <p className="text-sm text-muted-foreground">Negociações</p>
+                  <p className="text-2xl font-bold">{summary.open.count + summary.won.count + summary.lost.count}</p>
+                  <p className="text-xs text-muted-foreground">{formatCurrency(summary.totalValue)}</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <p className="text-sm text-muted-foreground">Ganhas</p>
+                  <p className="text-2xl font-bold text-green-600">{summary.won.count}</p>
+                  <p className="text-xs text-green-600">{formatCurrency(summary.won.value)}</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <p className="text-sm text-muted-foreground">Perdidas</p>
+                  <p className="text-2xl font-bold text-red-600">{summary.lost.count}</p>
+                  <p className="text-xs text-red-600">{formatCurrency(summary.lost.value)}</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <p className="text-sm text-muted-foreground">Taxa Conversão</p>
+                  <p className="text-2xl font-bold">{summary.winRate}%</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Sales Funnel Visualization */}
+            {salesData?.salesFunnel && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FilterIcon className="h-5 w-5" />
+                    Funil de Vendas
+                  </CardTitle>
+                  <CardDescription>Negociações → Orçamentos → Pedidos (Vendas)</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {[
+                      { label: "Negociações (Prospects)", count: salesData.salesFunnel.deals.count, value: salesData.salesFunnel.deals.value, color: "hsl(var(--primary))", pct: 100 },
+                      { label: "Orçamentos (Qualificados)", count: salesData.salesFunnel.quotes.count, value: salesData.salesFunnel.quotes.value, color: "#3b82f6", pct: salesData.salesFunnel.deals.count > 0 ? (salesData.salesFunnel.quotes.count / salesData.salesFunnel.deals.count) * 100 : 0 },
+                      { label: "Pedidos (Vendas)", count: salesData.salesFunnel.orders.count, value: salesData.salesFunnel.orders.value, color: "#22c55e", pct: salesData.salesFunnel.deals.count > 0 ? (salesData.salesFunnel.orders.count / salesData.salesFunnel.deals.count) * 100 : 0 },
+                    ].map((step, i) => (
+                      <div key={i} className="space-y-1">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="font-medium">{step.label}</span>
+                          <div className="flex items-center gap-3">
+                            <span className="font-bold">{step.count}</span>
+                            <span className="text-muted-foreground">{formatCurrency(step.value)}</span>
+                            {i > 0 && <Badge variant="outline">{step.pct.toFixed(0)}%</Badge>}
+                          </div>
+                        </div>
+                        <div
+                          className="h-10 rounded-md flex items-center px-3 transition-all"
+                          style={{
+                            width: `${Math.max(step.pct, 15)}%`,
+                            backgroundColor: step.color + "25",
+                            borderLeft: `4px solid ${step.color}`,
+                          }}
+                        >
+                          <span className="text-xs text-muted-foreground">{formatCurrency(step.value)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Quotes by Channel */}
+            {salesData?.quotesByChannel && salesData.quotesByChannel.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Orçamentos por Canal</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Canal</TableHead>
+                        <TableHead className="text-center">Orçamentos</TableHead>
+                        <TableHead className="text-center">Pedidos</TableHead>
+                        <TableHead className="text-center">Abertos</TableHead>
+                        <TableHead className="text-center">Conversão</TableHead>
+                        <TableHead className="text-right">Valor Total</TableHead>
+                        <TableHead className="text-right">Valor Vendido</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {salesData.quotesByChannel.map((ch) => (
+                        <TableRow key={ch.channel}>
+                          <TableCell className="font-medium">{ch.channel}</TableCell>
+                          <TableCell className="text-center">{ch.total}</TableCell>
+                          <TableCell className="text-center text-green-600 font-medium">{ch.won}</TableCell>
+                          <TableCell className="text-center">{ch.open}</TableCell>
+                          <TableCell className="text-center">
+                            <Badge variant="outline">
+                              {ch.total > 0 ? ((ch.won / ch.total) * 100).toFixed(0) : 0}%
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">{formatCurrency(ch.totalValue)}</TableCell>
+                          <TableCell className="text-right text-green-600">{formatCurrency(ch.wonValue)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Tabs */}
             <Tabs value={activeTab} onValueChange={setActiveTab}>
