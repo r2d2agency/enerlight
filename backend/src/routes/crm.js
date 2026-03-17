@@ -2646,6 +2646,46 @@ router.get('/reports/sales', async (req, res) => {
       params
     );
 
+    // Build summary from query result
+    const summary = { open: { count: 0, value: 0 }, won: { count: 0, value: 0 }, lost: { count: 0, value: 0 } };
+    for (const row of summaryResult.rows) {
+      if (summary[row.status]) {
+        summary[row.status] = { count: parseInt(row.count), value: parseFloat(row.total_value) };
+      }
+    }
+    const totalClosed = summary.won.count + summary.lost.count;
+    const winRate = totalClosed > 0 ? (summary.won.count / totalClosed) * 100 : 0;
+
+    // Quotes summary (deals that have order_number = orçamentos gerados)
+    const quotesResult = await query(
+      `SELECT 
+         COUNT(*) as total,
+         COUNT(*) FILTER (WHERE d.status = 'won') as won,
+         COUNT(*) FILTER (WHERE d.status = 'open') as open,
+         COUNT(*) FILTER (WHERE d.status = 'lost') as lost,
+         COALESCE(SUM(d.value), 0) as total_value,
+         COALESCE(SUM(d.value) FILTER (WHERE d.status = 'won'), 0) as won_value,
+         COALESCE(SUM(d.value) FILTER (WHERE d.status = 'open'), 0) as open_value
+       FROM crm_deals d
+       WHERE d.organization_id = $1
+         AND d.created_at >= $2::date
+         AND d.created_at <= ($3::date + interval '1 day')
+         AND d.custom_fields->>'order_number' IS NOT NULL
+         AND d.custom_fields->>'order_number' != ''
+         ${funnelFilter}`,
+      params
+    );
+    const qr = quotesResult.rows[0] || {};
+    const quotes = {
+      total: parseInt(qr.total || 0),
+      won: parseInt(qr.won || 0),
+      open: parseInt(qr.open || 0),
+      lost: parseInt(qr.lost || 0),
+      totalValue: parseFloat(qr.total_value || 0),
+      wonValue: parseFloat(qr.won_value || 0),
+      openValue: parseFloat(qr.open_value || 0),
+    };
+
     // Sales funnel summary: Negociações → Orçamentos → Pedidos (Vendas)
     const totalDeals = (summary.open.count + summary.won.count + summary.lost.count);
     const salesFunnel = {
