@@ -10,6 +10,7 @@ import { FunnelEditorDialog } from "@/components/crm/FunnelEditorDialog";
 import { WinCelebration } from "@/components/crm/WinCelebration";
 import { LossReasonDialog } from "@/components/crm/LossReasonDialog";
 import { CRMImportDialog } from "@/components/crm/CRMImportDialog";
+import { QuoteImportDialog } from "@/components/crm/QuoteImportDialog";
 import { useCRMFunnels, useCRMFunnel, useCRMDeals, useCRMMyTeam, useCRMDealMutations, useCRMDeal, useCRMGroups, useCRMGroupMembers, CRMDeal, CRMFunnel } from "@/hooks/use-crm";
 import { Plus, Settings, Loader2, Filter, User, ArrowUpDown, CalendarIcon, X, LayoutGrid, List, Trophy, XCircle, Pause, FileSpreadsheet, CheckSquare, Trash2, ArrowRight, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
