@@ -158,7 +158,7 @@ router.post('/import', async (req, res) => {
 
     if (!rows?.length) return res.status(400).json({ error: 'No rows to import' });
 
-    const batchId = crypto.randomUUID ? crypto.randomUUID() : require('crypto').randomUUID();
+    const batchId = crypto.randomUUID();
 
     // Save/update seller mappings
     for (const [sellerName, userId] of Object.entries(sellerMapping || {})) {
