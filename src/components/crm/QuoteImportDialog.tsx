@@ -137,6 +137,14 @@ export function QuoteImportDialog({ open, onOpenChange, orgMembers }: QuoteImpor
   const [step, setStep] = useState<"upload" | "mapping" | "importing" | "done">("upload");
   const [result, setResult] = useState<any>(null);
   const [importing, setImporting] = useState(false);
+  const [autoMappingApplied, setAutoMappingApplied] = useState(false);
+
+  const { data: savedMappings = [] } = useQuery({
+    queryKey: ["quote-import-mappings"],
+    queryFn: () => api<QuoteImportMapping[]>("/api/crm/quote-import-mappings"),
+    enabled: open,
+    staleTime: 1000 * 60 * 5,
+  });
 
   const sellers = useMemo(() => {
     const map = new Map<string, { count: number; total: number; won: number; open: number }>();
