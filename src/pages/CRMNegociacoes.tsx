@@ -56,6 +56,7 @@ export default function CRMNegociacoes() {
   const [funnelEditorOpen, setFunnelEditorOpen] = useState(false);
   const [editingFunnel, setEditingFunnel] = useState<CRMFunnel | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [quoteImportOpen, setQuoteImportOpen] = useState(false);
 
   // Org members for import mapping
   const { data: orgMembers = [] } = useQuery<{ id: string; name: string; email: string }[]>({
