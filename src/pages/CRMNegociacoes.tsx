@@ -61,7 +61,7 @@ export default function CRMNegociacoes() {
   // Org members for import mapping
   const { data: orgMembers = [] } = useQuery<{ id: string; name: string; email: string }[]>({
     queryKey: ["internal-org-members"],
-    queryFn: () => api("/api/internal-chat/org-members"),
+    queryFn: () => api("/api/crm/org-members"),
     enabled: importOpen || quoteImportOpen,
   });
   
