@@ -48,6 +48,8 @@ import {
   BarChart3,
   PieChartIcon,
   Activity,
+  FileSpreadsheet,
+  Upload,
 } from "lucide-react";
 import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
