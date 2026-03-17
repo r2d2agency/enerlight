@@ -62,7 +62,7 @@ export default function CRMNegociacoes() {
   const { data: orgMembers = [] } = useQuery<{ id: string; name: string; email: string }[]>({
     queryKey: ["internal-org-members"],
     queryFn: () => api("/api/internal-chat/org-members"),
-    enabled: importOpen,
+    enabled: importOpen || quoteImportOpen,
   });
   
   // View mode
