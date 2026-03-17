@@ -74,7 +74,7 @@ export function ERPBillingImportDialog({ open, onOpenChange }: ERPBillingImportD
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
+      <DialogContent className="max-w-3xl h-[85vh] !grid !grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileSpreadsheet className="h-5 w-5" />
@@ -83,7 +83,7 @@ export function ERPBillingImportDialog({ open, onOpenChange }: ERPBillingImportD
         </DialogHeader>
 
         {step === "upload" && (
-          <div className="flex flex-col items-center justify-center py-12 gap-4">
+          <div className="min-h-0 overflow-y-auto flex flex-col items-center justify-center py-12 gap-4">
             <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleFileSelect} />
             <FileSpreadsheet className="h-16 w-16 text-muted-foreground" />
             <p className="text-muted-foreground text-sm text-center">
@@ -98,76 +98,78 @@ export function ERPBillingImportDialog({ open, onOpenChange }: ERPBillingImportD
         )}
 
         {step === "mapping" && preview && (
-          <div className="flex-1 overflow-hidden flex flex-col gap-4">
-            <div className="flex items-center gap-4 flex-wrap">
-              <Badge variant="secondary">{preview.rows.length} pedidos</Badge>
-              <Badge variant="outline">{formatCurrency(preview.totalValue)} total</Badge>
-              <Badge variant="outline">{preview.sellers.length} vendedores</Badge>
-            </div>
+          <div className="min-h-0 overflow-y-auto pr-2">
+            <div className="flex flex-col gap-4 pb-2">
+              <div className="flex items-center gap-4 flex-wrap">
+                <Badge variant="secondary">{preview.rows.length} pedidos</Badge>
+                <Badge variant="outline">{formatCurrency(preview.totalValue)} total</Badge>
+                <Badge variant="outline">{preview.sellers.length} vendedores</Badge>
+              </div>
 
-            <div className="space-y-2">
-              <h4 className="text-sm font-medium">Vincular Vendedores aos Usuários</h4>
-              <p className="text-xs text-muted-foreground">
-                Associe cada vendedor da planilha a um usuário do sistema para que os dados apareçam nos relatórios e metas.
-              </p>
-            </div>
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium">Vincular Vendedores aos Usuários</h4>
+                <p className="text-xs text-muted-foreground">
+                  Associe cada vendedor da planilha a um usuário do sistema para que os dados apareçam nos relatórios e metas.
+                </p>
+              </div>
 
-            <ScrollArea className="flex-1 max-h-[300px] border rounded-lg">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Vendedor (Planilha)</TableHead>
-                    <TableHead>Qtd Pedidos</TableHead>
-                    <TableHead>Total</TableHead>
-                    <TableHead>Usuário do Sistema</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {preview.sellers.map((seller) => {
-                    const sellerRows = preview.rows.filter(r => r.seller_name === seller);
-                    const total = sellerRows.reduce((s, r) => s + r.order_value, 0);
-                    const channel = sellerRows.find(r => r.channel)?.channel || "";
-                    return (
-                      <TableRow key={seller}>
-                        <TableCell>
-                          <div>
-                            <span className="font-medium text-sm">{seller}</span>
-                            {channel && <Badge variant="outline" className="ml-2 text-xs">{channel}</Badge>}
-                          </div>
-                        </TableCell>
-                        <TableCell>{sellerRows.length}</TableCell>
-                        <TableCell className="font-medium">{formatCurrency(total)}</TableCell>
-                        <TableCell>
-                          <Select
-                            value={sellerMapping[seller] || ""}
-                            onValueChange={(v) => setSellerMapping(prev => ({ ...prev, [seller]: v }))}
-                          >
-                            <SelectTrigger className="w-[200px] h-8">
-                              <SelectValue placeholder="Selecionar..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {preview.orgUsers.map(u => (
-                                <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </ScrollArea>
+              <div className="border rounded-lg">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Vendedor (Planilha)</TableHead>
+                      <TableHead>Qtd Pedidos</TableHead>
+                      <TableHead>Total</TableHead>
+                      <TableHead>Usuário do Sistema</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {preview.sellers.map((seller) => {
+                      const sellerRows = preview.rows.filter((r) => r.seller_name === seller);
+                      const total = sellerRows.reduce((s, r) => s + r.order_value, 0);
+                      const channel = sellerRows.find((r) => r.channel)?.channel || "";
+                      return (
+                        <TableRow key={seller}>
+                          <TableCell>
+                            <div>
+                              <span className="font-medium text-sm">{seller}</span>
+                              {channel && <Badge variant="outline" className="ml-2 text-xs">{channel}</Badge>}
+                            </div>
+                          </TableCell>
+                          <TableCell>{sellerRows.length}</TableCell>
+                          <TableCell className="font-medium">{formatCurrency(total)}</TableCell>
+                          <TableCell>
+                            <Select
+                              value={sellerMapping[seller] || ""}
+                              onValueChange={(v) => setSellerMapping((prev) => ({ ...prev, [seller]: v }))}
+                            >
+                              <SelectTrigger className="w-[200px] h-8">
+                                <SelectValue placeholder="Selecionar..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {preview.orgUsers.map((u) => (
+                                  <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
 
-            <div className="text-xs text-muted-foreground flex items-center gap-1">
-              <AlertCircle className="h-3 w-3" />
-              Pedidos duplicados (mesmo número + data faturamento) serão ignorados automaticamente.
+              <div className="text-xs text-muted-foreground flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" />
+                Pedidos duplicados (mesmo número + data faturamento) serão ignorados automaticamente.
+              </div>
             </div>
           </div>
         )}
 
         {step === "done" && result && (
-          <div className="flex flex-col items-center justify-center py-12 gap-4">
+          <div className="min-h-0 overflow-y-auto flex flex-col items-center justify-center py-12 gap-4">
             <div className="h-16 w-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
               <Check className="h-8 w-8 text-green-600" />
             </div>
@@ -180,7 +182,7 @@ export function ERPBillingImportDialog({ open, onOpenChange }: ERPBillingImportD
           </div>
         )}
 
-        <DialogFooter>
+        <DialogFooter className="shrink-0">
           {step === "mapping" && (
             <>
               <Button variant="outline" onClick={() => { setStep("upload"); setPreview(null); }}>Voltar</Button>
