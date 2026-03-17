@@ -343,7 +343,7 @@ export function QuoteImportDialog({ open, onOpenChange, orgMembers }: QuoteImpor
           </div>
         )}
 
-        <DialogFooter>
+        <DialogFooter className="shrink-0">
           {step === "mapping" && (
             <>
               <Button variant="outline" onClick={() => { setStep("upload"); setRows([]); }}>Voltar</Button>
