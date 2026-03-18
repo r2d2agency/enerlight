@@ -448,9 +448,9 @@ router.post('/', async (req, res) => {
     } catch (_) {}
 
     const r = await query(
-      `INSERT INTO projects (organization_id, title, description, deal_id, stage_id, requested_by, assigned_to, priority, due_date)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-      [org.organization_id, title, description, deal_id || null, stage_id, req.userId, assigned_to || null, priority || 'medium', due_date || null]
+      `INSERT INTO projects (organization_id, title, description, deal_id, stage_id, requested_by, assigned_to, priority, due_date, seller_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+      [org.organization_id, title, description, deal_id || null, stage_id, req.userId, assigned_to || null, priority || 'medium', due_date || null, seller_id || null]
     );
 
     const project = r.rows[0];
