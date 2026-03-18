@@ -757,7 +757,12 @@ function ProjectDetailDialog({ project, open, onOpenChange, stages, canEdit, can
   const [newTaskAssignedTo, setNewTaskAssignedTo] = useState("");
   const [newTaskEndDate, setNewTaskEndDate] = useState("");
   const [editingDesc, setEditingDesc] = useState(false);
-  const [desc, setDesc] = useState(project.description || "");
+  const [desc, setDesc] = useState("");
+
+  React.useEffect(() => {
+    setDesc(project.description || "");
+    setEditingDesc(false);
+  }, [project.id]);
   const [viewMode, setViewMode] = useState<"list" | "gantt">("list");
   const [orgMembers, setOrgMembers] = useState<Array<{ user_id: string; name: string }>>([]);
   const [showTemplateConfig, setShowTemplateConfig] = useState(false);
