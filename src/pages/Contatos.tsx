@@ -345,11 +345,11 @@ const Contatos = () => {
   };
 
   const validateWhatsAppNumber = async (phone: string): Promise<boolean> => {
-    const config = evolutionApi.getConfig();
-    if (!config) {
-      throw new Error("Evolution API não configurada");
+    const connection = await getActiveConnection();
+    if (!connection) {
+      throw new Error("Nenhuma conexão WhatsApp ativa");
     }
-    return evolutionApi.checkWhatsAppNumber(config, phone);
+    return whatsappProvider.checkNumber(connection, phone);
   };
 
   const filteredContacts = contacts.filter(
