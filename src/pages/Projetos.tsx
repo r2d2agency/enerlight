@@ -107,11 +107,12 @@ export default function Projetos() {
       title: newProject.title,
       description: newProject.description,
       priority: newProject.priority,
+      seller_id: newProject.seller_id && newProject.seller_id !== "none" ? newProject.seller_id : undefined,
       template_id: newProject.template_id && newProject.template_id !== "none" ? newProject.template_id : undefined,
     }, {
       onSuccess: () => {
         setShowCreateProject(false);
-        setNewProject({ title: "", description: "", priority: "medium", template_id: "" });
+        setNewProject({ title: "", description: "", priority: "medium", template_id: "", seller_id: "" });
       }
     });
   };
