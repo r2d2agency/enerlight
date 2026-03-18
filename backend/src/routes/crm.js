@@ -2790,10 +2790,11 @@ router.get('/reports/sales', async (req, res) => {
         orderCount: parseInt(row.order_count),
         orderValue: parseFloat(row.order_value),
       })),
+      lossReasons,
     });
   } catch (error) {
     if (error.code === '42P01') {
-      return res.json({ timeline: [], summary: { open: { count: 0, value: 0 }, won: { count: 0, value: 0 }, lost: { count: 0, value: 0 }, winRate: 0, totalValue: 0 }, salesFunnel: { deals: { count: 0, value: 0 }, quotes: { count: 0, value: 0 }, orders: { count: 0, value: 0 } }, quotesByChannel: [], byFunnel: [], byOwner: [] });
+      return res.json({ timeline: [], summary: { open: { count: 0, value: 0 }, won: { count: 0, value: 0 }, lost: { count: 0, value: 0 }, winRate: 0, totalValue: 0 }, salesFunnel: { deals: { count: 0, value: 0 }, quotes: { count: 0, value: 0 }, orders: { count: 0, value: 0 } }, quotesByChannel: [], byFunnel: [], byOwner: [], lossReasons: [] });
     }
     console.error('Error fetching sales report:', error);
     res.status(500).json({ error: error.message });
