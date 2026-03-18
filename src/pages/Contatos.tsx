@@ -46,6 +46,7 @@ import {
 import { useContacts, ContactList, Contact } from "@/hooks/use-contacts";
 import { ExcelImportDialog } from "@/components/contatos/ExcelImportDialog";
 import { evolutionApi } from "@/lib/evolution-api";
+import { whatsappProvider, WhatsAppConnection } from "@/lib/whatsapp-provider";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { format } from "date-fns";
