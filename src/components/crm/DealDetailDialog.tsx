@@ -35,6 +35,7 @@ import { useProjectsByDeal, useProjectMutations, useProjectTemplates, Project } 
 import { FolderKanban } from "lucide-react";
 import { DealProjectCard } from "./DealProjectCard";
 import { ExternalVisitTab } from "./ExternalVisitTab";
+import { LossReasonDialog } from "./LossReasonDialog";
 
 interface ChatContact {
   id: string;
