@@ -189,15 +189,46 @@ const Contatos = () => {
     }
   };
 
+  // Get active WhatsApp connection (W-API or Evolution)
+  const getActiveConnection = async (): Promise<WhatsAppConnection | null> => {
+    try {
+      const connections = await api<any[]>('/api/connections');
+      const active = connections?.find((c: any) => c.status === 'connected');
+      if (active) {
+        return {
+          id: active.id,
+          provider: active.provider || 'evolution',
+          apiUrl: active.api_url,
+          apiKey: active.api_key,
+          instanceName: active.instance_name,
+          instanceId: active.instance_id,
+          token: active.wapi_token,
+        };
+      }
+      // Fallback to Evolution local config
+      const config = evolutionApi.getConfig();
+      if (config) {
+        return { id: 'local', provider: 'evolution', apiUrl: config.apiUrl, apiKey: config.apiKey, instanceName: config.instanceName };
+      }
+      return null;
+    } catch {
+      const config = evolutionApi.getConfig();
+      if (config) {
+        return { id: 'local', provider: 'evolution', apiUrl: config.apiUrl, apiKey: config.apiKey, instanceName: config.instanceName };
+      }
+      return null;
+    }
+  };
+
   const handleValidateNewContact = async () => {
     if (!newContactPhone.trim()) {
       toast.error("Digite um telefone para validar");
       return;
     }
 
-    const config = evolutionApi.getConfig();
-    if (!config) {
-      toast.error("Configure a conexão Evolution API primeiro");
+    const connection = await getActiveConnection();
+    if (!connection) {
+      toast.error("Nenhuma conexão WhatsApp ativa encontrada");
       return;
     }
 
@@ -209,9 +240,9 @@ const Contatos = () => {
 
     setIsValidatingNewContact(true);
     try {
-      const isValid = await evolutionApi.checkWhatsAppNumber(config, phone);
+      const isValid = await whatsappProvider.checkNumber(connection, phone);
       setNewContactValidated(isValid);
-      setNewContactPhone(phone); // Update with normalized phone
+      setNewContactPhone(phone);
       if (isValid) {
         toast.success("Número é WhatsApp válido!");
       } else {
