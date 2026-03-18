@@ -132,6 +132,7 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
   const [editProbability, setEditProbability] = useState("");
   const [isEditingOwner, setIsEditingOwner] = useState(false);
   const [isEditingRepresentative, setIsEditingRepresentative] = useState(false);
+  const [lossDialogOpen, setLossDialogOpen] = useState(false);
 
   const { data: fullDeal, isLoading } = useCRMDeal(deal?.id || null);
   const { data: funnelData } = useCRMFunnel(deal?.funnel_id || null);
