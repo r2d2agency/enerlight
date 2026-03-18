@@ -35,6 +35,7 @@ import { useProjectsByDeal, useProjectMutations, useProjectTemplates, Project } 
 import { FolderKanban } from "lucide-react";
 import { DealProjectCard } from "./DealProjectCard";
 import { ExternalVisitTab } from "./ExternalVisitTab";
+import { LossReasonDialog } from "./LossReasonDialog";
 
 interface ChatContact {
   id: string;
@@ -132,6 +133,7 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
   const [editProbability, setEditProbability] = useState("");
   const [isEditingOwner, setIsEditingOwner] = useState(false);
   const [isEditingRepresentative, setIsEditingRepresentative] = useState(false);
+  const [lossDialogOpen, setLossDialogOpen] = useState(false);
 
   const { data: fullDeal, isLoading } = useCRMDeal(deal?.id || null);
   const { data: funnelData } = useCRMFunnel(deal?.funnel_id || null);
@@ -217,9 +219,27 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
   };
 
   const handleStatusChange = (status: string) => {
+    if (status === 'lost') {
+      setLossDialogOpen(true);
+      return;
+    }
     updateDeal.mutate({ 
       id: deal.id, 
       status: status as 'open' | 'won' | 'lost'
+    });
+  };
+
+  const handleConfirmLoss = (reasonId: string, lossDescription: string) => {
+    if (!deal) return;
+    updateDeal.mutate({ 
+      id: deal.id, 
+      status: 'lost',
+      loss_reason_id: reasonId,
+      lost_reason: lossDescription 
+    } as any, {
+      onSuccess: () => {
+        toast.error("Negociação marcada como perdida");
+      }
     });
   };
 
@@ -1672,6 +1692,14 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
       contactPhone={currentDeal?.contacts?.[0]?.phone}
       contactName={currentDeal?.contacts?.[0]?.name}
       dealId={deal?.id}
+    />
+
+    {/* Loss Reason Dialog */}
+    <LossReasonDialog
+      open={lossDialogOpen}
+      onOpenChange={setLossDialogOpen}
+      onConfirm={handleConfirmLoss}
+      dealTitle={currentDeal?.title}
     />
     </>
   );

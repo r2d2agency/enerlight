@@ -452,6 +452,10 @@ export default function CRMRelatorios() {
                   <FileSpreadsheet className="h-4 w-4" />
                   Faturamento
                 </TabsTrigger>
+                <TabsTrigger value="lossReasons" className="gap-2">
+                  <TrendingDown className="h-4 w-4" />
+                  Motivos de Perda
+                </TabsTrigger>
               </TabsList>
 
               {/* Overview Tab */}
@@ -1304,6 +1308,82 @@ export default function CRMRelatorios() {
                       <Upload className="h-4 w-4 mr-2" />
                       Importar Planilha
                     </Button>
+                  </div>
+                )}
+              </TabsContent>
+
+              {/* Loss Reasons Tab */}
+              <TabsContent value="lossReasons" className="mt-6 space-y-6">
+                {salesData?.lossReasons && salesData.lossReasons.length > 0 ? (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Distribuição por Motivo</CardTitle>
+                        <CardDescription>Motivos de perda das negociações no período</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <ResponsiveContainer width="100%" height={300}>
+                          <PieChart>
+                            <Pie
+                              data={salesData.lossReasons.map((lr, i) => ({
+                                name: lr.reason,
+                                value: lr.count,
+                                fill: ['#ef4444', '#f97316', '#eab308', '#8b5cf6', '#06b6d4', '#ec4899', '#64748b', '#84cc16'][i % 8],
+                              }))}
+                              cx="50%"
+                              cy="50%"
+                              outerRadius={100}
+                              dataKey="value"
+                              label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                            >
+                              {salesData.lossReasons.map((_, i) => (
+                                <Cell key={i} fill={['#ef4444', '#f97316', '#eab308', '#8b5cf6', '#06b6d4', '#ec4899', '#64748b', '#84cc16'][i % 8]} />
+                              ))}
+                            </Pie>
+                            <Tooltip formatter={(value: number) => [value, 'Negociações']} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Detalhamento</CardTitle>
+                        <CardDescription>Quantidade e valor por motivo de perda</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Motivo</TableHead>
+                              <TableHead className="text-right">Qtd</TableHead>
+                              <TableHead className="text-right">Valor Perdido</TableHead>
+                              <TableHead className="text-right">%</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {salesData.lossReasons.map((lr) => {
+                              const totalLost = salesData.lossReasons.reduce((s, r) => s + r.count, 0);
+                              return (
+                                <TableRow key={lr.reason}>
+                                  <TableCell className="font-medium">{lr.reason}</TableCell>
+                                  <TableCell className="text-right">{lr.count}</TableCell>
+                                  <TableCell className="text-right">{formatCurrency(lr.totalValue)}</TableCell>
+                                  <TableCell className="text-right">
+                                    {totalLost > 0 ? ((lr.count / totalLost) * 100).toFixed(1) : 0}%
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </CardContent>
+                    </Card>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-12 gap-2">
+                    <TrendingDown className="h-16 w-16 text-muted-foreground" />
+                    <p className="text-muted-foreground">Nenhuma negociação perdida no período selecionado.</p>
                   </div>
                 )}
               </TabsContent>

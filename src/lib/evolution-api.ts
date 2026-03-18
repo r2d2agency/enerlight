@@ -141,6 +141,12 @@ export const evolutionApi = {
     phone: string
   ): Promise<boolean> {
     try {
+      // Clean phone - digits only, ensure country code
+      let cleanPhone = phone.replace(/\D/g, '');
+      if (cleanPhone.length <= 11) {
+        cleanPhone = '55' + cleanPhone;
+      }
+
       const response = await fetch(
         `${config.apiUrl}/chat/whatsappNumbers/${config.instanceName}`,
         {
@@ -150,7 +156,7 @@ export const evolutionApi = {
             apikey: config.apiKey,
           },
           body: JSON.stringify({
-            numbers: [phone],
+            numbers: [cleanPhone],
           }),
         }
       );
@@ -160,8 +166,9 @@ export const evolutionApi = {
       }
 
       const data = await response.json();
-      // Check if any number was found as valid WhatsApp
-      return data?.[0]?.exists === true;
+      const result = data?.[0];
+      // Support both v1 (exists) and v2 (numberExists) response formats
+      return result?.exists === true || result?.numberExists === true;
     } catch (error) {
       console.error("Erro ao verificar número WhatsApp:", error);
       return false;

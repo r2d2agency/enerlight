@@ -268,7 +268,13 @@ export async function checkNumber(connection, phone) {
     return wapiProvider.checkNumber(connection.instance_id, connection.wapi_token, phone);
   }
 
-  // Evolution API
+  // Evolution API - clean phone number (digits only, ensure country code)
+  let cleanPhone = phone.replace(/\D/g, '');
+  // Add Brazil country code if not present
+  if (cleanPhone.length <= 11) {
+    cleanPhone = '55' + cleanPhone;
+  }
+
   try {
     const response = await fetch(
       `${connection.api_url}/chat/whatsappNumbers/${connection.instance_name}`,
@@ -279,17 +285,20 @@ export async function checkNumber(connection, phone) {
           apikey: connection.api_key,
         },
         body: JSON.stringify({
-          numbers: [phone],
+          numbers: [cleanPhone],
         }),
       }
     );
 
     if (!response.ok) {
+      console.error('Evolution checkNumber HTTP error:', response.status);
       return false;
     }
 
     const data = await response.json();
-    return data?.[0]?.exists === true;
+    // Evolution API may return exists or numberExists depending on version
+    const result = data?.[0];
+    return result?.exists === true || result?.numberExists === true;
   } catch (error) {
     console.error('Evolution checkNumber error:', error);
     return false;
