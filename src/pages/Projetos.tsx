@@ -85,9 +85,11 @@ export default function Projetos() {
   // Group projects by stage
   const projectsByStage = useMemo(() => {
     const map: Record<string, Project[]> = {};
-    const filtered = projects.filter(p =>
-      !search || p.title.toLowerCase().includes(search.toLowerCase())
-    );
+    const filtered = projects.filter(p => {
+      const matchSearch = !search || p.title.toLowerCase().includes(search.toLowerCase());
+      const matchSeller = sellerFilter === "all" || p.seller_id === sellerFilter;
+      return matchSearch && matchSeller;
+    });
     for (const stage of stages) {
       map[stage.id] = filtered.filter(p => p.stage_id === stage.id);
     }
@@ -97,7 +99,7 @@ export default function Projetos() {
       map['_unassigned'] = unassigned;
     }
     return map;
-  }, [projects, stages, search]);
+  }, [projects, stages, search, sellerFilter]);
 
   const handleCreateProject = () => {
     if (!newProject.title.trim()) return toast.error("Título obrigatório");
