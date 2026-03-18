@@ -435,7 +435,7 @@ router.post('/', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No org' });
     if (!(await canEditProject(req.userId, org))) return res.status(403).json({ error: 'Forbidden' });
-    const { title, description, deal_id, assigned_to, priority, due_date, template_id } = req.body;
+    const { title, description, deal_id, assigned_to, priority, due_date, template_id, seller_id } = req.body;
 
     // Get first stage as default
     let stage_id = null;
