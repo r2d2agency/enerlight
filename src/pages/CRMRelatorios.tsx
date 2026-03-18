@@ -452,6 +452,10 @@ export default function CRMRelatorios() {
                   <FileSpreadsheet className="h-4 w-4" />
                   Faturamento
                 </TabsTrigger>
+                <TabsTrigger value="lossReasons" className="gap-2">
+                  <TrendingDown className="h-4 w-4" />
+                  Motivos de Perda
+                </TabsTrigger>
               </TabsList>
 
               {/* Overview Tab */}
