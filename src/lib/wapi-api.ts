@@ -265,23 +265,41 @@ export const wapiApi = {
     phone: string
   ): Promise<boolean> {
     try {
-      const response = await fetch(
+      let cleanPhone = phone.replace(/\D/g, "");
+      // Ensure country code (Brazil)
+      if (cleanPhone.length <= 11) {
+        cleanPhone = "55" + cleanPhone;
+      }
+
+      // Try POST /contacts/check-number first
+      let response = await fetch(
         `${BASE_URL}/contacts/check-number?instanceId=${config.instanceId}`,
         {
           method: "POST",
           headers: this.getHeaders(config.token),
           body: JSON.stringify({
-            phone: phone.replace(/\D/g, ""),
+            phone: cleanPhone,
           }),
         }
       );
+
+      // Fallback to GET /contacts/phone-exists
+      if (!response.ok) {
+        response = await fetch(
+          `${BASE_URL}/contacts/phone-exists?instanceId=${config.instanceId}&phoneNumber=${cleanPhone}`,
+          {
+            method: "GET",
+            headers: this.getHeaders(config.token),
+          }
+        );
+      }
 
       if (!response.ok) {
         return false;
       }
 
       const data = await response.json();
-      return data.exists === true || data.isWhatsApp === true;
+      return data.exists === true || data.isWhatsApp === true || data.numberExists === true || data.result === true || data.status === true;
     } catch (error) {
       console.error("W-API: Erro ao verificar número:", error);
       return false;

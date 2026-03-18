@@ -46,6 +46,7 @@ import {
 import { useContacts, ContactList, Contact } from "@/hooks/use-contacts";
 import { ExcelImportDialog } from "@/components/contatos/ExcelImportDialog";
 import { evolutionApi } from "@/lib/evolution-api";
+import { whatsappProvider, WhatsAppConnection } from "@/lib/whatsapp-provider";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -188,15 +189,46 @@ const Contatos = () => {
     }
   };
 
+  // Get active WhatsApp connection (W-API or Evolution)
+  const getActiveConnection = async (): Promise<WhatsAppConnection | null> => {
+    try {
+      const connections = await api<any[]>('/api/connections');
+      const active = connections?.find((c: any) => c.status === 'connected');
+      if (active) {
+        return {
+          id: active.id,
+          provider: active.provider || 'evolution',
+          apiUrl: active.api_url,
+          apiKey: active.api_key,
+          instanceName: active.instance_name,
+          instanceId: active.instance_id,
+          token: active.wapi_token,
+        };
+      }
+      // Fallback to Evolution local config
+      const config = evolutionApi.getConfig();
+      if (config) {
+        return { id: 'local', provider: 'evolution', apiUrl: config.apiUrl, apiKey: config.apiKey, instanceName: config.instanceName };
+      }
+      return null;
+    } catch {
+      const config = evolutionApi.getConfig();
+      if (config) {
+        return { id: 'local', provider: 'evolution', apiUrl: config.apiUrl, apiKey: config.apiKey, instanceName: config.instanceName };
+      }
+      return null;
+    }
+  };
+
   const handleValidateNewContact = async () => {
     if (!newContactPhone.trim()) {
       toast.error("Digite um telefone para validar");
       return;
     }
 
-    const config = evolutionApi.getConfig();
-    if (!config) {
-      toast.error("Configure a conexão Evolution API primeiro");
+    const connection = await getActiveConnection();
+    if (!connection) {
+      toast.error("Nenhuma conexão WhatsApp ativa encontrada");
       return;
     }
 
@@ -208,9 +240,9 @@ const Contatos = () => {
 
     setIsValidatingNewContact(true);
     try {
-      const isValid = await evolutionApi.checkWhatsAppNumber(config, phone);
+      const isValid = await whatsappProvider.checkNumber(connection, phone);
       setNewContactValidated(isValid);
-      setNewContactPhone(phone); // Update with normalized phone
+      setNewContactPhone(phone);
       if (isValid) {
         toast.success("Número é WhatsApp válido!");
       } else {
@@ -257,15 +289,15 @@ const Contatos = () => {
   };
 
   const handleValidateWhatsApp = async (contactId: string, phone: string) => {
-    const config = evolutionApi.getConfig();
-    if (!config) {
-      toast.error("Configure a conexão Evolution API primeiro");
+    const connection = await getActiveConnection();
+    if (!connection) {
+      toast.error("Nenhuma conexão WhatsApp ativa encontrada");
       return;
     }
 
     setValidatingContact(contactId);
     try {
-      const isValid = await evolutionApi.checkWhatsAppNumber(config, phone);
+      const isValid = await whatsappProvider.checkNumber(connection, phone);
       if (isValid) {
         toast.success("Número é WhatsApp válido!");
         await updateContact(contactId, { is_whatsapp: true });
@@ -313,11 +345,11 @@ const Contatos = () => {
   };
 
   const validateWhatsAppNumber = async (phone: string): Promise<boolean> => {
-    const config = evolutionApi.getConfig();
-    if (!config) {
-      throw new Error("Evolution API não configurada");
+    const connection = await getActiveConnection();
+    if (!connection) {
+      throw new Error("Nenhuma conexão WhatsApp ativa");
     }
-    return evolutionApi.checkWhatsAppNumber(config, phone);
+    return whatsappProvider.checkNumber(connection, phone);
   };
 
   const filteredContacts = contacts.filter(

@@ -861,9 +861,14 @@ export async function sendDocument(instanceId, token, phone, documentUrl, filena
  */
 export async function checkNumber(instanceId, token, phone) {
   try {
-    const cleanPhone = phone.replace(/\D/g, '');
-    // W-API uses GET /contacts/phone-exists with phoneNumber as query param
-    const response = await fetch(
+    let cleanPhone = phone.replace(/\D/g, '');
+    // Ensure country code (Brazil)
+    if (cleanPhone.length <= 11) {
+      cleanPhone = '55' + cleanPhone;
+    }
+
+    // Try GET endpoint first
+    let response = await fetch(
       `${W_API_BASE_URL}/contacts/phone-exists?instanceId=${encodeURIComponent(instanceId)}&phoneNumber=${cleanPhone}`,
       {
         method: 'GET',
@@ -871,14 +876,32 @@ export async function checkNumber(instanceId, token, phone) {
       }
     );
 
+    // If GET fails, try POST as fallback (some W-API versions)
     if (!response.ok) {
+      logWarn('wapi.checkNumber_get_failed', { status: response.status, phone: cleanPhone });
+      response = await fetch(
+        `${W_API_BASE_URL}/contacts/phone-exists?instanceId=${encodeURIComponent(instanceId)}`,
+        {
+          method: 'POST',
+          headers: getHeaders(token),
+          body: JSON.stringify({ phoneNumber: cleanPhone }),
+        }
+      );
+    }
+
+    if (!response.ok) {
+      logWarn('wapi.checkNumber_all_failed', { status: response.status, phone: cleanPhone });
       return false;
     }
 
     const data = await response.json();
-    return data.exists === true || data.isWhatsApp === true || data.result === true;
+    logInfo('wapi.checkNumber_result', { phone: cleanPhone, data });
+    
+    // W-API may return various field names
+    return data.exists === true || data.isWhatsApp === true || data.result === true 
+           || data.numberExists === true || data.status === true;
   } catch (error) {
-    console.error('W-API checkNumber error:', error);
+    logError('wapi.checkNumber_error', error, { phone });
     return false;
   }
 }
