@@ -66,6 +66,12 @@ export interface QuotesByChannelData {
   wonValue: number;
 }
 
+export interface LossReasonData {
+  reason: string;
+  count: number;
+  totalValue: number;
+}
+
 export interface SalesReportData {
   timeline: SalesTimelineData[];
   summary: SalesSummary;
@@ -73,6 +79,7 @@ export interface SalesReportData {
   quotesByChannel: QuotesByChannelData[];
   byFunnel: FunnelSalesData[];
   byOwner: OwnerSalesData[];
+  lossReasons: LossReasonData[];
 }
 
 export interface ConversionStageData {
