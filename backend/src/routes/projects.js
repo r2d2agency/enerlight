@@ -95,6 +95,8 @@ router.use(authenticate);
       uploaded_by UUID,
       created_at TIMESTAMPTZ DEFAULT NOW()
     )`);
+    // Add seller_id column
+    await query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS seller_id UUID`).catch(() => {});
   } catch (_) { console.error('Projects table init error:', _); }
 })();
 
@@ -378,6 +380,7 @@ router.get('/', async (req, res) => {
     const r = await query(
       `SELECT p.*, 
         u1.name as requested_by_name, u2.name as assigned_to_name,
+        u3.name as seller_name,
         ps.name as stage_name, ps.color as stage_color,
         d.title as deal_title,
         (SELECT COUNT(*) FROM project_tasks pt WHERE pt.project_id = p.id) as total_tasks,
@@ -385,6 +388,7 @@ router.get('/', async (req, res) => {
        FROM projects p
        LEFT JOIN users u1 ON p.requested_by = u1.id
        LEFT JOIN users u2 ON p.assigned_to = u2.id
+       LEFT JOIN users u3 ON p.seller_id = u3.id
        LEFT JOIN project_stages ps ON p.stage_id = ps.id
        LEFT JOIN crm_deals d ON p.deal_id = d.id
        WHERE p.organization_id = $1
@@ -406,11 +410,13 @@ router.get('/:id', async (req, res) => {
     const r = await query(
       `SELECT p.*, 
         u1.name as requested_by_name, u2.name as assigned_to_name,
+        u3.name as seller_name,
         ps.name as stage_name, ps.color as stage_color,
         d.title as deal_title
        FROM projects p
        LEFT JOIN users u1 ON p.requested_by = u1.id
        LEFT JOIN users u2 ON p.assigned_to = u2.id
+       LEFT JOIN users u3 ON p.seller_id = u3.id
        LEFT JOIN project_stages ps ON p.stage_id = ps.id
        LEFT JOIN crm_deals d ON p.deal_id = d.id
        WHERE p.id = $1 AND p.organization_id = $2`,
@@ -429,7 +435,7 @@ router.post('/', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No org' });
     if (!(await canEditProject(req.userId, org))) return res.status(403).json({ error: 'Forbidden' });
-    const { title, description, deal_id, assigned_to, priority, due_date, template_id } = req.body;
+    const { title, description, deal_id, assigned_to, priority, due_date, template_id, seller_id } = req.body;
 
     // Get first stage as default
     let stage_id = null;
@@ -442,9 +448,9 @@ router.post('/', async (req, res) => {
     } catch (_) {}
 
     const r = await query(
-      `INSERT INTO projects (organization_id, title, description, deal_id, stage_id, requested_by, assigned_to, priority, due_date)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-      [org.organization_id, title, description, deal_id || null, stage_id, req.userId, assigned_to || null, priority || 'medium', due_date || null]
+      `INSERT INTO projects (organization_id, title, description, deal_id, stage_id, requested_by, assigned_to, priority, due_date, seller_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+      [org.organization_id, title, description, deal_id || null, stage_id, req.userId, assigned_to || null, priority || 'medium', due_date || null, seller_id || null]
     );
 
     const project = r.rows[0];
@@ -492,15 +498,15 @@ router.patch('/:id', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No org' });
     if (!(await canEditProject(req.userId, org))) return res.status(403).json({ error: 'Forbidden' });
-    const { title, description, stage_id, assigned_to, priority, due_date, position } = req.body;
+    const { title, description, stage_id, assigned_to, priority, due_date, position, seller_id } = req.body;
     const r = await query(
       `UPDATE projects SET 
         title = COALESCE($1, title), description = COALESCE($2, description),
         stage_id = COALESCE($3, stage_id), assigned_to = COALESCE($4, assigned_to),
         priority = COALESCE($5, priority), due_date = COALESCE($6, due_date),
-        position = COALESCE($7, position), updated_at = NOW()
-       WHERE id = $8 AND organization_id = $9 RETURNING *`,
-      [title, description, stage_id, assigned_to, priority, due_date, position, req.params.id, org.organization_id]
+        position = COALESCE($7, position), seller_id = $8, updated_at = NOW()
+       WHERE id = $9 AND organization_id = $10 RETURNING *`,
+      [title, description, stage_id, assigned_to, priority, due_date, position, seller_id !== undefined ? seller_id : null, req.params.id, org.organization_id]
     );
     res.json(r.rows[0]);
   } catch (e) {

@@ -47,13 +47,22 @@ export default function Projetos() {
   const templateMut = useProjectTemplateMutations();
 
   const [search, setSearch] = useState("");
+  const [sellerFilter, setSellerFilter] = useState("all");
   const [showCreateProject, setShowCreateProject] = useState(false);
   const [showStageEditor, setShowStageEditor] = useState(false);
   const [showTemplateEditor, setShowTemplateEditor] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
+  // Org members for seller select
+  const [orgMembers, setOrgMembers] = useState<Array<{ user_id: string; name: string }>>([]);
+  useEffect(() => {
+    api<Array<{ user_id: string; name: string }>>("/api/crm/org-members", { auth: true })
+      .then(setOrgMembers)
+      .catch(() => {});
+  }, []);
+
   // Create project state
-  const [newProject, setNewProject] = useState({ title: "", description: "", priority: "medium", template_id: "" });
+  const [newProject, setNewProject] = useState({ title: "", description: "", priority: "medium", template_id: "", seller_id: "" });
 
   // Stage editor state
   const [newStageName, setNewStageName] = useState("");
@@ -76,9 +85,11 @@ export default function Projetos() {
   // Group projects by stage
   const projectsByStage = useMemo(() => {
     const map: Record<string, Project[]> = {};
-    const filtered = projects.filter(p =>
-      !search || p.title.toLowerCase().includes(search.toLowerCase())
-    );
+    const filtered = projects.filter(p => {
+      const matchSearch = !search || p.title.toLowerCase().includes(search.toLowerCase());
+      const matchSeller = sellerFilter === "all" || p.seller_id === sellerFilter;
+      return matchSearch && matchSeller;
+    });
     for (const stage of stages) {
       map[stage.id] = filtered.filter(p => p.stage_id === stage.id);
     }
@@ -88,7 +99,7 @@ export default function Projetos() {
       map['_unassigned'] = unassigned;
     }
     return map;
-  }, [projects, stages, search]);
+  }, [projects, stages, search, sellerFilter]);
 
   const handleCreateProject = () => {
     if (!newProject.title.trim()) return toast.error("Título obrigatório");
@@ -96,11 +107,12 @@ export default function Projetos() {
       title: newProject.title,
       description: newProject.description,
       priority: newProject.priority,
+      seller_id: newProject.seller_id && newProject.seller_id !== "none" ? newProject.seller_id : undefined,
       template_id: newProject.template_id && newProject.template_id !== "none" ? newProject.template_id : undefined,
     }, {
       onSuccess: () => {
         setShowCreateProject(false);
-        setNewProject({ title: "", description: "", priority: "medium", template_id: "" });
+        setNewProject({ title: "", description: "", priority: "medium", template_id: "", seller_id: "" });
       }
     });
   };
@@ -156,6 +168,18 @@ export default function Projetos() {
                 className="pl-9"
               />
             </div>
+            <Select value={sellerFilter} onValueChange={setSellerFilter}>
+              <SelectTrigger className="w-[160px]">
+                <User className="h-4 w-4 mr-1" />
+                <SelectValue placeholder="Vendedor" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos vendedores</SelectItem>
+                {orgMembers.map(m => (
+                  <SelectItem key={m.user_id} value={m.user_id}>{m.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {canEdit && (
               <Button onClick={() => setShowCreateProject(true)} size="sm">
                 <Plus className="h-4 w-4 mr-1" /> <span className="hidden sm:inline">Novo Projeto</span><span className="sm:hidden">Novo</span>
@@ -273,8 +297,20 @@ export default function Projetos() {
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
             </div>
+            <div>
+              <Label>Vendedor</Label>
+              <Select value={newProject.seller_id} onValueChange={v => setNewProject(p => ({ ...p, seller_id: v }))}>
+                <SelectTrigger><SelectValue placeholder="Selecione um vendedor" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Nenhum</SelectItem>
+                  {orgMembers.map(m => (
+                    <SelectItem key={m.user_id} value={m.user_id}>{m.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreateProject(false)}>Cancelar</Button>
@@ -539,12 +575,20 @@ function ProjectCard({ project, stages, canEdit, onOpen, onMove }: {
         )}
 
         <div className="flex items-center justify-between">
-          {project.assigned_to_name && (
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <User className="h-3 w-3" />
-              <span className="truncate">{project.assigned_to_name}</span>
-            </div>
-          )}
+          <div className="flex flex-col gap-0.5">
+            {project.seller_name && (
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                <User className="h-3 w-3 text-primary" />
+                <span className="truncate">{project.seller_name}</span>
+              </div>
+            )}
+            {project.assigned_to_name && (
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                <User className="h-3 w-3" />
+                <span className="truncate">{project.assigned_to_name}</span>
+              </div>
+            )}
+          </div>
           <span className="text-[10px] text-muted-foreground">
             {safeFormatDate(project.created_at, "dd/MM", { locale: ptBR })}
           </span>
@@ -727,6 +771,7 @@ function ProjectDetailDialog({ project, open, onOpenChange, stages, canEdit, can
   const [editPriority, setEditPriority] = useState(project.priority);
   const [editAssignedTo, setEditAssignedTo] = useState(project.assigned_to || "");
   const [editDueDate, setEditDueDate] = useState(project.due_date ? safeFormatDate(project.due_date, "yyyy-MM-dd") : "");
+  const [editSellerId, setEditSellerId] = useState(project.seller_id || "");
 
   const navigate = useNavigate();
 
@@ -799,6 +844,7 @@ function ProjectDetailDialog({ project, open, onOpenChange, stages, canEdit, can
       priority: editPriority,
       assigned_to: editAssignedTo || null,
       due_date: editDueDate || null,
+      seller_id: editSellerId || null,
     } as any);
     setEditingProject(false);
     toast.success("Projeto atualizado!");
@@ -955,6 +1001,18 @@ function ProjectDetailDialog({ project, open, onOpenChange, stages, canEdit, can
                         </Select>
                       </div>
                       <div>
+                        <Label className="text-xs">Vendedor</Label>
+                        <Select value={editSellerId} onValueChange={setEditSellerId}>
+                          <SelectTrigger className="h-9"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Nenhum</SelectItem>
+                            {orgMembers.map(m => (
+                              <SelectItem key={m.user_id} value={m.user_id}>{m.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
                         <Label className="text-xs">Prazo</Label>
                         <Input type="date" value={editDueDate} onChange={e => setEditDueDate(e.target.value)} className="h-9" />
                       </div>
@@ -995,6 +1053,10 @@ function ProjectDetailDialog({ project, open, onOpenChange, stages, canEdit, can
                 <div>
                   <Label className="text-xs text-muted-foreground">Responsável</Label>
                   <p className="text-sm font-medium">{project.assigned_to_name || "Não atribuído"}</p>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Vendedor</Label>
+                  <p className="text-sm font-medium">{project.seller_name || "Não atribuído"}</p>
                 </div>
                 <div>
                   <Label className="text-xs text-muted-foreground">Criado em</Label>

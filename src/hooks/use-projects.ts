@@ -23,6 +23,8 @@ export interface Project {
   requested_by_name: string | null;
   assigned_to: string | null;
   assigned_to_name: string | null;
+  seller_id: string | null;
+  seller_name: string | null;
   priority: string;
   due_date: string | null;
   position: number;
