@@ -771,6 +771,7 @@ function ProjectDetailDialog({ project, open, onOpenChange, stages, canEdit, can
   const [editPriority, setEditPriority] = useState(project.priority);
   const [editAssignedTo, setEditAssignedTo] = useState(project.assigned_to || "");
   const [editDueDate, setEditDueDate] = useState(project.due_date ? safeFormatDate(project.due_date, "yyyy-MM-dd") : "");
+  const [editSellerId, setEditSellerId] = useState(project.seller_id || "");
 
   const navigate = useNavigate();
 
