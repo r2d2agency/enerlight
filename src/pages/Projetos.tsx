@@ -844,6 +844,7 @@ function ProjectDetailDialog({ project, open, onOpenChange, stages, canEdit, can
       priority: editPriority,
       assigned_to: editAssignedTo || null,
       due_date: editDueDate || null,
+      seller_id: editSellerId || null,
     } as any);
     setEditingProject(false);
     toast.success("Projeto atualizado!");
