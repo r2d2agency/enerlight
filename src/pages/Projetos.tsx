@@ -1034,14 +1034,34 @@ function ProjectDetailDialog({ project, open, onOpenChange, stages, canEdit, can
                 <div className="flex items-center justify-between mb-2">
                   <Label className="text-sm font-semibold">Descrição</Label>
                   {canEdit && (
-                    <Button variant="ghost" size="sm" onClick={() => setEditingDesc(!editingDesc)}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        if (editingDesc) {
+                          setEditingDesc(false);
+                          setDesc("");
+                          return;
+                        }
+                        setDesc("");
+                        setEditingDesc(true);
+                      }}
+                    >
                       <Edit className="h-3 w-3 mr-1" /> {editingDesc ? "Cancelar" : "Editar"}
                     </Button>
                   )}
                 </div>
                 {editingDesc ? (
                   <div className="space-y-2">
-                    <Textarea value={desc} onChange={e => setDesc(e.target.value)} rows={4} />
+                    <Textarea
+                      key={project.id}
+                      value={desc}
+                      onChange={e => setDesc(e.target.value)}
+                      rows={4}
+                      autoComplete="off"
+                      autoCorrect="off"
+                      spellCheck={false}
+                    />
                     <Button size="sm" onClick={handleSaveDesc}>Salvar</Button>
                   </div>
                 ) : (
