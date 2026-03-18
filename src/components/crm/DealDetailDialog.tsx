@@ -228,7 +228,8 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
     });
   };
 
-  const handleConfirmLoss = useCallback((reasonId: string, lossDescription: string) => {
+  const handleConfirmLoss = (reasonId: string, lossDescription: string) => {
+    if (!deal) return;
     updateDeal.mutate({ 
       id: deal.id, 
       status: 'lost',
@@ -239,7 +240,7 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
         toast.error("Negociação marcada como perdida");
       }
     });
-  }, [updateDeal, deal]);
+  };
 
   const handleStageChange = (stageId: string) => {
     if (stageId !== currentDeal?.stage_id) {
