@@ -1041,6 +1041,10 @@ function ProjectDetailDialog({ project, open, onOpenChange, stages, canEdit, can
                   <p className="text-sm font-medium">{project.assigned_to_name || "Não atribuído"}</p>
                 </div>
                 <div>
+                  <Label className="text-xs text-muted-foreground">Vendedor</Label>
+                  <p className="text-sm font-medium">{project.seller_name || "Não atribuído"}</p>
+                </div>
+                <div>
                   <Label className="text-xs text-muted-foreground">Criado em</Label>
                   <p className="text-sm">{safeFormatDate(project.created_at, "dd/MM/yyyy HH:mm", { locale: ptBR })}</p>
                 </div>
