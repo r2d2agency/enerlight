@@ -1693,6 +1693,14 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
       contactName={currentDeal?.contacts?.[0]?.name}
       dealId={deal?.id}
     />
+
+    {/* Loss Reason Dialog */}
+    <LossReasonDialog
+      open={lossDialogOpen}
+      onOpenChange={setLossDialogOpen}
+      onConfirm={handleConfirmLoss}
+      dealTitle={currentDeal?.title}
+    />
     </>
   );
 }
