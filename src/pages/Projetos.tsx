@@ -297,8 +297,20 @@ export default function Projetos() {
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
             </div>
+            <div>
+              <Label>Vendedor</Label>
+              <Select value={newProject.seller_id} onValueChange={v => setNewProject(p => ({ ...p, seller_id: v }))}>
+                <SelectTrigger><SelectValue placeholder="Selecione um vendedor" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Nenhum</SelectItem>
+                  {orgMembers.map(m => (
+                    <SelectItem key={m.user_id} value={m.user_id}>{m.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreateProject(false)}>Cancelar</Button>
