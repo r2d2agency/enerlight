@@ -192,12 +192,11 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
     }
   }, [open, currentDeal?.contacts]);
 
-  // Sync description with deal
+  // Sync description with deal - always reset when deal changes
   useEffect(() => {
-    if (currentDeal?.description) {
-      setDescription(currentDeal.description);
-    }
-  }, [currentDeal?.description]);
+    setDescription(currentDeal?.description || "");
+    setIsEditingDescription(false);
+  }, [currentDeal?.id]);
 
   // Sync inline edit states
   useEffect(() => {
