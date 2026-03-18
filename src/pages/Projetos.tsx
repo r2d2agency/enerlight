@@ -168,6 +168,18 @@ export default function Projetos() {
                 className="pl-9"
               />
             </div>
+            <Select value={sellerFilter} onValueChange={setSellerFilter}>
+              <SelectTrigger className="w-[160px]">
+                <User className="h-4 w-4 mr-1" />
+                <SelectValue placeholder="Vendedor" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos vendedores</SelectItem>
+                {orgMembers.map(m => (
+                  <SelectItem key={m.user_id} value={m.user_id}>{m.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {canEdit && (
               <Button onClick={() => setShowCreateProject(true)} size="sm">
                 <Plus className="h-4 w-4 mr-1" /> <span className="hidden sm:inline">Novo Projeto</span><span className="sm:hidden">Novo</span>
