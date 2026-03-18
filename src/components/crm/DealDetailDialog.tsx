@@ -217,9 +217,6 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
     }).format(value);
   };
 
-  // Loss reason dialog state
-  const [lossDialogOpen, setLossDialogOpen] = useState(false);
-
   const handleStatusChange = (status: string) => {
     if (status === 'lost') {
       setLossDialogOpen(true);
