@@ -1001,6 +1001,18 @@ function ProjectDetailDialog({ project, open, onOpenChange, stages, canEdit, can
                         </Select>
                       </div>
                       <div>
+                        <Label className="text-xs">Vendedor</Label>
+                        <Select value={editSellerId} onValueChange={setEditSellerId}>
+                          <SelectTrigger className="h-9"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Nenhum</SelectItem>
+                            {orgMembers.map(m => (
+                              <SelectItem key={m.user_id} value={m.user_id}>{m.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
                         <Label className="text-xs">Prazo</Label>
                         <Input type="date" value={editDueDate} onChange={e => setEditDueDate(e.target.value)} className="h-9" />
                       </div>
