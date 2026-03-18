@@ -380,6 +380,7 @@ router.get('/', async (req, res) => {
     const r = await query(
       `SELECT p.*, 
         u1.name as requested_by_name, u2.name as assigned_to_name,
+        u3.name as seller_name,
         ps.name as stage_name, ps.color as stage_color,
         d.title as deal_title,
         (SELECT COUNT(*) FROM project_tasks pt WHERE pt.project_id = p.id) as total_tasks,
@@ -387,6 +388,7 @@ router.get('/', async (req, res) => {
        FROM projects p
        LEFT JOIN users u1 ON p.requested_by = u1.id
        LEFT JOIN users u2 ON p.assigned_to = u2.id
+       LEFT JOIN users u3 ON p.seller_id = u3.id
        LEFT JOIN project_stages ps ON p.stage_id = ps.id
        LEFT JOIN crm_deals d ON p.deal_id = d.id
        WHERE p.organization_id = $1
