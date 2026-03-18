@@ -47,13 +47,22 @@ export default function Projetos() {
   const templateMut = useProjectTemplateMutations();
 
   const [search, setSearch] = useState("");
+  const [sellerFilter, setSellerFilter] = useState("all");
   const [showCreateProject, setShowCreateProject] = useState(false);
   const [showStageEditor, setShowStageEditor] = useState(false);
   const [showTemplateEditor, setShowTemplateEditor] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
+  // Org members for seller select
+  const [orgMembers, setOrgMembers] = useState<Array<{ user_id: string; name: string }>>([]);
+  useEffect(() => {
+    api<Array<{ user_id: string; name: string }>>("/api/crm/org-members", { auth: true })
+      .then(setOrgMembers)
+      .catch(() => {});
+  }, []);
+
   // Create project state
-  const [newProject, setNewProject] = useState({ title: "", description: "", priority: "medium", template_id: "" });
+  const [newProject, setNewProject] = useState({ title: "", description: "", priority: "medium", template_id: "", seller_id: "" });
 
   // Stage editor state
   const [newStageName, setNewStageName] = useState("");
