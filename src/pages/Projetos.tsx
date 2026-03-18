@@ -210,8 +210,8 @@ export default function Projetos() {
                       <Badge variant="secondary" className="text-xs">{stageProjects.length}</Badge>
                     </div>
                   </div>
-                  <ScrollArea className="p-2" style={{ maxHeight: "calc(100vh - 280px)" }}>
-                    <div className="space-y-2">
+                  <ScrollArea className="p-2 h-[calc(100vh-280px)]">
+                    <div className="space-y-2 pr-2">
                       {stageProjects.map(project => (
                         <ProjectCard
                           key={project.id}
