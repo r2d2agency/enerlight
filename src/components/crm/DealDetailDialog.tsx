@@ -216,12 +216,32 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
     }).format(value);
   };
 
+  // Loss reason dialog state
+  const [lossDialogOpen, setLossDialogOpen] = useState(false);
+
   const handleStatusChange = (status: string) => {
+    if (status === 'lost') {
+      setLossDialogOpen(true);
+      return;
+    }
     updateDeal.mutate({ 
       id: deal.id, 
       status: status as 'open' | 'won' | 'lost'
     });
   };
+
+  const handleConfirmLoss = useCallback((reasonId: string, lossDescription: string) => {
+    updateDeal.mutate({ 
+      id: deal.id, 
+      status: 'lost',
+      loss_reason_id: reasonId,
+      lost_reason: lossDescription 
+    } as any, {
+      onSuccess: () => {
+        toast.error("Negociação marcada como perdida");
+      }
+    });
+  }, [updateDeal, deal]);
 
   const handleStageChange = (stageId: string) => {
     if (stageId !== currentDeal?.stage_id) {
