@@ -142,38 +142,39 @@ export const DealCard = forwardRef<HTMLDivElement, DealCardProps>(
         )}
 
         {/* Title & Value */}
-        <div className="mb-2 min-w-0">
-          <h4 className={cn(
-            "font-medium text-sm truncate",
-            isPaused && "text-muted-foreground"
-          )} title={deal.title}>
-            {deal.title}
-          </h4>
-          {deal.value > 0 && (
-            <Badge variant="outline" className={cn(
-              "mt-1 text-[11px] whitespace-nowrap",
-              isWon && "border-green-500 text-green-600",
-              isLost && "border-red-500 text-red-600 line-through",
-              isPaused && "border-gray-400 text-gray-500"
+        <div className="mb-1.5 min-w-0">
+          <div className="flex items-start justify-between gap-2">
+            <h4 className={cn(
+              "font-semibold text-sm line-clamp-2",
+              isPaused && "text-muted-foreground"
             )}>
-              {formatCurrency(deal.value)}
-            </Badge>
+              {deal.title}
+            </h4>
+            {deal.value > 0 && (
+              <span className={cn(
+                "text-[11px] font-medium whitespace-nowrap shrink-0",
+                isWon && "text-green-600",
+                isLost && "text-red-600 line-through",
+                isPaused && "text-muted-foreground",
+                !isWon && !isLost && !isPaused && "text-muted-foreground"
+              )}>
+                {formatCurrency(deal.value)}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Company & Contact */}
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Building2 className="h-3 w-3 shrink-0" />
+          <span className="truncate">{deal.company_name}</span>
+          {primaryContact && (
+            <>
+              <span className="text-muted-foreground/50">·</span>
+              <span className="truncate">{primaryContact.name}</span>
+            </>
           )}
         </div>
-
-        {/* Company */}
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2">
-          <Building2 className="h-3 w-3" />
-          <span className="truncate">{deal.company_name}</span>
-        </div>
-
-        {/* Contact */}
-        {primaryContact && (
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2">
-            <User className="h-3 w-3" />
-            <span className="truncate">{primaryContact.name}</span>
-          </div>
-        )}
 
         {/* Footer */}
         <div className="flex items-center justify-between pt-2 border-t mt-2">
