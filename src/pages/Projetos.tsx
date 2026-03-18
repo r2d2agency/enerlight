@@ -759,7 +759,7 @@ function ProjectDetailDialog({ project, open, onOpenChange, stages, canEdit, can
   const [editingDesc, setEditingDesc] = useState(false);
   const [desc, setDesc] = useState("");
 
-  React.useEffect(() => {
+  useEffect(() => {
     setDesc(project.description || "");
     setEditingDesc(false);
   }, [project.id]);
