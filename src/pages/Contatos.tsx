@@ -289,15 +289,15 @@ const Contatos = () => {
   };
 
   const handleValidateWhatsApp = async (contactId: string, phone: string) => {
-    const config = evolutionApi.getConfig();
-    if (!config) {
-      toast.error("Configure a conexão Evolution API primeiro");
+    const connection = await getActiveConnection();
+    if (!connection) {
+      toast.error("Nenhuma conexão WhatsApp ativa encontrada");
       return;
     }
 
     setValidatingContact(contactId);
     try {
-      const isValid = await evolutionApi.checkWhatsAppNumber(config, phone);
+      const isValid = await whatsappProvider.checkNumber(connection, phone);
       if (isValid) {
         toast.success("Número é WhatsApp válido!");
         await updateContact(contactId, { is_whatsapp: true });
