@@ -2727,6 +2727,32 @@ router.get('/reports/sales', async (req, res) => {
       }));
     } catch (_) {}
 
+    // Loss reasons breakdown
+    let lossReasons = [];
+    try {
+      const lrResult = await query(
+        `SELECT 
+           COALESCE(lr.name, 'Não informado') as reason,
+           COUNT(*) as count,
+           COALESCE(SUM(d.value), 0) as total_value
+         FROM crm_deals d
+         LEFT JOIN crm_loss_reasons lr ON lr.id = d.loss_reason_id
+         WHERE d.organization_id = $1
+           AND d.status = 'lost'
+           AND d.created_at >= $2::date
+           AND d.created_at <= ($3::date + interval '1 day')
+           ${funnelFilter}
+         GROUP BY lr.name
+         ORDER BY count DESC`,
+        params
+      );
+      lossReasons = lrResult.rows.map(r => ({
+        reason: r.reason,
+        count: parseInt(r.count),
+        totalValue: parseFloat(r.total_value),
+      }));
+    } catch (_) {}
+
     res.json({
       timeline: timelineResult.rows.map(row => ({
         period: row.period,
