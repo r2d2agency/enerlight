@@ -95,6 +95,8 @@ router.use(authenticate);
       uploaded_by UUID,
       created_at TIMESTAMPTZ DEFAULT NOW()
     )`);
+    // Add seller_id column
+    await query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS seller_id UUID`).catch(() => {});
   } catch (_) { console.error('Projects table init error:', _); }
 })();
 
