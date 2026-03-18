@@ -498,15 +498,15 @@ router.patch('/:id', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No org' });
     if (!(await canEditProject(req.userId, org))) return res.status(403).json({ error: 'Forbidden' });
-    const { title, description, stage_id, assigned_to, priority, due_date, position } = req.body;
+    const { title, description, stage_id, assigned_to, priority, due_date, position, seller_id } = req.body;
     const r = await query(
       `UPDATE projects SET 
         title = COALESCE($1, title), description = COALESCE($2, description),
         stage_id = COALESCE($3, stage_id), assigned_to = COALESCE($4, assigned_to),
         priority = COALESCE($5, priority), due_date = COALESCE($6, due_date),
-        position = COALESCE($7, position), updated_at = NOW()
-       WHERE id = $8 AND organization_id = $9 RETURNING *`,
-      [title, description, stage_id, assigned_to, priority, due_date, position, req.params.id, org.organization_id]
+        position = COALESCE($7, position), seller_id = $8, updated_at = NOW()
+       WHERE id = $9 AND organization_id = $10 RETURNING *`,
+      [title, description, stage_id, assigned_to, priority, due_date, position, seller_id !== undefined ? seller_id : null, req.params.id, org.organization_id]
     );
     res.json(r.rows[0]);
   } catch (e) {
