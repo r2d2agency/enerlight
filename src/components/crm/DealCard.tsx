@@ -177,7 +177,7 @@ export const DealCard = forwardRef<HTMLDivElement, DealCardProps>(
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between pt-2 border-t mt-2">
+        <div className="flex items-center justify-between pt-1.5 border-t mt-1.5">
           <div className="flex items-center gap-2">
             {/* Owner */}
             {deal.owner_name && (
