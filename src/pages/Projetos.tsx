@@ -575,12 +575,20 @@ function ProjectCard({ project, stages, canEdit, onOpen, onMove }: {
         )}
 
         <div className="flex items-center justify-between">
-          {project.assigned_to_name && (
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <User className="h-3 w-3" />
-              <span className="truncate">{project.assigned_to_name}</span>
-            </div>
-          )}
+          <div className="flex flex-col gap-0.5">
+            {project.seller_name && (
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                <User className="h-3 w-3 text-primary" />
+                <span className="truncate">{project.seller_name}</span>
+              </div>
+            )}
+            {project.assigned_to_name && (
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                <User className="h-3 w-3" />
+                <span className="truncate">{project.assigned_to_name}</span>
+              </div>
+            )}
+          </div>
           <span className="text-[10px] text-muted-foreground">
             {safeFormatDate(project.created_at, "dd/MM", { locale: ptBR })}
           </span>
