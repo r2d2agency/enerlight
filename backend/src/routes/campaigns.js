@@ -438,6 +438,9 @@ router.post('/', async (req, res) => {
     res.status(201).json({
       ...campaign,
       total_messages: campaignMessages.length,
+      total_contacts: totalContacts,
+      verified_contacts: contacts.length,
+      skipped_contacts: totalContacts - contacts.length,
       estimated_completion: campaignMessages.length > 0 
         ? campaignMessages[campaignMessages.length - 1].scheduled_at 
         : null
