@@ -617,6 +617,15 @@ const Contatos = () => {
                 </div>
               </div>
             </CardHeader>
+            {bulkValidating && bulkValidationTotal > 0 && (
+              <div className="px-6 pb-4">
+                <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+                  <span>Validando números...</span>
+                  <span>{bulkValidationProgress}/{bulkValidationTotal}</span>
+                </div>
+                <Progress value={(bulkValidationProgress / bulkValidationTotal) * 100} className="h-2" />
+              </div>
+            )}
             <CardContent>
               {isLoadingContacts ? (
                 <div className="flex items-center justify-center p-8">
