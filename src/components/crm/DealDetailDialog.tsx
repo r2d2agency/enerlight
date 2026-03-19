@@ -342,16 +342,17 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
 
     try {
       const url = await uploadFile(file);
-      if (url) {
-        const newAttachment: DealAttachment = {
-          id: crypto.randomUUID(),
-          name: file.name,
-          url,
-          mimetype: file.type,
-          size: file.size,
-          created_at: new Date().toISOString(),
-        };
-        setAttachments(prev => [...prev, newAttachment]);
+      if (url && deal) {
+        const saved = await api<DealAttachment>(`/api/crm/deals/${deal.id}/attachments`, {
+          method: 'POST',
+          body: JSON.stringify({
+            name: file.name,
+            url,
+            mimetype: file.type,
+            size: file.size,
+          }),
+        });
+        setAttachments(prev => [...prev, saved]);
         toast.success("Arquivo anexado!");
       }
     } catch (error) {
@@ -363,8 +364,13 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
     }
   };
 
-  const handleRemoveAttachment = (id: string) => {
-    setAttachments(prev => prev.filter(a => a.id !== id));
+  const handleRemoveAttachment = async (id: string) => {
+    try {
+      await api(`/api/crm/deal-attachments/${id}`, { method: 'DELETE' });
+      setAttachments(prev => prev.filter(a => a.id !== id));
+    } catch {
+      toast.error("Erro ao remover arquivo");
+    }
   };
 
   const handleScheduleReturn = async () => {
