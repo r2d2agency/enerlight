@@ -276,7 +276,19 @@ const Campanhas = () => {
     setPauseDuration("10");
     setRandomOrder(true);
     setRandomMessages(false);
+    setListValidationStats(null);
   };
+
+  // Fetch validation stats when a list is selected
+  useEffect(() => {
+    if (!selectedList) {
+      setListValidationStats(null);
+      return;
+    }
+    api<{total: number; verified: number; invalid: number; not_checked: number}>(`/api/contacts/lists/${selectedList}/validation-stats`)
+      .then(stats => setListValidationStats(stats))
+      .catch(() => setListValidationStats(null));
+  }, [selectedList]);
 
   const toggleMessageSelection = (msgId: string) => {
     setSelectedMessages(prev => 
