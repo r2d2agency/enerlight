@@ -254,6 +254,26 @@ router.delete('/lists/:id', async (req, res) => {
   }
 });
 
+// Get validation stats for a list
+router.get('/lists/:listId/validation-stats', async (req, res) => {
+  try {
+    const { listId } = req.params;
+    const result = await query(
+      `SELECT 
+         COUNT(*) as total,
+         COUNT(*) FILTER (WHERE is_whatsapp = true) as verified,
+         COUNT(*) FILTER (WHERE is_whatsapp = false) as invalid,
+         COUNT(*) FILTER (WHERE is_whatsapp IS NULL) as not_checked
+       FROM contacts WHERE list_id = $1`,
+      [listId]
+    );
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Validation stats error:', error);
+    res.status(500).json({ error: 'Erro ao buscar estatísticas' });
+  }
+});
+
 // List contacts from a list
 router.get('/lists/:listId/contacts', async (req, res) => {
   try {

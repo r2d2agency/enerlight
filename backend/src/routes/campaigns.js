@@ -177,16 +177,25 @@ router.post('/', async (req, res) => {
     }
 
     // Get all contacts from the list
-    const contactsResult = await query(
-      'SELECT id, phone, name FROM contacts WHERE list_id = $1',
+    const allContactsResult = await query(
+      'SELECT id, phone, name, is_whatsapp FROM contacts WHERE list_id = $1',
       [list_id]
     );
 
-    if (contactsResult.rows.length === 0) {
+    if (allContactsResult.rows.length === 0) {
       return res.status(400).json({ error: 'A lista de contatos está vazia' });
     }
 
-    let contacts = contactsResult.rows;
+    const totalContacts = allContactsResult.rows.length;
+
+    // Only use verified (is_whatsapp = true) contacts
+    let contacts = allContactsResult.rows.filter(c => c.is_whatsapp === true);
+
+    if (contacts.length === 0) {
+      return res.status(400).json({ 
+        error: `Nenhum contato verificado na lista. ${totalContacts} contatos encontrados, mas nenhum foi validado como WhatsApp. Valide os contatos primeiro na página de Contatos.` 
+      });
+    }
 
     // Shuffle contacts if random_order is enabled
     if (random_order) {
@@ -429,6 +438,9 @@ router.post('/', async (req, res) => {
     res.status(201).json({
       ...campaign,
       total_messages: campaignMessages.length,
+      total_contacts: totalContacts,
+      verified_contacts: contacts.length,
+      skipped_contacts: totalContacts - contacts.length,
       estimated_completion: campaignMessages.length > 0 
         ? campaignMessages[campaignMessages.length - 1].scheduled_at 
         : null
