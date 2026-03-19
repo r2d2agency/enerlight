@@ -827,6 +827,25 @@ const Campanhas = () => {
                            )}
                          </SelectContent>
                        </Select>
+                      {listValidationStats && (
+                        <div className={cn(
+                          "flex items-center gap-2 text-xs p-2 rounded-md border",
+                          listValidationStats.verified === 0 
+                            ? "bg-destructive/10 text-destructive border-destructive/20"
+                            : listValidationStats.not_checked > 0
+                              ? "bg-warning/10 text-warning border-warning/20"
+                              : "bg-success/10 text-success border-success/20"
+                        )}>
+                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                          <span>
+                            Serão utilizados <strong>{listValidationStats.verified}</strong> de{" "}
+                            <strong>{listValidationStats.total}</strong> contatos
+                            {listValidationStats.verified > 0 && " (verificados como WhatsApp válido)"}
+                            {listValidationStats.invalid > 0 && ` · ${listValidationStats.invalid} inválidos`}
+                            {listValidationStats.not_checked > 0 && ` · ${listValidationStats.not_checked} não verificados`}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div className="space-y-2">
