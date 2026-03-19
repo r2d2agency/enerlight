@@ -316,7 +316,54 @@ const Contatos = () => {
     }
   };
 
-  const handleImportContacts = async (
+  const handleBulkValidateWhatsApp = async () => {
+    if (!selectedList || contacts.length === 0) return;
+
+    const connection = await getActiveConnection();
+    if (!connection) {
+      toast.error("Nenhuma conexão WhatsApp ativa encontrada");
+      return;
+    }
+
+    setBulkValidating(true);
+    const toValidate = contacts.filter(c => c.is_whatsapp === null || c.is_whatsapp === undefined);
+    setBulkValidationTotal(toValidate.length);
+    setBulkValidationProgress(0);
+
+    if (toValidate.length === 0) {
+      toast.info("Todos os contatos já foram validados");
+      setBulkValidating(false);
+      return;
+    }
+
+    let valid = 0;
+    let invalid = 0;
+
+    for (let i = 0; i < toValidate.length; i++) {
+      const contact = toValidate[i];
+      try {
+        const isValid = await whatsappProvider.checkNumber(connection, contact.phone);
+        await updateContact(contact.id, { is_whatsapp: isValid });
+        if (isValid) valid++;
+        else invalid++;
+      } catch {
+        invalid++;
+      }
+      setBulkValidationProgress(i + 1);
+      // Small delay to avoid rate limiting
+      if (i < toValidate.length - 1) {
+        await new Promise(r => setTimeout(r, 300));
+      }
+    }
+
+    toast.success(`Validação concluída: ${valid} válidos, ${invalid} inválidos`);
+    setBulkValidating(false);
+    setBulkValidationProgress(0);
+    setBulkValidationTotal(0);
+    if (selectedList) loadContacts(selectedList);
+  };
+
+
     contactsToImport: { name: string; phone: string; is_whatsapp?: boolean | null; customFields?: Record<string, string> }[]
   ) => {
     if (!selectedList) {
