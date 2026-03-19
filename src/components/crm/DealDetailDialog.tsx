@@ -345,12 +345,12 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
       if (url && deal) {
         const saved = await api<DealAttachment>(`/api/crm/deals/${deal.id}/attachments`, {
           method: 'POST',
-          body: JSON.stringify({
+          body: {
             name: file.name,
             url,
             mimetype: file.type,
             size: file.size,
-          }),
+          },
         });
         setAttachments(prev => [...prev, saved]);
         toast.success("Arquivo anexado!");
