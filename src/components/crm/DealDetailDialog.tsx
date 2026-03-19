@@ -192,6 +192,17 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
     }
   }, [open, currentDeal?.contacts]);
 
+  // Load deal attachments from backend
+  useEffect(() => {
+    if (open && deal?.id) {
+      api<DealAttachment[]>(`/api/crm/deals/${deal.id}/attachments`)
+        .then(setAttachments)
+        .catch(() => setAttachments([]));
+    } else {
+      setAttachments([]);
+    }
+  }, [open, deal?.id]);
+
   // Sync description with deal - always reset when deal changes
   useEffect(() => {
     setDescription(currentDeal?.description || "");
