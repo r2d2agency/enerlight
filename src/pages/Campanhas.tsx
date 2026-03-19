@@ -117,6 +117,7 @@ const Campanhas = () => {
   const [contactSource, setContactSource] = useState<'list' | 'tag'>('list');
   const [selectedTag, setSelectedTag] = useState("");
   const [creatingListFromTag, setCreatingListFromTag] = useState(false);
+  const [listValidationStats, setListValidationStats] = useState<{total: number; verified: number; invalid: number; not_checked: number} | null>(null);
   
   // Form state - Schedule
   const [startDate, setStartDate] = useState<Date>();
