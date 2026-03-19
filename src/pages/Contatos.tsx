@@ -11,6 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Progress } from "@/components/ui/progress";
 import {
   Dialog,
   DialogContent,
@@ -84,6 +85,9 @@ const Contatos = () => {
   const [availableConnections, setAvailableConnections] = useState<Array<{ id: string; name: string }>>([]);
   const [editingContact, setEditingContact] = useState<string | null>(null);
   const [validatingContact, setValidatingContact] = useState<string | null>(null);
+  const [bulkValidating, setBulkValidating] = useState(false);
+  const [bulkValidationProgress, setBulkValidationProgress] = useState(0);
+  const [bulkValidationTotal, setBulkValidationTotal] = useState(0);
 
   // Load lists and connections on mount
   useEffect(() => {
@@ -311,6 +315,53 @@ const Contatos = () => {
     } finally {
       setValidatingContact(null);
     }
+  };
+
+  const handleBulkValidateWhatsApp = async () => {
+    if (!selectedList || contacts.length === 0) return;
+
+    const connection = await getActiveConnection();
+    if (!connection) {
+      toast.error("Nenhuma conexão WhatsApp ativa encontrada");
+      return;
+    }
+
+    setBulkValidating(true);
+    const toValidate = contacts.filter(c => c.is_whatsapp === null || c.is_whatsapp === undefined);
+    setBulkValidationTotal(toValidate.length);
+    setBulkValidationProgress(0);
+
+    if (toValidate.length === 0) {
+      toast.info("Todos os contatos já foram validados");
+      setBulkValidating(false);
+      return;
+    }
+
+    let valid = 0;
+    let invalid = 0;
+
+    for (let i = 0; i < toValidate.length; i++) {
+      const contact = toValidate[i];
+      try {
+        const isValid = await whatsappProvider.checkNumber(connection, contact.phone);
+        await updateContact(contact.id, { is_whatsapp: isValid });
+        if (isValid) valid++;
+        else invalid++;
+      } catch {
+        invalid++;
+      }
+      setBulkValidationProgress(i + 1);
+      // Small delay to avoid rate limiting
+      if (i < toValidate.length - 1) {
+        await new Promise(r => setTimeout(r, 300));
+      }
+    }
+
+    toast.success(`Validação concluída: ${valid} válidos, ${invalid} inválidos`);
+    setBulkValidating(false);
+    setBulkValidationProgress(0);
+    setBulkValidationTotal(0);
+    if (selectedList) loadContacts(selectedList);
   };
 
   const handleImportContacts = async (
@@ -542,17 +593,40 @@ const Contatos = () => {
                       className="pl-10"
                     />
                   </div>
-                  <Button variant="outline" onClick={() => setIsImportOpen(true)}>
-                    <Upload className="h-4 w-4" />
-                    Importar Excel
-                  </Button>
-                  <Button variant="gradient" onClick={() => setIsAddContactOpen(true)}>
-                    <UserPlus className="h-4 w-4" />
-                    Adicionar
-                  </Button>
+                   <Button 
+                     variant="outline" 
+                     onClick={handleBulkValidateWhatsApp}
+                     disabled={bulkValidating || contacts.length === 0}
+                   >
+                     {bulkValidating ? (
+                       <Loader2 className="h-4 w-4 animate-spin" />
+                     ) : (
+                       <Phone className="h-4 w-4" />
+                     )}
+                     {bulkValidating 
+                       ? `Validando ${bulkValidationProgress}/${bulkValidationTotal}` 
+                       : "Validar Todos"}
+                   </Button>
+                   <Button variant="outline" onClick={() => setIsImportOpen(true)}>
+                     <Upload className="h-4 w-4" />
+                     Importar Excel
+                   </Button>
+                   <Button variant="gradient" onClick={() => setIsAddContactOpen(true)}>
+                     <UserPlus className="h-4 w-4" />
+                     Adicionar
+                   </Button>
                 </div>
               </div>
             </CardHeader>
+            {bulkValidating && bulkValidationTotal > 0 && (
+              <div className="px-6 pb-4">
+                <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+                  <span>Validando números...</span>
+                  <span>{bulkValidationProgress}/{bulkValidationTotal}</span>
+                </div>
+                <Progress value={(bulkValidationProgress / bulkValidationTotal) * 100} className="h-2" />
+              </div>
+            )}
             <CardContent>
               {isLoadingContacts ? (
                 <div className="flex items-center justify-center p-8">
