@@ -363,7 +363,7 @@ const Contatos = () => {
     if (selectedList) loadContacts(selectedList);
   };
 
-
+  const handleImportContacts = async (
     contactsToImport: { name: string; phone: string; is_whatsapp?: boolean | null; customFields?: Record<string, string> }[]
   ) => {
     if (!selectedList) {
