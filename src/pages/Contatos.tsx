@@ -84,6 +84,9 @@ const Contatos = () => {
   const [availableConnections, setAvailableConnections] = useState<Array<{ id: string; name: string }>>([]);
   const [editingContact, setEditingContact] = useState<string | null>(null);
   const [validatingContact, setValidatingContact] = useState<string | null>(null);
+  const [bulkValidating, setBulkValidating] = useState(false);
+  const [bulkValidationProgress, setBulkValidationProgress] = useState(0);
+  const [bulkValidationTotal, setBulkValidationTotal] = useState(0);
 
   // Load lists and connections on mount
   useEffect(() => {
