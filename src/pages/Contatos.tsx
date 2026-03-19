@@ -592,14 +592,28 @@ const Contatos = () => {
                       className="pl-10"
                     />
                   </div>
-                  <Button variant="outline" onClick={() => setIsImportOpen(true)}>
-                    <Upload className="h-4 w-4" />
-                    Importar Excel
-                  </Button>
-                  <Button variant="gradient" onClick={() => setIsAddContactOpen(true)}>
-                    <UserPlus className="h-4 w-4" />
-                    Adicionar
-                  </Button>
+                   <Button 
+                     variant="outline" 
+                     onClick={handleBulkValidateWhatsApp}
+                     disabled={bulkValidating || contacts.length === 0}
+                   >
+                     {bulkValidating ? (
+                       <Loader2 className="h-4 w-4 animate-spin" />
+                     ) : (
+                       <Phone className="h-4 w-4" />
+                     )}
+                     {bulkValidating 
+                       ? `Validando ${bulkValidationProgress}/${bulkValidationTotal}` 
+                       : "Validar Todos"}
+                   </Button>
+                   <Button variant="outline" onClick={() => setIsImportOpen(true)}>
+                     <Upload className="h-4 w-4" />
+                     Importar Excel
+                   </Button>
+                   <Button variant="gradient" onClick={() => setIsAddContactOpen(true)}>
+                     <UserPlus className="h-4 w-4" />
+                     Adicionar
+                   </Button>
                 </div>
               </div>
             </CardHeader>
