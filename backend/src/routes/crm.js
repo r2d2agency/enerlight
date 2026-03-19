@@ -5989,4 +5989,54 @@ router.post('/import-quotes', async (req, res) => {
   }
 });
 
+// ============================================
+// DEAL ATTACHMENTS
+// ============================================
+
+// List attachments for a deal
+router.get('/deals/:dealId/attachments', async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT a.*, u.name as uploaded_by_name
+       FROM crm_deal_attachments a
+       LEFT JOIN users u ON u.id = a.uploaded_by
+       WHERE a.deal_id = $1
+       ORDER BY a.created_at DESC`,
+      [req.params.dealId]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    if (isMissingSchemaError(error)) return res.json([]);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Add attachment to a deal
+router.post('/deals/:dealId/attachments', async (req, res) => {
+  try {
+    const { name, url, mimetype, size } = req.body;
+    const result = await query(
+      `INSERT INTO crm_deal_attachments (deal_id, name, url, mimetype, size, uploaded_by)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [req.params.dealId, name, url, mimetype || 'application/octet-stream', size || 0, req.userId]
+    );
+    res.json(result.rows[0]);
+  } catch (error) {
+    if (isMissingSchemaError(error)) {
+      return res.status(500).json({ error: 'Tabela de anexos não existe. Execute o schema-deal-attachments.sql.' });
+    }
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete attachment
+router.delete('/deal-attachments/:id', async (req, res) => {
+  try {
+    await query(`DELETE FROM crm_deal_attachments WHERE id = $1`, [req.params.id]);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
