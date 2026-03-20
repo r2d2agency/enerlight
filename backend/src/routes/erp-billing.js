@@ -56,6 +56,13 @@ function parseValue(val) {
   return parseFloat(s) || 0;
 }
 
+function normalizeOrderNumber(value) {
+  return String(value || '')
+    .trim()
+    .replace(/\s+/g, '')
+    .replace(/\.0+$/, '');
+}
+
 function normalizeHeader(value) {
   return String(value || '')
     .toLowerCase()
@@ -104,15 +111,20 @@ router.post('/preview', upload.single('file'), async (req, res) => {
         includes: ['cliente', 'client', 'razao'],
         excludes: ['codigo', 'id', 'numero', 'cpf', 'cnpj'],
       });
-      const orderNumber = findCol({
-        exact: ['numero', 'numero pedido', 'numero do pedido', 'n pedido', 'pedido'],
-        includes: ['pedido', 'order number', 'order', 'numero'],
-        excludes: ['cliente', 'cpf', 'cnpj', 'telefone', 'celular'],
-      });
+      const orderNumber =
+        findCol({
+          exact: ['numero', 'numero pedido', 'numero do pedido', 'n pedido', 'n do pedido'],
+          includes: ['numero pedido', 'num pedido', 'n pedido'],
+          excludes: ['cliente', 'cpf', 'cnpj', 'telefone', 'celular', 'nf', 'nota fiscal', 'ped cli', 'pedido cliente', 'serie'],
+        }) ||
+        findCol({
+          exact: ['pedido'],
+          excludes: ['cliente', 'cpf', 'cnpj', 'telefone', 'celular', 'nf', 'nota fiscal', 'ped cli', 'pedido cliente', 'serie'],
+        });
       const orderValue = findCol({ includes: ['valor', 'value', 'total'] });
       const state = findCol({ includes: ['uf', 'estado', 'state'] });
       const seller = findCol({ includes: ['vendedor', 'seller', 'representante'] });
-      const billingDate = findCol({ includes: ['data faturamento', 'faturamento', 'billing', 'fat'] });
+      const billingDate = findCol({ includes: ['data faturamento', 'faturamento', 'billing', 'fat', 'data entrega', 'entrega'] });
       const channel = findCol({ includes: ['canal', 'etapa', 'channel'] });
       const orderDate = findCol({ includes: ['data pedido', 'data do pedido', 'emissao', 'data emissao'] });
 
@@ -124,12 +136,12 @@ router.post('/preview', upload.single('file'), async (req, res) => {
 
       mapped.push({
         client_name: String(clientName).trim(),
-        order_number: String(orderNumber).trim(),
+        order_number: normalizeOrderNumber(orderNumber),
         order_value: parseValue(orderValue),
         state: String(state).trim().toUpperCase(),
         seller_name: sellerName,
-        billing_date: parseDate(billingDate) || parseDate(orderNumber),
-        order_date: parseDate(orderDate) || parseDate(orderNumber),
+        billing_date: parseDate(billingDate) || parseDate(orderDate),
+        order_date: parseDate(orderDate),
         channel: String(channel).trim(),
       });
     }
@@ -203,19 +215,37 @@ router.post('/import', async (req, res) => {
     let imported = 0;
     let skipped = 0;
 
+    const incomingOrderNumbers = Array.from(
+      new Set(
+        rows
+          .map((r) => normalizeOrderNumber(r.order_number))
+          .filter(Boolean)
+      )
+    );
+
+    const existingOrderNumbers = new Set();
+    if (incomingOrderNumbers.length > 0) {
+      const existing = await query(
+        `SELECT order_number
+         FROM erp_billing_records
+         WHERE organization_id = $1
+           AND TRIM(order_number) = ANY($2::text[])`,
+        [org.organization_id, incomingOrderNumbers]
+      );
+
+      for (const r of existing.rows) {
+        existingOrderNumbers.add(normalizeOrderNumber(r.order_number));
+      }
+    }
+
     for (const row of rows) {
-      const orderNumber = String(row.order_number || '').trim();
+      const orderNumber = normalizeOrderNumber(row.order_number);
       if (!row.billing_date || !row.seller_name || !orderNumber) { skipped++; continue; }
 
       const linkedUserId = sellerMapping?.[row.seller_name] || null;
 
       // Check duplicate (same org + order_number — each order number is unique)
-      const dup = await query(
-        `SELECT id FROM erp_billing_records
-         WHERE organization_id = $1 AND TRIM(order_number) = TRIM($2)`,
-        [org.organization_id, orderNumber]
-      );
-      if (dup.rows.length > 0) { skipped++; continue; }
+      if (existingOrderNumbers.has(orderNumber)) { skipped++; continue; }
 
       await query(
         `INSERT INTO erp_billing_records
@@ -227,6 +257,7 @@ router.post('/import', async (req, res) => {
           row.channel, linkedUserId, batchId, req.userId,
         ]
       );
+      existingOrderNumbers.add(orderNumber);
       imported++;
     }
 
@@ -421,12 +452,12 @@ router.post('/dedup', async (req, res) => {
       `DELETE FROM erp_billing_records
        WHERE id IN (
          SELECT id FROM (
-           SELECT id, ROW_NUMBER() OVER (
-             PARTITION BY organization_id, order_number
+            SELECT id, ROW_NUMBER() OVER (
+              PARTITION BY organization_id, regexp_replace(TRIM(order_number), '\\.0+$', '')
              ORDER BY created_at ASC
            ) as rn
            FROM erp_billing_records
-           WHERE organization_id = $1 AND order_number IS NOT NULL AND order_number != ''
+            WHERE organization_id = $1 AND order_number IS NOT NULL AND TRIM(order_number) != ''
          ) sub WHERE rn > 1
        )`,
       [org.organization_id]
