@@ -1323,10 +1323,9 @@ export default function CRMRelatorios() {
                             onClick={() => {
                               dedup.mutate(undefined, {
                                 onSuccess: (data: any) => {
-                                  import("sonner").then(({ toast }) => {
-                                    if (data.removed > 0) toast.success(`${data.removed} duplicatas removidas`);
-                                    else toast.info("Nenhuma duplicata encontrada");
-                                  });
+                                  if (data.removed > 0) {
+                                    // Force refetch
+                                  }
                                 },
                               });
                             }}
