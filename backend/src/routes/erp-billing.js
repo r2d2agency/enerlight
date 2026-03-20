@@ -351,6 +351,22 @@ router.get('/records', async (req, res) => {
   }
 });
 
+// Delete single record
+router.delete('/records/:recordId', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    await query(
+      `DELETE FROM erp_billing_records WHERE organization_id = $1 AND id = $2`,
+      [org.organization_id, req.params.recordId]
+    );
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Delete batch
 router.delete('/batch/:batchId', async (req, res) => {
   try {
@@ -362,6 +378,32 @@ router.delete('/batch/:batchId', async (req, res) => {
       [org.organization_id, req.params.batchId]
     );
     res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Remove duplicates (keep oldest by created_at for same order_number)
+router.post('/dedup', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const result = await query(
+      `DELETE FROM erp_billing_records
+       WHERE id IN (
+         SELECT id FROM (
+           SELECT id, ROW_NUMBER() OVER (
+             PARTITION BY organization_id, order_number
+             ORDER BY created_at ASC
+           ) as rn
+           FROM erp_billing_records
+           WHERE organization_id = $1 AND order_number IS NOT NULL AND order_number != ''
+         ) sub WHERE rn > 1
+       )`,
+      [org.organization_id]
+    );
+    res.json({ success: true, removed: result.rowCount });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

@@ -35,7 +35,7 @@ import {
   usePipelineVelocity,
 } from "@/hooks/use-crm-reports";
 import { useCRMFunnels, useCRMMyTeam } from "@/hooks/use-crm";
-import { useERPBillingSummary } from "@/hooks/use-erp-billing";
+import { useERPBillingSummary, useERPBillingRecords, useERPBillingMutations } from "@/hooks/use-erp-billing";
 import { ERPBillingImportDialog } from "@/components/crm/ERPBillingImportDialog";
 import {
   CalendarIcon,
@@ -53,6 +53,8 @@ import {
   ShoppingCart,
   Filter,
   Filter as FilterIcon,
+  Trash2,
+  List,
 } from "lucide-react";
 import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -90,6 +92,7 @@ export default function CRMRelatorios() {
   const [groupBy, setGroupBy] = useState<"day" | "week" | "month">("day");
   const [activeTab, setActiveTab] = useState("overview");
   const [showBillingImport, setShowBillingImport] = useState(false);
+  const [billingRecordsPage, setBillingRecordsPage] = useState(1);
   const [filterUserId, setFilterUserId] = useState<string>("all");
 
   const { data: funnels } = useCRMFunnels();
@@ -101,6 +104,12 @@ export default function CRMRelatorios() {
     startDate: billingStartDate,
     endDate: billingEndDate,
   });
+  const { data: billingRecords } = useERPBillingRecords({
+    startDate: billingStartDate,
+    endDate: billingEndDate,
+    page: billingRecordsPage,
+  });
+  const { deleteRecord, dedup } = useERPBillingMutations();
 
   const { data: salesData, isLoading } = useCRMSalesReport({
     startDate: dateRange?.from?.toISOString().split("T")[0],
@@ -1299,6 +1308,93 @@ export default function CRMRelatorios() {
                         </CardContent>
                       </Card>
                     )}
+
+                    {/* Records List */}
+                    <Card>
+                      <CardHeader>
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="flex items-center gap-2">
+                            <List className="h-5 w-5" />
+                            Registros Importados
+                          </CardTitle>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              dedup.mutate(undefined, {
+                                onSuccess: (data: any) => {
+                                  if (data.removed > 0) {
+                                    // Force refetch
+                                  }
+                                },
+                              });
+                            }}
+                            disabled={dedup.isPending}
+                          >
+                            {dedup.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+                            Remover Duplicatas
+                          </Button>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        {billingRecords?.records?.length ? (
+                          <>
+                            <div className="border rounded-lg overflow-auto max-h-[400px]">
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead>Pedido</TableHead>
+                                    <TableHead>Cliente</TableHead>
+                                    <TableHead>Vendedor</TableHead>
+                                    <TableHead>Canal</TableHead>
+                                    <TableHead>UF</TableHead>
+                                    <TableHead className="text-right">Valor</TableHead>
+                                    <TableHead>Data Fat.</TableHead>
+                                    <TableHead className="w-10"></TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {billingRecords.records.map((r: any) => (
+                                    <TableRow key={r.id}>
+                                      <TableCell className="font-mono text-xs">{r.order_number}</TableCell>
+                                      <TableCell className="max-w-[200px] truncate">{r.client_name}</TableCell>
+                                      <TableCell>{r.linked_user_name || r.seller_name}</TableCell>
+                                      <TableCell>{r.channel && <Badge variant="outline">{r.channel}</Badge>}</TableCell>
+                                      <TableCell>{r.state}</TableCell>
+                                      <TableCell className="text-right font-medium">{formatCurrency(r.order_value)}</TableCell>
+                                      <TableCell>{r.billing_date ? new Date(r.billing_date).toLocaleDateString("pt-BR") : "-"}</TableCell>
+                                      <TableCell>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-7 w-7 text-destructive hover:text-destructive"
+                                          onClick={() => deleteRecord.mutate(r.id)}
+                                        >
+                                          <Trash2 className="h-3.5 w-3.5" />
+                                        </Button>
+                                      </TableCell>
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            </div>
+                            {billingRecords.totalPages > 1 && (
+                              <div className="flex items-center justify-between mt-3">
+                                <p className="text-sm text-muted-foreground">
+                                  {billingRecords.total} registros - Página {billingRecords.page} de {billingRecords.totalPages}
+                                </p>
+                                <div className="flex gap-2">
+                                  <Button variant="outline" size="sm" disabled={billingRecords.page <= 1} onClick={() => setBillingRecordsPage(p => p - 1)}>Anterior</Button>
+                                  <Button variant="outline" size="sm" disabled={billingRecords.page >= billingRecords.totalPages} onClick={() => setBillingRecordsPage(p => p + 1)}>Próxima</Button>
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <p className="text-sm text-muted-foreground text-center py-6">Nenhum registro para o período selecionado</p>
+                        )}
+                      </CardContent>
+                    </Card>
                   </>
                 ) : (
                   <div className="flex flex-col items-center justify-center py-12 gap-4">
