@@ -56,6 +56,15 @@ function parseValue(val) {
   return parseFloat(s) || 0;
 }
 
+function normalizeHeader(value) {
+  return String(value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
 // Preview XLSX (parse and return rows + unique sellers)
 router.post('/preview', upload.single('file'), async (req, res) => {
   try {
@@ -70,22 +79,42 @@ router.post('/preview', upload.single('file'), async (req, res) => {
 
     for (const row of rows) {
       const keys = Object.keys(row);
-      const findCol = (patterns) => {
-        for (const p of patterns) {
-          const k = keys.find(k => k.toLowerCase().includes(p.toLowerCase()));
-          if (k) return row[k];
+      const normalizedKeys = keys.map((key) => ({ raw: key, norm: normalizeHeader(key) }));
+
+      const findCol = ({ exact = [], includes = [], excludes = [] }) => {
+        const excluded = excludes.map(normalizeHeader);
+
+        for (const target of exact.map(normalizeHeader)) {
+          const entry = normalizedKeys.find((k) => k.norm === target);
+          if (entry) return row[entry.raw];
         }
+
+        for (const target of includes.map(normalizeHeader)) {
+          const entry = normalizedKeys.find((k) =>
+            k.norm.includes(target) && !excluded.some((ex) => k.norm.includes(ex))
+          );
+          if (entry) return row[entry.raw];
+        }
+
         return '';
       };
 
-      const clientName = findCol(['cliente', 'client', 'razão', 'razao']);
-      const orderNumber = findCol(['pedido', 'order', 'nº']);
-      const orderValue = findCol(['valor', 'value', 'total']);
-      const state = findCol(['uf', 'estado', 'state']);
-      const seller = findCol(['vendedor', 'seller', 'representante']);
-      const billingDate = findCol(['faturamento', 'billing', 'fat']);
-      const channel = findCol(['canal', 'etapa', 'channel']);
-      const orderDate = findCol(['data pedido', 'data do pedido']);
+      const clientName = findCol({
+        exact: ['cliente', 'nome cliente', 'razao social'],
+        includes: ['cliente', 'client', 'razao'],
+        excludes: ['codigo', 'id', 'numero', 'cpf', 'cnpj'],
+      });
+      const orderNumber = findCol({
+        exact: ['numero', 'numero pedido', 'numero do pedido', 'n pedido', 'pedido'],
+        includes: ['pedido', 'order number', 'order', 'numero'],
+        excludes: ['cliente', 'cpf', 'cnpj', 'telefone', 'celular'],
+      });
+      const orderValue = findCol({ includes: ['valor', 'value', 'total'] });
+      const state = findCol({ includes: ['uf', 'estado', 'state'] });
+      const seller = findCol({ includes: ['vendedor', 'seller', 'representante'] });
+      const billingDate = findCol({ includes: ['data faturamento', 'faturamento', 'billing', 'fat'] });
+      const channel = findCol({ includes: ['canal', 'etapa', 'channel'] });
+      const orderDate = findCol({ includes: ['data pedido', 'data do pedido', 'emissao', 'data emissao'] });
 
       if (!seller || !orderValue) continue;
 
@@ -175,26 +204,25 @@ router.post('/import', async (req, res) => {
     let skipped = 0;
 
     for (const row of rows) {
-      if (!row.billing_date || !row.seller_name) { skipped++; continue; }
+      const orderNumber = String(row.order_number || '').trim();
+      if (!row.billing_date || !row.seller_name || !orderNumber) { skipped++; continue; }
 
       const linkedUserId = sellerMapping?.[row.seller_name] || null;
 
       // Check duplicate (same org + order_number — each order number is unique)
-      if (row.order_number) {
-        const dup = await query(
-          `SELECT id FROM erp_billing_records
-           WHERE organization_id = $1 AND order_number = $2`,
-          [org.organization_id, row.order_number]
-        );
-        if (dup.rows.length > 0) { skipped++; continue; }
-      }
+      const dup = await query(
+        `SELECT id FROM erp_billing_records
+         WHERE organization_id = $1 AND TRIM(order_number) = TRIM($2)`,
+        [org.organization_id, orderNumber]
+      );
+      if (dup.rows.length > 0) { skipped++; continue; }
 
       await query(
         `INSERT INTO erp_billing_records
          (organization_id, client_name, order_number, order_value, state, seller_name, billing_date, order_date, channel, linked_user_id, import_batch_id, imported_by)
          VALUES ($1, $2, $3, $4, $5, $6, $7::date, $8::date, $9, $10, $11, $12)`,
         [
-          org.organization_id, row.client_name, row.order_number, row.order_value,
+          org.organization_id, row.client_name, orderNumber, row.order_value,
           row.state, row.seller_name, row.billing_date, row.order_date || null,
           row.channel, linkedUserId, batchId, req.userId,
         ]
