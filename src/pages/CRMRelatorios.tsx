@@ -90,6 +90,7 @@ export default function CRMRelatorios() {
   const [groupBy, setGroupBy] = useState<"day" | "week" | "month">("day");
   const [activeTab, setActiveTab] = useState("overview");
   const [showBillingImport, setShowBillingImport] = useState(false);
+  const [billingRecordsPage, setBillingRecordsPage] = useState(1);
   const [filterUserId, setFilterUserId] = useState<string>("all");
 
   const { data: funnels } = useCRMFunnels();
