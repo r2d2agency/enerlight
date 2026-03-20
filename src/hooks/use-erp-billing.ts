@@ -68,6 +68,13 @@ export function useERPBillingImports() {
 export function useERPBillingMutations() {
   const qc = useQueryClient();
 
+  const invalidateAll = () => {
+    qc.invalidateQueries({ queryKey: ["erp-billing"] });
+    qc.invalidateQueries({ queryKey: ["erp-billing-summary"] });
+    qc.invalidateQueries({ queryKey: ["erp-billing-records"] });
+    qc.invalidateQueries({ queryKey: ["erp-billing-imports"] });
+  };
+
   const previewFile = useMutation({
     mutationFn: async (file: File) => {
       const fd = new FormData();
@@ -92,24 +99,26 @@ export function useERPBillingMutations() {
         method: "POST",
         body: data,
       }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["erp-billing"] });
-      qc.invalidateQueries({ queryKey: ["erp-billing-summary"] });
-      qc.invalidateQueries({ queryKey: ["erp-billing-records"] });
-      qc.invalidateQueries({ queryKey: ["erp-billing-imports"] });
-    },
+    onSuccess: invalidateAll,
   });
 
   const deleteBatch = useMutation({
     mutationFn: (batchId: string) =>
       api(`/api/erp-billing/batch/${batchId}`, { method: "DELETE" }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["erp-billing"] });
-      qc.invalidateQueries({ queryKey: ["erp-billing-summary"] });
-      qc.invalidateQueries({ queryKey: ["erp-billing-records"] });
-      qc.invalidateQueries({ queryKey: ["erp-billing-imports"] });
-    },
+    onSuccess: invalidateAll,
   });
 
-  return { previewFile, importRecords, deleteBatch };
+  const deleteRecord = useMutation({
+    mutationFn: (recordId: string) =>
+      api(`/api/erp-billing/records/${recordId}`, { method: "DELETE" }),
+    onSuccess: invalidateAll,
+  });
+
+  const dedup = useMutation({
+    mutationFn: () =>
+      api<{ removed: number }>("/api/erp-billing/dedup", { method: "POST" }),
+    onSuccess: invalidateAll,
+  });
+
+  return { previewFile, importRecords, deleteBatch, deleteRecord, dedup };
 }
