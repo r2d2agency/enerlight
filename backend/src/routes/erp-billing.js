@@ -179,12 +179,12 @@ router.post('/import', async (req, res) => {
 
       const linkedUserId = sellerMapping?.[row.seller_name] || null;
 
-      // Check duplicate (same org + client + order_number + billing_date)
+      // Check duplicate (same org + order_number — each order number is unique)
       if (row.order_number) {
         const dup = await query(
           `SELECT id FROM erp_billing_records
-           WHERE organization_id = $1 AND order_number = $2 AND billing_date = $3::date`,
-          [org.organization_id, row.order_number, row.billing_date]
+           WHERE organization_id = $1 AND order_number = $2`,
+          [org.organization_id, row.order_number]
         );
         if (dup.rows.length > 0) { skipped++; continue; }
       }
