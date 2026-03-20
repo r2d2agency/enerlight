@@ -102,6 +102,12 @@ export default function CRMRelatorios() {
     startDate: billingStartDate,
     endDate: billingEndDate,
   });
+  const { data: billingRecords } = useERPBillingRecords({
+    startDate: billingStartDate,
+    endDate: billingEndDate,
+    page: billingRecordsPage,
+  });
+  const { deleteRecord, dedup } = useERPBillingMutations();
 
   const { data: salesData, isLoading } = useCRMSalesReport({
     startDate: dateRange?.from?.toISOString().split("T")[0],
