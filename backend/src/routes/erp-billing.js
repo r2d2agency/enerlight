@@ -229,7 +229,7 @@ router.post('/import', async (req, res) => {
         `SELECT order_number
          FROM erp_billing_records
          WHERE organization_id = $1
-           AND TRIM(order_number) = ANY($2::text[])`,
+           AND regexp_replace(TRIM(order_number), '\\.0+$', '') = ANY($2::text[])`,
         [org.organization_id, incomingOrderNumbers]
       );
 
