@@ -209,6 +209,25 @@ function MobileCaptureForm({ open, onClose, onSuccess }: { open: boolean; onClos
   const addContact = () => setContacts(prev => [...prev, emptyContact()]);
   const removeContact = (index: number) => setContacts(prev => prev.filter((_, i) => i !== index));
 
+  const handleCameraCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    for (const file of Array.from(files)) {
+      const url = await uploadFile(file);
+      if (url) setPhotos((prev) => [...prev, { file_url: url, file_name: file.name, file_type: "photo", mime_type: file.type }]);
+    }
+    if (cameraInputRef.current) cameraInputRef.current.value = "";
+  };
+
+  const handleAudioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    for (const file of Array.from(files)) {
+      const url = await uploadFile(file);
+      if (url) setAudios((prev) => [...prev, { file_url: url, file_name: file.name, file_type: "audio", mime_type: file.type }]);
+    }
+  };
+
   const handleSubmit = async () => {
     const address = [
       form.street && `Rua ${form.street}`,
