@@ -147,6 +147,8 @@ export default function Organizacoes() {
     internal_chat: true,
     tasks: true,
     lead_gleego: false,
+    homologation: false,
+    captador: false,
   });
   const [savingModules, setSavingModules] = useState(false);
 
