@@ -401,6 +401,7 @@ router.patch('/plans/:id', requireSuperadmin, async (req, res) => {
       has_homologation,
       has_tasks,
       has_lead_gleego,
+      has_captador,
       price, 
       billing_period, 
       is_active,
