@@ -70,7 +70,7 @@ async function reverseGeocode(lat: number, lng: number): Promise<{
 // ─── Photo Compression Utility ───
 async function compressImage(file: File, maxWidth = 1280, quality = 0.7): Promise<File> {
   return new Promise((resolve) => {
-    const img = new Image();
+    const img = document.createElement("img");
     const url = URL.createObjectURL(file);
     img.onload = () => {
       URL.revokeObjectURL(url);
