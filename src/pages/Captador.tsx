@@ -18,6 +18,7 @@ import {
   useFieldCaptureStats, useCreateFieldCapture, useUpdateFieldCapture,
   useAddFieldCaptureVisit, useAddCaptureAttachment, useDeleteFieldCapture,
   useCaptadorSellers, useCaptadorSettings, useUpdateCaptadorSettings,
+  useScheduleReturn, useTodayReturns,
   FieldCapture,
 } from "@/hooks/use-captador";
 import {
