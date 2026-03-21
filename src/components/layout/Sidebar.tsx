@@ -16,6 +16,7 @@ import {
   LayoutDashboard,
   LogOut,
   Map,
+  MapPin,
   Menu,
   MessageSquare,
   MessagesSquare,
