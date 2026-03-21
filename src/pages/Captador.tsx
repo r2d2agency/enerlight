@@ -116,19 +116,18 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
 
 // ─── Check-in/Checkout Hook ───
 function useCheckin() {
-  const [checkedIn, setCheckedIn] = useState(false);
-  const [checkinTime, setCheckinTime] = useState<Date | null>(null);
-  const [checkinLocation, setCheckinLocation] = useState<{ lat: number; lng: number } | null>(null);
+  // Initialize directly from localStorage to avoid flash
+  const savedData = (() => {
+    try {
+      const saved = localStorage.getItem("captador_checkin");
+      if (saved) return JSON.parse(saved);
+    } catch { /* ignore */ }
+    return null;
+  })();
 
-  useEffect(() => {
-    const saved = localStorage.getItem("captador_checkin");
-    if (saved) {
-      const data = JSON.parse(saved);
-      setCheckedIn(true);
-      setCheckinTime(new Date(data.time));
-      setCheckinLocation(data.location);
-    }
-  }, []);
+  const [checkedIn, setCheckedIn] = useState(!!savedData);
+  const [checkinTime, setCheckinTime] = useState<Date | null>(savedData ? new Date(savedData.time) : null);
+  const [checkinLocation, setCheckinLocation] = useState<{ lat: number; lng: number } | null>(savedData?.location || null);
 
   const doCheckin = () => {
     return new Promise<void>((resolve, reject) => {
