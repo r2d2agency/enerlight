@@ -108,7 +108,7 @@ export function useFieldCaptureStats(userId?: string) {
 export function useCreateFieldCapture() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: any) => api("/api/captador", { method: "POST", body: JSON.stringify(data) }),
+    mutationFn: (data: any) => api("/api/captador", { method: "POST", body: data }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["field-captures"] });
       qc.invalidateQueries({ queryKey: ["field-capture-map"] });
