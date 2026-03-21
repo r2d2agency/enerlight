@@ -45,7 +45,11 @@ function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
 // ─── Return Check-in Button (200m radius + visit form) ───
 function ReturnCheckinButton({ capture, onCheckin }: {
   capture: FieldCapture;
-  onCheckin: (id: string, data: { construction_stage: string; notes: string; attachments: any[]; latitude: number; longitude: number }) => void;
+  onCheckin: (id: string, data: {
+    construction_stage: string; notes: string; attachments: any[];
+    latitude: number; longitude: number;
+    contacts?: { name: string; phone: string; email: string; role: string }[];
+  }) => void;
 }) {
   const [loading, setLoading] = useState(false);
   const [distance, setDistance] = useState<number | null>(null);
@@ -55,6 +59,8 @@ function ReturnCheckinButton({ capture, onCheckin }: {
   const [stage, setStage] = useState("");
   const [notes, setNotes] = useState("");
   const [photos, setPhotos] = useState<any[]>([]);
+  const [contacts, setContacts] = useState<{ name: string; phone: string; email: string; role: string }[]>([]);
+  const [showContacts, setShowContacts] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const { uploadFile, isUploading } = useUpload();
   const { toast } = useToast();
@@ -95,14 +101,22 @@ function ReturnCheckinButton({ capture, onCheckin }: {
     }
   };
 
+  const addContact = () => setContacts((c) => [...c, { name: "", phone: "", email: "", role: "" }]);
+  const updateContact = (idx: number, field: string, value: string) => {
+    setContacts((c) => c.map((ct, i) => i === idx ? { ...ct, [field]: field === "phone" ? applyPhoneMask(value) : value } : ct));
+  };
+  const removeContact = (idx: number) => setContacts((c) => c.filter((_, i) => i !== idx));
+
   const handleConfirm = () => {
     if (!stage) { toast({ title: "Selecione a etapa da obra", variant: "destructive" }); return; }
     if (photos.length === 0) { toast({ title: "Tire pelo menos uma foto", variant: "destructive" }); return; }
+    const validContacts = contacts.filter((c) => c.name || c.phone);
     onCheckin(capture.id, {
       construction_stage: stage, notes: notes || "Check-in de retorno confirmado via GPS",
       attachments: photos, latitude: userPos!.lat, longitude: userPos!.lng,
+      contacts: validContacts.length > 0 ? validContacts : undefined,
     });
-    setGpsOk(false); setStage(""); setNotes(""); setPhotos([]);
+    setGpsOk(false); setStage(""); setNotes(""); setPhotos([]); setContacts([]); setShowContacts(false);
   };
 
   return (
@@ -137,6 +151,40 @@ function ReturnCheckinButton({ capture, onCheckin }: {
               </div>
             )}
           </div>
+
+          {/* Contacts Section */}
+          <div className="border-t border-green-500/20 pt-2">
+            <Button size="sm" variant="ghost" onClick={() => { setShowContacts(!showContacts); if (!showContacts && contacts.length === 0) addContact(); }}
+              className="w-full text-xs justify-start text-muted-foreground hover:text-foreground">
+              <UserPlus className="h-3.5 w-3.5 mr-1" /> Contatos ({contacts.length})
+            </Button>
+            {showContacts && (
+              <div className="space-y-2 mt-1">
+                {contacts.map((ct, idx) => (
+                  <div key={idx} className="border rounded p-2 space-y-1.5 bg-background/50 relative">
+                    <Button size="sm" variant="ghost" className="absolute top-0.5 right-0.5 h-5 w-5 p-0 text-destructive" onClick={() => removeContact(idx)}>
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                    <Input placeholder="Nome" value={ct.name} onChange={(e) => updateContact(idx, "name", e.target.value)} className="h-8 text-xs" />
+                    <Input placeholder="(00) 00000-0000" value={ct.phone} onChange={(e) => updateContact(idx, "phone", e.target.value)} className="h-8 text-xs" />
+                    <Input placeholder="E-mail" type="email" value={ct.email} onChange={(e) => updateContact(idx, "email", e.target.value)} className="h-8 text-xs" />
+                    <Select value={ct.role} onValueChange={(v) => updateContact(idx, "role", v)}>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Função" /></SelectTrigger>
+                      <SelectContent>
+                        {["Engenheiro", "Mestre de Obras", "Proprietário", "Arquiteto", "Comprador", "Gerente", "Outro"].map((r) => (
+                          <SelectItem key={r} value={r}>{r}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ))}
+                <Button size="sm" variant="outline" onClick={addContact} className="w-full text-xs">
+                  <Plus className="h-3 w-3 mr-1" /> Adicionar Contato
+                </Button>
+              </div>
+            )}
+          </div>
+
           <Button size="sm" onClick={handleConfirm} className="w-full bg-green-600 hover:bg-green-700 text-white">
             <CheckCircle2 className="h-4 w-4 mr-1" /> Confirmar Check-in
           </Button>
