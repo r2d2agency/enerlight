@@ -222,6 +222,12 @@ const CONSTRUCTION_STAGES = [
   "Acabamento", "Pintura", "Finalização",
 ];
 
+const SEGMENTS = [
+  "Petroquímico", "Industrial", "Empreendimento", "Comercial", "Residencial",
+  "Agronegócio", "Energia Solar", "Logística", "Mineração", "Saneamento",
+  "Hospitalar", "Educacional", "Óleo e Gás", "Infraestrutura", "Outros",
+];
+
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
   new: { label: "Novo", color: "bg-blue-500" },
   in_progress: { label: "Em Andamento", color: "bg-yellow-500" },
@@ -354,7 +360,7 @@ function MobileCaptureForm({ open, onClose, onSuccess, isOnline }: { open: boole
 
   const [form, setForm] = useState({
     street: "", number: "", neighborhood: "", city: "", state: "",
-    construction_stage: "", stage_notes: "",
+    construction_stage: "", stage_notes: "", segment: "",
     company_name: "", company_cnpj: "", company_cnpj_display: "", notes: "",
   });
   const [contacts, setContacts] = useState<ContactItem[]>([emptyContact()]);
@@ -367,7 +373,7 @@ function MobileCaptureForm({ open, onClose, onSuccess, isOnline }: { open: boole
       setAudios([]);
       setForm({
         street: "", number: "", neighborhood: "", city: "", state: "",
-        construction_stage: "", stage_notes: "",
+        construction_stage: "", stage_notes: "", segment: "",
         company_name: "", company_cnpj: "", company_cnpj_display: "", notes: "",
       });
       setContacts([emptyContact()]);
@@ -478,6 +484,7 @@ function MobileCaptureForm({ open, onClose, onSuccess, isOnline }: { open: boole
       latitude: location?.lat,
       longitude: location?.lng,
       attachments: [...photos, ...audios],
+      segment: form.segment || null,
     };
 
     if (isOnline === false) {
@@ -653,6 +660,10 @@ function MobileCaptureForm({ open, onClose, onSuccess, isOnline }: { open: boole
             <h3 className="text-lg font-semibold flex items-center gap-2">
               <Building2 className="h-5 w-5" /> Dados da Obra
             </h3>
+            <Select value={form.segment} onValueChange={(v) => setForm({ ...form, segment: v })}>
+              <SelectTrigger className="h-12 text-base"><SelectValue placeholder="Segmento" /></SelectTrigger>
+              <SelectContent>{SEGMENTS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+            </Select>
             <Select value={form.construction_stage} onValueChange={(v) => setForm({ ...form, construction_stage: v })}>
               <SelectTrigger className="h-12 text-base"><SelectValue placeholder="Etapa da Obra" /></SelectTrigger>
               <SelectContent>
@@ -751,14 +762,14 @@ function DesktopCaptureFormDialog({ open, onClose, onSuccess }: { open: boolean;
 
   const [form, setForm] = useState({
     street: "", number: "", neighborhood: "", city: "", state: "",
-    construction_stage: "", stage_notes: "",
+    construction_stage: "", stage_notes: "", segment: "",
     company_name: "", company_cnpj: "", company_cnpj_display: "", notes: "",
   });
   const [contacts, setContacts] = useState<ContactItem[]>([emptyContact()]);
 
   useEffect(() => {
     if (open) {
-      setForm({ street: "", number: "", neighborhood: "", city: "", state: "", construction_stage: "", stage_notes: "", company_name: "", company_cnpj: "", company_cnpj_display: "", notes: "" });
+      setForm({ street: "", number: "", neighborhood: "", city: "", state: "", construction_stage: "", stage_notes: "", segment: "", company_name: "", company_cnpj: "", company_cnpj_display: "", notes: "" });
       setContacts([emptyContact()]);
       setPhotos([]); setAudios([]); setLocation(null);
     }
@@ -822,6 +833,7 @@ function DesktopCaptureFormDialog({ open, onClose, onSuccess }: { open: boolean;
           ? `${form.notes}\n\n--- Contatos Adicionais ---\n${extraContacts.map(c => `${c.name} | ${applyPhoneMask(c.phone)} | ${c.role} | ${c.email}`).join("\n")}`.trim()
           : form.notes,
         latitude: location?.lat, longitude: location?.lng, attachments: [...photos, ...audios],
+        segment: form.segment || null,
       });
       toast({ title: "Ficha criada com sucesso!" });
       onSuccess(); onClose();
@@ -851,10 +863,16 @@ function DesktopCaptureFormDialog({ open, onClose, onSuccess }: { open: boolean;
           </div>
 
           {/* Obra */}
-          <Select value={form.construction_stage} onValueChange={(v) => setForm({ ...form, construction_stage: v })}>
-            <SelectTrigger><SelectValue placeholder="Etapa da Obra" /></SelectTrigger>
-            <SelectContent>{CONSTRUCTION_STAGES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-          </Select>
+          <div className="grid grid-cols-2 gap-2">
+            <Select value={form.segment} onValueChange={(v) => setForm({ ...form, segment: v })}>
+              <SelectTrigger><SelectValue placeholder="Segmento" /></SelectTrigger>
+              <SelectContent>{SEGMENTS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+            </Select>
+            <Select value={form.construction_stage} onValueChange={(v) => setForm({ ...form, construction_stage: v })}>
+              <SelectTrigger><SelectValue placeholder="Etapa da Obra" /></SelectTrigger>
+              <SelectContent>{CONSTRUCTION_STAGES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
           <Textarea placeholder="Observações sobre a etapa..." value={form.stage_notes} onChange={(e) => setForm({ ...form, stage_notes: e.target.value })} rows={2} />
 
           {/* Contacts */}
@@ -1004,6 +1022,7 @@ function CaptureDetailDialog({ captureId, open, onClose }: { captureId: string |
               <div><span className="text-muted-foreground">Data:</span> {safeFormatDate(capture.created_at, "dd/MM/yyyy HH:mm")}</div>
               <div><span className="text-muted-foreground">Endereço:</span> {capture.address || "—"}</div>
               <div><span className="text-muted-foreground">Etapa:</span> {capture.construction_stage || "—"}</div>
+              <div><span className="text-muted-foreground">Segmento:</span> {(capture as any).segment ? <Badge variant="secondary" className="text-xs">{(capture as any).segment}</Badge> : "—"}</div>
             </div>
             {/* Navigate to location */}
             {capture.latitude && capture.longitude && (
@@ -1168,7 +1187,9 @@ function CaptureDetailDialog({ captureId, open, onClose }: { captureId: string |
 function CaptadorMap({ points, onSelect }: { points: any[]; onSelect: (id: string) => void }) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
+  const markersRef = useRef<any[]>([]);
 
+  // Initialize map once
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return;
     import("leaflet").then((L) => {
@@ -1176,9 +1197,7 @@ function CaptadorMap({ points, onSelect }: { points: any[]; onSelect: (id: strin
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "© OpenStreetMap" }).addTo(map);
       mapInstanceRef.current = map;
 
-      const bounds: [number, number][] = [];
-
-      // Show user's current location
+      // Show user location
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           (pos) => {
@@ -1190,47 +1209,59 @@ function CaptadorMap({ points, onSelect }: { points: any[]; onSelect: (id: strin
             });
             L.marker(userPos, { icon: userIcon }).addTo(map)
               .bindPopup("<strong>📍 Você está aqui</strong>");
-            bounds.push(userPos);
-            if (bounds.length > 0) map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+            if (points.length === 0) map.setView(userPos, 13);
           },
           () => {},
           { enableHighAccuracy: true }
         );
       }
-
-      // Capture points
-      if (points.length > 0) {
-        points.forEach((p: any) => {
-          if (!p.latitude || !p.longitude) return;
-          const pos: [number, number] = [parseFloat(p.latitude), parseFloat(p.longitude)];
-          bounds.push(pos);
-          const icon = L.divIcon({
-            className: "custom-marker",
-            html: `<div style="background:${p.status === 'converted' ? '#22c55e' : p.status === 'in_progress' ? '#eab308' : '#3b82f6'};width:24px;height:24px;border-radius:50%;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;color:white;font-size:10px;font-weight:bold">${p.visit_count || 0}</div>`,
-            iconSize: [24, 24], iconAnchor: [12, 12],
-          });
-          const marker = L.marker(pos, { icon }).addTo(map);
-          const routeUrl = `https://www.google.com/maps/dir/?api=1&destination=${p.latitude},${p.longitude}`;
-          marker.bindPopup(`
-            <div style="min-width:220px">
-              <strong>${p.company_name || 'Obra'}</strong><br/>
-              <small>${p.address || ''}</small><br/>
-              <small>Etapa: ${p.construction_stage || '—'}</small><br/>
-              <small>Visitas: ${p.visit_count || 0}</small>
-              <div style="margin-top:8px">
-                <a href="${routeUrl}" target="_blank" rel="noopener"
-                  style="display:inline-flex;align-items:center;gap:4px;background:#4285f4;color:white;padding:6px 12px;border-radius:6px;text-decoration:none;font-size:12px;font-weight:500;">
-                  🗺️ Rotas no Google Maps
-                </a>
-              </div>
-            </div>
-          `);
-          marker.on("click", () => onSelect(p.id));
-        });
-        if (bounds.length > 0) map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
-      }
     });
     return () => { if (mapInstanceRef.current) { mapInstanceRef.current.remove(); mapInstanceRef.current = null; } };
+  }, []);
+
+  // Update markers when points change
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+    import("leaflet").then((L) => {
+      // Clear old markers
+      markersRef.current.forEach(m => map.removeLayer(m));
+      markersRef.current = [];
+
+      const bounds: [number, number][] = [];
+
+      points.forEach((p: any) => {
+        if (!p.latitude || !p.longitude) return;
+        const pos: [number, number] = [parseFloat(p.latitude), parseFloat(p.longitude)];
+        bounds.push(pos);
+        const icon = L.divIcon({
+          className: "custom-marker",
+          html: `<div style="background:${p.status === 'converted' ? '#22c55e' : p.status === 'in_progress' ? '#eab308' : '#3b82f6'};width:24px;height:24px;border-radius:50%;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;color:white;font-size:10px;font-weight:bold">${p.visit_count || 0}</div>`,
+          iconSize: [24, 24], iconAnchor: [12, 12],
+        });
+        const marker = L.marker(pos, { icon }).addTo(map);
+        markersRef.current.push(marker);
+        const routeUrl = `https://www.google.com/maps/dir/?api=1&destination=${p.latitude},${p.longitude}`;
+        marker.bindPopup(`
+          <div style="min-width:220px">
+            <strong>${p.company_name || 'Obra'}</strong><br/>
+            <small>${p.address || ''}</small><br/>
+            ${p.segment ? `<small>📋 ${p.segment}</small><br/>` : ''}
+            <small>Etapa: ${p.construction_stage || '—'}</small><br/>
+            <small>Visitas: ${p.visit_count || 0}</small>
+            <div style="margin-top:8px">
+              <a href="${routeUrl}" target="_blank" rel="noopener"
+                style="display:inline-flex;align-items:center;gap:4px;background:#4285f4;color:white;padding:6px 12px;border-radius:6px;text-decoration:none;font-size:12px;font-weight:500;">
+                🗺️ Rotas no Google Maps
+              </a>
+            </div>
+          </div>
+        `);
+        marker.on("click", () => onSelect(p.id));
+      });
+
+      if (bounds.length > 0) map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+    });
   }, [points, onSelect]);
 
   return <div ref={mapRef} className="w-full h-[400px] md:h-[500px] rounded-lg border" />;
@@ -1245,7 +1276,7 @@ export default function Captador() {
   const [showForm, setShowForm] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [filters, setFilters] = useState<{ status?: string; assigned_to?: string; unassigned?: boolean }>({});
+  const [filters, setFilters] = useState<{ status?: string; assigned_to?: string; unassigned?: boolean; start_date?: string; end_date?: string; segment?: string }>({});
 
   const { checkedIn, checkinTime, doCheckin, doCheckout } = useCheckin();
   const createCaptureForSync = useCreateFieldCapture();
@@ -1381,6 +1412,28 @@ export default function Captador() {
               <TabsTrigger value="list" className="flex-1"><ClipboardList className="h-4 w-4 mr-1" /> Fichas</TabsTrigger>
               <TabsTrigger value="map" className="flex-1"><MapPin className="h-4 w-4 mr-1" /> Mapa</TabsTrigger>
             </TabsList>
+
+            {/* Filters */}
+            <div className="px-4 pt-2 flex gap-2 overflow-x-auto pb-1">
+              <Select value={filters.segment || ""} onValueChange={(v) => setFilters(f => ({ ...f, segment: v || undefined }))}>
+                <SelectTrigger className="h-8 text-xs w-[130px] shrink-0"><SelectValue placeholder="Segmento" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Todos</SelectItem>
+                  {SEGMENTS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={filters.assigned_to || ""} onValueChange={(v) => setFilters(f => ({ ...f, assigned_to: v || undefined }))}>
+                <SelectTrigger className="h-8 text-xs w-[130px] shrink-0"><SelectValue placeholder="Vendedor" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Todos</SelectItem>
+                  {sellers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Input type="date" className="h-8 text-xs w-[120px] shrink-0"
+                value={filters.start_date || ""} onChange={(e) => setFilters(f => ({ ...f, start_date: e.target.value || undefined }))} />
+              <Input type="date" className="h-8 text-xs w-[120px] shrink-0"
+                value={filters.end_date || ""} onChange={(e) => setFilters(f => ({ ...f, end_date: e.target.value || undefined }))} />
+            </div>
 
             <TabsContent value="returns" className="flex-1 overflow-y-auto px-4 pb-24">
               <h3 className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-1">
@@ -1564,6 +1617,13 @@ export default function Captador() {
               {Object.entries(STATUS_MAP).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
             </SelectContent>
           </Select>
+          <Select value={filters.segment || "all"} onValueChange={(v) => setFilters({ ...filters, segment: v === "all" ? undefined : v })}>
+            <SelectTrigger className="w-40"><SelectValue placeholder="Segmento" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos Segmentos</SelectItem>
+              {SEGMENTS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+            </SelectContent>
+          </Select>
           <Select value={filters.assigned_to || "all"} onValueChange={(v) => setFilters({ ...filters, assigned_to: v === "all" ? undefined : v, unassigned: false })}>
             <SelectTrigger className="w-48"><SelectValue placeholder="Vendedor" /></SelectTrigger>
             <SelectContent>
@@ -1571,6 +1631,10 @@ export default function Captador() {
               {sellers.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
             </SelectContent>
           </Select>
+          <Input type="date" className="w-40" value={filters.start_date || ""}
+            onChange={(e) => setFilters({ ...filters, start_date: e.target.value || undefined })} />
+          <Input type="date" className="w-40" value={filters.end_date || ""}
+            onChange={(e) => setFilters({ ...filters, end_date: e.target.value || undefined })} />
           {filters.unassigned && (
             <Badge variant="secondary" className="cursor-pointer" onClick={() => setFilters({ ...filters, unassigned: false })}>
               Sem vendedor ✕
@@ -1668,6 +1732,7 @@ function MobileCaptureCard({ capture, onSelect, onDelete, sellers, onAssign }: {
             <Badge className={`${st.color} text-[10px] px-1.5 py-0`}>{st.label}</Badge>
           </div>
           {capture.address && <p className="text-xs text-muted-foreground truncate flex items-center gap-0.5"><MapPin className="h-3 w-3" /> {capture.address}</p>}
+          {capture.segment && <Badge variant="secondary" className="text-[10px] mr-1">{capture.segment}</Badge>}
           {capture.construction_stage && <p className="text-xs text-muted-foreground">{capture.construction_stage}</p>}
           <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
             <span>{safeFormatDate(capture.created_at, "dd/MM HH:mm")}</span>

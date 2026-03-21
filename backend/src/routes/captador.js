@@ -133,7 +133,7 @@ router.get('/', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'Sem organização' });
 
-    const { status, user_id, assigned_to, unassigned, start_date, end_date } = req.query;
+    const { status, user_id, assigned_to, unassigned, start_date, end_date, segment } = req.query;
     let sql = `
       SELECT fc.*, u.name as created_by_name,
         au.name as assigned_to_name,
@@ -154,6 +154,7 @@ router.get('/', async (req, res) => {
     if (unassigned === 'true') { sql += ` AND fc.assigned_to IS NULL`; }
     if (start_date) { sql += ` AND fc.created_at >= $${idx++}`; params.push(start_date); }
     if (end_date) { sql += ` AND fc.created_at <= $${idx++}::date + interval '1 day'`; params.push(end_date); }
+    if (segment) { sql += ` AND fc.segment = $${idx++}`; params.push(segment); }
 
     sql += ` ORDER BY fc.created_at DESC`;
 
@@ -223,10 +224,10 @@ router.get('/map/points', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'Sem organização' });
 
-    const { user_id, start_date, end_date } = req.query;
+    const { user_id, start_date, end_date, segment } = req.query;
     let sql = `
       SELECT fc.id, fc.latitude, fc.longitude, fc.address, fc.company_name, fc.contact_name,
-        fc.construction_stage, fc.status, fc.created_at, u.name as created_by_name,
+        fc.construction_stage, fc.status, fc.segment, fc.created_at, u.name as created_by_name,
         au.name as assigned_to_name,
         (SELECT COUNT(*) FROM field_capture_visits fcv WHERE fcv.capture_id = fc.id) as visit_count,
         (SELECT fca.file_url FROM field_capture_attachments fca WHERE fca.capture_id = fc.id AND fca.file_type = 'photo' LIMIT 1) as thumbnail
@@ -241,6 +242,7 @@ router.get('/map/points', async (req, res) => {
     if (user_id) { sql += ` AND (fc.created_by = $${idx} OR fc.assigned_to = $${idx})`; params.push(user_id); idx++; }
     if (start_date) { sql += ` AND fc.created_at >= $${idx++}`; params.push(start_date); }
     if (end_date) { sql += ` AND fc.created_at <= $${idx++}::date + interval '1 day'`; params.push(end_date); }
+    if (segment) { sql += ` AND fc.segment = $${idx++}`; params.push(segment); }
 
     sql += ` ORDER BY fc.created_at DESC`;
     const result = await query(sql, params);
@@ -365,7 +367,7 @@ router.post('/', async (req, res) => {
       construction_stage, stage_notes,
       contact_name, contact_phone, contact_email, contact_role,
       company_name, company_cnpj,
-      notes, attachments,
+      notes, attachments, segment,
     } = req.body;
 
     // Check settings for auto-distribution
@@ -387,12 +389,12 @@ router.post('/', async (req, res) => {
     const result = await query(
       `INSERT INTO field_captures (organization_id, created_by, latitude, longitude, address,
         construction_stage, stage_notes, contact_name, contact_phone, contact_email, contact_role,
-        company_name, company_cnpj, notes, assigned_to)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+        company_name, company_cnpj, notes, assigned_to, segment)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
        RETURNING *`,
       [org.organization_id, req.userId, latitude, longitude, address,
        construction_stage, stage_notes, contact_name, contact_phone, contact_email, contact_role,
-       company_name, company_cnpj, notes, assignedTo]
+       company_name, company_cnpj, notes, assignedTo, segment || null]
     );
 
     const capture = result.rows[0];
@@ -437,7 +439,7 @@ router.put('/:id', async (req, res) => {
       construction_stage, stage_notes,
       contact_name, contact_phone, contact_email, contact_role,
       company_name, company_cnpj,
-      notes, status, deal_id, address, assigned_to,
+      notes, status, deal_id, address, assigned_to, segment,
     } = req.body;
 
     // Check if assignment changed to send notification
@@ -461,13 +463,14 @@ router.put('/:id', async (req, res) => {
         status = COALESCE($12, status),
         deal_id = COALESCE($13, deal_id),
         address = COALESCE($14, address),
-        assigned_to = $15
+        assigned_to = $15,
+        segment = COALESCE($16, segment)
        WHERE id = $1 AND organization_id = $2
        RETURNING *`,
       [req.params.id, org.organization_id, construction_stage, stage_notes,
        contact_name, contact_phone, contact_email, contact_role,
        company_name, company_cnpj, notes, status, deal_id, address,
-       assigned_to !== undefined ? assigned_to : null]
+       assigned_to !== undefined ? assigned_to : null, segment]
     );
 
     if (result.rows.length === 0) return res.status(404).json({ error: 'Não encontrado' });
