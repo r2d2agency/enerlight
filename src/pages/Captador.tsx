@@ -1098,6 +1098,16 @@ export default function Captador() {
             <div className="flex items-center justify-between">
               <h1 className="text-lg font-bold flex items-center gap-2">
                 <MapPin className="h-5 w-5 text-primary" /> Captador
+                {!isOnline && (
+                  <Badge variant="destructive" className="text-[10px] flex items-center gap-1">
+                    <WifiOff className="h-3 w-3" /> Offline
+                  </Badge>
+                )}
+                {isOnline && pendingCount > 0 && (
+                  <Badge variant="secondary" className="text-[10px]">
+                    Sincronizando {pendingCount}...
+                  </Badge>
+                )}
               </h1>
               <Button variant="ghost" size="icon" onClick={() => setShowSettings(!showSettings)}>
                 <Settings className="h-5 w-5" />
