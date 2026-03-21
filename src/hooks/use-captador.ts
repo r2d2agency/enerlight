@@ -6,6 +6,8 @@ export interface FieldCapture {
   organization_id: string;
   created_by: string;
   created_by_name: string;
+  assigned_to: string | null;
+  assigned_to_name: string | null;
   latitude: number | null;
   longitude: number | null;
   address: string | null;
@@ -43,14 +45,24 @@ export interface FieldCaptureDetail extends FieldCapture {
 interface CaptureFilters {
   status?: string;
   user_id?: string;
+  assigned_to?: string;
+  unassigned?: boolean;
   start_date?: string;
   end_date?: string;
+}
+
+export interface CaptadorSettings {
+  auto_distribute: boolean;
+  auto_create_task: boolean;
+  notify_whatsapp: boolean;
 }
 
 export function useFieldCaptures(filters?: CaptureFilters) {
   const params = new URLSearchParams();
   if (filters?.status) params.set("status", filters.status);
   if (filters?.user_id) params.set("user_id", filters.user_id);
+  if (filters?.assigned_to) params.set("assigned_to", filters.assigned_to);
+  if (filters?.unassigned) params.set("unassigned", "true");
   if (filters?.start_date) params.set("start_date", filters.start_date);
   if (filters?.end_date) params.set("end_date", filters.end_date);
   const qs = params.toString();
@@ -86,7 +98,7 @@ export function useFieldCaptureStats(userId?: string) {
   const params = userId ? `?user_id=${userId}` : "";
   return useQuery<{
     total_captures: number; new_count: number; in_progress_count: number;
-    converted_count: number; total_visits: number; total_scouts: number;
+    converted_count: number; unassigned_count: number; total_visits: number; total_scouts: number;
   }>({
     queryKey: ["field-capture-stats", userId],
     queryFn: () => api(`/api/captador/stats/summary${params}`),
@@ -149,5 +161,28 @@ export function useDeleteFieldCapture() {
       qc.invalidateQueries({ queryKey: ["field-capture-map"] });
       qc.invalidateQueries({ queryKey: ["field-capture-stats"] });
     },
+  });
+}
+
+export function useCaptadorSellers() {
+  return useQuery<{ id: string; name: string; whatsapp_phone: string }[]>({
+    queryKey: ["captador-sellers"],
+    queryFn: () => api("/api/captador/sellers"),
+  });
+}
+
+export function useCaptadorSettings() {
+  return useQuery<CaptadorSettings>({
+    queryKey: ["captador-settings"],
+    queryFn: () => api("/api/captador/settings"),
+  });
+}
+
+export function useUpdateCaptadorSettings() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Partial<CaptadorSettings>) =>
+      api("/api/captador/settings", { method: "PUT", body: JSON.stringify(data) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["captador-settings"] }),
   });
 }

@@ -3950,6 +3950,22 @@ RETURNS TRIGGER AS $$ BEGIN NEW.updated_at = NOW(); RETURN NEW; END; $$ LANGUAGE
 DROP TRIGGER IF EXISTS trigger_field_captures_updated_at ON field_captures;
 CREATE TRIGGER trigger_field_captures_updated_at BEFORE UPDATE ON field_captures FOR EACH ROW EXECUTE FUNCTION update_field_captures_updated_at();
 
+-- assigned_to column
+DO $$ BEGIN
+  ALTER TABLE field_captures ADD COLUMN IF NOT EXISTS assigned_to UUID REFERENCES users(id) ON DELETE SET NULL;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
+-- Captador settings table
+CREATE TABLE IF NOT EXISTS captador_settings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE UNIQUE,
+  auto_distribute BOOLEAN DEFAULT false,
+  auto_create_task BOOLEAN DEFAULT true,
+  notify_whatsapp BOOLEAN DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Permission column
 DO $$ BEGIN
   ALTER TABLE user_permissions ADD COLUMN IF NOT EXISTS can_view_captador BOOLEAN DEFAULT false;

@@ -1,7 +1,8 @@
 import express from 'express';
-import { query } from '../db.js';
+import { query, pool } from '../db.js';
 import { authenticate } from '../middleware/auth.js';
 import { logInfo, logError } from '../logger.js';
+import * as whatsappProvider from '../lib/whatsapp-provider.js';
 
 const router = express.Router();
 router.use(authenticate);
@@ -15,20 +16,133 @@ async function getUserOrg(userId) {
   return result.rows[0];
 }
 
+// Helper: Get org sellers for round-robin distribution
+async function getOrgSellers(orgId) {
+  const result = await query(
+    `SELECT u.id, u.name, u.whatsapp_phone FROM users u
+     JOIN organization_members om ON om.user_id = u.id
+     WHERE om.organization_id = $1 AND om.role IN ('agent', 'user', 'manager', 'supervisor')
+     ORDER BY u.name`,
+    [orgId]
+  );
+  return result.rows;
+}
+
+// Helper: Round-robin assignment
+async function getNextSeller(orgId) {
+  const sellers = await getOrgSellers(orgId);
+  if (sellers.length === 0) return null;
+
+  // Count current assignments to find the seller with fewest
+  const counts = await query(
+    `SELECT assigned_to, COUNT(*) as cnt FROM field_captures
+     WHERE organization_id = $1 AND assigned_to IS NOT NULL
+     GROUP BY assigned_to`,
+    [orgId]
+  );
+  const countMap = {};
+  counts.rows.forEach(r => { countMap[r.assigned_to] = parseInt(r.cnt); });
+
+  // Find seller with fewest assignments
+  let minCount = Infinity;
+  let chosen = sellers[0];
+  for (const s of sellers) {
+    const c = countMap[s.id] || 0;
+    if (c < minCount) { minCount = c; chosen = s; }
+  }
+  return chosen;
+}
+
+// Helper: Send WhatsApp notification
+async function notifyViaWhatsApp(orgId, userId, message) {
+  try {
+    const user = await query('SELECT whatsapp_phone FROM users WHERE id = $1', [userId]);
+    const phone = user.rows[0]?.whatsapp_phone;
+    if (!phone) return;
+
+    // Find an active connection
+    const conn = await query(
+      `SELECT * FROM connections WHERE organization_id = $1 AND status = 'connected' LIMIT 1`,
+      [orgId]
+    );
+    if (conn.rows.length === 0) return;
+
+    await whatsappProvider.sendMessage(conn.rows[0], phone, message, 'text');
+    logInfo('captador.whatsapp_notification_sent', { userId, phone });
+  } catch (err) {
+    logError('captador.whatsapp_notification_failed', err);
+  }
+}
+
+// Helper: Auto-create task card
+async function createTaskCard(orgId, userId, capture) {
+  try {
+    // Find a global board or the first board
+    let board = await query(
+      `SELECT tb.id FROM task_boards tb WHERE tb.organization_id = $1 AND tb.is_global = true LIMIT 1`,
+      [orgId]
+    );
+    if (board.rows.length === 0) {
+      board = await query(
+        `SELECT tb.id FROM task_boards tb WHERE tb.organization_id = $1 LIMIT 1`,
+        [orgId]
+      );
+    }
+    if (board.rows.length === 0) return null;
+
+    const boardId = board.rows[0].id;
+
+    // Find first column
+    const col = await query(
+      `SELECT id FROM task_board_columns WHERE board_id = $1 ORDER BY position LIMIT 1`,
+      [boardId]
+    );
+    if (col.rows.length === 0) return null;
+
+    const maxPos = await query(
+      `SELECT COALESCE(MAX(position), -1) + 1 as next_pos FROM task_cards WHERE column_id = $1`,
+      [col.rows[0].id]
+    );
+
+    const title = `📍 Captação: ${capture.company_name || capture.address || 'Nova obra'}`;
+    const desc = [
+      capture.address ? `Endereço: ${capture.address}` : '',
+      capture.construction_stage ? `Etapa: ${capture.construction_stage}` : '',
+      capture.contact_name ? `Contato: ${capture.contact_name}` : '',
+      capture.contact_phone ? `Tel: ${capture.contact_phone}` : '',
+      capture.notes || '',
+    ].filter(Boolean).join('\n');
+
+    const result = await pool.query(
+      `INSERT INTO task_cards (organization_id, board_id, column_id, position, title, description, assigned_to, created_by, priority, type)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'medium', 'task') RETURNING *`,
+      [orgId, boardId, col.rows[0].id, maxPos.rows[0].next_pos, title, desc, userId, userId]
+    );
+
+    logInfo('captador.task_created', { captureId: capture.id, taskId: result.rows[0].id });
+    return result.rows[0];
+  } catch (err) {
+    logError('captador.task_create_failed', err);
+    return null;
+  }
+}
+
 // GET /api/captador - List all captures
 router.get('/', async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'Sem organização' });
 
-    const { status, user_id, start_date, end_date } = req.query;
+    const { status, user_id, assigned_to, unassigned, start_date, end_date } = req.query;
     let sql = `
       SELECT fc.*, u.name as created_by_name,
+        au.name as assigned_to_name,
         (SELECT COUNT(*) FROM field_capture_visits fcv WHERE fcv.capture_id = fc.id) as visit_count,
         (SELECT json_agg(json_build_object('id', fca.id, 'file_url', fca.file_url, 'file_name', fca.file_name, 'file_type', fca.file_type))
          FROM field_capture_attachments fca WHERE fca.capture_id = fc.id) as attachments
       FROM field_captures fc
       JOIN users u ON u.id = fc.created_by
+      LEFT JOIN users au ON au.id = fc.assigned_to
       WHERE fc.organization_id = $1
     `;
     const params = [org.organization_id];
@@ -36,6 +150,8 @@ router.get('/', async (req, res) => {
 
     if (status) { sql += ` AND fc.status = $${idx++}`; params.push(status); }
     if (user_id) { sql += ` AND fc.created_by = $${idx++}`; params.push(user_id); }
+    if (assigned_to) { sql += ` AND fc.assigned_to = $${idx++}`; params.push(assigned_to); }
+    if (unassigned === 'true') { sql += ` AND fc.assigned_to IS NULL`; }
     if (start_date) { sql += ` AND fc.created_at >= $${idx++}`; params.push(start_date); }
     if (end_date) { sql += ` AND fc.created_at <= $${idx++}::date + interval '1 day'`; params.push(end_date); }
 
@@ -45,6 +161,58 @@ router.get('/', async (req, res) => {
     res.json(result.rows);
   } catch (error) {
     logError('captador.list', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/captador/sellers - Get org sellers for assignment
+router.get('/sellers', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+    const sellers = await getOrgSellers(org.organization_id);
+    res.json(sellers);
+  } catch (error) {
+    logError('captador.sellers', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/captador/settings - Get distribution settings
+router.get('/settings', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+    const result = await query(
+      `SELECT * FROM captador_settings WHERE organization_id = $1`,
+      [org.organization_id]
+    );
+    res.json(result.rows[0] || { auto_distribute: false, auto_create_task: true, notify_whatsapp: true });
+  } catch (error) {
+    // Table may not exist yet
+    res.json({ auto_distribute: false, auto_create_task: true, notify_whatsapp: true });
+  }
+});
+
+// PUT /api/captador/settings - Update distribution settings
+router.put('/settings', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+    const { auto_distribute, auto_create_task, notify_whatsapp } = req.body;
+    const result = await query(
+      `INSERT INTO captador_settings (organization_id, auto_distribute, auto_create_task, notify_whatsapp)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (organization_id) DO UPDATE SET
+         auto_distribute = EXCLUDED.auto_distribute,
+         auto_create_task = EXCLUDED.auto_create_task,
+         notify_whatsapp = EXCLUDED.notify_whatsapp
+       RETURNING *`,
+      [org.organization_id, auto_distribute ?? false, auto_create_task ?? true, notify_whatsapp ?? true]
+    );
+    res.json(result.rows[0]);
+  } catch (error) {
+    logError('captador.settings', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -59,16 +227,18 @@ router.get('/map/points', async (req, res) => {
     let sql = `
       SELECT fc.id, fc.latitude, fc.longitude, fc.address, fc.company_name, fc.contact_name,
         fc.construction_stage, fc.status, fc.created_at, u.name as created_by_name,
+        au.name as assigned_to_name,
         (SELECT COUNT(*) FROM field_capture_visits fcv WHERE fcv.capture_id = fc.id) as visit_count,
         (SELECT fca.file_url FROM field_capture_attachments fca WHERE fca.capture_id = fc.id AND fca.file_type = 'photo' LIMIT 1) as thumbnail
       FROM field_captures fc
       JOIN users u ON u.id = fc.created_by
+      LEFT JOIN users au ON au.id = fc.assigned_to
       WHERE fc.organization_id = $1 AND fc.latitude IS NOT NULL
     `;
     const params = [org.organization_id];
     let idx = 2;
 
-    if (user_id) { sql += ` AND fc.created_by = $${idx++}`; params.push(user_id); }
+    if (user_id) { sql += ` AND (fc.created_by = $${idx} OR fc.assigned_to = $${idx})`; params.push(user_id); idx++; }
     if (start_date) { sql += ` AND fc.created_at >= $${idx++}`; params.push(start_date); }
     if (end_date) { sql += ` AND fc.created_at <= $${idx++}::date + interval '1 day'`; params.push(end_date); }
 
@@ -98,6 +268,7 @@ router.get('/stats/summary', async (req, res) => {
         COUNT(CASE WHEN fc.status = 'new' THEN 1 END) as new_count,
         COUNT(CASE WHEN fc.status = 'in_progress' THEN 1 END) as in_progress_count,
         COUNT(CASE WHEN fc.status = 'converted' THEN 1 END) as converted_count,
+        COUNT(CASE WHEN fc.assigned_to IS NULL THEN 1 END) as unassigned_count,
         COUNT(DISTINCT fc.created_by) as total_scouts,
         (SELECT COUNT(*) FROM field_capture_visits fcv JOIN field_captures fc2 ON fc2.id = fcv.capture_id WHERE fc2.organization_id = $1${user_id ? ' AND fcv.visited_by = $2' : ''}) as total_visits
        FROM field_captures fc
@@ -119,9 +290,10 @@ router.get('/:id', async (req, res) => {
     if (!org) return res.status(403).json({ error: 'Sem organização' });
 
     const capture = await query(
-      `SELECT fc.*, u.name as created_by_name
+      `SELECT fc.*, u.name as created_by_name, au.name as assigned_to_name
        FROM field_captures fc
        JOIN users u ON u.id = fc.created_by
+       LEFT JOIN users au ON au.id = fc.assigned_to
        WHERE fc.id = $1 AND fc.organization_id = $2`,
       [req.params.id, org.organization_id]
     );
@@ -168,15 +340,31 @@ router.post('/', async (req, res) => {
       notes, attachments,
     } = req.body;
 
+    // Check settings for auto-distribution
+    let assignedTo = null;
+    let settings = { auto_distribute: false, auto_create_task: true, notify_whatsapp: true };
+    try {
+      const settingsRes = await query(
+        `SELECT * FROM captador_settings WHERE organization_id = $1`,
+        [org.organization_id]
+      );
+      if (settingsRes.rows.length > 0) settings = settingsRes.rows[0];
+    } catch { /* table may not exist */ }
+
+    if (settings.auto_distribute) {
+      const seller = await getNextSeller(org.organization_id);
+      if (seller) assignedTo = seller.id;
+    }
+
     const result = await query(
       `INSERT INTO field_captures (organization_id, created_by, latitude, longitude, address,
         construction_stage, stage_notes, contact_name, contact_phone, contact_email, contact_role,
-        company_name, company_cnpj, notes)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+        company_name, company_cnpj, notes, assigned_to)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
        RETURNING *`,
       [org.organization_id, req.userId, latitude, longitude, address,
        construction_stage, stage_notes, contact_name, contact_phone, contact_email, contact_role,
-       company_name, company_cnpj, notes]
+       company_name, company_cnpj, notes, assignedTo]
     );
 
     const capture = result.rows[0];
@@ -192,7 +380,18 @@ router.post('/', async (req, res) => {
       }
     }
 
-    logInfo('captador.created', { id: capture.id });
+    // Auto-create task
+    if (settings.auto_create_task) {
+      await createTaskCard(org.organization_id, assignedTo || req.userId, capture);
+    }
+
+    // WhatsApp notification
+    if (settings.notify_whatsapp && assignedTo) {
+      const msg = `📍 *Nova Ficha de Campo*\n\n${company_name ? `🏢 ${company_name}\n` : ''}${address ? `📍 ${address}\n` : ''}${construction_stage ? `🔧 Etapa: ${construction_stage}\n` : ''}${contact_name ? `👤 ${contact_name}\n` : ''}${contact_phone ? `📞 ${contact_phone}\n` : ''}\nFicha atribuída para você. Acesse o sistema para mais detalhes.`;
+      await notifyViaWhatsApp(org.organization_id, assignedTo, msg);
+    }
+
+    logInfo('captador.created', { id: capture.id, assigned_to: assignedTo });
     res.json(capture);
   } catch (error) {
     logError('captador.create', error);
@@ -210,8 +409,15 @@ router.put('/:id', async (req, res) => {
       construction_stage, stage_notes,
       contact_name, contact_phone, contact_email, contact_role,
       company_name, company_cnpj,
-      notes, status, deal_id, address,
+      notes, status, deal_id, address, assigned_to,
     } = req.body;
+
+    // Check if assignment changed to send notification
+    let oldCapture = null;
+    if (assigned_to !== undefined) {
+      const old = await query(`SELECT assigned_to FROM field_captures WHERE id = $1`, [req.params.id]);
+      oldCapture = old.rows[0];
+    }
 
     const result = await query(
       `UPDATE field_captures SET
@@ -226,15 +432,25 @@ router.put('/:id', async (req, res) => {
         notes = COALESCE($11, notes),
         status = COALESCE($12, status),
         deal_id = COALESCE($13, deal_id),
-        address = COALESCE($14, address)
+        address = COALESCE($14, address),
+        assigned_to = $15
        WHERE id = $1 AND organization_id = $2
        RETURNING *`,
       [req.params.id, org.organization_id, construction_stage, stage_notes,
        contact_name, contact_phone, contact_email, contact_role,
-       company_name, company_cnpj, notes, status, deal_id, address]
+       company_name, company_cnpj, notes, status, deal_id, address,
+       assigned_to !== undefined ? assigned_to : null]
     );
 
     if (result.rows.length === 0) return res.status(404).json({ error: 'Não encontrado' });
+
+    // Notify new assignee via WhatsApp
+    if (assigned_to && oldCapture && oldCapture.assigned_to !== assigned_to) {
+      const capture = result.rows[0];
+      const msg = `📍 *Ficha de Campo Atribuída*\n\n${capture.company_name ? `🏢 ${capture.company_name}\n` : ''}${capture.address ? `📍 ${capture.address}\n` : ''}${capture.construction_stage ? `🔧 Etapa: ${capture.construction_stage}\n` : ''}\nUma ficha foi atribuída para você.`;
+      await notifyViaWhatsApp(org.organization_id, assigned_to, msg);
+    }
+
     res.json(result.rows[0]);
   } catch (error) {
     logError('captador.update', error);
@@ -282,13 +498,11 @@ router.post('/:id/visits', async (req, res) => {
 
     const visit = result.rows[0];
 
-    // Update main capture stage
     await query(
       `UPDATE field_captures SET construction_stage = $2 WHERE id = $1`,
       [req.params.id, construction_stage]
     );
 
-    // Save visit attachments
     if (attachments?.length) {
       for (const att of attachments) {
         await query(
@@ -319,6 +533,5 @@ router.delete('/:id', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-
 
 export default router;
