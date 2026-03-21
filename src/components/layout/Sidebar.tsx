@@ -357,6 +357,11 @@ function SidebarContentComponent({ isExpanded, isSuperadmin, onNavigate }: Sideb
         {/* Dashboard - always visible */}
         {renderNavItem({ name: "Dashboard", href: "/dashboard", icon: LayoutDashboard })}
 
+        {/* Direct Captador link for captador-only users (mobile quick access) */}
+        {modulesEnabled.captador && hasPermission('can_view_captador') && (
+          renderNavItem({ name: "Captador", href: "/captador", icon: MapPin })
+        )}
+
         {/* Sections */}
         {filteredSections.map((section) => {
           const isOpen = openSections.includes(section.title);
