@@ -197,6 +197,12 @@ export function CaptadorDashboard() {
           )}
         </CardContent>
       </Card>
+
+      {/* FAB - Nova Captação flutuante */}
+      <button onClick={() => navigate("/captador")}
+        className="fixed bottom-20 right-4 z-40 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center active:scale-95 transition-transform">
+        <Plus className="h-6 w-6" />
+      </button>
     </div>
   );
 }
