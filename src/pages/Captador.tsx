@@ -1316,7 +1316,7 @@ export default function Captador() {
             </TabsContent>
 
             <TabsContent value="map" className="flex-1 px-4 pb-4">
-              <CaptadorMap points={mapPoints} onSelect={setSelectedId} />
+              <CaptadorMap points={mapPoints.length > 0 ? mapPoints : captures.filter(c => c.latitude && c.longitude)} onSelect={setSelectedId} />
             </TabsContent>
           </Tabs>
 
