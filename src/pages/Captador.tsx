@@ -887,7 +887,7 @@ function CaptureDetailDialog({ captureId, open, onClose }: { captureId: string |
           <TabsContent value="info" className="space-y-3 mt-3">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
               <div><span className="text-muted-foreground">Captador:</span> {capture.created_by_name}</div>
-              <div><span className="text-muted-foreground">Data:</span> {format(new Date(capture.created_at), "dd/MM/yyyy HH:mm")}</div>
+              <div><span className="text-muted-foreground">Data:</span> {safeFormatDate(capture.created_at, "dd/MM/yyyy HH:mm")}</div>
               <div><span className="text-muted-foreground">Endereço:</span> {capture.address || "—"}</div>
               <div><span className="text-muted-foreground">Etapa:</span> {capture.construction_stage || "—"}</div>
             </div>
