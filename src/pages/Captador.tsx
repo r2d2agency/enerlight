@@ -280,7 +280,7 @@ function MobileCaptureForm({ open, onClose, onSuccess }: { open: boolean; onClos
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {step === 0 && (
           <div className="space-y-4">
-            <div className="text-center py-8">
+            <div className="text-center py-6">
               <Navigation className="h-16 w-16 mx-auto text-primary mb-4" />
               <h3 className="text-xl font-semibold mb-2">Capturar Localização</h3>
               <p className="text-muted-foreground text-sm mb-6">
@@ -295,8 +295,23 @@ function MobileCaptureForm({ open, onClose, onSuccess }: { open: boolean; onClos
                 </p>
               )}
             </div>
-            <Input placeholder="Endereço / Referência" value={form.address}
-              onChange={(e) => setForm({ ...form, address: e.target.value })} className="text-base h-12" />
+            <div className="space-y-3">
+              <h4 className="text-sm font-medium text-muted-foreground">Endereço</h4>
+              <div className="grid grid-cols-3 gap-2">
+                <Input placeholder="Rua" value={form.street} className="col-span-2 h-12 text-base"
+                  onChange={(e) => setForm({ ...form, street: e.target.value })} />
+                <Input placeholder="Nº" value={form.number} className="h-12 text-base"
+                  onChange={(e) => setForm({ ...form, number: e.target.value })} />
+              </div>
+              <Input placeholder="Bairro" value={form.neighborhood} className="h-12 text-base"
+                onChange={(e) => setForm({ ...form, neighborhood: e.target.value })} />
+              <div className="grid grid-cols-3 gap-2">
+                <Input placeholder="Cidade" value={form.city} className="col-span-2 h-12 text-base"
+                  onChange={(e) => setForm({ ...form, city: e.target.value })} />
+                <Input placeholder="UF" value={form.state} className="h-12 text-base" maxLength={2}
+                  onChange={(e) => setForm({ ...form, state: e.target.value.toUpperCase() })} />
+              </div>
+            </div>
           </div>
         )}
 
@@ -330,7 +345,6 @@ function MobileCaptureForm({ open, onClose, onSuccess }: { open: boolean; onClos
               </div>
             )}
 
-            {/* Audio */}
             <div className="pt-4 border-t">
               <Button onClick={() => audioInputRef.current?.click()} disabled={isUploading}
                 size="lg" className="w-full h-12" variant="outline">
@@ -370,24 +384,43 @@ function MobileCaptureForm({ open, onClose, onSuccess }: { open: boolean; onClos
               onChange={(e) => setForm({ ...form, stage_notes: e.target.value })} rows={3} className="text-base" />
             <Input placeholder="Nome da Empresa" value={form.company_name}
               onChange={(e) => setForm({ ...form, company_name: e.target.value })} className="h-12 text-base" />
-            <Input placeholder="CNPJ" value={form.company_cnpj}
-              onChange={(e) => setForm({ ...form, company_cnpj: e.target.value })} className="h-12 text-base" />
+            <Input placeholder="CNPJ" value={form.company_cnpj_display} className="h-12 text-base"
+              onChange={(e) => setForm({ ...form, company_cnpj: e.target.value.replace(/\D/g, ""), company_cnpj_display: applyCnpjMask(e.target.value) })} />
           </div>
         )}
 
         {step === 3 && (
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold flex items-center gap-2">
-              <User className="h-5 w-5" /> Contato / Responsável
-            </h3>
-            <Input placeholder="Nome" value={form.contact_name}
-              onChange={(e) => setForm({ ...form, contact_name: e.target.value })} className="h-12 text-base" />
-            <Input placeholder="Cargo (ex: Engenheiro)" value={form.contact_role}
-              onChange={(e) => setForm({ ...form, contact_role: e.target.value })} className="h-12 text-base" />
-            <Input placeholder="Telefone" value={form.contact_phone} type="tel"
-              onChange={(e) => setForm({ ...form, contact_phone: e.target.value })} className="h-12 text-base" />
-            <Input placeholder="E-mail" value={form.contact_email} type="email"
-              onChange={(e) => setForm({ ...form, contact_email: e.target.value })} className="h-12 text-base" />
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <User className="h-5 w-5" /> Contatos
+              </h3>
+              <Button size="sm" variant="outline" onClick={addContact}>
+                <Plus className="h-4 w-4 mr-1" /> Adicionar
+              </Button>
+            </div>
+            {contacts.map((contact, idx) => (
+              <div key={idx} className="border rounded-lg p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-muted-foreground">
+                    {idx === 0 ? "Contato Principal" : `Contato ${idx + 1}`}
+                  </span>
+                  {idx > 0 && (
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => removeContact(idx)}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  )}
+                </div>
+                <Input placeholder="Nome" value={contact.name} className="h-12 text-base"
+                  onChange={(e) => updateContact(idx, "name", e.target.value)} />
+                <Input placeholder="Cargo (ex: Engenheiro)" value={contact.role} className="h-12 text-base"
+                  onChange={(e) => updateContact(idx, "role", e.target.value)} />
+                <Input placeholder="(XX) XXXXX-XXXX" value={contact.phoneDisplay} type="tel" className="h-12 text-base"
+                  onChange={(e) => updateContact(idx, "phone", e.target.value)} />
+                <Input placeholder="E-mail" value={contact.email} type="email" className="h-12 text-base"
+                  onChange={(e) => updateContact(idx, "email", e.target.value)} />
+              </div>
+            ))}
           </div>
         )}
 
