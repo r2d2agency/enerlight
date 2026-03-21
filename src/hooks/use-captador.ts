@@ -69,6 +69,7 @@ export function useFieldCaptures(filters?: CaptureFilters) {
   if (filters?.unassigned) params.set("unassigned", "true");
   if (filters?.start_date) params.set("start_date", filters.start_date);
   if (filters?.end_date) params.set("end_date", filters.end_date);
+  if (filters?.segment) params.set("segment", filters.segment);
   const qs = params.toString();
 
   return useQuery<FieldCapture[]>({
