@@ -188,3 +188,23 @@ export function useUpdateCaptadorSettings() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["captador-settings"] }),
   });
 }
+
+export function useTodayReturns() {
+  return useQuery<FieldCapture[]>({
+    queryKey: ["captador-returns-today"],
+    queryFn: () => api("/api/captador/returns/today"),
+  });
+}
+
+export function useScheduleReturn() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, return_date, return_notes }: { id: string; return_date: string; return_notes?: string }) =>
+      api(`/api/captador/${id}/schedule-return`, { method: "POST", body: { return_date, return_notes } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["field-captures"] });
+      qc.invalidateQueries({ queryKey: ["field-capture"] });
+      qc.invalidateQueries({ queryKey: ["captador-returns-today"] });
+    },
+  });
+}
