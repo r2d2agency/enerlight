@@ -32,6 +32,66 @@ import {
 import { format } from "date-fns";
 import { safeFormatDate } from "@/lib/utils";
 
+// ─── Haversine distance in meters ───
+function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// ─── Return Check-in Button (200m radius) ───
+function ReturnCheckinButton({ capture, onCheckin }: { capture: FieldCapture; onCheckin: (id: string) => void }) {
+  const [loading, setLoading] = useState(false);
+  const [distance, setDistance] = useState<number | null>(null);
+  const [error, setError] = useState("");
+  const { toast } = useToast();
+
+  const handleCheckin = async () => {
+    if (!capture.latitude || !capture.longitude) {
+      toast({ title: "Ficha sem coordenadas GPS", variant: "destructive" });
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 })
+      );
+      const dist = haversineDistance(pos.coords.latitude, pos.coords.longitude, capture.latitude!, capture.longitude!);
+      setDistance(Math.round(dist));
+      if (dist <= 200) {
+        onCheckin(capture.id);
+        toast({ title: "✅ Check-in no local realizado!" });
+      } else {
+        setError(`Você está a ${Math.round(dist)}m do local. Máximo: 200m.`);
+        toast({ title: `Muito longe: ${Math.round(dist)}m`, description: "Aproxime-se a menos de 200m do local.", variant: "destructive" });
+      }
+    } catch {
+      setError("Não foi possível obter sua localização. Ative o GPS.");
+      toast({ title: "Erro de GPS", description: "Ative a localização.", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="mt-2 space-y-1">
+      <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); handleCheckin(); }} disabled={loading}
+        className="w-full border-green-500/50 text-green-600 hover:bg-green-500/10">
+        <CheckCircle2 className="h-4 w-4 mr-1" />
+        {loading ? "Verificando GPS..." : "Check-in no Local"}
+      </Button>
+      {distance !== null && distance <= 200 && (
+        <p className="text-[10px] text-green-500 text-center">✅ Confirmado a {distance}m do local</p>
+      )}
+      {error && <p className="text-[10px] text-destructive text-center">{error}</p>}
+    </div>
+  );
+}
+
 // ─── Phone Mask Utility ───
 function applyPhoneMask(value: string): string {
   const digits = value.replace(/\D/g, "").slice(0, 11);
@@ -1179,6 +1239,22 @@ export default function Captador() {
     toast({ title: sellerId ? "Vendedor atribuído!" : "Atribuição removida" });
   };
 
+  const addVisitForReturn = useAddFieldCaptureVisit();
+  const handleReturnCheckin = async (captureId: string) => {
+    try {
+      const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true })
+      );
+      await addVisitForReturn.mutateAsync({
+        captureId,
+        construction_stage: "Retorno agendado",
+        notes: "Check-in no local confirmado via GPS",
+        latitude: pos.coords.latitude,
+        longitude: pos.coords.longitude,
+      });
+    } catch { /* handled by ReturnCheckinButton */ }
+  };
+
   // ─── Mobile Layout ───
   if (isMobile) {
     return (
@@ -1270,9 +1346,8 @@ export default function Captador() {
               ) : (
                 <div className="space-y-2">
                   {todayReturns.map((c) => (
-                    <div key={c.id} className="bg-card rounded-xl border border-amber-500/30 p-3 active:bg-muted/50 transition-colors"
-                      onClick={() => setSelectedId(c.id)}>
-                      <div className="flex items-start gap-3">
+                    <div key={c.id} className="bg-card rounded-xl border border-amber-500/30 p-3 transition-colors">
+                      <div className="flex items-start gap-3" onClick={() => setSelectedId(c.id)}>
                         <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
                           <Clock className="h-5 w-5 text-amber-500" />
                         </div>
@@ -1284,6 +1359,7 @@ export default function Captador() {
                         </div>
                         <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 mt-1" />
                       </div>
+                      <ReturnCheckinButton capture={c} onCheckin={handleReturnCheckin} />
                     </div>
                   ))}
                 </div>
