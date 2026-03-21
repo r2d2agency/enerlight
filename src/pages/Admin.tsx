@@ -1142,6 +1142,9 @@ export default function Admin() {
                         {plan.has_lead_gleego && (
                           <Badge variant="secondary" className="text-xs">Lead Gleego</Badge>
                         )}
+                        {plan.has_captador && (
+                          <Badge variant="secondary" className="text-xs">Captador</Badge>
+                        )}
                       </div>
                       <div className="flex items-center justify-between pt-2 border-t">
                         <span className="text-sm text-muted-foreground">
