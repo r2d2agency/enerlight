@@ -12,6 +12,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { useUpload } from "@/hooks/use-upload";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAudioRecorder } from "@/hooks/use-audio-recorder";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
   useFieldCaptures, useFieldCaptureDetail, useFieldCaptureMapPoints,
@@ -25,7 +26,7 @@ import {
   MapPin, Camera, Mic, Plus, Eye, User, Building2,
   Phone, Mail, FileText, Trash2, Navigation, Image, AudioLines,
   ClipboardList, Settings, UserPlus, Users, LogIn, LogOut, Clock,
-  ChevronRight, CheckCircle2, Circle, ArrowLeft,
+  ChevronRight, CheckCircle2, Circle, ArrowLeft, WifiOff, Wifi, Square,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -130,18 +131,83 @@ function useCheckin() {
   return { checkedIn, checkinTime, checkinLocation, doCheckin, doCheckout };
 }
 
+// ─── Offline Queue ───
+const OFFLINE_QUEUE_KEY = "captador_offline_queue";
+
+function getOfflineQueue(): any[] {
+  try {
+    return JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY) || "[]");
+  } catch { return []; }
+}
+
+function addToOfflineQueue(data: any) {
+  const queue = getOfflineQueue();
+  queue.push({ ...data, _offlineId: Date.now().toString(), _createdAt: new Date().toISOString() });
+  localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
+}
+
+function removeFromOfflineQueue(offlineId: string) {
+  const queue = getOfflineQueue().filter((item) => item._offlineId !== offlineId);
+  localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
+}
+
+function useOfflineSync(createCapture: any, onSuccess: () => void) {
+  const { toast } = useToast();
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [pendingCount, setPendingCount] = useState(getOfflineQueue().length);
+
+  useEffect(() => {
+    const goOnline = () => setIsOnline(true);
+    const goOffline = () => setIsOnline(false);
+    window.addEventListener("online", goOnline);
+    window.addEventListener("offline", goOffline);
+    return () => { window.removeEventListener("online", goOnline); window.removeEventListener("offline", goOffline); };
+  }, []);
+
+  // Sync when back online
+  useEffect(() => {
+    if (!isOnline) return;
+    const queue = getOfflineQueue();
+    if (queue.length === 0) return;
+
+    const syncAll = async () => {
+      let synced = 0;
+      for (const item of queue) {
+        try {
+          const { _offlineId, _createdAt, ...data } = item;
+          await createCapture.mutateAsync(data);
+          removeFromOfflineQueue(_offlineId);
+          synced++;
+        } catch (err) {
+          console.error("[Offline sync] failed for item", item._offlineId, err);
+        }
+      }
+      setPendingCount(getOfflineQueue().length);
+      if (synced > 0) {
+        toast({ title: `✅ ${synced} ficha(s) sincronizada(s)!` });
+        onSuccess();
+      }
+    };
+    syncAll();
+  }, [isOnline]);
+
+  const refreshCount = () => setPendingCount(getOfflineQueue().length);
+
+  return { isOnline, pendingCount, refreshCount };
+}
+
 // ─── Mobile Capture Form (Full Screen) ───
-function MobileCaptureForm({ open, onClose, onSuccess }: { open: boolean; onClose: () => void; onSuccess: () => void }) {
+function MobileCaptureForm({ open, onClose, onSuccess, isOnline }: { open: boolean; onClose: () => void; onSuccess: () => void; isOnline?: boolean }) {
   const { toast } = useToast();
   const { uploadFile, isUploading } = useUpload();
   const createCapture = useCreateFieldCapture();
+  const audioRecorder = useAudioRecorder();
   const [step, setStep] = useState(0);
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [loadingLocation, setLoadingLocation] = useState(false);
   const [photos, setPhotos] = useState<{ file_url: string; file_name: string; file_type: string; mime_type: string }[]>([]);
   const [audios, setAudios] = useState<{ file_url: string; file_name: string; file_type: string; mime_type: string }[]>([]);
   const cameraInputRef = useRef<HTMLInputElement>(null);
-  const audioInputRef = useRef<HTMLInputElement>(null);
 
   const emptyContact = (): ContactItem => ({ name: "", phone: "", phoneDisplay: "", email: "", role: "" });
 
@@ -220,13 +286,26 @@ function MobileCaptureForm({ open, onClose, onSuccess }: { open: boolean; onClos
     if (cameraInputRef.current) cameraInputRef.current.value = "";
   };
 
-  const handleAudioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
-    for (const file of Array.from(files)) {
-      const url = await uploadFile(file);
-      if (url) setAudios((prev) => [...prev, { file_url: url, file_name: file.name, file_type: "audio", mime_type: file.type }]);
-    }
+  const handleStopAndSaveAudio = async () => {
+    audioRecorder.stopRecording();
+    // Wait for blob to be available
+    setTimeout(async () => {
+      const blob = audioRecorder.audioBlob;
+      if (!blob) return;
+      const file = new File([blob], `audio_${Date.now()}.webm`, { type: blob.type || "audio/webm" });
+      if (isOnline !== false) {
+        const url = await uploadFile(file);
+        if (url) setAudios((prev) => [...prev, { file_url: url, file_name: file.name, file_type: "audio", mime_type: file.type }]);
+      } else {
+        // Store as base64 for offline
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setAudios((prev) => [...prev, { file_url: reader.result as string, file_name: file.name, file_type: "audio", mime_type: file.type }]);
+        };
+        reader.readAsDataURL(file);
+      }
+      audioRecorder.clearAudio();
+    }, 300);
   };
 
   const handleSubmit = async () => {
@@ -241,29 +320,43 @@ function MobileCaptureForm({ open, onClose, onSuccess }: { open: boolean; onClos
     const primary = contacts[0] || emptyContact();
     const extraContacts = contacts.slice(1).filter(c => c.name || c.phone);
 
+    const captureData = {
+      address,
+      construction_stage: form.construction_stage,
+      stage_notes: form.stage_notes,
+      contact_name: primary.name,
+      contact_phone: primary.phone,
+      contact_email: primary.email,
+      contact_role: primary.role,
+      company_name: form.company_name,
+      company_cnpj: form.company_cnpj,
+      notes: extraContacts.length > 0
+        ? `${form.notes}\n\n--- Contatos Adicionais ---\n${extraContacts.map(c => `${c.name} | ${applyPhoneMask(c.phone)} | ${c.role} | ${c.email}`).join("\n")}`.trim()
+        : form.notes,
+      latitude: location?.lat,
+      longitude: location?.lng,
+      attachments: [...photos, ...audios],
+    };
+
+    if (isOnline === false) {
+      addToOfflineQueue(captureData);
+      toast({ title: "📱 Ficha salva offline!", description: "Será sincronizada quando voltar online." });
+      onSuccess();
+      onClose();
+      return;
+    }
+
     try {
-      await createCapture.mutateAsync({
-        address,
-        construction_stage: form.construction_stage,
-        stage_notes: form.stage_notes,
-        contact_name: primary.name,
-        contact_phone: primary.phone,
-        contact_email: primary.email,
-        contact_role: primary.role,
-        company_name: form.company_name,
-        company_cnpj: form.company_cnpj,
-        notes: extraContacts.length > 0
-          ? `${form.notes}\n\n--- Contatos Adicionais ---\n${extraContacts.map(c => `${c.name} | ${applyPhoneMask(c.phone)} | ${c.role} | ${c.email}`).join("\n")}`.trim()
-          : form.notes,
-        latitude: location?.lat,
-        longitude: location?.lng,
-        attachments: [...photos, ...audios],
-      });
+      await createCapture.mutateAsync(captureData);
       toast({ title: "✅ Ficha criada com sucesso!" });
       onSuccess();
       onClose();
     } catch {
-      toast({ title: "Erro ao criar ficha", variant: "destructive" });
+      // If network fails, save offline
+      addToOfflineQueue(captureData);
+      toast({ title: "📱 Sem conexão, ficha salva offline!", description: "Será sincronizada automaticamente." });
+      onSuccess();
+      onClose();
     }
   };
 
@@ -365,15 +458,39 @@ function MobileCaptureForm({ open, onClose, onSuccess }: { open: boolean; onClos
               </div>
             )}
 
-            <div className="pt-4 border-t">
-              <Button onClick={() => audioInputRef.current?.click()} disabled={isUploading}
-                size="lg" className="w-full h-12" variant="outline">
-                <Mic className="h-5 w-5 mr-2" /> Gravar / Enviar Áudio
-              </Button>
-              <input ref={audioInputRef} type="file" accept="audio/*"
-                className="hidden" onChange={handleAudioUpload} />
+            <div className="pt-4 border-t space-y-3">
+              <h4 className="text-sm font-medium flex items-center gap-2">
+                <Mic className="h-4 w-4" /> Áudio
+              </h4>
+              {!audioRecorder.isRecording ? (
+                <Button onClick={() => audioRecorder.startRecording()}
+                  size="lg" className="w-full h-14 text-base" variant="outline">
+                  <Mic className="h-5 w-5 mr-2 text-destructive" /> Gravar Áudio
+                </Button>
+              ) : (
+                <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-4 space-y-3">
+                  <div className="flex items-center justify-center gap-3">
+                    <div className="h-3 w-3 rounded-full bg-destructive animate-pulse" />
+                    <span className="text-lg font-mono font-bold">{audioRecorder.formatDuration(audioRecorder.duration)}</span>
+                  </div>
+                  <div className="flex items-center justify-center gap-0.5 h-8">
+                    {audioRecorder.audioLevels.map((level, i) => (
+                      <div key={i} className="w-1.5 bg-destructive rounded-full transition-all duration-75"
+                        style={{ height: `${Math.max(4, level * 32)}px` }} />
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="ghost" className="flex-1" onClick={() => audioRecorder.cancelRecording()}>
+                      <Trash2 className="h-4 w-4 mr-1" /> Cancelar
+                    </Button>
+                    <Button variant="destructive" className="flex-1" onClick={handleStopAndSaveAudio}>
+                      <Square className="h-4 w-4 mr-1" /> Parar e Salvar
+                    </Button>
+                  </div>
+                </div>
+              )}
               {audios.length > 0 && (
-                <div className="space-y-1 mt-2">
+                <div className="space-y-1">
                   {audios.map((a, i) => (
                     <div key={i} className="flex items-center gap-2 text-sm bg-muted rounded-lg px-3 py-2">
                       <AudioLines className="h-4 w-4 shrink-0" />
@@ -926,6 +1043,7 @@ export default function Captador() {
   const [filters, setFilters] = useState<{ status?: string; assigned_to?: string; unassigned?: boolean }>({});
 
   const { checkedIn, checkinTime, doCheckin, doCheckout } = useCheckin();
+  const createCaptureForSync = useCreateFieldCapture();
 
   const { data: captures = [], refetch } = useFieldCaptures(filters);
   const { data: stats } = useFieldCaptureStats();
@@ -936,6 +1054,8 @@ export default function Captador() {
   const updateSettings = useUpdateCaptadorSettings();
   const updateCapture = useUpdateFieldCapture();
   const deleteCapture = useDeleteFieldCapture();
+
+  const { isOnline, pendingCount, refreshCount } = useOfflineSync(createCaptureForSync, () => refetch());
 
   const todayCaptures = captures.filter((c) => {
     const today = new Date();
@@ -978,6 +1098,16 @@ export default function Captador() {
             <div className="flex items-center justify-between">
               <h1 className="text-lg font-bold flex items-center gap-2">
                 <MapPin className="h-5 w-5 text-primary" /> Captador
+                {!isOnline && (
+                  <Badge variant="destructive" className="text-[10px] flex items-center gap-1">
+                    <WifiOff className="h-3 w-3" /> Offline
+                  </Badge>
+                )}
+                {isOnline && pendingCount > 0 && (
+                  <Badge variant="secondary" className="text-[10px]">
+                    Sincronizando {pendingCount}...
+                  </Badge>
+                )}
               </h1>
               <Button variant="ghost" size="icon" onClick={() => setShowSettings(!showSettings)}>
                 <Settings className="h-5 w-5" />
@@ -1115,7 +1245,7 @@ export default function Captador() {
             <Plus className="h-6 w-6" />
           </button>
 
-          <MobileCaptureForm open={showForm} onClose={() => setShowForm(false)} onSuccess={() => refetch()} />
+          <MobileCaptureForm open={showForm} onClose={() => { setShowForm(false); refreshCount(); }} onSuccess={() => { refetch(); refreshCount(); }} isOnline={isOnline} />
           <CaptureDetailDialog captureId={selectedId} open={!!selectedId} onClose={() => setSelectedId(null)} />
 
           {/* Settings Panel */}

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,7 @@ const STATUS_MAP: Record<string, { label: string; color: string; bg: string }> =
 
 export function CaptadorDashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { data: stats } = useFieldCaptureStats(user?.id);
   const { data: todayReturns = [] } = useTodayReturns();
   const { data: recentCaptures = [] } = useFieldCaptures();
@@ -195,6 +197,12 @@ export function CaptadorDashboard() {
           )}
         </CardContent>
       </Card>
+
+      {/* FAB - Nova Captação flutuante */}
+      <button onClick={() => navigate("/captador")}
+        className="fixed bottom-20 right-4 z-40 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center active:scale-95 transition-transform">
+        <Plus className="h-6 w-6" />
+      </button>
     </div>
   );
 }
