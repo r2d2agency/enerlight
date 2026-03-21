@@ -935,11 +935,25 @@ function CaptureDetailDialog({ captureId, open, onClose }: { captureId: string |
             {capture.attachments && capture.attachments.length > 0 ? (
               <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                 {capture.attachments.map((att) => (
-                  <div key={att.id} className="border rounded overflow-hidden">
+                  <div key={att.id} className="border rounded overflow-hidden relative group">
                     {att.file_type === "photo" ? (
-                      <a href={att.file_url} target="_blank" rel="noopener"><img src={att.file_url} alt={att.file_name} className="w-full h-32 object-cover" /></a>
+                      <>
+                        <a href={att.file_url} target="_blank" rel="noopener"><img src={att.file_url} alt={att.file_name} className="w-full h-32 object-cover" /></a>
+                        <a href={att.file_url} download={att.file_name || "foto.jpg"} target="_blank" rel="noopener"
+                          className="absolute bottom-1 right-1 bg-background/80 backdrop-blur rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity shadow">
+                          <Download className="h-3.5 w-3.5" />
+                        </a>
+                      </>
                     ) : att.file_type === "audio" ? (
-                      <div className="p-2"><audio controls src={att.file_url} className="w-full" /><p className="text-xs truncate mt-1">{att.file_name}</p></div>
+                      <div className="p-2">
+                        <audio controls src={att.file_url} className="w-full" />
+                        <div className="flex items-center justify-between mt-1">
+                          <p className="text-xs truncate flex-1">{att.file_name}</p>
+                          <a href={att.file_url} download={att.file_name} target="_blank" rel="noopener" className="ml-1">
+                            <Download className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+                          </a>
+                        </div>
+                      </div>
                     ) : (
                       <a href={att.file_url} target="_blank" rel="noopener" className="p-3 flex items-center gap-2 text-sm"><FileText className="h-4 w-4" /> {att.file_name}</a>
                     )}
