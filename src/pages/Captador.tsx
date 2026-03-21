@@ -30,6 +30,7 @@ import {
   ChevronRight, CheckCircle2, Circle, ArrowLeft, WifiOff, Wifi, Square, Download,
 } from "lucide-react";
 import { format } from "date-fns";
+import { safeFormatDate } from "@/lib/utils";
 
 // ─── Phone Mask Utility ───
 function applyPhoneMask(value: string): string {
@@ -886,7 +887,7 @@ function CaptureDetailDialog({ captureId, open, onClose }: { captureId: string |
           <TabsContent value="info" className="space-y-3 mt-3">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
               <div><span className="text-muted-foreground">Captador:</span> {capture.created_by_name}</div>
-              <div><span className="text-muted-foreground">Data:</span> {format(new Date(capture.created_at), "dd/MM/yyyy HH:mm")}</div>
+              <div><span className="text-muted-foreground">Data:</span> {safeFormatDate(capture.created_at, "dd/MM/yyyy HH:mm")}</div>
               <div><span className="text-muted-foreground">Endereço:</span> {capture.address || "—"}</div>
               <div><span className="text-muted-foreground">Etapa:</span> {capture.construction_stage || "—"}</div>
             </div>
@@ -926,7 +927,7 @@ function CaptureDetailDialog({ captureId, open, onClose }: { captureId: string |
                 </h4>
                 {(capture as any).return_date && (
                   <Badge variant="outline" className="text-xs">
-                    Retorno: {format(new Date((capture as any).return_date + "T12:00:00"), "dd/MM/yyyy")}
+                    Retorno: {safeFormatDate((capture as any).return_date?.split?.("T")?.[0] + "T12:00:00", "dd/MM/yyyy")}
                   </Badge>
                 )}
               </div>
@@ -1013,7 +1014,7 @@ function CaptureDetailDialog({ captureId, open, onClose }: { captureId: string |
                 <Card key={visit.id} className="mb-2 p-3">
                   <div className="flex items-center justify-between text-sm">
                     <span className="font-medium">{visit.visited_by_name}</span>
-                    <span className="text-muted-foreground">{format(new Date(visit.created_at), "dd/MM/yyyy HH:mm")}</span>
+                    <span className="text-muted-foreground">{safeFormatDate(visit.created_at, "dd/MM/yyyy HH:mm")}</span>
                   </div>
                   <Badge variant="outline" className="mt-1">{visit.construction_stage}</Badge>
                   {visit.notes && <p className="text-sm mt-1">{visit.notes}</p>}
@@ -1457,7 +1458,7 @@ export default function Captador() {
                     <CardContent className="p-4 space-y-2">
                       <div className="flex items-center justify-between">
                         <Badge className={st.color}>{st.label}</Badge>
-                        <span className="text-xs text-muted-foreground">{format(new Date(c.created_at), "dd/MM/yyyy")}</span>
+                        <span className="text-xs text-muted-foreground">{safeFormatDate(c.created_at, "dd/MM/yyyy")}</span>
                       </div>
                       {c.company_name && <div className="font-medium flex items-center gap-1 text-sm"><Building2 className="h-3 w-3" /> {c.company_name}</div>}
                       {c.address && <div className="text-xs text-muted-foreground flex items-center gap-1"><MapPin className="h-3 w-3" /> {c.address}</div>}
@@ -1534,7 +1535,7 @@ function MobileCaptureCard({ capture, onSelect, onDelete, sellers, onAssign }: {
           </div>
           {capture.construction_stage && <p className="text-xs text-muted-foreground">{capture.construction_stage}</p>}
           <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-            <span>{format(new Date(capture.created_at), "dd/MM HH:mm")}</span>
+            <span>{safeFormatDate(capture.created_at, "dd/MM HH:mm")}</span>
             {capture.visit_count > 0 && <span className="flex items-center gap-0.5"><Eye className="h-3 w-3" /> {capture.visit_count}</span>}
             {capture.attachments && capture.attachments.length > 0 && <span className="flex items-center gap-0.5"><Image className="h-3 w-3" /> {capture.attachments.length}</span>}
           </div>
