@@ -329,6 +329,7 @@ export default function Admin() {
       has_homologation: false,
       has_tasks: true,
       has_lead_gleego: newPlanLeadGleego,
+      has_captador: newPlanCaptador,
       price: parseFloat(newPlanPrice) || 0,
       billing_period: newPlanPeriod,
       visible_on_signup: newPlanVisibleOnSignup,
