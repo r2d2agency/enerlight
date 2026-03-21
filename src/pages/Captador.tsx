@@ -1289,7 +1289,7 @@ export default function Captador() {
           {/* Settings Panel */}
           {showSettings && settings && (
             <Dialog open={showSettings} onOpenChange={setShowSettings}>
-              <DialogContent>
+              <DialogContent aria-describedby={undefined}>
                 <DialogHeader><DialogTitle>Configurações</DialogTitle></DialogHeader>
                 <div className="space-y-4">
                   <label className="flex items-center gap-3 text-sm">
