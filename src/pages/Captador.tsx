@@ -42,14 +42,24 @@ function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// ─── Return Check-in Button (200m radius) ───
-function ReturnCheckinButton({ capture, onCheckin }: { capture: FieldCapture; onCheckin: (id: string) => void }) {
+// ─── Return Check-in Button (200m radius + visit form) ───
+function ReturnCheckinButton({ capture, onCheckin }: {
+  capture: FieldCapture;
+  onCheckin: (id: string, data: { construction_stage: string; notes: string; attachments: any[]; latitude: number; longitude: number }) => void;
+}) {
   const [loading, setLoading] = useState(false);
   const [distance, setDistance] = useState<number | null>(null);
   const [error, setError] = useState("");
+  const [gpsOk, setGpsOk] = useState(false);
+  const [userPos, setUserPos] = useState<{ lat: number; lng: number } | null>(null);
+  const [stage, setStage] = useState("");
+  const [notes, setNotes] = useState("");
+  const [photos, setPhotos] = useState<any[]>([]);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const { uploadFile, isUploading } = useUpload();
   const { toast } = useToast();
 
-  const handleCheckin = async () => {
+  const handleGpsCheck = async () => {
     if (!capture.latitude || !capture.longitude) {
       toast({ title: "Ficha sem coordenadas GPS", variant: "destructive" });
       return;
@@ -63,31 +73,75 @@ function ReturnCheckinButton({ capture, onCheckin }: { capture: FieldCapture; on
       const dist = haversineDistance(pos.coords.latitude, pos.coords.longitude, capture.latitude!, capture.longitude!);
       setDistance(Math.round(dist));
       if (dist <= 200) {
-        onCheckin(capture.id);
-        toast({ title: "✅ Check-in no local realizado!" });
+        setGpsOk(true);
+        setUserPos({ lat: pos.coords.latitude, lng: pos.coords.longitude });
       } else {
-        setError(`Você está a ${Math.round(dist)}m do local. Máximo: 200m.`);
-        toast({ title: `Muito longe: ${Math.round(dist)}m`, description: "Aproxime-se a menos de 200m do local.", variant: "destructive" });
+        setError(`Você está a ${Math.round(dist)}m. Aproxime-se a menos de 200m.`);
       }
     } catch {
       setError("Não foi possível obter sua localização. Ative o GPS.");
-      toast({ title: "Erro de GPS", description: "Ative a localização.", variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
 
+  const handlePhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    for (const rawFile of Array.from(files)) {
+      const file = await compressImage(rawFile);
+      const url = await uploadFile(file);
+      if (url) setPhotos((p) => [...p, { file_url: url, file_name: file.name, file_type: "photo", mime_type: file.type }]);
+    }
+  };
+
+  const handleConfirm = () => {
+    if (!stage) { toast({ title: "Selecione a etapa da obra", variant: "destructive" }); return; }
+    if (photos.length === 0) { toast({ title: "Tire pelo menos uma foto", variant: "destructive" }); return; }
+    onCheckin(capture.id, {
+      construction_stage: stage, notes: notes || "Check-in de retorno confirmado via GPS",
+      attachments: photos, latitude: userPos!.lat, longitude: userPos!.lng,
+    });
+    setGpsOk(false); setStage(""); setNotes(""); setPhotos([]);
+  };
+
   return (
-    <div className="mt-2 space-y-1">
-      <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); handleCheckin(); }} disabled={loading}
-        className="w-full border-green-500/50 text-green-600 hover:bg-green-500/10">
-        <CheckCircle2 className="h-4 w-4 mr-1" />
-        {loading ? "Verificando GPS..." : "Check-in no Local"}
-      </Button>
-      {distance !== null && distance <= 200 && (
-        <p className="text-[10px] text-green-500 text-center">✅ Confirmado a {distance}m do local</p>
+    <div className="mt-2 space-y-2" onClick={(e) => e.stopPropagation()}>
+      {!gpsOk ? (
+        <>
+          <Button size="sm" variant="outline" onClick={handleGpsCheck} disabled={loading}
+            className="w-full border-green-500/50 text-green-600 hover:bg-green-500/10">
+            <CheckCircle2 className="h-4 w-4 mr-1" />
+            {loading ? "Verificando GPS..." : "Check-in no Local"}
+          </Button>
+          {error && <p className="text-[10px] text-destructive text-center">{error}</p>}
+        </>
+      ) : (
+        <div className="border border-green-500/30 rounded-lg p-3 space-y-2 bg-green-500/5">
+          <p className="text-xs text-green-600 font-medium flex items-center gap-1">
+            <CheckCircle2 className="h-3.5 w-3.5" /> GPS confirmado ({distance}m)
+          </p>
+          <Select value={stage} onValueChange={setStage}>
+            <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Etapa da Obra *" /></SelectTrigger>
+            <SelectContent>{CONSTRUCTION_STAGES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+          </Select>
+          <Textarea placeholder="Observações da visita..." value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="text-sm" />
+          <div>
+            <input ref={fileRef} type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={handlePhoto} />
+            <Button size="sm" variant="outline" onClick={() => fileRef.current?.click()} disabled={isUploading} className="w-full">
+              <Camera className="h-4 w-4 mr-1" /> {isUploading ? "Enviando..." : `Fotos (${photos.length})`}
+            </Button>
+            {photos.length > 0 && (
+              <div className="flex gap-1 mt-1 overflow-x-auto">
+                {photos.map((p, i) => <img key={i} src={p.file_url} className="h-12 w-12 rounded object-cover" />)}
+              </div>
+            )}
+          </div>
+          <Button size="sm" onClick={handleConfirm} className="w-full bg-green-600 hover:bg-green-700 text-white">
+            <CheckCircle2 className="h-4 w-4 mr-1" /> Confirmar Check-in
+          </Button>
+        </div>
       )}
-      {error && <p className="text-[10px] text-destructive text-center">{error}</p>}
     </div>
   );
 }
