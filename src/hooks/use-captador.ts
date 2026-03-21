@@ -76,7 +76,7 @@ export function useFieldCaptureMapPoints(filters?: CaptureFilters) {
   if (filters?.end_date) params.set("end_date", filters.end_date);
   const qs = params.toString();
 
-  return useQuery({
+  return useQuery<any[]>({
     queryKey: ["field-capture-map", filters],
     queryFn: () => api(`/api/captador/map/points${qs ? `?${qs}` : ""}`),
   });
