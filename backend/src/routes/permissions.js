@@ -48,7 +48,7 @@ const ROLE_DEFAULTS = {
     can_view_external_flows: false, can_view_webhooks: false, can_view_ctwa: false,
     can_view_billing: false, can_view_connections: false, can_view_organizations: false,
     can_view_settings: true, can_view_internal_chat: true, can_view_lead_gleego: false,
-    can_view_homologation: false,
+    can_view_homologation: false, can_view_captador: false,
     can_delete_deals: true, can_delete_projects: true, can_delete_tasks: true, can_delete_homologation: true,
   },
   designer: {
