@@ -20,9 +20,9 @@ import {
   FieldCapture,
 } from "@/hooks/use-captador";
 import {
-  MapPin, Camera, Mic, Plus, Eye, Calendar, User, Building2,
+  MapPin, Camera, Mic, Plus, Eye, User, Building2,
   Phone, Mail, FileText, Trash2, Navigation, Image, AudioLines,
-  ClipboardList, BarChart3, Search, Filter,
+  ClipboardList, Settings, UserPlus, Users,
 } from "lucide-react";
 import { format } from "date-fns";
 
