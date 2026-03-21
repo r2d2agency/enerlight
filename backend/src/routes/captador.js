@@ -49,6 +49,69 @@ router.get('/', async (req, res) => {
   }
 });
 
+// GET /api/captador/map/points - MUST be before /:id
+router.get('/map/points', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+
+    const { user_id, start_date, end_date } = req.query;
+    let sql = `
+      SELECT fc.id, fc.latitude, fc.longitude, fc.address, fc.company_name, fc.contact_name,
+        fc.construction_stage, fc.status, fc.created_at, u.name as created_by_name,
+        (SELECT COUNT(*) FROM field_capture_visits fcv WHERE fcv.capture_id = fc.id) as visit_count,
+        (SELECT fca.file_url FROM field_capture_attachments fca WHERE fca.capture_id = fc.id AND fca.file_type = 'photo' LIMIT 1) as thumbnail
+      FROM field_captures fc
+      JOIN users u ON u.id = fc.created_by
+      WHERE fc.organization_id = $1 AND fc.latitude IS NOT NULL
+    `;
+    const params = [org.organization_id];
+    let idx = 2;
+
+    if (user_id) { sql += ` AND fc.created_by = $${idx++}`; params.push(user_id); }
+    if (start_date) { sql += ` AND fc.created_at >= $${idx++}`; params.push(start_date); }
+    if (end_date) { sql += ` AND fc.created_at <= $${idx++}::date + interval '1 day'`; params.push(end_date); }
+
+    sql += ` ORDER BY fc.created_at DESC`;
+    const result = await query(sql, params);
+    res.json(result.rows);
+  } catch (error) {
+    logError('captador.map_points', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/captador/stats/summary - MUST be before /:id
+router.get('/stats/summary', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+
+    const { user_id } = req.query;
+    let userFilter = '';
+    const params = [org.organization_id];
+    if (user_id) { userFilter = ' AND fc.created_by = $2'; params.push(user_id); }
+
+    const stats = await query(
+      `SELECT
+        COUNT(*) as total_captures,
+        COUNT(CASE WHEN fc.status = 'new' THEN 1 END) as new_count,
+        COUNT(CASE WHEN fc.status = 'in_progress' THEN 1 END) as in_progress_count,
+        COUNT(CASE WHEN fc.status = 'converted' THEN 1 END) as converted_count,
+        COUNT(DISTINCT fc.created_by) as total_scouts,
+        (SELECT COUNT(*) FROM field_capture_visits fcv JOIN field_captures fc2 ON fc2.id = fcv.capture_id WHERE fc2.organization_id = $1${user_id ? ' AND fcv.visited_by = $2' : ''}) as total_visits
+       FROM field_captures fc
+       WHERE fc.organization_id = $1${userFilter}`,
+      params
+    );
+
+    res.json(stats.rows[0]);
+  } catch (error) {
+    logError('captador.stats', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // GET /api/captador/:id - Get single capture with visits
 router.get('/:id', async (req, res) => {
   try {
