@@ -182,7 +182,7 @@ export function useUpdateCaptadorSettings() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: Partial<CaptadorSettings>) =>
-      api("/api/captador/settings", { method: "PUT", body: JSON.stringify(data) }),
+      api("/api/captador/settings", { method: "PUT", body: data }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["captador-settings"] }),
   });
 }
