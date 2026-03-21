@@ -541,6 +541,42 @@ router.post('/:id/visits', async (req, res) => {
       }
     }
 
+    // Notify assigned seller via WhatsApp
+    try {
+      const capture = await query(
+        `SELECT fc.*, u.name as captador_name, au.whatsapp_phone as seller_phone, au.name as seller_name
+         FROM field_captures fc
+         JOIN users u ON u.id = fc.created_by
+         LEFT JOIN users au ON au.id = fc.assigned_to
+         WHERE fc.id = $1`,
+        [req.params.id]
+      );
+      const cap = capture.rows[0];
+      if (cap?.seller_phone && cap.assigned_to) {
+        const org = await getUserOrg(req.userId);
+        if (org) {
+          const visitor = await query('SELECT name FROM users WHERE id = $1', [req.userId]);
+          const visitorName = visitor.rows[0]?.name || 'Captador';
+          const message = `📍 *Check-in de Retorno*\n\n` +
+            `O captador *${visitorName}* esteve no local:\n` +
+            `📌 ${cap.address || 'Sem endereço'}\n` +
+            `🏗️ Etapa: ${construction_stage || '—'}\n` +
+            `📝 ${notes || 'Sem observações'}\n` +
+            (attachments?.length ? `📸 ${attachments.length} foto(s) anexada(s)\n` : '') +
+            `\nFicha: ${cap.company_name || cap.address || 'Obra'}`;
+
+          const phone = cap.seller_phone.replace(/\D/g, '');
+          const jid = phone.includes('@') ? phone : `${phone}@s.whatsapp.net`;
+
+          await whatsappProvider.sendText(org.organization_id, jid, message);
+          logInfo('captador.visit_notification_sent', { capture_id: req.params.id, seller: cap.seller_name });
+        }
+      }
+    } catch (notifyErr) {
+      logError('captador.visit_notification_failed', notifyErr);
+      // Don't fail the visit registration if notification fails
+    }
+
     logInfo('captador.visit_added', { capture_id: req.params.id, visit_id: visit.id });
     res.json(visit);
   } catch (error) {
