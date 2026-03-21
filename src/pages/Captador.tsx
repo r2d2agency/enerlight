@@ -197,17 +197,17 @@ function useOfflineSync(createCapture: any, onSuccess: () => void) {
 }
 
 // ─── Mobile Capture Form (Full Screen) ───
-function MobileCaptureForm({ open, onClose, onSuccess }: { open: boolean; onClose: () => void; onSuccess: () => void }) {
+function MobileCaptureForm({ open, onClose, onSuccess, isOnline }: { open: boolean; onClose: () => void; onSuccess: () => void; isOnline?: boolean }) {
   const { toast } = useToast();
   const { uploadFile, isUploading } = useUpload();
   const createCapture = useCreateFieldCapture();
+  const audioRecorder = useAudioRecorder();
   const [step, setStep] = useState(0);
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [loadingLocation, setLoadingLocation] = useState(false);
   const [photos, setPhotos] = useState<{ file_url: string; file_name: string; file_type: string; mime_type: string }[]>([]);
   const [audios, setAudios] = useState<{ file_url: string; file_name: string; file_type: string; mime_type: string }[]>([]);
   const cameraInputRef = useRef<HTMLInputElement>(null);
-  const audioInputRef = useRef<HTMLInputElement>(null);
 
   const emptyContact = (): ContactItem => ({ name: "", phone: "", phoneDisplay: "", email: "", role: "" });
 
