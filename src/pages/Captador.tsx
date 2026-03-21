@@ -842,7 +842,7 @@ function CaptureDetailDialog({ captureId, open, onClose }: { captureId: string |
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <MapPin className="h-5 w-5" /> Ficha #{capture.id.slice(0, 8)}
