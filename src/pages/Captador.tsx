@@ -1014,7 +1014,7 @@ function CaptureDetailDialog({ captureId, open, onClose }: { captureId: string |
                 <Card key={visit.id} className="mb-2 p-3">
                   <div className="flex items-center justify-between text-sm">
                     <span className="font-medium">{visit.visited_by_name}</span>
-                    <span className="text-muted-foreground">{format(new Date(visit.created_at), "dd/MM/yyyy HH:mm")}</span>
+                    <span className="text-muted-foreground">{safeFormatDate(visit.created_at, "dd/MM/yyyy HH:mm")}</span>
                   </div>
                   <Badge variant="outline" className="mt-1">{visit.construction_stage}</Badge>
                   {visit.notes && <p className="text-sm mt-1">{visit.notes}</p>}
