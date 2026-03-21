@@ -1263,7 +1263,7 @@ export default function Captador() {
   const [showForm, setShowForm] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [filters, setFilters] = useState<{ status?: string; assigned_to?: string; unassigned?: boolean }>({});
+  const [filters, setFilters] = useState<{ status?: string; assigned_to?: string; unassigned?: boolean; start_date?: string; end_date?: string; segment?: string }>({});
 
   const { checkedIn, checkinTime, doCheckin, doCheckout } = useCheckin();
   const createCaptureForSync = useCreateFieldCapture();
