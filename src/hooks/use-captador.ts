@@ -98,7 +98,7 @@ export function useFieldCaptureStats(userId?: string) {
   const params = userId ? `?user_id=${userId}` : "";
   return useQuery<{
     total_captures: number; new_count: number; in_progress_count: number;
-    converted_count: number; total_visits: number; total_scouts: number;
+    converted_count: number; unassigned_count: number; total_visits: number; total_scouts: number;
   }>({
     queryKey: ["field-capture-stats", userId],
     queryFn: () => api(`/api/captador/stats/summary${params}`),
