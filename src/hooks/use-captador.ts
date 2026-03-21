@@ -133,7 +133,7 @@ export function useAddFieldCaptureVisit() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ captureId, ...data }: any) =>
-      api(`/api/captador/${captureId}/visits`, { method: "POST", body: JSON.stringify(data) }),
+      api(`/api/captador/${captureId}/visits`, { method: "POST", body: data }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["field-captures"] });
       qc.invalidateQueries({ queryKey: ["field-capture"] });
