@@ -23,6 +23,7 @@ const STATUS_MAP: Record<string, { label: string; color: string; bg: string }> =
 
 export function CaptadorDashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { data: stats } = useFieldCaptureStats(user?.id);
   const { data: todayReturns = [] } = useTodayReturns();
   const { data: recentCaptures = [] } = useFieldCaptures();
