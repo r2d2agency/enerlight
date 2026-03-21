@@ -435,20 +435,31 @@ function CaptureDetailDialog({
 
 export default function Captador() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [tab, setTab] = useState("list");
   const [showForm, setShowForm] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [filters, setFilters] = useState<{ status?: string; user_id?: string }>({});
+  const [filters, setFilters] = useState<{ status?: string; assigned_to?: string; unassigned?: boolean }>({});
 
   const { data: captures = [], refetch } = useFieldCaptures(filters);
-  const { data: stats } = useFieldCaptureStats(filters.user_id);
+  const { data: stats } = useFieldCaptureStats();
   const { data: mapPoints = [] } = useFieldCaptureMapPoints(filters);
+  const { data: sellers = [] } = useCaptadorSellers();
+  const { data: settings } = useCaptadorSettings();
+  const updateSettings = useUpdateCaptadorSettings();
+  const updateCapture = useUpdateFieldCapture();
   const deleteCapture = useDeleteFieldCapture();
 
   const handleDelete = async (id: string) => {
     if (!confirm("Excluir esta ficha?")) return;
     await deleteCapture.mutateAsync(id);
     toast({ title: "Ficha excluída" });
+  };
+
+  const handleAssign = async (captureId: string, sellerId: string) => {
+    await updateCapture.mutateAsync({ id: captureId, assigned_to: sellerId || null });
+    toast({ title: sellerId ? "Vendedor atribuído!" : "Atribuição removida" });
   };
 
   return (
@@ -458,29 +469,66 @@ export default function Captador() {
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <MapPin className="h-6 w-6" /> Captador
           </h1>
-          <Button onClick={() => setShowForm(true)}>
-            <Plus className="h-4 w-4 mr-1" /> Nova Ficha
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setShowSettings(!showSettings)}>
+              <Settings className="h-4 w-4" />
+            </Button>
+            <Button onClick={() => setShowForm(true)}>
+              <Plus className="h-4 w-4 mr-1" /> Nova Ficha
+            </Button>
+          </div>
         </div>
+
+        {/* Settings Panel */}
+        {showSettings && settings && (
+          <Card className="p-4 space-y-3">
+            <h3 className="font-medium flex items-center gap-2"><Settings className="h-4 w-4" /> Configurações do Captador</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={settings.auto_distribute}
+                  onChange={(e) => updateSettings.mutate({ ...settings, auto_distribute: e.target.checked })}
+                  className="rounded" />
+                Distribuição automática (round-robin)
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={settings.auto_create_task}
+                  onChange={(e) => updateSettings.mutate({ ...settings, auto_create_task: e.target.checked })}
+                  className="rounded" />
+                Criar tarefa automaticamente
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={settings.notify_whatsapp}
+                  onChange={(e) => updateSettings.mutate({ ...settings, notify_whatsapp: e.target.checked })}
+                  className="rounded" />
+                Notificar via WhatsApp
+              </label>
+            </div>
+          </Card>
+        )}
 
         {/* Stats */}
         {stats && (
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
             <Card className="p-3 text-center">
               <div className="text-2xl font-bold">{stats.total_captures}</div>
               <div className="text-xs text-muted-foreground">Total Fichas</div>
             </Card>
             <Card className="p-3 text-center">
-              <div className="text-2xl font-bold text-blue-500">{stats.new_count}</div>
+              <div className="text-2xl font-bold text-primary">{stats.new_count}</div>
               <div className="text-xs text-muted-foreground">Novas</div>
             </Card>
             <Card className="p-3 text-center">
-              <div className="text-2xl font-bold text-yellow-500">{stats.in_progress_count}</div>
+              <div className="text-2xl font-bold text-accent-foreground">{stats.in_progress_count}</div>
               <div className="text-xs text-muted-foreground">Em Andamento</div>
             </Card>
             <Card className="p-3 text-center">
-              <div className="text-2xl font-bold text-green-500">{stats.converted_count}</div>
+              <div className="text-2xl font-bold text-primary">{stats.converted_count}</div>
               <div className="text-xs text-muted-foreground">Convertidos</div>
+            </Card>
+            <Card className="p-3 text-center cursor-pointer hover:bg-muted/50"
+              onClick={() => setFilters({ ...filters, unassigned: !filters.unassigned, assigned_to: undefined })}>
+              <div className="text-2xl font-bold text-destructive">{stats.unassigned_count || 0}</div>
+              <div className="text-xs text-muted-foreground">Sem Vendedor</div>
             </Card>
             <Card className="p-3 text-center">
               <div className="text-2xl font-bold">{stats.total_visits}</div>
@@ -500,6 +548,22 @@ export default function Captador() {
               ))}
             </SelectContent>
           </Select>
+
+          <Select value={filters.assigned_to || "all"} onValueChange={(v) => setFilters({ ...filters, assigned_to: v === "all" ? undefined : v, unassigned: false })}>
+            <SelectTrigger className="w-48"><SelectValue placeholder="Vendedor" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos Vendedores</SelectItem>
+              {sellers.map((s) => (
+                <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {filters.unassigned && (
+            <Badge variant="secondary" className="cursor-pointer" onClick={() => setFilters({ ...filters, unassigned: false })}>
+              Sem vendedor ✕
+            </Badge>
+          )}
         </div>
 
         <Tabs value={tab} onValueChange={setTab}>
@@ -536,6 +600,21 @@ export default function Captador() {
                           {c.contact_phone && <span>• <Phone className="h-3 w-3 inline" /> {c.contact_phone}</span>}
                         </div>
                       )}
+                      {/* Assignment */}
+                      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                        <UserPlus className="h-3 w-3 text-muted-foreground" />
+                        <Select value={c.assigned_to || "none"} onValueChange={(v) => handleAssign(c.id, v === "none" ? "" : v)}>
+                          <SelectTrigger className="h-6 text-xs w-36 border-dashed">
+                            <SelectValue placeholder="Atribuir vendedor" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Sem vendedor</SelectItem>
+                            {sellers.map((s) => (
+                              <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                       <div className="flex items-center justify-between text-xs text-muted-foreground">
                         <span>{c.created_by_name}</span>
                         <div className="flex items-center gap-2">
