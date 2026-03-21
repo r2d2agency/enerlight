@@ -3971,6 +3971,12 @@ DO $$ BEGIN
   ALTER TABLE user_permissions ADD COLUMN IF NOT EXISTS can_view_captador BOOLEAN DEFAULT false;
 EXCEPTION WHEN duplicate_column THEN NULL;
 END $$;
+
+-- Plan column for Captador
+DO $$ BEGIN
+  ALTER TABLE plans ADD COLUMN IF NOT EXISTS has_captador BOOLEAN DEFAULT false;
+EXCEPTION WHEN others THEN NULL;
+END $$;
 `;
 
 const step52QuoteImportMappings = `
