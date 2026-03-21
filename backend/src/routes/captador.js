@@ -251,6 +251,33 @@ router.get('/map/points', async (req, res) => {
   }
 });
 
+// GET /api/captador/returns/today - Get today's scheduled returns
+router.get('/returns/today', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+
+    const result = await query(
+      `SELECT fc.*, u.name as created_by_name, au.name as assigned_to_name,
+        (SELECT COUNT(*) FROM field_capture_visits fcv WHERE fcv.capture_id = fc.id) as visit_count,
+        (SELECT json_agg(json_build_object('id', fca.id, 'file_url', fca.file_url, 'file_name', fca.file_name, 'file_type', fca.file_type))
+         FROM field_capture_attachments fca WHERE fca.capture_id = fc.id) as attachments
+       FROM field_captures fc
+       JOIN users u ON u.id = fc.created_by
+       LEFT JOIN users au ON au.id = fc.assigned_to
+       WHERE fc.organization_id = $1
+         AND fc.return_date = CURRENT_DATE
+         AND fc.status != 'archived'
+       ORDER BY fc.return_date, fc.company_name`,
+      [org.organization_id]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    logError('captador.returns_today', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // GET /api/captador/stats/summary - MUST be before /:id
 router.get('/stats/summary', async (req, res) => {
   try {
@@ -270,6 +297,7 @@ router.get('/stats/summary', async (req, res) => {
         COUNT(CASE WHEN fc.status = 'converted' THEN 1 END) as converted_count,
         COUNT(CASE WHEN fc.assigned_to IS NULL THEN 1 END) as unassigned_count,
         COUNT(DISTINCT fc.created_by) as total_scouts,
+        COUNT(CASE WHEN fc.return_date = CURRENT_DATE THEN 1 END) as returns_today,
         (SELECT COUNT(*) FROM field_capture_visits fcv JOIN field_captures fc2 ON fc2.id = fcv.capture_id WHERE fc2.organization_id = $1${user_id ? ' AND fcv.visited_by = $2' : ''}) as total_visits
        FROM field_captures fc
        WHERE fc.organization_id = $1${userFilter}`,
