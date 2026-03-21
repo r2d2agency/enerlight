@@ -6,6 +6,8 @@ export interface FieldCapture {
   organization_id: string;
   created_by: string;
   created_by_name: string;
+  assigned_to: string | null;
+  assigned_to_name: string | null;
   latitude: number | null;
   longitude: number | null;
   address: string | null;
