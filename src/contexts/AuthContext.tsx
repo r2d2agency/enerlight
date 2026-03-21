@@ -18,6 +18,7 @@ interface ModulesEnabled {
   homologation: boolean;
   tasks: boolean;
   lead_gleego: boolean;
+  captador: boolean;
 }
 
 export interface UserPermissions {
@@ -106,6 +107,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     homologation: false,
     tasks: true,
     lead_gleego: false,
+    captador: false,
   };
 
   const refreshUser = async () => {
