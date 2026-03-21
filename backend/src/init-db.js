@@ -3992,6 +3992,19 @@ DO $$ BEGIN
   ALTER TABLE plans ADD COLUMN IF NOT EXISTS has_captador BOOLEAN DEFAULT false;
 EXCEPTION WHEN others THEN NULL;
 END $$;
+-- Contacts table for captures
+CREATE TABLE IF NOT EXISTS field_capture_contacts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  capture_id UUID NOT NULL REFERENCES field_captures(id) ON DELETE CASCADE,
+  visit_id UUID REFERENCES field_capture_visits(id) ON DELETE SET NULL,
+  contact_name VARCHAR(255),
+  contact_phone VARCHAR(50),
+  contact_email VARCHAR(255),
+  contact_role VARCHAR(100),
+  added_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_fcc_capture ON field_capture_contacts(capture_id);
 `;
 
 const step52QuoteImportMappings = `
