@@ -222,6 +222,12 @@ const CONSTRUCTION_STAGES = [
   "Acabamento", "Pintura", "Finalização",
 ];
 
+const SEGMENTS = [
+  "Petroquímico", "Industrial", "Empreendimento", "Comercial", "Residencial",
+  "Agronegócio", "Energia Solar", "Logística", "Mineração", "Saneamento",
+  "Hospitalar", "Educacional", "Óleo e Gás", "Infraestrutura", "Outros",
+];
+
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
   new: { label: "Novo", color: "bg-blue-500" },
   in_progress: { label: "Em Andamento", color: "bg-yellow-500" },
