@@ -61,6 +61,8 @@ export function useFieldCaptures(filters?: CaptureFilters) {
   const params = new URLSearchParams();
   if (filters?.status) params.set("status", filters.status);
   if (filters?.user_id) params.set("user_id", filters.user_id);
+  if (filters?.assigned_to) params.set("assigned_to", filters.assigned_to);
+  if (filters?.unassigned) params.set("unassigned", "true");
   if (filters?.start_date) params.set("start_date", filters.start_date);
   if (filters?.end_date) params.set("end_date", filters.end_date);
   const qs = params.toString();
