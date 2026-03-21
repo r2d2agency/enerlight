@@ -682,11 +682,15 @@ function CaptureDetailDialog({ captureId, open, onClose }: { captureId: string |
   const { data: capture } = useFieldCaptureDetail(captureId);
   const addVisit = useAddFieldCaptureVisit();
   const updateCapture = useUpdateFieldCapture();
+  const scheduleReturn = useScheduleReturn();
   const { uploadFile, isUploading } = useUpload();
   const { toast } = useToast();
   const [showVisitForm, setShowVisitForm] = useState(false);
   const [visitForm, setVisitForm] = useState({ construction_stage: "", notes: "" });
   const [visitPhotos, setVisitPhotos] = useState<any[]>([]);
+  const [returnDate, setReturnDate] = useState("");
+  const [returnNotes, setReturnNotes] = useState("");
+  const [showReturnForm, setShowReturnForm] = useState(false);
   const visitFileRef = useRef<HTMLInputElement>(null);
 
   if (!capture) return null;
