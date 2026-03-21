@@ -1535,7 +1535,7 @@ function MobileCaptureCard({ capture, onSelect, onDelete, sellers, onAssign }: {
           </div>
           {capture.construction_stage && <p className="text-xs text-muted-foreground">{capture.construction_stage}</p>}
           <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-            <span>{format(new Date(capture.created_at), "dd/MM HH:mm")}</span>
+            <span>{safeFormatDate(capture.created_at, "dd/MM HH:mm")}</span>
             {capture.visit_count > 0 && <span className="flex items-center gap-0.5"><Eye className="h-3 w-3" /> {capture.visit_count}</span>}
             {capture.attachments && capture.attachments.length > 0 && <span className="flex items-center gap-0.5"><Image className="h-3 w-3" /> {capture.attachments.length}</span>}
           </div>
