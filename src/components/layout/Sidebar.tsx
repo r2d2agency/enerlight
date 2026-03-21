@@ -66,7 +66,7 @@ interface NavSection {
   title: string;
   icon: any;
   items: NavItem[];
-  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat' | 'homologation' | 'tasks' | 'lead_gleego';
+  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat' | 'homologation' | 'tasks' | 'lead_gleego' | 'captador';
   adminOnly?: boolean;
   permissionKey?: string;
 }
