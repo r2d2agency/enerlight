@@ -53,6 +53,16 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { safeFormatDate } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+
+// Phone mask utility for Brazilian numbers
+const applyPhoneMask = (value: string): string => {
+  const digits = value.replace(/\D/g, "");
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
+};
 
 const Contatos = () => {
   const {
@@ -78,6 +88,7 @@ const Contatos = () => {
   const [newListConnectionId, setNewListConnectionId] = useState<string>("");
   const [newContactName, setNewContactName] = useState("");
   const [newContactPhone, setNewContactPhone] = useState("");
+  const [newContactPhoneDisplay, setNewContactPhoneDisplay] = useState("");
   const [newContactValidated, setNewContactValidated] = useState<boolean | null>(null);
   const [isValidatingNewContact, setIsValidatingNewContact] = useState(false);
   const [isLoadingContacts, setIsLoadingContacts] = useState(false);
@@ -184,6 +195,7 @@ const Contatos = () => {
       toast.success("Contato adicionado com sucesso!");
       setNewContactName("");
       setNewContactPhone("");
+      setNewContactPhoneDisplay("");
       setNewContactValidated(null);
       setIsAddContactOpen(false);
       loadContacts(selectedList);
@@ -743,6 +755,7 @@ const Contatos = () => {
           if (!open) {
             setNewContactName("");
             setNewContactPhone("");
+            setNewContactPhoneDisplay("");
             setNewContactValidated(null);
           }
         }}>
@@ -771,13 +784,33 @@ const Contatos = () => {
                 <div className="flex gap-2">
                   <Input
                     id="contactPhone"
-                    placeholder="Ex: 65999999999"
-                    value={newContactPhone}
+                    placeholder="(65) 99999-9999"
+                    value={newContactPhoneDisplay}
                     onChange={(e) => {
-                      setNewContactPhone(e.target.value);
+                      const raw = e.target.value.replace(/\D/g, "").slice(0, 11);
+                      setNewContactPhone(raw);
+                      setNewContactPhoneDisplay(applyPhoneMask(raw));
                       setNewContactValidated(null);
                     }}
-                    className="flex-1"
+                    onBlur={async () => {
+                      const digits = newContactPhone.replace(/\D/g, "");
+                      if (digits.length >= 10 && newContactValidated === null) {
+                        const connection = await getActiveConnection();
+                        if (!connection) return;
+                        let phone = digits;
+                        if (phone.length === 10 || phone.length === 11) phone = "55" + phone;
+                        setIsValidatingNewContact(true);
+                        try {
+                          const isValid = await whatsappProvider.checkNumber(connection, phone);
+                          setNewContactValidated(isValid);
+                        } catch {
+                          // silent fail
+                        } finally {
+                          setIsValidatingNewContact(false);
+                        }
+                      }
+                    }}
+                    className={cn("flex-1", newContactValidated === true && "border-green-500 ring-1 ring-green-500", newContactValidated === false && "border-destructive ring-1 ring-destructive")}
                   />
                   <Button 
                     variant="outline" 
