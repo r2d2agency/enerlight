@@ -262,7 +262,7 @@ function MobileCaptureForm({ open, onClose, onSuccess }: { open: boolean; onClos
                 size="lg" className="w-full h-12" variant="outline">
                 <Mic className="h-5 w-5 mr-2" /> Gravar / Enviar Áudio
               </Button>
-              <input ref={audioInputRef} type="file" accept="audio/*" capture="microphone"
+              <input ref={audioInputRef} type="file" accept="audio/*"
                 className="hidden" onChange={handleAudioUpload} />
               {audios.length > 0 && (
                 <div className="space-y-1 mt-2">
