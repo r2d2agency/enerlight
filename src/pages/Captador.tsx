@@ -932,6 +932,7 @@ export default function Captador() {
   const { data: mapPoints = [] } = useFieldCaptureMapPoints(filters);
   const { data: sellers = [] } = useCaptadorSellers();
   const { data: settings } = useCaptadorSettings();
+  const { data: todayReturns = [] } = useTodayReturns();
   const updateSettings = useUpdateCaptadorSettings();
   const updateCapture = useUpdateFieldCapture();
   const deleteCapture = useDeleteFieldCapture();
