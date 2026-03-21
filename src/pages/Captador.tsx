@@ -30,6 +30,7 @@ import {
   ChevronRight, CheckCircle2, Circle, ArrowLeft, WifiOff, Wifi, Square, Download,
 } from "lucide-react";
 import { format } from "date-fns";
+import { safeFormatDate } from "@/lib/utils";
 
 // ─── Phone Mask Utility ───
 function applyPhoneMask(value: string): string {
