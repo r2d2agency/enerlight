@@ -660,6 +660,10 @@ function MobileCaptureForm({ open, onClose, onSuccess, isOnline }: { open: boole
             <h3 className="text-lg font-semibold flex items-center gap-2">
               <Building2 className="h-5 w-5" /> Dados da Obra
             </h3>
+            <Select value={form.segment} onValueChange={(v) => setForm({ ...form, segment: v })}>
+              <SelectTrigger className="h-12 text-base"><SelectValue placeholder="Segmento" /></SelectTrigger>
+              <SelectContent>{SEGMENTS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+            </Select>
             <Select value={form.construction_stage} onValueChange={(v) => setForm({ ...form, construction_stage: v })}>
               <SelectTrigger className="h-12 text-base"><SelectValue placeholder="Etapa da Obra" /></SelectTrigger>
               <SelectContent>
