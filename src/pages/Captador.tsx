@@ -1503,7 +1503,7 @@ export default function Captador() {
           </TabsContent>
         </Tabs>
 
-        <DesktopCaptureFormDialog open={showForm} onClose={() => setShowForm(false)} onSuccess={() => refetch()} />
+        <DesktopCaptureFormDialog open={showForm} onClose={() => setShowForm(false)} onSuccess={() => {}} />
         <CaptureDetailDialog captureId={selectedId} open={!!selectedId} onClose={() => setSelectedId(null)} />
       </div>
     </MainLayout>
