@@ -59,8 +59,8 @@ function ReturnCheckinButton({ capture, onCheckin }: {
   const [stage, setStage] = useState("");
   const [notes, setNotes] = useState("");
   const [photos, setPhotos] = useState<any[]>([]);
-  const [contacts, setContacts] = useState<{ name: string; phone: string; email: string; role: string }[]>([]);
-  const [showContacts, setShowContacts] = useState(false);
+  const [contacts, setContacts] = useState<{ name: string; phone: string; email: string; role: string }[]>([{ name: "", phone: "", email: "", role: "" }]);
+  const [showContacts, setShowContacts] = useState(true);
   const fileRef = useRef<HTMLInputElement>(null);
   const { uploadFile, isUploading } = useUpload();
   const { toast } = useToast();
