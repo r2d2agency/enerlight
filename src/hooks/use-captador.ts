@@ -23,6 +23,8 @@ export interface FieldCapture {
   status: string;
   notes: string | null;
   visit_count: number;
+  return_date: string | null;
+  return_notes: string | null;
   attachments: { id: string; file_url: string; file_name: string; file_type: string }[] | null;
   created_at: string;
   updated_at: string;
