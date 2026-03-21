@@ -345,10 +345,23 @@ router.get('/:id', async (req, res) => {
       [req.params.id]
     );
 
+    // Get contacts
+    let contactsList = [];
+    try {
+      const contactsRes = await query(
+        `SELECT fcc.*, u.name as added_by_name FROM field_capture_contacts fcc
+         LEFT JOIN users u ON u.id = fcc.added_by
+         WHERE fcc.capture_id = $1 ORDER BY fcc.created_at`,
+        [req.params.id]
+      );
+      contactsList = contactsRes.rows;
+    } catch { /* table may not exist yet */ }
+
     res.json({
       ...capture.rows[0],
       attachments: attachments.rows,
       visits: visits.rows,
+      contacts: contactsList,
     });
   } catch (error) {
     logError('captador.get', error);
