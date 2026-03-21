@@ -12,6 +12,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { useUpload } from "@/hooks/use-upload";
 import { useAuth } from "@/contexts/AuthContext";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   useFieldCaptures, useFieldCaptureDetail, useFieldCaptureMapPoints,
   useFieldCaptureStats, useCreateFieldCapture, useUpdateFieldCapture,
@@ -22,22 +23,15 @@ import {
 import {
   MapPin, Camera, Mic, Plus, Eye, User, Building2,
   Phone, Mail, FileText, Trash2, Navigation, Image, AudioLines,
-  ClipboardList, Settings, UserPlus, Users,
+  ClipboardList, Settings, UserPlus, Users, LogIn, LogOut, Clock,
+  ChevronRight, CheckCircle2, Circle, ArrowLeft,
 } from "lucide-react";
 import { format } from "date-fns";
 
 const CONSTRUCTION_STAGES = [
-  "Terraplanagem",
-  "Fundação",
-  "Estrutura",
-  "Alvenaria",
-  "Cobertura",
-  "Instalações Elétricas",
-  "Instalações Hidráulicas",
-  "Reboco/Revestimento",
-  "Acabamento",
-  "Pintura",
-  "Finalização",
+  "Terraplanagem", "Fundação", "Estrutura", "Alvenaria", "Cobertura",
+  "Instalações Elétricas", "Instalações Hidráulicas", "Reboco/Revestimento",
+  "Acabamento", "Pintura", "Finalização",
 ];
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
@@ -47,17 +41,61 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
   archived: { label: "Arquivado", color: "bg-muted" },
 };
 
-function CaptureFormDialog({
-  open, onClose, onSuccess,
-}: { open: boolean; onClose: () => void; onSuccess: () => void }) {
+// ─── Check-in/Checkout Hook ───
+function useCheckin() {
+  const [checkedIn, setCheckedIn] = useState(false);
+  const [checkinTime, setCheckinTime] = useState<Date | null>(null);
+  const [checkinLocation, setCheckinLocation] = useState<{ lat: number; lng: number } | null>(null);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("captador_checkin");
+    if (saved) {
+      const data = JSON.parse(saved);
+      setCheckedIn(true);
+      setCheckinTime(new Date(data.time));
+      setCheckinLocation(data.location);
+    }
+  }, []);
+
+  const doCheckin = () => {
+    return new Promise<void>((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          const now = new Date();
+          setCheckedIn(true);
+          setCheckinTime(now);
+          setCheckinLocation(loc);
+          localStorage.setItem("captador_checkin", JSON.stringify({ time: now.toISOString(), location: loc }));
+          resolve();
+        },
+        (err) => reject(err),
+        { enableHighAccuracy: true }
+      );
+    });
+  };
+
+  const doCheckout = () => {
+    setCheckedIn(false);
+    setCheckinTime(null);
+    setCheckinLocation(null);
+    localStorage.removeItem("captador_checkin");
+  };
+
+  return { checkedIn, checkinTime, checkinLocation, doCheckin, doCheckout };
+}
+
+// ─── Mobile Capture Form (Full Screen) ───
+function MobileCaptureForm({ open, onClose, onSuccess }: { open: boolean; onClose: () => void; onSuccess: () => void }) {
   const { toast } = useToast();
   const { uploadFile, isUploading } = useUpload();
   const createCapture = useCreateFieldCapture();
+  const [step, setStep] = useState(0);
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [loadingLocation, setLoadingLocation] = useState(false);
   const [photos, setPhotos] = useState<{ file_url: string; file_name: string; file_type: string; mime_type: string }[]>([]);
   const [audios, setAudios] = useState<{ file_url: string; file_name: string; file_type: string; mime_type: string }[]>([]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState({
@@ -66,13 +104,27 @@ function CaptureFormDialog({
     company_name: "", company_cnpj: "", notes: "",
   });
 
+  useEffect(() => {
+    if (open) {
+      setStep(0);
+      setLocation(null);
+      setPhotos([]);
+      setAudios([]);
+      setForm({
+        address: "", construction_stage: "", stage_notes: "",
+        contact_name: "", contact_phone: "", contact_email: "", contact_role: "",
+        company_name: "", company_cnpj: "", notes: "",
+      });
+    }
+  }, [open]);
+
   const getLocation = () => {
     setLoadingLocation(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
         setLoadingLocation(false);
-        toast({ title: "Localização capturada!" });
+        toast({ title: "📍 Localização capturada!" });
       },
       (err) => {
         setLoadingLocation(false);
@@ -82,7 +134,7 @@ function CaptureFormDialog({
     );
   };
 
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCameraCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
     for (const file of Array.from(files)) {
@@ -91,6 +143,7 @@ function CaptureFormDialog({
         setPhotos((prev) => [...prev, { file_url: url, file_name: file.name, file_type: "photo", mime_type: file.type }]);
       }
     }
+    if (cameraInputRef.current) cameraInputRef.current.value = "";
   };
 
   const handleAudioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -112,7 +165,7 @@ function CaptureFormDialog({
         longitude: location?.lng,
         attachments: [...photos, ...audios],
       });
-      toast({ title: "Ficha criada com sucesso!" });
+      toast({ title: "✅ Ficha criada com sucesso!" });
       onSuccess();
       onClose();
     } catch {
@@ -120,53 +173,262 @@ function CaptureFormDialog({
     }
   };
 
+  const steps = [
+    { title: "Localização", icon: Navigation },
+    { title: "Fotos", icon: Camera },
+    { title: "Obra", icon: Building2 },
+    { title: "Contato", icon: User },
+    { title: "Notas", icon: FileText },
+  ];
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 bg-background flex flex-col">
+      {/* Header */}
+      <div className="flex items-center gap-3 p-4 border-b bg-card">
+        <Button variant="ghost" size="icon" onClick={onClose}>
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <h2 className="font-semibold text-lg flex-1">Nova Ficha</h2>
+        <span className="text-sm text-muted-foreground">{step + 1}/{steps.length}</span>
+      </div>
+
+      {/* Step indicators */}
+      <div className="flex gap-1 px-4 py-2 bg-muted/30">
+        {steps.map((s, i) => (
+          <button key={i} onClick={() => setStep(i)}
+            className={`flex-1 h-1.5 rounded-full transition-colors ${i <= step ? 'bg-primary' : 'bg-muted'}`} />
+        ))}
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {step === 0 && (
+          <div className="space-y-4">
+            <div className="text-center py-8">
+              <Navigation className="h-16 w-16 mx-auto text-primary mb-4" />
+              <h3 className="text-xl font-semibold mb-2">Capturar Localização</h3>
+              <p className="text-muted-foreground text-sm mb-6">
+                Ative o GPS para registrar a posição exata da obra
+              </p>
+              <Button onClick={getLocation} disabled={loadingLocation} size="lg" className="w-full max-w-xs">
+                {loadingLocation ? "Obtendo..." : location ? "✅ Localização capturada" : "📍 Ativar GPS"}
+              </Button>
+              {location && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  {location.lat.toFixed(6)}, {location.lng.toFixed(6)}
+                </p>
+              )}
+            </div>
+            <Input placeholder="Endereço / Referência" value={form.address}
+              onChange={(e) => setForm({ ...form, address: e.target.value })} className="text-base h-12" />
+          </div>
+        )}
+
+        {step === 1 && (
+          <div className="space-y-4">
+            <div className="text-center py-4">
+              <Camera className="h-12 w-12 mx-auto text-primary mb-3" />
+              <h3 className="text-lg font-semibold mb-1">Registrar Fotos</h3>
+              <p className="text-muted-foreground text-sm mb-4">Tire fotos da obra com a câmera</p>
+            </div>
+
+            <Button onClick={() => cameraInputRef.current?.click()} disabled={isUploading}
+              size="lg" className="w-full h-14 text-base" variant="outline">
+              <Camera className="h-5 w-5 mr-2" />
+              {isUploading ? "Enviando..." : "Abrir Câmera"}
+            </Button>
+            <input ref={cameraInputRef} type="file" accept="image/*" capture="environment"
+              className="hidden" onChange={handleCameraCapture} />
+
+            {photos.length > 0 && (
+              <div className="grid grid-cols-3 gap-2">
+                {photos.map((p, i) => (
+                  <div key={i} className="relative aspect-square rounded-lg overflow-hidden border">
+                    <img src={p.file_url} alt="" className="w-full h-full object-cover" />
+                    <button className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-1"
+                      onClick={() => setPhotos((prev) => prev.filter((_, idx) => idx !== i))}>
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Audio */}
+            <div className="pt-4 border-t">
+              <Button onClick={() => audioInputRef.current?.click()} disabled={isUploading}
+                size="lg" className="w-full h-12" variant="outline">
+                <Mic className="h-5 w-5 mr-2" /> Gravar / Enviar Áudio
+              </Button>
+              <input ref={audioInputRef} type="file" accept="audio/*"
+                className="hidden" onChange={handleAudioUpload} />
+              {audios.length > 0 && (
+                <div className="space-y-1 mt-2">
+                  {audios.map((a, i) => (
+                    <div key={i} className="flex items-center gap-2 text-sm bg-muted rounded-lg px-3 py-2">
+                      <AudioLines className="h-4 w-4 shrink-0" />
+                      <span className="truncate flex-1">{a.file_name}</span>
+                      <button onClick={() => setAudios((prev) => prev.filter((_, idx) => idx !== i))}>
+                        <Trash2 className="h-3 w-3 text-destructive" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {step === 2 && (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Building2 className="h-5 w-5" /> Dados da Obra
+            </h3>
+            <Select value={form.construction_stage} onValueChange={(v) => setForm({ ...form, construction_stage: v })}>
+              <SelectTrigger className="h-12 text-base"><SelectValue placeholder="Etapa da Obra" /></SelectTrigger>
+              <SelectContent>
+                {CONSTRUCTION_STAGES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Textarea placeholder="Observações sobre a etapa..." value={form.stage_notes}
+              onChange={(e) => setForm({ ...form, stage_notes: e.target.value })} rows={3} className="text-base" />
+            <Input placeholder="Nome da Empresa" value={form.company_name}
+              onChange={(e) => setForm({ ...form, company_name: e.target.value })} className="h-12 text-base" />
+            <Input placeholder="CNPJ" value={form.company_cnpj}
+              onChange={(e) => setForm({ ...form, company_cnpj: e.target.value })} className="h-12 text-base" />
+          </div>
+        )}
+
+        {step === 3 && (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <User className="h-5 w-5" /> Contato / Responsável
+            </h3>
+            <Input placeholder="Nome" value={form.contact_name}
+              onChange={(e) => setForm({ ...form, contact_name: e.target.value })} className="h-12 text-base" />
+            <Input placeholder="Cargo (ex: Engenheiro)" value={form.contact_role}
+              onChange={(e) => setForm({ ...form, contact_role: e.target.value })} className="h-12 text-base" />
+            <Input placeholder="Telefone" value={form.contact_phone} type="tel"
+              onChange={(e) => setForm({ ...form, contact_phone: e.target.value })} className="h-12 text-base" />
+            <Input placeholder="E-mail" value={form.contact_email} type="email"
+              onChange={(e) => setForm({ ...form, contact_email: e.target.value })} className="h-12 text-base" />
+          </div>
+        )}
+
+        {step === 4 && (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <FileText className="h-5 w-5" /> Anotações
+            </h3>
+            <Textarea placeholder="Anotações gerais sobre a visita..." value={form.notes}
+              onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={6} className="text-base" />
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div className="p-4 border-t bg-card flex gap-3 safe-area-bottom">
+        {step > 0 && (
+          <Button variant="outline" onClick={() => setStep(step - 1)} className="flex-1 h-12">
+            Voltar
+          </Button>
+        )}
+        {step < steps.length - 1 ? (
+          <Button onClick={() => setStep(step + 1)} className="flex-1 h-12 text-base">
+            Próximo <ChevronRight className="h-4 w-4 ml-1" />
+          </Button>
+        ) : (
+          <Button onClick={handleSubmit} disabled={createCapture.isPending} className="flex-1 h-12 text-base">
+            {createCapture.isPending ? "Salvando..." : "✅ Salvar Ficha"}
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Desktop Capture Form (Dialog) ───
+function DesktopCaptureFormDialog({ open, onClose, onSuccess }: { open: boolean; onClose: () => void; onSuccess: () => void }) {
+  const { toast } = useToast();
+  const { uploadFile, isUploading } = useUpload();
+  const createCapture = useCreateFieldCapture();
+  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [loadingLocation, setLoadingLocation] = useState(false);
+  const [photos, setPhotos] = useState<{ file_url: string; file_name: string; file_type: string; mime_type: string }[]>([]);
+  const [audios, setAudios] = useState<{ file_url: string; file_name: string; file_type: string; mime_type: string }[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
+
+  const [form, setForm] = useState({
+    address: "", construction_stage: "", stage_notes: "",
+    contact_name: "", contact_phone: "", contact_email: "", contact_role: "",
+    company_name: "", company_cnpj: "", notes: "",
+  });
+
+  const getLocation = () => {
+    setLoadingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }); setLoadingLocation(false); toast({ title: "Localização capturada!" }); },
+      (err) => { setLoadingLocation(false); toast({ title: "Erro", description: err.message, variant: "destructive" }); },
+      { enableHighAccuracy: true }
+    );
+  };
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    for (const file of Array.from(files)) {
+      const url = await uploadFile(file);
+      if (url) setPhotos((prev) => [...prev, { file_url: url, file_name: file.name, file_type: "photo", mime_type: file.type }]);
+    }
+  };
+
+  const handleAudioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    for (const file of Array.from(files)) {
+      const url = await uploadFile(file);
+      if (url) setAudios((prev) => [...prev, { file_url: url, file_name: file.name, file_type: "audio", mime_type: file.type }]);
+    }
+  };
+
+  const handleSubmit = async () => {
+    try {
+      await createCapture.mutateAsync({ ...form, latitude: location?.lat, longitude: location?.lng, attachments: [...photos, ...audios] });
+      toast({ title: "Ficha criada com sucesso!" });
+      onSuccess();
+      onClose();
+    } catch { toast({ title: "Erro ao criar ficha", variant: "destructive" }); }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <ClipboardList className="h-5 w-5" /> Nova Ficha de Campo
-          </DialogTitle>
-        </DialogHeader>
-
+        <DialogHeader><DialogTitle className="flex items-center gap-2"><ClipboardList className="h-5 w-5" /> Nova Ficha de Campo</DialogTitle></DialogHeader>
         <div className="space-y-4">
-          {/* Location */}
           <div className="flex items-center gap-2">
             <Button onClick={getLocation} disabled={loadingLocation} variant="outline" className="flex-1">
-              <Navigation className="h-4 w-4 mr-2" />
-              {loadingLocation ? "Obtendo..." : location ? "📍 Localização capturada" : "Ativar Localização"}
+              <Navigation className="h-4 w-4 mr-2" /> {loadingLocation ? "Obtendo..." : location ? "📍 Localização capturada" : "Ativar Localização"}
             </Button>
-            {location && (
-              <Badge variant="secondary">{location.lat.toFixed(4)}, {location.lng.toFixed(4)}</Badge>
-            )}
+            {location && <Badge variant="secondary">{location.lat.toFixed(4)}, {location.lng.toFixed(4)}</Badge>}
           </div>
-
-          <Input placeholder="Endereço / Referência" value={form.address}
-            onChange={(e) => setForm({ ...form, address: e.target.value })} />
-
-          {/* Construction Stage */}
+          <Input placeholder="Endereço / Referência" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
           <Select value={form.construction_stage} onValueChange={(v) => setForm({ ...form, construction_stage: v })}>
             <SelectTrigger><SelectValue placeholder="Etapa da Obra" /></SelectTrigger>
-            <SelectContent>
-              {CONSTRUCTION_STAGES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-            </SelectContent>
+            <SelectContent>{CONSTRUCTION_STAGES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
           </Select>
-
-          <Textarea placeholder="Observações sobre a etapa..." value={form.stage_notes}
-            onChange={(e) => setForm({ ...form, stage_notes: e.target.value })} rows={2} />
-
-          {/* Contact Info */}
+          <Textarea placeholder="Observações sobre a etapa..." value={form.stage_notes} onChange={(e) => setForm({ ...form, stage_notes: e.target.value })} rows={2} />
           <div className="border rounded-lg p-3 space-y-2">
             <h4 className="text-sm font-medium flex items-center gap-1"><User className="h-4 w-4" /> Responsável / Contato</h4>
             <div className="grid grid-cols-2 gap-2">
               <Input placeholder="Nome" value={form.contact_name} onChange={(e) => setForm({ ...form, contact_name: e.target.value })} />
-              <Input placeholder="Cargo (ex: Engenheiro)" value={form.contact_role} onChange={(e) => setForm({ ...form, contact_role: e.target.value })} />
+              <Input placeholder="Cargo" value={form.contact_role} onChange={(e) => setForm({ ...form, contact_role: e.target.value })} />
               <Input placeholder="Telefone" value={form.contact_phone} onChange={(e) => setForm({ ...form, contact_phone: e.target.value })} />
               <Input placeholder="E-mail" value={form.contact_email} onChange={(e) => setForm({ ...form, contact_email: e.target.value })} />
             </div>
           </div>
-
-          {/* Company */}
           <div className="border rounded-lg p-3 space-y-2">
             <h4 className="text-sm font-medium flex items-center gap-1"><Building2 className="h-4 w-4" /> Empresa na Obra</h4>
             <div className="grid grid-cols-2 gap-2">
@@ -174,14 +436,10 @@ function CaptureFormDialog({
               <Input placeholder="CNPJ" value={form.company_cnpj} onChange={(e) => setForm({ ...form, company_cnpj: e.target.value })} />
             </div>
           </div>
-
-          {/* Photos */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <h4 className="text-sm font-medium flex items-center gap-1"><Camera className="h-4 w-4" /> Fotos</h4>
-              <Button size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
-                <Plus className="h-3 w-3 mr-1" /> Adicionar
-              </Button>
+              <Button size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isUploading}><Plus className="h-3 w-3 mr-1" /> Adicionar</Button>
               <input ref={fileInputRef} type="file" accept="image/*" multiple capture="environment" className="hidden" onChange={handlePhotoUpload} />
             </div>
             {photos.length > 0 && (
@@ -190,22 +448,16 @@ function CaptureFormDialog({
                   <div key={i} className="relative w-20 h-20 rounded overflow-hidden border">
                     <img src={p.file_url} alt="" className="w-full h-full object-cover" />
                     <button className="absolute top-0 right-0 bg-destructive text-destructive-foreground rounded-bl p-0.5"
-                      onClick={() => setPhotos((prev) => prev.filter((_, idx) => idx !== i))}>
-                      <Trash2 className="h-3 w-3" />
-                    </button>
+                      onClick={() => setPhotos((prev) => prev.filter((_, idx) => idx !== i))}><Trash2 className="h-3 w-3" /></button>
                   </div>
                 ))}
               </div>
             )}
           </div>
-
-          {/* Audio */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <h4 className="text-sm font-medium flex items-center gap-1"><Mic className="h-4 w-4" /> Áudios</h4>
-              <Button size="sm" variant="outline" onClick={() => audioInputRef.current?.click()} disabled={isUploading}>
-                <Plus className="h-3 w-3 mr-1" /> Gravar/Enviar
-              </Button>
+              <Button size="sm" variant="outline" onClick={() => audioInputRef.current?.click()} disabled={isUploading}><Plus className="h-3 w-3 mr-1" /> Gravar/Enviar</Button>
               <input ref={audioInputRef} type="file" accept="audio/*" className="hidden" onChange={handleAudioUpload} />
             </div>
             {audios.length > 0 && (
@@ -214,19 +466,13 @@ function CaptureFormDialog({
                   <div key={i} className="flex items-center gap-2 text-sm bg-muted rounded px-2 py-1">
                     <AudioLines className="h-4 w-4" />
                     <span className="truncate flex-1">{a.file_name}</span>
-                    <button onClick={() => setAudios((prev) => prev.filter((_, idx) => idx !== i))}>
-                      <Trash2 className="h-3 w-3 text-destructive" />
-                    </button>
+                    <button onClick={() => setAudios((prev) => prev.filter((_, idx) => idx !== i))}><Trash2 className="h-3 w-3 text-destructive" /></button>
                   </div>
                 ))}
               </div>
             )}
           </div>
-
-          {/* Notes */}
-          <Textarea placeholder="Anotações gerais..." value={form.notes}
-            onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={3} />
-
+          <Textarea placeholder="Anotações gerais..." value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={3} />
           <Button onClick={handleSubmit} disabled={createCapture.isPending} className="w-full">
             {createCapture.isPending ? "Salvando..." : "Salvar Ficha"}
           </Button>
@@ -236,9 +482,8 @@ function CaptureFormDialog({
   );
 }
 
-function CaptureDetailDialog({
-  captureId, open, onClose,
-}: { captureId: string | null; open: boolean; onClose: () => void }) {
+// ─── Capture Detail Dialog ───
+function CaptureDetailDialog({ captureId, open, onClose }: { captureId: string | null; open: boolean; onClose: () => void }) {
   const { data: capture } = useFieldCaptureDetail(captureId);
   const addVisit = useAddFieldCaptureVisit();
   const updateCapture = useUpdateFieldCapture();
@@ -257,17 +502,10 @@ function CaptureDetailDialog({
       const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
         navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true })
       );
-      lat = pos.coords.latitude;
-      lng = pos.coords.longitude;
+      lat = pos.coords.latitude; lng = pos.coords.longitude;
     } catch { /* ignore */ }
 
-    await addVisit.mutateAsync({
-      captureId: capture.id,
-      ...visitForm,
-      latitude: lat,
-      longitude: lng,
-      attachments: visitPhotos,
-    });
+    await addVisit.mutateAsync({ captureId: capture.id, ...visitForm, latitude: lat, longitude: lng, attachments: visitPhotos });
     toast({ title: "Visita registrada!" });
     setShowVisitForm(false);
     setVisitForm({ construction_stage: "", notes: "" });
@@ -290,31 +528,27 @@ function CaptureDetailDialog({
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <MapPin className="h-5 w-5" />
-            Ficha #{capture.id.slice(0, 8)}
+            <MapPin className="h-5 w-5" /> Ficha #{capture.id.slice(0, 8)}
             <Badge className={statusInfo.color}>{statusInfo.label}</Badge>
           </DialogTitle>
         </DialogHeader>
-
         <Tabs defaultValue="info">
           <TabsList className="w-full">
             <TabsTrigger value="info" className="flex-1">Informações</TabsTrigger>
-            <TabsTrigger value="media" className="flex-1">Mídia ({(capture.attachments?.length || 0)})</TabsTrigger>
+            <TabsTrigger value="media" className="flex-1">Mídia ({capture.attachments?.length || 0})</TabsTrigger>
             <TabsTrigger value="visits" className="flex-1">Visitas ({capture.visits?.length || 0})</TabsTrigger>
           </TabsList>
-
           <TabsContent value="info" className="space-y-3 mt-3">
-            <div className="grid grid-cols-2 gap-3 text-sm">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
               <div><span className="text-muted-foreground">Captador:</span> {capture.created_by_name}</div>
               <div><span className="text-muted-foreground">Data:</span> {format(new Date(capture.created_at), "dd/MM/yyyy HH:mm")}</div>
               <div><span className="text-muted-foreground">Endereço:</span> {capture.address || "—"}</div>
               <div><span className="text-muted-foreground">Etapa:</span> {capture.construction_stage || "—"}</div>
             </div>
-
             {(capture.contact_name || capture.contact_phone) && (
               <Card>
                 <CardHeader className="py-2 px-3"><CardTitle className="text-sm">Contato</CardTitle></CardHeader>
-                <CardContent className="px-3 pb-3 grid grid-cols-2 gap-2 text-sm">
+                <CardContent className="px-3 pb-3 grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
                   <div className="flex items-center gap-1"><User className="h-3 w-3" /> {capture.contact_name || "—"}</div>
                   <div className="flex items-center gap-1"><Badge variant="outline">{capture.contact_role || "—"}</Badge></div>
                   <div className="flex items-center gap-1"><Phone className="h-3 w-3" /> {capture.contact_phone || "—"}</div>
@@ -322,7 +556,6 @@ function CaptureDetailDialog({
                 </CardContent>
               </Card>
             )}
-
             {capture.company_name && (
               <Card>
                 <CardHeader className="py-2 px-3"><CardTitle className="text-sm">Empresa</CardTitle></CardHeader>
@@ -332,68 +565,42 @@ function CaptureDetailDialog({
                 </CardContent>
               </Card>
             )}
-
             {capture.notes && <div className="text-sm bg-muted rounded p-3">{capture.notes}</div>}
-
-            {/* Status change */}
-            <div className="flex gap-2">
-              <Select value={capture.status} onValueChange={(v) => updateCapture.mutate({ id: capture.id, status: v })}>
-                <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {Object.entries(STATUS_MAP).map(([k, v]) => (
-                    <SelectItem key={k} value={k}>{v.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <Select value={capture.status} onValueChange={(v) => updateCapture.mutate({ id: capture.id, status: v })}>
+              <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {Object.entries(STATUS_MAP).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
           </TabsContent>
-
           <TabsContent value="media" className="mt-3">
             {capture.attachments && capture.attachments.length > 0 ? (
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                 {capture.attachments.map((att) => (
                   <div key={att.id} className="border rounded overflow-hidden">
                     {att.file_type === "photo" ? (
-                      <a href={att.file_url} target="_blank" rel="noopener">
-                        <img src={att.file_url} alt={att.file_name} className="w-full h-32 object-cover" />
-                      </a>
+                      <a href={att.file_url} target="_blank" rel="noopener"><img src={att.file_url} alt={att.file_name} className="w-full h-32 object-cover" /></a>
                     ) : att.file_type === "audio" ? (
-                      <div className="p-2">
-                        <audio controls src={att.file_url} className="w-full" />
-                        <p className="text-xs truncate mt-1">{att.file_name}</p>
-                      </div>
+                      <div className="p-2"><audio controls src={att.file_url} className="w-full" /><p className="text-xs truncate mt-1">{att.file_name}</p></div>
                     ) : (
-                      <a href={att.file_url} target="_blank" rel="noopener" className="p-3 flex items-center gap-2 text-sm">
-                        <FileText className="h-4 w-4" /> {att.file_name}
-                      </a>
+                      <a href={att.file_url} target="_blank" rel="noopener" className="p-3 flex items-center gap-2 text-sm"><FileText className="h-4 w-4" /> {att.file_name}</a>
                     )}
                   </div>
                 ))}
               </div>
-            ) : (
-              <p className="text-center text-muted-foreground py-8">Nenhuma mídia anexada</p>
-            )}
+            ) : <p className="text-center text-muted-foreground py-8">Nenhuma mídia anexada</p>}
           </TabsContent>
-
           <TabsContent value="visits" className="mt-3 space-y-3">
-            <Button size="sm" onClick={() => setShowVisitForm(!showVisitForm)}>
-              <Plus className="h-4 w-4 mr-1" /> Nova Visita
-            </Button>
-
+            <Button size="sm" onClick={() => setShowVisitForm(!showVisitForm)}><Plus className="h-4 w-4 mr-1" /> Nova Visita</Button>
             {showVisitForm && (
               <Card className="p-3 space-y-2">
                 <Select value={visitForm.construction_stage} onValueChange={(v) => setVisitForm({ ...visitForm, construction_stage: v })}>
                   <SelectTrigger><SelectValue placeholder="Etapa atual da obra" /></SelectTrigger>
-                  <SelectContent>
-                    {CONSTRUCTION_STAGES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                  </SelectContent>
+                  <SelectContent>{CONSTRUCTION_STAGES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
                 </Select>
-                <Textarea placeholder="Observações da visita..." value={visitForm.notes}
-                  onChange={(e) => setVisitForm({ ...visitForm, notes: e.target.value })} rows={2} />
+                <Textarea placeholder="Observações da visita..." value={visitForm.notes} onChange={(e) => setVisitForm({ ...visitForm, notes: e.target.value })} rows={2} />
                 <div className="flex items-center gap-2">
-                  <Button size="sm" variant="outline" onClick={() => visitFileRef.current?.click()} disabled={isUploading}>
-                    <Camera className="h-3 w-3 mr-1" /> Fotos
-                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => visitFileRef.current?.click()} disabled={isUploading}><Camera className="h-3 w-3 mr-1" /> Fotos</Button>
                   <input ref={visitFileRef} type="file" accept="image/*" multiple capture="environment" className="hidden" onChange={handleVisitPhoto} />
                   {visitPhotos.length > 0 && <Badge>{visitPhotos.length} foto(s)</Badge>}
                   <div className="flex-1" />
@@ -401,7 +608,6 @@ function CaptureDetailDialog({
                 </div>
               </Card>
             )}
-
             <ScrollArea className="max-h-80">
               {capture.visits?.map((visit) => (
                 <Card key={visit.id} className="mb-2 p-3">
@@ -433,14 +639,53 @@ function CaptureDetailDialog({
   );
 }
 
+// ─── Map Component ───
+function CaptadorMap({ points, onSelect }: { points: any[]; onSelect: (id: string) => void }) {
+  const mapRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (!mapRef.current || mapInstanceRef.current) return;
+    import("leaflet").then((L) => {
+      const map = L.map(mapRef.current!, { center: [-15.78, -47.93], zoom: 5 });
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "© OpenStreetMap" }).addTo(map);
+      mapInstanceRef.current = map;
+      if (points.length > 0) {
+        const bounds: [number, number][] = [];
+        points.forEach((p: any) => {
+          if (!p.latitude || !p.longitude) return;
+          const pos: [number, number] = [parseFloat(p.latitude), parseFloat(p.longitude)];
+          bounds.push(pos);
+          const icon = L.divIcon({
+            className: "custom-marker",
+            html: `<div style="background:${p.status === 'converted' ? '#22c55e' : p.status === 'in_progress' ? '#eab308' : '#3b82f6'};width:24px;height:24px;border-radius:50%;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;color:white;font-size:10px;font-weight:bold">${p.visit_count || 0}</div>`,
+            iconSize: [24, 24], iconAnchor: [12, 12],
+          });
+          const marker = L.marker(pos, { icon }).addTo(map);
+          marker.bindPopup(`<div style="min-width:200px"><strong>${p.company_name || 'Obra'}</strong><br/><small>${p.address || ''}</small><br/><small>Etapa: ${p.construction_stage || '—'}</small><br/><small>Visitas: ${p.visit_count || 0}</small></div>`);
+          marker.on("click", () => onSelect(p.id));
+        });
+        if (bounds.length > 0) map.fitBounds(bounds, { padding: [50, 50] });
+      }
+    });
+    return () => { if (mapInstanceRef.current) { mapInstanceRef.current.remove(); mapInstanceRef.current = null; } };
+  }, [points, onSelect]);
+
+  return <div ref={mapRef} className="w-full h-[400px] md:h-[500px] rounded-lg border" />;
+}
+
+// ─── Main Page ───
 export default function Captador() {
   const { toast } = useToast();
   const { user } = useAuth();
+  const isMobile = useIsMobile();
   const [tab, setTab] = useState("list");
   const [showForm, setShowForm] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filters, setFilters] = useState<{ status?: string; assigned_to?: string; unassigned?: boolean }>({});
+
+  const { checkedIn, checkinTime, doCheckin, doCheckout } = useCheckin();
 
   const { data: captures = [], refetch } = useFieldCaptures(filters);
   const { data: stats } = useFieldCaptureStats();
@@ -450,6 +695,26 @@ export default function Captador() {
   const updateSettings = useUpdateCaptadorSettings();
   const updateCapture = useUpdateFieldCapture();
   const deleteCapture = useDeleteFieldCapture();
+
+  const todayCaptures = captures.filter((c) => {
+    const today = new Date();
+    const cDate = new Date(c.created_at);
+    return cDate.toDateString() === today.toDateString();
+  });
+
+  const handleCheckin = async () => {
+    try {
+      await doCheckin();
+      toast({ title: "✅ Check-in realizado!" });
+    } catch {
+      toast({ title: "Erro ao fazer check-in", description: "Ative o GPS", variant: "destructive" });
+    }
+  };
+
+  const handleCheckout = () => {
+    doCheckout();
+    toast({ title: "Check-out realizado!" });
+  };
 
   const handleDelete = async (id: string) => {
     if (!confirm("Excluir esta ficha?")) return;
@@ -462,6 +727,147 @@ export default function Captador() {
     toast({ title: sellerId ? "Vendedor atribuído!" : "Atribuição removida" });
   };
 
+  // ─── Mobile Layout ───
+  if (isMobile) {
+    return (
+      <MainLayout>
+        <div className="flex flex-col h-[calc(100vh-4rem)]">
+          {/* Mobile Header */}
+          <div className="p-4 bg-card border-b space-y-3">
+            <div className="flex items-center justify-between">
+              <h1 className="text-lg font-bold flex items-center gap-2">
+                <MapPin className="h-5 w-5 text-primary" /> Captador
+              </h1>
+              <Button variant="ghost" size="icon" onClick={() => setShowSettings(!showSettings)}>
+                <Settings className="h-5 w-5" />
+              </Button>
+            </div>
+
+            {/* Check-in/Checkout Bar */}
+            <div className={`rounded-xl p-3 flex items-center justify-between ${checkedIn ? 'bg-green-500/10 border border-green-500/30' : 'bg-muted'}`}>
+              <div className="flex items-center gap-2">
+                {checkedIn ? <CheckCircle2 className="h-5 w-5 text-green-500" /> : <Circle className="h-5 w-5 text-muted-foreground" />}
+                <div>
+                  <p className="text-sm font-medium">{checkedIn ? "Em serviço" : "Fora de serviço"}</p>
+                  {checkinTime && <p className="text-xs text-muted-foreground">Desde {format(checkinTime, "HH:mm")}</p>}
+                </div>
+              </div>
+              <Button size="sm" variant={checkedIn ? "destructive" : "default"} onClick={checkedIn ? handleCheckout : handleCheckin}
+                className="h-9 px-4">
+                {checkedIn ? <><LogOut className="h-4 w-4 mr-1" /> Checkout</> : <><LogIn className="h-4 w-4 mr-1" /> Check-in</>}
+              </Button>
+            </div>
+
+            {/* Quick Stats */}
+            {stats && (
+              <div className="grid grid-cols-4 gap-2">
+                <div className="text-center p-2 rounded-lg bg-muted/50">
+                  <div className="text-lg font-bold">{todayCaptures.length}</div>
+                  <div className="text-[10px] text-muted-foreground">Hoje</div>
+                </div>
+                <div className="text-center p-2 rounded-lg bg-muted/50">
+                  <div className="text-lg font-bold text-primary">{stats.new_count}</div>
+                  <div className="text-[10px] text-muted-foreground">Novas</div>
+                </div>
+                <div className="text-center p-2 rounded-lg bg-muted/50">
+                  <div className="text-lg font-bold">{stats.in_progress_count}</div>
+                  <div className="text-[10px] text-muted-foreground">Andamento</div>
+                </div>
+                <div className="text-center p-2 rounded-lg bg-muted/50">
+                  <div className="text-lg font-bold text-green-500">{stats.converted_count}</div>
+                  <div className="text-[10px] text-muted-foreground">Convertidos</div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Tabs */}
+          <Tabs value={tab} onValueChange={setTab} className="flex-1 flex flex-col">
+            <TabsList className="mx-4 mt-2">
+              <TabsTrigger value="list" className="flex-1"><ClipboardList className="h-4 w-4 mr-1" /> Fichas</TabsTrigger>
+              <TabsTrigger value="map" className="flex-1"><MapPin className="h-4 w-4 mr-1" /> Mapa</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="list" className="flex-1 overflow-y-auto px-4 pb-24">
+              {/* Today's captures */}
+              {todayCaptures.length > 0 && (
+                <div className="mb-4">
+                  <h3 className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-1">
+                    <Clock className="h-3.5 w-3.5" /> Hoje ({todayCaptures.length})
+                  </h3>
+                  <div className="space-y-2">
+                    {todayCaptures.map((c) => (
+                      <MobileCaptureCard key={c.id} capture={c} onSelect={setSelectedId} onDelete={handleDelete}
+                        sellers={sellers} onAssign={handleAssign} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* All captures */}
+              <h3 className="text-sm font-medium text-muted-foreground mb-2">
+                Todas ({captures.length})
+              </h3>
+              <div className="space-y-2">
+                {captures.map((c) => (
+                  <MobileCaptureCard key={c.id} capture={c} onSelect={setSelectedId} onDelete={handleDelete}
+                    sellers={sellers} onAssign={handleAssign} />
+                ))}
+                {captures.length === 0 && (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <MapPin className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                    <p>Nenhuma ficha encontrada</p>
+                    <p className="text-xs mt-1">Toque em + para criar</p>
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="map" className="flex-1 px-4 pb-4">
+              <CaptadorMap points={mapPoints} onSelect={setSelectedId} />
+            </TabsContent>
+          </Tabs>
+
+          {/* FAB - New Capture */}
+          <button onClick={() => setShowForm(true)}
+            className="fixed bottom-20 right-4 z-40 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center active:scale-95 transition-transform">
+            <Plus className="h-6 w-6" />
+          </button>
+
+          <MobileCaptureForm open={showForm} onClose={() => setShowForm(false)} onSuccess={() => refetch()} />
+          <CaptureDetailDialog captureId={selectedId} open={!!selectedId} onClose={() => setSelectedId(null)} />
+
+          {/* Settings Panel */}
+          {showSettings && settings && (
+            <Dialog open={showSettings} onOpenChange={setShowSettings}>
+              <DialogContent>
+                <DialogHeader><DialogTitle>Configurações</DialogTitle></DialogHeader>
+                <div className="space-y-4">
+                  <label className="flex items-center gap-3 text-sm">
+                    <input type="checkbox" checked={settings.auto_distribute}
+                      onChange={(e) => updateSettings.mutate({ ...settings, auto_distribute: e.target.checked })} className="rounded" />
+                    Distribuição automática
+                  </label>
+                  <label className="flex items-center gap-3 text-sm">
+                    <input type="checkbox" checked={settings.auto_create_task}
+                      onChange={(e) => updateSettings.mutate({ ...settings, auto_create_task: e.target.checked })} className="rounded" />
+                    Criar tarefa automaticamente
+                  </label>
+                  <label className="flex items-center gap-3 text-sm">
+                    <input type="checkbox" checked={settings.notify_whatsapp}
+                      onChange={(e) => updateSettings.mutate({ ...settings, notify_whatsapp: e.target.checked })} className="rounded" />
+                    Notificar via WhatsApp
+                  </label>
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
+        </div>
+      </MainLayout>
+    );
+  }
+
+  // ─── Desktop Layout ───
   return (
     <MainLayout>
       <div className="p-4 md:p-6 space-y-4">
@@ -470,6 +876,14 @@ export default function Captador() {
             <MapPin className="h-6 w-6" /> Captador
           </h1>
           <div className="flex gap-2">
+            {/* Check-in/Checkout */}
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm ${checkedIn ? 'bg-green-500/10 border border-green-500/30' : 'bg-muted'}`}>
+              {checkedIn ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <Circle className="h-4 w-4 text-muted-foreground" />}
+              <span>{checkedIn ? `Em serviço desde ${checkinTime ? format(checkinTime, "HH:mm") : ""}` : "Fora de serviço"}</span>
+              <Button size="sm" variant={checkedIn ? "destructive" : "default"} onClick={checkedIn ? handleCheckout : handleCheckin} className="h-7 text-xs">
+                {checkedIn ? "Checkout" : "Check-in"}
+              </Button>
+            </div>
             <Button variant="outline" size="sm" onClick={() => setShowSettings(!showSettings)}>
               <Settings className="h-4 w-4" />
             </Button>
@@ -479,86 +893,58 @@ export default function Captador() {
           </div>
         </div>
 
-        {/* Settings Panel */}
         {showSettings && settings && (
           <Card className="p-4 space-y-3">
             <h3 className="font-medium flex items-center gap-2"><Settings className="h-4 w-4" /> Configurações do Captador</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={settings.auto_distribute}
-                  onChange={(e) => updateSettings.mutate({ ...settings, auto_distribute: e.target.checked })}
-                  className="rounded" />
+                  onChange={(e) => updateSettings.mutate({ ...settings, auto_distribute: e.target.checked })} className="rounded" />
                 Distribuição automática (round-robin)
               </label>
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={settings.auto_create_task}
-                  onChange={(e) => updateSettings.mutate({ ...settings, auto_create_task: e.target.checked })}
-                  className="rounded" />
+                  onChange={(e) => updateSettings.mutate({ ...settings, auto_create_task: e.target.checked })} className="rounded" />
                 Criar tarefa automaticamente
               </label>
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={settings.notify_whatsapp}
-                  onChange={(e) => updateSettings.mutate({ ...settings, notify_whatsapp: e.target.checked })}
-                  className="rounded" />
+                  onChange={(e) => updateSettings.mutate({ ...settings, notify_whatsapp: e.target.checked })} className="rounded" />
                 Notificar via WhatsApp
               </label>
             </div>
           </Card>
         )}
 
-        {/* Stats */}
         {stats && (
           <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-            <Card className="p-3 text-center">
-              <div className="text-2xl font-bold">{stats.total_captures}</div>
-              <div className="text-xs text-muted-foreground">Total Fichas</div>
-            </Card>
-            <Card className="p-3 text-center">
-              <div className="text-2xl font-bold text-primary">{stats.new_count}</div>
-              <div className="text-xs text-muted-foreground">Novas</div>
-            </Card>
-            <Card className="p-3 text-center">
-              <div className="text-2xl font-bold text-accent-foreground">{stats.in_progress_count}</div>
-              <div className="text-xs text-muted-foreground">Em Andamento</div>
-            </Card>
-            <Card className="p-3 text-center">
-              <div className="text-2xl font-bold text-primary">{stats.converted_count}</div>
-              <div className="text-xs text-muted-foreground">Convertidos</div>
-            </Card>
+            <Card className="p-3 text-center"><div className="text-2xl font-bold">{stats.total_captures}</div><div className="text-xs text-muted-foreground">Total Fichas</div></Card>
+            <Card className="p-3 text-center"><div className="text-2xl font-bold text-primary">{stats.new_count}</div><div className="text-xs text-muted-foreground">Novas</div></Card>
+            <Card className="p-3 text-center"><div className="text-2xl font-bold">{stats.in_progress_count}</div><div className="text-xs text-muted-foreground">Em Andamento</div></Card>
+            <Card className="p-3 text-center"><div className="text-2xl font-bold text-primary">{stats.converted_count}</div><div className="text-xs text-muted-foreground">Convertidos</div></Card>
             <Card className="p-3 text-center cursor-pointer hover:bg-muted/50"
               onClick={() => setFilters({ ...filters, unassigned: !filters.unassigned, assigned_to: undefined })}>
-              <div className="text-2xl font-bold text-destructive">{stats.unassigned_count || 0}</div>
-              <div className="text-xs text-muted-foreground">Sem Vendedor</div>
+              <div className="text-2xl font-bold text-destructive">{stats.unassigned_count || 0}</div><div className="text-xs text-muted-foreground">Sem Vendedor</div>
             </Card>
-            <Card className="p-3 text-center">
-              <div className="text-2xl font-bold">{stats.total_visits}</div>
-              <div className="text-xs text-muted-foreground">Total Visitas</div>
-            </Card>
+            <Card className="p-3 text-center"><div className="text-2xl font-bold">{stats.total_visits}</div><div className="text-xs text-muted-foreground">Total Visitas</div></Card>
           </div>
         )}
 
-        {/* Filters */}
         <div className="flex gap-2 flex-wrap">
           <Select value={filters.status || "all"} onValueChange={(v) => setFilters({ ...filters, status: v === "all" ? undefined : v })}>
             <SelectTrigger className="w-40"><SelectValue placeholder="Status" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos</SelectItem>
-              {Object.entries(STATUS_MAP).map(([k, v]) => (
-                <SelectItem key={k} value={k}>{v.label}</SelectItem>
-              ))}
+              {Object.entries(STATUS_MAP).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
             </SelectContent>
           </Select>
-
           <Select value={filters.assigned_to || "all"} onValueChange={(v) => setFilters({ ...filters, assigned_to: v === "all" ? undefined : v, unassigned: false })}>
             <SelectTrigger className="w-48"><SelectValue placeholder="Vendedor" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos Vendedores</SelectItem>
-              {sellers.map((s) => (
-                <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-              ))}
+              {sellers.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
             </SelectContent>
           </Select>
-
           {filters.unassigned && (
             <Badge variant="secondary" className="cursor-pointer" onClick={() => setFilters({ ...filters, unassigned: false })}>
               Sem vendedor ✕
@@ -571,7 +957,6 @@ export default function Captador() {
             <TabsTrigger value="list"><ClipboardList className="h-4 w-4 mr-1" /> Lista</TabsTrigger>
             <TabsTrigger value="map"><MapPin className="h-4 w-4 mr-1" /> Mapa</TabsTrigger>
           </TabsList>
-
           <TabsContent value="list" className="mt-3">
             <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
               {captures.map((c) => {
@@ -583,16 +968,8 @@ export default function Captador() {
                         <Badge className={st.color}>{st.label}</Badge>
                         <span className="text-xs text-muted-foreground">{format(new Date(c.created_at), "dd/MM/yyyy")}</span>
                       </div>
-                      {c.company_name && (
-                        <div className="font-medium flex items-center gap-1 text-sm">
-                          <Building2 className="h-3 w-3" /> {c.company_name}
-                        </div>
-                      )}
-                      {c.address && (
-                        <div className="text-xs text-muted-foreground flex items-center gap-1">
-                          <MapPin className="h-3 w-3" /> {c.address}
-                        </div>
-                      )}
+                      {c.company_name && <div className="font-medium flex items-center gap-1 text-sm"><Building2 className="h-3 w-3" /> {c.company_name}</div>}
+                      {c.address && <div className="text-xs text-muted-foreground flex items-center gap-1"><MapPin className="h-3 w-3" /> {c.address}</div>}
                       {c.construction_stage && <Badge variant="outline" className="text-xs">{c.construction_stage}</Badge>}
                       {c.contact_name && (
                         <div className="text-xs flex items-center gap-1">
@@ -600,33 +977,22 @@ export default function Captador() {
                           {c.contact_phone && <span>• <Phone className="h-3 w-3 inline" /> {c.contact_phone}</span>}
                         </div>
                       )}
-                      {/* Assignment */}
                       <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                         <UserPlus className="h-3 w-3 text-muted-foreground" />
                         <Select value={c.assigned_to || "none"} onValueChange={(v) => handleAssign(c.id, v === "none" ? "" : v)}>
-                          <SelectTrigger className="h-6 text-xs w-36 border-dashed">
-                            <SelectValue placeholder="Atribuir vendedor" />
-                          </SelectTrigger>
+                          <SelectTrigger className="h-6 text-xs w-36 border-dashed"><SelectValue placeholder="Atribuir vendedor" /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="none">Sem vendedor</SelectItem>
-                            {sellers.map((s) => (
-                              <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                            ))}
+                            {sellers.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                           </SelectContent>
                         </Select>
                       </div>
                       <div className="flex items-center justify-between text-xs text-muted-foreground">
                         <span>{c.created_by_name}</span>
                         <div className="flex items-center gap-2">
-                          {c.attachments && c.attachments.length > 0 && (
-                            <span className="flex items-center gap-0.5"><Image className="h-3 w-3" /> {c.attachments.length}</span>
-                          )}
-                          {c.visit_count > 0 && (
-                            <span className="flex items-center gap-0.5"><Eye className="h-3 w-3" /> {c.visit_count}</span>
-                          )}
-                          <button onClick={(e) => { e.stopPropagation(); handleDelete(c.id); }}>
-                            <Trash2 className="h-3 w-3 text-destructive" />
-                          </button>
+                          {c.attachments && c.attachments.length > 0 && <span className="flex items-center gap-0.5"><Image className="h-3 w-3" /> {c.attachments.length}</span>}
+                          {c.visit_count > 0 && <span className="flex items-center gap-0.5"><Eye className="h-3 w-3" /> {c.visit_count}</span>}
+                          <button onClick={(e) => { e.stopPropagation(); handleDelete(c.id); }}><Trash2 className="h-3 w-3 text-destructive" /></button>
                         </div>
                       </div>
                     </CardContent>
@@ -640,71 +1006,54 @@ export default function Captador() {
               )}
             </div>
           </TabsContent>
-
           <TabsContent value="map" className="mt-3">
             <CaptadorMap points={mapPoints} onSelect={setSelectedId} />
           </TabsContent>
         </Tabs>
 
-        <CaptureFormDialog open={showForm} onClose={() => setShowForm(false)} onSuccess={() => refetch()} />
+        <DesktopCaptureFormDialog open={showForm} onClose={() => setShowForm(false)} onSuccess={() => refetch()} />
         <CaptureDetailDialog captureId={selectedId} open={!!selectedId} onClose={() => setSelectedId(null)} />
       </div>
     </MainLayout>
   );
 }
 
-function CaptadorMap({ points, onSelect }: { points: any[]; onSelect: (id: string) => void }) {
-  const mapRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<any>(null);
+// ─── Mobile Capture Card ───
+function MobileCaptureCard({ capture, onSelect, onDelete, sellers, onAssign }: {
+  capture: FieldCapture; onSelect: (id: string) => void; onDelete: (id: string) => void;
+  sellers: { id: string; name: string }[]; onAssign: (captureId: string, sellerId: string) => void;
+}) {
+  const st = STATUS_MAP[capture.status] || STATUS_MAP.new;
+  return (
+    <div className="bg-card rounded-xl border p-3 active:bg-muted/50 transition-colors" onClick={() => onSelect(capture.id)}>
+      <div className="flex items-start gap-3">
+        {/* Thumbnail or icon */}
+        <div className="w-14 h-14 rounded-lg bg-muted flex items-center justify-center shrink-0 overflow-hidden">
+          {capture.attachments && capture.attachments.length > 0 && capture.attachments[0].file_type === "photo" ? (
+            <img src={capture.attachments[0].file_url} alt="" className="w-full h-full object-cover" />
+          ) : (
+            <Building2 className="h-6 w-6 text-muted-foreground" />
+          )}
+        </div>
 
-  useEffect(() => {
-    if (!mapRef.current || mapInstanceRef.current) return;
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between mb-0.5">
+            <span className="font-medium text-sm truncate">{capture.company_name || capture.address || "Obra sem nome"}</span>
+            <Badge className={`${st.color} text-[10px] px-1.5 py-0`}>{st.label}</Badge>
+          </div>
+          {capture.construction_stage && <p className="text-xs text-muted-foreground">{capture.construction_stage}</p>}
+          <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+            <span>{format(new Date(capture.created_at), "dd/MM HH:mm")}</span>
+            {capture.visit_count > 0 && <span className="flex items-center gap-0.5"><Eye className="h-3 w-3" /> {capture.visit_count}</span>}
+            {capture.attachments && capture.attachments.length > 0 && <span className="flex items-center gap-0.5"><Image className="h-3 w-3" /> {capture.attachments.length}</span>}
+          </div>
+          {capture.assigned_to_name && (
+            <div className="flex items-center gap-1 mt-1 text-xs"><UserPlus className="h-3 w-3" /> {capture.assigned_to_name}</div>
+          )}
+        </div>
 
-    import("leaflet").then((L) => {
-      const map = L.map(mapRef.current!, { center: [-15.78, -47.93], zoom: 5 });
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "© OpenStreetMap",
-      }).addTo(map);
-      mapInstanceRef.current = map;
-
-      // Add markers
-      if (points.length > 0) {
-        const bounds: [number, number][] = [];
-        points.forEach((p: any) => {
-          if (!p.latitude || !p.longitude) return;
-          const pos: [number, number] = [parseFloat(p.latitude), parseFloat(p.longitude)];
-          bounds.push(pos);
-
-          const icon = L.divIcon({
-            className: "custom-marker",
-            html: `<div style="background:${p.status === 'converted' ? '#22c55e' : p.status === 'in_progress' ? '#eab308' : '#3b82f6'};width:24px;height:24px;border-radius:50%;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;color:white;font-size:10px;font-weight:bold">${p.visit_count || 0}</div>`,
-            iconSize: [24, 24],
-            iconAnchor: [12, 12],
-          });
-
-          const marker = L.marker(pos, { icon }).addTo(map);
-          marker.bindPopup(`
-            <div style="min-width:200px">
-              <strong>${p.company_name || 'Obra'}</strong><br/>
-              <small>${p.address || ''}</small><br/>
-              <small>Etapa: ${p.construction_stage || '—'}</small><br/>
-              <small>Captador: ${p.created_by_name}</small><br/>
-              <small>Visitas: ${p.visit_count || 0}</small>
-            </div>
-          `);
-          marker.on("click", () => onSelect(p.id));
-        });
-        if (bounds.length > 0) map.fitBounds(bounds, { padding: [50, 50] });
-      }
-    });
-
-    return () => {
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-        mapInstanceRef.current = null;
-      }
-    };
-  }, [points, onSelect]);
-
-  return <div ref={mapRef} className="w-full h-[500px] rounded-lg border" />;
+        <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 mt-1" />
+      </div>
+    </div>
+  );
 }

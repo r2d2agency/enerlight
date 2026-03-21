@@ -147,6 +147,8 @@ export default function Organizacoes() {
     internal_chat: true,
     tasks: true,
     lead_gleego: false,
+    homologation: false,
+    captador: false,
   });
   const [savingModules, setSavingModules] = useState(false);
 
@@ -252,6 +254,8 @@ export default function Organizacoes() {
         internal_chat: modules.internal_chat ?? true,
         tasks: modules.tasks ?? true,
         lead_gleego: modules.lead_gleego ?? false,
+        homologation: modules.homologation ?? false,
+        captador: modules.captador ?? false,
       });
     } catch (error) {
       console.error('Error loading modules:', error);
@@ -1435,6 +1439,36 @@ export default function Organizacoes() {
                           <Switch
                             checked={modulesEnabled.lead_gleego}
                             onCheckedChange={(checked) => setModulesEnabled(prev => ({ ...prev, lead_gleego: checked }))}
+                            disabled={!canManageOrg}
+                          />
+                        </div>
+
+                        {/* Homologação Module */}
+                        <div className="flex items-center justify-between rounded-lg border p-4">
+                          <div>
+                            <p className="text-sm font-medium">Homologação</p>
+                            <p className="text-xs text-muted-foreground">
+                              Kanban de homologação de projetos
+                            </p>
+                          </div>
+                          <Switch
+                            checked={modulesEnabled.homologation}
+                            onCheckedChange={(checked) => setModulesEnabled(prev => ({ ...prev, homologation: checked }))}
+                            disabled={!canManageOrg}
+                          />
+                        </div>
+
+                        {/* Captador Module */}
+                        <div className="flex items-center justify-between rounded-lg border p-4">
+                          <div>
+                            <p className="text-sm font-medium">Captador</p>
+                            <p className="text-xs text-muted-foreground">
+                              Fichas de campo, GPS, fotos e mapa de obras
+                            </p>
+                          </div>
+                          <Switch
+                            checked={modulesEnabled.captador}
+                            onCheckedChange={(checked) => setModulesEnabled(prev => ({ ...prev, captador: checked }))}
                             disabled={!canManageOrg}
                           />
                         </div>
