@@ -860,7 +860,8 @@ function CaptureDetailDialog({ captureId, open, onClose }: { captureId: string |
   const handleVisitPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
-    for (const file of Array.from(files)) {
+    for (const rawFile of Array.from(files)) {
+      const file = await compressImage(rawFile);
       const url = await uploadFile(file);
       if (url) setVisitPhotos((p) => [...p, { file_url: url, file_name: file.name, file_type: "photo", mime_type: file.type }]);
     }
