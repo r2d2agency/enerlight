@@ -89,8 +89,10 @@ export function useFieldCaptureDetail(id: string | null) {
 export function useFieldCaptureMapPoints(filters?: CaptureFilters) {
   const params = new URLSearchParams();
   if (filters?.user_id) params.set("user_id", filters.user_id);
+  if (filters?.assigned_to) params.set("user_id", filters.assigned_to);
   if (filters?.start_date) params.set("start_date", filters.start_date);
   if (filters?.end_date) params.set("end_date", filters.end_date);
+  if (filters?.segment) params.set("segment", filters.segment);
   const qs = params.toString();
 
   return useQuery<any[]>({
