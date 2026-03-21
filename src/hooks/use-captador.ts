@@ -163,3 +163,26 @@ export function useDeleteFieldCapture() {
     },
   });
 }
+
+export function useCaptadorSellers() {
+  return useQuery<{ id: string; name: string; whatsapp_phone: string }[]>({
+    queryKey: ["captador-sellers"],
+    queryFn: () => api("/api/captador/sellers"),
+  });
+}
+
+export function useCaptadorSettings() {
+  return useQuery<CaptadorSettings>({
+    queryKey: ["captador-settings"],
+    queryFn: () => api("/api/captador/settings"),
+  });
+}
+
+export function useUpdateCaptadorSettings() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Partial<CaptadorSettings>) =>
+      api("/api/captador/settings", { method: "PUT", body: JSON.stringify(data) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["captador-settings"] }),
+  });
+}
