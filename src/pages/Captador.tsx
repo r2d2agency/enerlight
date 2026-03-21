@@ -863,10 +863,16 @@ function DesktopCaptureFormDialog({ open, onClose, onSuccess }: { open: boolean;
           </div>
 
           {/* Obra */}
-          <Select value={form.construction_stage} onValueChange={(v) => setForm({ ...form, construction_stage: v })}>
-            <SelectTrigger><SelectValue placeholder="Etapa da Obra" /></SelectTrigger>
-            <SelectContent>{CONSTRUCTION_STAGES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-          </Select>
+          <div className="grid grid-cols-2 gap-2">
+            <Select value={form.segment} onValueChange={(v) => setForm({ ...form, segment: v })}>
+              <SelectTrigger><SelectValue placeholder="Segmento" /></SelectTrigger>
+              <SelectContent>{SEGMENTS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+            </Select>
+            <Select value={form.construction_stage} onValueChange={(v) => setForm({ ...form, construction_stage: v })}>
+              <SelectTrigger><SelectValue placeholder="Etapa da Obra" /></SelectTrigger>
+              <SelectContent>{CONSTRUCTION_STAGES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
           <Textarea placeholder="Observações sobre a etapa..." value={form.stage_notes} onChange={(e) => setForm({ ...form, stage_notes: e.target.value })} rows={2} />
 
           {/* Contacts */}
