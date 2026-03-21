@@ -9,6 +9,7 @@ import { Users, MessageSquare, Send, CheckCircle2, Loader2, Play, Clock, Calenda
 import { MentionsWidget } from "@/components/dashboard/MentionsWidget";
 import { TasksWidget } from "@/components/dashboard/TasksWidget";
 import { AgendaWidget } from "@/components/dashboard/AgendaWidget";
+import { CaptadorDashboard } from "@/components/dashboard/CaptadorDashboard";
 import { useContacts } from "@/hooks/use-contacts";
 import { useMessages } from "@/hooks/use-messages";
 import { useCampaigns, Campaign } from "@/hooks/use-campaigns";
@@ -16,6 +17,7 @@ import { useConnectionStatus } from "@/hooks/use-connection-status";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { useChat } from "@/hooks/use-chat";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface DashboardStats {
   totalContacts: number;
@@ -40,6 +42,25 @@ const statusConfig = {
 };
 
 const Index = () => {
+  const { user, userPermissions } = useAuth();
+
+  // Check if user is captador-only (only has can_view_captador permission)
+  const isCaptadorOnly = userPermissions && userPermissions.can_view_captador && 
+    !userPermissions.can_view_chat && !userPermissions.can_view_crm && 
+    !userPermissions.can_view_campaigns && !userPermissions.can_view_contacts;
+
+  if (isCaptadorOnly) {
+    return (
+      <MainLayout>
+        <CaptadorDashboard />
+      </MainLayout>
+    );
+  }
+
+  return <FullDashboard />;
+};
+
+const FullDashboard = () => {
   const { getLists } = useContacts();
   const { getMessages } = useMessages();
   const { getCampaigns } = useCampaigns();

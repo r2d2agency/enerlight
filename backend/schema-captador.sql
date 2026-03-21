@@ -29,6 +29,9 @@ CREATE TABLE IF NOT EXISTS field_captures (
   -- Status
   status VARCHAR(50) DEFAULT 'new', -- new, in_progress, converted, archived
   
+  -- Retorno agendado
+  return_date DATE,
+  return_notes TEXT,
   -- Metadados
   notes TEXT,
   

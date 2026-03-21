@@ -18,6 +18,7 @@ import {
   useFieldCaptureStats, useCreateFieldCapture, useUpdateFieldCapture,
   useAddFieldCaptureVisit, useAddCaptureAttachment, useDeleteFieldCapture,
   useCaptadorSellers, useCaptadorSettings, useUpdateCaptadorSettings,
+  useScheduleReturn, useTodayReturns,
   FieldCapture,
 } from "@/hooks/use-captador";
 import {
@@ -681,11 +682,15 @@ function CaptureDetailDialog({ captureId, open, onClose }: { captureId: string |
   const { data: capture } = useFieldCaptureDetail(captureId);
   const addVisit = useAddFieldCaptureVisit();
   const updateCapture = useUpdateFieldCapture();
+  const scheduleReturn = useScheduleReturn();
   const { uploadFile, isUploading } = useUpload();
   const { toast } = useToast();
   const [showVisitForm, setShowVisitForm] = useState(false);
   const [visitForm, setVisitForm] = useState({ construction_stage: "", notes: "" });
   const [visitPhotos, setVisitPhotos] = useState<any[]>([]);
+  const [returnDate, setReturnDate] = useState("");
+  const [returnNotes, setReturnNotes] = useState("");
+  const [showReturnForm, setShowReturnForm] = useState(false);
   const visitFileRef = useRef<HTMLInputElement>(null);
 
   if (!capture) return null;
@@ -766,6 +771,47 @@ function CaptureDetailDialog({ captureId, open, onClose }: { captureId: string |
                 {Object.entries(STATUS_MAP).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
               </SelectContent>
             </Select>
+
+            {/* Return Scheduling */}
+            <div className="border rounded-lg p-3 space-y-2 mt-2">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-medium flex items-center gap-2">
+                  <Clock className="h-4 w-4" /> Agendar Retorno
+                </h4>
+                {(capture as any).return_date && (
+                  <Badge variant="outline" className="text-xs">
+                    Retorno: {format(new Date((capture as any).return_date + "T12:00:00"), "dd/MM/yyyy")}
+                  </Badge>
+                )}
+              </div>
+              {!showReturnForm ? (
+                <Button size="sm" variant="outline" onClick={() => {
+                  setReturnDate((capture as any).return_date || "");
+                  setReturnNotes((capture as any).return_notes || "");
+                  setShowReturnForm(true);
+                }}>
+                  {(capture as any).return_date ? "Alterar Retorno" : "Agendar Retorno"}
+                </Button>
+              ) : (
+                <div className="space-y-2">
+                  <Input type="date" value={returnDate} onChange={(e) => setReturnDate(e.target.value)}
+                    min={format(new Date(), "yyyy-MM-dd")} />
+                  <Input placeholder="Observação do retorno..." value={returnNotes}
+                    onChange={(e) => setReturnNotes(e.target.value)} />
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={async () => {
+                      if (!returnDate) { toast({ title: "Selecione uma data", variant: "destructive" }); return; }
+                      await scheduleReturn.mutateAsync({ id: capture.id, return_date: returnDate, return_notes: returnNotes });
+                      toast({ title: "✅ Retorno agendado!" });
+                      setShowReturnForm(false);
+                    }} disabled={scheduleReturn.isPending}>
+                      Salvar
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setShowReturnForm(false)}>Cancelar</Button>
+                  </div>
+                </div>
+              )}
+            </div>
           </TabsContent>
           <TabsContent value="media" className="mt-3">
             {capture.attachments && capture.attachments.length > 0 ? (
@@ -873,7 +919,7 @@ export default function Captador() {
   const { toast } = useToast();
   const { user } = useAuth();
   const isMobile = useIsMobile();
-  const [tab, setTab] = useState("list");
+  const [tab, setTab] = useState("returns");
   const [showForm, setShowForm] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -886,6 +932,7 @@ export default function Captador() {
   const { data: mapPoints = [] } = useFieldCaptureMapPoints(filters);
   const { data: sellers = [] } = useCaptadorSellers();
   const { data: settings } = useCaptadorSettings();
+  const { data: todayReturns = [] } = useTodayReturns();
   const updateSettings = useUpdateCaptadorSettings();
   const updateCapture = useUpdateFieldCapture();
   const deleteCapture = useDeleteFieldCapture();
@@ -978,9 +1025,49 @@ export default function Captador() {
           {/* Tabs */}
           <Tabs value={tab} onValueChange={setTab} className="flex-1 flex flex-col">
             <TabsList className="mx-4 mt-2">
+              <TabsTrigger value="returns" className="flex-1 relative">
+                <Clock className="h-4 w-4 mr-1" /> Retornos
+                {todayReturns.length > 0 && (
+                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive text-destructive-foreground text-[10px] flex items-center justify-center">
+                    {todayReturns.length}
+                  </span>
+                )}
+              </TabsTrigger>
               <TabsTrigger value="list" className="flex-1"><ClipboardList className="h-4 w-4 mr-1" /> Fichas</TabsTrigger>
               <TabsTrigger value="map" className="flex-1"><MapPin className="h-4 w-4 mr-1" /> Mapa</TabsTrigger>
             </TabsList>
+
+            <TabsContent value="returns" className="flex-1 overflow-y-auto px-4 pb-24">
+              <h3 className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-1">
+                <Clock className="h-3.5 w-3.5" /> Retornos de Hoje ({todayReturns.length})
+              </h3>
+              {todayReturns.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <Clock className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                  <p>Nenhum retorno agendado para hoje</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {todayReturns.map((c) => (
+                    <div key={c.id} className="bg-card rounded-xl border border-amber-500/30 p-3 active:bg-muted/50 transition-colors"
+                      onClick={() => setSelectedId(c.id)}>
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
+                          <Clock className="h-5 w-5 text-amber-500" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <span className="font-medium text-sm truncate block">{c.company_name || c.address || "Obra"}</span>
+                          {c.address && <p className="text-xs text-muted-foreground truncate">{c.address}</p>}
+                          {c.construction_stage && <Badge variant="outline" className="text-[10px] mt-1">{c.construction_stage}</Badge>}
+                          {c.return_notes && <p className="text-xs text-primary/70 mt-1">{c.return_notes}</p>}
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 mt-1" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
 
             <TabsContent value="list" className="flex-1 overflow-y-auto px-4 pb-24">
               {/* Today's captures */}
