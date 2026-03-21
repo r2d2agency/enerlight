@@ -57,6 +57,10 @@ const Index = () => {
     );
   }
 
+  return <FullDashboard />;
+};
+
+const FullDashboard = () => {
   const { getLists } = useContacts();
   const { getMessages } = useMessages();
   const { getCampaigns } = useCampaigns();
