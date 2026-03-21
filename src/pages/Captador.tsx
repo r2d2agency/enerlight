@@ -410,6 +410,7 @@ function MobileCaptureForm({ open, onClose, onSuccess, isOnline }: { open: boole
     street: "", number: "", neighborhood: "", city: "", state: "",
     construction_stage: "", stage_notes: "", segment: "",
     company_name: "", company_cnpj: "", company_cnpj_display: "", notes: "",
+    estimated_start: "", estimated_end: "",
   });
   const [contacts, setContacts] = useState<ContactItem[]>([emptyContact()]);
 
