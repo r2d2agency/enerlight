@@ -21,6 +21,7 @@ export interface FieldCapture {
   company_cnpj: string | null;
   deal_id: string | null;
   status: string;
+  segment: string | null;
   notes: string | null;
   visit_count: number;
   return_date: string | null;
