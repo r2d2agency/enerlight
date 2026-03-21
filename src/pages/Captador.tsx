@@ -286,13 +286,26 @@ function MobileCaptureForm({ open, onClose, onSuccess, isOnline }: { open: boole
     if (cameraInputRef.current) cameraInputRef.current.value = "";
   };
 
-  const handleAudioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
-    for (const file of Array.from(files)) {
-      const url = await uploadFile(file);
-      if (url) setAudios((prev) => [...prev, { file_url: url, file_name: file.name, file_type: "audio", mime_type: file.type }]);
-    }
+  const handleStopAndSaveAudio = async () => {
+    audioRecorder.stopRecording();
+    // Wait for blob to be available
+    setTimeout(async () => {
+      const blob = audioRecorder.audioBlob;
+      if (!blob) return;
+      const file = new File([blob], `audio_${Date.now()}.webm`, { type: blob.type || "audio/webm" });
+      if (isOnline !== false) {
+        const url = await uploadFile(file);
+        if (url) setAudios((prev) => [...prev, { file_url: url, file_name: file.name, file_type: "audio", mime_type: file.type }]);
+      } else {
+        // Store as base64 for offline
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setAudios((prev) => [...prev, { file_url: reader.result as string, file_name: file.name, file_type: "audio", mime_type: file.type }]);
+        };
+        reader.readAsDataURL(file);
+      }
+      audioRecorder.clearAudio();
+    }, 300);
   };
 
   const handleSubmit = async () => {
@@ -307,29 +320,43 @@ function MobileCaptureForm({ open, onClose, onSuccess, isOnline }: { open: boole
     const primary = contacts[0] || emptyContact();
     const extraContacts = contacts.slice(1).filter(c => c.name || c.phone);
 
+    const captureData = {
+      address,
+      construction_stage: form.construction_stage,
+      stage_notes: form.stage_notes,
+      contact_name: primary.name,
+      contact_phone: primary.phone,
+      contact_email: primary.email,
+      contact_role: primary.role,
+      company_name: form.company_name,
+      company_cnpj: form.company_cnpj,
+      notes: extraContacts.length > 0
+        ? `${form.notes}\n\n--- Contatos Adicionais ---\n${extraContacts.map(c => `${c.name} | ${applyPhoneMask(c.phone)} | ${c.role} | ${c.email}`).join("\n")}`.trim()
+        : form.notes,
+      latitude: location?.lat,
+      longitude: location?.lng,
+      attachments: [...photos, ...audios],
+    };
+
+    if (isOnline === false) {
+      addToOfflineQueue(captureData);
+      toast({ title: "📱 Ficha salva offline!", description: "Será sincronizada quando voltar online." });
+      onSuccess();
+      onClose();
+      return;
+    }
+
     try {
-      await createCapture.mutateAsync({
-        address,
-        construction_stage: form.construction_stage,
-        stage_notes: form.stage_notes,
-        contact_name: primary.name,
-        contact_phone: primary.phone,
-        contact_email: primary.email,
-        contact_role: primary.role,
-        company_name: form.company_name,
-        company_cnpj: form.company_cnpj,
-        notes: extraContacts.length > 0
-          ? `${form.notes}\n\n--- Contatos Adicionais ---\n${extraContacts.map(c => `${c.name} | ${applyPhoneMask(c.phone)} | ${c.role} | ${c.email}`).join("\n")}`.trim()
-          : form.notes,
-        latitude: location?.lat,
-        longitude: location?.lng,
-        attachments: [...photos, ...audios],
-      });
+      await createCapture.mutateAsync(captureData);
       toast({ title: "✅ Ficha criada com sucesso!" });
       onSuccess();
       onClose();
     } catch {
-      toast({ title: "Erro ao criar ficha", variant: "destructive" });
+      // If network fails, save offline
+      addToOfflineQueue(captureData);
+      toast({ title: "📱 Sem conexão, ficha salva offline!", description: "Será sincronizada automaticamente." });
+      onSuccess();
+      onClose();
     }
   };
 
