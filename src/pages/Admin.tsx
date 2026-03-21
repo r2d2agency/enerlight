@@ -70,6 +70,7 @@ interface Plan {
   has_homologation: boolean;
   has_tasks: boolean;
   has_lead_gleego: boolean;
+  has_captador: boolean;
   price: number;
   billing_period: string;
   is_active: boolean;
