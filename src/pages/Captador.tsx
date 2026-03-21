@@ -457,13 +457,13 @@ function MobileCaptureForm({ open, onClose, onSuccess, isOnline }: { open: boole
   };
 
   const handleSubmit = async () => {
+    const streetPart = form.street ? (form.street.match(/^(rua|av|avenida|travessa|alameda|praça|rod|rodovia|estrada)/i) ? form.street : `Rua ${form.street}`) : "";
     const address = [
-      form.street && `Rua ${form.street}`,
+      streetPart,
       form.number && `Nº ${form.number}`,
       form.neighborhood,
-      form.city,
-      form.state,
-    ].filter(Boolean).join(", ");
+      form.city && form.state ? `${form.city} - ${form.state}` : form.city || form.state,
+    ].filter(Boolean).join(", ") || (location ? `${location.lat.toFixed(6)}, ${location.lng.toFixed(6)}` : "");
 
     const primary = contacts[0] || emptyContact();
     const extraContacts = contacts.slice(1).filter(c => c.name || c.phone);
@@ -821,7 +821,8 @@ function DesktopCaptureFormDialog({ open, onClose, onSuccess }: { open: boolean;
   };
 
   const handleSubmit = async () => {
-    const address = [form.street && `Rua ${form.street}`, form.number && `Nº ${form.number}`, form.neighborhood, form.city, form.state].filter(Boolean).join(", ");
+    const streetPart = form.street ? (form.street.match(/^(rua|av|avenida|travessa|alameda|praça|rod|rodovia|estrada)/i) ? form.street : `Rua ${form.street}`) : "";
+    const address = [streetPart, form.number && `Nº ${form.number}`, form.neighborhood, form.city && form.state ? `${form.city} - ${form.state}` : form.city || form.state].filter(Boolean).join(", ") || "";
     const primary = contacts[0] || emptyContact();
     const extraContacts = contacts.slice(1).filter(c => c.name || c.phone);
     try {
