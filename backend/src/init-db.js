@@ -286,6 +286,12 @@ BEGIN
     END IF;
 END $$;
 
+-- segment column
+DO $$ BEGIN
+  ALTER TABLE field_captures ADD COLUMN IF NOT EXISTS segment VARCHAR(100);
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
 
 -- Connection Members
 CREATE TABLE IF NOT EXISTS connection_members (

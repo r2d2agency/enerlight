@@ -367,7 +367,7 @@ router.post('/', async (req, res) => {
       construction_stage, stage_notes,
       contact_name, contact_phone, contact_email, contact_role,
       company_name, company_cnpj,
-      notes, attachments,
+      notes, attachments, segment,
     } = req.body;
 
     // Check settings for auto-distribution
@@ -389,12 +389,12 @@ router.post('/', async (req, res) => {
     const result = await query(
       `INSERT INTO field_captures (organization_id, created_by, latitude, longitude, address,
         construction_stage, stage_notes, contact_name, contact_phone, contact_email, contact_role,
-        company_name, company_cnpj, notes, assigned_to)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+        company_name, company_cnpj, notes, assigned_to, segment)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
        RETURNING *`,
       [org.organization_id, req.userId, latitude, longitude, address,
        construction_stage, stage_notes, contact_name, contact_phone, contact_email, contact_role,
-       company_name, company_cnpj, notes, assignedTo]
+       company_name, company_cnpj, notes, assignedTo, segment || null]
     );
 
     const capture = result.rows[0];
