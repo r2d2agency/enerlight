@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,50 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 
+// ─── Phone Mask Utility ───
+function applyPhoneMask(value: string): string {
+  const digits = value.replace(/\D/g, "").slice(0, 11);
+  if (digits.length <= 2) return digits.length ? `(${digits}` : "";
+  if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+}
+
+function applyCnpjMask(value: string): string {
+  const digits = value.replace(/\D/g, "").slice(0, 14);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 5) return `${digits.slice(0, 2)}.${digits.slice(2)}`;
+  if (digits.length <= 8) return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5)}`;
+  if (digits.length <= 12) return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8)}`;
+  return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8, 12)}-${digits.slice(12)}`;
+}
+
+// ─── Reverse Geocoding ───
+async function reverseGeocode(lat: number, lng: number): Promise<{
+  street: string; number: string; neighborhood: string; city: string; state: string; full: string;
+} | null> {
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1&accept-language=pt-BR`);
+    const data = await res.json();
+    const a = data.address || {};
+    return {
+      street: a.road || a.pedestrian || a.street || "",
+      number: a.house_number || "",
+      neighborhood: a.suburb || a.neighbourhood || a.quarter || "",
+      city: a.city || a.town || a.village || a.municipality || "",
+      state: a.state || "",
+      full: data.display_name || "",
+    };
+  } catch { return null; }
+}
+
+// ─── Contact Item Type ───
+interface ContactItem {
+  name: string;
+  phone: string;
+  phoneDisplay: string;
+  email: string;
+  role: string;
+}
 const CONSTRUCTION_STAGES = [
   "Terraplanagem", "Fundação", "Estrutura", "Alvenaria", "Cobertura",
   "Instalações Elétricas", "Instalações Hidráulicas", "Reboco/Revestimento",
