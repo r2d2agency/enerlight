@@ -142,11 +142,14 @@ function MobileCaptureForm({ open, onClose, onSuccess }: { open: boolean; onClos
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
 
+  const emptyContact = (): ContactItem => ({ name: "", phone: "", phoneDisplay: "", email: "", role: "" });
+
   const [form, setForm] = useState({
-    address: "", construction_stage: "", stage_notes: "",
-    contact_name: "", contact_phone: "", contact_email: "", contact_role: "",
-    company_name: "", company_cnpj: "", notes: "",
+    street: "", number: "", neighborhood: "", city: "", state: "",
+    construction_stage: "", stage_notes: "",
+    company_name: "", company_cnpj: "", company_cnpj_display: "", notes: "",
   });
+  const [contacts, setContacts] = useState<ContactItem[]>([emptyContact()]);
 
   useEffect(() => {
     if (open) {
@@ -155,20 +158,35 @@ function MobileCaptureForm({ open, onClose, onSuccess }: { open: boolean; onClos
       setPhotos([]);
       setAudios([]);
       setForm({
-        address: "", construction_stage: "", stage_notes: "",
-        contact_name: "", contact_phone: "", contact_email: "", contact_role: "",
-        company_name: "", company_cnpj: "", notes: "",
+        street: "", number: "", neighborhood: "", city: "", state: "",
+        construction_stage: "", stage_notes: "",
+        company_name: "", company_cnpj: "", company_cnpj_display: "", notes: "",
       });
+      setContacts([emptyContact()]);
     }
   }, [open]);
 
   const getLocation = () => {
     setLoadingLocation(true);
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-        setLoadingLocation(false);
+      async (pos) => {
+        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setLocation(loc);
         toast({ title: "📍 Localização capturada!" });
+        // Reverse geocode
+        const geo = await reverseGeocode(loc.lat, loc.lng);
+        if (geo) {
+          setForm(prev => ({
+            ...prev,
+            street: geo.street || prev.street,
+            number: geo.number || prev.number,
+            neighborhood: geo.neighborhood || prev.neighborhood,
+            city: geo.city || prev.city,
+            state: geo.state || prev.state,
+          }));
+          toast({ title: "📍 Endereço preenchido automaticamente!" });
+        }
+        setLoadingLocation(false);
       },
       (err) => {
         setLoadingLocation(false);
@@ -178,33 +196,45 @@ function MobileCaptureForm({ open, onClose, onSuccess }: { open: boolean; onClos
     );
   };
 
-  const handleCameraCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
-    for (const file of Array.from(files)) {
-      const url = await uploadFile(file);
-      if (url) {
-        setPhotos((prev) => [...prev, { file_url: url, file_name: file.name, file_type: "photo", mime_type: file.type }]);
+  const updateContact = (index: number, field: keyof ContactItem, value: string) => {
+    setContacts(prev => prev.map((c, i) => {
+      if (i !== index) return c;
+      if (field === "phone") {
+        return { ...c, phone: value.replace(/\D/g, ""), phoneDisplay: applyPhoneMask(value) };
       }
-    }
-    if (cameraInputRef.current) cameraInputRef.current.value = "";
+      return { ...c, [field]: value };
+    }));
   };
 
-  const handleAudioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
-    for (const file of Array.from(files)) {
-      const url = await uploadFile(file);
-      if (url) {
-        setAudios((prev) => [...prev, { file_url: url, file_name: file.name, file_type: "audio", mime_type: file.type }]);
-      }
-    }
-  };
+  const addContact = () => setContacts(prev => [...prev, emptyContact()]);
+  const removeContact = (index: number) => setContacts(prev => prev.filter((_, i) => i !== index));
 
   const handleSubmit = async () => {
+    const address = [
+      form.street && `Rua ${form.street}`,
+      form.number && `Nº ${form.number}`,
+      form.neighborhood,
+      form.city,
+      form.state,
+    ].filter(Boolean).join(", ");
+
+    const primary = contacts[0] || emptyContact();
+    const extraContacts = contacts.slice(1).filter(c => c.name || c.phone);
+
     try {
       await createCapture.mutateAsync({
-        ...form,
+        address,
+        construction_stage: form.construction_stage,
+        stage_notes: form.stage_notes,
+        contact_name: primary.name,
+        contact_phone: primary.phone,
+        contact_email: primary.email,
+        contact_role: primary.role,
+        company_name: form.company_name,
+        company_cnpj: form.company_cnpj,
+        notes: extraContacts.length > 0
+          ? `${form.notes}\n\n--- Contatos Adicionais ---\n${extraContacts.map(c => `${c.name} | ${applyPhoneMask(c.phone)} | ${c.role} | ${c.email}`).join("\n")}`.trim()
+          : form.notes,
         latitude: location?.lat,
         longitude: location?.lng,
         attachments: [...photos, ...audios],
