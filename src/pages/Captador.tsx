@@ -771,6 +771,47 @@ function CaptureDetailDialog({ captureId, open, onClose }: { captureId: string |
                 {Object.entries(STATUS_MAP).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
               </SelectContent>
             </Select>
+
+            {/* Return Scheduling */}
+            <div className="border rounded-lg p-3 space-y-2 mt-2">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-medium flex items-center gap-2">
+                  <Clock className="h-4 w-4" /> Agendar Retorno
+                </h4>
+                {(capture as any).return_date && (
+                  <Badge variant="outline" className="text-xs">
+                    Retorno: {format(new Date((capture as any).return_date + "T12:00:00"), "dd/MM/yyyy")}
+                  </Badge>
+                )}
+              </div>
+              {!showReturnForm ? (
+                <Button size="sm" variant="outline" onClick={() => {
+                  setReturnDate((capture as any).return_date || "");
+                  setReturnNotes((capture as any).return_notes || "");
+                  setShowReturnForm(true);
+                }}>
+                  {(capture as any).return_date ? "Alterar Retorno" : "Agendar Retorno"}
+                </Button>
+              ) : (
+                <div className="space-y-2">
+                  <Input type="date" value={returnDate} onChange={(e) => setReturnDate(e.target.value)}
+                    min={format(new Date(), "yyyy-MM-dd")} />
+                  <Input placeholder="Observação do retorno..." value={returnNotes}
+                    onChange={(e) => setReturnNotes(e.target.value)} />
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={async () => {
+                      if (!returnDate) { toast({ title: "Selecione uma data", variant: "destructive" }); return; }
+                      await scheduleReturn.mutateAsync({ id: capture.id, return_date: returnDate, return_notes: returnNotes });
+                      toast({ title: "✅ Retorno agendado!" });
+                      setShowReturnForm(false);
+                    }} disabled={scheduleReturn.isPending}>
+                      Salvar
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setShowReturnForm(false)}>Cancelar</Button>
+                  </div>
+                </div>
+              )}
+            </div>
           </TabsContent>
           <TabsContent value="media" className="mt-3">
             {capture.attachments && capture.attachments.length > 0 ? (
