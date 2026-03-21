@@ -769,7 +769,7 @@ function DesktopCaptureFormDialog({ open, onClose, onSuccess }: { open: boolean;
 
   useEffect(() => {
     if (open) {
-      setForm({ street: "", number: "", neighborhood: "", city: "", state: "", construction_stage: "", stage_notes: "", company_name: "", company_cnpj: "", company_cnpj_display: "", notes: "" });
+      setForm({ street: "", number: "", neighborhood: "", city: "", state: "", construction_stage: "", stage_notes: "", segment: "", company_name: "", company_cnpj: "", company_cnpj_display: "", notes: "" });
       setContacts([emptyContact()]);
       setPhotos([]); setAudios([]); setLocation(null);
     }
