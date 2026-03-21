@@ -182,7 +182,7 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
     title: "Minha Conta",
     icon: User,
     items: [
-      { name: "Ajustes", href: "/configuracoes", icon: Settings, permissionKey: 'can_view_settings' },
+      { name: "Ajustes", href: "/configuracoes", icon: Settings },
     ],
   },
   {
