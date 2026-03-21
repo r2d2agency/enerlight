@@ -971,6 +971,16 @@ export default function Admin() {
                       </div>
                       <div className="flex items-center justify-between rounded-lg border p-3">
                         <div className="flex items-center gap-2">
+                          <Label htmlFor="captador-switch">Captador</Label>
+                        </div>
+                        <Switch
+                          id="captador-switch"
+                          checked={newPlanCaptador}
+                          onCheckedChange={setNewPlanCaptador}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between rounded-lg border p-3">
+                        <div className="flex items-center gap-2">
                           <Label htmlFor="lead-gleego-switch">Lead Gleego</Label>
                         </div>
                         <Switch
