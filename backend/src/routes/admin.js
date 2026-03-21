@@ -320,6 +320,7 @@ router.post('/plans', requireSuperadmin, async (req, res) => {
       has_homologation,
       has_tasks,
       has_lead_gleego,
+      has_captador,
       price, 
       billing_period,
       visible_on_signup,
