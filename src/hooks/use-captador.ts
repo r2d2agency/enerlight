@@ -45,8 +45,16 @@ export interface FieldCaptureDetail extends FieldCapture {
 interface CaptureFilters {
   status?: string;
   user_id?: string;
+  assigned_to?: string;
+  unassigned?: boolean;
   start_date?: string;
   end_date?: string;
+}
+
+export interface CaptadorSettings {
+  auto_distribute: boolean;
+  auto_create_task: boolean;
+  notify_whatsapp: boolean;
 }
 
 export function useFieldCaptures(filters?: CaptureFilters) {
