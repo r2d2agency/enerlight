@@ -1616,6 +1616,13 @@ export default function Captador() {
               {Object.entries(STATUS_MAP).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
             </SelectContent>
           </Select>
+          <Select value={filters.segment || "all"} onValueChange={(v) => setFilters({ ...filters, segment: v === "all" ? undefined : v })}>
+            <SelectTrigger className="w-40"><SelectValue placeholder="Segmento" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos Segmentos</SelectItem>
+              {SEGMENTS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+            </SelectContent>
+          </Select>
           <Select value={filters.assigned_to || "all"} onValueChange={(v) => setFilters({ ...filters, assigned_to: v === "all" ? undefined : v, unassigned: false })}>
             <SelectTrigger className="w-48"><SelectValue placeholder="Vendedor" /></SelectTrigger>
             <SelectContent>
@@ -1623,6 +1630,10 @@ export default function Captador() {
               {sellers.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
             </SelectContent>
           </Select>
+          <Input type="date" className="w-40" value={filters.start_date || ""}
+            onChange={(e) => setFilters({ ...filters, start_date: e.target.value || undefined })} />
+          <Input type="date" className="w-40" value={filters.end_date || ""}
+            onChange={(e) => setFilters({ ...filters, end_date: e.target.value || undefined })} />
           {filters.unassigned && (
             <Badge variant="secondary" className="cursor-pointer" onClick={() => setFilters({ ...filters, unassigned: false })}>
               Sem vendedor ✕
