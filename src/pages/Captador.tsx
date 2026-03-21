@@ -1374,7 +1374,11 @@ export default function Captador() {
   };
 
   const addVisitForReturn = useAddFieldCaptureVisit();
-  const handleReturnCheckin = async (captureId: string, data: { construction_stage: string; notes: string; attachments: any[]; latitude: number; longitude: number }) => {
+  const handleReturnCheckin = async (captureId: string, data: {
+    construction_stage: string; notes: string; attachments: any[];
+    latitude: number; longitude: number;
+    contacts?: { name: string; phone: string; email: string; role: string }[];
+  }) => {
     try {
       await addVisitForReturn.mutateAsync({ captureId, ...data });
       toast({ title: "✅ Check-in e visita registrados!" });
