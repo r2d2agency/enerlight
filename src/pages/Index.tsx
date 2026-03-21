@@ -42,12 +42,24 @@ const statusConfig = {
 };
 
 const Index = () => {
-  const { user, userPermissions } = useAuth();
+  const { user, userPermissions, modulesEnabled } = useAuth();
 
-  // Check if user is captador-only (only has can_view_captador permission)
-  const isCaptadorOnly = userPermissions && userPermissions.can_view_captador && 
-    !userPermissions.can_view_chat && !userPermissions.can_view_crm && 
-    !userPermissions.can_view_campaigns && !userPermissions.can_view_contacts;
+  // Check if user only has captador module/permission (no chat, CRM, campaigns, contacts)
+  const isCaptadorOnly = (() => {
+    // Check via permissions
+    if (userPermissions?.can_view_captador) {
+      const hasOther = userPermissions.can_view_chat || userPermissions.can_view_crm || 
+        userPermissions.can_view_campaigns || userPermissions.can_view_contacts ||
+        userPermissions.can_view_projects || userPermissions.can_view_billing;
+      if (!hasOther) return true;
+    }
+    // Check via modules: only captador enabled
+    if (modulesEnabled.captador && !modulesEnabled.chat && !modulesEnabled.crm && 
+        !modulesEnabled.campaigns && !modulesEnabled.billing) {
+      return true;
+    }
+    return false;
+  })();
 
   if (isCaptadorOnly) {
     return (
