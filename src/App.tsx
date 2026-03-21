@@ -72,6 +72,7 @@ const Homologacao = lazyRetry(() => import("./pages/Homologacao"));
 const TarefasKanban = lazyRetry(() => import("./pages/TarefasKanban"));
 const LeadGleego = lazyRetry(() => import("./pages/LeadGleego"));
 const VisitasExternas = lazyRetry(() => import("./pages/VisitasExternas"));
+const Captador = lazyRetry(() => import("./pages/Captador"));
 const NotFound = lazyRetry(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
@@ -160,6 +161,7 @@ const App = () => (
               <Route path="/tarefas" element={<ProtectedRoute><TarefasKanban /></ProtectedRoute>} />
               <Route path="/lead-gleego" element={<ProtectedRoute><LeadGleego /></ProtectedRoute>} />
               <Route path="/crm/visitas-externas" element={<ProtectedRoute><VisitasExternas /></ProtectedRoute>} />
+              <Route path="/captador" element={<ProtectedRoute><Captador /></ProtectedRoute>} />
               <Route path="/f/:slug" element={<PublicFormPage />} />
               <Route path="/politica-privacidade" element={<PoliticaPrivacidade />} />
               <Route path="*" element={<NotFound />} />

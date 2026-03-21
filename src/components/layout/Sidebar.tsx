@@ -16,6 +16,7 @@ import {
   LayoutDashboard,
   LogOut,
   Map,
+  MapPin,
   Menu,
   MessageSquare,
   MessagesSquare,
@@ -142,6 +143,14 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
     permissionKey: 'can_view_homologation',
     items: [
       { name: "Quadros", href: "/homologacao", icon: ClipboardList, permissionKey: 'can_view_homologation' },
+    ],
+  },
+  {
+    title: "Captador",
+    icon: MapPin,
+    permissionKey: 'can_view_captador',
+    items: [
+      { name: "Fichas de Campo", href: "/captador", icon: MapPin, permissionKey: 'can_view_captador' },
     ],
   },
   {
