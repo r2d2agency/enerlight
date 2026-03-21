@@ -370,6 +370,7 @@ export default function Admin() {
     setNewPlanProjects(false);
     setNewPlanInternalChat(true);
     setNewPlanLeadGleego(false);
+    setNewPlanCaptador(false);
     setNewPlanPeriod('monthly');
     setNewPlanVisibleOnSignup(false);
     setNewPlanTrialDays('3');
