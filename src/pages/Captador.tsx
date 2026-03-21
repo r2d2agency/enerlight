@@ -1326,7 +1326,7 @@ export default function Captador() {
             <Plus className="h-6 w-6" />
           </button>
 
-          <MobileCaptureForm open={showForm} onClose={() => { setShowForm(false); refreshCount(); }} onSuccess={() => { refetch(); refreshCount(); }} isOnline={isOnline} />
+          <MobileCaptureForm open={showForm} onClose={() => { setShowForm(false); refreshCount(); }} onSuccess={() => { refreshCount(); }} isOnline={isOnline} />
           <CaptureDetailDialog captureId={selectedId} open={!!selectedId} onClose={() => setSelectedId(null)} />
 
           {/* Settings Panel */}
