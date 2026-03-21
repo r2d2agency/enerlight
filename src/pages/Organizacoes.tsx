@@ -254,6 +254,8 @@ export default function Organizacoes() {
         internal_chat: modules.internal_chat ?? true,
         tasks: modules.tasks ?? true,
         lead_gleego: modules.lead_gleego ?? false,
+        homologation: modules.homologation ?? false,
+        captador: modules.captador ?? false,
       });
     } catch (error) {
       console.error('Error loading modules:', error);
