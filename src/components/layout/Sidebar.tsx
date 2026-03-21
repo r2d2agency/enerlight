@@ -148,9 +148,10 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
   {
     title: "Captador",
     icon: MapPin,
+    moduleKey: 'captador',
     permissionKey: 'can_view_captador',
     items: [
-      { name: "Fichas de Campo", href: "/captador", icon: MapPin, permissionKey: 'can_view_captador' },
+      { name: "Fichas de Campo", href: "/captador", icon: MapPin, moduleKey: 'captador' as const, permissionKey: 'can_view_captador' },
     ],
   },
   {

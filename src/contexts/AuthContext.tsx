@@ -107,6 +107,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     homologation: false,
     tasks: true,
     lead_gleego: false,
+    captador: false,
   };
 
   const refreshUser = async () => {
