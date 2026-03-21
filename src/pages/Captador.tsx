@@ -535,6 +535,8 @@ function MobileCaptureForm({ open, onClose, onSuccess, isOnline }: { open: boole
       longitude: location?.lng,
       attachments: [...photos, ...audios],
       segment: form.segment || null,
+      estimated_start: form.estimated_start || null,
+      estimated_end: form.estimated_end || null,
     };
 
     if (isOnline === false) {
