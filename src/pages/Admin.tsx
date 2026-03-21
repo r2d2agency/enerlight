@@ -404,6 +404,7 @@ export default function Admin() {
       has_homologation: editingPlan.has_homologation,
       has_tasks: editingPlan.has_tasks,
       has_lead_gleego: editingPlan.has_lead_gleego,
+      has_captador: editingPlan.has_captador,
       price: editingPlan.price,
       billing_period: editingPlan.billing_period,
       is_active: editingPlan.is_active,
