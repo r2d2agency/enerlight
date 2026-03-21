@@ -1346,9 +1346,8 @@ export default function Captador() {
               ) : (
                 <div className="space-y-2">
                   {todayReturns.map((c) => (
-                    <div key={c.id} className="bg-card rounded-xl border border-amber-500/30 p-3 active:bg-muted/50 transition-colors"
-                      onClick={() => setSelectedId(c.id)}>
-                      <div className="flex items-start gap-3">
+                    <div key={c.id} className="bg-card rounded-xl border border-amber-500/30 p-3 transition-colors">
+                      <div className="flex items-start gap-3" onClick={() => setSelectedId(c.id)}>
                         <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
                           <Clock className="h-5 w-5 text-amber-500" />
                         </div>
@@ -1360,6 +1359,7 @@ export default function Captador() {
                         </div>
                         <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 mt-1" />
                       </div>
+                      <ReturnCheckinButton capture={c} onCheckin={handleReturnCheckin} />
                     </div>
                   ))}
                 </div>
