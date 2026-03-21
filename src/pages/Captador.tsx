@@ -979,7 +979,22 @@ function DesktopCaptureFormDialog({ open, onClose, onSuccess }: { open: boolean;
             </div>
           </div>
 
-          {/* Fotos */}
+          {/* Prazo da Obra */}
+          <div className="border rounded-lg p-3 space-y-2">
+            <h4 className="text-sm font-medium flex items-center gap-1"><Clock className="h-4 w-4" /> Prazo Estimado da Obra</h4>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs text-muted-foreground">Início</label>
+                <Input type="date" value={form.estimated_start} onChange={(e) => setForm({ ...form, estimated_start: e.target.value })} />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground">Fim</label>
+                <Input type="date" value={form.estimated_end} onChange={(e) => setForm({ ...form, estimated_end: e.target.value })} />
+              </div>
+            </div>
+          </div>
+
+
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <h4 className="text-sm font-medium flex items-center gap-1"><Camera className="h-4 w-4" /> Fotos</h4>
