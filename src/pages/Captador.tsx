@@ -154,21 +154,6 @@ async function compressImage(file: File, maxWidth = 1280, quality = 0.7): Promis
   });
 }
 
-  const addVisitMutation = useAddFieldCaptureVisit();
-  const handleReturnCheckin = async (captureId: string) => {
-    try {
-      const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
-        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true })
-      );
-      await addVisitMutation.mutateAsync({
-        captureId,
-        construction_stage: "Retorno agendado",
-        notes: "Check-in no local confirmado via GPS",
-        latitude: pos.coords.latitude,
-        longitude: pos.coords.longitude,
-      });
-    } catch { /* visit already toasted by button */ }
-  };
 
 interface ContactItem {
   name: string;
