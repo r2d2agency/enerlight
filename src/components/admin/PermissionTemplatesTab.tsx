@@ -86,6 +86,12 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
     ],
   },
   {
+    title: 'Captador',
+    items: [
+      { key: 'can_view_captador', label: 'Captador', description: 'Fichas de campo e mapa de obras' },
+    ],
+  },
+  {
     title: 'Disparos',
     items: [
       { key: 'can_view_campaigns', label: 'Campanhas', description: 'Listas, mensagens e campanhas' },
