@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,50 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 
+// ─── Phone Mask Utility ───
+function applyPhoneMask(value: string): string {
+  const digits = value.replace(/\D/g, "").slice(0, 11);
+  if (digits.length <= 2) return digits.length ? `(${digits}` : "";
+  if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+}
+
+function applyCnpjMask(value: string): string {
+  const digits = value.replace(/\D/g, "").slice(0, 14);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 5) return `${digits.slice(0, 2)}.${digits.slice(2)}`;
+  if (digits.length <= 8) return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5)}`;
+  if (digits.length <= 12) return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8)}`;
+  return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8, 12)}-${digits.slice(12)}`;
+}
+
+// ─── Reverse Geocoding ───
+async function reverseGeocode(lat: number, lng: number): Promise<{
+  street: string; number: string; neighborhood: string; city: string; state: string; full: string;
+} | null> {
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1&accept-language=pt-BR`);
+    const data = await res.json();
+    const a = data.address || {};
+    return {
+      street: a.road || a.pedestrian || a.street || "",
+      number: a.house_number || "",
+      neighborhood: a.suburb || a.neighbourhood || a.quarter || "",
+      city: a.city || a.town || a.village || a.municipality || "",
+      state: a.state || "",
+      full: data.display_name || "",
+    };
+  } catch { return null; }
+}
+
+// ─── Contact Item Type ───
+interface ContactItem {
+  name: string;
+  phone: string;
+  phoneDisplay: string;
+  email: string;
+  role: string;
+}
 const CONSTRUCTION_STAGES = [
   "Terraplanagem", "Fundação", "Estrutura", "Alvenaria", "Cobertura",
   "Instalações Elétricas", "Instalações Hidráulicas", "Reboco/Revestimento",
@@ -98,11 +142,14 @@ function MobileCaptureForm({ open, onClose, onSuccess }: { open: boolean; onClos
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
 
+  const emptyContact = (): ContactItem => ({ name: "", phone: "", phoneDisplay: "", email: "", role: "" });
+
   const [form, setForm] = useState({
-    address: "", construction_stage: "", stage_notes: "",
-    contact_name: "", contact_phone: "", contact_email: "", contact_role: "",
-    company_name: "", company_cnpj: "", notes: "",
+    street: "", number: "", neighborhood: "", city: "", state: "",
+    construction_stage: "", stage_notes: "",
+    company_name: "", company_cnpj: "", company_cnpj_display: "", notes: "",
   });
+  const [contacts, setContacts] = useState<ContactItem[]>([emptyContact()]);
 
   useEffect(() => {
     if (open) {
@@ -111,20 +158,35 @@ function MobileCaptureForm({ open, onClose, onSuccess }: { open: boolean; onClos
       setPhotos([]);
       setAudios([]);
       setForm({
-        address: "", construction_stage: "", stage_notes: "",
-        contact_name: "", contact_phone: "", contact_email: "", contact_role: "",
-        company_name: "", company_cnpj: "", notes: "",
+        street: "", number: "", neighborhood: "", city: "", state: "",
+        construction_stage: "", stage_notes: "",
+        company_name: "", company_cnpj: "", company_cnpj_display: "", notes: "",
       });
+      setContacts([emptyContact()]);
     }
   }, [open]);
 
   const getLocation = () => {
     setLoadingLocation(true);
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-        setLoadingLocation(false);
+      async (pos) => {
+        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setLocation(loc);
         toast({ title: "📍 Localização capturada!" });
+        // Reverse geocode
+        const geo = await reverseGeocode(loc.lat, loc.lng);
+        if (geo) {
+          setForm(prev => ({
+            ...prev,
+            street: geo.street || prev.street,
+            number: geo.number || prev.number,
+            neighborhood: geo.neighborhood || prev.neighborhood,
+            city: geo.city || prev.city,
+            state: geo.state || prev.state,
+          }));
+          toast({ title: "📍 Endereço preenchido automaticamente!" });
+        }
+        setLoadingLocation(false);
       },
       (err) => {
         setLoadingLocation(false);
@@ -134,14 +196,25 @@ function MobileCaptureForm({ open, onClose, onSuccess }: { open: boolean; onClos
     );
   };
 
+  const updateContact = (index: number, field: keyof ContactItem, value: string) => {
+    setContacts(prev => prev.map((c, i) => {
+      if (i !== index) return c;
+      if (field === "phone") {
+        return { ...c, phone: value.replace(/\D/g, ""), phoneDisplay: applyPhoneMask(value) };
+      }
+      return { ...c, [field]: value };
+    }));
+  };
+
+  const addContact = () => setContacts(prev => [...prev, emptyContact()]);
+  const removeContact = (index: number) => setContacts(prev => prev.filter((_, i) => i !== index));
+
   const handleCameraCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
     for (const file of Array.from(files)) {
       const url = await uploadFile(file);
-      if (url) {
-        setPhotos((prev) => [...prev, { file_url: url, file_name: file.name, file_type: "photo", mime_type: file.type }]);
-      }
+      if (url) setPhotos((prev) => [...prev, { file_url: url, file_name: file.name, file_type: "photo", mime_type: file.type }]);
     }
     if (cameraInputRef.current) cameraInputRef.current.value = "";
   };
@@ -151,16 +224,36 @@ function MobileCaptureForm({ open, onClose, onSuccess }: { open: boolean; onClos
     if (!files) return;
     for (const file of Array.from(files)) {
       const url = await uploadFile(file);
-      if (url) {
-        setAudios((prev) => [...prev, { file_url: url, file_name: file.name, file_type: "audio", mime_type: file.type }]);
-      }
+      if (url) setAudios((prev) => [...prev, { file_url: url, file_name: file.name, file_type: "audio", mime_type: file.type }]);
     }
   };
 
   const handleSubmit = async () => {
+    const address = [
+      form.street && `Rua ${form.street}`,
+      form.number && `Nº ${form.number}`,
+      form.neighborhood,
+      form.city,
+      form.state,
+    ].filter(Boolean).join(", ");
+
+    const primary = contacts[0] || emptyContact();
+    const extraContacts = contacts.slice(1).filter(c => c.name || c.phone);
+
     try {
       await createCapture.mutateAsync({
-        ...form,
+        address,
+        construction_stage: form.construction_stage,
+        stage_notes: form.stage_notes,
+        contact_name: primary.name,
+        contact_phone: primary.phone,
+        contact_email: primary.email,
+        contact_role: primary.role,
+        company_name: form.company_name,
+        company_cnpj: form.company_cnpj,
+        notes: extraContacts.length > 0
+          ? `${form.notes}\n\n--- Contatos Adicionais ---\n${extraContacts.map(c => `${c.name} | ${applyPhoneMask(c.phone)} | ${c.role} | ${c.email}`).join("\n")}`.trim()
+          : form.notes,
         latitude: location?.lat,
         longitude: location?.lng,
         attachments: [...photos, ...audios],
@@ -206,7 +299,7 @@ function MobileCaptureForm({ open, onClose, onSuccess }: { open: boolean; onClos
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {step === 0 && (
           <div className="space-y-4">
-            <div className="text-center py-8">
+            <div className="text-center py-6">
               <Navigation className="h-16 w-16 mx-auto text-primary mb-4" />
               <h3 className="text-xl font-semibold mb-2">Capturar Localização</h3>
               <p className="text-muted-foreground text-sm mb-6">
@@ -221,8 +314,23 @@ function MobileCaptureForm({ open, onClose, onSuccess }: { open: boolean; onClos
                 </p>
               )}
             </div>
-            <Input placeholder="Endereço / Referência" value={form.address}
-              onChange={(e) => setForm({ ...form, address: e.target.value })} className="text-base h-12" />
+            <div className="space-y-3">
+              <h4 className="text-sm font-medium text-muted-foreground">Endereço</h4>
+              <div className="grid grid-cols-3 gap-2">
+                <Input placeholder="Rua" value={form.street} className="col-span-2 h-12 text-base"
+                  onChange={(e) => setForm({ ...form, street: e.target.value })} />
+                <Input placeholder="Nº" value={form.number} className="h-12 text-base"
+                  onChange={(e) => setForm({ ...form, number: e.target.value })} />
+              </div>
+              <Input placeholder="Bairro" value={form.neighborhood} className="h-12 text-base"
+                onChange={(e) => setForm({ ...form, neighborhood: e.target.value })} />
+              <div className="grid grid-cols-3 gap-2">
+                <Input placeholder="Cidade" value={form.city} className="col-span-2 h-12 text-base"
+                  onChange={(e) => setForm({ ...form, city: e.target.value })} />
+                <Input placeholder="UF" value={form.state} className="h-12 text-base" maxLength={2}
+                  onChange={(e) => setForm({ ...form, state: e.target.value.toUpperCase() })} />
+              </div>
+            </div>
           </div>
         )}
 
@@ -256,7 +364,6 @@ function MobileCaptureForm({ open, onClose, onSuccess }: { open: boolean; onClos
               </div>
             )}
 
-            {/* Audio */}
             <div className="pt-4 border-t">
               <Button onClick={() => audioInputRef.current?.click()} disabled={isUploading}
                 size="lg" className="w-full h-12" variant="outline">
@@ -296,24 +403,43 @@ function MobileCaptureForm({ open, onClose, onSuccess }: { open: boolean; onClos
               onChange={(e) => setForm({ ...form, stage_notes: e.target.value })} rows={3} className="text-base" />
             <Input placeholder="Nome da Empresa" value={form.company_name}
               onChange={(e) => setForm({ ...form, company_name: e.target.value })} className="h-12 text-base" />
-            <Input placeholder="CNPJ" value={form.company_cnpj}
-              onChange={(e) => setForm({ ...form, company_cnpj: e.target.value })} className="h-12 text-base" />
+            <Input placeholder="CNPJ" value={form.company_cnpj_display} className="h-12 text-base"
+              onChange={(e) => setForm({ ...form, company_cnpj: e.target.value.replace(/\D/g, ""), company_cnpj_display: applyCnpjMask(e.target.value) })} />
           </div>
         )}
 
         {step === 3 && (
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold flex items-center gap-2">
-              <User className="h-5 w-5" /> Contato / Responsável
-            </h3>
-            <Input placeholder="Nome" value={form.contact_name}
-              onChange={(e) => setForm({ ...form, contact_name: e.target.value })} className="h-12 text-base" />
-            <Input placeholder="Cargo (ex: Engenheiro)" value={form.contact_role}
-              onChange={(e) => setForm({ ...form, contact_role: e.target.value })} className="h-12 text-base" />
-            <Input placeholder="Telefone" value={form.contact_phone} type="tel"
-              onChange={(e) => setForm({ ...form, contact_phone: e.target.value })} className="h-12 text-base" />
-            <Input placeholder="E-mail" value={form.contact_email} type="email"
-              onChange={(e) => setForm({ ...form, contact_email: e.target.value })} className="h-12 text-base" />
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <User className="h-5 w-5" /> Contatos
+              </h3>
+              <Button size="sm" variant="outline" onClick={addContact}>
+                <Plus className="h-4 w-4 mr-1" /> Adicionar
+              </Button>
+            </div>
+            {contacts.map((contact, idx) => (
+              <div key={idx} className="border rounded-lg p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-muted-foreground">
+                    {idx === 0 ? "Contato Principal" : `Contato ${idx + 1}`}
+                  </span>
+                  {idx > 0 && (
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => removeContact(idx)}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  )}
+                </div>
+                <Input placeholder="Nome" value={contact.name} className="h-12 text-base"
+                  onChange={(e) => updateContact(idx, "name", e.target.value)} />
+                <Input placeholder="Cargo (ex: Engenheiro)" value={contact.role} className="h-12 text-base"
+                  onChange={(e) => updateContact(idx, "role", e.target.value)} />
+                <Input placeholder="(XX) XXXXX-XXXX" value={contact.phoneDisplay} type="tel" className="h-12 text-base"
+                  onChange={(e) => updateContact(idx, "phone", e.target.value)} />
+                <Input placeholder="E-mail" value={contact.email} type="email" className="h-12 text-base"
+                  onChange={(e) => updateContact(idx, "email", e.target.value)} />
+              </div>
+            ))}
           </div>
         )}
 
@@ -361,19 +487,47 @@ function DesktopCaptureFormDialog({ open, onClose, onSuccess }: { open: boolean;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
 
+  const emptyContact = (): ContactItem => ({ name: "", phone: "", phoneDisplay: "", email: "", role: "" });
+
   const [form, setForm] = useState({
-    address: "", construction_stage: "", stage_notes: "",
-    contact_name: "", contact_phone: "", contact_email: "", contact_role: "",
-    company_name: "", company_cnpj: "", notes: "",
+    street: "", number: "", neighborhood: "", city: "", state: "",
+    construction_stage: "", stage_notes: "",
+    company_name: "", company_cnpj: "", company_cnpj_display: "", notes: "",
   });
+  const [contacts, setContacts] = useState<ContactItem[]>([emptyContact()]);
+
+  useEffect(() => {
+    if (open) {
+      setForm({ street: "", number: "", neighborhood: "", city: "", state: "", construction_stage: "", stage_notes: "", company_name: "", company_cnpj: "", company_cnpj_display: "", notes: "" });
+      setContacts([emptyContact()]);
+      setPhotos([]); setAudios([]); setLocation(null);
+    }
+  }, [open]);
 
   const getLocation = () => {
     setLoadingLocation(true);
     navigator.geolocation.getCurrentPosition(
-      (pos) => { setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }); setLoadingLocation(false); toast({ title: "Localização capturada!" }); },
+      async (pos) => {
+        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setLocation(loc);
+        toast({ title: "Localização capturada!" });
+        const geo = await reverseGeocode(loc.lat, loc.lng);
+        if (geo) {
+          setForm(prev => ({ ...prev, street: geo.street || prev.street, number: geo.number || prev.number, neighborhood: geo.neighborhood || prev.neighborhood, city: geo.city || prev.city, state: geo.state || prev.state }));
+        }
+        setLoadingLocation(false);
+      },
       (err) => { setLoadingLocation(false); toast({ title: "Erro", description: err.message, variant: "destructive" }); },
       { enableHighAccuracy: true }
     );
+  };
+
+  const updateContact = (index: number, field: keyof ContactItem, value: string) => {
+    setContacts(prev => prev.map((c, i) => {
+      if (i !== index) return c;
+      if (field === "phone") return { ...c, phone: value.replace(/\D/g, ""), phoneDisplay: applyPhoneMask(value) };
+      return { ...c, [field]: value };
+    }));
   };
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -395,11 +549,21 @@ function DesktopCaptureFormDialog({ open, onClose, onSuccess }: { open: boolean;
   };
 
   const handleSubmit = async () => {
+    const address = [form.street && `Rua ${form.street}`, form.number && `Nº ${form.number}`, form.neighborhood, form.city, form.state].filter(Boolean).join(", ");
+    const primary = contacts[0] || emptyContact();
+    const extraContacts = contacts.slice(1).filter(c => c.name || c.phone);
     try {
-      await createCapture.mutateAsync({ ...form, latitude: location?.lat, longitude: location?.lng, attachments: [...photos, ...audios] });
+      await createCapture.mutateAsync({
+        address, construction_stage: form.construction_stage, stage_notes: form.stage_notes,
+        contact_name: primary.name, contact_phone: primary.phone, contact_email: primary.email, contact_role: primary.role,
+        company_name: form.company_name, company_cnpj: form.company_cnpj,
+        notes: extraContacts.length > 0
+          ? `${form.notes}\n\n--- Contatos Adicionais ---\n${extraContacts.map(c => `${c.name} | ${applyPhoneMask(c.phone)} | ${c.role} | ${c.email}`).join("\n")}`.trim()
+          : form.notes,
+        latitude: location?.lat, longitude: location?.lng, attachments: [...photos, ...audios],
+      });
       toast({ title: "Ficha criada com sucesso!" });
-      onSuccess();
-      onClose();
+      onSuccess(); onClose();
     } catch { toast({ title: "Erro ao criar ficha", variant: "destructive" }); }
   };
 
@@ -408,34 +572,64 @@ function DesktopCaptureFormDialog({ open, onClose, onSuccess }: { open: boolean;
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader><DialogTitle className="flex items-center gap-2"><ClipboardList className="h-5 w-5" /> Nova Ficha de Campo</DialogTitle></DialogHeader>
         <div className="space-y-4">
+          {/* Location + Address */}
           <div className="flex items-center gap-2">
             <Button onClick={getLocation} disabled={loadingLocation} variant="outline" className="flex-1">
               <Navigation className="h-4 w-4 mr-2" /> {loadingLocation ? "Obtendo..." : location ? "📍 Localização capturada" : "Ativar Localização"}
             </Button>
             {location && <Badge variant="secondary">{location.lat.toFixed(4)}, {location.lng.toFixed(4)}</Badge>}
           </div>
-          <Input placeholder="Endereço / Referência" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+          <div className="grid grid-cols-4 gap-2">
+            <Input placeholder="Rua" value={form.street} className="col-span-3" onChange={(e) => setForm({ ...form, street: e.target.value })} />
+            <Input placeholder="Nº" value={form.number} onChange={(e) => setForm({ ...form, number: e.target.value })} />
+          </div>
+          <div className="grid grid-cols-4 gap-2">
+            <Input placeholder="Bairro" value={form.neighborhood} className="col-span-2" onChange={(e) => setForm({ ...form, neighborhood: e.target.value })} />
+            <Input placeholder="Cidade" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
+            <Input placeholder="UF" value={form.state} maxLength={2} onChange={(e) => setForm({ ...form, state: e.target.value.toUpperCase() })} />
+          </div>
+
+          {/* Obra */}
           <Select value={form.construction_stage} onValueChange={(v) => setForm({ ...form, construction_stage: v })}>
             <SelectTrigger><SelectValue placeholder="Etapa da Obra" /></SelectTrigger>
             <SelectContent>{CONSTRUCTION_STAGES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
           </Select>
           <Textarea placeholder="Observações sobre a etapa..." value={form.stage_notes} onChange={(e) => setForm({ ...form, stage_notes: e.target.value })} rows={2} />
-          <div className="border rounded-lg p-3 space-y-2">
-            <h4 className="text-sm font-medium flex items-center gap-1"><User className="h-4 w-4" /> Responsável / Contato</h4>
-            <div className="grid grid-cols-2 gap-2">
-              <Input placeholder="Nome" value={form.contact_name} onChange={(e) => setForm({ ...form, contact_name: e.target.value })} />
-              <Input placeholder="Cargo" value={form.contact_role} onChange={(e) => setForm({ ...form, contact_role: e.target.value })} />
-              <Input placeholder="Telefone" value={form.contact_phone} onChange={(e) => setForm({ ...form, contact_phone: e.target.value })} />
-              <Input placeholder="E-mail" value={form.contact_email} onChange={(e) => setForm({ ...form, contact_email: e.target.value })} />
+
+          {/* Contacts */}
+          <div className="border rounded-lg p-3 space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-medium flex items-center gap-1"><User className="h-4 w-4" /> Contatos</h4>
+              <Button size="sm" variant="outline" onClick={() => setContacts(prev => [...prev, emptyContact()])}>
+                <Plus className="h-3 w-3 mr-1" /> Adicionar
+              </Button>
             </div>
+            {contacts.map((contact, idx) => (
+              <div key={idx} className="space-y-2 border-t pt-2 first:border-0 first:pt-0">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">{idx === 0 ? "Principal" : `Contato ${idx + 1}`}</span>
+                  {idx > 0 && <button onClick={() => setContacts(prev => prev.filter((_, i) => i !== idx))}><Trash2 className="h-3 w-3 text-destructive" /></button>}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input placeholder="Nome" value={contact.name} onChange={(e) => updateContact(idx, "name", e.target.value)} />
+                  <Input placeholder="Cargo" value={contact.role} onChange={(e) => updateContact(idx, "role", e.target.value)} />
+                  <Input placeholder="(XX) XXXXX-XXXX" value={contact.phoneDisplay} type="tel" onChange={(e) => updateContact(idx, "phone", e.target.value)} />
+                  <Input placeholder="E-mail" value={contact.email} type="email" onChange={(e) => updateContact(idx, "email", e.target.value)} />
+                </div>
+              </div>
+            ))}
           </div>
+
+          {/* Empresa */}
           <div className="border rounded-lg p-3 space-y-2">
             <h4 className="text-sm font-medium flex items-center gap-1"><Building2 className="h-4 w-4" /> Empresa na Obra</h4>
             <div className="grid grid-cols-2 gap-2">
               <Input placeholder="Nome da Empresa" value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })} />
-              <Input placeholder="CNPJ" value={form.company_cnpj} onChange={(e) => setForm({ ...form, company_cnpj: e.target.value })} />
+              <Input placeholder="CNPJ" value={form.company_cnpj_display} onChange={(e) => setForm({ ...form, company_cnpj: e.target.value.replace(/\D/g, ""), company_cnpj_display: applyCnpjMask(e.target.value) })} />
             </div>
           </div>
+
+          {/* Fotos */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <h4 className="text-sm font-medium flex items-center gap-1"><Camera className="h-4 w-4" /> Fotos</h4>
@@ -454,6 +648,7 @@ function DesktopCaptureFormDialog({ open, onClose, onSuccess }: { open: boolean;
               </div>
             )}
           </div>
+          {/* Audios */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <h4 className="text-sm font-medium flex items-center gap-1"><Mic className="h-4 w-4" /> Áudios</h4>
@@ -481,7 +676,6 @@ function DesktopCaptureFormDialog({ open, onClose, onSuccess }: { open: boolean;
     </Dialog>
   );
 }
-
 // ─── Capture Detail Dialog ───
 function CaptureDetailDialog({ captureId, open, onClose }: { captureId: string | null; open: boolean; onClose: () => void }) {
   const { data: capture } = useFieldCaptureDetail(captureId);

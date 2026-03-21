@@ -108,7 +108,7 @@ export function useFieldCaptureStats(userId?: string) {
 export function useCreateFieldCapture() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: any) => api("/api/captador", { method: "POST", body: JSON.stringify(data) }),
+    mutationFn: (data: any) => api("/api/captador", { method: "POST", body: data }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["field-captures"] });
       qc.invalidateQueries({ queryKey: ["field-capture-map"] });
@@ -120,7 +120,7 @@ export function useCreateFieldCapture() {
 export function useUpdateFieldCapture() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...data }: any) => api(`/api/captador/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+    mutationFn: ({ id, ...data }: any) => api(`/api/captador/${id}`, { method: "PUT", body: data }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["field-captures"] });
       qc.invalidateQueries({ queryKey: ["field-capture"] });
@@ -133,7 +133,7 @@ export function useAddFieldCaptureVisit() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ captureId, ...data }: any) =>
-      api(`/api/captador/${captureId}/visits`, { method: "POST", body: JSON.stringify(data) }),
+      api(`/api/captador/${captureId}/visits`, { method: "POST", body: data }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["field-captures"] });
       qc.invalidateQueries({ queryKey: ["field-capture"] });
@@ -145,7 +145,7 @@ export function useAddCaptureAttachment() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ captureId, ...data }: any) =>
-      api(`/api/captador/${captureId}/attachments`, { method: "POST", body: JSON.stringify(data) }),
+      api(`/api/captador/${captureId}/attachments`, { method: "POST", body: data }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["field-capture"] });
     },
@@ -182,7 +182,7 @@ export function useUpdateCaptadorSettings() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: Partial<CaptadorSettings>) =>
-      api("/api/captador/settings", { method: "PUT", body: JSON.stringify(data) }),
+      api("/api/captador/settings", { method: "PUT", body: data }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["captador-settings"] }),
   });
 }
