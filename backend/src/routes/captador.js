@@ -439,7 +439,7 @@ router.put('/:id', async (req, res) => {
       construction_stage, stage_notes,
       contact_name, contact_phone, contact_email, contact_role,
       company_name, company_cnpj,
-      notes, status, deal_id, address, assigned_to,
+      notes, status, deal_id, address, assigned_to, segment,
     } = req.body;
 
     // Check if assignment changed to send notification
@@ -463,13 +463,14 @@ router.put('/:id', async (req, res) => {
         status = COALESCE($12, status),
         deal_id = COALESCE($13, deal_id),
         address = COALESCE($14, address),
-        assigned_to = $15
+        assigned_to = $15,
+        segment = COALESCE($16, segment)
        WHERE id = $1 AND organization_id = $2
        RETURNING *`,
       [req.params.id, org.organization_id, construction_stage, stage_notes,
        contact_name, contact_phone, contact_email, contact_role,
        company_name, company_cnpj, notes, status, deal_id, address,
-       assigned_to !== undefined ? assigned_to : null]
+       assigned_to !== undefined ? assigned_to : null, segment]
     );
 
     if (result.rows.length === 0) return res.status(404).json({ error: 'Não encontrado' });
