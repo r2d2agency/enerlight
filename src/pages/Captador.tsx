@@ -116,7 +116,7 @@ function ReturnCheckinButton({ capture, onCheckin }: {
       attachments: photos, latitude: userPos!.lat, longitude: userPos!.lng,
       contacts: validContacts.length > 0 ? validContacts : undefined,
     });
-    setGpsOk(false); setStage(""); setNotes(""); setPhotos([]); setContacts([]); setShowContacts(false);
+    setGpsOk(false); setStage(""); setNotes(""); setPhotos([]); setContacts([{ name: "", phone: "", email: "", role: "" }]); setShowContacts(true);
   };
 
   return (
