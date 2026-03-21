@@ -3956,7 +3956,16 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_column THEN NULL;
 END $$;
 
--- Captador settings table
+-- return_date and return_notes columns
+DO $$ BEGIN
+  ALTER TABLE field_captures ADD COLUMN IF NOT EXISTS return_date DATE;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+DO $$ BEGIN
+  ALTER TABLE field_captures ADD COLUMN IF NOT EXISTS return_notes TEXT;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
 CREATE TABLE IF NOT EXISTS captador_settings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE UNIQUE,
