@@ -131,6 +131,71 @@ function useCheckin() {
   return { checkedIn, checkinTime, checkinLocation, doCheckin, doCheckout };
 }
 
+// ─── Offline Queue ───
+const OFFLINE_QUEUE_KEY = "captador_offline_queue";
+
+function getOfflineQueue(): any[] {
+  try {
+    return JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY) || "[]");
+  } catch { return []; }
+}
+
+function addToOfflineQueue(data: any) {
+  const queue = getOfflineQueue();
+  queue.push({ ...data, _offlineId: Date.now().toString(), _createdAt: new Date().toISOString() });
+  localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
+}
+
+function removeFromOfflineQueue(offlineId: string) {
+  const queue = getOfflineQueue().filter((item) => item._offlineId !== offlineId);
+  localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
+}
+
+function useOfflineSync(createCapture: any, onSuccess: () => void) {
+  const { toast } = useToast();
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [pendingCount, setPendingCount] = useState(getOfflineQueue().length);
+
+  useEffect(() => {
+    const goOnline = () => setIsOnline(true);
+    const goOffline = () => setIsOnline(false);
+    window.addEventListener("online", goOnline);
+    window.addEventListener("offline", goOffline);
+    return () => { window.removeEventListener("online", goOnline); window.removeEventListener("offline", goOffline); };
+  }, []);
+
+  // Sync when back online
+  useEffect(() => {
+    if (!isOnline) return;
+    const queue = getOfflineQueue();
+    if (queue.length === 0) return;
+
+    const syncAll = async () => {
+      let synced = 0;
+      for (const item of queue) {
+        try {
+          const { _offlineId, _createdAt, ...data } = item;
+          await createCapture.mutateAsync(data);
+          removeFromOfflineQueue(_offlineId);
+          synced++;
+        } catch (err) {
+          console.error("[Offline sync] failed for item", item._offlineId, err);
+        }
+      }
+      setPendingCount(getOfflineQueue().length);
+      if (synced > 0) {
+        toast({ title: `✅ ${synced} ficha(s) sincronizada(s)!` });
+        onSuccess();
+      }
+    };
+    syncAll();
+  }, [isOnline]);
+
+  const refreshCount = () => setPendingCount(getOfflineQueue().length);
+
+  return { isOnline, pendingCount, refreshCount };
+}
+
 // ─── Mobile Capture Form (Full Screen) ───
 function MobileCaptureForm({ open, onClose, onSuccess }: { open: boolean; onClose: () => void; onSuccess: () => void }) {
   const { toast } = useToast();
