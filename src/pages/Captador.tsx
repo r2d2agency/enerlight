@@ -903,6 +903,8 @@ function DesktopCaptureFormDialog({ open, onClose, onSuccess }: { open: boolean;
           : form.notes,
         latitude: location?.lat, longitude: location?.lng, attachments: [...photos, ...audios],
         segment: form.segment || null,
+        estimated_start: form.estimated_start || null,
+        estimated_end: form.estimated_end || null,
       });
       toast({ title: "Ficha criada com sucesso!" });
       onSuccess(); onClose();
