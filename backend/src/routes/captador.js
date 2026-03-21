@@ -133,7 +133,7 @@ router.get('/', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'Sem organização' });
 
-    const { status, user_id, assigned_to, unassigned, start_date, end_date } = req.query;
+    const { status, user_id, assigned_to, unassigned, start_date, end_date, segment } = req.query;
     let sql = `
       SELECT fc.*, u.name as created_by_name,
         au.name as assigned_to_name,
@@ -154,6 +154,7 @@ router.get('/', async (req, res) => {
     if (unassigned === 'true') { sql += ` AND fc.assigned_to IS NULL`; }
     if (start_date) { sql += ` AND fc.created_at >= $${idx++}`; params.push(start_date); }
     if (end_date) { sql += ` AND fc.created_at <= $${idx++}::date + interval '1 day'`; params.push(end_date); }
+    if (segment) { sql += ` AND fc.segment = $${idx++}`; params.push(segment); }
 
     sql += ` ORDER BY fc.created_at DESC`;
 
