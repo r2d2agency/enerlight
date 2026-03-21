@@ -891,6 +891,16 @@ function CaptureDetailDialog({ captureId, open, onClose }: { captureId: string |
               <div><span className="text-muted-foreground">Endereço:</span> {capture.address || "—"}</div>
               <div><span className="text-muted-foreground">Etapa:</span> {capture.construction_stage || "—"}</div>
             </div>
+            {/* Navigate to location */}
+            {capture.latitude && capture.longitude && (
+              <a
+                href={`https://www.google.com/maps/dir/?api=1&destination=${capture.latitude},${capture.longitude}`}
+                target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-2 w-full justify-center rounded-lg bg-primary/10 text-primary p-2.5 text-sm font-medium hover:bg-primary/20 transition-colors"
+              >
+                <Navigation className="h-4 w-4" /> Ir para o local (Google Maps)
+              </a>
+            )}
             {(capture.contact_name || capture.contact_phone) && (
               <Card>
                 <CardHeader className="py-2 px-3"><CardTitle className="text-sm">Contato</CardTitle></CardHeader>
