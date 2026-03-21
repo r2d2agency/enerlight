@@ -1022,6 +1022,7 @@ function CaptureDetailDialog({ captureId, open, onClose }: { captureId: string |
               <div><span className="text-muted-foreground">Data:</span> {safeFormatDate(capture.created_at, "dd/MM/yyyy HH:mm")}</div>
               <div><span className="text-muted-foreground">Endereço:</span> {capture.address || "—"}</div>
               <div><span className="text-muted-foreground">Etapa:</span> {capture.construction_stage || "—"}</div>
+              <div><span className="text-muted-foreground">Segmento:</span> {(capture as any).segment ? <Badge variant="secondary" className="text-xs">{(capture as any).segment}</Badge> : "—"}</div>
             </div>
             {/* Navigate to location */}
             {capture.latitude && capture.longitude && (
