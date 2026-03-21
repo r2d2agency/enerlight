@@ -833,6 +833,7 @@ function DesktopCaptureFormDialog({ open, onClose, onSuccess }: { open: boolean;
           ? `${form.notes}\n\n--- Contatos Adicionais ---\n${extraContacts.map(c => `${c.name} | ${applyPhoneMask(c.phone)} | ${c.role} | ${c.email}`).join("\n")}`.trim()
           : form.notes,
         latitude: location?.lat, longitude: location?.lng, attachments: [...photos, ...audios],
+        segment: form.segment || null,
       });
       toast({ title: "Ficha criada com sucesso!" });
       onSuccess(); onClose();
