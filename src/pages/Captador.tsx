@@ -1468,17 +1468,17 @@ export default function Captador() {
 
             {/* Filters */}
             <div className="px-4 pt-2 flex gap-2 overflow-x-auto pb-1">
-              <Select value={filters.segment || ""} onValueChange={(v) => setFilters(f => ({ ...f, segment: v || undefined }))}>
+              <Select value={filters.segment || "all"} onValueChange={(v) => setFilters(f => ({ ...f, segment: v === "all" ? undefined : v }))}>
                 <SelectTrigger className="h-8 text-xs w-[130px] shrink-0"><SelectValue placeholder="Segmento" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos</SelectItem>
+                  <SelectItem value="all">Todos</SelectItem>
                   {SEGMENTS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                 </SelectContent>
               </Select>
-              <Select value={filters.assigned_to || ""} onValueChange={(v) => setFilters(f => ({ ...f, assigned_to: v || undefined }))}>
+              <Select value={filters.assigned_to || "all"} onValueChange={(v) => setFilters(f => ({ ...f, assigned_to: v === "all" ? undefined : v }))}>
                 <SelectTrigger className="h-8 text-xs w-[130px] shrink-0"><SelectValue placeholder="Vendedor" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos</SelectItem>
+                  <SelectItem value="all">Todos</SelectItem>
                   {sellers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                 </SelectContent>
               </Select>
