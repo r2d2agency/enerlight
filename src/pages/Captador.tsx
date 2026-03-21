@@ -458,15 +458,39 @@ function MobileCaptureForm({ open, onClose, onSuccess, isOnline }: { open: boole
               </div>
             )}
 
-            <div className="pt-4 border-t">
-              <Button onClick={() => audioInputRef.current?.click()} disabled={isUploading}
-                size="lg" className="w-full h-12" variant="outline">
-                <Mic className="h-5 w-5 mr-2" /> Gravar / Enviar Áudio
-              </Button>
-              <input ref={audioInputRef} type="file" accept="audio/*"
-                className="hidden" onChange={handleAudioUpload} />
+            <div className="pt-4 border-t space-y-3">
+              <h4 className="text-sm font-medium flex items-center gap-2">
+                <Mic className="h-4 w-4" /> Áudio
+              </h4>
+              {!audioRecorder.isRecording ? (
+                <Button onClick={() => audioRecorder.startRecording()}
+                  size="lg" className="w-full h-14 text-base" variant="outline">
+                  <Mic className="h-5 w-5 mr-2 text-destructive" /> Gravar Áudio
+                </Button>
+              ) : (
+                <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-4 space-y-3">
+                  <div className="flex items-center justify-center gap-3">
+                    <div className="h-3 w-3 rounded-full bg-destructive animate-pulse" />
+                    <span className="text-lg font-mono font-bold">{audioRecorder.formatDuration(audioRecorder.duration)}</span>
+                  </div>
+                  <div className="flex items-center justify-center gap-0.5 h-8">
+                    {audioRecorder.audioLevels.map((level, i) => (
+                      <div key={i} className="w-1.5 bg-destructive rounded-full transition-all duration-75"
+                        style={{ height: `${Math.max(4, level * 32)}px` }} />
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="ghost" className="flex-1" onClick={() => audioRecorder.cancelRecording()}>
+                      <Trash2 className="h-4 w-4 mr-1" /> Cancelar
+                    </Button>
+                    <Button variant="destructive" className="flex-1" onClick={handleStopAndSaveAudio}>
+                      <Square className="h-4 w-4 mr-1" /> Parar e Salvar
+                    </Button>
+                  </div>
+                </div>
+              )}
               {audios.length > 0 && (
-                <div className="space-y-1 mt-2">
+                <div className="space-y-1">
                   {audios.map((a, i) => (
                     <div key={i} className="flex items-center gap-2 text-sm bg-muted rounded-lg px-3 py-2">
                       <AudioLines className="h-4 w-4 shrink-0" />
