@@ -1043,6 +1043,7 @@ export default function Captador() {
   const [filters, setFilters] = useState<{ status?: string; assigned_to?: string; unassigned?: boolean }>({});
 
   const { checkedIn, checkinTime, doCheckin, doCheckout } = useCheckin();
+  const createCaptureForSync = useCreateFieldCapture();
 
   const { data: captures = [], refetch } = useFieldCaptures(filters);
   const { data: stats } = useFieldCaptureStats();
@@ -1053,6 +1054,8 @@ export default function Captador() {
   const updateSettings = useUpdateCaptadorSettings();
   const updateCapture = useUpdateFieldCapture();
   const deleteCapture = useDeleteFieldCapture();
+
+  const { isOnline, pendingCount, refreshCount } = useOfflineSync(createCaptureForSync, () => refetch());
 
   const todayCaptures = captures.filter((c) => {
     const today = new Date();
