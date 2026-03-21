@@ -145,6 +145,14 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
     ],
   },
   {
+    title: "Captador",
+    icon: MapPin,
+    permissionKey: 'can_view_captador',
+    items: [
+      { name: "Fichas de Campo", href: "/captador", icon: MapPin, permissionKey: 'can_view_captador' },
+    ],
+  },
+  {
     title: "Lead Gleego",
     icon: Zap,
     moduleKey: 'lead_gleego',

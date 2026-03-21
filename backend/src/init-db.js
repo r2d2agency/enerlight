@@ -3884,6 +3884,79 @@ CREATE TABLE IF NOT EXISTS erp_seller_user_mapping (
 );
 `;
 
+const step53FieldCaptures = `
+CREATE TABLE IF NOT EXISTS field_captures (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  created_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  latitude DECIMAL(10, 8),
+  longitude DECIMAL(11, 8),
+  address TEXT,
+  construction_stage VARCHAR(100),
+  stage_notes TEXT,
+  contact_name VARCHAR(255),
+  contact_phone VARCHAR(50),
+  contact_email VARCHAR(255),
+  contact_role VARCHAR(100),
+  company_name VARCHAR(255),
+  company_cnpj VARCHAR(20),
+  deal_id UUID REFERENCES crm_deals(id) ON DELETE SET NULL,
+  status VARCHAR(50) DEFAULT 'new',
+  notes TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_field_captures_org ON field_captures(organization_id);
+CREATE INDEX IF NOT EXISTS idx_field_captures_user ON field_captures(created_by);
+
+CREATE TABLE IF NOT EXISTS field_capture_attachments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  capture_id UUID NOT NULL REFERENCES field_captures(id) ON DELETE CASCADE,
+  file_url TEXT NOT NULL,
+  file_name VARCHAR(255),
+  file_type VARCHAR(50),
+  mime_type VARCHAR(100),
+  file_size INTEGER,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_field_capture_attachments_capture ON field_capture_attachments(capture_id);
+
+CREATE TABLE IF NOT EXISTS field_capture_visits (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  capture_id UUID NOT NULL REFERENCES field_captures(id) ON DELETE CASCADE,
+  visited_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  construction_stage VARCHAR(100),
+  notes TEXT,
+  latitude DECIMAL(10, 8),
+  longitude DECIMAL(11, 8),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_field_capture_visits_capture ON field_capture_visits(capture_id);
+
+CREATE TABLE IF NOT EXISTS field_capture_visit_attachments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  visit_id UUID NOT NULL REFERENCES field_capture_visits(id) ON DELETE CASCADE,
+  file_url TEXT NOT NULL,
+  file_name VARCHAR(255),
+  file_type VARCHAR(50),
+  mime_type VARCHAR(100),
+  file_size INTEGER,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_fcva_visit ON field_capture_visit_attachments(visit_id);
+
+CREATE OR REPLACE FUNCTION update_field_captures_updated_at()
+RETURNS TRIGGER AS $$ BEGIN NEW.updated_at = NOW(); RETURN NEW; END; $$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS trigger_field_captures_updated_at ON field_captures;
+CREATE TRIGGER trigger_field_captures_updated_at BEFORE UPDATE ON field_captures FOR EACH ROW EXECUTE FUNCTION update_field_captures_updated_at();
+
+-- Permission column
+DO $$ BEGIN
+  ALTER TABLE user_permissions ADD COLUMN IF NOT EXISTS can_view_captador BOOLEAN DEFAULT false;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+`;
+
 const step52QuoteImportMappings = `
 CREATE TABLE IF NOT EXISTS crm_quote_import_mappings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
