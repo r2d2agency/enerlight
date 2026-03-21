@@ -1543,6 +1543,7 @@ function MobileCaptureCard({ capture, onSelect, onDelete, sellers, onAssign }: {
             <span className="font-medium text-sm truncate">{capture.company_name || capture.address || "Obra sem nome"}</span>
             <Badge className={`${st.color} text-[10px] px-1.5 py-0`}>{st.label}</Badge>
           </div>
+          {capture.address && <p className="text-xs text-muted-foreground truncate flex items-center gap-0.5"><MapPin className="h-3 w-3" /> {capture.address}</p>}
           {capture.construction_stage && <p className="text-xs text-muted-foreground">{capture.construction_stage}</p>}
           <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
             <span>{safeFormatDate(capture.created_at, "dd/MM HH:mm")}</span>
@@ -1554,7 +1555,17 @@ function MobileCaptureCard({ capture, onSelect, onDelete, sellers, onAssign }: {
           )}
         </div>
 
-        <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 mt-1" />
+        <div className="flex flex-col items-end gap-1 shrink-0">
+          <ChevronRight className="h-4 w-4 text-muted-foreground mt-1" />
+          {capture.latitude && capture.longitude && (
+            <a href={`https://www.google.com/maps/dir/?api=1&destination=${capture.latitude},${capture.longitude}`}
+              target="_blank" rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="text-[10px] text-primary flex items-center gap-0.5 hover:underline">
+              <Navigation className="h-3 w-3" /> Rota
+            </a>
+          )}
+        </div>
       </div>
     </div>
   );
