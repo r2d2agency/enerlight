@@ -927,7 +927,7 @@ function CaptureDetailDialog({ captureId, open, onClose }: { captureId: string |
                 </h4>
                 {(capture as any).return_date && (
                   <Badge variant="outline" className="text-xs">
-                    Retorno: {format(new Date((capture as any).return_date + "T12:00:00"), "dd/MM/yyyy")}
+                    Retorno: {safeFormatDate((capture as any).return_date?.split?.("T")?.[0] + "T12:00:00", "dd/MM/yyyy")}
                   </Badge>
                 )}
               </div>
