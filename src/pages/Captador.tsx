@@ -410,6 +410,7 @@ function MobileCaptureForm({ open, onClose, onSuccess, isOnline }: { open: boole
     street: "", number: "", neighborhood: "", city: "", state: "",
     construction_stage: "", stage_notes: "", segment: "",
     company_name: "", company_cnpj: "", company_cnpj_display: "", notes: "",
+    estimated_start: "", estimated_end: "",
   });
   const [contacts, setContacts] = useState<ContactItem[]>([emptyContact()]);
 
@@ -423,6 +424,7 @@ function MobileCaptureForm({ open, onClose, onSuccess, isOnline }: { open: boole
         street: "", number: "", neighborhood: "", city: "", state: "",
         construction_stage: "", stage_notes: "", segment: "",
         company_name: "", company_cnpj: "", company_cnpj_display: "", notes: "",
+        estimated_start: "", estimated_end: "",
       });
       setContacts([emptyContact()]);
     }
@@ -533,6 +535,8 @@ function MobileCaptureForm({ open, onClose, onSuccess, isOnline }: { open: boole
       longitude: location?.lng,
       attachments: [...photos, ...audios],
       segment: form.segment || null,
+      estimated_start: form.estimated_start || null,
+      estimated_end: form.estimated_end || null,
     };
 
     if (isOnline === false) {
@@ -724,6 +728,21 @@ function MobileCaptureForm({ open, onClose, onSuccess, isOnline }: { open: boole
               onChange={(e) => setForm({ ...form, company_name: e.target.value })} className="h-12 text-base" />
             <Input placeholder="CNPJ" value={form.company_cnpj_display} className="h-12 text-base"
               onChange={(e) => setForm({ ...form, company_cnpj: e.target.value.replace(/\D/g, ""), company_cnpj_display: applyCnpjMask(e.target.value) })} />
+            <div className="space-y-1">
+              <label className="text-sm text-muted-foreground">Prazo Estimado da Obra</label>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-muted-foreground">Início</label>
+                  <Input type="date" value={form.estimated_start} className="h-12 text-base"
+                    onChange={(e) => setForm({ ...form, estimated_start: e.target.value })} />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Fim</label>
+                  <Input type="date" value={form.estimated_end} className="h-12 text-base"
+                    onChange={(e) => setForm({ ...form, estimated_end: e.target.value })} />
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
@@ -812,12 +831,13 @@ function DesktopCaptureFormDialog({ open, onClose, onSuccess }: { open: boolean;
     street: "", number: "", neighborhood: "", city: "", state: "",
     construction_stage: "", stage_notes: "", segment: "",
     company_name: "", company_cnpj: "", company_cnpj_display: "", notes: "",
+    estimated_start: "", estimated_end: "",
   });
   const [contacts, setContacts] = useState<ContactItem[]>([emptyContact()]);
 
   useEffect(() => {
     if (open) {
-      setForm({ street: "", number: "", neighborhood: "", city: "", state: "", construction_stage: "", stage_notes: "", segment: "", company_name: "", company_cnpj: "", company_cnpj_display: "", notes: "" });
+      setForm({ street: "", number: "", neighborhood: "", city: "", state: "", construction_stage: "", stage_notes: "", segment: "", company_name: "", company_cnpj: "", company_cnpj_display: "", notes: "", estimated_start: "", estimated_end: "" });
       setContacts([emptyContact()]);
       setPhotos([]); setAudios([]); setLocation(null);
     }
@@ -883,6 +903,8 @@ function DesktopCaptureFormDialog({ open, onClose, onSuccess }: { open: boolean;
           : form.notes,
         latitude: location?.lat, longitude: location?.lng, attachments: [...photos, ...audios],
         segment: form.segment || null,
+        estimated_start: form.estimated_start || null,
+        estimated_end: form.estimated_end || null,
       });
       toast({ title: "Ficha criada com sucesso!" });
       onSuccess(); onClose();
@@ -957,7 +979,22 @@ function DesktopCaptureFormDialog({ open, onClose, onSuccess }: { open: boolean;
             </div>
           </div>
 
-          {/* Fotos */}
+          {/* Prazo da Obra */}
+          <div className="border rounded-lg p-3 space-y-2">
+            <h4 className="text-sm font-medium flex items-center gap-1"><Clock className="h-4 w-4" /> Prazo Estimado da Obra</h4>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs text-muted-foreground">Início</label>
+                <Input type="date" value={form.estimated_start} onChange={(e) => setForm({ ...form, estimated_start: e.target.value })} />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground">Fim</label>
+                <Input type="date" value={form.estimated_end} onChange={(e) => setForm({ ...form, estimated_end: e.target.value })} />
+              </div>
+            </div>
+          </div>
+
+
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <h4 className="text-sm font-medium flex items-center gap-1"><Camera className="h-4 w-4" /> Fotos</h4>
@@ -1100,6 +1137,15 @@ function CaptureDetailDialog({ captureId, open, onClose }: { captureId: string |
                 <CardContent className="px-3 pb-3 text-sm">
                   <div>{capture.company_name}</div>
                   {capture.company_cnpj && <div className="text-muted-foreground">CNPJ: {capture.company_cnpj}</div>}
+                </CardContent>
+              </Card>
+            )}
+            {(capture.estimated_start || capture.estimated_end) && (
+              <Card>
+                <CardHeader className="py-2 px-3"><CardTitle className="text-sm flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> Prazo da Obra</CardTitle></CardHeader>
+                <CardContent className="px-3 pb-3 text-sm grid grid-cols-2 gap-2">
+                  <div><span className="text-muted-foreground">Início:</span> {capture.estimated_start ? safeFormatDate(capture.estimated_start, "dd/MM/yyyy") : "—"}</div>
+                  <div><span className="text-muted-foreground">Fim:</span> {capture.estimated_end ? safeFormatDate(capture.estimated_end, "dd/MM/yyyy") : "—"}</div>
                 </CardContent>
               </Card>
             )}

@@ -381,6 +381,7 @@ router.post('/', async (req, res) => {
       contact_name, contact_phone, contact_email, contact_role,
       company_name, company_cnpj,
       notes, attachments, segment,
+      estimated_start, estimated_end,
     } = req.body;
 
     // Check settings for auto-distribution
@@ -402,12 +403,13 @@ router.post('/', async (req, res) => {
     const result = await query(
       `INSERT INTO field_captures (organization_id, created_by, latitude, longitude, address,
         construction_stage, stage_notes, contact_name, contact_phone, contact_email, contact_role,
-        company_name, company_cnpj, notes, assigned_to, segment)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+        company_name, company_cnpj, notes, assigned_to, segment, estimated_start, estimated_end)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
        RETURNING *`,
       [org.organization_id, req.userId, latitude, longitude, address,
        construction_stage, stage_notes, contact_name, contact_phone, contact_email, contact_role,
-       company_name, company_cnpj, notes, assignedTo, segment || null]
+       company_name, company_cnpj, notes, assignedTo, segment || null,
+       estimated_start || null, estimated_end || null]
     );
 
     const capture = result.rows[0];
@@ -477,13 +479,16 @@ router.put('/:id', async (req, res) => {
         deal_id = COALESCE($13, deal_id),
         address = COALESCE($14, address),
         assigned_to = $15,
-        segment = COALESCE($16, segment)
+        segment = COALESCE($16, segment),
+        estimated_start = COALESCE($17, estimated_start),
+        estimated_end = COALESCE($18, estimated_end)
        WHERE id = $1 AND organization_id = $2
        RETURNING *`,
       [req.params.id, org.organization_id, construction_stage, stage_notes,
        contact_name, contact_phone, contact_email, contact_role,
        company_name, company_cnpj, notes, status, deal_id, address,
-       assigned_to !== undefined ? assigned_to : null, segment]
+       assigned_to !== undefined ? assigned_to : null, segment,
+       req.body.estimated_start || null, req.body.estimated_end || null]
     );
 
     if (result.rows.length === 0) return res.status(404).json({ error: 'Não encontrado' });

@@ -26,6 +26,8 @@ export interface FieldCapture {
   visit_count: number;
   return_date: string | null;
   return_notes: string | null;
+  estimated_start: string | null;
+  estimated_end: string | null;
   attachments: { id: string; file_url: string; file_name: string; file_type: string }[] | null;
   created_at: string;
   updated_at: string;
