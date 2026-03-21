@@ -762,7 +762,7 @@ function DesktopCaptureFormDialog({ open, onClose, onSuccess }: { open: boolean;
 
   const [form, setForm] = useState({
     street: "", number: "", neighborhood: "", city: "", state: "",
-    construction_stage: "", stage_notes: "",
+    construction_stage: "", stage_notes: "", segment: "",
     company_name: "", company_cnpj: "", company_cnpj_display: "", notes: "",
   });
   const [contacts, setContacts] = useState<ContactItem[]>([emptyContact()]);
