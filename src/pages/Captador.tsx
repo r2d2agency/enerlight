@@ -1499,7 +1499,7 @@ export default function Captador() {
             </div>
           </TabsContent>
           <TabsContent value="map" className="mt-3">
-            <CaptadorMap points={mapPoints} onSelect={setSelectedId} />
+            <CaptadorMap points={mapPoints.length > 0 ? mapPoints : captures.filter(c => c.latitude && c.longitude)} onSelect={setSelectedId} />
           </TabsContent>
         </Tabs>
 
