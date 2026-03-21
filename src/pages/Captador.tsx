@@ -1458,7 +1458,7 @@ export default function Captador() {
                     <CardContent className="p-4 space-y-2">
                       <div className="flex items-center justify-between">
                         <Badge className={st.color}>{st.label}</Badge>
-                        <span className="text-xs text-muted-foreground">{format(new Date(c.created_at), "dd/MM/yyyy")}</span>
+                        <span className="text-xs text-muted-foreground">{safeFormatDate(c.created_at, "dd/MM/yyyy")}</span>
                       </div>
                       {c.company_name && <div className="font-medium flex items-center gap-1 text-sm"><Building2 className="h-3 w-3" /> {c.company_name}</div>}
                       {c.address && <div className="text-xs text-muted-foreground flex items-center gap-1"><MapPin className="h-3 w-3" /> {c.address}</div>}
