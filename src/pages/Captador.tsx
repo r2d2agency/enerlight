@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import "leaflet/dist/leaflet.css";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,7 +27,7 @@ import {
   MapPin, Camera, Mic, Plus, Eye, User, Building2,
   Phone, Mail, FileText, Trash2, Navigation, Image, AudioLines,
   ClipboardList, Settings, UserPlus, Users, LogIn, LogOut, Clock,
-  ChevronRight, CheckCircle2, Circle, ArrowLeft, WifiOff, Wifi, Square,
+  ChevronRight, CheckCircle2, Circle, ArrowLeft, WifiOff, Wifi, Square, Download,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -66,7 +67,33 @@ async function reverseGeocode(lat: number, lng: number): Promise<{
   } catch { return null; }
 }
 
-// ─── Contact Item Type ───
+// ─── Photo Compression Utility ───
+async function compressImage(file: File, maxWidth = 1280, quality = 0.7): Promise<File> {
+  return new Promise((resolve) => {
+    const img = document.createElement("img");
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const canvas = document.createElement("canvas");
+      let w = img.width, h = img.height;
+      if (w > maxWidth) { h = (maxWidth / w) * h; w = maxWidth; }
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(img, 0, 0, w, h);
+      canvas.toBlob((blob) => {
+        if (blob) {
+          resolve(new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg" }));
+        } else {
+          resolve(file);
+        }
+      }, "image/jpeg", quality);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
+
+
 interface ContactItem {
   name: string;
   phone: string;
@@ -279,7 +306,8 @@ function MobileCaptureForm({ open, onClose, onSuccess, isOnline }: { open: boole
   const handleCameraCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
-    for (const file of Array.from(files)) {
+    for (const rawFile of Array.from(files)) {
+      const file = await compressImage(rawFile);
       const url = await uploadFile(file);
       if (url) setPhotos((prev) => [...prev, { file_url: url, file_name: file.name, file_type: "photo", mime_type: file.type }]);
     }
@@ -651,7 +679,8 @@ function DesktopCaptureFormDialog({ open, onClose, onSuccess }: { open: boolean;
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
-    for (const file of Array.from(files)) {
+    for (const rawFile of Array.from(files)) {
+      const file = await compressImage(rawFile);
       const url = await uploadFile(file);
       if (url) setPhotos((prev) => [...prev, { file_url: url, file_name: file.name, file_type: "photo", mime_type: file.type }]);
     }
@@ -687,7 +716,7 @@ function DesktopCaptureFormDialog({ open, onClose, onSuccess }: { open: boolean;
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" aria-describedby={undefined}>
         <DialogHeader><DialogTitle className="flex items-center gap-2"><ClipboardList className="h-5 w-5" /> Nova Ficha de Campo</DialogTitle></DialogHeader>
         <div className="space-y-4">
           {/* Location + Address */}
@@ -831,7 +860,8 @@ function CaptureDetailDialog({ captureId, open, onClose }: { captureId: string |
   const handleVisitPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
-    for (const file of Array.from(files)) {
+    for (const rawFile of Array.from(files)) {
+      const file = await compressImage(rawFile);
       const url = await uploadFile(file);
       if (url) setVisitPhotos((p) => [...p, { file_url: url, file_name: file.name, file_type: "photo", mime_type: file.type }]);
     }
@@ -841,7 +871,7 @@ function CaptureDetailDialog({ captureId, open, onClose }: { captureId: string |
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <MapPin className="h-5 w-5" /> Ficha #{capture.id.slice(0, 8)}
@@ -934,11 +964,25 @@ function CaptureDetailDialog({ captureId, open, onClose }: { captureId: string |
             {capture.attachments && capture.attachments.length > 0 ? (
               <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                 {capture.attachments.map((att) => (
-                  <div key={att.id} className="border rounded overflow-hidden">
+                  <div key={att.id} className="border rounded overflow-hidden relative group">
                     {att.file_type === "photo" ? (
-                      <a href={att.file_url} target="_blank" rel="noopener"><img src={att.file_url} alt={att.file_name} className="w-full h-32 object-cover" /></a>
+                      <>
+                        <a href={att.file_url} target="_blank" rel="noopener"><img src={att.file_url} alt={att.file_name} className="w-full h-32 object-cover" /></a>
+                        <a href={att.file_url} download={att.file_name || "foto.jpg"} target="_blank" rel="noopener"
+                          className="absolute bottom-1 right-1 bg-background/80 backdrop-blur rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity shadow">
+                          <Download className="h-3.5 w-3.5" />
+                        </a>
+                      </>
                     ) : att.file_type === "audio" ? (
-                      <div className="p-2"><audio controls src={att.file_url} className="w-full" /><p className="text-xs truncate mt-1">{att.file_name}</p></div>
+                      <div className="p-2">
+                        <audio controls src={att.file_url} className="w-full" />
+                        <div className="flex items-center justify-between mt-1">
+                          <p className="text-xs truncate flex-1">{att.file_name}</p>
+                          <a href={att.file_url} download={att.file_name} target="_blank" rel="noopener" className="ml-1">
+                            <Download className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+                          </a>
+                        </div>
+                      </div>
                     ) : (
                       <a href={att.file_url} target="_blank" rel="noopener" className="p-3 flex items-center gap-2 text-sm"><FileText className="h-4 w-4" /> {att.file_name}</a>
                     )}
@@ -1288,7 +1332,7 @@ export default function Captador() {
           {/* Settings Panel */}
           {showSettings && settings && (
             <Dialog open={showSettings} onOpenChange={setShowSettings}>
-              <DialogContent>
+              <DialogContent aria-describedby={undefined}>
                 <DialogHeader><DialogTitle>Configurações</DialogTitle></DialogHeader>
                 <div className="space-y-4">
                   <label className="flex items-center gap-3 text-sm">
