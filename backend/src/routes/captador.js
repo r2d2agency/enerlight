@@ -345,10 +345,23 @@ router.get('/:id', async (req, res) => {
       [req.params.id]
     );
 
+    // Get contacts
+    let contactsList = [];
+    try {
+      const contactsRes = await query(
+        `SELECT fcc.*, u.name as added_by_name FROM field_capture_contacts fcc
+         LEFT JOIN users u ON u.id = fcc.added_by
+         WHERE fcc.capture_id = $1 ORDER BY fcc.created_at`,
+        [req.params.id]
+      );
+      contactsList = contactsRes.rows;
+    } catch { /* table may not exist yet */ }
+
     res.json({
       ...capture.rows[0],
       attachments: attachments.rows,
       visits: visits.rows,
+      contacts: contactsList,
     });
   } catch (error) {
     logError('captador.get', error);
@@ -519,7 +532,7 @@ router.delete('/attachments/:attachmentId', async (req, res) => {
 // POST /api/captador/:id/visits - Add a revisit
 router.post('/:id/visits', async (req, res) => {
   try {
-    const { construction_stage, notes, latitude, longitude, attachments } = req.body;
+    const { construction_stage, notes, latitude, longitude, attachments, contacts } = req.body;
 
     const result = await query(
       `INSERT INTO field_capture_visits (capture_id, visited_by, construction_stage, notes, latitude, longitude)
@@ -529,10 +542,32 @@ router.post('/:id/visits', async (req, res) => {
 
     const visit = result.rows[0];
 
+    // Update capture construction stage
     await query(
       `UPDATE field_captures SET construction_stage = $2 WHERE id = $1`,
       [req.params.id, construction_stage]
     );
+
+    // Save contacts to field_capture_contacts table
+    if (contacts?.length) {
+      for (const ct of contacts) {
+        if (ct.name || ct.phone) {
+          await query(
+            `INSERT INTO field_capture_contacts (capture_id, contact_name, contact_phone, contact_email, contact_role, added_by, visit_id)
+             VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+            [req.params.id, ct.name || null, ct.phone || null, ct.email || null, ct.role || null, req.userId, visit.id]
+          );
+        }
+      }
+      // Also update the main capture contact if it's empty
+      const cap = await query('SELECT contact_name FROM field_captures WHERE id = $1', [req.params.id]);
+      if (!cap.rows[0]?.contact_name && contacts[0]?.name) {
+        await query(
+          `UPDATE field_captures SET contact_name = $2, contact_phone = $3, contact_email = $4, contact_role = $5 WHERE id = $1`,
+          [req.params.id, contacts[0].name, contacts[0].phone || null, contacts[0].email || null, contacts[0].role || null]
+        );
+      }
+    }
 
     if (attachments?.length) {
       for (const att of attachments) {
@@ -560,12 +595,14 @@ router.post('/:id/visits', async (req, res) => {
         if (org) {
           const visitor = await query('SELECT name FROM users WHERE id = $1', [req.userId]);
           const visitorName = visitor.rows[0]?.name || 'Captador';
+          const contactInfo = contacts?.length ? `\n👤 Contato(s): ${contacts.map(c => `${c.name || ''}${c.phone ? ' - ' + c.phone : ''}`).join(', ')}` : '';
           const message = `📍 *Check-in de Retorno*\n\n` +
             `O captador *${visitorName}* esteve no local:\n` +
             `📌 ${cap.address || 'Sem endereço'}\n` +
             `🏗️ Etapa: ${construction_stage || '—'}\n` +
             `📝 ${notes || 'Sem observações'}\n` +
             (attachments?.length ? `📸 ${attachments.length} foto(s) anexada(s)\n` : '') +
+            contactInfo +
             `\nFicha: ${cap.company_name || cap.address || 'Obra'}`;
 
           const phone = cap.seller_phone.replace(/\D/g, '');
@@ -577,7 +614,6 @@ router.post('/:id/visits', async (req, res) => {
       }
     } catch (notifyErr) {
       logError('captador.visit_notification_failed', notifyErr);
-      // Don't fail the visit registration if notification fails
     }
 
     logInfo('captador.visit_added', { capture_id: req.params.id, visit_id: visit.id });
