@@ -3957,6 +3957,7 @@ const migrationSteps = [
   { name: 'External Visits Module', sql: step50ExternalVisits, critical: false },
   { name: 'ERP Billing Records', sql: step51ERPBilling, critical: false },
   { name: 'Quote Import Mappings', sql: step52QuoteImportMappings, critical: false },
+  { name: 'Field Captures (Captador)', sql: step53FieldCaptures, critical: false },
 ];
 
 export async function initDatabase() {
