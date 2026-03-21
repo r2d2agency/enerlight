@@ -52,6 +52,7 @@ interface CaptureFilters {
   unassigned?: boolean;
   start_date?: string;
   end_date?: string;
+  segment?: string;
 }
 
 export interface CaptadorSettings {
