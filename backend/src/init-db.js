@@ -292,6 +292,16 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_column THEN NULL;
 END $$;
 
+-- estimated_start and estimated_end columns
+DO $$ BEGIN
+  ALTER TABLE field_captures ADD COLUMN IF NOT EXISTS estimated_start DATE;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+DO $$ BEGIN
+  ALTER TABLE field_captures ADD COLUMN IF NOT EXISTS estimated_end DATE;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
 
 -- Connection Members
 CREATE TABLE IF NOT EXISTS connection_members (
