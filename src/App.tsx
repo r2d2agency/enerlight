@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { useBranding } from "@/hooks/use-branding";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import { UpdateNotification } from "@/components/layout/UpdateNotification";
 import { Loader2 } from "lucide-react";
 
 // Auto-reload helper for stale chunks after deploy
