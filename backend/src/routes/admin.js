@@ -377,104 +377,48 @@ router.post('/plans', requireSuperadmin, async (req, res) => {
 router.patch('/plans/:id', requireSuperadmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { 
-      name, 
-      description, 
-      max_connections, 
-      max_monthly_messages, 
-      max_users,
-      max_supervisors,
-      has_asaas_integration, 
-      has_chat, 
-      has_whatsapp_groups,
-      has_campaigns,
-      has_chatbots,
-      has_scheduled_messages,
-      has_crm,
-      has_ai_agents,
-      has_departments,
-      has_lead_scoring,
-      has_ai_summary,
-      has_group_secretary,
-      has_ghost,
-      has_projects,
-      has_homologation,
-      has_tasks,
-      has_lead_gleego,
-      has_captador,
-      price, 
-      billing_period, 
-      is_active,
-      visible_on_signup,
-      trial_days
-    } = req.body;
+
+    // Discover which columns actually exist in the plans table
+    const colsResult = await query(
+      `SELECT column_name FROM information_schema.columns WHERE table_name = 'plans'`
+    );
+    const existingCols = new Set(colsResult.rows.map(r => r.column_name));
+
+    // All possible updatable fields
+    const allFields = [
+      'name', 'description', 'max_connections', 'max_monthly_messages',
+      'max_users', 'max_supervisors', 'has_asaas_integration', 'has_chat',
+      'has_whatsapp_groups', 'has_campaigns', 'has_chatbots', 'has_scheduled_messages',
+      'has_crm', 'has_ai_agents', 'has_departments', 'has_lead_scoring',
+      'has_ai_summary', 'has_group_secretary', 'has_ghost', 'has_projects',
+      'has_internal_chat', 'has_homologation', 'has_tasks', 'has_lead_gleego',
+      'has_captador', 'price', 'billing_period', 'is_active',
+      'visible_on_signup', 'trial_days'
+    ];
+
+    // Only include fields that exist in DB and are provided in body
+    const setClauses = [];
+    const values = [];
+    let paramIdx = 1;
+
+    for (const field of allFields) {
+      if (existingCols.has(field) && req.body[field] !== undefined) {
+        setClauses.push(`${field} = $${paramIdx}`);
+        values.push(req.body[field]);
+        paramIdx++;
+      }
+    }
+
+    if (setClauses.length === 0) {
+      return res.status(400).json({ error: 'Nenhum campo para atualizar' });
+    }
+
+    setClauses.push('updated_at = NOW()');
+    values.push(id);
 
     const result = await query(
-      `UPDATE plans 
-       SET name = COALESCE($1, name),
-           description = COALESCE($2, description),
-           max_connections = COALESCE($3, max_connections),
-           max_monthly_messages = COALESCE($4, max_monthly_messages),
-           max_users = COALESCE($5, max_users),
-           max_supervisors = COALESCE($6, max_supervisors),
-           has_asaas_integration = COALESCE($7, has_asaas_integration),
-           has_chat = COALESCE($8, has_chat),
-           has_whatsapp_groups = COALESCE($9, has_whatsapp_groups),
-           has_campaigns = COALESCE($10, has_campaigns),
-           has_chatbots = COALESCE($11, has_chatbots),
-           has_scheduled_messages = COALESCE($12, has_scheduled_messages),
-           has_crm = COALESCE($13, has_crm),
-           has_ai_agents = COALESCE($14, has_ai_agents),
-           has_departments = COALESCE($15, has_departments),
-           has_lead_scoring = COALESCE($16, has_lead_scoring),
-           has_ai_summary = COALESCE($17, has_ai_summary),
-           has_group_secretary = COALESCE($18, has_group_secretary),
-           has_ghost = COALESCE($19, has_ghost),
-           has_projects = COALESCE($20, has_projects),
-           has_homologation = COALESCE($21, has_homologation),
-           has_tasks = COALESCE($22, has_tasks),
-           has_lead_gleego = COALESCE($23, has_lead_gleego),
-           has_captador = COALESCE($24, has_captador),
-           price = COALESCE($25, price),
-           billing_period = COALESCE($26, billing_period),
-           is_active = COALESCE($27, is_active),
-           visible_on_signup = COALESCE($28, visible_on_signup),
-           trial_days = COALESCE($29, trial_days),
-           updated_at = NOW()
-       WHERE id = $30
-       RETURNING *`,
-      [
-        name,
-        description,
-        max_connections,
-        max_monthly_messages,
-        max_users,
-        max_supervisors,
-        has_asaas_integration,
-        has_chat,
-        has_whatsapp_groups,
-        has_campaigns,
-        has_chatbots,
-        has_scheduled_messages,
-        has_crm,
-        has_ai_agents,
-        has_departments,
-        has_lead_scoring,
-        has_ai_summary,
-        has_group_secretary,
-        has_ghost,
-        has_projects,
-        has_homologation,
-        has_tasks,
-        has_lead_gleego,
-        has_captador,
-        price,
-        billing_period,
-        is_active,
-        visible_on_signup,
-        trial_days,
-        id,
-      ]
+      `UPDATE plans SET ${setClauses.join(', ')} WHERE id = $${paramIdx} RETURNING *`,
+      values
     );
 
     if (result.rows.length === 0) {
@@ -484,7 +428,7 @@ router.patch('/plans/:id', requireSuperadmin, async (req, res) => {
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Update plan error:', error);
-    res.status(500).json({ error: 'Erro ao atualizar plano' });
+    res.status(500).json({ error: 'Erro ao atualizar plano', details: error.message });
   }
 });
 
