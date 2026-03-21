@@ -224,10 +224,10 @@ router.get('/map/points', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'Sem organização' });
 
-    const { user_id, start_date, end_date } = req.query;
+    const { user_id, start_date, end_date, segment } = req.query;
     let sql = `
       SELECT fc.id, fc.latitude, fc.longitude, fc.address, fc.company_name, fc.contact_name,
-        fc.construction_stage, fc.status, fc.created_at, u.name as created_by_name,
+        fc.construction_stage, fc.status, fc.segment, fc.created_at, u.name as created_by_name,
         au.name as assigned_to_name,
         (SELECT COUNT(*) FROM field_capture_visits fcv WHERE fcv.capture_id = fc.id) as visit_count,
         (SELECT fca.file_url FROM field_capture_attachments fca WHERE fca.capture_id = fc.id AND fca.file_type = 'photo' LIMIT 1) as thumbnail
@@ -242,6 +242,7 @@ router.get('/map/points', async (req, res) => {
     if (user_id) { sql += ` AND (fc.created_by = $${idx} OR fc.assigned_to = $${idx})`; params.push(user_id); idx++; }
     if (start_date) { sql += ` AND fc.created_at >= $${idx++}`; params.push(start_date); }
     if (end_date) { sql += ` AND fc.created_at <= $${idx++}::date + interval '1 day'`; params.push(end_date); }
+    if (segment) { sql += ` AND fc.segment = $${idx++}`; params.push(segment); }
 
     sql += ` ORDER BY fc.created_at DESC`;
     const result = await query(sql, params);
