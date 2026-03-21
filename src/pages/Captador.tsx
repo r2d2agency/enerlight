@@ -728,6 +728,21 @@ function MobileCaptureForm({ open, onClose, onSuccess, isOnline }: { open: boole
               onChange={(e) => setForm({ ...form, company_name: e.target.value })} className="h-12 text-base" />
             <Input placeholder="CNPJ" value={form.company_cnpj_display} className="h-12 text-base"
               onChange={(e) => setForm({ ...form, company_cnpj: e.target.value.replace(/\D/g, ""), company_cnpj_display: applyCnpjMask(e.target.value) })} />
+            <div className="space-y-1">
+              <label className="text-sm text-muted-foreground">Prazo Estimado da Obra</label>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-muted-foreground">Início</label>
+                  <Input type="date" value={form.estimated_start} className="h-12 text-base"
+                    onChange={(e) => setForm({ ...form, estimated_start: e.target.value })} />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Fim</label>
+                  <Input type="date" value={form.estimated_end} className="h-12 text-base"
+                    onChange={(e) => setForm({ ...form, estimated_end: e.target.value })} />
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
