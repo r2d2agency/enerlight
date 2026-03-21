@@ -1720,6 +1720,7 @@ function MobileCaptureCard({ capture, onSelect, onDelete, sellers, onAssign }: {
             <Badge className={`${st.color} text-[10px] px-1.5 py-0`}>{st.label}</Badge>
           </div>
           {capture.address && <p className="text-xs text-muted-foreground truncate flex items-center gap-0.5"><MapPin className="h-3 w-3" /> {capture.address}</p>}
+          {capture.segment && <Badge variant="secondary" className="text-[10px] mr-1">{capture.segment}</Badge>}
           {capture.construction_stage && <p className="text-xs text-muted-foreground">{capture.construction_stage}</p>}
           <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
             <span>{safeFormatDate(capture.created_at, "dd/MM HH:mm")}</span>
