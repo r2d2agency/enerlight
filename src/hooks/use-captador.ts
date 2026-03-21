@@ -145,7 +145,7 @@ export function useAddCaptureAttachment() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ captureId, ...data }: any) =>
-      api(`/api/captador/${captureId}/attachments`, { method: "POST", body: JSON.stringify(data) }),
+      api(`/api/captador/${captureId}/attachments`, { method: "POST", body: data }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["field-capture"] });
     },
