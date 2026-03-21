@@ -26,7 +26,7 @@ import {
   MapPin, Camera, Mic, Plus, Eye, User, Building2,
   Phone, Mail, FileText, Trash2, Navigation, Image, AudioLines,
   ClipboardList, Settings, UserPlus, Users, LogIn, LogOut, Clock,
-  ChevronRight, CheckCircle2, Circle, ArrowLeft,
+  ChevronRight, CheckCircle2, Circle, ArrowLeft, WifiOff, Wifi, Square,
 } from "lucide-react";
 import { format } from "date-fns";
 
