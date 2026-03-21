@@ -1007,8 +1007,31 @@ function CaptadorMap({ points, onSelect }: { points: any[]; onSelect: (id: strin
       const map = L.map(mapRef.current!, { center: [-15.78, -47.93], zoom: 5 });
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "© OpenStreetMap" }).addTo(map);
       mapInstanceRef.current = map;
+
+      const bounds: [number, number][] = [];
+
+      // Show user's current location
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const userPos: [number, number] = [pos.coords.latitude, pos.coords.longitude];
+            const userIcon = L.divIcon({
+              className: "custom-marker",
+              html: `<div style="background:#6366f1;width:20px;height:20px;border-radius:50%;border:3px solid white;box-shadow:0 0 0 3px rgba(99,102,241,0.3),0 2px 6px rgba(0,0,0,0.3);"></div>`,
+              iconSize: [20, 20], iconAnchor: [10, 10],
+            });
+            L.marker(userPos, { icon: userIcon }).addTo(map)
+              .bindPopup("<strong>📍 Você está aqui</strong>");
+            bounds.push(userPos);
+            if (bounds.length > 0) map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+          },
+          () => {},
+          { enableHighAccuracy: true }
+        );
+      }
+
+      // Capture points
       if (points.length > 0) {
-        const bounds: [number, number][] = [];
         points.forEach((p: any) => {
           if (!p.latitude || !p.longitude) return;
           const pos: [number, number] = [parseFloat(p.latitude), parseFloat(p.longitude)];
@@ -1019,10 +1042,24 @@ function CaptadorMap({ points, onSelect }: { points: any[]; onSelect: (id: strin
             iconSize: [24, 24], iconAnchor: [12, 12],
           });
           const marker = L.marker(pos, { icon }).addTo(map);
-          marker.bindPopup(`<div style="min-width:200px"><strong>${p.company_name || 'Obra'}</strong><br/><small>${p.address || ''}</small><br/><small>Etapa: ${p.construction_stage || '—'}</small><br/><small>Visitas: ${p.visit_count || 0}</small></div>`);
+          const routeUrl = `https://www.google.com/maps/dir/?api=1&destination=${p.latitude},${p.longitude}`;
+          marker.bindPopup(`
+            <div style="min-width:220px">
+              <strong>${p.company_name || 'Obra'}</strong><br/>
+              <small>${p.address || ''}</small><br/>
+              <small>Etapa: ${p.construction_stage || '—'}</small><br/>
+              <small>Visitas: ${p.visit_count || 0}</small>
+              <div style="margin-top:8px">
+                <a href="${routeUrl}" target="_blank" rel="noopener"
+                  style="display:inline-flex;align-items:center;gap:4px;background:#4285f4;color:white;padding:6px 12px;border-radius:6px;text-decoration:none;font-size:12px;font-weight:500;">
+                  🗺️ Rotas no Google Maps
+                </a>
+              </div>
+            </div>
+          `);
           marker.on("click", () => onSelect(p.id));
         });
-        if (bounds.length > 0) map.fitBounds(bounds, { padding: [50, 50] });
+        if (bounds.length > 0) map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
       }
     });
     return () => { if (mapInstanceRef.current) { mapInstanceRef.current.remove(); mapInstanceRef.current = null; } };
