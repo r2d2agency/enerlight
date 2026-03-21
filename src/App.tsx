@@ -113,6 +113,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <FaviconUpdater />
+      <UpdateNotification />
       <BrowserRouter>
         <AuthProvider>
           <Suspense fallback={<PageLoader />}>
