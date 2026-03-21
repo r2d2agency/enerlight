@@ -42,6 +42,21 @@ const statusConfig = {
 };
 
 const Index = () => {
+  const { user, userPermissions } = useAuth();
+
+  // Check if user is captador-only (only has can_view_captador permission)
+  const isCaptadorOnly = userPermissions && userPermissions.can_view_captador && 
+    !userPermissions.can_view_chat && !userPermissions.can_view_crm && 
+    !userPermissions.can_view_campaigns && !userPermissions.can_view_contacts;
+
+  if (isCaptadorOnly) {
+    return (
+      <MainLayout>
+        <CaptadorDashboard />
+      </MainLayout>
+    );
+  }
+
   const { getLists } = useContacts();
   const { getMessages } = useMessages();
   const { getCampaigns } = useCampaigns();
