@@ -209,7 +209,22 @@ function SidebarContentComponent({ isExpanded, isSuperadmin, onNavigate }: Sideb
   const navigate = useNavigate();
   const { logout, user, modulesEnabled, userPermissions } = useAuth();
   const { branding } = useThemedBranding();
-  const [openSections, setOpenSections] = useState<string[]>(["Atendimento"]);
+  // Auto-open sections that contain the current route, plus defaults
+  const getInitialOpenSections = () => {
+    const initial = ["Atendimento"];
+    const allSections = getNavSections(true);
+    for (const section of allSections) {
+      if (section.items.some(item => location.pathname === item.href)) {
+        if (!initial.includes(section.title)) initial.push(section.title);
+      }
+    }
+    // For captador-only users, always open Captador
+    if (userPermissions?.can_view_captador) {
+      if (!initial.includes("Captador")) initial.push("Captador");
+    }
+    return initial;
+  };
+  const [openSections, setOpenSections] = useState<string[]>(getInitialOpenSections);
 
   // Helper to check if user has admin-level role
   const isAdminRole = (role?: string) => ['owner', 'admin', 'manager'].includes(role || '');
