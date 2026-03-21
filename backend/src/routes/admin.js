@@ -296,80 +296,73 @@ router.get('/plans', requireSuperadmin, async (req, res) => {
 // Create plan
 router.post('/plans', requireSuperadmin, async (req, res) => {
   try {
-    const { 
-      name, 
-      description, 
-      max_connections, 
-      max_monthly_messages,
-      max_users,
-      max_supervisors,
-      has_asaas_integration, 
-      has_chat,
-      has_whatsapp_groups,
-      has_campaigns,
-      has_chatbots,
-      has_scheduled_messages,
-      has_crm,
-      has_ai_agents,
-      has_departments,
-      has_lead_scoring,
-      has_ai_summary,
-      has_group_secretary,
-      has_ghost,
-      has_projects,
-      has_homologation,
-      has_tasks,
-      has_lead_gleego,
-      has_captador,
-      price, 
-      billing_period,
-      visible_on_signup,
-      trial_days
-    } = req.body;
-
+    const { name } = req.body;
     if (!name) {
       return res.status(400).json({ error: 'Nome do plano é obrigatório' });
     }
 
+    // Discover which columns actually exist in the plans table
+    const colsResult = await query(
+      `SELECT column_name FROM information_schema.columns WHERE table_name = 'plans'`
+    );
+    const existingCols = new Set(colsResult.rows.map(r => r.column_name));
+
+    // All possible fields with defaults
+    const fieldDefaults = {
+      name: [name, null],
+      description: [req.body.description, null],
+      max_connections: [req.body.max_connections || 1, null],
+      max_monthly_messages: [req.body.max_monthly_messages || 1000, null],
+      max_users: [req.body.max_users || 5, null],
+      max_supervisors: [req.body.max_supervisors || 1, null],
+      has_asaas_integration: [req.body.has_asaas_integration || false, null],
+      has_chat: [req.body.has_chat !== false, null],
+      has_whatsapp_groups: [req.body.has_whatsapp_groups || false, null],
+      has_campaigns: [req.body.has_campaigns !== false, null],
+      has_chatbots: [req.body.has_chatbots !== false, null],
+      has_scheduled_messages: [req.body.has_scheduled_messages !== false, null],
+      has_crm: [req.body.has_crm !== false, null],
+      has_ai_agents: [req.body.has_ai_agents !== false, null],
+      has_departments: [req.body.has_departments !== false, null],
+      has_lead_scoring: [req.body.has_lead_scoring !== false, null],
+      has_ai_summary: [req.body.has_ai_summary !== false, null],
+      has_group_secretary: [req.body.has_group_secretary || false, null],
+      has_ghost: [req.body.has_ghost || false, null],
+      has_projects: [req.body.has_projects || false, null],
+      has_internal_chat: [req.body.has_internal_chat || false, null],
+      has_homologation: [req.body.has_homologation || false, null],
+      has_tasks: [req.body.has_tasks !== false, null],
+      has_lead_gleego: [req.body.has_lead_gleego || false, null],
+      has_captador: [req.body.has_captador || false, null],
+      price: [req.body.price || 0, null],
+      billing_period: [req.body.billing_period || 'monthly', null],
+      visible_on_signup: [req.body.visible_on_signup || false, null],
+      trial_days: [req.body.trial_days || 3, null],
+    };
+
+    const columns = [];
+    const values = [];
+    const placeholders = [];
+    let idx = 1;
+
+    for (const [col, [val]] of Object.entries(fieldDefaults)) {
+      if (existingCols.has(col)) {
+        columns.push(col);
+        values.push(val);
+        placeholders.push(`$${idx}`);
+        idx++;
+      }
+    }
+
     const result = await query(
-      `INSERT INTO plans (name, description, max_connections, max_monthly_messages, max_users, max_supervisors, has_asaas_integration, has_chat, has_whatsapp_groups, has_campaigns, has_chatbots, has_scheduled_messages, has_crm, has_ai_agents, has_departments, has_lead_scoring, has_ai_summary, has_group_secretary, has_ghost, has_projects, has_homologation, has_tasks, has_lead_gleego, has_captador, price, billing_period, visible_on_signup, trial_days)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28) RETURNING *`,
-      [
-        name,
-        description,
-        max_connections || 1,
-        max_monthly_messages || 1000,
-        max_users || 5,
-        max_supervisors || 1,
-        has_asaas_integration || false,
-        has_chat !== false,
-        has_whatsapp_groups || false,
-        has_campaigns !== false,
-        has_chatbots !== false,
-        has_scheduled_messages !== false,
-        has_crm !== false,
-        has_ai_agents !== false,
-        has_departments !== false,
-        has_lead_scoring !== false,
-        has_ai_summary !== false,
-        has_group_secretary || false,
-        has_ghost || false,
-        has_projects || false,
-        has_homologation || false,
-        has_tasks !== false,
-        has_lead_gleego || false,
-        has_captador || false,
-        price || 0,
-        billing_period || 'monthly',
-        visible_on_signup || false,
-        trial_days || 3
-      ]
+      `INSERT INTO plans (${columns.join(', ')}) VALUES (${placeholders.join(', ')}) RETURNING *`,
+      values
     );
 
     res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error('Create plan error:', error);
-    res.status(500).json({ error: 'Erro ao criar plano' });
+    res.status(500).json({ error: 'Erro ao criar plano', details: error.message });
   }
 });
 
