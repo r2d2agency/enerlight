@@ -891,6 +891,16 @@ function CaptureDetailDialog({ captureId, open, onClose }: { captureId: string |
               <div><span className="text-muted-foreground">Endereço:</span> {capture.address || "—"}</div>
               <div><span className="text-muted-foreground">Etapa:</span> {capture.construction_stage || "—"}</div>
             </div>
+            {/* Navigate to location */}
+            {capture.latitude && capture.longitude && (
+              <a
+                href={`https://www.google.com/maps/dir/?api=1&destination=${capture.latitude},${capture.longitude}`}
+                target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-2 w-full justify-center rounded-lg bg-primary/10 text-primary p-2.5 text-sm font-medium hover:bg-primary/20 transition-colors"
+              >
+                <Navigation className="h-4 w-4" /> Ir para o local (Google Maps)
+              </a>
+            )}
             {(capture.contact_name || capture.contact_phone) && (
               <Card>
                 <CardHeader className="py-2 px-3"><CardTitle className="text-sm">Contato</CardTitle></CardHeader>
@@ -1316,7 +1326,7 @@ export default function Captador() {
             </TabsContent>
 
             <TabsContent value="map" className="flex-1 px-4 pb-4">
-              <CaptadorMap points={mapPoints} onSelect={setSelectedId} />
+              <CaptadorMap points={mapPoints.length > 0 ? mapPoints : captures.filter(c => c.latitude && c.longitude)} onSelect={setSelectedId} />
             </TabsContent>
           </Tabs>
 
@@ -1499,7 +1509,7 @@ export default function Captador() {
             </div>
           </TabsContent>
           <TabsContent value="map" className="mt-3">
-            <CaptadorMap points={mapPoints} onSelect={setSelectedId} />
+            <CaptadorMap points={mapPoints.length > 0 ? mapPoints : captures.filter(c => c.latitude && c.longitude)} onSelect={setSelectedId} />
           </TabsContent>
         </Tabs>
 
@@ -1533,6 +1543,7 @@ function MobileCaptureCard({ capture, onSelect, onDelete, sellers, onAssign }: {
             <span className="font-medium text-sm truncate">{capture.company_name || capture.address || "Obra sem nome"}</span>
             <Badge className={`${st.color} text-[10px] px-1.5 py-0`}>{st.label}</Badge>
           </div>
+          {capture.address && <p className="text-xs text-muted-foreground truncate flex items-center gap-0.5"><MapPin className="h-3 w-3" /> {capture.address}</p>}
           {capture.construction_stage && <p className="text-xs text-muted-foreground">{capture.construction_stage}</p>}
           <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
             <span>{safeFormatDate(capture.created_at, "dd/MM HH:mm")}</span>
@@ -1544,7 +1555,17 @@ function MobileCaptureCard({ capture, onSelect, onDelete, sellers, onAssign }: {
           )}
         </div>
 
-        <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 mt-1" />
+        <div className="flex flex-col items-end gap-1 shrink-0">
+          <ChevronRight className="h-4 w-4 text-muted-foreground mt-1" />
+          {capture.latitude && capture.longitude && (
+            <a href={`https://www.google.com/maps/dir/?api=1&destination=${capture.latitude},${capture.longitude}`}
+              target="_blank" rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="text-[10px] text-primary flex items-center gap-0.5 hover:underline">
+              <Navigation className="h-3 w-3" /> Rota
+            </a>
+          )}
+        </div>
       </div>
     </div>
   );
