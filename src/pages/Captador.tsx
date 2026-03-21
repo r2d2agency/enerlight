@@ -154,7 +154,6 @@ async function compressImage(file: File, maxWidth = 1280, quality = 0.7): Promis
   });
 }
 
-  };
 
 interface ContactItem {
   name: string;
