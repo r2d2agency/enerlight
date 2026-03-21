@@ -1140,6 +1140,15 @@ function CaptureDetailDialog({ captureId, open, onClose }: { captureId: string |
                 </CardContent>
               </Card>
             )}
+            {(capture.estimated_start || capture.estimated_end) && (
+              <Card>
+                <CardHeader className="py-2 px-3"><CardTitle className="text-sm flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> Prazo da Obra</CardTitle></CardHeader>
+                <CardContent className="px-3 pb-3 text-sm grid grid-cols-2 gap-2">
+                  <div><span className="text-muted-foreground">Início:</span> {capture.estimated_start ? safeFormatDate(capture.estimated_start, "dd/MM/yyyy") : "—"}</div>
+                  <div><span className="text-muted-foreground">Fim:</span> {capture.estimated_end ? safeFormatDate(capture.estimated_end, "dd/MM/yyyy") : "—"}</div>
+                </CardContent>
+              </Card>
+            )}
             {capture.notes && <div className="text-sm bg-muted rounded p-3">{capture.notes}</div>}
             <Select value={capture.status} onValueChange={(v) => updateCapture.mutate({ id: capture.id, status: v })}>
               <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
