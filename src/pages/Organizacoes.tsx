@@ -945,9 +945,9 @@ export default function Organizacoes() {
                               </TableRow>
                             </TableHeader>
                             <TableBody>
-                              {members.map((member) => {
-                                const roleInfo = getRole(member.role);
-                                const RoleIcon = roleInfo.icon;
+                              {members.filter(Boolean).map((member) => {
+                                const roleInfo = getRole(member.role) || { label: member.role || 'Usuário', icon: User, color: 'bg-gray-500' };
+                                const RoleIcon = roleInfo.icon || User;
                                 const assignedConns = member.assigned_connections || [];
                                 const assignedDepts = member.assigned_departments || [];
                                 const isActive = member.is_active !== false;
