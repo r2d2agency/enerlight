@@ -549,6 +549,24 @@ router.post('/:id/visits', async (req, res) => {
   }
 });
 
+// POST /api/captador/:id/schedule-return - Schedule a return visit
+router.post('/:id/schedule-return', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+    const { return_date, return_notes } = req.body;
+    const result = await query(
+      `UPDATE field_captures SET return_date = $3, return_notes = $4 WHERE id = $1 AND organization_id = $2 RETURNING *`,
+      [req.params.id, org.organization_id, return_date, return_notes || null]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Não encontrado' });
+    res.json(result.rows[0]);
+  } catch (error) {
+    logError('captador.schedule_return', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // DELETE /api/captador/:id
 router.delete('/:id', async (req, res) => {
   try {
