@@ -205,7 +205,7 @@ function CaptureFormDialog({
               <Button size="sm" variant="outline" onClick={() => audioInputRef.current?.click()} disabled={isUploading}>
                 <Plus className="h-3 w-3 mr-1" /> Gravar/Enviar
               </Button>
-              <input ref={audioInputRef} type="file" accept="audio/*" capture="microphone" className="hidden" onChange={handleAudioUpload} />
+              <input ref={audioInputRef} type="file" accept="audio/*" className="hidden" onChange={handleAudioUpload} />
             </div>
             {audios.length > 0 && (
               <div className="space-y-1">
