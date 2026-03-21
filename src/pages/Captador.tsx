@@ -1239,6 +1239,22 @@ export default function Captador() {
     toast({ title: sellerId ? "Vendedor atribuído!" : "Atribuição removida" });
   };
 
+  const addVisitForReturn = useAddFieldCaptureVisit();
+  const handleReturnCheckin = async (captureId: string) => {
+    try {
+      const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true })
+      );
+      await addVisitForReturn.mutateAsync({
+        captureId,
+        construction_stage: "Retorno agendado",
+        notes: "Check-in no local confirmado via GPS",
+        latitude: pos.coords.latitude,
+        longitude: pos.coords.longitude,
+      });
+    } catch { /* handled by ReturnCheckinButton */ }
+  };
+
   // ─── Mobile Layout ───
   if (isMobile) {
     return (
