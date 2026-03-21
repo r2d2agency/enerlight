@@ -1400,6 +1400,28 @@ export default function Captador() {
               <TabsTrigger value="map" className="flex-1"><MapPin className="h-4 w-4 mr-1" /> Mapa</TabsTrigger>
             </TabsList>
 
+            {/* Filters */}
+            <div className="px-4 pt-2 flex gap-2 overflow-x-auto pb-1">
+              <Select value={filters.segment || ""} onValueChange={(v) => setFilters(f => ({ ...f, segment: v || undefined }))}>
+                <SelectTrigger className="h-8 text-xs w-[130px] shrink-0"><SelectValue placeholder="Segmento" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Todos</SelectItem>
+                  {SEGMENTS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={filters.assigned_to || ""} onValueChange={(v) => setFilters(f => ({ ...f, assigned_to: v || undefined }))}>
+                <SelectTrigger className="h-8 text-xs w-[130px] shrink-0"><SelectValue placeholder="Vendedor" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Todos</SelectItem>
+                  {sellers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Input type="date" className="h-8 text-xs w-[120px] shrink-0"
+                value={filters.start_date || ""} onChange={(e) => setFilters(f => ({ ...f, start_date: e.target.value || undefined }))} />
+              <Input type="date" className="h-8 text-xs w-[120px] shrink-0"
+                value={filters.end_date || ""} onChange={(e) => setFilters(f => ({ ...f, end_date: e.target.value || undefined }))} />
+            </div>
+
             <TabsContent value="returns" className="flex-1 overflow-y-auto px-4 pb-24">
               <h3 className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-1">
                 <Clock className="h-3.5 w-3.5" /> Retornos de Hoje ({todayReturns.length})
