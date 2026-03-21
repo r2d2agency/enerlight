@@ -18,6 +18,7 @@ interface ModulesEnabled {
   homologation: boolean;
   tasks: boolean;
   lead_gleego: boolean;
+  captador: boolean;
 }
 
 export interface UserPermissions {
