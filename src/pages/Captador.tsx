@@ -12,6 +12,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { useUpload } from "@/hooks/use-upload";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAudioRecorder } from "@/hooks/use-audio-recorder";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
   useFieldCaptures, useFieldCaptureDetail, useFieldCaptureMapPoints,
