@@ -386,7 +386,7 @@ router.patch('/plans/:id', requireSuperadmin, async (req, res) => {
       'has_crm', 'has_ai_agents', 'has_departments', 'has_lead_scoring',
       'has_ai_summary', 'has_group_secretary', 'has_ghost', 'has_projects',
       'has_internal_chat', 'has_homologation', 'has_tasks', 'has_lead_gleego',
-      'has_captador', 'price', 'billing_period', 'is_active',
+      'has_captador', 'has_document_signatures', 'price', 'billing_period', 'is_active',
       'visible_on_signup', 'trial_days'
     ];
 
