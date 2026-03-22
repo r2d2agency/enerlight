@@ -4091,6 +4091,7 @@ const migrationSteps = [
   { name: 'ERP Billing Records', sql: step51ERPBilling, critical: false },
   { name: 'Quote Import Mappings', sql: step52QuoteImportMappings, critical: false },
   { name: 'Field Captures (Captador)', sql: step53FieldCaptures, critical: false },
+  { name: 'Document Signatures', sql: step54DocumentSignatures, critical: false },
 ];
 
 export async function initDatabase() {
