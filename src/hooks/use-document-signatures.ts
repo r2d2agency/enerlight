@@ -12,6 +12,10 @@ export interface DocSigner {
   status?: string;
   signed_at?: string;
   access_token?: string;
+  signature_data?: string;
+  signature_ip?: string;
+  signature_user_agent?: string;
+  signature_geolocation?: string;
 }
 
 export interface DocPlacement {
