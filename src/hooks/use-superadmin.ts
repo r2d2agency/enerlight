@@ -137,6 +137,7 @@ export function useSuperadmin() {
      has_tasks?: boolean;
     has_lead_gleego?: boolean;
     has_captador?: boolean;
+    has_document_signatures?: boolean;
     price: number;
     billing_period: string;
     visible_on_signup?: boolean;
