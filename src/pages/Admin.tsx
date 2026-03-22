@@ -1150,6 +1150,9 @@ export default function Admin() {
                         {plan.has_captador && (
                           <Badge variant="secondary" className="text-xs">Captador</Badge>
                         )}
+                        {plan.has_document_signatures && (
+                          <Badge variant="secondary" className="text-xs">Assinaturas</Badge>
+                        )}
                       </div>
                       <div className="flex items-center justify-between pt-2 border-t">
                         <span className="text-sm text-muted-foreground">
