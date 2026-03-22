@@ -268,7 +268,7 @@ router.get('/returns/today', async (req, res) => {
        JOIN users u ON u.id = fc.created_by
        LEFT JOIN users au ON au.id = fc.assigned_to
        WHERE fc.organization_id = $1
-         AND fc.return_date = CURRENT_DATE
+         AND fc.return_date = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
          AND fc.status != 'archived'
        ORDER BY fc.return_date, fc.company_name`,
       [org.organization_id]
