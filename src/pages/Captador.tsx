@@ -1283,14 +1283,19 @@ function CaptadorMap({ points, onSelect }: { points: any[]; onSelect: (id: strin
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
+  const leafletRef = useRef<any>(null);
+  const [mapReady, setMapReady] = useState(false);
 
   // Initialize map once
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return;
     import("leaflet").then((L) => {
+      if (!mapRef.current) return;
+      leafletRef.current = L;
       const map = L.map(mapRef.current!, { center: [-15.78, -47.93], zoom: 5 });
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "© OpenStreetMap" }).addTo(map);
       mapInstanceRef.current = map;
+      setMapReady(true);
 
       // Show user location
       if (navigator.geolocation) {
@@ -1304,7 +1309,6 @@ function CaptadorMap({ points, onSelect }: { points: any[]; onSelect: (id: strin
             });
             L.marker(userPos, { icon: userIcon }).addTo(map)
               .bindPopup("<strong>📍 Você está aqui</strong>");
-            if (points.length === 0) map.setView(userPos, 13);
           },
           () => {},
           { enableHighAccuracy: true }
@@ -1314,50 +1318,61 @@ function CaptadorMap({ points, onSelect }: { points: any[]; onSelect: (id: strin
     return () => { if (mapInstanceRef.current) { mapInstanceRef.current.remove(); mapInstanceRef.current = null; } };
   }, []);
 
-  // Update markers when points change
+  // Update markers when points change OR map becomes ready
   useEffect(() => {
     const map = mapInstanceRef.current;
-    if (!map) return;
-    import("leaflet").then((L) => {
-      // Clear old markers
-      markersRef.current.forEach(m => map.removeLayer(m));
-      markersRef.current = [];
+    const L = leafletRef.current;
+    if (!map || !L || !mapReady) return;
 
-      const bounds: [number, number][] = [];
+    // Clear old markers
+    markersRef.current.forEach(m => map.removeLayer(m));
+    markersRef.current = [];
 
-      points.forEach((p: any) => {
-        if (!p.latitude || !p.longitude) return;
-        const pos: [number, number] = [parseFloat(p.latitude), parseFloat(p.longitude)];
-        bounds.push(pos);
-        const icon = L.divIcon({
-          className: "custom-marker",
-          html: `<div style="background:${p.status === 'converted' ? '#22c55e' : p.status === 'in_progress' ? '#eab308' : '#3b82f6'};width:24px;height:24px;border-radius:50%;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;color:white;font-size:10px;font-weight:bold">${p.visit_count || 0}</div>`,
-          iconSize: [24, 24], iconAnchor: [12, 12],
-        });
-        const marker = L.marker(pos, { icon }).addTo(map);
-        markersRef.current.push(marker);
-        const routeUrl = `https://www.google.com/maps/dir/?api=1&destination=${p.latitude},${p.longitude}`;
-        marker.bindPopup(`
-          <div style="min-width:220px">
-            <strong>${p.company_name || 'Obra'}</strong><br/>
-            <small>${p.address || ''}</small><br/>
-            ${p.segment ? `<small>📋 ${p.segment}</small><br/>` : ''}
-            <small>Etapa: ${p.construction_stage || '—'}</small><br/>
-            <small>Visitas: ${p.visit_count || 0}</small>
-            <div style="margin-top:8px">
-              <a href="${routeUrl}" target="_blank" rel="noopener"
-                style="display:inline-flex;align-items:center;gap:4px;background:#4285f4;color:white;padding:6px 12px;border-radius:6px;text-decoration:none;font-size:12px;font-weight:500;">
-                🗺️ Rotas no Google Maps
-              </a>
-            </div>
-          </div>
-        `);
-        marker.on("click", () => onSelect(p.id));
+    const bounds: [number, number][] = [];
+
+    points.forEach((p: any) => {
+      if (!p.latitude || !p.longitude) return;
+      const pos: [number, number] = [parseFloat(p.latitude), parseFloat(p.longitude)];
+      bounds.push(pos);
+      const icon = L.divIcon({
+        className: "custom-marker",
+        html: `<div style="background:${p.status === 'converted' ? '#22c55e' : p.status === 'in_progress' ? '#eab308' : '#3b82f6'};width:24px;height:24px;border-radius:50%;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;color:white;font-size:10px;font-weight:bold">${p.visit_count || 0}</div>`,
+        iconSize: [24, 24], iconAnchor: [12, 12],
       });
-
-      if (bounds.length > 0) map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+      const marker = L.marker(pos, { icon }).addTo(map);
+      markersRef.current.push(marker);
+      const routeUrl = `https://www.google.com/maps/dir/?api=1&destination=${p.latitude},${p.longitude}`;
+      marker.bindPopup(`
+        <div style="min-width:220px">
+          <strong>${p.company_name || 'Obra'}</strong><br/>
+          <small>${p.address || ''}</small><br/>
+          ${p.segment ? `<small>📋 ${p.segment}</small><br/>` : ''}
+          <small>Etapa: ${p.construction_stage || '—'}</small><br/>
+          <small>Visitas: ${p.visit_count || 0}</small>
+          <div style="margin-top:8px">
+            <a href="${routeUrl}" target="_blank" rel="noopener"
+              style="display:inline-flex;align-items:center;gap:4px;background:#4285f4;color:white;padding:6px 12px;border-radius:6px;text-decoration:none;font-size:12px;font-weight:500;">
+              🗺️ Rotas no Google Maps
+            </a>
+          </div>
+        </div>
+      `);
+      marker.on("click", () => onSelect(p.id));
     });
-  }, [points, onSelect]);
+
+    if (bounds.length > 0) {
+      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+    } else {
+      // If no points, center on user location
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => map.setView([pos.coords.latitude, pos.coords.longitude], 13),
+          () => {},
+          { enableHighAccuracy: true }
+        );
+      }
+    }
+  }, [points, onSelect, mapReady]);
 
   return <div ref={mapRef} className="w-full h-[400px] md:h-[500px] rounded-lg border" />;
 }
