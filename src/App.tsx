@@ -165,6 +165,8 @@ const App = () => (
               <Route path="/lead-gleego" element={<ProtectedRoute><LeadGleego /></ProtectedRoute>} />
               <Route path="/crm/visitas-externas" element={<ProtectedRoute><VisitasExternas /></ProtectedRoute>} />
               <Route path="/captador" element={<ProtectedRoute><Captador /></ProtectedRoute>} />
+              <Route path="/assinaturas" element={<ProtectedRoute><AssinaturasDoc /></ProtectedRoute>} />
+              <Route path="/assinar/:token" element={<AssinaturasDoc />} />
               <Route path="/f/:slug" element={<PublicFormPage />} />
               <Route path="/politica-privacidade" element={<PoliticaPrivacidade />} />
               <Route path="*" element={<NotFound />} />
