@@ -10,6 +10,7 @@ import {
   CalendarDays,
   ChevronDown,
   ClipboardList,
+  FileSignature,
   FileText,
   GitBranch,
   Kanban,
