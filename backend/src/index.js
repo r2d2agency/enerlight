@@ -217,6 +217,7 @@ app.use('/api/homologation', homologationRoutes);
 app.use('/api/task-boards', taskBoardsRoutes);
 app.use('/api/erp-billing', erpBillingRoutes);
 app.use('/api/captador', captadorRoutes);
+app.use('/api/document-signatures', documentSignaturesRoutes);
 app.use('/api/meta', metaTemplatesRoutes);
 
 app.get('/health', (req, res) => {
