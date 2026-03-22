@@ -71,6 +71,7 @@ interface Plan {
   has_tasks: boolean;
   has_lead_gleego: boolean;
   has_captador: boolean;
+  has_document_signatures: boolean;
   price: number;
   billing_period: string;
   is_active: boolean;
