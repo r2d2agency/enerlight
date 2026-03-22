@@ -156,6 +156,15 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
     ],
   },
   {
+    title: "Assinaturas",
+    icon: FileSignature,
+    moduleKey: 'document_signatures',
+    permissionKey: 'can_view_document_signatures',
+    items: [
+      { name: "Documentos", href: "/assinaturas", icon: FileSignature, moduleKey: 'document_signatures' as const, permissionKey: 'can_view_document_signatures' },
+    ],
+  },
+  {
     title: "Lead Gleego",
     icon: Zap,
     moduleKey: 'lead_gleego',
