@@ -268,7 +268,7 @@ router.get('/returns/today', async (req, res) => {
        JOIN users u ON u.id = fc.created_by
        LEFT JOIN users au ON au.id = fc.assigned_to
        WHERE fc.organization_id = $1
-         AND fc.return_date = CURRENT_DATE
+         AND fc.return_date = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
          AND fc.status != 'archived'
        ORDER BY fc.return_date, fc.company_name`,
       [org.organization_id]
@@ -299,7 +299,7 @@ router.get('/stats/summary', async (req, res) => {
         COUNT(CASE WHEN fc.status = 'converted' THEN 1 END) as converted_count,
         COUNT(CASE WHEN fc.assigned_to IS NULL THEN 1 END) as unassigned_count,
         COUNT(DISTINCT fc.created_by) as total_scouts,
-        COUNT(CASE WHEN fc.return_date = CURRENT_DATE THEN 1 END) as returns_today,
+        COUNT(CASE WHEN fc.return_date = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date THEN 1 END) as returns_today,
         (SELECT COUNT(*) FROM field_capture_visits fcv JOIN field_captures fc2 ON fc2.id = fcv.capture_id WHERE fc2.organization_id = $1${user_id ? ' AND fcv.visited_by = $2' : ''}) as total_visits
        FROM field_captures fc
        WHERE fc.organization_id = $1${userFilter}`,
