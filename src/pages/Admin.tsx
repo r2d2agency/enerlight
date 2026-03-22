@@ -332,6 +332,7 @@ export default function Admin() {
       has_tasks: true,
       has_lead_gleego: newPlanLeadGleego,
       has_captador: newPlanCaptador,
+      has_document_signatures: newPlanDocSignatures,
       price: parseFloat(newPlanPrice) || 0,
       billing_period: newPlanPeriod,
       visible_on_signup: newPlanVisibleOnSignup,
