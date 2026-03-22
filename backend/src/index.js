@@ -49,6 +49,7 @@ import homologationRoutes from './routes/homologation.js';
 import taskBoardsRoutes from './routes/task-boards.js';
 import erpBillingRoutes from './routes/erp-billing.js';
 import captadorRoutes from './routes/captador.js';
+import documentSignaturesRoutes from './routes/document-signatures.js';
 import metaTemplatesRoutes from './routes/meta-templates.js';
 import { initDatabase } from './init-db.js';
 import { executeNotifications } from './scheduler.js';
@@ -216,6 +217,7 @@ app.use('/api/homologation', homologationRoutes);
 app.use('/api/task-boards', taskBoardsRoutes);
 app.use('/api/erp-billing', erpBillingRoutes);
 app.use('/api/captador', captadorRoutes);
+app.use('/api/document-signatures', documentSignaturesRoutes);
 app.use('/api/meta', metaTemplatesRoutes);
 
 app.get('/health', (req, res) => {

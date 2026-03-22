@@ -10,6 +10,7 @@ import {
   CalendarDays,
   ChevronDown,
   ClipboardList,
+  FileSignature,
   FileText,
   GitBranch,
   Kanban,
@@ -55,7 +56,7 @@ interface NavItem {
   name: string;
   href: string;
   icon: any;
-  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat' | 'homologation' | 'tasks' | 'lead_gleego' | 'captador';
+  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat' | 'homologation' | 'tasks' | 'lead_gleego' | 'captador' | 'document_signatures';
   adminOnly?: boolean;
   ownerOnly?: boolean;
   superadminOnly?: boolean;
@@ -66,7 +67,7 @@ interface NavSection {
   title: string;
   icon: any;
   items: NavItem[];
-  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat' | 'homologation' | 'tasks' | 'lead_gleego' | 'captador';
+  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat' | 'homologation' | 'tasks' | 'lead_gleego' | 'captador' | 'document_signatures';
   adminOnly?: boolean;
   permissionKey?: string;
 }
@@ -152,6 +153,15 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
     permissionKey: 'can_view_captador',
     items: [
       { name: "Fichas de Campo", href: "/captador", icon: MapPin, moduleKey: 'captador' as const, permissionKey: 'can_view_captador' },
+    ],
+  },
+  {
+    title: "Assinaturas",
+    icon: FileSignature,
+    moduleKey: 'document_signatures',
+    permissionKey: 'can_view_document_signatures',
+    items: [
+      { name: "Documentos", href: "/assinaturas", icon: FileSignature, moduleKey: 'document_signatures' as const, permissionKey: 'can_view_document_signatures' },
     ],
   },
   {

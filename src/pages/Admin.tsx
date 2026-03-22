@@ -71,6 +71,7 @@ interface Plan {
   has_tasks: boolean;
   has_lead_gleego: boolean;
   has_captador: boolean;
+  has_document_signatures: boolean;
   price: number;
   billing_period: string;
   is_active: boolean;
@@ -166,6 +167,7 @@ export default function Admin() {
   const [newPlanInternalChat, setNewPlanInternalChat] = useState(true);
   const [newPlanLeadGleego, setNewPlanLeadGleego] = useState(false);
   const [newPlanCaptador, setNewPlanCaptador] = useState(false);
+  const [newPlanDocSignatures, setNewPlanDocSignatures] = useState(false);
   const [newPlanPeriod, setNewPlanPeriod] = useState('monthly');
   const [newPlanVisibleOnSignup, setNewPlanVisibleOnSignup] = useState(false);
   const [newPlanTrialDays, setNewPlanTrialDays] = useState('3');
@@ -330,6 +332,7 @@ export default function Admin() {
       has_tasks: true,
       has_lead_gleego: newPlanLeadGleego,
       has_captador: newPlanCaptador,
+      has_document_signatures: newPlanDocSignatures,
       price: parseFloat(newPlanPrice) || 0,
       billing_period: newPlanPeriod,
       visible_on_signup: newPlanVisibleOnSignup,
@@ -371,6 +374,7 @@ export default function Admin() {
     setNewPlanInternalChat(true);
     setNewPlanLeadGleego(false);
     setNewPlanCaptador(false);
+    setNewPlanDocSignatures(false);
     setNewPlanPeriod('monthly');
     setNewPlanVisibleOnSignup(false);
     setNewPlanTrialDays('3');
@@ -405,6 +409,7 @@ export default function Admin() {
       has_tasks: editingPlan.has_tasks,
       has_lead_gleego: editingPlan.has_lead_gleego,
       has_captador: editingPlan.has_captador,
+      has_document_signatures: editingPlan.has_document_signatures,
       price: editingPlan.price,
       billing_period: editingPlan.billing_period,
       is_active: editingPlan.is_active,
@@ -981,6 +986,16 @@ export default function Admin() {
                       </div>
                       <div className="flex items-center justify-between rounded-lg border p-3">
                         <div className="flex items-center gap-2">
+                          <Label htmlFor="doc-signatures-switch">Assinaturas de Doc.</Label>
+                        </div>
+                        <Switch
+                          id="doc-signatures-switch"
+                          checked={newPlanDocSignatures}
+                          onCheckedChange={setNewPlanDocSignatures}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between rounded-lg border p-3">
+                        <div className="flex items-center gap-2">
                           <Label htmlFor="lead-gleego-switch">Lead Gleego</Label>
                         </div>
                         <Switch
@@ -1144,6 +1159,9 @@ export default function Admin() {
                         )}
                         {plan.has_captador && (
                           <Badge variant="secondary" className="text-xs">Captador</Badge>
+                        )}
+                        {plan.has_document_signatures && (
+                          <Badge variant="secondary" className="text-xs">Assinaturas</Badge>
                         )}
                       </div>
                       <div className="flex items-center justify-between pt-2 border-t">
@@ -2033,6 +2051,14 @@ export default function Admin() {
                     id="edit-captador"
                     checked={editingPlan?.has_captador || false}
                     onCheckedChange={(v) => setEditingPlan({ ...editingPlan!, has_captador: v })}
+                  />
+                </div>
+                <div className="flex items-center justify-between rounded-lg border p-3">
+                  <Label htmlFor="edit-doc-signatures">Assinaturas de Doc.</Label>
+                  <Switch
+                    id="edit-doc-signatures"
+                    checked={editingPlan?.has_document_signatures || false}
+                    onCheckedChange={(v) => setEditingPlan({ ...editingPlan!, has_document_signatures: v })}
                   />
                 </div>
                 <div className="flex items-center justify-between rounded-lg border p-3">
