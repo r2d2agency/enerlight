@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,12 +15,14 @@ import { useGoals, useGoalDashboard, useGoalMutations, Goal } from "@/hooks/use-
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useCRMMyTeam, useCRMGroups } from "@/hooks/use-crm";
 import { useAuth } from "@/contexts/AuthContext";
+import { api } from "@/lib/api";
+import { GoalsImportDialog } from "@/components/crm/GoalsImportDialog";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend, ComposedChart, Line,
 } from "recharts";
 import {
-  Target, Plus, Edit2, Trash2, Users, TrendingUp,
+  Target, Plus, Edit2, Trash2, Users, TrendingUp, Upload,
   Briefcase, DollarSign, CalendarDays, Loader2, BarChart3,
   Trophy, Medal, Award, FileText, ShoppingCart, Receipt,
 } from "lucide-react";
