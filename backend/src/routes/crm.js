@@ -6307,6 +6307,18 @@ router.delete('/goals/import/batch/:batchId', async (req, res) => {
   }
 });
 
+// Clear ALL imported data
+router.delete('/goals/import/clear-all', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+    const result = await query(`DELETE FROM crm_goals_data WHERE organization_id = $1`, [org.organization_id]);
+    res.json({ success: true, deleted: result.rowCount });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Goals data summary (used by dashboard)
 router.get('/goals/data-summary', async (req, res) => {
   try {
