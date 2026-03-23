@@ -574,6 +574,7 @@ export default function CRMMetas() {
                             <span>Meta: {isMoneyMetric(g.metric) ? fmt(g.target_value) : g.target_value}</span>
                             {g.target_user_name && <span>👤 {g.target_user_name}</span>}
                             {g.target_group_name && <span>👥 {g.target_group_name}</span>}
+                            {(g as any).target_channel && <span>📡 {(g as any).target_channel}</span>}
                           </div>
                         </div>
                         {isAdmin && (
