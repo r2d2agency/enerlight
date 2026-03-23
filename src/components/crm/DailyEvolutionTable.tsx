@@ -188,6 +188,13 @@ export function DailyEvolutionTable({ startDate, endDate, filterUserId, filterCh
         <CardTitle className="text-base">📊 Evolução Diária</CardTitle>
         <p className="text-xs text-muted-foreground">
           {businessDays} dias úteis no período • Meta mensal dividida por dia útil
+          {(() => {
+            const today = startOfDay(new Date());
+            const monthEnd = endOfMonth(today);
+            const remaining = eachDayOfInterval({ start: today, end: monthEnd })
+              .filter(d => !isWeekend(d) && isAfter(d, today)).length;
+            return remaining > 0 ? ` • ${remaining} dias úteis restantes no mês` : "";
+          })()}
         </p>
       </CardHeader>
       <CardContent>
