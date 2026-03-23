@@ -6319,6 +6319,23 @@ router.delete('/goals/import/clear-all', async (req, res) => {
   }
 });
 
+// Get available channels for filters
+router.get('/goals/channels', async (req, res) => {
+  try {
+    await ensureGoalsDataTable();
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const result = await query(
+      `SELECT DISTINCT COALESCE(channel, 'Sem Canal') as channel FROM crm_goals_data WHERE organization_id = $1 AND channel IS NOT NULL AND channel != '' ORDER BY channel`,
+      [org.organization_id]
+    );
+    res.json(result.rows.map(r => r.channel));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Goals data summary (used by dashboard)
 router.get('/goals/data-summary', async (req, res) => {
   try {
@@ -6326,22 +6343,32 @@ router.get('/goals/data-summary', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
-    const { start_date, end_date, user_id } = req.query;
+    const { start_date, end_date, user_id, channel, group_id } = req.query;
     const sd = start_date || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
     const ed = end_date || new Date().toISOString().split('T')[0];
 
     const params = [org.organization_id, sd, ed];
-    let userFilter = '';
+    let extraFilters = '';
     if (user_id) {
       params.push(user_id);
-      userFilter = ` AND user_id = $${params.length}`;
+      extraFilters += ` AND user_id = $${params.length}`;
+    }
+    if (channel) {
+      params.push(channel);
+      extraFilters += ` AND channel = $${params.length}`;
+    }
+    if (group_id) {
+      params.push(group_id);
+      extraFilters += ` AND client_group = $${params.length}`;
     }
 
-    // Summary by type
     const dateExpr = `CASE WHEN data_type = 'faturamento' THEN billing_date ELSE emission_date END`;
+    const baseWhere = `organization_id = $1 AND ${dateExpr} >= $2::date AND ${dateExpr} <= $3::date${extraFilters}`;
+
+    // Summary by type
     const summary = await query(
       `SELECT data_type, COUNT(*) as count, COALESCE(SUM(value),0) as total_value
-       FROM crm_goals_data WHERE organization_id = $1 AND ${dateExpr} >= $2::date AND ${dateExpr} <= $3::date${userFilter}
+       FROM crm_goals_data WHERE ${baseWhere}
        GROUP BY data_type`,
       params
     );
@@ -6349,7 +6376,7 @@ router.get('/goals/data-summary', async (req, res) => {
     // By channel
     const byChannel = await query(
       `SELECT data_type, COALESCE(channel, 'Sem Canal') as channel, COUNT(*) as count, COALESCE(SUM(value),0) as total_value
-       FROM crm_goals_data WHERE organization_id = $1 AND ${dateExpr} >= $2::date AND ${dateExpr} <= $3::date${userFilter}
+       FROM crm_goals_data WHERE ${baseWhere}
        GROUP BY data_type, channel ORDER BY total_value DESC`,
       params
     );
@@ -6357,7 +6384,7 @@ router.get('/goals/data-summary', async (req, res) => {
     // By seller
     const bySeller = await query(
       `SELECT data_type, COALESCE(seller_name, 'Sem Vendedor') as seller_name, user_id, COUNT(*) as count, COALESCE(SUM(value),0) as total_value
-       FROM crm_goals_data WHERE organization_id = $1 AND ${dateExpr} >= $2::date AND ${dateExpr} <= $3::date${userFilter}
+       FROM crm_goals_data WHERE ${baseWhere}
        GROUP BY data_type, seller_name, user_id ORDER BY total_value DESC`,
       params
     );

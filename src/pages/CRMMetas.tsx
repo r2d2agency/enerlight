@@ -66,6 +66,7 @@ export default function CRMMetas() {
   const [endDate, setEndDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [filterUserId, setFilterUserId] = useState("all");
   const [filterGroupId, setFilterGroupId] = useState("all");
+  const [filterChannel, setFilterChannel] = useState("all");
   const [filterPeriod, setFilterPeriod] = useState("monthly");
   const [rankingGroupId, setRankingGroupId] = useState("all");
 
@@ -84,14 +85,22 @@ export default function CRMMetas() {
 
   // Goals data summary from imported spreadsheets
   const { data: goalsData } = useQuery({
-    queryKey: ["crm-goals-data", startDate, endDate, filterUserId],
+    queryKey: ["crm-goals-data", startDate, endDate, filterUserId, filterChannel, filterGroupId],
     queryFn: () => {
       const sp = new URLSearchParams();
       sp.set("start_date", startDate);
       sp.set("end_date", endDate);
       if (filterUserId !== "all") sp.set("user_id", filterUserId);
+      if (filterChannel !== "all") sp.set("channel", filterChannel);
+      if (filterGroupId !== "all") sp.set("group_id", filterGroupId);
       return api<any>(`/api/crm/goals/data-summary?${sp.toString()}`);
     },
+  });
+
+  // Get available channels for filter
+  const { data: availableChannels } = useQuery({
+    queryKey: ["crm-goals-channels"],
+    queryFn: () => api<string[]>("/api/crm/goals/channels"),
   });
 
   const invalidateData = () => {
@@ -199,6 +208,24 @@ export default function CRMMetas() {
                 {teamMembers?.map(m => <SelectItem key={m.user_id} value={m.user_id}>{m.name}</SelectItem>)}
               </SelectContent>
             </Select>
+            <Select value={filterChannel} onValueChange={setFilterChannel}>
+              <SelectTrigger className="w-[180px]"><SelectValue placeholder="Todos canais" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos canais</SelectItem>
+                {availableChannels?.map(ch => (
+                  <SelectItem key={ch} value={ch}>{ch}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {groups && groups.length > 0 && (
+              <Select value={filterGroupId} onValueChange={setFilterGroupId}>
+                <SelectTrigger className="w-[180px]"><SelectValue placeholder="Todos grupos" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos grupos</SelectItem>
+                  {groups.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            )}
             <Select value={filterPeriod} onValueChange={setFilterPeriod}>
               <SelectTrigger className="w-[130px]"><SelectValue /></SelectTrigger>
               <SelectContent>
