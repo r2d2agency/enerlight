@@ -127,7 +127,7 @@ export default function CRMMetas() {
   };
 
   const [form, setForm] = useState({
-    name: "", type: "individual" as "individual" | "group",
+    name: "", type: "geral" as "individual" | "group" | "geral",
     target_user_id: "", target_group_id: "", target_channel: "",
     metric: "quotes_count", target_value: "",
     period: "monthly", start_date: format(new Date(), "yyyy-MM-dd"), end_date: "",
@@ -135,7 +135,7 @@ export default function CRMMetas() {
 
   const openCreate = () => {
     setEditingGoal(null);
-    setForm({ name: "", type: "individual", target_user_id: "", target_group_id: "", target_channel: "", metric: "quotes_count", target_value: "", period: "monthly", start_date: format(new Date(), "yyyy-MM-dd"), end_date: "" });
+    setForm({ name: "", type: "geral", target_user_id: "", target_group_id: "", target_channel: "", metric: "quotes_value", target_value: "", period: "monthly", start_date: format(new Date(), "yyyy-MM-dd"), end_date: "" });
     setFormOpen(true);
   };
 
@@ -699,8 +699,8 @@ export default function CRMMetas() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
                               <p className="font-medium">{g.name}</p>
-                              <Badge variant={g.type === "individual" ? "default" : "secondary"}>
-                                {g.type === "individual" ? "Individual" : "Grupo"}
+                              <Badge variant={g.type === "geral" ? "default" : g.type === "individual" ? "outline" : "secondary"}>
+                                {g.type === "geral" ? "Geral" : g.type === "individual" ? "Individual" : "Grupo"}
                               </Badge>
                               <Badge variant="outline">{metricLabel(g.metric)}</Badge>
                               <Badge variant="outline">
@@ -781,9 +781,10 @@ export default function CRMMetas() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Tipo</Label>
-                <Select value={form.type} onValueChange={v => setForm(f => ({ ...f, type: v as any }))}>
+                <Select value={form.type} onValueChange={v => setForm(f => ({ ...f, type: v as any, target_user_id: "", target_group_id: "", target_channel: v === "geral" ? "" : f.target_channel }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="geral">Geral (Equipe)</SelectItem>
                     <SelectItem value="individual">Individual</SelectItem>
                     <SelectItem value="group">Grupo/Canal</SelectItem>
                   </SelectContent>
@@ -829,18 +830,20 @@ export default function CRMMetas() {
                 </Select>
               </div>
             )}
-            <div className="space-y-2">
-              <Label>Canal (opcional)</Label>
-              <Select value={form.target_channel || "all"} onValueChange={v => setForm(f => ({ ...f, target_channel: v === "all" ? "" : v }))}>
-                <SelectTrigger><SelectValue placeholder="Todos os canais" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os canais</SelectItem>
-                  {availableChannels?.map(ch => (
-                    <SelectItem key={ch} value={ch}>{ch}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {form.type !== "geral" && (
+              <div className="space-y-2">
+                <Label>Canal (opcional)</Label>
+                <Select value={form.target_channel || "all"} onValueChange={v => setForm(f => ({ ...f, target_channel: v === "all" ? "" : v }))}>
+                  <SelectTrigger><SelectValue placeholder="Todos os canais" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os canais</SelectItem>
+                    {availableChannels?.map(ch => (
+                      <SelectItem key={ch} value={ch}>{ch}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Valor da Meta *</Label>
