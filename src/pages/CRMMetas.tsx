@@ -610,7 +610,14 @@ export default function CRMMetas() {
                 <Select value={form.metric} onValueChange={v => setForm(f => ({ ...f, metric: v }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {METRICS.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+                    <div className="px-2 py-1 text-xs font-semibold text-blue-600">📄 Orçamentos</div>
+                    {METRICS.filter(m => m.group === "orcamento").map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+                    <div className="px-2 py-1 text-xs font-semibold text-green-600 mt-1">🛒 Pedidos</div>
+                    {METRICS.filter(m => m.group === "pedido").map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+                    <div className="px-2 py-1 text-xs font-semibold text-amber-600 mt-1">💰 Faturamento</div>
+                    {METRICS.filter(m => m.group === "faturamento").map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+                    <div className="px-2 py-1 text-xs font-semibold text-muted-foreground mt-1">📊 Outros</div>
+                    {METRICS.filter(m => m.group === "outros").map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
