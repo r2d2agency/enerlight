@@ -30,16 +30,13 @@ import { format, startOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 const METRICS = [
-  { value: "new_deals", label: "Novos Negócios", icon: Briefcase },
-  { value: "closed_deals", label: "Negócios Fechados", icon: TrendingUp },
-  { value: "won_value", label: "Valor Ganho (R$)", icon: DollarSign },
-  { value: "quotes_total", label: "Orçamentos (Total)", icon: FileText },
-  { value: "quotes_by_channel", label: "Orçamentos por Canal", icon: FileText },
-  { value: "orders_total", label: "Pedidos (Total)", icon: ShoppingCart },
-  { value: "orders_by_channel", label: "Pedidos por Canal", icon: ShoppingCart },
-  { value: "billing_total", label: "Faturamento (Total R$)", icon: Receipt },
-  { value: "billing_by_channel", label: "Faturamento por Canal (R$)", icon: Receipt },
-  { value: "conversion_rate", label: "Taxa de Conversão (%)", icon: Target },
+  { value: "quotes_count", label: "Orçamentos (Qtd)", icon: FileText, group: "orcamento" },
+  { value: "quotes_value", label: "Orçamentos (R$)", icon: FileText, group: "orcamento" },
+  { value: "orders_count", label: "Pedidos (Qtd)", icon: ShoppingCart, group: "pedido" },
+  { value: "orders_value", label: "Pedidos (R$)", icon: ShoppingCart, group: "pedido" },
+  { value: "billing_count", label: "Faturamento (Qtd)", icon: Receipt, group: "faturamento" },
+  { value: "billing_value", label: "Faturamento (R$)", icon: Receipt, group: "faturamento" },
+  { value: "conversion_rate", label: "Taxa de Conversão (%)", icon: Target, group: "outros" },
 ];
 
 const PERIODS = [
