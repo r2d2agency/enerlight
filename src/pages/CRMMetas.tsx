@@ -748,6 +748,11 @@ export default function CRMMetas() {
               </>
             )}
           </TabsContent>
+
+          {/* Imports tab */}
+          <TabsContent value="imports" className="space-y-4">
+            <ImportBatchList onDeleted={invalidateData} />
+          </TabsContent>
         </Tabs>
       </div>
 
