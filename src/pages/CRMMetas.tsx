@@ -29,7 +29,7 @@ import {
   Briefcase, DollarSign, CalendarDays, Loader2, BarChart3,
   Trophy, Medal, Award, FileText, ShoppingCart, Receipt,
 } from "lucide-react";
-import { format, startOfMonth } from "date-fns";
+import { format, startOfMonth, startOfWeek, endOfWeek, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 const METRICS = [
