@@ -30,16 +30,13 @@ import { format, startOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 const METRICS = [
-  { value: "new_deals", label: "Novos Negócios", icon: Briefcase },
-  { value: "closed_deals", label: "Negócios Fechados", icon: TrendingUp },
-  { value: "won_value", label: "Valor Ganho (R$)", icon: DollarSign },
-  { value: "quotes_total", label: "Orçamentos (Total)", icon: FileText },
-  { value: "quotes_by_channel", label: "Orçamentos por Canal", icon: FileText },
-  { value: "orders_total", label: "Pedidos (Total)", icon: ShoppingCart },
-  { value: "orders_by_channel", label: "Pedidos por Canal", icon: ShoppingCart },
-  { value: "billing_total", label: "Faturamento (Total R$)", icon: Receipt },
-  { value: "billing_by_channel", label: "Faturamento por Canal (R$)", icon: Receipt },
-  { value: "conversion_rate", label: "Taxa de Conversão (%)", icon: Target },
+  { value: "quotes_count", label: "Orçamentos (Qtd)", icon: FileText, group: "orcamento" },
+  { value: "quotes_value", label: "Orçamentos (R$)", icon: FileText, group: "orcamento" },
+  { value: "orders_count", label: "Pedidos (Qtd)", icon: ShoppingCart, group: "pedido" },
+  { value: "orders_value", label: "Pedidos (R$)", icon: ShoppingCart, group: "pedido" },
+  { value: "billing_count", label: "Faturamento (Qtd)", icon: Receipt, group: "faturamento" },
+  { value: "billing_value", label: "Faturamento (R$)", icon: Receipt, group: "faturamento" },
+  { value: "conversion_rate", label: "Taxa de Conversão (%)", icon: Target, group: "outros" },
 ];
 
 const PERIODS = [
@@ -111,13 +108,13 @@ export default function CRMMetas() {
   const [form, setForm] = useState({
     name: "", type: "individual" as "individual" | "group",
     target_user_id: "", target_group_id: "",
-    metric: "quotes_total", target_value: "",
+    metric: "quotes_count", target_value: "",
     period: "monthly", start_date: format(new Date(), "yyyy-MM-dd"), end_date: "",
   });
 
   const openCreate = () => {
     setEditingGoal(null);
-    setForm({ name: "", type: "individual", target_user_id: "", target_group_id: "", metric: "quotes_total", target_value: "", period: "monthly", start_date: format(new Date(), "yyyy-MM-dd"), end_date: "" });
+    setForm({ name: "", type: "individual", target_user_id: "", target_group_id: "", metric: "quotes_count", target_value: "", period: "monthly", start_date: format(new Date(), "yyyy-MM-dd"), end_date: "" });
     setFormOpen(true);
   };
 
@@ -143,7 +140,7 @@ export default function CRMMetas() {
   };
 
   const metricLabel = (m: string) => METRICS.find(x => x.value === m)?.label || m;
-  const isMoneyMetric = (m: string) => m.includes("value") || m.includes("billing");
+  const isMoneyMetric = (m: string) => m.includes("_value") || m.includes("billing");
   const getProgressColor = (pct: number) => pct >= 100 ? "text-green-600" : pct >= 70 ? "text-amber-600" : "text-red-600";
 
   const gd = goalsData?.summary || { orcamento: { count: 0, value: 0 }, pedido: { count: 0, value: 0 }, faturamento: { count: 0, value: 0 } };
@@ -613,7 +610,14 @@ export default function CRMMetas() {
                 <Select value={form.metric} onValueChange={v => setForm(f => ({ ...f, metric: v }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {METRICS.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+                    <div className="px-2 py-1 text-xs font-semibold text-blue-600">📄 Orçamentos</div>
+                    {METRICS.filter(m => m.group === "orcamento").map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+                    <div className="px-2 py-1 text-xs font-semibold text-green-600 mt-1">🛒 Pedidos</div>
+                    {METRICS.filter(m => m.group === "pedido").map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+                    <div className="px-2 py-1 text-xs font-semibold text-amber-600 mt-1">💰 Faturamento</div>
+                    {METRICS.filter(m => m.group === "faturamento").map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+                    <div className="px-2 py-1 text-xs font-semibold text-muted-foreground mt-1">📊 Outros</div>
+                    {METRICS.filter(m => m.group === "outros").map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
