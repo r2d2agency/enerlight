@@ -5052,7 +5052,7 @@ router.get('/goals/dashboard', async (req, res) => {
       timelineResult = { rows: [] };
     }
 
-    // Seller ranking
+    // Seller ranking with quotes, orders, billing
     const rankingGroupId = req.query.ranking_group_id;
     let ranking = [];
     try {
@@ -5061,7 +5061,10 @@ router.get('/goals/dashboard', async (req, res) => {
           COUNT(*) FILTER (WHERE d.status = 'won') as won_deals,
           COUNT(*) FILTER (WHERE d.status = 'open') as open_deals,
           COALESCE(SUM(d.value) FILTER (WHERE d.status = 'won'), 0) as won_value,
-          COALESCE(SUM(d.value), 0) as total_value
+          COALESCE(SUM(d.value), 0) as total_value,
+          COUNT(*) FILTER (WHERE d.custom_fields->>'order_number' IS NOT NULL AND d.custom_fields->>'order_number' != '') as quote_count,
+          COUNT(*) FILTER (WHERE d.status = 'won' AND d.custom_fields->>'order_number' IS NOT NULL AND d.custom_fields->>'order_number' != '') as order_count,
+          COALESCE(SUM(d.value) FILTER (WHERE d.status = 'won' AND d.custom_fields->>'order_number' IS NOT NULL AND d.custom_fields->>'order_number' != ''), 0) as order_value
          FROM crm_deals d
          JOIN crm_funnels f ON f.id = d.funnel_id
          JOIN users u ON u.id = d.owner_id`;
@@ -5074,6 +5077,20 @@ router.get('/goals/dashboard', async (req, res) => {
          GROUP BY d.owner_id, u.name
          ORDER BY won_deals DESC, won_value DESC`;
       const rankResult = await query(rankSql, rankParams);
+
+      // Get billing per user
+      let billingByUser = {};
+      try {
+        const billingRank = await query(
+          `SELECT user_id, COALESCE(SUM(order_value),0) as billing_value, COUNT(*) as billing_count
+           FROM erp_billing_records
+           WHERE organization_id = $1 AND billing_date >= $2::date AND billing_date <= $3::date AND user_id IS NOT NULL
+           GROUP BY user_id`,
+          [org.organization_id, sd, ed]
+        );
+        billingRank.rows.forEach(r => { billingByUser[r.user_id] = { value: parseFloat(r.billing_value), count: parseInt(r.billing_count) }; });
+      } catch (_) {}
+
       ranking = rankResult.rows.map(r => ({
         user_id: r.user_id,
         user_name: r.user_name,
@@ -5082,6 +5099,51 @@ router.get('/goals/dashboard', async (req, res) => {
         open_deals: parseInt(r.open_deals),
         won_value: parseFloat(r.won_value),
         total_value: parseFloat(r.total_value),
+        quote_count: parseInt(r.quote_count || '0'),
+        order_count: parseInt(r.order_count || '0'),
+        order_value: parseFloat(r.order_value || '0'),
+        billing_value: billingByUser[r.user_id]?.value || 0,
+        billing_count: billingByUser[r.user_id]?.count || 0,
+      }));
+    } catch (_) {}
+
+    // Breakdown by channel (Etapa/Canal from funnel name or deal custom_fields)
+    let byChannel = [];
+    try {
+      const chResult = await query(
+        `SELECT f.name as channel,
+           COUNT(*) FILTER (WHERE d.custom_fields->>'order_number' IS NOT NULL AND d.custom_fields->>'order_number' != '') as quotes,
+           COALESCE(SUM(d.value) FILTER (WHERE d.custom_fields->>'order_number' IS NOT NULL AND d.custom_fields->>'order_number' != ''), 0) as quotes_value,
+           COUNT(*) FILTER (WHERE d.status = 'won' AND d.custom_fields->>'order_number' IS NOT NULL AND d.custom_fields->>'order_number' != '') as orders,
+           COALESCE(SUM(d.value) FILTER (WHERE d.status = 'won' AND d.custom_fields->>'order_number' IS NOT NULL AND d.custom_fields->>'order_number' != ''), 0) as orders_value
+         FROM crm_deals d
+         JOIN crm_funnels f ON f.id = d.funnel_id
+         WHERE f.organization_id = $1 AND d.created_at::date >= $2::date AND d.created_at::date <= $3::date${kpiUserFilter}
+         GROUP BY f.name
+         ORDER BY orders_value DESC`,
+        kpiParams
+      );
+      // Also get billing by channel
+      let billingByCh = {};
+      try {
+        const bcr = await query(
+          `SELECT COALESCE(channel, 'Sem Canal') as channel, COALESCE(SUM(order_value),0) as value, COUNT(*) as cnt
+           FROM erp_billing_records
+           WHERE organization_id = $1 AND billing_date >= $2::date AND billing_date <= $3::date${kpiUserFilter ? kpiUserFilter.replace('d.owner_id', 'user_id') : ''}
+           GROUP BY channel`,
+          kpiParams
+        );
+        bcr.rows.forEach(r => { billingByCh[r.channel] = { value: parseFloat(r.value), count: parseInt(r.cnt) }; });
+      } catch (_) {}
+
+      byChannel = chResult.rows.map(r => ({
+        channel: r.channel,
+        quotes: parseInt(r.quotes || '0'),
+        quotes_value: parseFloat(r.quotes_value || '0'),
+        orders: parseInt(r.orders || '0'),
+        orders_value: parseFloat(r.orders_value || '0'),
+        billing_value: billingByCh[r.channel]?.value || 0,
+        billing_count: billingByCh[r.channel]?.count || 0,
       }));
     } catch (_) {}
 
@@ -5089,6 +5151,7 @@ router.get('/goals/dashboard', async (req, res) => {
       progress,
       kpis,
       ranking,
+      byChannel,
       timeline: timelineResult.rows.map(r => ({
         period: r.period,
         new_deals: parseInt(r.new_deals),
