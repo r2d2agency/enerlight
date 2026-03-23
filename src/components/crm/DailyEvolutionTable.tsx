@@ -187,6 +187,19 @@ export function DailyEvolutionTable({ startDate, endDate, filterUserId, filterCh
                   <TableCell className="text-right text-muted-foreground">{totalPlanned > 0 ? fmt(totalPlanned) : "—"}</TableCell>
                   <TableCell className={`text-right ${totalMet ? "text-green-600" : "text-red-600"}`}>{fmt(totalValue)}</TableCell>
                 </TableRow>
+                {monthlyGoal > 0 && (
+                  <TableRow className="bg-primary/5 font-bold">
+                    <TableCell colSpan={2} className="font-bold text-primary">🎯 META MENSAL</TableCell>
+                    <TableCell className="text-right font-bold text-primary">{fmt(monthlyGoal)}</TableCell>
+                    <TableCell className={`text-right font-bold ${totalValue >= monthlyGoal ? "text-green-600" : "text-red-600"}`}>
+                      {totalValue >= monthlyGoal ? "✅ " : ""}{fmt(totalValue)} ({((totalValue / monthlyGoal) * 100).toFixed(1)}%)
+                    </TableCell>
+                    <TableCell colSpan={2} className="text-right text-sm">
+                      Falta: <span className={totalValue >= monthlyGoal ? "text-green-600" : "text-red-600"}>{fmt(Math.max(0, monthlyGoal - totalValue))}</span>
+                    </TableCell>
+                    <TableCell colSpan={2} />
+                  </TableRow>
+                )}
               );
             })()}
           </TableBody>
