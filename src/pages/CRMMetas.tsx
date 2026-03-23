@@ -137,8 +137,6 @@ export default function CRMMetas() {
   const isMoneyMetric = (m: string) => m.includes("value") || m.includes("billing");
   const getProgressColor = (pct: number) => pct >= 100 ? "text-green-600" : pct >= 70 ? "text-amber-600" : "text-red-600";
 
-  const kpis = dashboard?.kpis as any;
-  const byChannel = (dashboard as any)?.byChannel || [];
   const gd = goalsData?.summary || { orcamento: { count: 0, value: 0 }, pedido: { count: 0, value: 0 }, faturamento: { count: 0, value: 0 } };
 
   return (
@@ -203,54 +201,40 @@ export default function CRMMetas() {
 
           {/* ========== DASHBOARD ========== */}
           <TabsContent value="dashboard" className="mt-4 space-y-6">
-            {loadingDash ? (
+            {!goalsData ? (
               <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
-            ) : kpis ? (
+            ) : (
               <>
-                {/* KPI Summary Cards */}
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                {/* KPI Summary Cards - ONLY from imported data */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <Card className="border-l-4 border-l-blue-500">
                     <CardContent className="pt-4">
                       <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><FileText className="h-4 w-4" /> Orçamentos</div>
-                      <p className="text-2xl font-bold text-blue-600">{gd.orcamento.count || kpis.quotes || 0}</p>
-                      <p className="text-xs text-muted-foreground">{fmt(gd.orcamento.value || kpis.quotes_value || 0)}</p>
+                      <p className="text-2xl font-bold text-blue-600">{gd.orcamento.count}</p>
+                      <p className="text-xs text-muted-foreground">{fmt(gd.orcamento.value)}</p>
                     </CardContent>
                   </Card>
                   <Card className="border-l-4 border-l-green-500">
                     <CardContent className="pt-4">
                       <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><ShoppingCart className="h-4 w-4" /> Pedidos</div>
-                      <p className="text-2xl font-bold text-green-600">{gd.pedido.count || kpis.orders || 0}</p>
-                      <p className="text-xs text-muted-foreground">{fmt(gd.pedido.value || kpis.orders_value || 0)}</p>
+                      <p className="text-2xl font-bold text-green-600">{gd.pedido.count}</p>
+                      <p className="text-xs text-muted-foreground">{fmt(gd.pedido.value)}</p>
                     </CardContent>
                   </Card>
                   <Card className="border-l-4 border-l-amber-500">
                     <CardContent className="pt-4">
                       <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><Receipt className="h-4 w-4" /> Faturamento</div>
-                      <p className="text-2xl font-bold text-amber-600">{fmt(gd.faturamento.value || kpis.billing_total || 0)}</p>
-                      <p className="text-xs text-muted-foreground">{gd.faturamento.count || kpis.billing_orders || 0} notas</p>
+                      <p className="text-2xl font-bold text-amber-600">{fmt(gd.faturamento.value)}</p>
+                      <p className="text-xs text-muted-foreground">{gd.faturamento.count} notas</p>
                     </CardContent>
                   </Card>
                   <Card className="border-l-4 border-l-purple-500">
                     <CardContent className="pt-4">
                       <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><Target className="h-4 w-4" /> Conversão</div>
                       <p className="text-2xl font-bold text-purple-600">
-                        {(gd.orcamento.count || kpis.quotes) > 0 
-                          ? (((gd.pedido.count || kpis.orders) / (gd.orcamento.count || kpis.quotes)) * 100).toFixed(0) 
-                          : 0}%
+                        {gd.orcamento.count > 0 ? ((gd.pedido.count / gd.orcamento.count) * 100).toFixed(0) : 0}%
                       </p>
                       <p className="text-xs text-muted-foreground">Pedidos / Orçamentos</p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="pt-4">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><Briefcase className="h-4 w-4" /> Negócios</div>
-                      <p className="text-2xl font-bold">{kpis.new_deals}</p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="pt-4">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><DollarSign className="h-4 w-4" /> Valor Ganho</div>
-                      <p className="text-2xl font-bold">{fmt(kpis.won_value)}</p>
                     </CardContent>
                   </Card>
                 </div>
@@ -333,29 +317,14 @@ export default function CRMMetas() {
                   </Card>
                 )}
               </>
-            ) : (
-              <Card><CardContent className="py-12 text-center text-muted-foreground">
-                <Target className="h-12 w-12 mx-auto mb-4 opacity-30" />
-                <p>Nenhum dado disponível para o período selecionado</p>
-              </CardContent></Card>
             )}
           </TabsContent>
 
           {/* ========== BY CHANNEL/GROUP ========== */}
           <TabsContent value="by-channel" className="mt-4 space-y-6">
-            {loadingDash ? (
-              <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin" /></div>
-            ) : (() => {
-              // Merge imported data by channel
+            {(() => {
               const gdByChannel = goalsData?.byChannel || [];
               const channelMap: Record<string, { channel: string; quotes: number; quotes_value: number; orders: number; orders_value: number; billing_value: number }> = {};
-              
-              // Add CRM data
-              for (const ch of byChannel) {
-                channelMap[ch.channel] = { ...ch };
-              }
-              
-              // Add/merge imported data
               for (const row of gdByChannel) {
                 const key = row.channel;
                 if (!channelMap[key]) channelMap[key] = { channel: key, quotes: 0, quotes_value: 0, orders: 0, orders_value: 0, billing_value: 0 };
@@ -363,23 +332,115 @@ export default function CRMMetas() {
                 if (row.data_type === 'pedido') { channelMap[key].orders += row.count; channelMap[key].orders_value += row.total_value; }
                 if (row.data_type === 'faturamento') { channelMap[key].billing_value += row.total_value; }
               }
-              
-              const mergedChannels = Object.values(channelMap).filter(c => c.quotes > 0 || c.orders > 0 || c.billing_value > 0);
-              mergedChannels.sort((a, b) => b.billing_value - a.billing_value);
-              
-              return mergedChannels.length > 0 ? (
-              <>
+              const channels = Object.values(channelMap).filter(c => c.quotes > 0 || c.orders > 0 || c.billing_value > 0);
+              channels.sort((a, b) => b.billing_value - a.billing_value);
+
+              return channels.length > 0 ? (
+                <>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2"><Users className="h-5 w-5" /> Resultados por Canal/Grupo</CardTitle>
+                      <CardDescription>Dados das planilhas importadas por canal</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Canal</TableHead>
+                              <TableHead className="text-center">Orçamentos</TableHead>
+                              <TableHead className="text-right">Valor Orç.</TableHead>
+                              <TableHead className="text-center">Pedidos</TableHead>
+                              <TableHead className="text-right">Valor Ped.</TableHead>
+                              <TableHead className="text-right">Faturamento</TableHead>
+                              <TableHead className="text-center">Conversão</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {channels.map(ch => (
+                              <TableRow key={ch.channel}>
+                                <TableCell className="font-medium">{ch.channel}</TableCell>
+                                <TableCell className="text-center text-blue-600 font-medium">{ch.quotes}</TableCell>
+                                <TableCell className="text-right text-sm">{fmt(ch.quotes_value)}</TableCell>
+                                <TableCell className="text-center text-green-600 font-medium">{ch.orders}</TableCell>
+                                <TableCell className="text-right text-sm">{fmt(ch.orders_value)}</TableCell>
+                                <TableCell className="text-right text-amber-600 font-medium">{fmt(ch.billing_value)}</TableCell>
+                                <TableCell className="text-center">
+                                  <Badge variant={ch.quotes > 0 && (ch.orders / ch.quotes) >= 0.3 ? "default" : "secondary"}>
+                                    {ch.quotes > 0 ? ((ch.orders / ch.quotes) * 100).toFixed(0) : 0}%
+                                  </Badge>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                            <TableRow className="bg-muted/50 font-bold">
+                              <TableCell>Total</TableCell>
+                              <TableCell className="text-center text-blue-600">{channels.reduce((s, c) => s + c.quotes, 0)}</TableCell>
+                              <TableCell className="text-right">{fmt(channels.reduce((s, c) => s + c.quotes_value, 0))}</TableCell>
+                              <TableCell className="text-center text-green-600">{channels.reduce((s, c) => s + c.orders, 0)}</TableCell>
+                              <TableCell className="text-right">{fmt(channels.reduce((s, c) => s + c.orders_value, 0))}</TableCell>
+                              <TableCell className="text-right text-amber-600">{fmt(channels.reduce((s, c) => s + c.billing_value, 0))}</TableCell>
+                              <TableCell className="text-center">—</TableCell>
+                            </TableRow>
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader><CardTitle>Comparativo por Canal</CardTitle></CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={320}>
+                        <BarChart data={channels} layout="vertical">
+                          <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                          <XAxis type="number" tickFormatter={v => fmt(v)} />
+                          <YAxis dataKey="channel" type="category" width={120} tick={{ fontSize: 11 }} />
+                          <Tooltip formatter={(v: number) => fmt(v)} />
+                          <Legend />
+                          <Bar dataKey="quotes_value" name="Orçamentos" fill="#3b82f6" radius={[0,4,4,0]} />
+                          <Bar dataKey="orders_value" name="Pedidos" fill="#22c55e" radius={[0,4,4,0]} />
+                          <Bar dataKey="billing_value" name="Faturamento" fill="#f59e0b" radius={[0,4,4,0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+                </>
+              ) : (
+                <Card><CardContent className="py-12 text-center text-muted-foreground">
+                  <Users className="h-12 w-12 mx-auto mb-4 opacity-30" />
+                  <p>Importe as planilhas de Orçamentos, Pedidos e Faturamento para visualizar.</p>
+                </CardContent></Card>
+              );
+            })()}
+          </TabsContent>
+
+          {/* ========== INDIVIDUAL ========== */}
+          <TabsContent value="individual" className="mt-4 space-y-6">
+            {(() => {
+              const gdBySeller = goalsData?.bySeller || [];
+              const sellerMap: Record<string, { seller: string; quotes: number; quotes_value: number; orders: number; orders_value: number; billing_value: number }> = {};
+              for (const row of gdBySeller) {
+                const key = row.seller_name;
+                if (!sellerMap[key]) sellerMap[key] = { seller: key, quotes: 0, quotes_value: 0, orders: 0, orders_value: 0, billing_value: 0 };
+                if (row.data_type === 'orcamento') { sellerMap[key].quotes += row.count; sellerMap[key].quotes_value += row.total_value; }
+                if (row.data_type === 'pedido') { sellerMap[key].orders += row.count; sellerMap[key].orders_value += row.total_value; }
+                if (row.data_type === 'faturamento') { sellerMap[key].billing_value += row.total_value; }
+              }
+              const sellers = Object.values(sellerMap).filter(s => s.quotes > 0 || s.orders > 0 || s.billing_value > 0);
+              sellers.sort((a, b) => b.billing_value - a.billing_value);
+
+              return sellers.length > 0 ? (
                 <Card>
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Users className="h-5 w-5" /> Resultados por Canal/Grupo</CardTitle>
-                    <CardDescription>Orçamentos, Pedidos e Faturamento por canal de venda</CardDescription>
+                    <CardTitle className="flex items-center gap-2"><Trophy className="h-5 w-5 text-amber-500" /> Ranking Individual</CardTitle>
+                    <CardDescription>Orçamentos, Pedidos e Faturamento por vendedor (dados importados)</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="overflow-x-auto">
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Canal</TableHead>
+                            <TableHead className="w-10">#</TableHead>
+                            <TableHead>Vendedor</TableHead>
                             <TableHead className="text-center">Orçamentos</TableHead>
                             <TableHead className="text-right">Valor Orç.</TableHead>
                             <TableHead className="text-center">Pedidos</TableHead>
@@ -389,28 +450,35 @@ export default function CRMMetas() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {mergedChannels.map(ch => (
-                            <TableRow key={ch.channel}>
-                              <TableCell className="font-medium">{ch.channel}</TableCell>
-                              <TableCell className="text-center text-blue-600 font-medium">{ch.quotes}</TableCell>
-                              <TableCell className="text-right text-sm">{fmt(ch.quotes_value)}</TableCell>
-                              <TableCell className="text-center text-green-600 font-medium">{ch.orders}</TableCell>
-                              <TableCell className="text-right text-sm">{fmt(ch.orders_value)}</TableCell>
-                              <TableCell className="text-right text-amber-600 font-medium">{fmt(ch.billing_value)}</TableCell>
+                          {sellers.map((r, i) => (
+                            <TableRow key={r.seller}>
+                              <TableCell>
+                                {i === 0 ? <Trophy className="h-4 w-4 text-amber-500" /> :
+                                 i === 1 ? <Medal className="h-4 w-4 text-gray-400" /> :
+                                 i === 2 ? <Award className="h-4 w-4 text-amber-700" /> :
+                                 <span className="text-muted-foreground">{i + 1}</span>}
+                              </TableCell>
+                              <TableCell className="font-medium">{r.seller}</TableCell>
+                              <TableCell className="text-center text-blue-600 font-medium">{r.quotes}</TableCell>
+                              <TableCell className="text-right text-sm">{fmt(r.quotes_value)}</TableCell>
+                              <TableCell className="text-center text-green-600 font-medium">{r.orders}</TableCell>
+                              <TableCell className="text-right text-sm">{fmt(r.orders_value)}</TableCell>
+                              <TableCell className="text-right text-amber-600 font-medium">{fmt(r.billing_value)}</TableCell>
                               <TableCell className="text-center">
-                                <Badge variant={ch.quotes > 0 && (ch.orders / ch.quotes) >= 0.3 ? "default" : "secondary"}>
-                                  {ch.quotes > 0 ? ((ch.orders / ch.quotes) * 100).toFixed(0) : 0}%
+                                <Badge variant={r.quotes > 0 && (r.orders / r.quotes) >= 0.3 ? "default" : "secondary"}>
+                                  {r.quotes > 0 ? ((r.orders / r.quotes) * 100).toFixed(0) : 0}%
                                 </Badge>
                               </TableCell>
                             </TableRow>
                           ))}
                           <TableRow className="bg-muted/50 font-bold">
+                            <TableCell />
                             <TableCell>Total</TableCell>
-                            <TableCell className="text-center text-blue-600">{mergedChannels.reduce((s, c) => s + c.quotes, 0)}</TableCell>
-                            <TableCell className="text-right">{fmt(mergedChannels.reduce((s, c) => s + c.quotes_value, 0))}</TableCell>
-                            <TableCell className="text-center text-green-600">{mergedChannels.reduce((s, c) => s + c.orders, 0)}</TableCell>
-                            <TableCell className="text-right">{fmt(mergedChannels.reduce((s, c) => s + c.orders_value, 0))}</TableCell>
-                            <TableCell className="text-right text-amber-600">{fmt(mergedChannels.reduce((s, c) => s + c.billing_value, 0))}</TableCell>
+                            <TableCell className="text-center text-blue-600">{sellers.reduce((s, r) => s + r.quotes, 0)}</TableCell>
+                            <TableCell className="text-right">{fmt(sellers.reduce((s, r) => s + r.quotes_value, 0))}</TableCell>
+                            <TableCell className="text-center text-green-600">{sellers.reduce((s, r) => s + r.orders, 0)}</TableCell>
+                            <TableCell className="text-right">{fmt(sellers.reduce((s, r) => s + r.orders_value, 0))}</TableCell>
+                            <TableCell className="text-right text-amber-600">{fmt(sellers.reduce((s, r) => s + r.billing_value, 0))}</TableCell>
                             <TableCell className="text-center">—</TableCell>
                           </TableRow>
                         </TableBody>
@@ -418,111 +486,13 @@ export default function CRMMetas() {
                     </div>
                   </CardContent>
                 </Card>
-
-                <Card>
-                  <CardHeader><CardTitle>Comparativo por Canal</CardTitle></CardHeader>
-                  <CardContent>
-                    <ResponsiveContainer width="100%" height={320}>
-                      <BarChart data={mergedChannels} layout="vertical">
-                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                        <XAxis type="number" tickFormatter={v => fmt(v)} />
-                        <YAxis dataKey="channel" type="category" width={120} tick={{ fontSize: 11 }} />
-                        <Tooltip formatter={(v: number) => fmt(v)} />
-                        <Legend />
-                        <Bar dataKey="quotes_value" name="Orçamentos" fill="#3b82f6" radius={[0,4,4,0]} />
-                        <Bar dataKey="orders_value" name="Pedidos" fill="#22c55e" radius={[0,4,4,0]} />
-                        <Bar dataKey="billing_value" name="Faturamento" fill="#f59e0b" radius={[0,4,4,0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </CardContent>
-                </Card>
-              </>
-            ) : (
-              <Card><CardContent className="py-12 text-center text-muted-foreground">
-                <Users className="h-12 w-12 mx-auto mb-4 opacity-30" />
-                <p>Nenhum dado por canal disponível. Importe planilhas para visualizar.</p>
-              </CardContent></Card>
-            );
+              ) : (
+                <Card><CardContent className="py-12 text-center text-muted-foreground">
+                  <Trophy className="h-12 w-12 mx-auto mb-4 opacity-30" />
+                  <p>Importe as planilhas para ver o ranking individual.</p>
+                </CardContent></Card>
+              );
             })()}
-          </TabsContent>
-
-          {/* ========== INDIVIDUAL ========== */}
-          <TabsContent value="individual" className="mt-4 space-y-6">
-            {loadingDash ? (
-              <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin" /></div>
-            ) : dashboard?.ranking && dashboard.ranking.length > 0 ? (
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="flex items-center gap-2"><Trophy className="h-5 w-5 text-amber-500" /> Ranking Individual</CardTitle>
-                      <CardDescription>Desempenho de Orçamentos, Pedidos e Faturamento por vendedor</CardDescription>
-                    </div>
-                    <Select value={rankingGroupId} onValueChange={setRankingGroupId}>
-                      <SelectTrigger className="w-[200px]"><Users className="h-4 w-4 mr-2" /><SelectValue placeholder="Todos" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Todos os grupos</SelectItem>
-                        {groups?.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-10">#</TableHead>
-                          <TableHead>Vendedor</TableHead>
-                          <TableHead className="text-center">Orçamentos</TableHead>
-                          <TableHead className="text-center">Pedidos</TableHead>
-                          <TableHead className="text-right">Valor Pedidos</TableHead>
-                          <TableHead className="text-right">Faturamento</TableHead>
-                          <TableHead className="text-center">Conversão</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {(dashboard.ranking as any[]).map((r: any, i) => (
-                          <TableRow key={r.user_id}>
-                            <TableCell>
-                              {i === 0 ? <Trophy className="h-4 w-4 text-amber-500" /> :
-                               i === 1 ? <Medal className="h-4 w-4 text-gray-400" /> :
-                               i === 2 ? <Award className="h-4 w-4 text-amber-700" /> :
-                               <span className="text-muted-foreground">{i + 1}</span>}
-                            </TableCell>
-                            <TableCell className="font-medium">{r.user_name}</TableCell>
-                            <TableCell className="text-center text-blue-600 font-medium">{r.quote_count || 0}</TableCell>
-                            <TableCell className="text-center text-green-600 font-medium">{r.order_count || 0}</TableCell>
-                            <TableCell className="text-right text-sm">{fmt(r.order_value || 0)}</TableCell>
-                            <TableCell className="text-right text-amber-600 font-medium">{fmt(r.billing_value || 0)}</TableCell>
-                            <TableCell className="text-center">
-                              <Badge variant={(r.quote_count || 0) > 0 && ((r.order_count || 0) / (r.quote_count || 1)) >= 0.3 ? "default" : "secondary"}>
-                                {(r.quote_count || 0) > 0 ? (((r.order_count || 0) / (r.quote_count || 1)) * 100).toFixed(0) : 0}%
-                              </Badge>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                        {/* Totals */}
-                        <TableRow className="bg-muted/50 font-bold">
-                          <TableCell />
-                          <TableCell>Total</TableCell>
-                          <TableCell className="text-center text-blue-600">{(dashboard.ranking as any[]).reduce((s, r: any) => s + (r.quote_count || 0), 0)}</TableCell>
-                          <TableCell className="text-center text-green-600">{(dashboard.ranking as any[]).reduce((s, r: any) => s + (r.order_count || 0), 0)}</TableCell>
-                          <TableCell className="text-right">{fmt((dashboard.ranking as any[]).reduce((s, r: any) => s + (r.order_value || 0), 0))}</TableCell>
-                          <TableCell className="text-right text-amber-600">{fmt((dashboard.ranking as any[]).reduce((s, r: any) => s + (r.billing_value || 0), 0))}</TableCell>
-                          <TableCell className="text-center">—</TableCell>
-                        </TableRow>
-                      </TableBody>
-                    </Table>
-                  </div>
-                </CardContent>
-              </Card>
-            ) : (
-              <Card><CardContent className="py-12 text-center text-muted-foreground">
-                <Trophy className="h-12 w-12 mx-auto mb-4 opacity-30" />
-                <p>Nenhum dado individual disponível</p>
-              </CardContent></Card>
-            )}
           </TabsContent>
 
           {/* ========== GOALS LIST ========== */}
