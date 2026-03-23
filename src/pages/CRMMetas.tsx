@@ -66,6 +66,7 @@ export default function CRMMetas() {
   const [endDate, setEndDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [filterUserId, setFilterUserId] = useState("all");
   const [filterGroupId, setFilterGroupId] = useState("all");
+  const [filterChannel, setFilterChannel] = useState("all");
   const [filterPeriod, setFilterPeriod] = useState("monthly");
   const [rankingGroupId, setRankingGroupId] = useState("all");
 
