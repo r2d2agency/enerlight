@@ -345,7 +345,29 @@ export default function CRMMetas() {
           <TabsContent value="by-channel" className="mt-4 space-y-6">
             {loadingDash ? (
               <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin" /></div>
-            ) : byChannel.length > 0 ? (
+            ) : (() => {
+              // Merge imported data by channel
+              const gdByChannel = goalsData?.byChannel || [];
+              const channelMap: Record<string, { channel: string; quotes: number; quotes_value: number; orders: number; orders_value: number; billing_value: number }> = {};
+              
+              // Add CRM data
+              for (const ch of byChannel) {
+                channelMap[ch.channel] = { ...ch };
+              }
+              
+              // Add/merge imported data
+              for (const row of gdByChannel) {
+                const key = row.channel;
+                if (!channelMap[key]) channelMap[key] = { channel: key, quotes: 0, quotes_value: 0, orders: 0, orders_value: 0, billing_value: 0 };
+                if (row.data_type === 'orcamento') { channelMap[key].quotes += row.count; channelMap[key].quotes_value += row.total_value; }
+                if (row.data_type === 'pedido') { channelMap[key].orders += row.count; channelMap[key].orders_value += row.total_value; }
+                if (row.data_type === 'faturamento') { channelMap[key].billing_value += row.total_value; }
+              }
+              
+              const mergedChannels = Object.values(channelMap).filter(c => c.quotes > 0 || c.orders > 0 || c.billing_value > 0);
+              mergedChannels.sort((a, b) => b.billing_value - a.billing_value);
+              
+              return mergedChannels.length > 0 ? (
               <>
                 <Card>
                   <CardHeader>
@@ -367,7 +389,7 @@ export default function CRMMetas() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {byChannel.map((ch: any) => (
+                          {mergedChannels.map(ch => (
                             <TableRow key={ch.channel}>
                               <TableCell className="font-medium">{ch.channel}</TableCell>
                               <TableCell className="text-center text-blue-600 font-medium">{ch.quotes}</TableCell>
@@ -382,14 +404,13 @@ export default function CRMMetas() {
                               </TableCell>
                             </TableRow>
                           ))}
-                          {/* Totals row */}
                           <TableRow className="bg-muted/50 font-bold">
                             <TableCell>Total</TableCell>
-                            <TableCell className="text-center text-blue-600">{byChannel.reduce((s: number, c: any) => s + c.quotes, 0)}</TableCell>
-                            <TableCell className="text-right">{fmt(byChannel.reduce((s: number, c: any) => s + c.quotes_value, 0))}</TableCell>
-                            <TableCell className="text-center text-green-600">{byChannel.reduce((s: number, c: any) => s + c.orders, 0)}</TableCell>
-                            <TableCell className="text-right">{fmt(byChannel.reduce((s: number, c: any) => s + c.orders_value, 0))}</TableCell>
-                            <TableCell className="text-right text-amber-600">{fmt(byChannel.reduce((s: number, c: any) => s + c.billing_value, 0))}</TableCell>
+                            <TableCell className="text-center text-blue-600">{mergedChannels.reduce((s, c) => s + c.quotes, 0)}</TableCell>
+                            <TableCell className="text-right">{fmt(mergedChannels.reduce((s, c) => s + c.quotes_value, 0))}</TableCell>
+                            <TableCell className="text-center text-green-600">{mergedChannels.reduce((s, c) => s + c.orders, 0)}</TableCell>
+                            <TableCell className="text-right">{fmt(mergedChannels.reduce((s, c) => s + c.orders_value, 0))}</TableCell>
+                            <TableCell className="text-right text-amber-600">{fmt(mergedChannels.reduce((s, c) => s + c.billing_value, 0))}</TableCell>
                             <TableCell className="text-center">—</TableCell>
                           </TableRow>
                         </TableBody>
@@ -398,12 +419,11 @@ export default function CRMMetas() {
                   </CardContent>
                 </Card>
 
-                {/* Channel chart */}
                 <Card>
                   <CardHeader><CardTitle>Comparativo por Canal</CardTitle></CardHeader>
                   <CardContent>
                     <ResponsiveContainer width="100%" height={320}>
-                      <BarChart data={byChannel} layout="vertical">
+                      <BarChart data={mergedChannels} layout="vertical">
                         <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                         <XAxis type="number" tickFormatter={v => fmt(v)} />
                         <YAxis dataKey="channel" type="category" width={120} tick={{ fontSize: 11 }} />
