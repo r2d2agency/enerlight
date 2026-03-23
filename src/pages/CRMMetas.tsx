@@ -140,7 +140,7 @@ export default function CRMMetas() {
   };
 
   const metricLabel = (m: string) => METRICS.find(x => x.value === m)?.label || m;
-  const isMoneyMetric = (m: string) => m.includes("value") || m.includes("billing");
+  const isMoneyMetric = (m: string) => m.includes("_value") || m.includes("billing");
   const getProgressColor = (pct: number) => pct >= 100 ? "text-green-600" : pct >= 70 ? "text-amber-600" : "text-red-600";
 
   const gd = goalsData?.summary || { orcamento: { count: 0, value: 0 }, pedido: { count: 0, value: 0 }, faturamento: { count: 0, value: 0 } };
