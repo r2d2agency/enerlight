@@ -20,7 +20,10 @@ import { GoalsImportDialog } from "@/components/crm/GoalsImportDialog";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend, ComposedChart, Line,
+  PieChart, Pie, Cell,
 } from "recharts";
+
+const PIE_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#06b6d4", "#84cc16"];
 import {
   Target, Plus, Edit2, Trash2, Users, TrendingUp, Upload,
   Briefcase, DollarSign, CalendarDays, Loader2, BarChart3,
