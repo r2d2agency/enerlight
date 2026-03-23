@@ -18,6 +18,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
 import { GoalsImportDialog } from "@/components/crm/GoalsImportDialog";
 import { ImportBatchList } from "@/components/crm/ImportBatchList";
+import { DailyEvolutionTable } from "@/components/crm/DailyEvolutionTable";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend, ComposedChart, Line,
@@ -334,6 +335,15 @@ export default function CRMMetas() {
                   );
                 })()}
 
+                {/* Daily Evolution Table */}
+                <DailyEvolutionTable
+                  startDate={startDate}
+                  endDate={endDate}
+                  filterUserId={filterUserId}
+                  filterChannel={filterChannel}
+                  filterGroupId={filterGroupId}
+                  goals={goals}
+                />
 
                 {dashboard?.progress && dashboard.progress.length > 0 && (
                   <div className="space-y-6">
