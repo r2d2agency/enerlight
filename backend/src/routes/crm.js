@@ -4693,6 +4693,7 @@ async function ensureGoalsTable() {
       type VARCHAR(20) NOT NULL DEFAULT 'individual',
       target_user_id UUID REFERENCES users(id) ON DELETE CASCADE,
       target_group_id UUID REFERENCES crm_user_groups(id) ON DELETE CASCADE,
+      target_channel VARCHAR(255),
       metric VARCHAR(50) NOT NULL,
       target_value NUMERIC(15,2) NOT NULL DEFAULT 0,
       period VARCHAR(20) NOT NULL DEFAULT 'monthly',
@@ -4703,6 +4704,8 @@ async function ensureGoalsTable() {
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW()
     )`);
+    // Add target_channel column if missing
+    try { await query(`ALTER TABLE crm_goals ADD COLUMN IF NOT EXISTS target_channel VARCHAR(255)`); } catch(_){}
   } catch (e) {
     // table likely already exists
   }
