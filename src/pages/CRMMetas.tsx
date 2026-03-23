@@ -107,7 +107,7 @@ export default function CRMMetas() {
 
   const [form, setForm] = useState({
     name: "", type: "individual" as "individual" | "group",
-    target_user_id: "", target_group_id: "",
+    target_user_id: "", target_group_id: "", target_channel: "",
     metric: "quotes_count", target_value: "",
     period: "monthly", start_date: format(new Date(), "yyyy-MM-dd"), end_date: "",
   });
