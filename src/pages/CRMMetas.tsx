@@ -203,54 +203,40 @@ export default function CRMMetas() {
 
           {/* ========== DASHBOARD ========== */}
           <TabsContent value="dashboard" className="mt-4 space-y-6">
-            {loadingDash ? (
+            {!goalsData ? (
               <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
-            ) : kpis ? (
+            ) : (
               <>
-                {/* KPI Summary Cards */}
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                {/* KPI Summary Cards - ONLY from imported data */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <Card className="border-l-4 border-l-blue-500">
                     <CardContent className="pt-4">
                       <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><FileText className="h-4 w-4" /> Orçamentos</div>
-                      <p className="text-2xl font-bold text-blue-600">{gd.orcamento.count || kpis.quotes || 0}</p>
-                      <p className="text-xs text-muted-foreground">{fmt(gd.orcamento.value || kpis.quotes_value || 0)}</p>
+                      <p className="text-2xl font-bold text-blue-600">{gd.orcamento.count}</p>
+                      <p className="text-xs text-muted-foreground">{fmt(gd.orcamento.value)}</p>
                     </CardContent>
                   </Card>
                   <Card className="border-l-4 border-l-green-500">
                     <CardContent className="pt-4">
                       <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><ShoppingCart className="h-4 w-4" /> Pedidos</div>
-                      <p className="text-2xl font-bold text-green-600">{gd.pedido.count || kpis.orders || 0}</p>
-                      <p className="text-xs text-muted-foreground">{fmt(gd.pedido.value || kpis.orders_value || 0)}</p>
+                      <p className="text-2xl font-bold text-green-600">{gd.pedido.count}</p>
+                      <p className="text-xs text-muted-foreground">{fmt(gd.pedido.value)}</p>
                     </CardContent>
                   </Card>
                   <Card className="border-l-4 border-l-amber-500">
                     <CardContent className="pt-4">
                       <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><Receipt className="h-4 w-4" /> Faturamento</div>
-                      <p className="text-2xl font-bold text-amber-600">{fmt(gd.faturamento.value || kpis.billing_total || 0)}</p>
-                      <p className="text-xs text-muted-foreground">{gd.faturamento.count || kpis.billing_orders || 0} notas</p>
+                      <p className="text-2xl font-bold text-amber-600">{fmt(gd.faturamento.value)}</p>
+                      <p className="text-xs text-muted-foreground">{gd.faturamento.count} notas</p>
                     </CardContent>
                   </Card>
                   <Card className="border-l-4 border-l-purple-500">
                     <CardContent className="pt-4">
                       <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><Target className="h-4 w-4" /> Conversão</div>
                       <p className="text-2xl font-bold text-purple-600">
-                        {(gd.orcamento.count || kpis.quotes) > 0 
-                          ? (((gd.pedido.count || kpis.orders) / (gd.orcamento.count || kpis.quotes)) * 100).toFixed(0) 
-                          : 0}%
+                        {gd.orcamento.count > 0 ? ((gd.pedido.count / gd.orcamento.count) * 100).toFixed(0) : 0}%
                       </p>
                       <p className="text-xs text-muted-foreground">Pedidos / Orçamentos</p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="pt-4">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><Briefcase className="h-4 w-4" /> Negócios</div>
-                      <p className="text-2xl font-bold">{kpis.new_deals}</p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="pt-4">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><DollarSign className="h-4 w-4" /> Valor Ganho</div>
-                      <p className="text-2xl font-bold">{fmt(kpis.won_value)}</p>
                     </CardContent>
                   </Card>
                 </div>
