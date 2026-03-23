@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, FileText, ShoppingCart, Receipt } from "lucide-react";
-import { format, eachDayOfInterval, parseISO, isWeekend, getDay } from "date-fns";
+import { format, eachDayOfInterval, parseISO, isWeekend, getDay, endOfMonth, isAfter, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Goal } from "@/hooks/use-goals";
 
@@ -188,6 +188,13 @@ export function DailyEvolutionTable({ startDate, endDate, filterUserId, filterCh
         <CardTitle className="text-base">📊 Evolução Diária</CardTitle>
         <p className="text-xs text-muted-foreground">
           {businessDays} dias úteis no período • Meta mensal dividida por dia útil
+          {(() => {
+            const today = startOfDay(new Date());
+            const monthEnd = endOfMonth(today);
+            const remaining = eachDayOfInterval({ start: today, end: monthEnd })
+              .filter(d => !isWeekend(d) && isAfter(d, today)).length;
+            return remaining > 0 ? ` • ${remaining} dias úteis restantes no mês` : "";
+          })()}
         </p>
       </CardHeader>
       <CardContent>
