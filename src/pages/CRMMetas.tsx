@@ -666,14 +666,14 @@ export default function CRMMetas() {
                       {Object.keys(channelMap).length > 0 && (
                         <div className="space-y-3 mt-2">
                           <p className="text-sm font-medium text-muted-foreground flex items-center gap-1">📡 Por Canal</p>
-                          {Object.entries(channelMap).map(([ch, chGoals]) => (
-                            <div key={ch} className="space-y-2 pl-4 border-l-2 border-muted">
-                              <p className="text-sm font-semibold">{ch}</p>
-                              <div className="grid gap-3">
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {Object.entries(channelMap).map(([ch, chGoals]) => (
+                              <div key={ch} className="space-y-2 p-3 rounded-lg border bg-muted/30">
+                                <p className="text-sm font-semibold">{ch}</p>
                                 {chGoals.map(renderGoalCard)}
                               </div>
-                            </div>
-                          ))}
+                            ))}
+                          </div>
                         </div>
                       )}
                     </div>
