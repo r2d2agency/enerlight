@@ -781,9 +781,10 @@ export default function CRMMetas() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Tipo</Label>
-                <Select value={form.type} onValueChange={v => setForm(f => ({ ...f, type: v as any }))}>
+                <Select value={form.type} onValueChange={v => setForm(f => ({ ...f, type: v as any, target_user_id: "", target_group_id: "", target_channel: v === "geral" ? "" : f.target_channel }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="geral">Geral (Equipe)</SelectItem>
                     <SelectItem value="individual">Individual</SelectItem>
                     <SelectItem value="group">Grupo/Canal</SelectItem>
                   </SelectContent>
