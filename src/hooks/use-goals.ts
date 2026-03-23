@@ -4,7 +4,7 @@ import { api } from "@/lib/api";
 export interface Goal {
   id: string;
   name: string;
-  type: 'individual' | 'group';
+  type: 'individual' | 'group' | 'geral';
   target_user_id?: string;
   target_user_name?: string;
   target_group_id?: string;
