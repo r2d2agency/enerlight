@@ -287,57 +287,84 @@ export default function CRMMetas() {
                     ].map(cat => {
                       const catProgress = dashboard.progress.filter(p => cat.metrics.includes(p.metric));
                       if (catProgress.length === 0) return null;
+                      const geralProgress = catProgress.filter(p => !p.target_channel);
+                      const channelProgress = catProgress.filter(p => !!p.target_channel);
+                      const channelMap: Record<string, typeof catProgress> = {};
+                      channelProgress.forEach(p => {
+                        const ch = p.target_channel || "Sem canal";
+                        if (!channelMap[ch]) channelMap[ch] = [];
+                        channelMap[ch].push(p);
+                      });
+                      const renderProgressCard = (p: any) => {
+                        const remaining = p.target_value - p.current_value;
+                        const isMet = remaining <= 0;
+                        return (
+                          <Card key={p.goal_id} className={isMet ? "ring-2 ring-green-500/30" : ""}>
+                            <CardContent className="pt-4 space-y-3">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="font-medium text-sm">{p.goal_name}</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {metricLabel(p.metric)} • {p.type === "individual" ? p.target_user_name : p.target_group_name}
+                                    {p.target_channel && ` • ${p.target_channel}`}
+                                  </p>
+                                </div>
+                                <Badge variant={isMet ? "default" : "secondary"}>
+                                  {p.period === "daily" ? "Diária" : p.period === "weekly" ? "Semanal" : "Mensal"}
+                                </Badge>
+                              </div>
+                              <div className="grid grid-cols-3 gap-2 text-center">
+                                <div className="bg-muted/50 rounded-lg p-2">
+                                  <p className="text-xs text-muted-foreground">Meta</p>
+                                  <p className="text-sm font-bold">{isMoneyMetric(p.metric) ? fmt(p.target_value) : p.target_value}</p>
+                                </div>
+                                <div className={`rounded-lg p-2 ${isMet ? "bg-green-50 dark:bg-green-950" : "bg-muted/50"}`}>
+                                  <p className="text-xs text-muted-foreground">Realizado</p>
+                                  <p className={`text-sm font-bold ${getProgressColor(p.percentage)}`}>
+                                    {isMoneyMetric(p.metric) ? fmt(p.current_value) : p.current_value}
+                                  </p>
+                                </div>
+                                <div className={`rounded-lg p-2 ${isMet ? "bg-green-50 dark:bg-green-950" : "bg-red-50 dark:bg-red-950"}`}>
+                                  <p className="text-xs text-muted-foreground">{isMet ? "Atingida ✅" : "Falta"}</p>
+                                  <p className={`text-sm font-bold ${isMet ? "text-green-600" : "text-red-600"}`}>
+                                    {isMet ? "🎯" : isMoneyMetric(p.metric) ? fmt(remaining) : remaining}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="space-y-1">
+                                <Progress value={Math.min(p.percentage, 100)} className="h-2" />
+                                <p className={`text-xs font-medium text-right ${getProgressColor(p.percentage)}`}>
+                                  {p.percentage}%
+                                </p>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      };
                       return (
                         <div key={cat.key} className="space-y-3">
                           <h3 className="text-md font-medium flex items-center gap-2">{cat.icon} Metas de {cat.label}</h3>
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {catProgress.map(p => {
-                              const remaining = p.target_value - p.current_value;
-                              const isMet = remaining <= 0;
-                              return (
-                              <Card key={p.goal_id} className={isMet ? "ring-2 ring-green-500/30" : ""}>
-                                <CardContent className="pt-4 space-y-3">
-                                  <div className="flex items-center justify-between">
-                                    <div>
-                                      <p className="font-medium text-sm">{p.goal_name}</p>
-                                      <p className="text-xs text-muted-foreground">
-                                        {metricLabel(p.metric)} • {p.type === "individual" ? p.target_user_name : p.target_group_name}
-                                        {p.target_channel && ` • ${p.target_channel}`}
-                                      </p>
-                                    </div>
-                                    <Badge variant={isMet ? "default" : "secondary"}>
-                                      {p.period === "daily" ? "Diária" : p.period === "weekly" ? "Semanal" : "Mensal"}
-                                    </Badge>
+                          {geralProgress.length > 0 && (
+                            <div className="space-y-2">
+                              <p className="text-sm font-medium text-muted-foreground">🌐 Geral (todos os canais)</p>
+                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {geralProgress.map(renderProgressCard)}
+                              </div>
+                            </div>
+                          )}
+                          {Object.keys(channelMap).length > 0 && (
+                            <div className="space-y-3 mt-2">
+                              <p className="text-sm font-medium text-muted-foreground">📡 Por Canal</p>
+                              {Object.entries(channelMap).map(([ch, chProgress]) => (
+                                <div key={ch} className="space-y-2 pl-4 border-l-2 border-muted">
+                                  <p className="text-sm font-semibold">{ch}</p>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {chProgress.map(renderProgressCard)}
                                   </div>
-                                  <div className="grid grid-cols-3 gap-2 text-center">
-                                    <div className="bg-muted/50 rounded-lg p-2">
-                                      <p className="text-xs text-muted-foreground">Meta</p>
-                                      <p className="text-sm font-bold">{isMoneyMetric(p.metric) ? fmt(p.target_value) : p.target_value}</p>
-                                    </div>
-                                    <div className={`rounded-lg p-2 ${isMet ? "bg-green-50 dark:bg-green-950" : "bg-muted/50"}`}>
-                                      <p className="text-xs text-muted-foreground">Realizado</p>
-                                      <p className={`text-sm font-bold ${getProgressColor(p.percentage)}`}>
-                                        {isMoneyMetric(p.metric) ? fmt(p.current_value) : p.current_value}
-                                      </p>
-                                    </div>
-                                    <div className={`rounded-lg p-2 ${isMet ? "bg-green-50 dark:bg-green-950" : "bg-red-50 dark:bg-red-950"}`}>
-                                      <p className="text-xs text-muted-foreground">{isMet ? "Atingida ✅" : "Falta"}</p>
-                                      <p className={`text-sm font-bold ${isMet ? "text-green-600" : "text-red-600"}`}>
-                                        {isMet ? "🎯" : isMoneyMetric(p.metric) ? fmt(remaining) : remaining}
-                                      </p>
-                                    </div>
-                                  </div>
-                                  <div className="space-y-1">
-                                    <Progress value={Math.min(p.percentage, 100)} className="h-2" />
-                                    <p className={`text-xs font-medium text-right ${getProgressColor(p.percentage)}`}>
-                                      {p.percentage}%
-                                    </p>
-                                  </div>
-                                </CardContent>
-                              </Card>
-                              );
-                            })}
-                          </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
