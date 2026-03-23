@@ -244,7 +244,7 @@ export default function CRMMetas() {
                 </SelectContent>
               </Select>
             )}
-            <Select value={filterPeriod} onValueChange={setFilterPeriod}>
+            <Select value={filterPeriod} onValueChange={handlePeriodChange}>
               <SelectTrigger className="w-[130px]"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="daily">Diário</SelectItem>
