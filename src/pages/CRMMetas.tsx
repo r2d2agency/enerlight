@@ -161,6 +161,16 @@ export default function CRMMetas() {
                 <Button variant="outline" size="sm" onClick={() => setImportType("faturamento")}>
                   <Upload className="h-4 w-4 mr-1" /><Receipt className="h-4 w-4 mr-1 text-amber-500" /> Faturamento
                 </Button>
+                <Button variant="destructive" size="sm" onClick={async () => {
+                  if (!confirm("Tem certeza que deseja apagar TODOS os dados importados (Orçamentos, Pedidos e Faturamento)?")) return;
+                  try {
+                    await api("/api/crm/goals/import/clear-all", { method: "DELETE" });
+                    invalidateData();
+                    alert("Todos os dados importados foram apagados!");
+                  } catch (e: any) { alert(e.message); }
+                }}>
+                  <Trash2 className="h-4 w-4 mr-1" /> Limpar Tudo
+                </Button>
                 <Button onClick={openCreate} size="sm"><Plus className="h-4 w-4 mr-1" /> Nova Meta</Button>
               </>
             )}
