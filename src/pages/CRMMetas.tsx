@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,12 +15,14 @@ import { useGoals, useGoalDashboard, useGoalMutations, Goal } from "@/hooks/use-
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useCRMMyTeam, useCRMGroups } from "@/hooks/use-crm";
 import { useAuth } from "@/contexts/AuthContext";
+import { api } from "@/lib/api";
+import { GoalsImportDialog } from "@/components/crm/GoalsImportDialog";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend, ComposedChart, Line,
 } from "recharts";
 import {
-  Target, Plus, Edit2, Trash2, Users, TrendingUp,
+  Target, Plus, Edit2, Trash2, Users, TrendingUp, Upload,
   Briefcase, DollarSign, CalendarDays, Loader2, BarChart3,
   Trophy, Medal, Award, FileText, ShoppingCart, Receipt,
 } from "lucide-react";
@@ -57,6 +60,7 @@ export default function CRMMetas() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [importType, setImportType] = useState<"orcamento" | "pedido" | "faturamento" | null>(null);
 
   const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), "yyyy-MM-dd"));
   const [endDate, setEndDate] = useState(format(new Date(), "yyyy-MM-dd"));
@@ -65,6 +69,7 @@ export default function CRMMetas() {
   const [filterPeriod, setFilterPeriod] = useState("monthly");
   const [rankingGroupId, setRankingGroupId] = useState("all");
 
+  const qc = useQueryClient();
   const { data: goals, isLoading: loadingGoals } = useGoals();
   const { data: dashboard, isLoading: loadingDash } = useGoalDashboard({
     startDate, endDate,
@@ -76,6 +81,23 @@ export default function CRMMetas() {
   const { data: teamMembers } = useCRMMyTeam();
   const { data: groups } = useCRMGroups();
   const { createGoal, updateGoal, deleteGoal } = useGoalMutations();
+
+  // Goals data summary from imported spreadsheets
+  const { data: goalsData } = useQuery({
+    queryKey: ["crm-goals-data", startDate, endDate, filterUserId],
+    queryFn: () => {
+      const sp = new URLSearchParams();
+      sp.set("start_date", startDate);
+      sp.set("end_date", endDate);
+      if (filterUserId !== "all") sp.set("user_id", filterUserId);
+      return api<any>(`/api/crm/goals/data-summary?${sp.toString()}`);
+    },
+  });
+
+  const invalidateData = () => {
+    qc.invalidateQueries({ queryKey: ["crm-goals-data"] });
+    qc.invalidateQueries({ queryKey: ["crm-goals-dashboard"] });
+  };
 
   const [form, setForm] = useState({
     name: "", type: "individual" as "individual" | "group",
@@ -117,6 +139,7 @@ export default function CRMMetas() {
 
   const kpis = dashboard?.kpis as any;
   const byChannel = (dashboard as any)?.byChannel || [];
+  const gd = goalsData?.summary || { orcamento: { count: 0, value: 0 }, pedido: { count: 0, value: 0 }, faturamento: { count: 0, value: 0 } };
 
   return (
     <MainLayout>
@@ -128,9 +151,22 @@ export default function CRMMetas() {
             </h1>
             <p className="text-muted-foreground">Orçamentos, Pedidos e Faturamento — Meta vs Realizado</p>
           </div>
-          {isAdmin && (
-            <Button onClick={openCreate}><Plus className="h-4 w-4 mr-2" /> Nova Meta</Button>
-          )}
+          <div className="flex flex-wrap gap-2">
+            {isAdmin && (
+              <>
+                <Button variant="outline" size="sm" onClick={() => setImportType("orcamento")}>
+                  <Upload className="h-4 w-4 mr-1" /><FileText className="h-4 w-4 mr-1 text-blue-500" /> Orçamentos
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setImportType("pedido")}>
+                  <Upload className="h-4 w-4 mr-1" /><ShoppingCart className="h-4 w-4 mr-1 text-green-500" /> Pedidos
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setImportType("faturamento")}>
+                  <Upload className="h-4 w-4 mr-1" /><Receipt className="h-4 w-4 mr-1 text-amber-500" /> Faturamento
+                </Button>
+                <Button onClick={openCreate} size="sm"><Plus className="h-4 w-4 mr-1" /> Nova Meta</Button>
+              </>
+            )}
+          </div>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -176,29 +212,31 @@ export default function CRMMetas() {
                   <Card className="border-l-4 border-l-blue-500">
                     <CardContent className="pt-4">
                       <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><FileText className="h-4 w-4" /> Orçamentos</div>
-                      <p className="text-2xl font-bold text-blue-600">{kpis.quotes || 0}</p>
-                      <p className="text-xs text-muted-foreground">{fmt(kpis.quotes_value || 0)}</p>
+                      <p className="text-2xl font-bold text-blue-600">{gd.orcamento.count || kpis.quotes || 0}</p>
+                      <p className="text-xs text-muted-foreground">{fmt(gd.orcamento.value || kpis.quotes_value || 0)}</p>
                     </CardContent>
                   </Card>
                   <Card className="border-l-4 border-l-green-500">
                     <CardContent className="pt-4">
                       <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><ShoppingCart className="h-4 w-4" /> Pedidos</div>
-                      <p className="text-2xl font-bold text-green-600">{kpis.orders || 0}</p>
-                      <p className="text-xs text-muted-foreground">{fmt(kpis.orders_value || 0)}</p>
+                      <p className="text-2xl font-bold text-green-600">{gd.pedido.count || kpis.orders || 0}</p>
+                      <p className="text-xs text-muted-foreground">{fmt(gd.pedido.value || kpis.orders_value || 0)}</p>
                     </CardContent>
                   </Card>
                   <Card className="border-l-4 border-l-amber-500">
                     <CardContent className="pt-4">
                       <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><Receipt className="h-4 w-4" /> Faturamento</div>
-                      <p className="text-2xl font-bold text-amber-600">{fmt(kpis.billing_total || 0)}</p>
-                      <p className="text-xs text-muted-foreground">{kpis.billing_orders || 0} notas</p>
+                      <p className="text-2xl font-bold text-amber-600">{fmt(gd.faturamento.value || kpis.billing_total || 0)}</p>
+                      <p className="text-xs text-muted-foreground">{gd.faturamento.count || kpis.billing_orders || 0} notas</p>
                     </CardContent>
                   </Card>
                   <Card className="border-l-4 border-l-purple-500">
                     <CardContent className="pt-4">
                       <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><Target className="h-4 w-4" /> Conversão</div>
                       <p className="text-2xl font-bold text-purple-600">
-                        {kpis.quotes > 0 ? ((kpis.orders / kpis.quotes) * 100).toFixed(0) : 0}%
+                        {(gd.orcamento.count || kpis.quotes) > 0 
+                          ? (((gd.pedido.count || kpis.orders) / (gd.orcamento.count || kpis.quotes)) * 100).toFixed(0) 
+                          : 0}%
                       </p>
                       <p className="text-xs text-muted-foreground">Pedidos / Orçamentos</p>
                     </CardContent>
@@ -307,7 +345,29 @@ export default function CRMMetas() {
           <TabsContent value="by-channel" className="mt-4 space-y-6">
             {loadingDash ? (
               <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin" /></div>
-            ) : byChannel.length > 0 ? (
+            ) : (() => {
+              // Merge imported data by channel
+              const gdByChannel = goalsData?.byChannel || [];
+              const channelMap: Record<string, { channel: string; quotes: number; quotes_value: number; orders: number; orders_value: number; billing_value: number }> = {};
+              
+              // Add CRM data
+              for (const ch of byChannel) {
+                channelMap[ch.channel] = { ...ch };
+              }
+              
+              // Add/merge imported data
+              for (const row of gdByChannel) {
+                const key = row.channel;
+                if (!channelMap[key]) channelMap[key] = { channel: key, quotes: 0, quotes_value: 0, orders: 0, orders_value: 0, billing_value: 0 };
+                if (row.data_type === 'orcamento') { channelMap[key].quotes += row.count; channelMap[key].quotes_value += row.total_value; }
+                if (row.data_type === 'pedido') { channelMap[key].orders += row.count; channelMap[key].orders_value += row.total_value; }
+                if (row.data_type === 'faturamento') { channelMap[key].billing_value += row.total_value; }
+              }
+              
+              const mergedChannels = Object.values(channelMap).filter(c => c.quotes > 0 || c.orders > 0 || c.billing_value > 0);
+              mergedChannels.sort((a, b) => b.billing_value - a.billing_value);
+              
+              return mergedChannels.length > 0 ? (
               <>
                 <Card>
                   <CardHeader>
@@ -329,7 +389,7 @@ export default function CRMMetas() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {byChannel.map((ch: any) => (
+                          {mergedChannels.map(ch => (
                             <TableRow key={ch.channel}>
                               <TableCell className="font-medium">{ch.channel}</TableCell>
                               <TableCell className="text-center text-blue-600 font-medium">{ch.quotes}</TableCell>
@@ -344,14 +404,13 @@ export default function CRMMetas() {
                               </TableCell>
                             </TableRow>
                           ))}
-                          {/* Totals row */}
                           <TableRow className="bg-muted/50 font-bold">
                             <TableCell>Total</TableCell>
-                            <TableCell className="text-center text-blue-600">{byChannel.reduce((s: number, c: any) => s + c.quotes, 0)}</TableCell>
-                            <TableCell className="text-right">{fmt(byChannel.reduce((s: number, c: any) => s + c.quotes_value, 0))}</TableCell>
-                            <TableCell className="text-center text-green-600">{byChannel.reduce((s: number, c: any) => s + c.orders, 0)}</TableCell>
-                            <TableCell className="text-right">{fmt(byChannel.reduce((s: number, c: any) => s + c.orders_value, 0))}</TableCell>
-                            <TableCell className="text-right text-amber-600">{fmt(byChannel.reduce((s: number, c: any) => s + c.billing_value, 0))}</TableCell>
+                            <TableCell className="text-center text-blue-600">{mergedChannels.reduce((s, c) => s + c.quotes, 0)}</TableCell>
+                            <TableCell className="text-right">{fmt(mergedChannels.reduce((s, c) => s + c.quotes_value, 0))}</TableCell>
+                            <TableCell className="text-center text-green-600">{mergedChannels.reduce((s, c) => s + c.orders, 0)}</TableCell>
+                            <TableCell className="text-right">{fmt(mergedChannels.reduce((s, c) => s + c.orders_value, 0))}</TableCell>
+                            <TableCell className="text-right text-amber-600">{fmt(mergedChannels.reduce((s, c) => s + c.billing_value, 0))}</TableCell>
                             <TableCell className="text-center">—</TableCell>
                           </TableRow>
                         </TableBody>
@@ -360,12 +419,11 @@ export default function CRMMetas() {
                   </CardContent>
                 </Card>
 
-                {/* Channel chart */}
                 <Card>
                   <CardHeader><CardTitle>Comparativo por Canal</CardTitle></CardHeader>
                   <CardContent>
                     <ResponsiveContainer width="100%" height={320}>
-                      <BarChart data={byChannel} layout="vertical">
+                      <BarChart data={mergedChannels} layout="vertical">
                         <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                         <XAxis type="number" tickFormatter={v => fmt(v)} />
                         <YAxis dataKey="channel" type="category" width={120} tick={{ fontSize: 11 }} />
@@ -382,9 +440,10 @@ export default function CRMMetas() {
             ) : (
               <Card><CardContent className="py-12 text-center text-muted-foreground">
                 <Users className="h-12 w-12 mx-auto mb-4 opacity-30" />
-                <p>Nenhum dado por canal disponível</p>
+                <p>Nenhum dado por canal disponível. Importe planilhas para visualizar.</p>
               </CardContent></Card>
-            )}
+            );
+            })()}
           </TabsContent>
 
           {/* ========== INDIVIDUAL ========== */}
@@ -622,6 +681,16 @@ export default function CRMMetas() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Import Dialogs */}
+      {importType && (
+        <GoalsImportDialog
+          open={!!importType}
+          onOpenChange={v => { if (!v) setImportType(null); }}
+          dataType={importType}
+          onSuccess={invalidateData}
+        />
+      )}
     </MainLayout>
   );
 }
