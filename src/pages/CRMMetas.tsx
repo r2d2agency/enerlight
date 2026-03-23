@@ -277,56 +277,70 @@ export default function CRMMetas() {
 
                 {/* Goal Progress: Meta vs Realizado */}
                 {dashboard?.progress && dashboard.progress.length > 0 && (
-                  <div className="space-y-3">
+                  <div className="space-y-6">
                     <h2 className="text-lg font-semibold flex items-center gap-2"><Target className="h-5 w-5" /> Meta vs Realizado</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {dashboard.progress.map(p => {
-                        const remaining = p.target_value - p.current_value;
-                        const isMet = remaining <= 0;
-                        return (
-                        <Card key={p.goal_id} className={isMet ? "ring-2 ring-green-500/30" : ""}>
-                          <CardContent className="pt-4 space-y-3">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className="font-medium text-sm">{p.goal_name}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  {metricLabel(p.metric)} • {p.type === "individual" ? p.target_user_name : p.target_group_name}
-                                  {p.target_channel && ` • ${p.target_channel}`}
-                                </p>
-                              </div>
-                              <Badge variant={isMet ? "default" : "secondary"}>
-                                {p.period === "daily" ? "Diária" : p.period === "weekly" ? "Semanal" : "Mensal"}
-                              </Badge>
-                            </div>
-                            <div className="grid grid-cols-3 gap-2 text-center">
-                              <div className="bg-muted/50 rounded-lg p-2">
-                                <p className="text-xs text-muted-foreground">Meta</p>
-                                <p className="text-sm font-bold">{isMoneyMetric(p.metric) ? fmt(p.target_value) : p.target_value}</p>
-                              </div>
-                              <div className={`rounded-lg p-2 ${isMet ? "bg-green-50 dark:bg-green-950" : "bg-muted/50"}`}>
-                                <p className="text-xs text-muted-foreground">Realizado</p>
-                                <p className={`text-sm font-bold ${getProgressColor(p.percentage)}`}>
-                                  {isMoneyMetric(p.metric) ? fmt(p.current_value) : p.current_value}
-                                </p>
-                              </div>
-                              <div className={`rounded-lg p-2 ${isMet ? "bg-green-50 dark:bg-green-950" : "bg-red-50 dark:bg-red-950"}`}>
-                                <p className="text-xs text-muted-foreground">{isMet ? "Atingida ✅" : "Falta"}</p>
-                                <p className={`text-sm font-bold ${isMet ? "text-green-600" : "text-red-600"}`}>
-                                  {isMet ? "🎯" : isMoneyMetric(p.metric) ? fmt(remaining) : remaining}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="space-y-1">
-                              <Progress value={Math.min(p.percentage, 100)} className="h-2" />
-                              <p className={`text-xs font-medium text-right ${getProgressColor(p.percentage)}`}>
-                                {p.percentage}%
-                              </p>
-                            </div>
-                          </CardContent>
-                        </Card>
-                        );
-                      })}
-                    </div>
+                    {[
+                      { key: "orcamento", label: "Orçamento", icon: <FileText className="h-5 w-5 text-blue-500" />, metrics: ["quotes_count", "quotes_value"] },
+                      { key: "pedido", label: "Pedido", icon: <ShoppingCart className="h-5 w-5 text-green-500" />, metrics: ["orders_count", "orders_value"] },
+                      { key: "faturamento", label: "Faturamento", icon: <Receipt className="h-5 w-5 text-amber-500" />, metrics: ["billing_count", "billing_value"] },
+                      { key: "outros", label: "Outros", icon: <Target className="h-5 w-5 text-purple-500" />, metrics: ["conversion_rate"] },
+                    ].map(cat => {
+                      const catProgress = dashboard.progress.filter(p => cat.metrics.includes(p.metric));
+                      if (catProgress.length === 0) return null;
+                      return (
+                        <div key={cat.key} className="space-y-3">
+                          <h3 className="text-md font-medium flex items-center gap-2">{cat.icon} Metas de {cat.label}</h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {catProgress.map(p => {
+                              const remaining = p.target_value - p.current_value;
+                              const isMet = remaining <= 0;
+                              return (
+                              <Card key={p.goal_id} className={isMet ? "ring-2 ring-green-500/30" : ""}>
+                                <CardContent className="pt-4 space-y-3">
+                                  <div className="flex items-center justify-between">
+                                    <div>
+                                      <p className="font-medium text-sm">{p.goal_name}</p>
+                                      <p className="text-xs text-muted-foreground">
+                                        {metricLabel(p.metric)} • {p.type === "individual" ? p.target_user_name : p.target_group_name}
+                                        {p.target_channel && ` • ${p.target_channel}`}
+                                      </p>
+                                    </div>
+                                    <Badge variant={isMet ? "default" : "secondary"}>
+                                      {p.period === "daily" ? "Diária" : p.period === "weekly" ? "Semanal" : "Mensal"}
+                                    </Badge>
+                                  </div>
+                                  <div className="grid grid-cols-3 gap-2 text-center">
+                                    <div className="bg-muted/50 rounded-lg p-2">
+                                      <p className="text-xs text-muted-foreground">Meta</p>
+                                      <p className="text-sm font-bold">{isMoneyMetric(p.metric) ? fmt(p.target_value) : p.target_value}</p>
+                                    </div>
+                                    <div className={`rounded-lg p-2 ${isMet ? "bg-green-50 dark:bg-green-950" : "bg-muted/50"}`}>
+                                      <p className="text-xs text-muted-foreground">Realizado</p>
+                                      <p className={`text-sm font-bold ${getProgressColor(p.percentage)}`}>
+                                        {isMoneyMetric(p.metric) ? fmt(p.current_value) : p.current_value}
+                                      </p>
+                                    </div>
+                                    <div className={`rounded-lg p-2 ${isMet ? "bg-green-50 dark:bg-green-950" : "bg-red-50 dark:bg-red-950"}`}>
+                                      <p className="text-xs text-muted-foreground">{isMet ? "Atingida ✅" : "Falta"}</p>
+                                      <p className={`text-sm font-bold ${isMet ? "text-green-600" : "text-red-600"}`}>
+                                        {isMet ? "🎯" : isMoneyMetric(p.metric) ? fmt(remaining) : remaining}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <Progress value={Math.min(p.percentage, 100)} className="h-2" />
+                                    <p className={`text-xs font-medium text-right ${getProgressColor(p.percentage)}`}>
+                                      {p.percentage}%
+                                    </p>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
 
@@ -543,7 +557,7 @@ export default function CRMMetas() {
           </TabsContent>
 
           {/* ========== GOALS LIST ========== */}
-          <TabsContent value="goals" className="mt-4 space-y-4">
+          <TabsContent value="goals" className="mt-4 space-y-6">
             {loadingGoals ? (
               <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-20" />)}</div>
             ) : !goals?.length ? (
@@ -553,45 +567,64 @@ export default function CRMMetas() {
                 <p className="text-sm mt-1">Crie metas de Orçamentos, Pedidos e Faturamento para a equipe.</p>
               </CardContent></Card>
             ) : (
-              <div className="grid gap-3">
-                {goals.map(g => (
-                  <Card key={g.id} className={!g.is_active ? "opacity-60" : ""}>
-                    <CardContent className="py-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="font-medium">{g.name}</p>
-                            <Badge variant={g.type === "individual" ? "default" : "secondary"}>
-                              {g.type === "individual" ? "Individual" : "Grupo"}
-                            </Badge>
-                            <Badge variant="outline">{metricLabel(g.metric)}</Badge>
-                            <Badge variant="outline">
-                              {g.period === "daily" ? "Diária" : g.period === "weekly" ? "Semanal" : "Mensal"}
-                            </Badge>
-                            {!g.is_active && <Badge variant="destructive">Inativa</Badge>}
-                          </div>
-                          <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
-                            <span>Meta: {isMoneyMetric(g.metric) ? fmt(g.target_value) : g.target_value}</span>
-                            {g.target_user_name && <span>👤 {g.target_user_name}</span>}
-                            {g.target_group_name && <span>👥 {g.target_group_name}</span>}
-                            {(g as any).target_channel && <span>📡 {(g as any).target_channel}</span>}
-                          </div>
-                        </div>
-                        {isAdmin && (
-                          <div className="flex gap-1 ml-4">
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(g)}>
-                              <Edit2 className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteConfirm(g.id)}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        )}
+              <>
+                {[
+                  { key: "orcamento", label: "Metas de Orçamento", icon: <FileText className="h-5 w-5 text-blue-500" />, borderClass: "border-l-blue-500" },
+                  { key: "pedido", label: "Metas de Pedido", icon: <ShoppingCart className="h-5 w-5 text-green-500" />, borderClass: "border-l-green-500" },
+                  { key: "faturamento", label: "Metas de Faturamento", icon: <Receipt className="h-5 w-5 text-amber-500" />, borderClass: "border-l-amber-500" },
+                  { key: "outros", label: "Outras Metas", icon: <Target className="h-5 w-5 text-purple-500" />, borderClass: "border-l-purple-500" },
+                ].map(cat => {
+                  const catGoals = goals.filter(g => {
+                    const m = METRICS.find(x => x.value === g.metric);
+                    return m ? m.group === cat.key : cat.key === "outros";
+                  });
+                  if (catGoals.length === 0) return null;
+                  return (
+                    <div key={cat.key} className="space-y-3">
+                      <h3 className="text-lg font-semibold flex items-center gap-2">{cat.icon} {cat.label} <Badge variant="secondary">{catGoals.length}</Badge></h3>
+                      <div className="grid gap-3">
+                        {catGoals.map(g => (
+                          <Card key={g.id} className={`border-l-4 ${cat.borderClass} ${!g.is_active ? "opacity-60" : ""}`}>
+                            <CardContent className="py-4">
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <p className="font-medium">{g.name}</p>
+                                    <Badge variant={g.type === "individual" ? "default" : "secondary"}>
+                                      {g.type === "individual" ? "Individual" : "Grupo"}
+                                    </Badge>
+                                    <Badge variant="outline">{metricLabel(g.metric)}</Badge>
+                                    <Badge variant="outline">
+                                      {g.period === "daily" ? "Diária" : g.period === "weekly" ? "Semanal" : "Mensal"}
+                                    </Badge>
+                                    {!g.is_active && <Badge variant="destructive">Inativa</Badge>}
+                                  </div>
+                                  <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
+                                    <span>Meta: {isMoneyMetric(g.metric) ? fmt(g.target_value) : g.target_value}</span>
+                                    {g.target_user_name && <span>👤 {g.target_user_name}</span>}
+                                    {g.target_group_name && <span>👥 {g.target_group_name}</span>}
+                                    {(g as any).target_channel && <span>📡 {(g as any).target_channel}</span>}
+                                  </div>
+                                </div>
+                                {isAdmin && (
+                                  <div className="flex gap-1 ml-4">
+                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(g)}>
+                                      <Edit2 className="h-4 w-4" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteConfirm(g.id)}>
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
                       </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+                    </div>
+                  );
+                })}
+              </>
             )}
           </TabsContent>
         </Tabs>
