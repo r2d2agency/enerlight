@@ -440,9 +440,10 @@ export default function CRMMetas() {
             ) : (
               <Card><CardContent className="py-12 text-center text-muted-foreground">
                 <Users className="h-12 w-12 mx-auto mb-4 opacity-30" />
-                <p>Nenhum dado por canal disponível</p>
+                <p>Nenhum dado por canal disponível. Importe planilhas para visualizar.</p>
               </CardContent></Card>
-            )}
+            );
+            })()}
           </TabsContent>
 
           {/* ========== INDIVIDUAL ========== */}
