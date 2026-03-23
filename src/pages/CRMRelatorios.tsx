@@ -137,6 +137,18 @@ export default function CRMRelatorios() {
     selectedFunnel !== "all" ? selectedFunnel : undefined
   );
 
+  // Imported spreadsheet data (same source as Metas)
+  const { data: goalsData } = useQuery({
+    queryKey: ["crm-goals-data", dateRange?.from?.toISOString().split("T")[0], dateRange?.to?.toISOString().split("T")[0], filterUserId],
+    queryFn: () => {
+      const sp = new URLSearchParams();
+      if (dateRange?.from) sp.set("start_date", dateRange.from.toISOString().split("T")[0]);
+      if (dateRange?.to) sp.set("end_date", dateRange.to.toISOString().split("T")[0]);
+      if (filterUserId !== "all") sp.set("user_id", filterUserId);
+      return api<any>(`/api/crm/goals/data-summary?${sp.toString()}`);
+    },
+  });
+  const gd = goalsData?.summary || { orcamento: { count: 0, value: 0 }, pedido: { count: 0, value: 0 }, faturamento: { count: 0, value: 0 } };
   const handlePreset = (days: number) => {
     setDateRange({
       from: subDays(new Date(), days - 1),
