@@ -17,6 +17,7 @@ import { useCRMMyTeam, useCRMGroups } from "@/hooks/use-crm";
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
 import { GoalsImportDialog } from "@/components/crm/GoalsImportDialog";
+import { ImportBatchList } from "@/components/crm/ImportBatchList";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend, ComposedChart, Line,
@@ -188,16 +189,6 @@ export default function CRMMetas() {
                 <Button variant="outline" size="sm" onClick={() => setImportType("faturamento")}>
                   <Upload className="h-4 w-4 mr-1" /><Receipt className="h-4 w-4 mr-1 text-amber-500" /> Faturamento
                 </Button>
-                <Button variant="destructive" size="sm" onClick={async () => {
-                  if (!confirm("Tem certeza que deseja apagar TODOS os dados importados (Orçamentos, Pedidos e Faturamento)?")) return;
-                  try {
-                    await api("/api/crm/goals/import/clear-all", { method: "DELETE" });
-                    invalidateData();
-                    alert("Todos os dados importados foram apagados!");
-                  } catch (e: any) { alert(e.message); }
-                }}>
-                  <Trash2 className="h-4 w-4 mr-1" /> Limpar Tudo
-                </Button>
                 <Button onClick={openCreate} size="sm"><Plus className="h-4 w-4 mr-1" /> Nova Meta</Button>
               </>
             )}
@@ -210,6 +201,7 @@ export default function CRMMetas() {
             <TabsTrigger value="by-channel" className="gap-2"><Users className="h-4 w-4" /> Por Canal/Grupo</TabsTrigger>
             <TabsTrigger value="individual" className="gap-2"><Trophy className="h-4 w-4" /> Individual</TabsTrigger>
             <TabsTrigger value="goals" className="gap-2"><Target className="h-4 w-4" /> Metas</TabsTrigger>
+            <TabsTrigger value="imports" className="gap-2"><Upload className="h-4 w-4" /> Importações</TabsTrigger>
           </TabsList>
 
           {/* Filters - shared */}
@@ -756,6 +748,11 @@ export default function CRMMetas() {
                 })}
               </>
             )}
+          </TabsContent>
+
+          {/* Imports tab */}
+          <TabsContent value="imports" className="space-y-4">
+            <ImportBatchList onDeleted={invalidateData} />
           </TabsContent>
         </Tabs>
       </div>
