@@ -18,6 +18,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
 import { GoalsImportDialog } from "@/components/crm/GoalsImportDialog";
 import { ImportBatchList } from "@/components/crm/ImportBatchList";
+import { DailyEvolutionTable } from "@/components/crm/DailyEvolutionTable";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend, ComposedChart, Line,
