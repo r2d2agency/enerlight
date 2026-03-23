@@ -79,11 +79,14 @@ export function DailyEvolutionTable({ startDate, endDate, filterUserId, filterCh
   const getMonthlyGoalValue = (dataType: keyof typeof TYPE_CONFIG): number => {
     if (!goals) return 0;
     const cfg = TYPE_CONFIG[dataType];
-    // Prefer group/team goals (type !== 'individual')
-    const groupGoals = goals.filter(g => g.metric === cfg.metricValue && g.is_active && g.type !== "individual");
+    // 1. Prefer "geral" goals (no channel, no user, no group)
+    const geralGoals = goals.filter(g => g.metric === cfg.metricValue && g.is_active && g.type === "geral");
+    if (geralGoals.length > 0) return geralGoals.reduce((s, g) => s + g.target_value, 0);
+    // 2. Fallback to group/team goals
+    const groupGoals = goals.filter(g => g.metric === cfg.metricValue && g.is_active && g.type !== "individual" && !(g as any).target_channel);
     if (groupGoals.length > 0) return groupGoals.reduce((s, g) => s + g.target_value, 0);
-    // Fallback to any matching goal
-    const allMatching = goals.filter(g => g.metric === cfg.metricValue && g.is_active);
+    // 3. Fallback to any non-individual matching goal
+    const allMatching = goals.filter(g => g.metric === cfg.metricValue && g.is_active && g.type !== "individual");
     return allMatching.reduce((s, g) => s + g.target_value, 0);
   };
 
