@@ -139,6 +139,7 @@ export default function CRMMetas() {
 
   const kpis = dashboard?.kpis as any;
   const byChannel = (dashboard as any)?.byChannel || [];
+  const gd = goalsData?.summary || { orcamento: { count: 0, value: 0 }, pedido: { count: 0, value: 0 }, faturamento: { count: 0, value: 0 } };
 
   return (
     <MainLayout>
@@ -150,9 +151,22 @@ export default function CRMMetas() {
             </h1>
             <p className="text-muted-foreground">Orçamentos, Pedidos e Faturamento — Meta vs Realizado</p>
           </div>
-          {isAdmin && (
-            <Button onClick={openCreate}><Plus className="h-4 w-4 mr-2" /> Nova Meta</Button>
-          )}
+          <div className="flex flex-wrap gap-2">
+            {isAdmin && (
+              <>
+                <Button variant="outline" size="sm" onClick={() => setImportType("orcamento")}>
+                  <Upload className="h-4 w-4 mr-1" /><FileText className="h-4 w-4 mr-1 text-blue-500" /> Orçamentos
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setImportType("pedido")}>
+                  <Upload className="h-4 w-4 mr-1" /><ShoppingCart className="h-4 w-4 mr-1 text-green-500" /> Pedidos
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setImportType("faturamento")}>
+                  <Upload className="h-4 w-4 mr-1" /><Receipt className="h-4 w-4 mr-1 text-amber-500" /> Faturamento
+                </Button>
+                <Button onClick={openCreate} size="sm"><Plus className="h-4 w-4 mr-1" /> Nova Meta</Button>
+              </>
+            )}
+          </div>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
