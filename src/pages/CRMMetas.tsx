@@ -137,8 +137,7 @@ export default function CRMMetas() {
   const isMoneyMetric = (m: string) => m.includes("value") || m.includes("billing");
   const getProgressColor = (pct: number) => pct >= 100 ? "text-green-600" : pct >= 70 ? "text-amber-600" : "text-red-600";
 
-  const kpis = dashboard?.kpis as any;
-  const byChannel = (dashboard as any)?.byChannel || [];
+  const gd = goalsData?.summary || { orcamento: { count: 0, value: 0 }, pedido: { count: 0, value: 0 }, faturamento: { count: 0, value: 0 } };
   const gd = goalsData?.summary || { orcamento: { count: 0, value: 0 }, pedido: { count: 0, value: 0 }, faturamento: { count: 0, value: 0 } };
 
   return (
