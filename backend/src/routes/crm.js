@@ -4756,11 +4756,11 @@ router.post('/goals', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org || !['owner', 'admin'].includes(org.role)) return res.status(403).json({ error: 'Permission denied' });
 
-    const { name, type, target_user_id, target_group_id, metric, target_value, period, start_date, end_date } = req.body;
+    const { name, type, target_user_id, target_group_id, target_channel, metric, target_value, period, start_date, end_date } = req.body;
     const result = await query(
-      `INSERT INTO crm_goals (organization_id, name, type, target_user_id, target_group_id, metric, target_value, period, start_date, end_date, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
-      [org.organization_id, name, type || 'individual', target_user_id || null, target_group_id || null, metric, target_value, period || 'monthly', start_date || new Date(), end_date || null, req.userId]
+      `INSERT INTO crm_goals (organization_id, name, type, target_user_id, target_group_id, target_channel, metric, target_value, period, start_date, end_date, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+      [org.organization_id, name, type || 'individual', target_user_id || null, target_group_id || null, target_channel || null, metric, target_value, period || 'monthly', start_date || new Date(), end_date || null, req.userId]
     );
     res.json(result.rows[0]);
   } catch (error) {
