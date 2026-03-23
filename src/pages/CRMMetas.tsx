@@ -122,7 +122,8 @@ export default function CRMMetas() {
     setEditingGoal(g);
     setForm({
       name: g.name, type: g.type, target_user_id: g.target_user_id || "",
-      target_group_id: g.target_group_id || "", metric: g.metric,
+      target_group_id: g.target_group_id || "", target_channel: (g as any).target_channel || "",
+      metric: g.metric,
       target_value: String(g.target_value), period: g.period,
       start_date: g.start_date?.split("T")[0] || "", end_date: g.end_date?.split("T")[0] || "",
     });
