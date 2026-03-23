@@ -20,7 +20,10 @@ import { GoalsImportDialog } from "@/components/crm/GoalsImportDialog";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend, ComposedChart, Line,
+  PieChart, Pie, Cell,
 } from "recharts";
+
+const PIE_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#06b6d4", "#84cc16"];
 import {
   Target, Plus, Edit2, Trash2, Users, TrendingUp, Upload,
   Briefcase, DollarSign, CalendarDays, Loader2, BarChart3,
@@ -275,7 +278,55 @@ export default function CRMMetas() {
                   </Card>
                 </div>
 
-                {/* Goal Progress: Meta vs Realizado */}
+                {/* Pie Charts by Channel - hidden when a specific channel is selected */}
+                {filterChannel === "all" && goalsData?.byChannel && goalsData.byChannel.length > 0 && (() => {
+                  const types = [
+                    { key: "orcamento", label: "Orçamentos por Canal", color: "text-blue-600", icon: <FileText className="h-4 w-4" /> },
+                    { key: "pedido", label: "Pedidos por Canal", color: "text-green-600", icon: <ShoppingCart className="h-4 w-4" /> },
+                    { key: "faturamento", label: "Faturamento por Canal", color: "text-amber-600", icon: <Receipt className="h-4 w-4" /> },
+                  ];
+                  return (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {types.map(t => {
+                        const data = (goalsData.byChannel as any[])
+                          .filter((r: any) => r.data_type === t.key)
+                          .map((r: any) => ({ name: r.channel, value: r.total_value }));
+                        if (data.length === 0) return null;
+                        return (
+                          <Card key={t.key}>
+                            <CardHeader className="pb-2">
+                              <CardTitle className="text-sm flex items-center gap-2">{t.icon} {t.label}</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <ResponsiveContainer width="100%" height={220}>
+                                <PieChart>
+                                  <Pie
+                                    data={data}
+                                    cx="50%"
+                                    cy="50%"
+                                    outerRadius={75}
+                                    dataKey="value"
+                                    nameKey="name"
+                                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                                    labelLine={false}
+                                    fontSize={11}
+                                  >
+                                    {data.map((_: any, i: number) => (
+                                      <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                                    ))}
+                                  </Pie>
+                                  <Tooltip formatter={(v: number) => fmt(v)} />
+                                </PieChart>
+                              </ResponsiveContainer>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+
+
                 {dashboard?.progress && dashboard.progress.length > 0 && (
                   <div className="space-y-6">
                     <h2 className="text-lg font-semibold flex items-center gap-2"><Target className="h-5 w-5" /> Meta vs Realizado</h2>
