@@ -6338,9 +6338,10 @@ router.get('/goals/data-summary', async (req, res) => {
     }
 
     // Summary by type
+    const dateExpr = `CASE WHEN data_type = 'faturamento' THEN billing_date ELSE emission_date END`;
     const summary = await query(
       `SELECT data_type, COUNT(*) as count, COALESCE(SUM(value),0) as total_value
-       FROM crm_goals_data WHERE organization_id = $1 AND emission_date >= $2::date AND emission_date <= $3::date${userFilter}
+       FROM crm_goals_data WHERE organization_id = $1 AND ${dateExpr} >= $2::date AND ${dateExpr} <= $3::date${userFilter}
        GROUP BY data_type`,
       params
     );
@@ -6348,7 +6349,7 @@ router.get('/goals/data-summary', async (req, res) => {
     // By channel
     const byChannel = await query(
       `SELECT data_type, COALESCE(channel, 'Sem Canal') as channel, COUNT(*) as count, COALESCE(SUM(value),0) as total_value
-       FROM crm_goals_data WHERE organization_id = $1 AND emission_date >= $2::date AND emission_date <= $3::date${userFilter}
+       FROM crm_goals_data WHERE organization_id = $1 AND ${dateExpr} >= $2::date AND ${dateExpr} <= $3::date${userFilter}
        GROUP BY data_type, channel ORDER BY total_value DESC`,
       params
     );
@@ -6356,7 +6357,7 @@ router.get('/goals/data-summary', async (req, res) => {
     // By seller
     const bySeller = await query(
       `SELECT data_type, COALESCE(seller_name, 'Sem Vendedor') as seller_name, user_id, COUNT(*) as count, COALESCE(SUM(value),0) as total_value
-       FROM crm_goals_data WHERE organization_id = $1 AND emission_date >= $2::date AND emission_date <= $3::date${userFilter}
+       FROM crm_goals_data WHERE organization_id = $1 AND ${dateExpr} >= $2::date AND ${dateExpr} <= $3::date${userFilter}
        GROUP BY data_type, seller_name, user_id ORDER BY total_value DESC`,
       params
     );
