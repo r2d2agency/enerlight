@@ -660,6 +660,16 @@ export default function CRMMetas() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Import Dialogs */}
+      {importType && (
+        <GoalsImportDialog
+          open={!!importType}
+          onOpenChange={v => { if (!v) setImportType(null); }}
+          dataType={importType}
+          onSuccess={invalidateData}
+        />
+      )}
     </MainLayout>
   );
 }
