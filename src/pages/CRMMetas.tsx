@@ -131,7 +131,8 @@ export default function CRMMetas() {
 
   const handleSave = () => {
     if (!form.name.trim() || !form.target_value) return;
-    const data = { ...form, target_value: Number(form.target_value), period: form.period as any };
+    const { start_date, end_date, ...rest } = form;
+    const data = { ...rest, target_value: Number(rest.target_value), period: rest.period as any, start_date: format(new Date(), "yyyy-MM-dd") };
     if (editingGoal) {
       updateGoal.mutate({ id: editingGoal.id, ...data }, { onSuccess: () => setFormOpen(false) });
     } else {
