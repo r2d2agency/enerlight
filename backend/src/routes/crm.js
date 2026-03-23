@@ -4693,6 +4693,7 @@ async function ensureGoalsTable() {
       type VARCHAR(20) NOT NULL DEFAULT 'individual',
       target_user_id UUID REFERENCES users(id) ON DELETE CASCADE,
       target_group_id UUID REFERENCES crm_user_groups(id) ON DELETE CASCADE,
+      target_channel VARCHAR(255),
       metric VARCHAR(50) NOT NULL,
       target_value NUMERIC(15,2) NOT NULL DEFAULT 0,
       period VARCHAR(20) NOT NULL DEFAULT 'monthly',
@@ -4703,6 +4704,8 @@ async function ensureGoalsTable() {
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW()
     )`);
+    // Add target_channel column if missing
+    try { await query(`ALTER TABLE crm_goals ADD COLUMN IF NOT EXISTS target_channel VARCHAR(255)`); } catch(_){}
   } catch (e) {
     // table likely already exists
   }
@@ -4753,11 +4756,11 @@ router.post('/goals', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org || !['owner', 'admin'].includes(org.role)) return res.status(403).json({ error: 'Permission denied' });
 
-    const { name, type, target_user_id, target_group_id, metric, target_value, period, start_date, end_date } = req.body;
+    const { name, type, target_user_id, target_group_id, target_channel, metric, target_value, period, start_date, end_date } = req.body;
     const result = await query(
-      `INSERT INTO crm_goals (organization_id, name, type, target_user_id, target_group_id, metric, target_value, period, start_date, end_date, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
-      [org.organization_id, name, type || 'individual', target_user_id || null, target_group_id || null, metric, target_value, period || 'monthly', start_date || new Date(), end_date || null, req.userId]
+      `INSERT INTO crm_goals (organization_id, name, type, target_user_id, target_group_id, target_channel, metric, target_value, period, start_date, end_date, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+      [org.organization_id, name, type || 'individual', target_user_id || null, target_group_id || null, target_channel || null, metric, target_value, period || 'monthly', start_date || new Date(), end_date || null, req.userId]
     );
     res.json(result.rows[0]);
   } catch (error) {
@@ -4772,11 +4775,11 @@ router.put('/goals/:id', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org || !['owner', 'admin'].includes(org.role)) return res.status(403).json({ error: 'Permission denied' });
 
-    const { name, type, target_user_id, target_group_id, metric, target_value, period, start_date, end_date, is_active } = req.body;
+    const { name, type, target_user_id, target_group_id, target_channel, metric, target_value, period, start_date, end_date, is_active } = req.body;
     const result = await query(
-      `UPDATE crm_goals SET name=$1, type=$2, target_user_id=$3, target_group_id=$4, metric=$5, target_value=$6, period=$7, start_date=$8, end_date=$9, is_active=$10, updated_at=NOW()
-       WHERE id=$11 AND organization_id=$12 RETURNING *`,
-      [name, type, target_user_id || null, target_group_id || null, metric, target_value, period, start_date, end_date || null, is_active !== false, req.params.id, org.organization_id]
+      `UPDATE crm_goals SET name=$1, type=$2, target_user_id=$3, target_group_id=$4, target_channel=$5, metric=$6, target_value=$7, period=$8, start_date=$9, end_date=$10, is_active=$11, updated_at=NOW()
+       WHERE id=$12 AND organization_id=$13 RETURNING *`,
+      [name, type, target_user_id || null, target_group_id || null, target_channel || null, metric, target_value, period, start_date, end_date || null, is_active !== false, req.params.id, org.organization_id]
     );
     res.json(result.rows[0]);
   } catch (error) {
@@ -4945,91 +4948,84 @@ router.get('/goals/dashboard', async (req, res) => {
     // Calculate progress for each goal
     const progress = [];
 
-    // Helper to calculate metric value for a specific user
-    async function calcMetricForUser(metric, userId) {
-      const up = [org.organization_id, sd, ed, userId];
-      const uf = ` AND d.owner_id = $4`;
-      const quoteFilter = ` AND d.custom_fields->>'order_number' IS NOT NULL AND d.custom_fields->>'order_number' != ''`;
-      switch (metric) {
-        case 'new_deals': {
-          const r = await query(`SELECT COUNT(*) as cnt FROM crm_deals d JOIN crm_funnels f ON f.id=d.funnel_id WHERE f.organization_id=$1 AND d.created_at::date>=$2::date AND d.created_at::date<=$3::date${uf}`, up);
-          return parseInt(r.rows[0]?.cnt || '0');
-        }
-        case 'closed_deals': {
-          const r = await query(`SELECT COUNT(*) as cnt FROM crm_deals d JOIN crm_funnels f ON f.id=d.funnel_id WHERE f.organization_id=$1 AND d.status='won' AND d.won_at::date>=$2::date AND d.won_at::date<=$3::date${uf}`, up);
-          return parseInt(r.rows[0]?.cnt || '0');
-        }
-        case 'won_value': {
-          const r = await query(`SELECT COALESCE(SUM(d.value),0) as total FROM crm_deals d JOIN crm_funnels f ON f.id=d.funnel_id WHERE f.organization_id=$1 AND d.status='won' AND d.won_at::date>=$2::date AND d.won_at::date<=$3::date${uf}`, up);
-          return parseFloat(r.rows[0]?.total || '0');
-        }
-        case 'quotes_total':
-        case 'quotes_by_channel': {
-          const r = await query(`SELECT COUNT(*) as cnt FROM crm_deals d JOIN crm_funnels f ON f.id=d.funnel_id WHERE f.organization_id=$1 AND d.created_at::date>=$2::date AND d.created_at::date<=$3::date${uf}${quoteFilter}`, up);
-          return parseInt(r.rows[0]?.cnt || '0');
-        }
-        case 'orders_total':
-        case 'orders_by_channel': {
-          const r = await query(`SELECT COUNT(*) as cnt FROM crm_deals d JOIN crm_funnels f ON f.id=d.funnel_id WHERE f.organization_id=$1 AND d.status='won' AND d.won_at::date>=$2::date AND d.won_at::date<=$3::date${uf}${quoteFilter}`, up);
-          return parseInt(r.rows[0]?.cnt || '0');
-        }
-        case 'billing_total':
-        case 'billing_by_channel': {
-          try {
-            const r = await query(`SELECT COALESCE(SUM(order_value),0) as total FROM erp_billing_records WHERE organization_id=$1 AND billing_date>=$2::date AND billing_date<=$3::date AND user_id=$4`, up);
-            return parseFloat(r.rows[0]?.total || '0');
-          } catch (_) { return 0; }
-        }
-        case 'conversion_rate': {
-          const r = await query(`SELECT COUNT(*) FILTER (WHERE d.status='won') as won, COUNT(*) FILTER (WHERE d.custom_fields->>'order_number' IS NOT NULL AND d.custom_fields->>'order_number' != '') as quotes FROM crm_deals d JOIN crm_funnels f ON f.id=d.funnel_id WHERE f.organization_id=$1 AND d.created_at::date>=$2::date AND d.created_at::date<=$3::date${uf}`, up);
-          const q = parseInt(r.rows[0]?.quotes || '0');
-          const w = parseInt(r.rows[0]?.won || '0');
-          return q > 0 ? Math.round((w / q) * 100) : 0;
-        }
-        default: return 0;
-      }
-    }
+    // Helper: calculate metric value from crm_goals_data for a specific goal
+    async function calcGoalMetric(goal) {
+      await ensureGoalsDataTable();
+      const dateExpr = `CASE WHEN data_type = 'faturamento' THEN billing_date ELSE emission_date END`;
+      const params = [org.organization_id, sd, ed];
+      let extraFilters = '';
 
-    const metricMap = {
-      new_deals: kpis.new_deals,
-      closed_deals: kpis.closed_deals,
-      won_value: kpis.won_value,
-      new_clients: kpis.new_clients,
-      recurring_clients: kpis.recurring_clients,
-      quotes_total: kpis.quotes,
-      quotes_by_channel: kpis.quotes,
-      orders_total: kpis.orders,
-      orders_by_channel: kpis.orders,
-      billing_total: kpis.billing_total,
-      billing_by_channel: kpis.billing_total,
-      conversion_rate: kpis.quotes > 0 ? Math.round((kpis.orders / kpis.quotes) * 100) : 0,
-    };
+      // Map metric to data_type
+      let dataType = null;
+      let useCount = false;
+      if (goal.metric === 'quotes_count') { dataType = 'orcamento'; useCount = true; }
+      else if (goal.metric === 'quotes_value') { dataType = 'orcamento'; useCount = false; }
+      else if (goal.metric === 'orders_count') { dataType = 'pedido'; useCount = true; }
+      else if (goal.metric === 'orders_value') { dataType = 'pedido'; useCount = false; }
+      else if (goal.metric === 'billing_count') { dataType = 'faturamento'; useCount = true; }
+      else if (goal.metric === 'billing_value') { dataType = 'faturamento'; useCount = false; }
+      else if (goal.metric === 'conversion_rate') {
+        // Special: pedidos / orcamentos * 100
+        const qp = [org.organization_id, sd, ed];
+        let qf = '';
+        if (goal.target_channel) { qp.push(goal.target_channel); qf += ` AND channel = $${qp.length}`; }
+        if (goal.type === 'individual' && goal.target_user_id) { qp.push(goal.target_user_id); qf += ` AND user_id = $${qp.length}`; }
+        const orcR = await query(`SELECT COUNT(*) as cnt FROM crm_goals_data WHERE organization_id=$1 AND ${dateExpr} >= $2::date AND ${dateExpr} <= $3::date AND data_type='orcamento'${qf}`, qp);
+        const pedR = await query(`SELECT COUNT(*) as cnt FROM crm_goals_data WHERE organization_id=$1 AND ${dateExpr} >= $2::date AND ${dateExpr} <= $3::date AND data_type='pedido'${qf}`, qp);
+        const orc = parseInt(orcR.rows[0]?.cnt || '0');
+        const ped = parseInt(pedR.rows[0]?.cnt || '0');
+        return orc > 0 ? Math.round((ped / orc) * 100) : 0;
+      }
+      else { return 0; }
+
+      if (dataType) {
+        params.push(dataType);
+        extraFilters += ` AND data_type = $${params.length}`;
+      }
+
+      // Filter by channel if goal has target_channel
+      if (goal.target_channel) {
+        params.push(goal.target_channel);
+        extraFilters += ` AND channel = $${params.length}`;
+      }
+
+      // Filter by user for individual goals
+      if (goal.type === 'individual' && goal.target_user_id) {
+        params.push(goal.target_user_id);
+        extraFilters += ` AND user_id = $${params.length}`;
+      }
+
+      const selectExpr = useCount ? 'COUNT(*)' : 'COALESCE(SUM(value),0)';
+      const r = await query(
+        `SELECT ${selectExpr} as result FROM crm_goals_data WHERE organization_id=$1 AND ${dateExpr} >= $2::date AND ${dateExpr} <= $3::date${extraFilters}`,
+        params
+      );
+      return useCount ? parseInt(r.rows[0]?.result || '0') : parseFloat(r.rows[0]?.result || '0');
+    }
 
     for (const goal of goalsResult.rows) {
       let currentValue = 0;
-
-      if (goal.type === 'individual' && goal.target_user_id) {
-        if (!user_id || user_id !== goal.target_user_id) {
-          currentValue = await calcMetricForUser(goal.metric, goal.target_user_id);
-        } else {
-          currentValue = metricMap[goal.metric] || 0;
-        }
-      } else {
-        currentValue = metricMap[goal.metric] || 0;
-      }
+      try {
+        currentValue = await calcGoalMetric(goal);
+      } catch (_) {}
 
       const targetVal = parseFloat(goal.target_value) || 1;
+      const pct = Math.round((currentValue / targetVal) * 100);
+      const remaining = targetVal - currentValue;
       progress.push({
         goal_id: goal.id,
         goal_name: goal.name,
         metric: goal.metric,
         target_value: targetVal,
         current_value: currentValue,
-        percentage: Math.min(Math.round((currentValue / targetVal) * 100), 100),
+        percentage: Math.min(pct, 100),
+        remaining: remaining > 0 ? remaining : 0,
+        is_met: currentValue >= targetVal,
         type: goal.type,
         period: goal.period,
         target_user_name: goal.target_user_name,
         target_group_name: goal.target_group_name,
+        target_channel: goal.target_channel,
       });
     }
 

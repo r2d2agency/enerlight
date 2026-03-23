@@ -107,14 +107,14 @@ export default function CRMMetas() {
 
   const [form, setForm] = useState({
     name: "", type: "individual" as "individual" | "group",
-    target_user_id: "", target_group_id: "",
+    target_user_id: "", target_group_id: "", target_channel: "",
     metric: "quotes_count", target_value: "",
     period: "monthly", start_date: format(new Date(), "yyyy-MM-dd"), end_date: "",
   });
 
   const openCreate = () => {
     setEditingGoal(null);
-    setForm({ name: "", type: "individual", target_user_id: "", target_group_id: "", metric: "quotes_count", target_value: "", period: "monthly", start_date: format(new Date(), "yyyy-MM-dd"), end_date: "" });
+    setForm({ name: "", type: "individual", target_user_id: "", target_group_id: "", target_channel: "", metric: "quotes_count", target_value: "", period: "monthly", start_date: format(new Date(), "yyyy-MM-dd"), end_date: "" });
     setFormOpen(true);
   };
 
@@ -122,7 +122,8 @@ export default function CRMMetas() {
     setEditingGoal(g);
     setForm({
       name: g.name, type: g.type, target_user_id: g.target_user_id || "",
-      target_group_id: g.target_group_id || "", metric: g.metric,
+      target_group_id: g.target_group_id || "", target_channel: (g as any).target_channel || "",
+      metric: g.metric,
       target_value: String(g.target_value), period: g.period,
       start_date: g.start_date?.split("T")[0] || "", end_date: g.end_date?.split("T")[0] || "",
     });
@@ -132,7 +133,7 @@ export default function CRMMetas() {
   const handleSave = () => {
     if (!form.name.trim() || !form.target_value) return;
     const { start_date, end_date, ...rest } = form;
-    const data = { ...rest, target_value: Number(rest.target_value), period: rest.period as any, start_date: format(new Date(), "yyyy-MM-dd") };
+    const data = { ...rest, target_value: Number(rest.target_value), target_channel: rest.target_channel || null, period: rest.period as any, start_date: format(new Date(), "yyyy-MM-dd") };
     if (editingGoal) {
       updateGoal.mutate({ id: editingGoal.id, ...data }, { onSuccess: () => setFormOpen(false) });
     } else {
@@ -279,41 +280,52 @@ export default function CRMMetas() {
                   <div className="space-y-3">
                     <h2 className="text-lg font-semibold flex items-center gap-2"><Target className="h-5 w-5" /> Meta vs Realizado</h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {dashboard.progress.map(p => (
-                        <Card key={p.goal_id} className={p.percentage >= 100 ? "ring-2 ring-green-500/30" : ""}>
+                      {dashboard.progress.map(p => {
+                        const remaining = p.target_value - p.current_value;
+                        const isMet = remaining <= 0;
+                        return (
+                        <Card key={p.goal_id} className={isMet ? "ring-2 ring-green-500/30" : ""}>
                           <CardContent className="pt-4 space-y-3">
                             <div className="flex items-center justify-between">
                               <div>
                                 <p className="font-medium text-sm">{p.goal_name}</p>
                                 <p className="text-xs text-muted-foreground">
                                   {metricLabel(p.metric)} • {p.type === "individual" ? p.target_user_name : p.target_group_name}
+                                  {p.target_channel && ` • ${p.target_channel}`}
                                 </p>
                               </div>
-                              <Badge variant={p.percentage >= 100 ? "default" : "secondary"}>
+                              <Badge variant={isMet ? "default" : "secondary"}>
                                 {p.period === "daily" ? "Diária" : p.period === "weekly" ? "Semanal" : "Mensal"}
                               </Badge>
                             </div>
-                            <div className="grid grid-cols-2 gap-2 text-center">
+                            <div className="grid grid-cols-3 gap-2 text-center">
                               <div className="bg-muted/50 rounded-lg p-2">
                                 <p className="text-xs text-muted-foreground">Meta</p>
                                 <p className="text-sm font-bold">{isMoneyMetric(p.metric) ? fmt(p.target_value) : p.target_value}</p>
                               </div>
-                              <div className={`rounded-lg p-2 ${p.percentage >= 100 ? "bg-green-50 dark:bg-green-950" : "bg-muted/50"}`}>
+                              <div className={`rounded-lg p-2 ${isMet ? "bg-green-50 dark:bg-green-950" : "bg-muted/50"}`}>
                                 <p className="text-xs text-muted-foreground">Realizado</p>
                                 <p className={`text-sm font-bold ${getProgressColor(p.percentage)}`}>
                                   {isMoneyMetric(p.metric) ? fmt(p.current_value) : p.current_value}
+                                </p>
+                              </div>
+                              <div className={`rounded-lg p-2 ${isMet ? "bg-green-50 dark:bg-green-950" : "bg-red-50 dark:bg-red-950"}`}>
+                                <p className="text-xs text-muted-foreground">{isMet ? "Atingida ✅" : "Falta"}</p>
+                                <p className={`text-sm font-bold ${isMet ? "text-green-600" : "text-red-600"}`}>
+                                  {isMet ? "🎯" : isMoneyMetric(p.metric) ? fmt(remaining) : remaining}
                                 </p>
                               </div>
                             </div>
                             <div className="space-y-1">
                               <Progress value={Math.min(p.percentage, 100)} className="h-2" />
                               <p className={`text-xs font-medium text-right ${getProgressColor(p.percentage)}`}>
-                                {p.percentage}% {p.percentage >= 100 && "🎯"}
+                                {p.percentage}%
                               </p>
                             </div>
                           </CardContent>
                         </Card>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -562,6 +574,7 @@ export default function CRMMetas() {
                             <span>Meta: {isMoneyMetric(g.metric) ? fmt(g.target_value) : g.target_value}</span>
                             {g.target_user_name && <span>👤 {g.target_user_name}</span>}
                             {g.target_group_name && <span>👥 {g.target_group_name}</span>}
+                            {(g as any).target_channel && <span>📡 {(g as any).target_channel}</span>}
                           </div>
                         </div>
                         {isAdmin && (
@@ -646,6 +659,18 @@ export default function CRMMetas() {
                 </Select>
               </div>
             )}
+            <div className="space-y-2">
+              <Label>Canal (opcional)</Label>
+              <Select value={form.target_channel || "all"} onValueChange={v => setForm(f => ({ ...f, target_channel: v === "all" ? "" : v }))}>
+                <SelectTrigger><SelectValue placeholder="Todos os canais" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os canais</SelectItem>
+                  {availableChannels?.map(ch => (
+                    <SelectItem key={ch} value={ch}>{ch}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Valor da Meta *</Label>
