@@ -661,17 +661,6 @@ export default function CRMMetas() {
                 </Select>
               </div>
             </div>
-            <div className="space-y-2">
-              <Label>Período da Meta</Label>
-              <Select value={form.period} onValueChange={v => setForm(f => ({ ...f, period: v }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="daily">Diária</SelectItem>
-                  <SelectItem value="weekly">Semanal</SelectItem>
-                  <SelectItem value="monthly">Mensal</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setFormOpen(false)}>Cancelar</Button>
