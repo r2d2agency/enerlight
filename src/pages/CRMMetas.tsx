@@ -85,14 +85,22 @@ export default function CRMMetas() {
 
   // Goals data summary from imported spreadsheets
   const { data: goalsData } = useQuery({
-    queryKey: ["crm-goals-data", startDate, endDate, filterUserId],
+    queryKey: ["crm-goals-data", startDate, endDate, filterUserId, filterChannel, filterGroupId],
     queryFn: () => {
       const sp = new URLSearchParams();
       sp.set("start_date", startDate);
       sp.set("end_date", endDate);
       if (filterUserId !== "all") sp.set("user_id", filterUserId);
+      if (filterChannel !== "all") sp.set("channel", filterChannel);
+      if (filterGroupId !== "all") sp.set("group_id", filterGroupId);
       return api<any>(`/api/crm/goals/data-summary?${sp.toString()}`);
     },
+  });
+
+  // Get available channels for filter
+  const { data: availableChannels } = useQuery({
+    queryKey: ["crm-goals-channels"],
+    queryFn: () => api<string[]>("/api/crm/goals/channels"),
   });
 
   const invalidateData = () => {
