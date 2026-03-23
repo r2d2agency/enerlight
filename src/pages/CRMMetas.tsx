@@ -319,11 +319,6 @@ export default function CRMMetas() {
                   </Card>
                 )}
               </>
-            ) : (
-              <Card><CardContent className="py-12 text-center text-muted-foreground">
-                <Target className="h-12 w-12 mx-auto mb-4 opacity-30" />
-                <p>Nenhum dado disponível para o período selecionado</p>
-              </CardContent></Card>
             )}
           </TabsContent>
 
