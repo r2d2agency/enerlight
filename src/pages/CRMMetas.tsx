@@ -277,56 +277,70 @@ export default function CRMMetas() {
 
                 {/* Goal Progress: Meta vs Realizado */}
                 {dashboard?.progress && dashboard.progress.length > 0 && (
-                  <div className="space-y-3">
+                  <div className="space-y-6">
                     <h2 className="text-lg font-semibold flex items-center gap-2"><Target className="h-5 w-5" /> Meta vs Realizado</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {dashboard.progress.map(p => {
-                        const remaining = p.target_value - p.current_value;
-                        const isMet = remaining <= 0;
-                        return (
-                        <Card key={p.goal_id} className={isMet ? "ring-2 ring-green-500/30" : ""}>
-                          <CardContent className="pt-4 space-y-3">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className="font-medium text-sm">{p.goal_name}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  {metricLabel(p.metric)} • {p.type === "individual" ? p.target_user_name : p.target_group_name}
-                                  {p.target_channel && ` • ${p.target_channel}`}
-                                </p>
-                              </div>
-                              <Badge variant={isMet ? "default" : "secondary"}>
-                                {p.period === "daily" ? "Diária" : p.period === "weekly" ? "Semanal" : "Mensal"}
-                              </Badge>
-                            </div>
-                            <div className="grid grid-cols-3 gap-2 text-center">
-                              <div className="bg-muted/50 rounded-lg p-2">
-                                <p className="text-xs text-muted-foreground">Meta</p>
-                                <p className="text-sm font-bold">{isMoneyMetric(p.metric) ? fmt(p.target_value) : p.target_value}</p>
-                              </div>
-                              <div className={`rounded-lg p-2 ${isMet ? "bg-green-50 dark:bg-green-950" : "bg-muted/50"}`}>
-                                <p className="text-xs text-muted-foreground">Realizado</p>
-                                <p className={`text-sm font-bold ${getProgressColor(p.percentage)}`}>
-                                  {isMoneyMetric(p.metric) ? fmt(p.current_value) : p.current_value}
-                                </p>
-                              </div>
-                              <div className={`rounded-lg p-2 ${isMet ? "bg-green-50 dark:bg-green-950" : "bg-red-50 dark:bg-red-950"}`}>
-                                <p className="text-xs text-muted-foreground">{isMet ? "Atingida ✅" : "Falta"}</p>
-                                <p className={`text-sm font-bold ${isMet ? "text-green-600" : "text-red-600"}`}>
-                                  {isMet ? "🎯" : isMoneyMetric(p.metric) ? fmt(remaining) : remaining}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="space-y-1">
-                              <Progress value={Math.min(p.percentage, 100)} className="h-2" />
-                              <p className={`text-xs font-medium text-right ${getProgressColor(p.percentage)}`}>
-                                {p.percentage}%
-                              </p>
-                            </div>
-                          </CardContent>
-                        </Card>
-                        );
-                      })}
-                    </div>
+                    {[
+                      { key: "orcamento", label: "Orçamento", icon: <FileText className="h-5 w-5 text-blue-500" />, metrics: ["quotes_count", "quotes_value"] },
+                      { key: "pedido", label: "Pedido", icon: <ShoppingCart className="h-5 w-5 text-green-500" />, metrics: ["orders_count", "orders_value"] },
+                      { key: "faturamento", label: "Faturamento", icon: <Receipt className="h-5 w-5 text-amber-500" />, metrics: ["billing_count", "billing_value"] },
+                      { key: "outros", label: "Outros", icon: <Target className="h-5 w-5 text-purple-500" />, metrics: ["conversion_rate"] },
+                    ].map(cat => {
+                      const catProgress = dashboard.progress.filter(p => cat.metrics.includes(p.metric));
+                      if (catProgress.length === 0) return null;
+                      return (
+                        <div key={cat.key} className="space-y-3">
+                          <h3 className="text-md font-medium flex items-center gap-2">{cat.icon} Metas de {cat.label}</h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {catProgress.map(p => {
+                              const remaining = p.target_value - p.current_value;
+                              const isMet = remaining <= 0;
+                              return (
+                              <Card key={p.goal_id} className={isMet ? "ring-2 ring-green-500/30" : ""}>
+                                <CardContent className="pt-4 space-y-3">
+                                  <div className="flex items-center justify-between">
+                                    <div>
+                                      <p className="font-medium text-sm">{p.goal_name}</p>
+                                      <p className="text-xs text-muted-foreground">
+                                        {metricLabel(p.metric)} • {p.type === "individual" ? p.target_user_name : p.target_group_name}
+                                        {p.target_channel && ` • ${p.target_channel}`}
+                                      </p>
+                                    </div>
+                                    <Badge variant={isMet ? "default" : "secondary"}>
+                                      {p.period === "daily" ? "Diária" : p.period === "weekly" ? "Semanal" : "Mensal"}
+                                    </Badge>
+                                  </div>
+                                  <div className="grid grid-cols-3 gap-2 text-center">
+                                    <div className="bg-muted/50 rounded-lg p-2">
+                                      <p className="text-xs text-muted-foreground">Meta</p>
+                                      <p className="text-sm font-bold">{isMoneyMetric(p.metric) ? fmt(p.target_value) : p.target_value}</p>
+                                    </div>
+                                    <div className={`rounded-lg p-2 ${isMet ? "bg-green-50 dark:bg-green-950" : "bg-muted/50"}`}>
+                                      <p className="text-xs text-muted-foreground">Realizado</p>
+                                      <p className={`text-sm font-bold ${getProgressColor(p.percentage)}`}>
+                                        {isMoneyMetric(p.metric) ? fmt(p.current_value) : p.current_value}
+                                      </p>
+                                    </div>
+                                    <div className={`rounded-lg p-2 ${isMet ? "bg-green-50 dark:bg-green-950" : "bg-red-50 dark:bg-red-950"}`}>
+                                      <p className="text-xs text-muted-foreground">{isMet ? "Atingida ✅" : "Falta"}</p>
+                                      <p className={`text-sm font-bold ${isMet ? "text-green-600" : "text-red-600"}`}>
+                                        {isMet ? "🎯" : isMoneyMetric(p.metric) ? fmt(remaining) : remaining}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <Progress value={Math.min(p.percentage, 100)} className="h-2" />
+                                    <p className={`text-xs font-medium text-right ${getProgressColor(p.percentage)}`}>
+                                      {p.percentage}%
+                                    </p>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
 
