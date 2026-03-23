@@ -60,6 +60,7 @@ export default function CRMMetas() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [importType, setImportType] = useState<"orcamento" | "pedido" | "faturamento" | null>(null);
 
   const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), "yyyy-MM-dd"));
   const [endDate, setEndDate] = useState(format(new Date(), "yyyy-MM-dd"));
@@ -68,6 +69,7 @@ export default function CRMMetas() {
   const [filterPeriod, setFilterPeriod] = useState("monthly");
   const [rankingGroupId, setRankingGroupId] = useState("all");
 
+  const qc = useQueryClient();
   const { data: goals, isLoading: loadingGoals } = useGoals();
   const { data: dashboard, isLoading: loadingDash } = useGoalDashboard({
     startDate, endDate,
@@ -79,6 +81,23 @@ export default function CRMMetas() {
   const { data: teamMembers } = useCRMMyTeam();
   const { data: groups } = useCRMGroups();
   const { createGoal, updateGoal, deleteGoal } = useGoalMutations();
+
+  // Goals data summary from imported spreadsheets
+  const { data: goalsData } = useQuery({
+    queryKey: ["crm-goals-data", startDate, endDate, filterUserId],
+    queryFn: () => {
+      const sp = new URLSearchParams();
+      sp.set("start_date", startDate);
+      sp.set("end_date", endDate);
+      if (filterUserId !== "all") sp.set("user_id", filterUserId);
+      return api<any>(`/api/crm/goals/data-summary?${sp.toString()}`);
+    },
+  });
+
+  const invalidateData = () => {
+    qc.invalidateQueries({ queryKey: ["crm-goals-data"] });
+    qc.invalidateQueries({ queryKey: ["crm-goals-dashboard"] });
+  };
 
   const [form, setForm] = useState({
     name: "", type: "individual" as "individual" | "group",
