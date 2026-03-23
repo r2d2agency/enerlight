@@ -536,7 +536,9 @@ router.get('/conversations', authenticate, async (req, res) => {
       }
 
       if (supportsAttendance) {
-        if (attendance_status === 'waiting') {
+        if (attendance_status === 'active') {
+          sql += ` AND (conv.attendance_status IN ('waiting', 'attending') OR conv.attendance_status IS NULL)`;
+        } else if (attendance_status === 'waiting') {
           sql += ` AND conv.attendance_status = 'waiting'`;
         } else if (attendance_status === 'attending') {
           sql += ` AND (conv.attendance_status = 'attending' OR conv.attendance_status IS NULL)`;

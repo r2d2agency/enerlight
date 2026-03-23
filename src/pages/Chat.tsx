@@ -90,7 +90,7 @@ const Chat = () => {
       archived: false,
       connection: savedConnection,
       is_group: false,
-      attendance_status: 'attending' as 'waiting' | 'attending' | 'finished',
+      attendance_status: 'active' as 'waiting' | 'attending' | 'finished' | 'active',
       department: 'all',
     };
   });
