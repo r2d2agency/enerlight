@@ -244,15 +244,15 @@ export default function CRMMetas() {
                   <Card className="border-l-4 border-l-blue-500">
                     <CardContent className="pt-4">
                       <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><FileText className="h-4 w-4" /> Orçamentos</div>
-                      <p className="text-2xl font-bold text-blue-600">{gd.orcamento.count}</p>
-                      <p className="text-xs text-muted-foreground">{fmt(gd.orcamento.value)}</p>
+                      <p className="text-2xl font-bold text-blue-600">{fmt(gd.orcamento.value)}</p>
+                      <p className="text-xs text-muted-foreground">{gd.orcamento.count} orçamentos</p>
                     </CardContent>
                   </Card>
                   <Card className="border-l-4 border-l-green-500">
                     <CardContent className="pt-4">
                       <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><ShoppingCart className="h-4 w-4" /> Pedidos</div>
-                      <p className="text-2xl font-bold text-green-600">{gd.pedido.count}</p>
-                      <p className="text-xs text-muted-foreground">{fmt(gd.pedido.value)}</p>
+                      <p className="text-2xl font-bold text-green-600">{fmt(gd.pedido.value)}</p>
+                      <p className="text-xs text-muted-foreground">{gd.pedido.count} pedidos</p>
                     </CardContent>
                   </Card>
                   <Card className="border-l-4 border-l-amber-500">
