@@ -6160,13 +6160,6 @@ function parseDateGoals(val) {
     return `${y}-${m}-${d}`;
   }
   if (typeof val === 'number') {
-    // Excel serial date
-    try {
-      const XLSX_PKG = await import('xlsx');
-      const dd = XLSX_PKG.default.SSF.parse_date_code(val);
-      if (dd) return `${dd.y}-${String(dd.m).padStart(2, '0')}-${String(dd.d).padStart(2, '0')}`;
-    } catch (_) {}
-    // Fallback: JS epoch
     const d = new Date((val - 25569) * 86400 * 1000);
     return d.toISOString().split('T')[0];
   }
