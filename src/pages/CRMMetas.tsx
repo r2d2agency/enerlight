@@ -70,6 +70,22 @@ export default function CRMMetas() {
   const [filterPeriod, setFilterPeriod] = useState("monthly");
   const [rankingGroupId, setRankingGroupId] = useState("all");
 
+  const handlePeriodChange = (period: string) => {
+    setFilterPeriod(period);
+    const now = new Date();
+    if (period === "daily") {
+      const today = format(now, "yyyy-MM-dd");
+      setStartDate(today);
+      setEndDate(today);
+    } else if (period === "weekly") {
+      setStartDate(format(startOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd"));
+      setEndDate(format(endOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd"));
+    } else {
+      setStartDate(format(startOfMonth(now), "yyyy-MM-dd"));
+      setEndDate(format(endOfMonth(now), "yyyy-MM-dd"));
+    }
+  };
+
   const qc = useQueryClient();
   const { data: goals, isLoading: loadingGoals } = useGoals();
   const { data: dashboard, isLoading: loadingDash } = useGoalDashboard({
