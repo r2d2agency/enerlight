@@ -335,6 +335,15 @@ export default function CRMMetas() {
                   );
                 })()}
 
+                {/* Daily Evolution Table */}
+                <DailyEvolutionTable
+                  startDate={startDate}
+                  endDate={endDate}
+                  filterUserId={filterUserId}
+                  filterChannel={filterChannel}
+                  filterGroupId={filterGroupId}
+                  goals={goals}
+                />
 
                 {dashboard?.progress && dashboard.progress.length > 0 && (
                   <div className="space-y-6">
