@@ -285,11 +285,15 @@ export default function CRMMetas() {
                       { key: "faturamento", label: "Faturamento", icon: <Receipt className="h-5 w-5 text-amber-500" />, metrics: ["billing_count", "billing_value"] },
                       { key: "outros", label: "Outros", icon: <Target className="h-5 w-5 text-purple-500" />, metrics: ["conversion_rate"] },
                     ].map(cat => {
-                      const allCatProgress = dashboard.progress.filter(p => cat.metrics.includes(p.metric));
-                      // Individual goals: only when a user is selected; General/channel: only when no user selected
-                      const catProgress = filterUserId !== "all"
-                        ? allCatProgress.filter(p => p.type === "individual")
-                        : allCatProgress.filter(p => p.type !== "individual");
+                       const allCatProgress = dashboard.progress.filter(p => cat.metrics.includes(p.metric));
+                       // Individual goals: only when a user is selected; General/channel: only when no user selected
+                       let catProgress = filterUserId !== "all"
+                         ? allCatProgress.filter(p => p.type === "individual")
+                         : allCatProgress.filter(p => p.type !== "individual");
+                       // Filter by selected channel
+                       if (filterChannel !== "all") {
+                         catProgress = catProgress.filter(p => p.target_channel === filterChannel);
+                       }
                       if (catProgress.length === 0) return null;
                       const geralProgress = catProgress.filter(p => !p.target_channel);
                       const channelProgress = catProgress.filter(p => !!p.target_channel);
