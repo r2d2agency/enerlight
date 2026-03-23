@@ -6400,4 +6400,42 @@ router.get('/goals/data-summary', async (req, res) => {
   }
 });
 
+// Daily breakdown for evolution table
+router.get('/goals/data-daily', async (req, res) => {
+  try {
+    await ensureGoalsDataTable();
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const { start_date, end_date, user_id, channel, group_id } = req.query;
+    const sd = start_date || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+    const ed = end_date || new Date().toISOString().split('T')[0];
+
+    const params = [org.organization_id, sd, ed];
+    let extraFilters = '';
+    if (user_id) { params.push(user_id); extraFilters += ` AND user_id = $${params.length}`; }
+    if (channel) { params.push(channel); extraFilters += ` AND channel = $${params.length}`; }
+    if (group_id) { params.push(group_id); extraFilters += ` AND client_group = $${params.length}`; }
+
+    const dateExpr = `CASE WHEN data_type = 'faturamento' THEN billing_date ELSE emission_date END`;
+    const baseWhere = `organization_id = $1 AND ${dateExpr} >= $2::date AND ${dateExpr} <= $3::date${extraFilters}`;
+
+    const daily = await query(
+      `SELECT data_type, (${dateExpr})::date as day, COUNT(*) as count, COALESCE(SUM(value),0) as total_value
+       FROM crm_goals_data WHERE ${baseWhere}
+       GROUP BY data_type, day ORDER BY day ASC`,
+      params
+    );
+
+    res.json(daily.rows.map(r => ({
+      data_type: r.data_type,
+      day: r.day,
+      count: parseInt(r.count),
+      total_value: parseFloat(r.total_value),
+    })));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
