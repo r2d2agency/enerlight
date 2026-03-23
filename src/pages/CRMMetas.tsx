@@ -579,48 +579,76 @@ export default function CRMMetas() {
                     return m ? m.group === cat.key : cat.key === "outros";
                   });
                   if (catGoals.length === 0) return null;
+                  const geralGoals = catGoals.filter(g => !(g as any).target_channel);
+                  const channelGoals = catGoals.filter(g => !!(g as any).target_channel);
+                  // Group channel goals by channel name
+                  const channelMap: Record<string, Goal[]> = {};
+                  channelGoals.forEach(g => {
+                    const ch = (g as any).target_channel || "Sem canal";
+                    if (!channelMap[ch]) channelMap[ch] = [];
+                    channelMap[ch].push(g);
+                  });
+                  const renderGoalCard = (g: Goal) => (
+                    <Card key={g.id} className={`border-l-4 ${cat.borderClass} ${!g.is_active ? "opacity-60" : ""}`}>
+                      <CardContent className="py-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-medium">{g.name}</p>
+                              <Badge variant={g.type === "individual" ? "default" : "secondary"}>
+                                {g.type === "individual" ? "Individual" : "Grupo"}
+                              </Badge>
+                              <Badge variant="outline">{metricLabel(g.metric)}</Badge>
+                              <Badge variant="outline">
+                                {g.period === "daily" ? "Diária" : g.period === "weekly" ? "Semanal" : "Mensal"}
+                              </Badge>
+                              {!g.is_active && <Badge variant="destructive">Inativa</Badge>}
+                            </div>
+                            <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
+                              <span>Meta: {isMoneyMetric(g.metric) ? fmt(g.target_value) : g.target_value}</span>
+                              {g.target_user_name && <span>👤 {g.target_user_name}</span>}
+                              {g.target_group_name && <span>👥 {g.target_group_name}</span>}
+                              {(g as any).target_channel && <span>📡 {(g as any).target_channel}</span>}
+                            </div>
+                          </div>
+                          {isAdmin && (
+                            <div className="flex gap-1 ml-4">
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(g)}>
+                                <Edit2 className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteConfirm(g.id)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
                   return (
                     <div key={cat.key} className="space-y-3">
                       <h3 className="text-lg font-semibold flex items-center gap-2">{cat.icon} {cat.label} <Badge variant="secondary">{catGoals.length}</Badge></h3>
-                      <div className="grid gap-3">
-                        {catGoals.map(g => (
-                          <Card key={g.id} className={`border-l-4 ${cat.borderClass} ${!g.is_active ? "opacity-60" : ""}`}>
-                            <CardContent className="py-4">
-                              <div className="flex items-center justify-between">
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <p className="font-medium">{g.name}</p>
-                                    <Badge variant={g.type === "individual" ? "default" : "secondary"}>
-                                      {g.type === "individual" ? "Individual" : "Grupo"}
-                                    </Badge>
-                                    <Badge variant="outline">{metricLabel(g.metric)}</Badge>
-                                    <Badge variant="outline">
-                                      {g.period === "daily" ? "Diária" : g.period === "weekly" ? "Semanal" : "Mensal"}
-                                    </Badge>
-                                    {!g.is_active && <Badge variant="destructive">Inativa</Badge>}
-                                  </div>
-                                  <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
-                                    <span>Meta: {isMoneyMetric(g.metric) ? fmt(g.target_value) : g.target_value}</span>
-                                    {g.target_user_name && <span>👤 {g.target_user_name}</span>}
-                                    {g.target_group_name && <span>👥 {g.target_group_name}</span>}
-                                    {(g as any).target_channel && <span>📡 {(g as any).target_channel}</span>}
-                                  </div>
-                                </div>
-                                {isAdmin && (
-                                  <div className="flex gap-1 ml-4">
-                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(g)}>
-                                      <Edit2 className="h-4 w-4" />
-                                    </Button>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteConfirm(g.id)}>
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                )}
+                      {geralGoals.length > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium text-muted-foreground flex items-center gap-1">🌐 Geral (todos os canais)</p>
+                          <div className="grid gap-3">
+                            {geralGoals.map(renderGoalCard)}
+                          </div>
+                        </div>
+                      )}
+                      {Object.keys(channelMap).length > 0 && (
+                        <div className="space-y-3 mt-2">
+                          <p className="text-sm font-medium text-muted-foreground flex items-center gap-1">📡 Por Canal</p>
+                          {Object.entries(channelMap).map(([ch, chGoals]) => (
+                            <div key={ch} className="space-y-2 pl-4 border-l-2 border-muted">
+                              <p className="text-sm font-semibold">{ch}</p>
+                              <div className="grid gap-3">
+                                {chGoals.map(renderGoalCard)}
                               </div>
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
