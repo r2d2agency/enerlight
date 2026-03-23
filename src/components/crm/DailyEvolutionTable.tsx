@@ -79,11 +79,15 @@ export function DailyEvolutionTable({ startDate, endDate, filterUserId, filterCh
   const getMonthlyGoalValue = (dataType: keyof typeof TYPE_CONFIG): number => {
     if (!goals) return 0;
     const cfg = TYPE_CONFIG[dataType];
-    const matching = goals.filter(g => 
-      (g.metric === cfg.metricValue) && g.is_active
-    );
-    return matching.reduce((s, g) => s + g.target_value, 0);
+    // Prefer group/team goals (type !== 'individual')
+    const groupGoals = goals.filter(g => g.metric === cfg.metricValue && g.is_active && g.type !== "individual");
+    if (groupGoals.length > 0) return groupGoals.reduce((s, g) => s + g.target_value, 0);
+    // Fallback to any matching goal
+    const allMatching = goals.filter(g => g.metric === cfg.metricValue && g.is_active);
+    return allMatching.reduce((s, g) => s + g.target_value, 0);
   };
+
+  const monthBizDays = countBusinessDaysInMonth();
 
   const renderTable = (dataType: keyof typeof TYPE_CONFIG) => {
     const cfg = TYPE_CONFIG[dataType];
@@ -93,7 +97,7 @@ export function DailyEvolutionTable({ startDate, endDate, filterUserId, filterCh
     typeData.forEach(r => { dayMap[r.day?.split("T")[0]] = r; });
 
     const monthlyGoal = getMonthlyGoalValue(dataType);
-    const dailyGoal = businessDays > 0 ? monthlyGoal / businessDays : 0;
+    const dailyGoal = monthBizDays > 0 ? monthlyGoal / monthBizDays : 0;
 
     let accValue = 0;
     let accCount = 0;
