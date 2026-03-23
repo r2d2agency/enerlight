@@ -4775,11 +4775,11 @@ router.put('/goals/:id', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org || !['owner', 'admin'].includes(org.role)) return res.status(403).json({ error: 'Permission denied' });
 
-    const { name, type, target_user_id, target_group_id, metric, target_value, period, start_date, end_date, is_active } = req.body;
+    const { name, type, target_user_id, target_group_id, target_channel, metric, target_value, period, start_date, end_date, is_active } = req.body;
     const result = await query(
-      `UPDATE crm_goals SET name=$1, type=$2, target_user_id=$3, target_group_id=$4, metric=$5, target_value=$6, period=$7, start_date=$8, end_date=$9, is_active=$10, updated_at=NOW()
-       WHERE id=$11 AND organization_id=$12 RETURNING *`,
-      [name, type, target_user_id || null, target_group_id || null, metric, target_value, period, start_date, end_date || null, is_active !== false, req.params.id, org.organization_id]
+      `UPDATE crm_goals SET name=$1, type=$2, target_user_id=$3, target_group_id=$4, target_channel=$5, metric=$6, target_value=$7, period=$8, start_date=$9, end_date=$10, is_active=$11, updated_at=NOW()
+       WHERE id=$12 AND organization_id=$13 RETURNING *`,
+      [name, type, target_user_id || null, target_group_id || null, target_channel || null, metric, target_value, period, start_date, end_date || null, is_active !== false, req.params.id, org.organization_id]
     );
     res.json(result.rows[0]);
   } catch (error) {
