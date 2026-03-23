@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, FileText, ShoppingCart, Receipt } from "lucide-react";
-import { format, eachDayOfInterval, parseISO, isWeekend, getDay } from "date-fns";
+import { format, eachDayOfInterval, parseISO, isWeekend, getDay, endOfMonth, isAfter, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Goal } from "@/hooks/use-goals";
 
