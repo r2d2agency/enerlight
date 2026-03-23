@@ -208,6 +208,24 @@ export default function CRMMetas() {
                 {teamMembers?.map(m => <SelectItem key={m.user_id} value={m.user_id}>{m.name}</SelectItem>)}
               </SelectContent>
             </Select>
+            <Select value={filterChannel} onValueChange={setFilterChannel}>
+              <SelectTrigger className="w-[180px]"><SelectValue placeholder="Todos canais" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos canais</SelectItem>
+                {availableChannels?.map(ch => (
+                  <SelectItem key={ch} value={ch}>{ch}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {groups && groups.length > 0 && (
+              <Select value={filterGroupId} onValueChange={setFilterGroupId}>
+                <SelectTrigger className="w-[180px]"><SelectValue placeholder="Todos grupos" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos grupos</SelectItem>
+                  {groups.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            )}
             <Select value={filterPeriod} onValueChange={setFilterPeriod}>
               <SelectTrigger className="w-[130px]"><SelectValue /></SelectTrigger>
               <SelectContent>
