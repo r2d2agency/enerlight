@@ -29,7 +29,7 @@ import {
   Briefcase, DollarSign, CalendarDays, Loader2, BarChart3,
   Trophy, Medal, Award, FileText, ShoppingCart, Receipt,
 } from "lucide-react";
-import { format, startOfMonth } from "date-fns";
+import { format, startOfMonth, startOfWeek, endOfWeek, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 const METRICS = [
@@ -69,6 +69,22 @@ export default function CRMMetas() {
   const [filterChannel, setFilterChannel] = useState("all");
   const [filterPeriod, setFilterPeriod] = useState("monthly");
   const [rankingGroupId, setRankingGroupId] = useState("all");
+
+  const handlePeriodChange = (period: string) => {
+    setFilterPeriod(period);
+    const now = new Date();
+    if (period === "daily") {
+      const today = format(now, "yyyy-MM-dd");
+      setStartDate(today);
+      setEndDate(today);
+    } else if (period === "weekly") {
+      setStartDate(format(startOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd"));
+      setEndDate(format(endOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd"));
+    } else {
+      setStartDate(format(startOfMonth(now), "yyyy-MM-dd"));
+      setEndDate(format(endOfMonth(now), "yyyy-MM-dd"));
+    }
+  };
 
   const qc = useQueryClient();
   const { data: goals, isLoading: loadingGoals } = useGoals();
@@ -228,7 +244,7 @@ export default function CRMMetas() {
                 </SelectContent>
               </Select>
             )}
-            <Select value={filterPeriod} onValueChange={setFilterPeriod}>
+            <Select value={filterPeriod} onValueChange={handlePeriodChange}>
               <SelectTrigger className="w-[130px]"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="daily">Diário</SelectItem>
