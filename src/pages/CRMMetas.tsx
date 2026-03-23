@@ -699,8 +699,8 @@ export default function CRMMetas() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
                               <p className="font-medium">{g.name}</p>
-                              <Badge variant={g.type === "individual" ? "default" : "secondary"}>
-                                {g.type === "individual" ? "Individual" : "Grupo"}
+                              <Badge variant={g.type === "geral" ? "default" : g.type === "individual" ? "outline" : "secondary"}>
+                                {g.type === "geral" ? "Geral" : g.type === "individual" ? "Individual" : "Grupo"}
                               </Badge>
                               <Badge variant="outline">{metricLabel(g.metric)}</Badge>
                               <Badge variant="outline">
