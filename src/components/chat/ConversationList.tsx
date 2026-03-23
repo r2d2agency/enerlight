@@ -81,7 +81,7 @@ interface ConversationListProps {
     archived: boolean;
     connection: string;
     is_group: boolean;
-    attendance_status: 'waiting' | 'attending' | 'finished';
+    attendance_status: 'waiting' | 'attending' | 'finished' | 'active';
     department: string;
   };
   onFiltersChange: (filters: {
