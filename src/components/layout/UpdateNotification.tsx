@@ -35,7 +35,7 @@ export function UpdateNotification() {
             Uma nova versão do sistema está pronta para ser instalada.
           </p>
           <div className="flex gap-2 mt-3">
-            <Button size="sm" onClick={() => updateServiceWorker(true)} className="h-8 text-xs">
+            <Button size="sm" onClick={() => { updateServiceWorker(true).then(() => { window.location.reload(); }).catch(() => { window.location.reload(); }); }} className="h-8 text-xs">
               <RefreshCw className="h-3 w-3 mr-1" /> Atualizar agora
             </Button>
             <Button size="sm" variant="ghost" onClick={() => setNeedRefresh(false)} className="h-8 text-xs">
