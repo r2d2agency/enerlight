@@ -81,7 +81,7 @@ interface ConversationListProps {
     archived: boolean;
     connection: string;
     is_group: boolean;
-    attendance_status: 'waiting' | 'attending' | 'finished';
+    attendance_status: 'waiting' | 'attending' | 'finished' | 'active';
     department: string;
   };
   onFiltersChange: (filters: {
@@ -91,7 +91,7 @@ interface ConversationListProps {
     archived: boolean;
     connection: string;
     is_group: boolean;
-    attendance_status: 'waiting' | 'attending' | 'finished';
+    attendance_status: 'waiting' | 'attending' | 'finished' | 'active';
     department: string;
   }) => void;
   isAdmin?: boolean;
@@ -417,6 +417,25 @@ export function ConversationList({
 
         {/* Attendance Status Tabs - Icons with labels below */}
         <div className="flex gap-1 bg-muted/50 p-1 rounded-lg">
+          <button
+            onClick={() => onFiltersChange({ ...filters, attendance_status: 'active' })}
+            className={cn(
+              "flex-1 flex flex-col items-center justify-center gap-0.5 px-2 py-2 rounded-md text-xs font-medium transition-colors",
+              filters.attendance_status === 'active'
+                ? "bg-background shadow-sm text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <div className="relative">
+              <MessageSquare className="h-4 w-4" />
+              {attendanceCounts && (attendanceCounts.attending + attendanceCounts.waiting) > 0 && (
+                <Badge variant="secondary" className="absolute -top-2 -right-3 h-4 min-w-4 px-1 text-[9px] font-bold">
+                  {attendanceCounts.attending + attendanceCounts.waiting}
+                </Badge>
+              )}
+            </div>
+            <span className="text-[10px] mt-1">Todas</span>
+          </button>
           <button
             onClick={() => onFiltersChange({ ...filters, attendance_status: 'attending' })}
             className={cn(
