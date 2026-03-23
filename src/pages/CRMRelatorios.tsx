@@ -280,19 +280,15 @@ export default function CRMRelatorios() {
           </div>
         ) : (
           <>
-            {/* KPI Cards - Row 1: Orçamentos, Pedidos, Faturamento */}
+            {/* KPI Cards - Row 1: Orçamentos, Pedidos, Faturamento (from imported spreadsheets) */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Card className="border-blue-200 dark:border-blue-800">
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-muted-foreground">Orçamentos no Mês</p>
-                      <p className="text-2xl font-bold text-blue-600">{summary.quotes?.total || 0}</p>
-                      <p className="text-sm text-blue-600">{formatCurrency(summary.quotes?.totalValue || 0)}</p>
-                      <div className="flex gap-2 text-xs mt-0.5">
-                        <span className="text-green-600">{summary.quotes?.won || 0} confirmados</span>
-                        <span className="text-muted-foreground">{summary.quotes?.open || 0} abertos</span>
-                      </div>
+                      <p className="text-sm text-muted-foreground">Orçamentos</p>
+                      <p className="text-2xl font-bold text-blue-600">{formatCurrency(gd.orcamento.value)}</p>
+                      <p className="text-sm text-muted-foreground">{gd.orcamento.count} orçamentos</p>
                     </div>
                     <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center">
                       <FileSpreadsheet className="h-6 w-6 text-blue-600" />
@@ -305,12 +301,12 @@ export default function CRMRelatorios() {
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-muted-foreground">Pedidos no Mês</p>
-                      <p className="text-2xl font-bold text-green-600">{summary.quotes?.won || 0}</p>
-                      <p className="text-sm text-green-600">{formatCurrency(summary.quotes?.wonValue || 0)}</p>
+                      <p className="text-sm text-muted-foreground">Pedidos</p>
+                      <p className="text-2xl font-bold text-green-600">{formatCurrency(gd.pedido.value)}</p>
+                      <p className="text-sm text-muted-foreground">{gd.pedido.count} pedidos</p>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        {(summary.quotes?.total || 0) > 0
-                          ? `${(((summary.quotes?.won || 0) / (summary.quotes?.total || 1)) * 100).toFixed(0)}% conversão`
+                        {gd.orcamento.count > 0
+                          ? `${((gd.pedido.count / gd.orcamento.count) * 100).toFixed(0)}% conversão`
                           : "—"}
                       </p>
                     </div>
@@ -325,9 +321,9 @@ export default function CRMRelatorios() {
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-muted-foreground">Faturamento ERP</p>
-                      <p className="text-2xl font-bold text-amber-600">{formatCurrency(billingSummary?.total?.value || 0)}</p>
-                      <p className="text-sm text-muted-foreground">{billingSummary?.total?.orders || 0} pedidos</p>
+                      <p className="text-sm text-muted-foreground">Faturamento</p>
+                      <p className="text-2xl font-bold text-amber-600">{formatCurrency(gd.faturamento.value)}</p>
+                      <p className="text-sm text-muted-foreground">{gd.faturamento.count} notas</p>
                     </div>
                     <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center">
                       <DollarSign className="h-6 w-6 text-amber-600" />
