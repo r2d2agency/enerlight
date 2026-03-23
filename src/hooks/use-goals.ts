@@ -28,8 +28,11 @@ export interface GoalProgress {
   percentage: number;
   type: string;
   period: string;
+  remaining: number;
+  is_met: boolean;
   target_user_name?: string;
   target_group_name?: string;
+  target_channel?: string;
 }
 
 export interface SellerRanking {
