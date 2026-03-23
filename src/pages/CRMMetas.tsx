@@ -114,7 +114,7 @@ export default function CRMMetas() {
 
   const openCreate = () => {
     setEditingGoal(null);
-    setForm({ name: "", type: "individual", target_user_id: "", target_group_id: "", metric: "quotes_count", target_value: "", period: "monthly", start_date: format(new Date(), "yyyy-MM-dd"), end_date: "" });
+    setForm({ name: "", type: "individual", target_user_id: "", target_group_id: "", target_channel: "", metric: "quotes_count", target_value: "", period: "monthly", start_date: format(new Date(), "yyyy-MM-dd"), end_date: "" });
     setFormOpen(true);
   };
 
