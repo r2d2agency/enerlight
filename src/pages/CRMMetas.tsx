@@ -830,18 +830,20 @@ export default function CRMMetas() {
                 </Select>
               </div>
             )}
-            <div className="space-y-2">
-              <Label>Canal (opcional)</Label>
-              <Select value={form.target_channel || "all"} onValueChange={v => setForm(f => ({ ...f, target_channel: v === "all" ? "" : v }))}>
-                <SelectTrigger><SelectValue placeholder="Todos os canais" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os canais</SelectItem>
-                  {availableChannels?.map(ch => (
-                    <SelectItem key={ch} value={ch}>{ch}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {form.type !== "geral" && (
+              <div className="space-y-2">
+                <Label>Canal (opcional)</Label>
+                <Select value={form.target_channel || "all"} onValueChange={v => setForm(f => ({ ...f, target_channel: v === "all" ? "" : v }))}>
+                  <SelectTrigger><SelectValue placeholder="Todos os canais" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os canais</SelectItem>
+                    {availableChannels?.map(ch => (
+                      <SelectItem key={ch} value={ch}>{ch}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Valor da Meta *</Label>
