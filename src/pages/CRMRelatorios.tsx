@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -37,6 +38,7 @@ import {
 import { useCRMFunnels, useCRMMyTeam } from "@/hooks/use-crm";
 import { useERPBillingSummary, useERPBillingRecords, useERPBillingMutations } from "@/hooks/use-erp-billing";
 import { ERPBillingImportDialog } from "@/components/crm/ERPBillingImportDialog";
+import { api } from "@/lib/api";
 import {
   CalendarIcon,
   TrendingUp,
@@ -135,6 +137,18 @@ export default function CRMRelatorios() {
     selectedFunnel !== "all" ? selectedFunnel : undefined
   );
 
+  // Imported spreadsheet data (same source as Metas)
+  const { data: goalsData } = useQuery({
+    queryKey: ["crm-goals-data", dateRange?.from?.toISOString().split("T")[0], dateRange?.to?.toISOString().split("T")[0], filterUserId],
+    queryFn: () => {
+      const sp = new URLSearchParams();
+      if (dateRange?.from) sp.set("start_date", dateRange.from.toISOString().split("T")[0]);
+      if (dateRange?.to) sp.set("end_date", dateRange.to.toISOString().split("T")[0]);
+      if (filterUserId !== "all") sp.set("user_id", filterUserId);
+      return api<any>(`/api/crm/goals/data-summary?${sp.toString()}`);
+    },
+  });
+  const gd = goalsData?.summary || { orcamento: { count: 0, value: 0 }, pedido: { count: 0, value: 0 }, faturamento: { count: 0, value: 0 } };
   const handlePreset = (days: number) => {
     setDateRange({
       from: subDays(new Date(), days - 1),
@@ -266,19 +280,15 @@ export default function CRMRelatorios() {
           </div>
         ) : (
           <>
-            {/* KPI Cards - Row 1: Orçamentos, Pedidos, Faturamento */}
+            {/* KPI Cards - Row 1: Orçamentos, Pedidos, Faturamento (from imported spreadsheets) */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Card className="border-blue-200 dark:border-blue-800">
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-muted-foreground">Orçamentos no Mês</p>
-                      <p className="text-2xl font-bold text-blue-600">{summary.quotes?.total || 0}</p>
-                      <p className="text-sm text-blue-600">{formatCurrency(summary.quotes?.totalValue || 0)}</p>
-                      <div className="flex gap-2 text-xs mt-0.5">
-                        <span className="text-green-600">{summary.quotes?.won || 0} confirmados</span>
-                        <span className="text-muted-foreground">{summary.quotes?.open || 0} abertos</span>
-                      </div>
+                      <p className="text-sm text-muted-foreground">Orçamentos</p>
+                      <p className="text-2xl font-bold text-blue-600">{formatCurrency(gd.orcamento.value)}</p>
+                      <p className="text-sm text-muted-foreground">{gd.orcamento.count} orçamentos</p>
                     </div>
                     <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center">
                       <FileSpreadsheet className="h-6 w-6 text-blue-600" />
@@ -291,12 +301,12 @@ export default function CRMRelatorios() {
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-muted-foreground">Pedidos no Mês</p>
-                      <p className="text-2xl font-bold text-green-600">{summary.quotes?.won || 0}</p>
-                      <p className="text-sm text-green-600">{formatCurrency(summary.quotes?.wonValue || 0)}</p>
+                      <p className="text-sm text-muted-foreground">Pedidos</p>
+                      <p className="text-2xl font-bold text-green-600">{formatCurrency(gd.pedido.value)}</p>
+                      <p className="text-sm text-muted-foreground">{gd.pedido.count} pedidos</p>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        {(summary.quotes?.total || 0) > 0
-                          ? `${(((summary.quotes?.won || 0) / (summary.quotes?.total || 1)) * 100).toFixed(0)}% conversão`
+                        {gd.orcamento.count > 0
+                          ? `${((gd.pedido.count / gd.orcamento.count) * 100).toFixed(0)}% conversão`
                           : "—"}
                       </p>
                     </div>
@@ -311,9 +321,9 @@ export default function CRMRelatorios() {
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-muted-foreground">Faturamento ERP</p>
-                      <p className="text-2xl font-bold text-amber-600">{formatCurrency(billingSummary?.total?.value || 0)}</p>
-                      <p className="text-sm text-muted-foreground">{billingSummary?.total?.orders || 0} pedidos</p>
+                      <p className="text-sm text-muted-foreground">Faturamento</p>
+                      <p className="text-2xl font-bold text-amber-600">{formatCurrency(gd.faturamento.value)}</p>
+                      <p className="text-sm text-muted-foreground">{gd.faturamento.count} notas</p>
                     </div>
                     <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center">
                       <DollarSign className="h-6 w-6 text-amber-600" />
@@ -354,22 +364,22 @@ export default function CRMRelatorios() {
               </Card>
             </div>
 
-            {/* Sales Funnel Visualization */}
-            {salesData?.salesFunnel && (
+            {/* Sales Funnel Visualization - from imported spreadsheets */}
+            {(gd.orcamento.count > 0 || gd.pedido.count > 0 || gd.faturamento.count > 0) && (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <FilterIcon className="h-5 w-5" />
                     Funil de Vendas
                   </CardTitle>
-                  <CardDescription>Negociações → Orçamentos → Pedidos (Vendas)</CardDescription>
+                  <CardDescription>Orçamentos → Pedidos → Faturamento</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
                     {[
-                      { label: "Negociações (Prospects)", count: salesData.salesFunnel.deals.count, value: salesData.salesFunnel.deals.value, color: "hsl(var(--primary))", pct: 100 },
-                      { label: "Orçamentos (Qualificados)", count: salesData.salesFunnel.quotes.count, value: salesData.salesFunnel.quotes.value, color: "#3b82f6", pct: salesData.salesFunnel.deals.count > 0 ? (salesData.salesFunnel.quotes.count / salesData.salesFunnel.deals.count) * 100 : 0 },
-                      { label: "Pedidos (Vendas)", count: salesData.salesFunnel.orders.count, value: salesData.salesFunnel.orders.value, color: "#22c55e", pct: salesData.salesFunnel.deals.count > 0 ? (salesData.salesFunnel.orders.count / salesData.salesFunnel.deals.count) * 100 : 0 },
+                      { label: "Orçamentos", count: gd.orcamento.count, value: gd.orcamento.value, color: "#3b82f6", pct: 100 },
+                      { label: "Pedidos", count: gd.pedido.count, value: gd.pedido.value, color: "#22c55e", pct: gd.orcamento.count > 0 ? (gd.pedido.count / gd.orcamento.count) * 100 : 0 },
+                      { label: "Faturamento", count: gd.faturamento.count, value: gd.faturamento.value, color: "#f59e0b", pct: gd.orcamento.count > 0 ? (gd.faturamento.count / gd.orcamento.count) * 100 : 0 },
                     ].map((step, i) => (
                       <div key={i} className="space-y-1">
                         <div className="flex items-center justify-between text-sm">
