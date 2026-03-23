@@ -364,22 +364,22 @@ export default function CRMRelatorios() {
               </Card>
             </div>
 
-            {/* Sales Funnel Visualization */}
-            {salesData?.salesFunnel && (
+            {/* Sales Funnel Visualization - from imported spreadsheets */}
+            {(gd.orcamento.count > 0 || gd.pedido.count > 0 || gd.faturamento.count > 0) && (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <FilterIcon className="h-5 w-5" />
                     Funil de Vendas
                   </CardTitle>
-                  <CardDescription>Negociações → Orçamentos → Pedidos (Vendas)</CardDescription>
+                  <CardDescription>Orçamentos → Pedidos → Faturamento</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
                     {[
-                      { label: "Negociações (Prospects)", count: salesData.salesFunnel.deals.count, value: salesData.salesFunnel.deals.value, color: "hsl(var(--primary))", pct: 100 },
-                      { label: "Orçamentos (Qualificados)", count: salesData.salesFunnel.quotes.count, value: salesData.salesFunnel.quotes.value, color: "#3b82f6", pct: salesData.salesFunnel.deals.count > 0 ? (salesData.salesFunnel.quotes.count / salesData.salesFunnel.deals.count) * 100 : 0 },
-                      { label: "Pedidos (Vendas)", count: salesData.salesFunnel.orders.count, value: salesData.salesFunnel.orders.value, color: "#22c55e", pct: salesData.salesFunnel.deals.count > 0 ? (salesData.salesFunnel.orders.count / salesData.salesFunnel.deals.count) * 100 : 0 },
+                      { label: "Orçamentos", count: gd.orcamento.count, value: gd.orcamento.value, color: "#3b82f6", pct: 100 },
+                      { label: "Pedidos", count: gd.pedido.count, value: gd.pedido.value, color: "#22c55e", pct: gd.orcamento.count > 0 ? (gd.pedido.count / gd.orcamento.count) * 100 : 0 },
+                      { label: "Faturamento", count: gd.faturamento.count, value: gd.faturamento.value, color: "#f59e0b", pct: gd.orcamento.count > 0 ? (gd.faturamento.count / gd.orcamento.count) * 100 : 0 },
                     ].map((step, i) => (
                       <div key={i} className="space-y-1">
                         <div className="flex items-center justify-between text-sm">
