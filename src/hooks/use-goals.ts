@@ -9,6 +9,7 @@ export interface Goal {
   target_user_name?: string;
   target_group_id?: string;
   target_group_name?: string;
+  target_channel?: string;
   metric: string;
   target_value: number;
   period: 'daily' | 'weekly' | 'monthly';
