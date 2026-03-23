@@ -6102,4 +6102,272 @@ router.delete('/deal-attachments/:id', async (req, res) => {
   }
 });
 
+// ============================================
+// GOALS DATA IMPORT (3 types: orcamentos, pedidos, faturamento)
+// ============================================
+
+async function ensureGoalsDataTable() {
+  try {
+    await query(`CREATE TABLE IF NOT EXISTS crm_goals_data (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      data_type VARCHAR(20) NOT NULL, -- 'orcamento', 'pedido', 'faturamento'
+      number VARCHAR(50),
+      status VARCHAR(100),
+      client_name VARCHAR(500),
+      value NUMERIC(15,2) DEFAULT 0,
+      seller_name VARCHAR(255),
+      user_id UUID REFERENCES users(id),
+      channel VARCHAR(255),
+      client_group VARCHAR(255),
+      state VARCHAR(10),
+      city VARCHAR(255),
+      emission_date DATE,
+      delivery_date DATE,
+      billing_date DATE,
+      margin NUMERIC(10,2),
+      observation TEXT,
+      order_number VARCHAR(100),
+      batch_id UUID,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_goals_data_org ON crm_goals_data(organization_id)`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_goals_data_type ON crm_goals_data(data_type)`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_goals_data_date ON crm_goals_data(emission_date)`);
+  } catch (_) {}
+}
+
+// Seller name mapping table
+async function ensureGoalsSellerMapping() {
+  try {
+    await query(`CREATE TABLE IF NOT EXISTS crm_goals_seller_mapping (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      seller_name VARCHAR(255) NOT NULL,
+      user_id UUID NOT NULL REFERENCES users(id),
+      UNIQUE(organization_id, seller_name)
+    )`);
+  } catch (_) {}
+}
+
+function parseDateGoals(val) {
+  if (!val) return null;
+  if (val instanceof Date) {
+    const y = val.getFullYear();
+    const m = String(val.getMonth() + 1).padStart(2, '0');
+    const d = String(val.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  if (typeof val === 'number') {
+    // Excel serial date
+    try {
+      const XLSX_PKG = await import('xlsx');
+      const dd = XLSX_PKG.default.SSF.parse_date_code(val);
+      if (dd) return `${dd.y}-${String(dd.m).padStart(2, '0')}-${String(dd.d).padStart(2, '0')}`;
+    } catch (_) {}
+    // Fallback: JS epoch
+    const d = new Date((val - 25569) * 86400 * 1000);
+    return d.toISOString().split('T')[0];
+  }
+  const s = String(val).trim();
+  const mdy = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if (mdy) {
+    let y = parseInt(mdy[3]);
+    if (y < 100) y += 2000;
+    return `${y}-${String(parseInt(mdy[1])).padStart(2, '0')}-${String(parseInt(mdy[2])).padStart(2, '0')}`;
+  }
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10);
+  const dmy = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (dmy) return `${dmy[3]}-${dmy[2]}-${dmy[1]}`;
+  return null;
+}
+
+function parseValue(val) {
+  if (!val) return 0;
+  if (typeof val === 'number') return val;
+  const s = String(val).replace(/[R$\s]/g, '').replace(/\./g, '').replace(',', '.');
+  return parseFloat(s) || 0;
+}
+
+function parseMargin(val) {
+  if (!val) return null;
+  if (typeof val === 'number') return val * 100; // 0.5443 -> 54.43
+  const s = String(val).replace('%', '').replace(',', '.').trim();
+  return parseFloat(s) || null;
+}
+
+function normalizeHeader(h) {
+  return String(h || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '').trim();
+}
+
+// Preview import
+router.post('/goals/import/preview', async (req, res) => {
+  try {
+    await ensureGoalsDataTable();
+    await ensureGoalsSellerMapping();
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const { rows: rawRows, dataType } = req.body; // dataType: 'orcamento' | 'pedido' | 'faturamento'
+
+    // Get existing seller mappings
+    const mappingsResult = await query(
+      `SELECT sm.seller_name, sm.user_id, u.name as user_name 
+       FROM crm_goals_seller_mapping sm JOIN users u ON u.id = sm.user_id 
+       WHERE sm.organization_id = $1`, [org.organization_id]
+    );
+
+    // Get org users
+    const usersResult = await query(
+      `SELECT u.id, u.name FROM users u JOIN organization_members om ON om.user_id = u.id 
+       WHERE om.organization_id = $1 ORDER BY u.name`, [org.organization_id]
+    );
+
+    // Extract unique sellers
+    const sellers = [...new Set(rawRows.map(r => r.seller_name).filter(Boolean))];
+
+    res.json({
+      rowCount: rawRows.length,
+      totalValue: rawRows.reduce((s, r) => s + (r.value || 0), 0),
+      sellers,
+      existingMappings: mappingsResult.rows,
+      orgUsers: usersResult.rows,
+      dataType,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Import data
+router.post('/goals/import', async (req, res) => {
+  try {
+    await ensureGoalsDataTable();
+    await ensureGoalsSellerMapping();
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const { rows, sellerMapping, dataType } = req.body;
+    const batchId = crypto.randomUUID();
+    let imported = 0, skipped = 0;
+
+    // Save seller mappings
+    for (const [sellerName, userId] of Object.entries(sellerMapping || {})) {
+      if (!userId) continue;
+      await query(
+        `INSERT INTO crm_goals_seller_mapping (organization_id, seller_name, user_id)
+         VALUES ($1, $2, $3) ON CONFLICT (organization_id, seller_name) DO UPDATE SET user_id = $3`,
+        [org.organization_id, sellerName, userId]
+      );
+    }
+
+    for (const row of rows) {
+      try {
+        const userId = sellerMapping?.[row.seller_name] || null;
+        await query(
+          `INSERT INTO crm_goals_data 
+           (organization_id, data_type, number, status, client_name, value, seller_name, user_id, channel, client_group, state, city, emission_date, delivery_date, billing_date, margin, observation, order_number, batch_id)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
+          [org.organization_id, dataType, row.number, row.status, row.client_name, row.value || 0,
+           row.seller_name, userId, row.channel, row.client_group, row.state, row.city,
+           row.emission_date, row.delivery_date, row.billing_date, row.margin, row.observation, row.order_number, batchId]
+        );
+        imported++;
+      } catch (_) { skipped++; }
+    }
+
+    res.json({ imported, skipped, batchId });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get import batches
+router.get('/goals/import/batches', async (req, res) => {
+  try {
+    await ensureGoalsDataTable();
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const result = await query(
+      `SELECT batch_id, data_type, COUNT(*) as row_count, COALESCE(SUM(value),0) as total_value, MIN(created_at) as created_at
+       FROM crm_goals_data WHERE organization_id = $1 AND batch_id IS NOT NULL
+       GROUP BY batch_id, data_type ORDER BY created_at DESC`,
+      [org.organization_id]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete a batch
+router.delete('/goals/import/batch/:batchId', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+    await query(`DELETE FROM crm_goals_data WHERE batch_id = $1 AND organization_id = $2`, [req.params.batchId, org.organization_id]);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Goals data summary (used by dashboard)
+router.get('/goals/data-summary', async (req, res) => {
+  try {
+    await ensureGoalsDataTable();
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const { start_date, end_date, user_id } = req.query;
+    const sd = start_date || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+    const ed = end_date || new Date().toISOString().split('T')[0];
+
+    const params = [org.organization_id, sd, ed];
+    let userFilter = '';
+    if (user_id) {
+      params.push(user_id);
+      userFilter = ` AND user_id = $${params.length}`;
+    }
+
+    // Summary by type
+    const summary = await query(
+      `SELECT data_type, COUNT(*) as count, COALESCE(SUM(value),0) as total_value
+       FROM crm_goals_data WHERE organization_id = $1 AND emission_date >= $2::date AND emission_date <= $3::date${userFilter}
+       GROUP BY data_type`,
+      params
+    );
+
+    // By channel
+    const byChannel = await query(
+      `SELECT data_type, COALESCE(channel, 'Sem Canal') as channel, COUNT(*) as count, COALESCE(SUM(value),0) as total_value
+       FROM crm_goals_data WHERE organization_id = $1 AND emission_date >= $2::date AND emission_date <= $3::date${userFilter}
+       GROUP BY data_type, channel ORDER BY total_value DESC`,
+      params
+    );
+
+    // By seller
+    const bySeller = await query(
+      `SELECT data_type, COALESCE(seller_name, 'Sem Vendedor') as seller_name, user_id, COUNT(*) as count, COALESCE(SUM(value),0) as total_value
+       FROM crm_goals_data WHERE organization_id = $1 AND emission_date >= $2::date AND emission_date <= $3::date${userFilter}
+       GROUP BY data_type, seller_name, user_id ORDER BY total_value DESC`,
+      params
+    );
+
+    const result = { orcamento: { count: 0, value: 0 }, pedido: { count: 0, value: 0 }, faturamento: { count: 0, value: 0 } };
+    for (const row of summary.rows) {
+      result[row.data_type] = { count: parseInt(row.count), value: parseFloat(row.total_value) };
+    }
+
+    res.json({
+      summary: result,
+      byChannel: byChannel.rows.map(r => ({ ...r, count: parseInt(r.count), total_value: parseFloat(r.total_value) })),
+      bySeller: bySeller.rows.map(r => ({ ...r, count: parseInt(r.count), total_value: parseFloat(r.total_value) })),
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
