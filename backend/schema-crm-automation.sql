@@ -5,7 +5,7 @@
 -- AUTOMAÇÃO DE ETAPAS
 -- ============================================
 
--- Configuração de automação por etapa do funil
+-- Configuração de automação por etapa do funil (múltiplos fluxos por etapa)
 CREATE TABLE IF NOT EXISTS crm_stage_automations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     stage_id UUID REFERENCES crm_stages(id) ON DELETE CASCADE NOT NULL,
@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS crm_stage_automations (
     -- Configurações
     is_active BOOLEAN DEFAULT true,
     execute_immediately BOOLEAN DEFAULT true, -- Dispara fluxo ao entrar na etapa
+    position INTEGER DEFAULT 0, -- Ordem de execução dos fluxos na etapa
     
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -95,10 +96,26 @@ CREATE INDEX IF NOT EXISTS idx_crm_automation_logs_deal ON crm_automation_logs(d
 CREATE INDEX IF NOT EXISTS idx_crm_automation_logs_automation ON crm_automation_logs(deal_automation_id);
 
 -- ============================================
+-- MIGRATION: Add position column if not exists
+-- ============================================
+ALTER TABLE crm_stage_automations ADD COLUMN IF NOT EXISTS position INTEGER DEFAULT 0;
+
+-- Drop unique constraint on stage_id if it exists (allow multiple per stage)
+DO $$ BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_constraint 
+    WHERE conname = 'crm_stage_automations_stage_id_key' 
+    OR conname = 'unique_stage_automation'
+  ) THEN
+    ALTER TABLE crm_stage_automations DROP CONSTRAINT IF EXISTS crm_stage_automations_stage_id_key;
+    ALTER TABLE crm_stage_automations DROP CONSTRAINT IF EXISTS unique_stage_automation;
+  END IF;
+END $$;
+
+-- ============================================
 -- TRIGGERS
 -- ============================================
 
--- Trigger para atualizar updated_at
 CREATE OR REPLACE FUNCTION update_crm_automation_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
