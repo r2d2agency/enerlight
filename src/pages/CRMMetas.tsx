@@ -339,6 +339,19 @@ export default function CRMMetas() {
                     return group.reduce((s, g) => s + g.target_value, 0);
                   };
 
+                  // Calculate Enerlight (Gustavo + Fabio) values from bySeller
+                  const enerlightNames = ["gustavo", "fabio"];
+                  const gdBySeller = goalsData?.bySeller || [];
+                  const enerlightByType: Record<string, number> = { quotes_value: 0, orders_value: 0, billing_value: 0 };
+                  for (const row of gdBySeller) {
+                    const name = (row.seller_name || "").toLowerCase();
+                    if (enerlightNames.some(n => name.includes(n))) {
+                      if (row.data_type === "orcamento") enerlightByType.quotes_value += row.total_value || 0;
+                      if (row.data_type === "pedido") enerlightByType.orders_value += row.total_value || 0;
+                      if (row.data_type === "faturamento") enerlightByType.billing_value += row.total_value || 0;
+                    }
+                  }
+
                   const sections = [
                     { label: "Orçamento", metric: "quotes_value", realized: gd.orcamento.value, color: "text-blue-600", icon: <FileText className="h-4 w-4" /> },
                     { label: "Pedidos", metric: "orders_value", realized: gd.pedido.value, color: "text-green-600", icon: <ShoppingCart className="h-4 w-4" /> },
@@ -355,6 +368,9 @@ export default function CRMMetas() {
                         if (planned <= 0) return null;
                         const mtd = totalBizDays > 0 ? (planned / totalBizDays) * elapsedBizDays : 0;
                         const saldoMtd = s.realized - mtd;
+                        const enerlightValue = enerlightByType[s.metric] || 0;
+                        const realizedSemEnerlight = s.realized - enerlightValue;
+                        const saldoSemEnerlight = realizedSemEnerlight - mtd;
                         return (
                           <Card key={s.metric}>
                             <CardHeader className="pb-2">
@@ -378,6 +394,19 @@ export default function CRMMetas() {
                                 <span className="text-muted-foreground">Saldo (MTD)</span>
                                 <span className={`font-bold ${saldoMtd >= 0 ? "text-green-600" : "text-red-600"}`}>{fmt(saldoMtd)}</span>
                               </div>
+                              {enerlightValue > 0 && (
+                                <>
+                                  <div className="border-t my-1 border-dashed" />
+                                  <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">⚡ Enerlight</span>
+                                    <span className="font-medium text-orange-600">{fmt(enerlightValue)}</span>
+                                  </div>
+                                  <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">Saldo s/ Enerlight</span>
+                                    <span className={`font-bold ${saldoSemEnerlight >= 0 ? "text-green-600" : "text-red-600"}`}>{fmt(saldoSemEnerlight)}</span>
+                                  </div>
+                                </>
+                              )}
                               <div className="mt-2">
                                 <Progress value={Math.min((s.realized / planned) * 100, 100)} className="h-2" />
                                 <p className="text-xs text-muted-foreground text-right mt-1">{((s.realized / planned) * 100).toFixed(1)}% da meta</p>
