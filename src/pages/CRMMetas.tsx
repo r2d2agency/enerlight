@@ -287,6 +287,111 @@ export default function CRMMetas() {
                   </Card>
                 </div>
 
+                {/* Ticket Médio */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Card>
+                    <CardContent className="pt-4">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><FileText className="h-4 w-4" /> Ticket Médio Orçamento</div>
+                      <p className="text-xl font-bold text-blue-600">{gd.orcamento.count > 0 ? fmt(gd.orcamento.value / gd.orcamento.count) : "R$ 0"}</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-4">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><ShoppingCart className="h-4 w-4" /> Ticket Médio Pedido</div>
+                      <p className="text-xl font-bold text-green-600">{gd.pedido.count > 0 ? fmt(gd.pedido.value / gd.pedido.count) : "R$ 0"}</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-4">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><Receipt className="h-4 w-4" /> Ticket Médio Faturamento</div>
+                      <p className="text-xl font-bold text-amber-600">{gd.faturamento.count > 0 ? fmt(gd.faturamento.value / gd.faturamento.count) : "R$ 0"}</p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Resumo Planejado vs Realizado vs MTD */}
+                {goals && goals.length > 0 && (() => {
+                  const { eachDayOfInterval, startOfMonth: som, endOfMonth: eom, isWeekend: isWe, startOfDay: sod } = require("date-fns");
+                  return null;
+                })()}
+                {goals && goals.length > 0 && (() => {
+                  // Calculate MTD (meta proporcional até hoje)
+                  const now = new Date();
+                  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+                  const monthEndDate = endOfMonth(now);
+                  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+                  const allMonthDays = (() => {
+                    try {
+                      const days: Date[] = [];
+                      const d = new Date(monthStart);
+                      while (d <= monthEndDate) { days.push(new Date(d)); d.setDate(d.getDate() + 1); }
+                      return days;
+                    } catch { return []; }
+                  })();
+
+                  const totalBizDays = allMonthDays.filter(d => d.getDay() !== 0 && d.getDay() !== 6).length;
+                  const elapsedBizDays = allMonthDays.filter(d => d <= today && d.getDay() !== 0 && d.getDay() !== 6).length;
+
+                  const getGeralGoal = (metricValue: string) => {
+                    if (!goals) return 0;
+                    const geral = goals.filter(g => g.metric === metricValue && g.is_active && g.type === "geral");
+                    if (geral.length > 0) return geral.reduce((s, g) => s + g.target_value, 0);
+                    const group = goals.filter(g => g.metric === metricValue && g.is_active && g.type !== "individual");
+                    return group.reduce((s, g) => s + g.target_value, 0);
+                  };
+
+                  const sections = [
+                    { label: "Orçamento", metric: "quotes_value", realized: gd.orcamento.value, color: "text-blue-600", icon: <FileText className="h-4 w-4" /> },
+                    { label: "Pedidos", metric: "orders_value", realized: gd.pedido.value, color: "text-green-600", icon: <ShoppingCart className="h-4 w-4" /> },
+                    { label: "Faturamento", metric: "billing_value", realized: gd.faturamento.value, color: "text-amber-600", icon: <Receipt className="h-4 w-4" /> },
+                  ];
+
+                  const hasAnyGoal = sections.some(s => getGeralGoal(s.metric) > 0);
+                  if (!hasAnyGoal) return null;
+
+                  return (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {sections.map(s => {
+                        const planned = getGeralGoal(s.metric);
+                        if (planned <= 0) return null;
+                        const mtd = totalBizDays > 0 ? (planned / totalBizDays) * elapsedBizDays : 0;
+                        const saldoMtd = s.realized - mtd;
+                        return (
+                          <Card key={s.metric}>
+                            <CardHeader className="pb-2">
+                              <CardTitle className="text-sm flex items-center gap-2">{s.icon} {s.label}</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-2">
+                              <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">Planejado</span>
+                                <span className="font-bold">{fmt(planned)}</span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">Realizado</span>
+                                <span className={`font-bold ${s.realized >= planned ? "text-green-600" : s.color}`}>{fmt(s.realized)}</span>
+                              </div>
+                              <div className="border-t my-1" />
+                              <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">MTD</span>
+                                <span className="font-medium">{fmt(mtd)}</span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">Saldo (MTD)</span>
+                                <span className={`font-bold ${saldoMtd >= 0 ? "text-green-600" : "text-red-600"}`}>{fmt(saldoMtd)}</span>
+                              </div>
+                              <div className="mt-2">
+                                <Progress value={Math.min((s.realized / planned) * 100, 100)} className="h-2" />
+                                <p className="text-xs text-muted-foreground text-right mt-1">{((s.realized / planned) * 100).toFixed(1)}% da meta</p>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+
                 {/* Pie Charts by Channel - hidden when a specific channel is selected */}
                 {filterChannel === "all" && goalsData?.byChannel && goalsData.byChannel.length > 0 && (() => {
                   const types = [
