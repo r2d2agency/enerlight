@@ -310,10 +310,8 @@ export default function CRMMetas() {
                 </div>
 
                 {/* Resumo Planejado vs Realizado vs MTD */}
-                {goals && goals.length > 0 && (() => {
-                  const { eachDayOfInterval, startOfMonth: som, endOfMonth: eom, isWeekend: isWe, startOfDay: sod } = require("date-fns");
-                  return null;
-                })()}
+
+
                 {goals && goals.length > 0 && (() => {
                   // Calculate MTD (meta proporcional até hoje)
                   const now = new Date();
