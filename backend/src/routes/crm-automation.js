@@ -24,10 +24,10 @@ function canManage(role) {
 }
 
 // ============================================
-// STAGE AUTOMATIONS
+// STAGE AUTOMATIONS (multiple per stage)
 // ============================================
 
-// Get automation config for a stage
+// Get all automations for a stage
 router.get('/stages/:stageId/automation', async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
@@ -43,19 +43,20 @@ router.get('/stages/:stageId/automation', async (req, res) => {
        LEFT JOIN crm_stages ns ON ns.id = sa.next_stage_id
        LEFT JOIN crm_funnels ff ON ff.id = sa.fallback_funnel_id
        LEFT JOIN crm_stages fs ON fs.id = sa.fallback_stage_id
-       WHERE sa.stage_id = $1`,
+       WHERE sa.stage_id = $1
+       ORDER BY sa.position ASC, sa.created_at ASC`,
       [req.params.stageId]
     );
 
-    res.json(result.rows[0] || null);
+    res.json(result.rows);
   } catch (error) {
-    logError('Error fetching stage automation:', error);
+    logError('Error fetching stage automations:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// Save automation config for a stage
-router.put('/stages/:stageId/automation', async (req, res) => {
+// Create a new automation for a stage
+router.post('/stages/:stageId/automation', async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
     if (!org || !canManage(org.role)) {
@@ -63,30 +64,21 @@ router.put('/stages/:stageId/automation', async (req, res) => {
     }
 
     const { 
-      flow_id, 
-      wait_hours, 
-      next_stage_id, 
-      fallback_funnel_id,
-      fallback_stage_id,
-      is_active,
-      execute_immediately 
+      flow_id, wait_hours, next_stage_id, 
+      fallback_funnel_id, fallback_stage_id,
+      is_active, execute_immediately 
     } = req.body;
 
-    // Upsert automation
+    // Get next position
+    const posResult = await query(
+      `SELECT COALESCE(MAX(position), -1) + 1 as next_pos FROM crm_stage_automations WHERE stage_id = $1`,
+      [req.params.stageId]
+    );
+
     const result = await query(
       `INSERT INTO crm_stage_automations 
-       (stage_id, flow_id, wait_hours, next_stage_id, fallback_funnel_id, fallback_stage_id, is_active, execute_immediately)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       ON CONFLICT (stage_id) 
-       DO UPDATE SET
-         flow_id = EXCLUDED.flow_id,
-         wait_hours = EXCLUDED.wait_hours,
-         next_stage_id = EXCLUDED.next_stage_id,
-         fallback_funnel_id = EXCLUDED.fallback_funnel_id,
-         fallback_stage_id = EXCLUDED.fallback_stage_id,
-         is_active = EXCLUDED.is_active,
-         execute_immediately = EXCLUDED.execute_immediately,
-         updated_at = NOW()
+       (stage_id, flow_id, wait_hours, next_stage_id, fallback_funnel_id, fallback_stage_id, is_active, execute_immediately, position)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
       [
         req.params.stageId,
@@ -96,9 +88,108 @@ router.put('/stages/:stageId/automation', async (req, res) => {
         fallback_funnel_id || null,
         fallback_stage_id || null,
         is_active !== false,
-        execute_immediately !== false
+        execute_immediately !== false,
+        posResult.rows[0].next_pos
       ]
     );
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    logError('Error creating stage automation:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update a specific automation by ID
+router.put('/stages/:stageId/automation/:automationId', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org || !canManage(org.role)) {
+      return res.status(403).json({ error: 'Permission denied' });
+    }
+
+    const { 
+      flow_id, wait_hours, next_stage_id, 
+      fallback_funnel_id, fallback_stage_id,
+      is_active, execute_immediately 
+    } = req.body;
+
+    const result = await query(
+      `UPDATE crm_stage_automations SET
+         flow_id = $1, wait_hours = $2, next_stage_id = $3,
+         fallback_funnel_id = $4, fallback_stage_id = $5,
+         is_active = $6, execute_immediately = $7, updated_at = NOW()
+       WHERE id = $8 AND stage_id = $9
+       RETURNING *`,
+      [
+        flow_id || null,
+        wait_hours || 24,
+        next_stage_id || null,
+        fallback_funnel_id || null,
+        fallback_stage_id || null,
+        is_active !== false,
+        execute_immediately !== false,
+        req.params.automationId,
+        req.params.stageId
+      ]
+    );
+
+    if (!result.rows[0]) return res.status(404).json({ error: 'Not found' });
+    res.json(result.rows[0]);
+  } catch (error) {
+    logError('Error updating stage automation:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Legacy PUT (upsert single) - kept for backward compatibility
+router.put('/stages/:stageId/automation', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org || !canManage(org.role)) {
+      return res.status(403).json({ error: 'Permission denied' });
+    }
+
+    const { 
+      flow_id, wait_hours, next_stage_id, 
+      fallback_funnel_id, fallback_stage_id,
+      is_active, execute_immediately, id: automationId
+    } = req.body;
+
+    let result;
+    if (automationId) {
+      result = await query(
+        `UPDATE crm_stage_automations SET
+           flow_id = $1, wait_hours = $2, next_stage_id = $3,
+           fallback_funnel_id = $4, fallback_stage_id = $5,
+           is_active = $6, execute_immediately = $7, updated_at = NOW()
+         WHERE id = $8 AND stage_id = $9
+         RETURNING *`,
+        [
+          flow_id || null, wait_hours || 24, next_stage_id || null,
+          fallback_funnel_id || null, fallback_stage_id || null,
+          is_active !== false, execute_immediately !== false,
+          automationId, req.params.stageId
+        ]
+      );
+    } else {
+      const posResult = await query(
+        `SELECT COALESCE(MAX(position), -1) + 1 as next_pos FROM crm_stage_automations WHERE stage_id = $1`,
+        [req.params.stageId]
+      );
+      result = await query(
+        `INSERT INTO crm_stage_automations 
+         (stage_id, flow_id, wait_hours, next_stage_id, fallback_funnel_id, fallback_stage_id, is_active, execute_immediately, position)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         RETURNING *`,
+        [
+          req.params.stageId, flow_id || null, wait_hours || 24,
+          next_stage_id || null, fallback_funnel_id || null, fallback_stage_id || null,
+          is_active !== false, execute_immediately !== false,
+          posResult.rows[0].next_pos
+        ]
+      );
+    }
 
     res.json(result.rows[0]);
   } catch (error) {
@@ -107,7 +198,27 @@ router.put('/stages/:stageId/automation', async (req, res) => {
   }
 });
 
-// Delete automation config for a stage
+// Delete a specific automation by ID
+router.delete('/stages/:stageId/automation/:automationId', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org || !canManage(org.role)) {
+      return res.status(403).json({ error: 'Permission denied' });
+    }
+
+    await query(
+      `DELETE FROM crm_stage_automations WHERE id = $1 AND stage_id = $2`,
+      [req.params.automationId, req.params.stageId]
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    logError('Error deleting stage automation:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete all automations for a stage (legacy)
 router.delete('/stages/:stageId/automation', async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
@@ -122,7 +233,7 @@ router.delete('/stages/:stageId/automation', async (req, res) => {
 
     res.json({ success: true });
   } catch (error) {
-    logError('Error deleting stage automation:', error);
+    logError('Error deleting stage automations:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -134,12 +245,12 @@ router.get('/funnels/:funnelId/automations', async (req, res) => {
     if (!org) return res.status(403).json({ error: 'No organization' });
 
     const result = await query(
-      `SELECT sa.*, s.name as stage_name, s.position, f.name as flow_name
+      `SELECT sa.*, s.name as stage_name, s.position as stage_position, f.name as flow_name
        FROM crm_stage_automations sa
        JOIN crm_stages s ON s.id = sa.stage_id
        LEFT JOIN flows f ON f.id = sa.flow_id
        WHERE s.funnel_id = $1
-       ORDER BY s.position`,
+       ORDER BY s.position, sa.position`,
       [req.params.funnelId]
     );
 
@@ -160,13 +271,11 @@ router.post('/deals/:dealId/start-automation', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
-    // Get deal and its current stage automation
     const dealResult = await query(
-      `SELECT d.*, sa.*,
+      `SELECT d.*, 
               dc.contact_id,
               (SELECT phone FROM contacts WHERE id = dc.contact_id) as contact_phone
        FROM crm_deals d
-       LEFT JOIN crm_stage_automations sa ON sa.stage_id = d.stage_id AND sa.is_active = true
        LEFT JOIN crm_deal_contacts dc ON dc.deal_id = d.id AND dc.is_primary = true
        WHERE d.id = $1 AND d.organization_id = $2`,
       [req.params.dealId, org.organization_id]
@@ -177,8 +286,16 @@ router.post('/deals/:dealId/start-automation', async (req, res) => {
     }
 
     const deal = dealResult.rows[0];
-    
-    if (!deal.flow_id) {
+
+    // Get all active automations for this stage
+    const automations = await query(
+      `SELECT * FROM crm_stage_automations 
+       WHERE stage_id = $1 AND is_active = true 
+       ORDER BY position ASC`,
+      [deal.stage_id]
+    );
+
+    if (automations.rows.length === 0) {
       return res.status(400).json({ error: 'No automation configured for this stage' });
     }
 
@@ -190,34 +307,34 @@ router.post('/deals/:dealId/start-automation', async (req, res) => {
       [req.params.dealId]
     );
 
-    // Create new automation record
-    const waitUntil = new Date();
-    waitUntil.setHours(waitUntil.getHours() + (deal.wait_hours || 24));
+    // Create automation records for each flow
+    const results = [];
+    for (const automation of automations.rows) {
+      const waitUntil = new Date();
+      waitUntil.setHours(waitUntil.getHours() + (automation.wait_hours || 24));
 
-    const automationResult = await query(
-      `INSERT INTO crm_deal_automations 
-       (deal_id, stage_id, automation_id, status, flow_id, wait_until, contact_phone, next_stage_id)
-       VALUES ($1, $2, $3, 'pending', $4, $5, $6, $7)
-       RETURNING *`,
-      [
-        req.params.dealId,
-        deal.stage_id,
-        deal.id, // automation config id
-        deal.flow_id,
-        waitUntil,
-        deal.contact_phone,
-        deal.next_stage_id
-      ]
-    );
+      const automationResult = await query(
+        `INSERT INTO crm_deal_automations 
+         (deal_id, stage_id, automation_id, status, flow_id, wait_until, contact_phone, next_stage_id)
+         VALUES ($1, $2, $3, 'pending', $4, $5, $6, $7)
+         RETURNING *`,
+        [
+          req.params.dealId, deal.stage_id, automation.id,
+          automation.flow_id, waitUntil, deal.contact_phone,
+          automation.next_stage_id
+        ]
+      );
+      results.push(automationResult.rows[0]);
+    }
 
-    // Log the action
+    // Log
     await query(
       `INSERT INTO crm_automation_logs (deal_automation_id, deal_id, action, details)
        VALUES ($1, $2, 'automation_started', $3)`,
-      [automationResult.rows[0].id, req.params.dealId, JSON.stringify({ flow_id: deal.flow_id, wait_hours: deal.wait_hours })]
+      [results[0].id, req.params.dealId, JSON.stringify({ flows: automations.rows.length })]
     );
 
-    res.json(automationResult.rows[0]);
+    res.json(results[0]);
   } catch (error) {
     logError('Error starting deal automation:', error);
     res.status(500).json({ error: error.message });
@@ -267,7 +384,7 @@ router.get('/deals/:dealId/automation-status', async (req, res) => {
        LEFT JOIN crm_stages ns ON ns.id = da.next_stage_id
        WHERE da.deal_id = $1
        ORDER BY da.created_at DESC
-       LIMIT 5`,
+       LIMIT 10`,
       [req.params.dealId]
     );
 
@@ -303,7 +420,6 @@ router.get('/deals/:dealId/automation-logs', async (req, res) => {
 // BULK OPERATIONS
 // ============================================
 
-// Start automation for multiple deals (bulk move to automated funnel)
 router.post('/deals/bulk-start-automation', async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
@@ -315,43 +431,39 @@ router.post('/deals/bulk-start-automation', async (req, res) => {
       return res.status(400).json({ error: 'No deals provided' });
     }
 
-    // Get target stage automation
-    const automationResult = await query(
+    const automationsResult = await query(
       `SELECT sa.*, s.funnel_id
        FROM crm_stage_automations sa
        JOIN crm_stages s ON s.id = sa.stage_id
-       WHERE sa.stage_id = $1 AND sa.is_active = true`,
+       WHERE sa.stage_id = $1 AND sa.is_active = true
+       ORDER BY sa.position ASC`,
       [target_stage_id]
     );
 
-    if (!automationResult.rows[0]) {
+    if (automationsResult.rows.length === 0) {
       return res.status(400).json({ error: 'No active automation for target stage' });
     }
 
-    const automation = automationResult.rows[0];
+    const firstAutomation = automationsResult.rows[0];
     let started = 0;
     let failed = 0;
 
     for (const dealId of deal_ids) {
       try {
-        // Move deal to target stage
         await query(
           `UPDATE crm_deals SET stage_id = $1, funnel_id = $2, updated_at = NOW()
            WHERE id = $3 AND organization_id = $4`,
-          [target_stage_id, automation.funnel_id, dealId, org.organization_id]
+          [target_stage_id, firstAutomation.funnel_id, dealId, org.organization_id]
         );
 
-        // Get deal contact phone
         const contactResult = await query(
           `SELECT c.phone FROM crm_deal_contacts dc
            JOIN contacts c ON c.id = dc.contact_id
            WHERE dc.deal_id = $1 AND dc.is_primary = true`,
           [dealId]
         );
-
         const contactPhone = contactResult.rows[0]?.phone;
 
-        // Cancel existing automations
         await query(
           `UPDATE crm_deal_automations 
            SET status = 'cancelled', updated_at = NOW()
@@ -359,16 +471,17 @@ router.post('/deals/bulk-start-automation', async (req, res) => {
           [dealId]
         );
 
-        // Create new automation
-        const waitUntil = new Date();
-        waitUntil.setHours(waitUntil.getHours() + (automation.wait_hours || 24));
+        for (const automation of automationsResult.rows) {
+          const waitUntil = new Date();
+          waitUntil.setHours(waitUntil.getHours() + (automation.wait_hours || 24));
 
-        await query(
-          `INSERT INTO crm_deal_automations 
-           (deal_id, stage_id, automation_id, status, flow_id, wait_until, contact_phone, next_stage_id)
-           VALUES ($1, $2, $3, 'pending', $4, $5, $6, $7)`,
-          [dealId, target_stage_id, automation.id, automation.flow_id, waitUntil, contactPhone, automation.next_stage_id]
-        );
+          await query(
+            `INSERT INTO crm_deal_automations 
+             (deal_id, stage_id, automation_id, status, flow_id, wait_until, contact_phone, next_stage_id)
+             VALUES ($1, $2, $3, 'pending', $4, $5, $6, $7)`,
+            [dealId, target_stage_id, automation.id, automation.flow_id, waitUntil, contactPhone, automation.next_stage_id]
+          );
+        }
 
         started++;
       } catch (err) {
