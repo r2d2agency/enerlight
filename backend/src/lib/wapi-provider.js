@@ -1555,19 +1555,23 @@ async function tryContactEndpoint(url, token, { method = 'GET' } = {}) {
     });
     
     // Extract contacts array from various response formats
-    const contacts = Array.isArray(data?.contacts)
-      ? data.contacts
-      : Array.isArray(data?.data?.contacts)
-        ? data.data.contacts
-        : Array.isArray(data?.data)
-          ? data.data
-          : Array.isArray(data?.result)
-            ? data.result
-            : Array.isArray(data?.rows)
-              ? data.rows
-              : Array.isArray(data)
-                ? data
-                : [];
+    const contacts = Array.isArray(data?.contactsArray)
+      ? data.contactsArray
+      : Array.isArray(data?.contacts)
+        ? data.contacts
+        : Array.isArray(data?.data?.contacts)
+          ? data.data.contacts
+          : Array.isArray(data?.data?.contactsArray)
+            ? data.data.contactsArray
+            : Array.isArray(data?.data)
+              ? data.data
+              : Array.isArray(data?.result)
+                ? data.result
+                : Array.isArray(data?.rows)
+                  ? data.rows
+                  : Array.isArray(data)
+                    ? data
+                    : [];
     
     return { contacts, data, statusCode, topKeys, sample: JSON.stringify(data).substring(0, 500) };
   } catch (err) {
