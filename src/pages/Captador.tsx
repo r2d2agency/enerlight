@@ -1380,8 +1380,24 @@ function CaptadorMap({ points, onSelect }: { points: any[]; onSelect: (id: strin
 // ─── Main Page ───
 export default function Captador() {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, userPermissions, modulesEnabled } = useAuth();
   const isMobile = useIsMobile();
+
+  // Only captador-only users need check-in; managers/admins skip it
+  const isCaptadorOnly = (() => {
+    if (userPermissions?.can_view_captador) {
+      const hasOther = userPermissions.can_view_chat || userPermissions.can_view_crm || 
+        userPermissions.can_view_campaigns || userPermissions.can_view_contacts ||
+        userPermissions.can_view_projects || userPermissions.can_view_billing;
+      if (!hasOther) return true;
+    }
+    if (modulesEnabled?.captador && !modulesEnabled?.chat && !modulesEnabled?.crm && 
+        !modulesEnabled?.campaigns && !modulesEnabled?.billing) {
+      return true;
+    }
+    return false;
+  })();
+  const requiresCheckin = isCaptadorOnly;
   const [tab, setTab] = useState("returns");
   const [showForm, setShowForm] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -1474,20 +1490,22 @@ export default function Captador() {
               </Button>
             </div>
 
-            {/* Check-in/Checkout Bar */}
-            <div className={`rounded-xl p-3 flex items-center justify-between ${checkedIn ? 'bg-green-500/10 border border-green-500/30' : 'bg-muted'}`}>
-              <div className="flex items-center gap-2">
-                {checkedIn ? <CheckCircle2 className="h-5 w-5 text-green-500" /> : <Circle className="h-5 w-5 text-muted-foreground" />}
-                <div>
-                  <p className="text-sm font-medium">{checkedIn ? "Em serviço" : "Fora de serviço"}</p>
-                  {checkinTime && <p className="text-xs text-muted-foreground">Desde {format(checkinTime, "HH:mm")}</p>}
+            {/* Check-in/Checkout Bar - only for captador-only users */}
+            {requiresCheckin && (
+              <div className={`rounded-xl p-3 flex items-center justify-between ${checkedIn ? 'bg-green-500/10 border border-green-500/30' : 'bg-muted'}`}>
+                <div className="flex items-center gap-2">
+                  {checkedIn ? <CheckCircle2 className="h-5 w-5 text-green-500" /> : <Circle className="h-5 w-5 text-muted-foreground" />}
+                  <div>
+                    <p className="text-sm font-medium">{checkedIn ? "Em serviço" : "Fora de serviço"}</p>
+                    {checkinTime && <p className="text-xs text-muted-foreground">Desde {format(checkinTime, "HH:mm")}</p>}
+                  </div>
                 </div>
+                <Button size="sm" variant={checkedIn ? "destructive" : "default"} onClick={checkedIn ? handleCheckout : handleCheckin}
+                  className="h-9 px-4">
+                  {checkedIn ? <><LogOut className="h-4 w-4 mr-1" /> Checkout</> : <><LogIn className="h-4 w-4 mr-1" /> Check-in</>}
+                </Button>
               </div>
-              <Button size="sm" variant={checkedIn ? "destructive" : "default"} onClick={checkedIn ? handleCheckout : handleCheckin}
-                className="h-9 px-4">
-                {checkedIn ? <><LogOut className="h-4 w-4 mr-1" /> Checkout</> : <><LogIn className="h-4 w-4 mr-1" /> Check-in</>}
-              </Button>
-            </div>
+            )}
 
             {/* Quick Stats */}
             {stats && (
@@ -1669,14 +1687,16 @@ export default function Captador() {
             <MapPin className="h-6 w-6" /> Captador
           </h1>
           <div className="flex gap-2">
-            {/* Check-in/Checkout */}
-            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm ${checkedIn ? 'bg-green-500/10 border border-green-500/30' : 'bg-muted'}`}>
-              {checkedIn ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <Circle className="h-4 w-4 text-muted-foreground" />}
-              <span>{checkedIn ? `Em serviço desde ${checkinTime ? format(checkinTime, "HH:mm") : ""}` : "Fora de serviço"}</span>
-              <Button size="sm" variant={checkedIn ? "destructive" : "default"} onClick={checkedIn ? handleCheckout : handleCheckin} className="h-7 text-xs">
-                {checkedIn ? "Checkout" : "Check-in"}
-              </Button>
-            </div>
+            {/* Check-in/Checkout - only for captador-only users */}
+            {requiresCheckin && (
+              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm ${checkedIn ? 'bg-green-500/10 border border-green-500/30' : 'bg-muted'}`}>
+                {checkedIn ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <Circle className="h-4 w-4 text-muted-foreground" />}
+                <span>{checkedIn ? `Em serviço desde ${checkinTime ? format(checkinTime, "HH:mm") : ""}` : "Fora de serviço"}</span>
+                <Button size="sm" variant={checkedIn ? "destructive" : "default"} onClick={checkedIn ? handleCheckout : handleCheckin} className="h-7 text-xs">
+                  {checkedIn ? "Checkout" : "Check-in"}
+                </Button>
+              </div>
+            )}
             <Button variant="outline" size="sm" onClick={() => setShowSettings(!showSettings)}>
               <Settings className="h-4 w-4" />
             </Button>
