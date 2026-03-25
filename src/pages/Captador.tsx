@@ -1419,9 +1419,17 @@ export default function Captador() {
   const { data: sellers = [] } = useCaptadorSellers();
   const { data: settings } = useCaptadorSettings();
   const { data: todayReturns = [] } = useTodayReturns();
+  const { data: dbSegments = [] } = useCaptadorSegments();
+  const { data: distributionMembers = [] } = useDistributionMembers();
+  const createSegment = useCreateCaptadorSegment();
+  const deleteSegment = useDeleteCaptadorSegment();
+  const addDistMember = useAddDistributionMember();
+  const removeDistMember = useRemoveDistributionMember();
+  const SEGMENTS = dbSegments.length > 0 ? dbSegments.map(s => s.name) : FALLBACK_SEGMENTS;
   const updateSettings = useUpdateCaptadorSettings();
   const updateCapture = useUpdateFieldCapture();
   const deleteCapture = useDeleteFieldCapture();
+  const [newSegmentName, setNewSegmentName] = useState("");
 
   const { isOnline, pendingCount, refreshCount } = useOfflineSync(createCaptureForSync, () => refetch());
 
