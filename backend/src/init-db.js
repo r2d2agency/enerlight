@@ -4102,6 +4102,29 @@ EXCEPTION WHEN duplicate_column THEN NULL;
 END $$;
 `;
 
+const step55CaptadorSegments = `
+CREATE TABLE IF NOT EXISTS captador_segments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  name VARCHAR(255) NOT NULL,
+  sort_order INTEGER DEFAULT 0,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(organization_id, name)
+);
+CREATE INDEX IF NOT EXISTS idx_captador_segments_org ON captador_segments(organization_id);
+
+CREATE TABLE IF NOT EXISTS captador_distribution_members (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(organization_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_captador_dist_members_org ON captador_distribution_members(organization_id);
+`;
+
 const step52QuoteImportMappings = `
 CREATE TABLE IF NOT EXISTS crm_quote_import_mappings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -4177,6 +4200,7 @@ const migrationSteps = [
   { name: 'Quote Import Mappings', sql: step52QuoteImportMappings, critical: false },
   { name: 'Field Captures (Captador)', sql: step53FieldCaptures, critical: false },
   { name: 'Document Signatures', sql: step54DocumentSignatures, critical: false },
+  { name: 'Captador Segments & Distribution', sql: step55CaptadorSegments, critical: false },
 ];
 
 export async function initDatabase() {
