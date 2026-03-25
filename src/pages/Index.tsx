@@ -79,6 +79,7 @@ const FullDashboard = () => {
   const { connections, hasConnectedConnection, isLoading: connectionLoading } = useConnectionStatus({ intervalSeconds: 30 });
   const { getChatStats } = useChat();
 
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<DashboardStats>({
     totalContacts: 0,
@@ -102,26 +103,31 @@ const FullDashboard = () => {
   const loadDashboardData = async () => {
     setLoading(true);
     try {
-      const [listsData, messagesData, campaignsData, chatStats, attendanceCounts, orgs] = await Promise.all([
+      const [listsData, messagesData, campaignsData, chatStats, attendanceCounts] = await Promise.all([
         getLists(),
         getMessages(),
         getCampaigns(),
         getChatStats().catch(() => null),
         api<{ waiting: number; attending: number; finished: number }>('/api/chat/conversations/attendance-counts?is_group=false').catch(() => ({ waiting: 0, attending: 0, finished: 0 })),
-        api<Array<{ id: string; name: string }>>('/api/organizations').catch(() => []),
       ]);
 
-      const orgId = orgs?.[0]?.id;
-      const members = orgId
-        ? await api<Array<{ id: string }>>(`/api/organizations/${orgId}/members`).catch(() => [])
-        : [];
+      const currentUserId = user?.id;
 
-      // Calculate stats
-      const totalContacts = listsData.reduce((sum, list) => sum + Number(list.contact_count || 0), 0);
+      // Filter contacts: only lists created by the current user
+      const myLists = currentUserId
+        ? listsData.filter(list => list.user_id === currentUserId)
+        : listsData;
+      const totalContacts = myLists.reduce((sum, list) => sum + Number(list.contact_count || 0), 0);
+
       const totalMessages = messagesData.length;
-      const activeCampaigns = campaignsData.filter(c => c.status === 'running').length;
-      const scheduledCampaigns = campaignsData.filter(c => c.status === 'pending').length;
-      const sentMessages = campaignsData.reduce((sum, c) => sum + c.sent_count, 0);
+
+      // Filter campaigns: only those created by the current user
+      const myCampaigns = currentUserId
+        ? campaignsData.filter(c => c.user_id === currentUserId)
+        : campaignsData;
+      const activeCampaigns = myCampaigns.filter(c => c.status === 'running').length;
+      const scheduledCampaigns = myCampaigns.filter(c => c.status === 'pending').length;
+      const sentMessages = myCampaigns.reduce((sum, c) => sum + c.sent_count, 0);
 
       const assigned = chatStats?.conversations_by_status?.find(s => s.status === 'assigned')?.count ?? 0;
       const unassigned = chatStats?.conversations_by_status?.find(s => s.status === 'unassigned')?.count ?? 0;
@@ -137,11 +143,11 @@ const FullDashboard = () => {
         conversationsWaiting: attendanceCounts.waiting,
         conversationsAttending: attendanceCounts.attending,
         conversationsFinished: attendanceCounts.finished,
-        totalUsers: members.length,
+        totalUsers: 0,
       });
 
-      // Recent campaigns (last 5)
-      setRecentCampaigns(campaignsData.slice(0, 5));
+      // Recent campaigns (last 5 of user's own)
+      setRecentCampaigns(myCampaigns.slice(0, 5));
 
     } catch (err) {
       console.error('Error loading dashboard:', err);
@@ -194,9 +200,9 @@ const FullDashboard = () => {
             icon={<Users className="h-6 w-6 text-primary" />}
           />
           <StatsCard
-            title="Total de Contatos"
+            title="Meus Contatos"
             value={stats.totalContacts.toLocaleString('pt-BR')}
-            description="Em todas as listas"
+            description="Nas minhas listas"
             icon={<Users className="h-6 w-6 text-primary" />}
           />
           <StatsCard
@@ -206,10 +212,10 @@ const FullDashboard = () => {
             icon={<MessageSquare className="h-6 w-6 text-primary" />}
           />
           <StatsCard
-            title="Usuários"
-            value={stats.totalUsers.toLocaleString('pt-BR')}
-            description="Membros da organização"
-            icon={<Users className="h-6 w-6 text-primary" />}
+            title="Minhas Campanhas"
+            value={(stats.activeCampaigns + stats.scheduledCampaigns).toString()}
+            description="Ativas + agendadas"
+            icon={<Send className="h-6 w-6 text-primary" />}
           />
         </div>
 
