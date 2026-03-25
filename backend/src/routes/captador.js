@@ -313,6 +313,105 @@ router.get('/stats/summary', async (req, res) => {
   }
 });
 
+// ─── SEGMENTS CRUD (must be before /:id) ───
+
+router.get('/segments', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+    const result = await query(
+      `SELECT * FROM captador_segments WHERE organization_id = $1 ORDER BY sort_order, name`,
+      [org.organization_id]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    res.json([]);
+  }
+});
+
+router.post('/segments', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+    const { name } = req.body;
+    if (!name?.trim()) return res.status(400).json({ error: 'Nome é obrigatório' });
+    const result = await query(
+      `INSERT INTO captador_segments (organization_id, name) VALUES ($1, $2)
+       ON CONFLICT (organization_id, name) DO UPDATE SET is_active = true
+       RETURNING *`,
+      [org.organization_id, name.trim()]
+    );
+    res.json(result.rows[0]);
+  } catch (error) {
+    logError('captador.segments.create', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.delete('/segments/:id', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+    await query('DELETE FROM captador_segments WHERE id = $1 AND organization_id = $2', [req.params.id, org.organization_id]);
+    res.json({ success: true });
+  } catch (error) {
+    logError('captador.segments.delete', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ─── DISTRIBUTION MEMBERS CRUD (must be before /:id) ───
+
+router.get('/distribution-members', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+    const result = await query(
+      `SELECT dm.*, u.name as user_name, u.email as user_email
+       FROM captador_distribution_members dm
+       JOIN users u ON u.id = dm.user_id
+       WHERE dm.organization_id = $1
+       ORDER BY u.name`,
+      [org.organization_id]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    res.json([]);
+  }
+});
+
+router.post('/distribution-members', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+    const { user_id } = req.body;
+    if (!user_id) return res.status(400).json({ error: 'user_id é obrigatório' });
+    const result = await query(
+      `INSERT INTO captador_distribution_members (organization_id, user_id) VALUES ($1, $2)
+       ON CONFLICT (organization_id, user_id) DO UPDATE SET is_active = true
+       RETURNING *`,
+      [org.organization_id, user_id]
+    );
+    res.json(result.rows[0]);
+  } catch (error) {
+    logError('captador.distribution.add', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.delete('/distribution-members/:userId', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+    await query('DELETE FROM captador_distribution_members WHERE user_id = $1 AND organization_id = $2',
+      [req.params.userId, org.organization_id]);
+    res.json({ success: true });
+  } catch (error) {
+    logError('captador.distribution.remove', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // GET /api/captador/:id - Get single capture with visits
 router.get('/:id', async (req, res) => {
   try {
@@ -656,112 +755,6 @@ router.delete('/:id', async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     logError('captador.delete', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ─── SEGMENTS CRUD ───
-
-// GET /api/captador/segments
-router.get('/segments', async (req, res) => {
-  try {
-    const org = await getUserOrg(req.userId);
-    if (!org) return res.status(403).json({ error: 'Sem organização' });
-    const result = await query(
-      `SELECT * FROM captador_segments WHERE organization_id = $1 ORDER BY sort_order, name`,
-      [org.organization_id]
-    );
-    res.json(result.rows);
-  } catch (error) {
-    // Table may not exist yet – return empty
-    res.json([]);
-  }
-});
-
-// POST /api/captador/segments
-router.post('/segments', async (req, res) => {
-  try {
-    const org = await getUserOrg(req.userId);
-    if (!org) return res.status(403).json({ error: 'Sem organização' });
-    const { name } = req.body;
-    if (!name?.trim()) return res.status(400).json({ error: 'Nome é obrigatório' });
-    const result = await query(
-      `INSERT INTO captador_segments (organization_id, name) VALUES ($1, $2)
-       ON CONFLICT (organization_id, name) DO UPDATE SET is_active = true
-       RETURNING *`,
-      [org.organization_id, name.trim()]
-    );
-    res.json(result.rows[0]);
-  } catch (error) {
-    logError('captador.segments.create', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// DELETE /api/captador/segments/:id
-router.delete('/segments/:id', async (req, res) => {
-  try {
-    const org = await getUserOrg(req.userId);
-    if (!org) return res.status(403).json({ error: 'Sem organização' });
-    await query('DELETE FROM captador_segments WHERE id = $1 AND organization_id = $2', [req.params.id, org.organization_id]);
-    res.json({ success: true });
-  } catch (error) {
-    logError('captador.segments.delete', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ─── DISTRIBUTION MEMBERS CRUD ───
-
-// GET /api/captador/distribution-members
-router.get('/distribution-members', async (req, res) => {
-  try {
-    const org = await getUserOrg(req.userId);
-    if (!org) return res.status(403).json({ error: 'Sem organização' });
-    const result = await query(
-      `SELECT dm.*, u.name as user_name, u.email as user_email
-       FROM captador_distribution_members dm
-       JOIN users u ON u.id = dm.user_id
-       WHERE dm.organization_id = $1
-       ORDER BY u.name`,
-      [org.organization_id]
-    );
-    res.json(result.rows);
-  } catch (error) {
-    res.json([]);
-  }
-});
-
-// POST /api/captador/distribution-members
-router.post('/distribution-members', async (req, res) => {
-  try {
-    const org = await getUserOrg(req.userId);
-    if (!org) return res.status(403).json({ error: 'Sem organização' });
-    const { user_id } = req.body;
-    if (!user_id) return res.status(400).json({ error: 'user_id é obrigatório' });
-    const result = await query(
-      `INSERT INTO captador_distribution_members (organization_id, user_id) VALUES ($1, $2)
-       ON CONFLICT (organization_id, user_id) DO UPDATE SET is_active = true
-       RETURNING *`,
-      [org.organization_id, user_id]
-    );
-    res.json(result.rows[0]);
-  } catch (error) {
-    logError('captador.distribution.add', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// DELETE /api/captador/distribution-members/:userId
-router.delete('/distribution-members/:userId', async (req, res) => {
-  try {
-    const org = await getUserOrg(req.userId);
-    if (!org) return res.status(403).json({ error: 'Sem organização' });
-    await query('DELETE FROM captador_distribution_members WHERE user_id = $1 AND organization_id = $2',
-      [req.params.userId, org.organization_id]);
-    res.json({ success: true });
-  } catch (error) {
-    logError('captador.distribution.remove', error);
     res.status(500).json({ error: error.message });
   }
 });
