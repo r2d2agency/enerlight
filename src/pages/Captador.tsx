@@ -398,6 +398,8 @@ function MobileCaptureForm({ open, onClose, onSuccess, isOnline }: { open: boole
   const { toast } = useToast();
   const { uploadFile, isUploading } = useUpload();
   const createCapture = useCreateFieldCapture();
+  const { data: dbSegments = [] } = useCaptadorSegments();
+  const SEGMENTS = dbSegments.length > 0 ? dbSegments.map(s => s.name) : FALLBACK_SEGMENTS;
   const audioRecorder = useAudioRecorder();
   const [step, setStep] = useState(0);
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -819,6 +821,9 @@ function MobileCaptureForm({ open, onClose, onSuccess, isOnline }: { open: boole
 function DesktopCaptureFormDialog({ open, onClose, onSuccess }: { open: boolean; onClose: () => void; onSuccess: () => void }) {
   const { toast } = useToast();
   const { uploadFile, isUploading } = useUpload();
+  const createCapture = useCreateFieldCapture();
+  const { data: dbSegments = [] } = useCaptadorSegments();
+  const SEGMENTS = dbSegments.length > 0 ? dbSegments.map(s => s.name) : FALLBACK_SEGMENTS;
   const createCapture = useCreateFieldCapture();
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [loadingLocation, setLoadingLocation] = useState(false);
