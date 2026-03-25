@@ -3134,6 +3134,8 @@ CREATE TABLE IF NOT EXISTS user_permissions (
   can_view_settings BOOLEAN DEFAULT true,
   can_view_internal_chat BOOLEAN DEFAULT true,
   can_view_lead_gleego BOOLEAN DEFAULT false,
+  can_view_homologation BOOLEAN DEFAULT false,
+  can_view_captador BOOLEAN DEFAULT false,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   UNIQUE(user_id, organization_id)
@@ -3168,6 +3170,10 @@ EXCEPTION WHEN duplicate_column THEN NULL;
 END $$;
 DO $$ BEGIN
   ALTER TABLE user_permissions ADD COLUMN IF NOT EXISTS can_delete_homologation BOOLEAN DEFAULT false;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+DO $$ BEGIN
+  ALTER TABLE user_permissions ADD COLUMN IF NOT EXISTS can_view_captador BOOLEAN DEFAULT false;
 EXCEPTION WHEN duplicate_column THEN NULL;
 END $$;
 `;

@@ -50,6 +50,8 @@ CREATE TABLE IF NOT EXISTS user_permissions (
 
   -- Integrações
   can_view_lead_gleego BOOLEAN DEFAULT false,
+  can_view_homologation BOOLEAN DEFAULT false,
+  can_view_captador BOOLEAN DEFAULT false,
 
   -- Ações de exclusão
   can_delete_deals BOOLEAN DEFAULT false,
