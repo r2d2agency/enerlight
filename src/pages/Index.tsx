@@ -212,10 +212,10 @@ const FullDashboard = () => {
             icon={<MessageSquare className="h-6 w-6 text-primary" />}
           />
           <StatsCard
-            title="Usuários"
-            value={stats.totalUsers.toLocaleString('pt-BR')}
-            description="Membros da organização"
-            icon={<Users className="h-6 w-6 text-primary" />}
+            title="Minhas Campanhas"
+            value={(stats.activeCampaigns + stats.scheduledCampaigns).toString()}
+            description="Ativas + agendadas"
+            icon={<Send className="h-6 w-6 text-primary" />}
           />
         </div>
 
