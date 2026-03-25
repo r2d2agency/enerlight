@@ -324,7 +324,7 @@ export function PermissionsDialog({ open, onOpenChange, userId, userName, userRo
                 </div>
               ))}
             </div>
-          </ScrollArea>
+          </div>
         )}
 
         <DialogFooter className="flex-shrink-0 flex-row gap-2 border-t pt-4">
