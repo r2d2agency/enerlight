@@ -200,9 +200,9 @@ const FullDashboard = () => {
             icon={<Users className="h-6 w-6 text-primary" />}
           />
           <StatsCard
-            title="Total de Contatos"
+            title="Meus Contatos"
             value={stats.totalContacts.toLocaleString('pt-BR')}
-            description="Em todas as listas"
+            description="Nas minhas listas"
             icon={<Users className="h-6 w-6 text-primary" />}
           />
           <StatsCard
