@@ -225,7 +225,7 @@ export function PermissionsDialog({ open, onOpenChange, userId, userName, userRo
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+      <DialogContent className="max-w-lg max-h-[85vh] flex flex-col overflow-hidden">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Shield className="h-5 w-5 text-primary" />
@@ -242,7 +242,7 @@ export function PermissionsDialog({ open, onOpenChange, userId, userName, userRo
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <ScrollArea className="flex-1 min-h-0 max-h-[calc(90vh-200px)] -mx-6 px-6">
+          <div className="flex-1 min-h-0 overflow-y-auto -mx-6 px-6" style={{ maxHeight: 'calc(85vh - 220px)' }}>
             <div className="space-y-6 pb-4">
               {/* Template selector */}
               {templates.length > 0 && (
@@ -324,7 +324,7 @@ export function PermissionsDialog({ open, onOpenChange, userId, userName, userRo
                 </div>
               ))}
             </div>
-          </ScrollArea>
+          </div>
         )}
 
         <DialogFooter className="flex-shrink-0 flex-row gap-2 border-t pt-4">
