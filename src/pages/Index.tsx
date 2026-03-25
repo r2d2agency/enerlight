@@ -79,6 +79,7 @@ const FullDashboard = () => {
   const { connections, hasConnectedConnection, isLoading: connectionLoading } = useConnectionStatus({ intervalSeconds: 30 });
   const { getChatStats } = useChat();
 
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<DashboardStats>({
     totalContacts: 0,
