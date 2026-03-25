@@ -1380,8 +1380,24 @@ function CaptadorMap({ points, onSelect }: { points: any[]; onSelect: (id: strin
 // ─── Main Page ───
 export default function Captador() {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, userPermissions, modulesEnabled } = useAuth();
   const isMobile = useIsMobile();
+
+  // Only captador-only users need check-in; managers/admins skip it
+  const isCaptadorOnly = (() => {
+    if (userPermissions?.can_view_captador) {
+      const hasOther = userPermissions.can_view_chat || userPermissions.can_view_crm || 
+        userPermissions.can_view_campaigns || userPermissions.can_view_contacts ||
+        userPermissions.can_view_projects || userPermissions.can_view_billing;
+      if (!hasOther) return true;
+    }
+    if (modulesEnabled?.captador && !modulesEnabled?.chat && !modulesEnabled?.crm && 
+        !modulesEnabled?.campaigns && !modulesEnabled?.billing) {
+      return true;
+    }
+    return false;
+  })();
+  const requiresCheckin = isCaptadorOnly;
   const [tab, setTab] = useState("returns");
   const [showForm, setShowForm] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
