@@ -21,6 +21,8 @@ import {
   useAddFieldCaptureVisit, useAddCaptureAttachment, useDeleteFieldCapture,
   useCaptadorSellers, useCaptadorSettings, useUpdateCaptadorSettings,
   useScheduleReturn, useTodayReturns,
+  useCaptadorSegments, useCreateCaptadorSegment, useDeleteCaptadorSegment,
+  useDistributionMembers, useAddDistributionMember, useRemoveDistributionMember,
   FieldCapture,
 } from "@/hooks/use-captador";
 import {
@@ -270,7 +272,7 @@ const CONSTRUCTION_STAGES = [
   "Acabamento", "Pintura", "Finalização",
 ];
 
-const SEGMENTS = [
+const FALLBACK_SEGMENTS = [
   "Petroquímico", "Industrial", "Empreendimento", "Comercial", "Residencial",
   "Agronegócio", "Energia Solar", "Logística", "Mineração", "Saneamento",
   "Hospitalar", "Educacional", "Óleo e Gás", "Infraestrutura", "Outros",
