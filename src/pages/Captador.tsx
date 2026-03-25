@@ -824,7 +824,6 @@ function DesktopCaptureFormDialog({ open, onClose, onSuccess }: { open: boolean;
   const createCapture = useCreateFieldCapture();
   const { data: dbSegments = [] } = useCaptadorSegments();
   const SEGMENTS = dbSegments.length > 0 ? dbSegments.map(s => s.name) : FALLBACK_SEGMENTS;
-  const createCapture = useCreateFieldCapture();
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [loadingLocation, setLoadingLocation] = useState(false);
   const [photos, setPhotos] = useState<{ file_url: string; file_name: string; file_type: string; mime_type: string }[]>([]);
