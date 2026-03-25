@@ -196,6 +196,77 @@ export function useUpdateCaptadorSettings() {
   });
 }
 
+// ─── Segments CRUD ───
+
+export interface CaptadorSegment {
+  id: string;
+  organization_id: string;
+  name: string;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+}
+
+export function useCaptadorSegments() {
+  return useQuery<CaptadorSegment[]>({
+    queryKey: ["captador-segments"],
+    queryFn: () => api("/api/captador/segments"),
+  });
+}
+
+export function useCreateCaptadorSegment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) => api("/api/captador/segments", { method: "POST", body: { name } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["captador-segments"] }),
+  });
+}
+
+export function useDeleteCaptadorSegment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api(`/api/captador/segments/${id}`, { method: "DELETE" }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["captador-segments"] }),
+  });
+}
+
+// ─── Distribution Members ───
+
+export interface DistributionMember {
+  id: string;
+  organization_id: string;
+  user_id: string;
+  user_name: string;
+  user_email: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export function useDistributionMembers() {
+  return useQuery<DistributionMember[]>({
+    queryKey: ["captador-distribution-members"],
+    queryFn: () => api("/api/captador/distribution-members"),
+  });
+}
+
+export function useAddDistributionMember() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (user_id: string) =>
+      api("/api/captador/distribution-members", { method: "POST", body: { user_id } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["captador-distribution-members"] }),
+  });
+}
+
+export function useRemoveDistributionMember() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: string) =>
+      api(`/api/captador/distribution-members/${userId}`, { method: "DELETE" }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["captador-distribution-members"] }),
+  });
+}
+
 export function useTodayReturns() {
   return useQuery<FieldCapture[]>({
     queryKey: ["captador-returns-today"],

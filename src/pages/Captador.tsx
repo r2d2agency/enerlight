@@ -21,6 +21,8 @@ import {
   useAddFieldCaptureVisit, useAddCaptureAttachment, useDeleteFieldCapture,
   useCaptadorSellers, useCaptadorSettings, useUpdateCaptadorSettings,
   useScheduleReturn, useTodayReturns,
+  useCaptadorSegments, useCreateCaptadorSegment, useDeleteCaptadorSegment,
+  useDistributionMembers, useAddDistributionMember, useRemoveDistributionMember,
   FieldCapture,
 } from "@/hooks/use-captador";
 import {
@@ -270,7 +272,7 @@ const CONSTRUCTION_STAGES = [
   "Acabamento", "Pintura", "Finalização",
 ];
 
-const SEGMENTS = [
+const FALLBACK_SEGMENTS = [
   "Petroquímico", "Industrial", "Empreendimento", "Comercial", "Residencial",
   "Agronegócio", "Energia Solar", "Logística", "Mineração", "Saneamento",
   "Hospitalar", "Educacional", "Óleo e Gás", "Infraestrutura", "Outros",
@@ -396,6 +398,8 @@ function MobileCaptureForm({ open, onClose, onSuccess, isOnline }: { open: boole
   const { toast } = useToast();
   const { uploadFile, isUploading } = useUpload();
   const createCapture = useCreateFieldCapture();
+  const { data: dbSegments = [] } = useCaptadorSegments();
+  const SEGMENTS = dbSegments.length > 0 ? dbSegments.map(s => s.name) : FALLBACK_SEGMENTS;
   const audioRecorder = useAudioRecorder();
   const [step, setStep] = useState(0);
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -818,6 +822,8 @@ function DesktopCaptureFormDialog({ open, onClose, onSuccess }: { open: boolean;
   const { toast } = useToast();
   const { uploadFile, isUploading } = useUpload();
   const createCapture = useCreateFieldCapture();
+  const { data: dbSegments = [] } = useCaptadorSegments();
+  const SEGMENTS = dbSegments.length > 0 ? dbSegments.map(s => s.name) : FALLBACK_SEGMENTS;
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [loadingLocation, setLoadingLocation] = useState(false);
   const [photos, setPhotos] = useState<{ file_url: string; file_name: string; file_type: string; mime_type: string }[]>([]);
@@ -1413,9 +1419,17 @@ export default function Captador() {
   const { data: sellers = [] } = useCaptadorSellers();
   const { data: settings } = useCaptadorSettings();
   const { data: todayReturns = [] } = useTodayReturns();
+  const { data: dbSegments = [] } = useCaptadorSegments();
+  const { data: distributionMembers = [] } = useDistributionMembers();
+  const createSegment = useCreateCaptadorSegment();
+  const deleteSegment = useDeleteCaptadorSegment();
+  const addDistMember = useAddDistributionMember();
+  const removeDistMember = useRemoveDistributionMember();
+  const SEGMENTS = dbSegments.length > 0 ? dbSegments.map(s => s.name) : FALLBACK_SEGMENTS;
   const updateSettings = useUpdateCaptadorSettings();
   const updateCapture = useUpdateFieldCapture();
   const deleteCapture = useDeleteFieldCapture();
+  const [newSegmentName, setNewSegmentName] = useState("");
 
   const { isOnline, pendingCount, refreshCount } = useOfflineSync(createCaptureForSync, () => refetch());
 
@@ -1651,24 +1665,76 @@ export default function Captador() {
           {/* Settings Panel */}
           {showSettings && settings && (
             <Dialog open={showSettings} onOpenChange={setShowSettings}>
-              <DialogContent aria-describedby={undefined}>
+              <DialogContent aria-describedby={undefined} className="max-h-[85vh] overflow-y-auto">
                 <DialogHeader><DialogTitle>Configurações</DialogTitle></DialogHeader>
-                <div className="space-y-4">
-                  <label className="flex items-center gap-3 text-sm">
-                    <input type="checkbox" checked={settings.auto_distribute}
-                      onChange={(e) => updateSettings.mutate({ ...settings, auto_distribute: e.target.checked })} className="rounded" />
-                    Distribuição automática
-                  </label>
-                  <label className="flex items-center gap-3 text-sm">
-                    <input type="checkbox" checked={settings.auto_create_task}
-                      onChange={(e) => updateSettings.mutate({ ...settings, auto_create_task: e.target.checked })} className="rounded" />
-                    Criar tarefa automaticamente
-                  </label>
-                  <label className="flex items-center gap-3 text-sm">
-                    <input type="checkbox" checked={settings.notify_whatsapp}
-                      onChange={(e) => updateSettings.mutate({ ...settings, notify_whatsapp: e.target.checked })} className="rounded" />
-                    Notificar via WhatsApp
-                  </label>
+                <div className="space-y-5">
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-semibold">Automações</h4>
+                    <label className="flex items-center gap-3 text-sm">
+                      <input type="checkbox" checked={settings.auto_distribute}
+                        onChange={(e) => updateSettings.mutate({ ...settings, auto_distribute: e.target.checked })} className="rounded" />
+                      Distribuição automática
+                    </label>
+                    <label className="flex items-center gap-3 text-sm">
+                      <input type="checkbox" checked={settings.auto_create_task}
+                        onChange={(e) => updateSettings.mutate({ ...settings, auto_create_task: e.target.checked })} className="rounded" />
+                      Criar tarefa automaticamente
+                    </label>
+                    <label className="flex items-center gap-3 text-sm">
+                      <input type="checkbox" checked={settings.notify_whatsapp}
+                        onChange={(e) => updateSettings.mutate({ ...settings, notify_whatsapp: e.target.checked })} className="rounded" />
+                      Notificar via WhatsApp
+                    </label>
+                  </div>
+
+                  {/* Distribution Members */}
+                  {settings.auto_distribute && (
+                    <div className="space-y-2 border-t pt-3">
+                      <h4 className="text-sm font-semibold flex items-center gap-2"><Users className="h-4 w-4" /> Vendedores na Distribuição</h4>
+                      <p className="text-xs text-muted-foreground">Selecione quem recebe fichas automaticamente (round-robin)</p>
+                      {distributionMembers.map(m => (
+                        <div key={m.user_id} className="flex items-center justify-between bg-muted/50 rounded px-3 py-2">
+                          <span className="text-sm">{m.user_name}</span>
+                          <Button size="sm" variant="ghost" className="h-7 text-destructive" onClick={() => removeDistMember.mutate(m.user_id)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      ))}
+                      <Select value="__pick__" onValueChange={(v) => { if (v !== "__pick__") addDistMember.mutate(v); }}>
+                        <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="+ Adicionar vendedor" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__pick__" disabled>Selecione...</SelectItem>
+                          {sellers.filter(s => !distributionMembers.some(d => d.user_id === s.id)).map(s => (
+                            <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {distributionMembers.length === 0 && (
+                        <p className="text-xs text-amber-600">⚠️ Nenhum vendedor selecionado. Adicione ao menos um para a distribuição funcionar.</p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Segments Management */}
+                  <div className="space-y-2 border-t pt-3">
+                    <h4 className="text-sm font-semibold flex items-center gap-2"><ClipboardList className="h-4 w-4" /> Segmentos</h4>
+                    <div className="flex flex-wrap gap-1.5">
+                      {(dbSegments.length > 0 ? dbSegments : FALLBACK_SEGMENTS.map((s, i) => ({ id: `fb-${i}`, name: s }))).map(seg => (
+                        <Badge key={typeof seg === 'string' ? seg : seg.id} variant="secondary" className="gap-1 pr-1">
+                          {typeof seg === 'string' ? seg : seg.name}
+                          {typeof seg !== 'string' && (
+                            <button onClick={() => deleteSegment.mutate(seg.id)} className="ml-1 hover:text-destructive">×</button>
+                          )}
+                        </Badge>
+                      ))}
+                    </div>
+                    <div className="flex gap-2">
+                      <Input placeholder="Novo segmento..." value={newSegmentName} onChange={e => setNewSegmentName(e.target.value)} className="h-8 text-sm" />
+                      <Button size="sm" className="h-8" disabled={!newSegmentName.trim()} onClick={() => { createSegment.mutate(newSegmentName.trim()); setNewSegmentName(""); }}>
+                        <Plus className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </DialogContent>
             </Dialog>
@@ -1707,7 +1773,7 @@ export default function Captador() {
         </div>
 
         {showSettings && settings && (
-          <Card className="p-4 space-y-3">
+          <Card className="p-4 space-y-4">
             <h3 className="font-medium flex items-center gap-2"><Settings className="h-4 w-4" /> Configurações do Captador</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <label className="flex items-center gap-2 text-sm">
@@ -1725,6 +1791,57 @@ export default function Captador() {
                   onChange={(e) => updateSettings.mutate({ ...settings, notify_whatsapp: e.target.checked })} className="rounded" />
                 Notificar via WhatsApp
               </label>
+            </div>
+
+            {/* Distribution Members */}
+            {settings.auto_distribute && (
+              <div className="border-t pt-3 space-y-3">
+                <h4 className="text-sm font-semibold flex items-center gap-2"><Users className="h-4 w-4" /> Vendedores na Distribuição Automática</h4>
+                <p className="text-xs text-muted-foreground">Selecione quem recebe fichas automaticamente via round-robin. Se nenhum for selecionado, todos os membros da organização serão usados.</p>
+                <div className="flex flex-wrap gap-2">
+                  {distributionMembers.map(m => (
+                    <Badge key={m.user_id} variant="outline" className="gap-1.5 py-1.5 px-3">
+                      <User className="h-3.5 w-3.5" /> {m.user_name}
+                      <button onClick={() => removeDistMember.mutate(m.user_id)} className="ml-1 hover:text-destructive">
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                  <Select value="__pick__" onValueChange={(v) => { if (v !== "__pick__") addDistMember.mutate(v); }}>
+                    <SelectTrigger className="h-8 w-52 text-sm"><SelectValue placeholder="+ Adicionar vendedor" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__pick__" disabled>Selecione...</SelectItem>
+                      {sellers.filter(s => !distributionMembers.some(d => d.user_id === s.id)).map(s => (
+                        <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+
+            {/* Segments Management */}
+            <div className="border-t pt-3 space-y-3">
+              <h4 className="text-sm font-semibold flex items-center gap-2"><ClipboardList className="h-4 w-4" /> Segmentos Cadastrados</h4>
+              <div className="flex flex-wrap gap-1.5">
+                {(dbSegments.length > 0 ? dbSegments : FALLBACK_SEGMENTS.map((s, i) => ({ id: `fb-${i}`, name: s }))).map(seg => (
+                  <Badge key={typeof seg === 'string' ? seg : seg.id} variant="secondary" className="gap-1 pr-1.5">
+                    {typeof seg === 'string' ? seg : seg.name}
+                    {typeof seg !== 'string' && (
+                      <button onClick={() => deleteSegment.mutate(seg.id)} className="ml-1 hover:text-destructive text-xs">×</button>
+                    )}
+                  </Badge>
+                ))}
+              </div>
+              <div className="flex gap-2 max-w-sm">
+                <Input placeholder="Novo segmento..." value={newSegmentName} onChange={e => setNewSegmentName(e.target.value)} className="h-8 text-sm" />
+                <Button size="sm" className="h-8" disabled={!newSegmentName.trim()} onClick={() => { createSegment.mutate(newSegmentName.trim()); setNewSegmentName(""); }}>
+                  <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar
+                </Button>
+              </div>
+              {dbSegments.length === 0 && (
+                <p className="text-xs text-muted-foreground">Usando segmentos padrão. Ao cadastrar um novo, a lista personalizada será usada.</p>
+              )}
             </div>
           </Card>
         )}
