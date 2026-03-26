@@ -6438,4 +6438,437 @@ router.get('/goals/data-daily', async (req, res) => {
   }
 });
 
+// ============================================
+// GOALS DAILY REPORT VIA WHATSAPP
+// ============================================
+
+async function ensureReportTables() {
+  await query(`CREATE TABLE IF NOT EXISTS crm_goals_report_config (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    connection_id UUID NOT NULL,
+    send_time TIME NOT NULL DEFAULT '18:00',
+    is_active BOOLEAN DEFAULT true,
+    include_channel_breakdown BOOLEAN DEFAULT true,
+    include_enerlight BOOLEAN DEFAULT true,
+    created_by UUID REFERENCES users(id),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+  )`);
+  await query(`CREATE TABLE IF NOT EXISTS crm_goals_report_recipients (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    config_id UUID NOT NULL REFERENCES crm_goals_report_config(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    phone VARCHAR(30) NOT NULL,
+    name VARCHAR(255),
+    report_type VARCHAR(20) NOT NULL DEFAULT 'full',
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+  )`);
+}
+
+// Get report config
+router.get('/goals/report-config', async (req, res) => {
+  try {
+    await ensureReportTables();
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+    const result = await query(
+      'SELECT * FROM crm_goals_report_config WHERE organization_id = $1 ORDER BY created_at DESC LIMIT 1',
+      [org.organization_id]
+    );
+    res.json(result.rows[0] || null);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Save/update report config
+router.post('/goals/report-config', async (req, res) => {
+  try {
+    await ensureReportTables();
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+    const { connection_id, send_time, is_active, include_channel_breakdown, include_enerlight } = req.body;
+    
+    const existing = await query(
+      'SELECT id FROM crm_goals_report_config WHERE organization_id = $1 LIMIT 1',
+      [org.organization_id]
+    );
+    
+    if (existing.rows[0]) {
+      const result = await query(
+        `UPDATE crm_goals_report_config SET connection_id = $1, send_time = $2, is_active = $3,
+         include_channel_breakdown = $4, include_enerlight = $5, updated_at = NOW()
+         WHERE id = $6 RETURNING *`,
+        [connection_id, send_time, is_active, include_channel_breakdown, include_enerlight, existing.rows[0].id]
+      );
+      res.json(result.rows[0]);
+    } else {
+      const result = await query(
+        `INSERT INTO crm_goals_report_config (organization_id, connection_id, send_time, is_active,
+         include_channel_breakdown, include_enerlight, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+        [org.organization_id, connection_id, send_time, is_active, include_channel_breakdown, include_enerlight, req.userId]
+      );
+      res.json(result.rows[0]);
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get recipients
+router.get('/goals/report-recipients', async (req, res) => {
+  try {
+    await ensureReportTables();
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+    const config = await query(
+      'SELECT id FROM crm_goals_report_config WHERE organization_id = $1 LIMIT 1',
+      [org.organization_id]
+    );
+    if (!config.rows[0]) return res.json([]);
+    const result = await query(
+      'SELECT * FROM crm_goals_report_recipients WHERE config_id = $1 AND is_active = true ORDER BY name',
+      [config.rows[0].id]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Add recipient
+router.post('/goals/report-recipients', async (req, res) => {
+  try {
+    await ensureReportTables();
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+    const config = await query(
+      'SELECT id FROM crm_goals_report_config WHERE organization_id = $1 LIMIT 1',
+      [org.organization_id]
+    );
+    if (!config.rows[0]) return res.status(400).json({ error: 'Configure o relatório primeiro' });
+    const { phone, name, user_id, report_type } = req.body;
+    const result = await query(
+      `INSERT INTO crm_goals_report_recipients (config_id, user_id, phone, name, report_type)
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [config.rows[0].id, user_id || null, phone, name, report_type || 'full']
+    );
+    res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Remove recipient
+router.delete('/goals/report-recipients/:id', async (req, res) => {
+  try {
+    await query('DELETE FROM crm_goals_report_recipients WHERE id = $1', [req.params.id]);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Preview report text
+router.post('/goals/report-preview', async (req, res) => {
+  try {
+    await ensureGoalsDataTable();
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+    const { reportType, userId } = req.body;
+
+    const now = new Date();
+    const sd = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    const ed = now.toISOString().split('T')[0];
+    const dateExpr = `COALESCE(CASE WHEN data_type = 'faturamento' THEN billing_date WHEN data_type = 'pedido' THEN COALESCE(emission_date, delivery_date) ELSE emission_date END, emission_date, delivery_date, created_at::date)`;
+    const baseWhere = `organization_id = $1 AND ${dateExpr} >= $2::date AND ${dateExpr} <= $3::date`;
+
+    let userFilter = '';
+    const params = [org.organization_id, sd, ed];
+    if (reportType === 'individual' && userId) {
+      params.push(userId);
+      userFilter = ` AND user_id = $${params.length}`;
+    }
+
+    const summary = await query(
+      `SELECT data_type, COUNT(*) as count, COALESCE(SUM(value),0) as total_value
+       FROM crm_goals_data WHERE ${baseWhere}${userFilter} GROUP BY data_type`, params
+    );
+    const gd = { orcamento: { count: 0, value: 0 }, pedido: { count: 0, value: 0 }, faturamento: { count: 0, value: 0 } };
+    for (const row of summary.rows) {
+      gd[row.data_type] = { count: parseInt(row.count), value: parseFloat(row.total_value) };
+    }
+
+    const goalsResult = await query(
+      `SELECT metric, target_value FROM crm_goals WHERE organization_id = $1 AND is_active = true AND type = 'geral'`,
+      [org.organization_id]
+    );
+    const goalMap = {};
+    for (const g of goalsResult.rows) {
+      goalMap[g.metric] = (goalMap[g.metric] || 0) + parseFloat(g.target_value);
+    }
+
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    function countBizDays(start, end) {
+      let cnt = 0; const d = new Date(start);
+      while (d <= end) { if (d.getDay() !== 0 && d.getDay() !== 6) cnt++; d.setDate(d.getDate() + 1); }
+      return cnt;
+    }
+    const totalBizDays = countBizDays(monthStart, monthEnd);
+    const elapsedBizDays = countBizDays(monthStart, today);
+
+    let enerlightByType = {};
+    if (reportType === 'full') {
+      const enerlightResult = await query(
+        `SELECT data_type, COALESCE(SUM(value),0) as total_value
+         FROM crm_goals_data WHERE ${baseWhere} AND LOWER(seller_name) SIMILAR TO '%(gustavo|fabio)%'
+         GROUP BY data_type`, [org.organization_id, sd, ed]
+      );
+      for (const r of enerlightResult.rows) enerlightByType[r.data_type] = parseFloat(r.total_value);
+    }
+
+    function fmt(v) {
+      return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0 }).format(v);
+    }
+
+    const dateStr = now.toLocaleDateString('pt-BR');
+    let text = `📊 *RELATÓRIO DE METAS — ${dateStr}*\n\n`;
+
+    const sections = [
+      { label: '📄 Orçamentos', type: 'orcamento', metricValue: 'quotes_value', data: gd.orcamento },
+      { label: '🛒 Pedidos', type: 'pedido', metricValue: 'orders_value', data: gd.pedido },
+      { label: '💰 Faturamento', type: 'faturamento', metricValue: 'billing_value', data: gd.faturamento },
+    ];
+
+    for (const s of sections) {
+      const planned = goalMap[s.metricValue] || 0;
+      const mtd = totalBizDays > 0 ? (planned / totalBizDays) * elapsedBizDays : 0;
+      const saldoMtd = s.data.value - mtd;
+      const pct = planned > 0 ? ((s.data.value / planned) * 100).toFixed(1) : '—';
+      const ticket = s.data.count > 0 ? s.data.value / s.data.count : 0;
+
+      text += `${s.label}\n`;
+      text += `  Qtd: ${s.data.count} | TM: ${fmt(ticket)}\n`;
+      if (planned > 0) text += `  Planejado: ${fmt(planned)}\n`;
+      text += `  Realizado: ${fmt(s.data.value)}`;
+      if (planned > 0) text += ` (${pct}%)`;
+      text += '\n';
+      if (planned > 0) {
+        text += `  MTD: ${fmt(mtd)}\n`;
+        text += `  Saldo: ${saldoMtd >= 0 ? '✅' : '❌'} ${fmt(saldoMtd)}\n`;
+      }
+      const enerlightVal = enerlightByType[s.type] || 0;
+      if (enerlightVal > 0 && reportType === 'full') {
+        const realSemEnerlight = s.data.value - enerlightVal;
+        const saldoSemEnerlight = realSemEnerlight - mtd;
+        text += `  ⚡ Enerlight: ${fmt(enerlightVal)}\n`;
+        text += `  Saldo s/ Enerlight: ${saldoSemEnerlight >= 0 ? '✅' : '❌'} ${fmt(saldoSemEnerlight)}\n`;
+      }
+      text += '\n';
+    }
+
+    // Channel breakdown
+    if (reportType === 'full') {
+      const channelResult = await query(
+        `SELECT data_type, COALESCE(channel, 'Sem Canal') as channel, COUNT(*) as count, COALESCE(SUM(value),0) as total_value
+         FROM crm_goals_data WHERE ${baseWhere}
+         GROUP BY data_type, channel ORDER BY data_type, total_value DESC`,
+        [org.organization_id, sd, ed]
+      );
+      if (channelResult.rows.length > 0) {
+        text += `📡 *POR CANAL*\n\n`;
+        const channelsByType = {};
+        for (const r of channelResult.rows) {
+          if (!channelsByType[r.data_type]) channelsByType[r.data_type] = [];
+          channelsByType[r.data_type].push(r);
+        }
+        const typeLabels = { orcamento: '📄 Orçamentos', pedido: '🛒 Pedidos', faturamento: '💰 Faturamento' };
+        for (const [type, rows] of Object.entries(channelsByType)) {
+          text += `${typeLabels[type] || type}\n`;
+          for (const r of rows) text += `  • ${r.channel}: ${fmt(parseFloat(r.total_value))} (${r.count})\n`;
+          text += '\n';
+        }
+      }
+    }
+
+    const remaining = countBizDays(new Date(today.getTime() + 86400000), monthEnd);
+    text += `📅 _${remaining} dias úteis restantes no mês_`;
+
+    res.json({ text });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Send report now (manual trigger)
+router.post('/goals/report-send-now', async (req, res) => {
+  try {
+    await ensureReportTables();
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const configResult = await query(
+      'SELECT * FROM crm_goals_report_config WHERE organization_id = $1 LIMIT 1',
+      [org.organization_id]
+    );
+    const config = configResult.rows[0];
+    if (!config) return res.status(400).json({ error: 'Configure o relatório primeiro' });
+
+    const connection = await query(
+      'SELECT * FROM connections WHERE id = $1 AND status = $2',
+      [config.connection_id, 'connected']
+    );
+    if (!connection.rows[0]) return res.status(400).json({ error: 'Conexão não encontrada ou desconectada' });
+
+    const recipients = await query(
+      'SELECT * FROM crm_goals_report_recipients WHERE config_id = $1 AND is_active = true',
+      [config.id]
+    );
+
+    const { sendMessage } = await import('../lib/whatsapp-provider.js');
+    let sent = 0;
+
+    // Generate preview text using same logic
+    const now = new Date();
+    const sd = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    const ed = now.toISOString().split('T')[0];
+    const dateExpr = `COALESCE(CASE WHEN data_type = 'faturamento' THEN billing_date WHEN data_type = 'pedido' THEN COALESCE(emission_date, delivery_date) ELSE emission_date END, emission_date, delivery_date, created_at::date)`;
+
+    for (const recipient of recipients.rows) {
+      try {
+        const baseWhere = `organization_id = $1 AND ${dateExpr} >= $2::date AND ${dateExpr} <= $3::date`;
+        let userFilter = '';
+        const params = [org.organization_id, sd, ed];
+        if (recipient.report_type === 'individual' && recipient.user_id) {
+          params.push(recipient.user_id);
+          userFilter = ` AND user_id = $${params.length}`;
+        }
+
+        const summary = await query(
+          `SELECT data_type, COUNT(*) as count, COALESCE(SUM(value),0) as total_value
+           FROM crm_goals_data WHERE ${baseWhere}${userFilter} GROUP BY data_type`, params
+        );
+        const gd = { orcamento: { count: 0, value: 0 }, pedido: { count: 0, value: 0 }, faturamento: { count: 0, value: 0 } };
+        for (const row of summary.rows) {
+          gd[row.data_type] = { count: parseInt(row.count), value: parseFloat(row.total_value) };
+        }
+
+        const goalsResult = await query(
+          `SELECT metric, target_value FROM crm_goals WHERE organization_id = $1 AND is_active = true AND type = 'geral'`,
+          [org.organization_id]
+        );
+        const goalMap = {};
+        for (const g of goalsResult.rows) goalMap[g.metric] = (goalMap[g.metric] || 0) + parseFloat(g.target_value);
+
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        function countBizDays(start, end) {
+          let cnt = 0; const d = new Date(start);
+          while (d <= end) { if (d.getDay() !== 0 && d.getDay() !== 6) cnt++; d.setDate(d.getDate() + 1); }
+          return cnt;
+        }
+        const totalBizDays = countBizDays(monthStart, monthEnd);
+        const elapsedBizDays = countBizDays(monthStart, today);
+
+        function fmt(v) {
+          return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0 }).format(v);
+        }
+
+        const dateStr = now.toLocaleDateString('pt-BR');
+        let text = `📊 *RELATÓRIO DE METAS — ${dateStr}*\n`;
+        if (recipient.report_type === 'individual' && recipient.name) {
+          text += `👤 *${recipient.name}*\n`;
+        }
+        text += '\n';
+
+        const sections = [
+          { label: '📄 Orçamentos', type: 'orcamento', metricValue: 'quotes_value', data: gd.orcamento },
+          { label: '🛒 Pedidos', type: 'pedido', metricValue: 'orders_value', data: gd.pedido },
+          { label: '💰 Faturamento', type: 'faturamento', metricValue: 'billing_value', data: gd.faturamento },
+        ];
+
+        for (const s of sections) {
+          const planned = goalMap[s.metricValue] || 0;
+          const mtd = totalBizDays > 0 ? (planned / totalBizDays) * elapsedBizDays : 0;
+          const saldoMtd = s.data.value - mtd;
+          const pct = planned > 0 ? ((s.data.value / planned) * 100).toFixed(1) : '—';
+          const ticket = s.data.count > 0 ? s.data.value / s.data.count : 0;
+
+          text += `${s.label}\n`;
+          text += `  Qtd: ${s.data.count} | TM: ${fmt(ticket)}\n`;
+          if (planned > 0) text += `  Planejado: ${fmt(planned)}\n`;
+          text += `  Realizado: ${fmt(s.data.value)}`;
+          if (planned > 0) text += ` (${pct}%)`;
+          text += '\n';
+          if (planned > 0) {
+            text += `  MTD: ${fmt(mtd)}\n`;
+            text += `  Saldo: ${saldoMtd >= 0 ? '✅' : '❌'} ${fmt(saldoMtd)}\n`;
+          }
+
+          if (config.include_enerlight && recipient.report_type === 'full') {
+            try {
+              const enerlightResult = await query(
+                `SELECT COALESCE(SUM(value),0) as total_value
+                 FROM crm_goals_data WHERE organization_id = $1 AND ${dateExpr} >= $2::date AND ${dateExpr} <= $3::date
+                 AND data_type = $4 AND LOWER(seller_name) SIMILAR TO '%(gustavo|fabio)%'`,
+                [org.organization_id, sd, ed, s.type]
+              );
+              const enerlightVal = parseFloat(enerlightResult.rows[0]?.total_value || '0');
+              if (enerlightVal > 0) {
+                const realSemEnerlight = s.data.value - enerlightVal;
+                const saldoSemEnerlight = realSemEnerlight - mtd;
+                text += `  ⚡ Enerlight: ${fmt(enerlightVal)}\n`;
+                text += `  Saldo s/ Enerlight: ${saldoSemEnerlight >= 0 ? '✅' : '❌'} ${fmt(saldoSemEnerlight)}\n`;
+              }
+            } catch (_) {}
+          }
+          text += '\n';
+        }
+
+        if (config.include_channel_breakdown && recipient.report_type === 'full') {
+          const channelResult = await query(
+            `SELECT data_type, COALESCE(channel, 'Sem Canal') as channel, COUNT(*) as count, COALESCE(SUM(value),0) as total_value
+             FROM crm_goals_data WHERE organization_id = $1 AND ${dateExpr} >= $2::date AND ${dateExpr} <= $3::date
+             GROUP BY data_type, channel ORDER BY data_type, total_value DESC`,
+            [org.organization_id, sd, ed]
+          );
+          if (channelResult.rows.length > 0) {
+            text += `📡 *POR CANAL*\n\n`;
+            const channelsByType = {};
+            for (const r of channelResult.rows) {
+              if (!channelsByType[r.data_type]) channelsByType[r.data_type] = [];
+              channelsByType[r.data_type].push(r);
+            }
+            const typeLabels = { orcamento: '📄 Orçamentos', pedido: '🛒 Pedidos', faturamento: '💰 Faturamento' };
+            for (const [type, rows] of Object.entries(channelsByType)) {
+              text += `${typeLabels[type] || type}\n`;
+              for (const r of rows) text += `  • ${r.channel}: ${fmt(parseFloat(r.total_value))} (${r.count})\n`;
+              text += '\n';
+            }
+          }
+        }
+
+        const remaining = countBizDays(new Date(today.getTime() + 86400000), monthEnd);
+        text += `📅 _${remaining} dias úteis restantes no mês_`;
+
+        await sendMessage(connection.rows[0], recipient.phone, 'text', text);
+        sent++;
+      } catch (err) {
+        logError('goals_report.send_error', err, { recipient_id: recipient.id });
+      }
+    }
+
+    res.json({ success: true, sent, total: recipients.rows.length });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
