@@ -1,10 +1,9 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useThemedBranding } from "@/hooks/use-branding";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { Clock, Sun, Sunset, Moon, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { API_URL } from "@/lib/api";
 import { MessageNotifications } from "./MessageNotifications";
 import { CRMAlerts } from "./CRMAlerts";
 import { ConnectionStatusIndicator } from "./ConnectionStatusIndicator";
@@ -19,22 +18,75 @@ function getGreeting(hour: number): { text: string; icon: typeof Sun } {
   }
 }
 
+const SP_TIMEZONE = "America/Sao_Paulo";
+
+const dateFormatter = new Intl.DateTimeFormat("pt-BR", {
+  timeZone: SP_TIMEZONE,
+  day: "2-digit",
+  month: "long",
+});
+
+const timeFormatter = new Intl.DateTimeFormat("pt-BR", {
+  timeZone: SP_TIMEZONE,
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hour12: false,
+});
+
+const hourFormatter = new Intl.DateTimeFormat("pt-BR", {
+  timeZone: SP_TIMEZONE,
+  hour: "2-digit",
+  hour12: false,
+});
+
 export function TopBar() {
   const { user } = useAuth();
   const { branding } = useThemedBranding();
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [serverOffsetMs, setServerOffsetMs] = useState(0);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const syncServerTime = async () => {
+      try {
+        const response = await fetch(`${API_URL}/health`);
+        if (!response.ok) return;
+
+        const data = await response.json();
+        const serverTimestamp = new Date(data?.timestamp).getTime();
+        if (!isMounted || !Number.isFinite(serverTimestamp)) return;
+
+        setServerOffsetMs(serverTimestamp - Date.now());
+      } catch {
+        // fallback para relógio local caso a API esteja indisponível
+      }
+    };
+
+    syncServerTime();
+    const syncTimer = setInterval(syncServerTime, 5 * 60 * 1000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(syncTimer);
+    };
+  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setCurrentTime(new Date());
+      setCurrentTime(new Date(Date.now() + serverOffsetMs));
     }, 1000);
 
     return () => clearInterval(timer);
-  }, []);
+  }, [serverOffsetMs]);
 
-  const greeting = getGreeting(currentTime.getHours());
+  const currentHour = Number.parseInt(hourFormatter.format(currentTime), 10);
+  const greeting = getGreeting(Number.isNaN(currentHour) ? 12 : currentHour);
   const GreetingIcon = greeting.icon;
   const firstName = user?.name?.split(" ")[0] || "Usuário";
+  const formattedDate = dateFormatter.format(currentTime);
+  const formattedTime = timeFormatter.format(currentTime);
 
   return (
     <div className="hidden lg:flex fixed top-0 right-0 left-16 h-14 items-center justify-between gap-4 px-6 bg-background/80 backdrop-blur-sm border-b border-border/50 z-40">
@@ -79,10 +131,10 @@ export function TopBar() {
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <Clock className="h-4 w-4" />
         <span className="font-medium">
-          {format(currentTime, "dd 'de' MMMM", { locale: ptBR })}
+          {formattedDate}
         </span>
         <span className="text-primary font-semibold">
-          {format(currentTime, "HH:mm:ss")}
+          {formattedTime}
         </span>
       </div>
 
