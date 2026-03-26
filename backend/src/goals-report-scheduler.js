@@ -224,7 +224,7 @@ export async function executeGoalsReport() {
               config.include_enerlight
             );
 
-            await sendMessage(connection, recipient.phone, 'text', text);
+            await sendMessage(connection, recipient.phone, text, 'text', null);
             logInfo('goals_report.sent', { recipient: recipient.name, phone: recipient.phone, type: recipient.report_type });
           } catch (err) {
             logError('goals_report.send_error', err, { recipient_id: recipient.id });

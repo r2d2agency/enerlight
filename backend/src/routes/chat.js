@@ -1763,7 +1763,7 @@ router.get('/team', authenticate, async (req, res) => {
       `SELECT u.id, u.name, u.email, om.role
        FROM organization_members om
        JOIN users u ON u.id = om.user_id
-       WHERE om.organization_id = $1 AND COALESCE(om.is_active, true) = true
+       WHERE om.organization_id = $1
        ORDER BY u.name`,
       [organizationId]
     );
