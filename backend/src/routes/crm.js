@@ -6489,7 +6489,7 @@ router.post('/goals/report-config', async (req, res) => {
     await ensureReportTables();
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
-    const { connection_id, send_time, is_active, include_channel_breakdown, include_enerlight } = req.body;
+    const { connection_id, send_time, is_active, include_channel_breakdown, include_enerlight, greeting_template } = req.body;
     
     const existing = await query(
       'SELECT id FROM crm_goals_report_config WHERE organization_id = $1 LIMIT 1',
@@ -6499,17 +6499,17 @@ router.post('/goals/report-config', async (req, res) => {
     if (existing.rows[0]) {
       const result = await query(
         `UPDATE crm_goals_report_config SET connection_id = $1, send_time = $2, is_active = $3,
-         include_channel_breakdown = $4, include_enerlight = $5, updated_at = NOW()
-         WHERE id = $6 RETURNING *`,
-        [connection_id, send_time, is_active, include_channel_breakdown, include_enerlight, existing.rows[0].id]
+         include_channel_breakdown = $4, include_enerlight = $5, greeting_template = $6, updated_at = NOW()
+         WHERE id = $7 RETURNING *`,
+        [connection_id, send_time, is_active, include_channel_breakdown, include_enerlight, greeting_template || null, existing.rows[0].id]
       );
       res.json(result.rows[0]);
     } else {
       const result = await query(
         `INSERT INTO crm_goals_report_config (organization_id, connection_id, send_time, is_active,
-         include_channel_breakdown, include_enerlight, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-        [org.organization_id, connection_id, send_time, is_active, include_channel_breakdown, include_enerlight, req.userId]
+         include_channel_breakdown, include_enerlight, greeting_template, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+        [org.organization_id, connection_id, send_time, is_active, include_channel_breakdown, include_enerlight, greeting_template || null, req.userId]
       );
       res.json(result.rows[0]);
     }
@@ -6871,7 +6871,13 @@ router.post('/goals/report-send-now', async (req, res) => {
         const remaining = countBizDays(new Date(today.getTime() + 86400000), monthEnd);
         text += `📅 _${remaining} dias úteis restantes no mês_`;
 
-        await sendMessage(connection.rows[0], recipient.phone, text, 'text', null);
+        // Prepend greeting
+        const firstName = (recipient.name || '').split(' ')[0] || 'Olá';
+        const greetingTpl = config.greeting_template || 'Olá {primeiro_nome}, segue seu relatório diário! 👇';
+        const greeting = greetingTpl.replace(/\{primeiro_nome\}/gi, firstName);
+        const fullText = greeting + '\n\n' + text;
+
+        await sendMessage(connection.rows[0], recipient.phone, fullText, 'text', null);
         sent++;
       } catch (err) {
         logError('goals_report.send_error', err, { recipient_id: recipient.id });

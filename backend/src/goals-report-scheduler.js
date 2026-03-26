@@ -15,6 +15,7 @@ async function ensureReportTables() {
     is_active BOOLEAN DEFAULT true,
     include_channel_breakdown BOOLEAN DEFAULT true,
     include_enerlight BOOLEAN DEFAULT true,
+    greeting_template TEXT DEFAULT 'Olá {primeiro_nome}, segue seu relatório diário! 👇',
     created_by UUID REFERENCES users(id),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -224,7 +225,13 @@ export async function executeGoalsReport() {
               config.include_enerlight
             );
 
-            await sendMessage(connection, recipient.phone, text, 'text', null);
+            // Prepend greeting
+            const firstName = (recipient.name || '').split(' ')[0] || 'Olá';
+            const greetingTpl = config.greeting_template || 'Olá {primeiro_nome}, segue seu relatório diário! 👇';
+            const greeting = greetingTpl.replace(/\{primeiro_nome\}/gi, firstName);
+            const fullText = greeting + '\n\n' + text;
+
+            await sendMessage(connection, recipient.phone, fullText, 'text', null);
             logInfo('goals_report.sent', { recipient: recipient.name, phone: recipient.phone, type: recipient.report_type });
           } catch (err) {
             logError('goals_report.send_error', err, { recipient_id: recipient.id });

@@ -21,6 +21,7 @@ interface ReportConfig {
   is_active: boolean;
   include_channel_breakdown: boolean;
   include_enerlight: boolean;
+  greeting_template?: string;
 }
 
 interface ReportRecipient {
@@ -71,6 +72,7 @@ export function GoalsReportConfigDialog({ open, onOpenChange }: Props) {
   const [includeChannels, setIncludeChannels] = useState(true);
   const [includeEnerlight, setIncludeEnerlight] = useState(true);
   const [isActive, setIsActive] = useState(true);
+  const [greetingTemplate, setGreetingTemplate] = useState("Olá {primeiro_nome}, segue seu relatório diário! 👇");
 
   // New recipient form
   const [newPhone, setNewPhone] = useState("");
@@ -87,6 +89,7 @@ export function GoalsReportConfigDialog({ open, onOpenChange }: Props) {
       setIncludeChannels(config.include_channel_breakdown ?? true);
       setIncludeEnerlight(config.include_enerlight ?? true);
       setIsActive(config.is_active ?? true);
+      setGreetingTemplate(config.greeting_template || "Olá {primeiro_nome}, segue seu relatório diário! 👇");
     }
   });
 
@@ -139,6 +142,7 @@ export function GoalsReportConfigDialog({ open, onOpenChange }: Props) {
       is_active: isActive,
       include_channel_breakdown: includeChannels,
       include_enerlight: includeEnerlight,
+      greeting_template: greetingTemplate,
     });
   };
 
@@ -213,6 +217,17 @@ export function GoalsReportConfigDialog({ open, onOpenChange }: Props) {
                 <div className="flex items-center justify-between">
                   <Label>Envio automático ativo</Label>
                   <Switch checked={isActive} onCheckedChange={setIsActive} />
+                </div>
+                <div>
+                  <Label>Mensagem de saudação</Label>
+                  <Input 
+                    value={greetingTemplate} 
+                    onChange={e => setGreetingTemplate(e.target.value)} 
+                    placeholder="Olá {primeiro_nome}, segue seu relatório!"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Use <code className="bg-muted px-1 rounded">{'{primeiro_nome}'}</code> para inserir o primeiro nome do destinatário
+                  </p>
                 </div>
                 <Button onClick={handleSaveConfig} disabled={saveConfig.isPending} className="w-full">
                   {saveConfig.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Clock className="h-4 w-4 mr-2" />}
