@@ -160,7 +160,7 @@ export function GoalsReportConfigDialog({ open, onOpenChange }: Props) {
     const member = teamMembers?.find((m: any) => m.user_id === userId);
     if (member) {
       setNewName(member.name || "");
-      if (member.phone) setNewPhone(member.phone);
+      if ((member as any).phone) setNewPhone((member as any).phone);
     }
   };
 
