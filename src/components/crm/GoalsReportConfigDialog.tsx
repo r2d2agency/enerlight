@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -81,8 +81,7 @@ export function GoalsReportConfigDialog({ open, onOpenChange }: Props) {
   const [newReportType, setNewReportType] = useState<"full" | "individual">("full");
 
   // Sync form state when config loads
-  const configLoaded = !!config;
-  useState(() => {
+  useEffect(() => {
     if (config) {
       setConnectionId(config.connection_id || "");
       setSendTime(config.send_time?.slice(0, 5) || "18:00");
@@ -91,7 +90,7 @@ export function GoalsReportConfigDialog({ open, onOpenChange }: Props) {
       setIsActive(config.is_active ?? true);
       setGreetingTemplate(config.greeting_template || "Olá {primeiro_nome}, segue seu relatório diário! 👇");
     }
-  });
+  }, [config]);
 
   const saveConfig = useMutation({
     mutationFn: (data: any) => api("/api/crm/goals/report-config", { method: "POST", body: data }),
