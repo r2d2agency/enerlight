@@ -24,12 +24,13 @@ import {
   Tooltip, ResponsiveContainer, Legend, ComposedChart, Line,
   PieChart, Pie, Cell,
 } from "recharts";
+import { GoalsReportConfigDialog } from "@/components/crm/GoalsReportConfigDialog";
 
 const PIE_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#06b6d4", "#84cc16"];
 import {
   Target, Plus, Edit2, Trash2, Users, TrendingUp, Upload,
   Briefcase, DollarSign, CalendarDays, Loader2, BarChart3,
-  Trophy, Medal, Award, FileText, ShoppingCart, Receipt,
+  Trophy, Medal, Award, FileText, ShoppingCart, Receipt, MessageSquare,
 } from "lucide-react";
 import { format, startOfMonth, startOfWeek, endOfWeek, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -63,6 +64,7 @@ export default function CRMMetas() {
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [importType, setImportType] = useState<"orcamento" | "pedido" | "faturamento" | null>(null);
+  const [reportConfigOpen, setReportConfigOpen] = useState(false);
 
   const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), "yyyy-MM-dd"));
   const [endDate, setEndDate] = useState(format(new Date(), "yyyy-MM-dd"));
@@ -191,6 +193,9 @@ export default function CRMMetas() {
                   <Upload className="h-4 w-4 mr-1" /><Receipt className="h-4 w-4 mr-1 text-amber-500" /> Faturamento
                 </Button>
                 <Button onClick={openCreate} size="sm"><Plus className="h-4 w-4 mr-1" /> Nova Meta</Button>
+                <Button variant="outline" size="sm" onClick={() => setReportConfigOpen(true)}>
+                  <MessageSquare className="h-4 w-4 mr-1" /> Relatório WhatsApp
+                </Button>
               </>
             )}
           </div>
@@ -1023,6 +1028,8 @@ export default function CRMMetas() {
           onSuccess={invalidateData}
         />
       )}
+
+      <GoalsReportConfigDialog open={reportConfigOpen} onOpenChange={setReportConfigOpen} />
     </MainLayout>
   );
 }
