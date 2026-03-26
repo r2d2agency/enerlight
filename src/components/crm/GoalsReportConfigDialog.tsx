@@ -150,7 +150,7 @@ export function GoalsReportConfigDialog({ open, onOpenChange }: Props) {
     addRecipient.mutate({
       phone: newPhone.trim(),
       name: newName.trim() || newPhone.trim(),
-      user_id: newUserId || null,
+      user_id: (newUserId && newUserId !== "none") ? newUserId : null,
       report_type: newReportType,
     });
   };
