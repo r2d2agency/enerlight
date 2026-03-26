@@ -4951,7 +4951,7 @@ router.get('/goals/dashboard', async (req, res) => {
     // Helper: calculate metric value from crm_goals_data for a specific goal
     async function calcGoalMetric(goal) {
       await ensureGoalsDataTable();
-      const dateExpr = `COALESCE(CASE WHEN data_type = 'faturamento' THEN billing_date ELSE emission_date END, billing_date, delivery_date, created_at::date)`;
+     const dateExpr = `COALESCE(CASE WHEN data_type = 'faturamento' THEN billing_date WHEN data_type = 'pedido' THEN COALESCE(emission_date, delivery_date, billing_date) ELSE emission_date END, emission_date, billing_date, delivery_date, created_at::date)`;
       const params = [org.organization_id, sd, ed];
       let extraFilters = '';
 
@@ -6358,7 +6358,7 @@ router.get('/goals/data-summary', async (req, res) => {
       extraFilters += ` AND client_group = $${params.length}`;
     }
 
-    const dateExpr = `COALESCE(CASE WHEN data_type = 'faturamento' THEN billing_date ELSE emission_date END, billing_date, delivery_date, created_at::date)`;
+    const dateExpr = `COALESCE(CASE WHEN data_type = 'faturamento' THEN billing_date WHEN data_type = 'pedido' THEN COALESCE(emission_date, delivery_date, billing_date) ELSE emission_date END, emission_date, billing_date, delivery_date, created_at::date)`;
     const baseWhere = `organization_id = $1 AND ${dateExpr} >= $2::date AND ${dateExpr} <= $3::date${extraFilters}`;
 
     // Summary by type
@@ -6417,7 +6417,7 @@ router.get('/goals/data-daily', async (req, res) => {
     if (channel) { params.push(channel); extraFilters += ` AND channel = $${params.length}`; }
     if (group_id) { params.push(group_id); extraFilters += ` AND client_group = $${params.length}`; }
 
-    const dateExpr = `COALESCE(CASE WHEN data_type = 'faturamento' THEN billing_date ELSE emission_date END, billing_date, delivery_date, created_at::date)`;
+    const dateExpr = `COALESCE(CASE WHEN data_type = 'faturamento' THEN billing_date WHEN data_type = 'pedido' THEN COALESCE(emission_date, delivery_date, billing_date) ELSE emission_date END, emission_date, billing_date, delivery_date, created_at::date)`;
     const baseWhere = `organization_id = $1 AND ${dateExpr} >= $2::date AND ${dateExpr} <= $3::date${extraFilters}`;
 
     const daily = await query(
