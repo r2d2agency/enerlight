@@ -242,7 +242,7 @@ export function GoalsReportConfigDialog({ open, onOpenChange }: Props) {
                 <CardTitle className="text-sm flex items-center gap-2"><Users className="h-4 w-4" /> Destinatários</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
                   <Select value={newUserId} onValueChange={handleSelectUser}>
                     <SelectTrigger><SelectValue placeholder="Usuário..." /></SelectTrigger>
                     <SelectContent>
@@ -252,6 +252,7 @@ export function GoalsReportConfigDialog({ open, onOpenChange }: Props) {
                       ))}
                     </SelectContent>
                   </Select>
+                  <Input placeholder="Nome" value={newName} onChange={e => setNewName(e.target.value)} />
                   <Input placeholder="Telefone" value={newPhone} onChange={e => setNewPhone(e.target.value)} />
                   <Select value={newReportType} onValueChange={(v: any) => setNewReportType(v)}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
