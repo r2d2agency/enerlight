@@ -50,17 +50,35 @@ export function TopBar() {
     let isMounted = true;
 
     const syncServerTime = async () => {
+      // Tenta backend primeiro
+      if (API_URL) {
+        try {
+          const response = await fetch(`${API_URL}/health`);
+          if (response.ok) {
+            const data = await response.json();
+            const serverTimestamp = new Date(data?.timestamp).getTime();
+            if (isMounted && Number.isFinite(serverTimestamp)) {
+              setServerOffsetMs(serverTimestamp - Date.now());
+              return;
+            }
+          }
+        } catch {
+          // fallback abaixo
+        }
+      }
+
+      // Fallback: API pública de horário (São Paulo)
       try {
-        const response = await fetch(`${API_URL}/health`);
-        if (!response.ok) return;
-
-        const data = await response.json();
-        const serverTimestamp = new Date(data?.timestamp).getTime();
-        if (!isMounted || !Number.isFinite(serverTimestamp)) return;
-
-        setServerOffsetMs(serverTimestamp - Date.now());
+        const response = await fetch('https://worldtimeapi.org/api/timezone/America/Sao_Paulo');
+        if (response.ok) {
+          const data = await response.json();
+          const serverTimestamp = new Date(data?.datetime).getTime();
+          if (isMounted && Number.isFinite(serverTimestamp)) {
+            setServerOffsetMs(serverTimestamp - Date.now());
+          }
+        }
       } catch {
-        // fallback para relógio local caso a API esteja indisponível
+        // usa relógio local como último recurso
       }
     };
 
