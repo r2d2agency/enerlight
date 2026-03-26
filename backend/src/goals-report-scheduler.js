@@ -20,6 +20,8 @@ async function ensureReportTables() {
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
   )`);
+  await query(`ALTER TABLE crm_goals_report_config
+    ADD COLUMN IF NOT EXISTS greeting_template TEXT DEFAULT 'Olá {primeiro_nome}, segue seu relatório diário! 👇'`);
   await query(`CREATE TABLE IF NOT EXISTS crm_goals_report_recipients (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     config_id UUID NOT NULL REFERENCES crm_goals_report_config(id) ON DELETE CASCADE,

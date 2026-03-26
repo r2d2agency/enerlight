@@ -45,6 +45,8 @@ interface Props {
   onOpenChange: (open: boolean) => void;
 }
 
+const DEFAULT_GREETING_TEMPLATE = "Olá {primeiro_nome}, segue seu relatório diário! 👇";
+
 export function GoalsReportConfigDialog({ open, onOpenChange }: Props) {
   const qc = useQueryClient();
   const { data: teamMembers } = useCRMMyTeam();
@@ -72,7 +74,7 @@ export function GoalsReportConfigDialog({ open, onOpenChange }: Props) {
   const [includeChannels, setIncludeChannels] = useState(true);
   const [includeEnerlight, setIncludeEnerlight] = useState(true);
   const [isActive, setIsActive] = useState(true);
-  const [greetingTemplate, setGreetingTemplate] = useState("Olá {primeiro_nome}, segue seu relatório diário! 👇");
+  const [greetingTemplate, setGreetingTemplate] = useState(DEFAULT_GREETING_TEMPLATE);
 
   // New recipient form
   const [newPhone, setNewPhone] = useState("");
@@ -82,19 +84,30 @@ export function GoalsReportConfigDialog({ open, onOpenChange }: Props) {
 
   // Sync form state when config loads
   useEffect(() => {
-    if (config) {
-      setConnectionId(config.connection_id || "");
-      setSendTime(config.send_time?.slice(0, 5) || "18:00");
-      setIncludeChannels(config.include_channel_breakdown ?? true);
-      setIncludeEnerlight(config.include_enerlight ?? true);
-      setIsActive(config.is_active ?? true);
-      setGreetingTemplate(config.greeting_template || "Olá {primeiro_nome}, segue seu relatório diário! 👇");
+    if (!open) return;
+
+    if (!config) {
+      setConnectionId("");
+      setSendTime("18:00");
+      setIncludeChannels(true);
+      setIncludeEnerlight(true);
+      setIsActive(true);
+      setGreetingTemplate(DEFAULT_GREETING_TEMPLATE);
+      return;
     }
-  }, [config]);
+
+    setConnectionId(config.connection_id || "");
+    setSendTime(config.send_time?.slice(0, 5) || "18:00");
+    setIncludeChannels(config.include_channel_breakdown ?? true);
+    setIncludeEnerlight(config.include_enerlight ?? true);
+    setIsActive(config.is_active ?? true);
+    setGreetingTemplate(config.greeting_template || DEFAULT_GREETING_TEMPLATE);
+  }, [open, config]);
 
   const saveConfig = useMutation({
-    mutationFn: (data: any) => api("/api/crm/goals/report-config", { method: "POST", body: data }),
-    onSuccess: () => {
+    mutationFn: (data: any) => api<ReportConfig>("/api/crm/goals/report-config", { method: "POST", body: data }),
+    onSuccess: (savedConfig) => {
+      qc.setQueryData(["goals-report-config"], savedConfig);
       qc.invalidateQueries({ queryKey: ["goals-report-config"] });
       toast.success("Configuração salva!");
     },
@@ -135,9 +148,14 @@ export function GoalsReportConfigDialog({ open, onOpenChange }: Props) {
       toast.error("Selecione uma conexão");
       return;
     }
+    if (!sendTime) {
+      toast.error("Informe o horário de envio");
+      return;
+    }
+
     saveConfig.mutate({
       connection_id: connectionId,
-      send_time: sendTime,
+      send_time: sendTime.slice(0, 5),
       is_active: isActive,
       include_channel_breakdown: includeChannels,
       include_enerlight: includeEnerlight,
