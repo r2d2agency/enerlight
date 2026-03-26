@@ -193,8 +193,10 @@ export async function executeGoalsReport() {
   try {
     await ensureReportTables();
 
+    // Use São Paulo timezone for time comparison
     const now = new Date();
-    const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const spFormatter = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', hour12: false });
+    const currentTime = spFormatter.format(now);
 
     // Find configs that should fire now (within 1 minute window)
     const configs = await query(
