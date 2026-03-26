@@ -193,6 +193,9 @@ export default function CRMMetas() {
                   <Upload className="h-4 w-4 mr-1" /><Receipt className="h-4 w-4 mr-1 text-amber-500" /> Faturamento
                 </Button>
                 <Button onClick={openCreate} size="sm"><Plus className="h-4 w-4 mr-1" /> Nova Meta</Button>
+                <Button variant="outline" size="sm" onClick={() => setReportConfigOpen(true)}>
+                  <MessageSquare className="h-4 w-4 mr-1" /> Relatório WhatsApp
+                </Button>
               </>
             )}
           </div>
