@@ -6551,10 +6551,23 @@ router.post('/goals/report-recipients', async (req, res) => {
     );
     if (!config.rows[0]) return res.status(400).json({ error: 'Configure o relatório primeiro' });
     const { phone, name, user_id, report_type } = req.body;
+    const normalizedPhone = String(phone || '').trim();
+    if (!normalizedPhone) {
+      return res.status(400).json({ error: 'Telefone é obrigatório' });
+    }
+
+    const userIdRaw = typeof user_id === 'string' ? user_id.trim() : '';
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userIdRaw);
+    const normalizedUserId = userIdRaw && userIdRaw !== 'none' ? (isUuid ? userIdRaw : null) : null;
+
+    if (userIdRaw && userIdRaw !== 'none' && !isUuid) {
+      return res.status(400).json({ error: 'user_id inválido' });
+    }
+
     const result = await query(
       `INSERT INTO crm_goals_report_recipients (config_id, user_id, phone, name, report_type)
        VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [config.rows[0].id, user_id || null, phone, name, report_type || 'full']
+      [config.rows[0].id, normalizedUserId, normalizedPhone, name, report_type || 'full']
     );
     res.json(result.rows[0]);
   } catch (error) {
@@ -6858,7 +6871,7 @@ router.post('/goals/report-send-now', async (req, res) => {
         const remaining = countBizDays(new Date(today.getTime() + 86400000), monthEnd);
         text += `📅 _${remaining} dias úteis restantes no mês_`;
 
-        await sendMessage(connection.rows[0], recipient.phone, 'text', text);
+        await sendMessage(connection.rows[0], recipient.phone, text, 'text', null);
         sent++;
       } catch (err) {
         logError('goals_report.send_error', err, { recipient_id: recipient.id });
