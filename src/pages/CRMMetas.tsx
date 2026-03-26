@@ -1028,6 +1028,8 @@ export default function CRMMetas() {
           onSuccess={invalidateData}
         />
       )}
+
+      <GoalsReportConfigDialog open={reportConfigOpen} onOpenChange={setReportConfigOpen} />
     </MainLayout>
   );
 }
