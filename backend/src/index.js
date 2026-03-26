@@ -397,6 +397,17 @@ initDatabase().then((ok) => {
       timezone: 'America/Sao_Paulo'
     });
 
+    // Goals daily report via WhatsApp - checks every minute to match send_time
+    cron.schedule('* * * * *', async () => {
+      try {
+        await executeGoalsReport();
+      } catch (error) {
+        console.error('📊 [CRON] Error executing goals report:', error);
+      }
+    }, {
+      timezone: 'America/Sao_Paulo'
+    });
+
     console.log('⏰ Notification scheduler started - checks every hour (timezone: America/Sao_Paulo)');
     console.log('📤 Campaign scheduler started - checks every 30 seconds');
     console.log('📅 Scheduled messages started - checks every minute');
@@ -408,5 +419,6 @@ initDatabase().then((ok) => {
     console.log('⏰ Task reminders started - checks every minute');
     console.log('📌 Secretary follow-up started - checks every 30 minutes');
     console.log('📊 Secretary daily digest started - checks every hour');
+    console.log('📊 Goals daily report started - checks every minute');
   });
 });
