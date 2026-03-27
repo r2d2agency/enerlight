@@ -41,6 +41,9 @@ export interface Licitacao {
   entity_phone: string | null;
   entity_email: string | null;
   status: string;
+  contact_id: string | null;
+  contact_name: string | null;
+  contact_phone: string | null;
   assigned_to: string | null;
   assigned_to_name: string | null;
   notes: string | null;
