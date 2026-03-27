@@ -544,14 +544,25 @@ router.get('/org-members', requireAuth, async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'Sem organização' });
-    const result = await query(
-      `SELECT u.id, u.name, u.email FROM users u
-       JOIN organization_members om ON om.user_id = u.id
-       WHERE om.organization_id = $1 AND COALESCE(om.is_active, true) = true ORDER BY u.name`,
-      [org.organization_id]
+
+    // Check if is_active column exists to avoid errors
+    const colCheck = await query(
+      `SELECT 1 FROM information_schema.columns WHERE table_name = 'organization_members' AND column_name = 'is_active' LIMIT 1`
     );
+    const hasIsActive = colCheck.rows.length > 0;
+
+    const sql = hasIsActive
+      ? `SELECT u.id, u.name, u.email FROM users u
+         JOIN organization_members om ON om.user_id = u.id
+         WHERE om.organization_id = $1 AND COALESCE(om.is_active, true) = true ORDER BY u.name`
+      : `SELECT u.id, u.name, u.email FROM users u
+         JOIN organization_members om ON om.user_id = u.id
+         WHERE om.organization_id = $1 ORDER BY u.name`;
+
+    const result = await query(sql, [org.organization_id]);
     res.json(result.rows);
   } catch (e) {
+    console.error('Homologation org-members error:', e);
     res.status(500).json({ error: e.message });
   }
 });
