@@ -176,7 +176,7 @@ router.post('/boards/:boardId/items', requireAuth, async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'Sem organização' });
-    const { title, description, edital_number, edital_url, modality, opening_date, deadline_date, result_date, estimated_value, entity_name, entity_cnpj, entity_contact, entity_phone, entity_email, assigned_to, stage_id, notes } = req.body;
+    const { title, description, edital_number, edital_url, modality, opening_date, deadline_date, result_date, estimated_value, entity_name, entity_cnpj, entity_contact, entity_phone, entity_email, assigned_to, stage_id, notes, contact_id, contact_name, contact_phone } = req.body;
     // If no stage_id, use first stage
     let stageId = stage_id;
     if (!stageId) {
@@ -184,9 +184,9 @@ router.post('/boards/:boardId/items', requireAuth, async (req, res) => {
       stageId = first.rows[0]?.id || null;
     }
     const result = await query(
-      `INSERT INTO licitacoes (board_id, organization_id, stage_id, title, description, edital_number, edital_url, modality, opening_date, deadline_date, result_date, estimated_value, entity_name, entity_cnpj, entity_contact, entity_phone, entity_email, assigned_to, notes, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20) RETURNING *`,
-      [req.params.boardId, org.organization_id, stageId, title, description||null, edital_number||null, edital_url||null, modality||null, opening_date||null, deadline_date||null, result_date||null, estimated_value||0, entity_name||null, entity_cnpj||null, entity_contact||null, entity_phone||null, entity_email||null, assigned_to||null, notes||null, req.userId]
+      `INSERT INTO licitacoes (board_id, organization_id, stage_id, title, description, edital_number, edital_url, modality, opening_date, deadline_date, result_date, estimated_value, entity_name, entity_cnpj, entity_contact, entity_phone, entity_email, assigned_to, notes, contact_id, contact_name, contact_phone, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23) RETURNING *`,
+      [req.params.boardId, org.organization_id, stageId, title, description||null, edital_number||null, edital_url||null, modality||null, opening_date||null, deadline_date||null, result_date||null, estimated_value||0, entity_name||null, entity_cnpj||null, entity_contact||null, entity_phone||null, entity_email||null, assigned_to||null, notes||null, contact_id||null, contact_name||null, contact_phone||null, req.userId]
     );
     await addHistory(result.rows[0].id, req.userId, 'created', `Licitação "${title}" criada`);
     res.json(result.rows[0]);
@@ -198,7 +198,7 @@ router.post('/boards/:boardId/items', requireAuth, async (req, res) => {
 
 router.patch('/items/:id', requireAuth, async (req, res) => {
   try {
-    const fields = ['title','description','edital_number','edital_url','modality','opening_date','deadline_date','result_date','estimated_value','entity_name','entity_cnpj','entity_contact','entity_phone','entity_email','assigned_to','stage_id','status','notes','sort_order'];
+    const fields = ['title','description','edital_number','edital_url','modality','opening_date','deadline_date','result_date','estimated_value','entity_name','entity_cnpj','entity_contact','entity_phone','entity_email','assigned_to','stage_id','status','notes','sort_order','contact_id','contact_name','contact_phone'];
     const sets = []; const vals = []; let i = 1;
     for (const f of fields) {
       if (req.body[f] !== undefined) { sets.push(`${f}=$${i++}`); vals.push(req.body[f]); }
