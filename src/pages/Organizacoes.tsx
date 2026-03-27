@@ -18,7 +18,7 @@ import { useSuperadmin } from '@/hooks/use-superadmin';
 import { useCRMGroups, useCRMGroupMembers, useCRMGroupMutations, useCRMFunnels, useCRMGroupFunnels, useCRMGroupFunnelMutations } from '@/hooks/use-crm';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
-import { Building2, Plus, Users, Trash2, UserPlus, Crown, Shield, User, Briefcase, Loader2, Pencil, Link2, Settings, KeyRound, Megaphone, Receipt, UsersRound, CalendarClock, Bot, Layers, MessagesSquare, Upload, Image, ShieldCheck, GitBranch, Edit, ClipboardList, UserX, UserCheck } from 'lucide-react';
+import { Building2, Plus, Users, Trash2, UserPlus, Crown, Shield, User, Briefcase, Loader2, Pencil, Link2, Settings, KeyRound, Megaphone, Receipt, UsersRound, CalendarClock, Bot, Layers, MessagesSquare, Upload, Image, ShieldCheck, GitBranch, Edit, ClipboardList, UserX, UserCheck, Gavel } from 'lucide-react';
 import { PermissionsDialog } from '@/components/permissions/PermissionsDialog';
 import { PermissionTemplatesTab } from '@/components/admin/PermissionTemplatesTab';
 import { useUpload } from '@/hooks/use-upload';
@@ -149,6 +149,7 @@ export default function Organizacoes() {
     lead_gleego: false,
     homologation: false,
     captador: false,
+    licitacao: false,
   });
   const [savingModules, setSavingModules] = useState(false);
 
@@ -256,6 +257,7 @@ export default function Organizacoes() {
         lead_gleego: modules.lead_gleego ?? false,
         homologation: modules.homologation ?? false,
         captador: modules.captador ?? false,
+        licitacao: modules.licitacao ?? false,
       });
     } catch (error) {
       console.error('Error loading modules:', error);
@@ -1454,6 +1456,26 @@ export default function Organizacoes() {
                           <Switch
                             checked={modulesEnabled.homologation}
                             onCheckedChange={(checked) => setModulesEnabled(prev => ({ ...prev, homologation: checked }))}
+                            disabled={!canManageOrg}
+                          />
+                        </div>
+
+                        {/* Captador Module */}
+                        <div className="flex items-center justify-between rounded-lg border p-4">
+                          <div className="flex items-center gap-4">
+                            <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
+                              <Gavel className="h-5 w-5 text-foreground" />
+                            </div>
+                            <div>
+                              <p className="font-medium">Licitação</p>
+                              <p className="text-sm text-muted-foreground">
+                                Quadros Kanban para editais, prazos, tarefas e checklist
+                              </p>
+                            </div>
+                          </div>
+                          <Switch
+                            checked={modulesEnabled.licitacao}
+                            onCheckedChange={(checked) => setModulesEnabled(prev => ({ ...prev, licitacao: checked }))}
                             disabled={!canManageOrg}
                           />
                         </div>

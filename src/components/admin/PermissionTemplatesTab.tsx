@@ -86,6 +86,13 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
     ],
   },
   {
+    title: 'Licitações',
+    items: [
+      { key: 'can_view_licitacao', label: 'Licitações', description: 'Quadros de licitação' },
+      { key: 'can_delete_licitacao', label: 'Excluir Licitação', description: 'Permite excluir itens de licitação' },
+    ],
+  },
+  {
     title: 'Captador',
     items: [
       { key: 'can_view_captador', label: 'Captador', description: 'Fichas de campo e mapa de obras' },
