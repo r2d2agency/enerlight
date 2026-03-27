@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import {
   useLicitacaoBoards, useCreateLicitacaoBoard, useDeleteLicitacaoBoard,
-  useLicitacaoStages, useCreateLicitacaoStage, useDeleteLicitacaoStage,
+  useLicitacaoStages, useCreateLicitacaoStage, useDeleteLicitacaoStage, useUpdateLicitacaoStage, useReorderLicitacaoStages,
   useLicitacoes, useCreateLicitacao, useUpdateLicitacao, useDeleteLicitacao,
   useLicitacaoTasks, useCreateLicitacaoTask, useUpdateLicitacaoTask, useDeleteLicitacaoTask,
   useLicitacaoChecklist, useCreateLicitacaoChecklistItem, useUpdateLicitacaoChecklistItem, useDeleteLicitacaoChecklistItem,
