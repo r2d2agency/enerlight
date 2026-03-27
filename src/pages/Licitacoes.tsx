@@ -16,7 +16,7 @@ import { cn, safeFormatDate } from "@/lib/utils";
 import {
   Plus, Search, Settings, Trash2, Edit, FileText, Calendar,
   ClipboardList, User, Phone, Mail, Upload, StickyNote,
-  History, CheckSquare, ExternalLink, Loader2, Gavel
+  History, CheckSquare, ExternalLink, Loader2, Gavel, GripVertical, ArrowUp, ArrowDown, Check, X
 } from "lucide-react";
 import {
   useLicitacaoBoards, useCreateLicitacaoBoard, useDeleteLicitacaoBoard,
