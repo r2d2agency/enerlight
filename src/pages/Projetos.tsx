@@ -13,14 +13,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import {
   Plus, Search, Settings, FolderKanban, Trash2, GripVertical, Edit,
   FileText, MessageSquare, CheckSquare, Paperclip, Upload, Loader2, X,
   Calendar, User, ArrowRight, ExternalLink, Clock, Send, Reply, LayoutTemplate,
-  BarChart3, ChevronDown, ChevronUp as ChevronUpIcon
+  BarChart3, ChevronDown, ChevronUp as ChevronUpIcon, Filter, CalendarDays
 } from "lucide-react";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, isWithinInterval, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn, safeFormatDate } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -28,6 +30,7 @@ import { useUpload } from "@/hooks/use-upload";
 import { useOrganizations } from "@/hooks/use-organizations";
 import { resolveMediaUrl } from "@/lib/media";
 import { useNavigate } from "react-router-dom";
+import { ProjectsDashboard } from "@/components/projects/ProjectsDashboard";
 import {
   useProjectStages, useProjects, useProjectMutations, useProjectStageMutations,
   useProjectAttachments, useProjectNotes, useProjectTasks, useProjectTemplates,
@@ -48,6 +51,10 @@ export default function Projetos() {
 
   const [search, setSearch] = useState("");
   const [sellerFilter, setSellerFilter] = useState("all");
+  const [dateFilter, setDateFilter] = useState<string>("all");
+  const [customDateFrom, setCustomDateFrom] = useState<Date | undefined>();
+  const [customDateTo, setCustomDateTo] = useState<Date | undefined>();
+  const [activeTab, setActiveTab] = useState<string>("kanban");
   const [showCreateProject, setShowCreateProject] = useState(false);
   const [showStageEditor, setShowStageEditor] = useState(false);
   const [showTemplateEditor, setShowTemplateEditor] = useState(false);
