@@ -490,6 +490,15 @@ export default function Licitacoes() {
                   <ResponsavelSelect value={itemForm.assigned_to} onChange={v => setItemForm(p => ({ ...p, assigned_to: v }))} />
                 </div>
               </div>
+              <div>
+                <Label>Contato Vinculado</Label>
+                <ContactSelector
+                  value={itemForm.contact_id} contactName={itemForm.contact_name} contactPhone={itemForm.contact_phone}
+                  onSelect={c => setItemForm(p => ({ ...p, contact_id: c.id, contact_name: c.name, contact_phone: c.phone }))}
+                  onClear={() => setItemForm(p => ({ ...p, contact_id: "", contact_name: "", contact_phone: "" }))}
+                  searchResults={contactResults} onSearch={setContactSearchTerm}
+                />
+              </div>
               <div className="grid grid-cols-3 gap-3">
                 <div><Label>Abertura</Label><Input type="date" value={itemForm.opening_date} onChange={e => setItemForm(p => ({ ...p, opening_date: e.target.value }))} /></div>
                 <div><Label>Prazo</Label><Input type="date" value={itemForm.deadline_date} onChange={e => setItemForm(p => ({ ...p, deadline_date: e.target.value }))} /></div>
