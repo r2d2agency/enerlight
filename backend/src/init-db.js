@@ -3136,6 +3136,7 @@ CREATE TABLE IF NOT EXISTS user_permissions (
   can_view_lead_gleego BOOLEAN DEFAULT false,
   can_view_homologation BOOLEAN DEFAULT false,
   can_view_captador BOOLEAN DEFAULT false,
+  can_view_licitacao BOOLEAN DEFAULT false,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   UNIQUE(user_id, organization_id)
@@ -3174,6 +3175,14 @@ EXCEPTION WHEN duplicate_column THEN NULL;
 END $$;
 DO $$ BEGIN
   ALTER TABLE user_permissions ADD COLUMN IF NOT EXISTS can_view_captador BOOLEAN DEFAULT false;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+DO $$ BEGIN
+  ALTER TABLE user_permissions ADD COLUMN IF NOT EXISTS can_view_licitacao BOOLEAN DEFAULT false;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+DO $$ BEGIN
+  ALTER TABLE user_permissions ADD COLUMN IF NOT EXISTS can_delete_licitacao BOOLEAN DEFAULT false;
 EXCEPTION WHEN duplicate_column THEN NULL;
 END $$;
 `;
@@ -4014,6 +4023,12 @@ DO $$ BEGIN
   ALTER TABLE plans ADD COLUMN IF NOT EXISTS has_licitacao BOOLEAN DEFAULT false;
 EXCEPTION WHEN others THEN NULL;
 END $$;
+
+-- Add licitacao to organizations modules_enabled
+UPDATE organizations
+SET modules_enabled = modules_enabled || '{"licitacao": false}'::jsonb
+WHERE modules_enabled IS NOT NULL
+  AND NOT (modules_enabled ? 'licitacao');
 -- Contacts table for captures
 CREATE TABLE IF NOT EXISTS field_capture_contacts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
