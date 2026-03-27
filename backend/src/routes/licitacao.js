@@ -446,4 +446,23 @@ router.get('/org-members', requireAuth, async (req, res) => {
   }
 });
 
+// Search contacts for linking
+router.get('/search-contacts', requireAuth, async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+    const q = req.query.q || '';
+    const result = await query(
+      `SELECT c.id, c.name, c.phone FROM contacts c
+       JOIN contact_lists cl ON cl.id = c.list_id
+       WHERE cl.organization_id = $1 AND (c.name ILIKE $2 OR c.phone ILIKE $2)
+       ORDER BY c.name LIMIT 20`,
+      [org.organization_id, `%${q}%`]
+    );
+    res.json(result.rows);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 export default router;
