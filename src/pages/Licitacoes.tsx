@@ -38,6 +38,48 @@ const MODALITIES = [
   "Convite", "Leilão", "Concurso", "Dispensa", "Inexigibilidade", "RDC", "Outro"
 ];
 
+function StageSettingsRow({ stage, index, total, onUpdate, onMoveUp, onMoveDown, onDelete }: {
+  stage: LicitacaoStage; index: number; total: number;
+  onUpdate: (data: { name?: string; color?: string }) => Promise<void>;
+  onMoveUp: () => void; onMoveDown: () => void; onDelete: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(stage.name);
+  const [color, setColor] = useState(stage.color);
+
+  const handleSave = async () => {
+    if (!name.trim()) return;
+    await onUpdate({ name: name.trim(), color });
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-2 p-2 rounded border border-primary/30 bg-muted/30">
+        <input type="color" value={color} onChange={e => setColor(e.target.value)} className="w-7 h-7 rounded cursor-pointer border-0 p-0" />
+        <Input value={name} onChange={e => setName(e.target.value)} className="h-8 flex-1 text-sm" onKeyDown={e => e.key === "Enter" && handleSave()} />
+        <Button variant="ghost" size="icon" className="h-7 w-7 text-green-600" onClick={handleSave}><Check className="h-3.5 w-3.5" /></Button>
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setName(stage.name); setColor(stage.color); setEditing(false); }}><X className="h-3.5 w-3.5" /></Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2 p-2 rounded border group hover:bg-muted/30">
+      <div className="flex flex-col gap-0.5">
+        <Button variant="ghost" size="icon" className="h-5 w-5" disabled={index === 0} onClick={onMoveUp}><ArrowUp className="h-3 w-3" /></Button>
+        <Button variant="ghost" size="icon" className="h-5 w-5" disabled={index === total - 1} onClick={onMoveDown}><ArrowDown className="h-3 w-3" /></Button>
+      </div>
+      <div className="w-4 h-4 rounded-full shrink-0" style={{ backgroundColor: stage.color }} />
+      <span className="flex-1 text-sm">{stage.name}</span>
+      {stage.is_final && <Badge variant="default" className="text-[10px] bg-green-600">Final</Badge>}
+      <span className="text-xs text-muted-foreground">{stage.item_count}</span>
+      <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100" onClick={() => setEditing(true)}><Edit className="h-3.5 w-3.5" /></Button>
+      <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100" onClick={onDelete}><Trash2 className="h-3.5 w-3.5" /></Button>
+    </div>
+  );
+}
+
 export default function Licitacoes() {
   const { toast } = useToast();
   const { user } = useAuth();
