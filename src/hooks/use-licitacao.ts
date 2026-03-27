@@ -41,6 +41,9 @@ export interface Licitacao {
   entity_phone: string | null;
   entity_email: string | null;
   status: string;
+  contact_id: string | null;
+  contact_name: string | null;
+  contact_phone: string | null;
   assigned_to: string | null;
   assigned_to_name: string | null;
   notes: string | null;
@@ -342,5 +345,19 @@ export function useLicitacaoOrgMembers() {
   return useQuery({
     queryKey: ["licitacao-org-members"],
     queryFn: () => api<OrgMember[]>("/api/licitacao/org-members"),
+  });
+}
+
+export interface LicitacaoContact {
+  id: string;
+  name: string;
+  phone: string;
+}
+
+export function useSearchLicitacaoContacts(q: string) {
+  return useQuery({
+    queryKey: ["licitacao-search-contacts", q],
+    queryFn: () => api<LicitacaoContact[]>(`/api/licitacao/search-contacts?q=${encodeURIComponent(q)}`),
+    enabled: q.length >= 1,
   });
 }

@@ -50,6 +50,10 @@ CREATE TABLE IF NOT EXISTS licitacoes (
   entity_email VARCHAR(255),
   -- Status
   status VARCHAR(30) DEFAULT 'open',  -- open, won, lost, canceled, suspended
+  -- Contato vinculado
+  contact_id UUID REFERENCES contacts(id) ON DELETE SET NULL,
+  contact_name VARCHAR(255),
+  contact_phone VARCHAR(50),
   -- Responsável
   assigned_to UUID REFERENCES users(id) ON DELETE SET NULL,
   sort_order INTEGER DEFAULT 0,

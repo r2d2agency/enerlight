@@ -1,4 +1,5 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +17,7 @@ import { cn, safeFormatDate } from "@/lib/utils";
 import {
   Plus, Search, Settings, Trash2, Edit, FileText, Calendar,
   ClipboardList, User, Phone, Mail, Upload, StickyNote,
-  History, CheckSquare, ExternalLink, Loader2, Gavel, GripVertical, ArrowUp, ArrowDown, Check, X
+  History, CheckSquare, ExternalLink, Loader2, Gavel, GripVertical, ArrowUp, ArrowDown, Check, X, MessageCircle, UserPlus
 } from "lucide-react";
 import {
   useLicitacaoBoards, useCreateLicitacaoBoard, useDeleteLicitacaoBoard,
@@ -26,8 +27,8 @@ import {
   useLicitacaoChecklist, useCreateLicitacaoChecklistItem, useUpdateLicitacaoChecklistItem, useDeleteLicitacaoChecklistItem,
   useLicitacaoDocuments, useCreateLicitacaoDocument, useDeleteLicitacaoDocument,
   useLicitacaoNotes, useCreateLicitacaoNote, useDeleteLicitacaoNote,
-  useLicitacaoHistory, useLicitacaoOrgMembers,
-  Licitacao, LicitacaoStage,
+  useLicitacaoHistory, useLicitacaoOrgMembers, useSearchLicitacaoContacts,
+  Licitacao, LicitacaoStage, LicitacaoContact,
 } from "@/hooks/use-licitacao";
 import { useUpload } from "@/hooks/use-upload";
 import { useAuth } from "@/contexts/AuthContext";
@@ -37,6 +38,55 @@ const MODALITIES = [
   "Pregão Eletrônico", "Pregão Presencial", "Concorrência", "Tomada de Preços",
   "Convite", "Leilão", "Concurso", "Dispensa", "Inexigibilidade", "RDC", "Outro"
 ];
+
+function ContactSelector({ value, contactName, contactPhone, onSelect, onClear, searchResults, onSearch }: {
+  value: string; contactName: string; contactPhone: string;
+  onSelect: (c: LicitacaoContact) => void; onClear: () => void;
+  searchResults: LicitacaoContact[]; onSearch: (q: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+
+  if (value && contactName) {
+    return (
+      <div className="flex items-center gap-2 p-2 rounded-lg border bg-muted/30">
+        <User className="h-4 w-4 text-primary shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium truncate">{contactName}</p>
+          {contactPhone && <p className="text-xs text-muted-foreground">{contactPhone}</p>}
+        </div>
+        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onClear}><X className="h-3 w-3" /></Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative">
+      <Input
+        placeholder="Buscar contato pelo nome ou telefone..."
+        value={q}
+        onChange={e => { setQ(e.target.value); onSearch(e.target.value); setOpen(true); }}
+        onFocus={() => { if (q.length >= 1) setOpen(true); }}
+      />
+      {open && q.length >= 1 && (
+        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+          {searchResults.length === 0 ? (
+            <p className="text-xs text-muted-foreground p-3 text-center">Nenhum contato encontrado</p>
+          ) : (
+            searchResults.map(c => (
+              <button key={c.id} className="w-full flex items-center gap-2 p-2 hover:bg-muted/50 text-left"
+                onClick={() => { onSelect(c); setQ(""); setOpen(false); }}>
+                <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <span className="text-sm flex-1 truncate">{c.name}</span>
+                <span className="text-xs text-muted-foreground">{c.phone}</span>
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function StageSettingsRow({ stage, index, total, onUpdate, onMoveUp, onMoveDown, onDelete }: {
   stage: LicitacaoStage; index: number; total: number;
@@ -83,6 +133,7 @@ function StageSettingsRow({ stage, index, total, onUpdate, onMoveUp, onMoveDown,
 export default function Licitacoes() {
   const { toast } = useToast();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const isAdmin = user?.role === "owner" || user?.role === "admin";
 
   const [selectedBoardId, setSelectedBoardId] = useState<string | null>(null);
@@ -103,9 +154,10 @@ export default function Licitacoes() {
     title: "", description: "", edital_number: "", edital_url: "", modality: "",
     opening_date: "", deadline_date: "", result_date: "", estimated_value: "",
     entity_name: "", entity_cnpj: "", entity_contact: "", entity_phone: "", entity_email: "",
-    assigned_to: "", notes: ""
+    assigned_to: "", notes: "", contact_id: "", contact_name: "", contact_phone: ""
   });
   const [editForm, setEditForm] = useState({ ...itemForm });
+  const [contactSearchTerm, setContactSearchTerm] = useState("");
   const [taskForm, setTaskForm] = useState({ title: "", description: "", priority: "medium", due_date: "", assigned_to: "" });
   const [newStageName, setNewStageName] = useState("");
   const [newStageColor, setNewStageColor] = useState("#6366f1");
@@ -125,6 +177,7 @@ export default function Licitacoes() {
   const { data: history = [] } = useLicitacaoHistory(selectedItemId);
   const { data: orgMembers = [], isLoading: loadingMembers } = useLicitacaoOrgMembers();
   const { uploadFile, isUploading } = useUpload();
+  const { data: contactResults = [] } = useSearchLicitacaoContacts(contactSearchTerm);
 
   // Mutations
   const createBoard = useCreateLicitacaoBoard();
@@ -158,7 +211,7 @@ export default function Licitacoes() {
     return map;
   }, [items, stages, searchTerm]);
 
-  const resetItemForm = () => setItemForm({ title: "", description: "", edital_number: "", edital_url: "", modality: "", opening_date: "", deadline_date: "", result_date: "", estimated_value: "", entity_name: "", entity_cnpj: "", entity_contact: "", entity_phone: "", entity_email: "", assigned_to: "", notes: "" });
+  const resetItemForm = () => setItemForm({ title: "", description: "", edital_number: "", edital_url: "", modality: "", opening_date: "", deadline_date: "", result_date: "", estimated_value: "", entity_name: "", entity_cnpj: "", entity_contact: "", entity_phone: "", entity_email: "", assigned_to: "", notes: "", contact_id: "", contact_name: "", contact_phone: "" });
 
   const handleCreateBoard = async () => {
     if (!boardName.trim()) return;
@@ -199,6 +252,7 @@ export default function Licitacoes() {
       entity_contact: selectedItem.entity_contact || "", entity_phone: selectedItem.entity_phone || "",
       entity_email: selectedItem.entity_email || "",
       assigned_to: selectedItem.assigned_to || "", notes: selectedItem.notes || "",
+      contact_id: selectedItem.contact_id || "", contact_name: selectedItem.contact_name || "", contact_phone: selectedItem.contact_phone || "",
     });
     setEditMode(true);
   };
@@ -436,6 +490,15 @@ export default function Licitacoes() {
                   <ResponsavelSelect value={itemForm.assigned_to} onChange={v => setItemForm(p => ({ ...p, assigned_to: v }))} />
                 </div>
               </div>
+              <div>
+                <Label>Contato Vinculado</Label>
+                <ContactSelector
+                  value={itemForm.contact_id} contactName={itemForm.contact_name} contactPhone={itemForm.contact_phone}
+                  onSelect={c => setItemForm(p => ({ ...p, contact_id: c.id, contact_name: c.name, contact_phone: c.phone }))}
+                  onClear={() => setItemForm(p => ({ ...p, contact_id: "", contact_name: "", contact_phone: "" }))}
+                  searchResults={contactResults} onSearch={setContactSearchTerm}
+                />
+              </div>
               <div className="grid grid-cols-3 gap-3">
                 <div><Label>Abertura</Label><Input type="date" value={itemForm.opening_date} onChange={e => setItemForm(p => ({ ...p, opening_date: e.target.value }))} /></div>
                 <div><Label>Prazo</Label><Input type="date" value={itemForm.deadline_date} onChange={e => setItemForm(p => ({ ...p, deadline_date: e.target.value }))} /></div>
@@ -522,6 +585,15 @@ export default function Licitacoes() {
                       <div><Label>Valor Estimado</Label><Input type="number" value={editForm.estimated_value} onChange={e => setEditForm(p => ({ ...p, estimated_value: e.target.value }))} /></div>
                       <div><Label>Responsável</Label><ResponsavelSelect value={editForm.assigned_to} onChange={v => setEditForm(p => ({ ...p, assigned_to: v }))} /></div>
                     </div>
+                    <div>
+                      <Label>Contato Vinculado</Label>
+                      <ContactSelector
+                        value={editForm.contact_id} contactName={editForm.contact_name} contactPhone={editForm.contact_phone}
+                        onSelect={c => setEditForm(p => ({ ...p, contact_id: c.id, contact_name: c.name, contact_phone: c.phone }))}
+                        onClear={() => setEditForm(p => ({ ...p, contact_id: "", contact_name: "", contact_phone: "" }))}
+                        searchResults={contactResults} onSearch={setContactSearchTerm}
+                      />
+                    </div>
                     <div className="grid grid-cols-3 gap-3">
                       <div><Label>Abertura</Label><Input type="date" value={editForm.opening_date} onChange={e => setEditForm(p => ({ ...p, opening_date: e.target.value }))} /></div>
                       <div><Label>Prazo</Label><Input type="date" value={editForm.deadline_date} onChange={e => setEditForm(p => ({ ...p, deadline_date: e.target.value }))} /></div>
@@ -574,6 +646,25 @@ export default function Licitacoes() {
                       {Number(selectedItem.estimated_value) > 0 && <div><Label className="text-xs text-muted-foreground">Valor Estimado</Label><p className="text-sm font-medium">R$ {Number(selectedItem.estimated_value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p></div>}
                       {selectedItem.assigned_to_name && <div><Label className="text-xs text-muted-foreground">Responsável</Label><p className="text-sm">{selectedItem.assigned_to_name}</p></div>}
                     </div>
+                    {selectedItem.contact_name && (
+                      <div className="border rounded-lg p-3 space-y-2 bg-primary/5">
+                        <p className="text-sm font-medium flex items-center gap-1.5"><UserPlus className="h-4 w-4 text-primary" /> Contato Vinculado</p>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium">{selectedItem.contact_name}</p>
+                            {selectedItem.contact_phone && <p className="text-xs text-muted-foreground">{selectedItem.contact_phone}</p>}
+                          </div>
+                          {selectedItem.contact_phone && (
+                            <Button size="sm" variant="outline" onClick={() => {
+                              setShowDetailDialog(false);
+                              navigate(`/chat?phone=${selectedItem.contact_phone}`);
+                            }}>
+                              <MessageCircle className="h-4 w-4 mr-1" /> Ir para Conversa
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    )}
                     <div className="grid grid-cols-3 gap-4">
                       {selectedItem.opening_date && <div><Label className="text-xs text-muted-foreground">Abertura</Label><p className="text-sm">{safeFormatDate(selectedItem.opening_date, "dd/MM/yyyy")}</p></div>}
                       {selectedItem.deadline_date && <div><Label className="text-xs text-muted-foreground">Prazo</Label><p className={cn("text-sm", new Date(selectedItem.deadline_date) < new Date() && "text-destructive font-medium")}>{safeFormatDate(selectedItem.deadline_date, "dd/MM/yyyy")}</p></div>}
