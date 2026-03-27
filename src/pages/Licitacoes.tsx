@@ -212,6 +212,20 @@ export default function Licitacoes() {
     } catch (e: any) { toast({ title: "Erro ao enviar", description: e.message, variant: "destructive" }); }
   };
 
+  const handleUploadEdital = async (file: File, target: "create" | "edit") => {
+    try {
+      const url = await uploadFile(file);
+      if (url) {
+        if (target === "create") {
+          setItemForm(p => ({ ...p, edital_url: url }));
+        } else {
+          setEditForm(p => ({ ...p, edital_url: url }));
+        }
+        toast({ title: "Edital enviado!" });
+      }
+    } catch (e: any) { toast({ title: "Erro ao enviar edital", description: e.message, variant: "destructive" }); }
+  };
+
   const handleAddNote = async () => {
     if (!noteContent.trim() || !selectedItemId) return;
     try {
@@ -384,8 +398,26 @@ export default function Licitacoes() {
                 <div><Label>Resultado</Label><Input type="date" value={itemForm.result_date} onChange={e => setItemForm(p => ({ ...p, result_date: e.target.value }))} /></div>
               </div>
               <div>
-                <Label>Link do Edital</Label>
-                <Input value={itemForm.edital_url} onChange={e => setItemForm(p => ({ ...p, edital_url: e.target.value }))} placeholder="https://..." />
+                <Label>Arquivo do Edital</Label>
+                <div className="space-y-2">
+                  <input type="file" id="edital-create-upload" className="hidden"
+                    onChange={e => { const f = e.target.files?.[0]; if (f) handleUploadEdital(f, "create"); e.target.value = ""; }} />
+                  {itemForm.edital_url ? (
+                    <div className="flex items-center gap-2 p-2 rounded-lg border bg-muted/30">
+                      <FileText className="h-4 w-4 text-primary shrink-0" />
+                      <a href={itemForm.edital_url} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline truncate flex-1">
+                        Edital enviado
+                      </a>
+                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setItemForm(p => ({ ...p, edital_url: "" }))}>
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button variant="outline" size="sm" className="w-full" onClick={() => document.getElementById("edital-create-upload")?.click()} disabled={isUploading}>
+                      <Upload className="h-4 w-4 mr-1" /> {isUploading ? "Enviando..." : "Enviar Edital"}
+                    </Button>
+                  )}
+                </div>
               </div>
               <div className="border-t pt-3 space-y-3">
                 <p className="text-sm font-medium">Órgão / Entidade</p>
@@ -451,7 +483,28 @@ export default function Licitacoes() {
                       <div><Label>Prazo</Label><Input type="date" value={editForm.deadline_date} onChange={e => setEditForm(p => ({ ...p, deadline_date: e.target.value }))} /></div>
                       <div><Label>Resultado</Label><Input type="date" value={editForm.result_date} onChange={e => setEditForm(p => ({ ...p, result_date: e.target.value }))} /></div>
                     </div>
-                    <div><Label>Link do Edital</Label><Input value={editForm.edital_url} onChange={e => setEditForm(p => ({ ...p, edital_url: e.target.value }))} /></div>
+                    <div>
+                      <Label>Arquivo do Edital</Label>
+                      <div className="space-y-2">
+                        <input type="file" id="edital-edit-upload" className="hidden"
+                          onChange={e => { const f = e.target.files?.[0]; if (f) handleUploadEdital(f, "edit"); e.target.value = ""; }} />
+                        {editForm.edital_url ? (
+                          <div className="flex items-center gap-2 p-2 rounded-lg border bg-muted/30">
+                            <FileText className="h-4 w-4 text-primary shrink-0" />
+                            <a href={editForm.edital_url} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline truncate flex-1">
+                              Edital enviado
+                            </a>
+                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditForm(p => ({ ...p, edital_url: "" }))}>
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button variant="outline" size="sm" className="w-full" onClick={() => document.getElementById("edital-edit-upload")?.click()} disabled={isUploading}>
+                            <Upload className="h-4 w-4 mr-1" /> {isUploading ? "Enviando..." : "Enviar Edital"}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
                     <div className="border-t pt-3 space-y-3">
                       <p className="text-sm font-medium">Órgão / Entidade</p>
                       <div className="grid grid-cols-2 gap-3">
