@@ -574,7 +574,7 @@ export default function Homologacao() {
       </Dialog>
 
       {/* Company Detail Dialog */}
-      <Dialog open={showCompanyDetailDialog} onOpenChange={v => { setShowCompanyDetailDialog(v); if (!v) setSelectedCompanyId(null); }}>
+      <Dialog open={showCompanyDetailDialog} onOpenChange={v => { setShowCompanyDetailDialog(v); if (!v) { setSelectedCompanyId(null); setEditMode(false); } }}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
