@@ -347,3 +347,17 @@ export function useLicitacaoOrgMembers() {
     queryFn: () => api<OrgMember[]>("/api/licitacao/org-members"),
   });
 }
+
+export interface LicitacaoContact {
+  id: string;
+  name: string;
+  phone: string;
+}
+
+export function useSearchLicitacaoContacts(q: string) {
+  return useQuery({
+    queryKey: ["licitacao-search-contacts", q],
+    queryFn: () => api<LicitacaoContact[]>(`/api/licitacao/search-contacts?q=${encodeURIComponent(q)}`),
+    enabled: q.length >= 1,
+  });
+}
