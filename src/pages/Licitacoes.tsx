@@ -128,6 +128,7 @@ export default function Licitacoes() {
   const { data: history = [] } = useLicitacaoHistory(selectedItemId);
   const { data: orgMembers = [], isLoading: loadingMembers } = useLicitacaoOrgMembers();
   const { uploadFile, isUploading } = useUpload();
+  const { data: contactResults = [] } = useSearchLicitacaoContacts(contactSearchTerm);
 
   // Mutations
   const createBoard = useCreateLicitacaoBoard();
@@ -161,7 +162,7 @@ export default function Licitacoes() {
     return map;
   }, [items, stages, searchTerm]);
 
-  const resetItemForm = () => setItemForm({ title: "", description: "", edital_number: "", edital_url: "", modality: "", opening_date: "", deadline_date: "", result_date: "", estimated_value: "", entity_name: "", entity_cnpj: "", entity_contact: "", entity_phone: "", entity_email: "", assigned_to: "", notes: "" });
+  const resetItemForm = () => setItemForm({ title: "", description: "", edital_number: "", edital_url: "", modality: "", opening_date: "", deadline_date: "", result_date: "", estimated_value: "", entity_name: "", entity_cnpj: "", entity_contact: "", entity_phone: "", entity_email: "", assigned_to: "", notes: "", contact_id: "", contact_name: "", contact_phone: "" });
 
   const handleCreateBoard = async () => {
     if (!boardName.trim()) return;
@@ -202,6 +203,7 @@ export default function Licitacoes() {
       entity_contact: selectedItem.entity_contact || "", entity_phone: selectedItem.entity_phone || "",
       entity_email: selectedItem.entity_email || "",
       assigned_to: selectedItem.assigned_to || "", notes: selectedItem.notes || "",
+      contact_id: selectedItem.contact_id || "", contact_name: selectedItem.contact_name || "", contact_phone: selectedItem.contact_phone || "",
     });
     setEditMode(true);
   };
