@@ -136,6 +136,24 @@ export function useCreateLicitacaoStage() {
   });
 }
 
+export function useUpdateLicitacaoStage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }: { id: string; name?: string; color?: string; sort_order?: number; is_final?: boolean }) =>
+      api(`/api/licitacao/stages/${id}`, { method: "PATCH", body: data }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["licitacao-stages"] }),
+  });
+}
+
+export function useReorderLicitacaoStages() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ boardId, order }: { boardId: string; order: { id: string; sort_order: number }[] }) =>
+      api(`/api/licitacao/boards/${boardId}/stages/reorder`, { method: "POST", body: { order } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["licitacao-stages"] }),
+  });
+}
+
 export function useDeleteLicitacaoStage() {
   const qc = useQueryClient();
   return useMutation({
