@@ -19,6 +19,7 @@ interface ModulesEnabled {
   tasks: boolean;
   lead_gleego: boolean;
   captador: boolean;
+  licitacao: boolean;
 }
 
 export interface UserPermissions {
@@ -108,6 +109,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     tasks: true,
     lead_gleego: false,
     captador: false,
+    licitacao: false,
   };
 
   const refreshUser = async () => {

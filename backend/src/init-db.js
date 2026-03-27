@@ -4008,6 +4008,12 @@ DO $$ BEGIN
   ALTER TABLE plans ADD COLUMN IF NOT EXISTS has_captador BOOLEAN DEFAULT false;
 EXCEPTION WHEN others THEN NULL;
 END $$;
+
+-- Plan column for Licitacao
+DO $$ BEGIN
+  ALTER TABLE plans ADD COLUMN IF NOT EXISTS has_licitacao BOOLEAN DEFAULT false;
+EXCEPTION WHEN others THEN NULL;
+END $$;
 -- Contacts table for captures
 CREATE TABLE IF NOT EXISTS field_capture_contacts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
