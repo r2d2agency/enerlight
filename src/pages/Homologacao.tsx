@@ -512,9 +512,10 @@ export default function Homologacao() {
               </div>
               <div>
                 <Label>Responsável</Label>
-                <Select value={companyForm.assigned_to} onValueChange={v => setCompanyForm(p => ({ ...p, assigned_to: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
+                <Select value={companyForm.assigned_to} onValueChange={v => setCompanyForm(p => ({ ...p, assigned_to: v === "__none__" ? "" : v }))}>
+                  <SelectTrigger><SelectValue placeholder={loadingMembers ? "Carregando..." : "Selecionar"} /></SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="__none__">Nenhum</SelectItem>
                     {orgMembers.map(m => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
