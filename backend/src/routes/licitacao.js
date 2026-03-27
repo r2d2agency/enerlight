@@ -453,9 +453,11 @@ router.get('/search-contacts', requireAuth, async (req, res) => {
     if (!org) return res.status(403).json({ error: 'Sem organização' });
     const q = req.query.q || '';
     const result = await query(
-      `SELECT c.id, c.name, c.phone FROM contacts c
+      `SELECT DISTINCT c.id, c.name, c.phone FROM contacts c
        JOIN contact_lists cl ON cl.id = c.list_id
-       WHERE cl.organization_id = $1 AND (c.name ILIKE $2 OR c.phone ILIKE $2)
+       LEFT JOIN connections conn ON conn.id = cl.connection_id
+       WHERE (conn.organization_id = $1 OR cl.user_id IN (SELECT user_id FROM organization_members WHERE organization_id = $1))
+         AND (c.name ILIKE $2 OR c.phone ILIKE $2)
        ORDER BY c.name LIMIT 20`,
       [org.organization_id, `%${q}%`]
     );
