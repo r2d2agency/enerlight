@@ -176,6 +176,8 @@ export default function Projetos() {
     }
   };
 
+  const filteredCount = Object.values(projectsByStage).reduce((s, arr) => s + arr.length, 0);
+
   return (
     <MainLayout>
       <div className="space-y-4">
@@ -186,7 +188,7 @@ export default function Projetos() {
               <FolderKanban className="h-6 w-6 text-primary" />
               Projetos
             </h1>
-            <p className="text-sm text-muted-foreground">{projects.length} projeto(s)</p>
+            <p className="text-sm text-muted-foreground">{filteredCount} de {projects.length} projeto(s)</p>
           </div>
           <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             <div className="relative flex-1 min-w-[150px] sm:w-64 sm:flex-none">
