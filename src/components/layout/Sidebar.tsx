@@ -42,6 +42,7 @@ import {
   Handshake,
   Presentation,
   Radio,
+  Gavel,
 } from "lucide-react";
 import { API_URL, getAuthToken } from "@/lib/api";
 import gleegoLogo from "@/assets/gleego-logo.png";
@@ -56,7 +57,7 @@ interface NavItem {
   name: string;
   href: string;
   icon: any;
-  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat' | 'homologation' | 'tasks' | 'lead_gleego' | 'captador' | 'document_signatures';
+  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat' | 'homologation' | 'tasks' | 'lead_gleego' | 'captador' | 'document_signatures' | 'licitacao';
   adminOnly?: boolean;
   ownerOnly?: boolean;
   superadminOnly?: boolean;
@@ -67,7 +68,7 @@ interface NavSection {
   title: string;
   icon: any;
   items: NavItem[];
-  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat' | 'homologation' | 'tasks' | 'lead_gleego' | 'captador' | 'document_signatures';
+  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat' | 'homologation' | 'tasks' | 'lead_gleego' | 'captador' | 'document_signatures' | 'licitacao';
   adminOnly?: boolean;
   permissionKey?: string;
 }
