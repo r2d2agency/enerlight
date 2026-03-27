@@ -543,7 +543,6 @@ export default function Licitacoes() {
                         </a>
                       </div>
                     )}
-                    )}
                     {selectedItem.entity_name && (
                       <div className="border rounded-lg p-3 space-y-2">
                         <p className="text-sm font-medium">Órgão / Entidade</p>
