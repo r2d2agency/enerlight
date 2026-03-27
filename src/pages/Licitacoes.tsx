@@ -39,6 +39,55 @@ const MODALITIES = [
   "Convite", "Leilão", "Concurso", "Dispensa", "Inexigibilidade", "RDC", "Outro"
 ];
 
+function ContactSelector({ value, contactName, contactPhone, onSelect, onClear, searchResults, onSearch }: {
+  value: string; contactName: string; contactPhone: string;
+  onSelect: (c: LicitacaoContact) => void; onClear: () => void;
+  searchResults: LicitacaoContact[]; onSearch: (q: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+
+  if (value && contactName) {
+    return (
+      <div className="flex items-center gap-2 p-2 rounded-lg border bg-muted/30">
+        <User className="h-4 w-4 text-primary shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium truncate">{contactName}</p>
+          {contactPhone && <p className="text-xs text-muted-foreground">{contactPhone}</p>}
+        </div>
+        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onClear}><X className="h-3 w-3" /></Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative">
+      <Input
+        placeholder="Buscar contato pelo nome ou telefone..."
+        value={q}
+        onChange={e => { setQ(e.target.value); onSearch(e.target.value); setOpen(true); }}
+        onFocus={() => { if (q.length >= 1) setOpen(true); }}
+      />
+      {open && q.length >= 1 && (
+        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+          {searchResults.length === 0 ? (
+            <p className="text-xs text-muted-foreground p-3 text-center">Nenhum contato encontrado</p>
+          ) : (
+            searchResults.map(c => (
+              <button key={c.id} className="w-full flex items-center gap-2 p-2 hover:bg-muted/50 text-left"
+                onClick={() => { onSelect(c); setQ(""); setOpen(false); }}>
+                <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <span className="text-sm flex-1 truncate">{c.name}</span>
+                <span className="text-xs text-muted-foreground">{c.phone}</span>
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function StageSettingsRow({ stage, index, total, onUpdate, onMoveUp, onMoveDown, onDelete }: {
   stage: LicitacaoStage; index: number; total: number;
   onUpdate: (data: { name?: string; color?: string }) => Promise<void>;
