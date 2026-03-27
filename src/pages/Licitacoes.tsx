@@ -89,6 +89,8 @@ export default function Licitacoes() {
   const deleteBoard = useDeleteLicitacaoBoard();
   const createStage = useCreateLicitacaoStage();
   const deleteStage = useDeleteLicitacaoStage();
+  const updateStage = useUpdateLicitacaoStage();
+  const reorderStages = useReorderLicitacaoStages();
   const createItem = useCreateLicitacao();
   const updateItem = useUpdateLicitacao();
   const deleteItem = useDeleteLicitacao();
@@ -711,17 +713,43 @@ export default function Licitacoes() {
 
       {/* Stage Settings */}
       <Dialog open={showStageSettings} onOpenChange={setShowStageSettings}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Gerenciar Fases</DialogTitle></DialogHeader>
-          <div className="space-y-2">
-            {stages.map(s => (
-              <div key={s.id} className="flex items-center gap-3 p-2 rounded border">
-                <div className="w-4 h-4 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
-                <span className="flex-1 text-sm">{s.name}</span>
-                {s.is_final && <Badge variant="default" className="text-[10px] bg-green-600">Final</Badge>}
-                <span className="text-xs text-muted-foreground">{s.item_count} itens</span>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleteConfirm({ type: "stage", id: s.id, name: s.name })}><Trash2 className="h-3.5 w-3.5" /></Button>
-              </div>
+          <div className="space-y-1">
+            {stages.map((s, idx) => (
+              <StageSettingsRow
+                key={s.id}
+                stage={s}
+                index={idx}
+                total={stages.length}
+                onUpdate={async (data) => {
+                  try {
+                    await updateStage.mutateAsync({ id: s.id, ...data });
+                    toast({ title: "Fase atualizada!" });
+                  } catch (e: any) { toast({ title: "Erro", description: e.message, variant: "destructive" }); }
+                }}
+                onMoveUp={async () => {
+                  if (idx === 0 || !activeBoardId) return;
+                  const prev = stages[idx - 1];
+                  const order = stages.map((st, i) => {
+                    if (st.id === s.id) return { id: st.id, sort_order: i - 1 };
+                    if (st.id === prev.id) return { id: st.id, sort_order: i + 1 };
+                    return { id: st.id, sort_order: i };
+                  });
+                  await reorderStages.mutateAsync({ boardId: activeBoardId, order });
+                }}
+                onMoveDown={async () => {
+                  if (idx === stages.length - 1 || !activeBoardId) return;
+                  const next = stages[idx + 1];
+                  const order = stages.map((st, i) => {
+                    if (st.id === s.id) return { id: st.id, sort_order: i + 1 };
+                    if (st.id === next.id) return { id: st.id, sort_order: i - 1 };
+                    return { id: st.id, sort_order: i };
+                  });
+                  await reorderStages.mutateAsync({ boardId: activeBoardId, order });
+                }}
+                onDelete={() => setDeleteConfirm({ type: "stage", id: s.id, name: s.name })}
+              />
             ))}
           </div>
           <Button variant="outline" size="sm" onClick={() => setShowNewStageDialog(true)}><Plus className="h-4 w-4 mr-1" /> Adicionar Fase</Button>
