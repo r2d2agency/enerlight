@@ -585,6 +585,15 @@ export default function Licitacoes() {
                       <div><Label>Valor Estimado</Label><Input type="number" value={editForm.estimated_value} onChange={e => setEditForm(p => ({ ...p, estimated_value: e.target.value }))} /></div>
                       <div><Label>Responsável</Label><ResponsavelSelect value={editForm.assigned_to} onChange={v => setEditForm(p => ({ ...p, assigned_to: v }))} /></div>
                     </div>
+                    <div>
+                      <Label>Contato Vinculado</Label>
+                      <ContactSelector
+                        value={editForm.contact_id} contactName={editForm.contact_name} contactPhone={editForm.contact_phone}
+                        onSelect={c => setEditForm(p => ({ ...p, contact_id: c.id, contact_name: c.name, contact_phone: c.phone }))}
+                        onClear={() => setEditForm(p => ({ ...p, contact_id: "", contact_name: "", contact_phone: "" }))}
+                        searchResults={contactResults} onSearch={setContactSearchTerm}
+                      />
+                    </div>
                     <div className="grid grid-cols-3 gap-3">
                       <div><Label>Abertura</Label><Input type="date" value={editForm.opening_date} onChange={e => setEditForm(p => ({ ...p, opening_date: e.target.value }))} /></div>
                       <div><Label>Prazo</Label><Input type="date" value={editForm.deadline_date} onChange={e => setEditForm(p => ({ ...p, deadline_date: e.target.value }))} /></div>
