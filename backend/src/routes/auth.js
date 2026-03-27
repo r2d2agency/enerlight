@@ -252,6 +252,9 @@ router.post('/login', async (req, res) => {
       homologation: true,
       tasks: true,
       lead_gleego: true,
+      captador: true,
+      licitacao: true,
+      document_signatures: true,
     };
     
     // Only superadmin bypasses module restrictions - owners/admins follow plan settings
@@ -399,6 +402,9 @@ router.get('/me', async (req, res) => {
       homologation: true,
       tasks: true,
       lead_gleego: true,
+      captador: true,
+      licitacao: true,
+      document_signatures: true,
     };
     
     // Only superadmin bypasses module restrictions - owners/admins follow plan settings
