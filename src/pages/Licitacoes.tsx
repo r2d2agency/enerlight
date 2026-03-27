@@ -84,6 +84,7 @@ function StageSettingsRow({ stage, index, total, onUpdate, onMoveUp, onMoveDown,
 export default function Licitacoes() {
   const { toast } = useToast();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const isAdmin = user?.role === "owner" || user?.role === "admin";
 
   const [selectedBoardId, setSelectedBoardId] = useState<string | null>(null);
