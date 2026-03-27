@@ -646,6 +646,25 @@ export default function Licitacoes() {
                       {Number(selectedItem.estimated_value) > 0 && <div><Label className="text-xs text-muted-foreground">Valor Estimado</Label><p className="text-sm font-medium">R$ {Number(selectedItem.estimated_value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p></div>}
                       {selectedItem.assigned_to_name && <div><Label className="text-xs text-muted-foreground">Responsável</Label><p className="text-sm">{selectedItem.assigned_to_name}</p></div>}
                     </div>
+                    {selectedItem.contact_name && (
+                      <div className="border rounded-lg p-3 space-y-2 bg-primary/5">
+                        <p className="text-sm font-medium flex items-center gap-1.5"><UserPlus className="h-4 w-4 text-primary" /> Contato Vinculado</p>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium">{selectedItem.contact_name}</p>
+                            {selectedItem.contact_phone && <p className="text-xs text-muted-foreground">{selectedItem.contact_phone}</p>}
+                          </div>
+                          {selectedItem.contact_phone && (
+                            <Button size="sm" variant="outline" onClick={() => {
+                              setShowDetailDialog(false);
+                              navigate(`/chat?phone=${selectedItem.contact_phone}`);
+                            }}>
+                              <MessageCircle className="h-4 w-4 mr-1" /> Ir para Conversa
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    )}
                     <div className="grid grid-cols-3 gap-4">
                       {selectedItem.opening_date && <div><Label className="text-xs text-muted-foreground">Abertura</Label><p className="text-sm">{safeFormatDate(selectedItem.opening_date, "dd/MM/yyyy")}</p></div>}
                       {selectedItem.deadline_date && <div><Label className="text-xs text-muted-foreground">Prazo</Label><p className={cn("text-sm", new Date(selectedItem.deadline_date) < new Date() && "text-destructive font-medium")}>{safeFormatDate(selectedItem.deadline_date, "dd/MM/yyyy")}</p></div>}
