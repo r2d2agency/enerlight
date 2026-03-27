@@ -136,6 +136,19 @@ router.delete('/stages/:id', requireAuth, async (req, res) => {
   }
 });
 
+router.post('/boards/:boardId/stages/reorder', requireAuth, async (req, res) => {
+  try {
+    const { order } = req.body; // array of { id, sort_order }
+    if (!Array.isArray(order)) return res.status(400).json({ error: 'order must be an array' });
+    for (const item of order) {
+      await query('UPDATE licitacao_stages SET sort_order=$1 WHERE id=$2 AND board_id=$3', [item.sort_order, item.id, req.params.boardId]);
+    }
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ===================== LICITAÇÕES =====================
 
 router.get('/boards/:boardId/items', requireAuth, async (req, res) => {

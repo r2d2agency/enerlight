@@ -16,11 +16,11 @@ import { cn, safeFormatDate } from "@/lib/utils";
 import {
   Plus, Search, Settings, Trash2, Edit, FileText, Calendar,
   ClipboardList, User, Phone, Mail, Upload, StickyNote,
-  History, CheckSquare, ExternalLink, Loader2, Gavel
+  History, CheckSquare, ExternalLink, Loader2, Gavel, GripVertical, ArrowUp, ArrowDown, Check, X
 } from "lucide-react";
 import {
   useLicitacaoBoards, useCreateLicitacaoBoard, useDeleteLicitacaoBoard,
-  useLicitacaoStages, useCreateLicitacaoStage, useDeleteLicitacaoStage,
+  useLicitacaoStages, useCreateLicitacaoStage, useDeleteLicitacaoStage, useUpdateLicitacaoStage, useReorderLicitacaoStages,
   useLicitacoes, useCreateLicitacao, useUpdateLicitacao, useDeleteLicitacao,
   useLicitacaoTasks, useCreateLicitacaoTask, useUpdateLicitacaoTask, useDeleteLicitacaoTask,
   useLicitacaoChecklist, useCreateLicitacaoChecklistItem, useUpdateLicitacaoChecklistItem, useDeleteLicitacaoChecklistItem,
@@ -37,6 +37,48 @@ const MODALITIES = [
   "Pregão Eletrônico", "Pregão Presencial", "Concorrência", "Tomada de Preços",
   "Convite", "Leilão", "Concurso", "Dispensa", "Inexigibilidade", "RDC", "Outro"
 ];
+
+function StageSettingsRow({ stage, index, total, onUpdate, onMoveUp, onMoveDown, onDelete }: {
+  stage: LicitacaoStage; index: number; total: number;
+  onUpdate: (data: { name?: string; color?: string }) => Promise<void>;
+  onMoveUp: () => void; onMoveDown: () => void; onDelete: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(stage.name);
+  const [color, setColor] = useState(stage.color);
+
+  const handleSave = async () => {
+    if (!name.trim()) return;
+    await onUpdate({ name: name.trim(), color });
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-2 p-2 rounded border border-primary/30 bg-muted/30">
+        <input type="color" value={color} onChange={e => setColor(e.target.value)} className="w-7 h-7 rounded cursor-pointer border-0 p-0" />
+        <Input value={name} onChange={e => setName(e.target.value)} className="h-8 flex-1 text-sm" onKeyDown={e => e.key === "Enter" && handleSave()} />
+        <Button variant="ghost" size="icon" className="h-7 w-7 text-green-600" onClick={handleSave}><Check className="h-3.5 w-3.5" /></Button>
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setName(stage.name); setColor(stage.color); setEditing(false); }}><X className="h-3.5 w-3.5" /></Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2 p-2 rounded border group hover:bg-muted/30">
+      <div className="flex flex-col gap-0.5">
+        <Button variant="ghost" size="icon" className="h-5 w-5" disabled={index === 0} onClick={onMoveUp}><ArrowUp className="h-3 w-3" /></Button>
+        <Button variant="ghost" size="icon" className="h-5 w-5" disabled={index === total - 1} onClick={onMoveDown}><ArrowDown className="h-3 w-3" /></Button>
+      </div>
+      <div className="w-4 h-4 rounded-full shrink-0" style={{ backgroundColor: stage.color }} />
+      <span className="flex-1 text-sm">{stage.name}</span>
+      {stage.is_final && <Badge variant="default" className="text-[10px] bg-green-600">Final</Badge>}
+      <span className="text-xs text-muted-foreground">{stage.item_count}</span>
+      <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100" onClick={() => setEditing(true)}><Edit className="h-3.5 w-3.5" /></Button>
+      <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100" onClick={onDelete}><Trash2 className="h-3.5 w-3.5" /></Button>
+    </div>
+  );
+}
 
 export default function Licitacoes() {
   const { toast } = useToast();
@@ -89,6 +131,8 @@ export default function Licitacoes() {
   const deleteBoard = useDeleteLicitacaoBoard();
   const createStage = useCreateLicitacaoStage();
   const deleteStage = useDeleteLicitacaoStage();
+  const updateStage = useUpdateLicitacaoStage();
+  const reorderStages = useReorderLicitacaoStages();
   const createItem = useCreateLicitacao();
   const updateItem = useUpdateLicitacao();
   const deleteItem = useDeleteLicitacao();
@@ -711,17 +755,43 @@ export default function Licitacoes() {
 
       {/* Stage Settings */}
       <Dialog open={showStageSettings} onOpenChange={setShowStageSettings}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Gerenciar Fases</DialogTitle></DialogHeader>
-          <div className="space-y-2">
-            {stages.map(s => (
-              <div key={s.id} className="flex items-center gap-3 p-2 rounded border">
-                <div className="w-4 h-4 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
-                <span className="flex-1 text-sm">{s.name}</span>
-                {s.is_final && <Badge variant="default" className="text-[10px] bg-green-600">Final</Badge>}
-                <span className="text-xs text-muted-foreground">{s.item_count} itens</span>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleteConfirm({ type: "stage", id: s.id, name: s.name })}><Trash2 className="h-3.5 w-3.5" /></Button>
-              </div>
+          <div className="space-y-1">
+            {stages.map((s, idx) => (
+              <StageSettingsRow
+                key={s.id}
+                stage={s}
+                index={idx}
+                total={stages.length}
+                onUpdate={async (data) => {
+                  try {
+                    await updateStage.mutateAsync({ id: s.id, ...data });
+                    toast({ title: "Fase atualizada!" });
+                  } catch (e: any) { toast({ title: "Erro", description: e.message, variant: "destructive" }); }
+                }}
+                onMoveUp={async () => {
+                  if (idx === 0 || !activeBoardId) return;
+                  const prev = stages[idx - 1];
+                  const order = stages.map((st, i) => {
+                    if (st.id === s.id) return { id: st.id, sort_order: i - 1 };
+                    if (st.id === prev.id) return { id: st.id, sort_order: i + 1 };
+                    return { id: st.id, sort_order: i };
+                  });
+                  await reorderStages.mutateAsync({ boardId: activeBoardId, order });
+                }}
+                onMoveDown={async () => {
+                  if (idx === stages.length - 1 || !activeBoardId) return;
+                  const next = stages[idx + 1];
+                  const order = stages.map((st, i) => {
+                    if (st.id === s.id) return { id: st.id, sort_order: i + 1 };
+                    if (st.id === next.id) return { id: st.id, sort_order: i - 1 };
+                    return { id: st.id, sort_order: i };
+                  });
+                  await reorderStages.mutateAsync({ boardId: activeBoardId, order });
+                }}
+                onDelete={() => setDeleteConfirm({ type: "stage", id: s.id, name: s.name })}
+              />
             ))}
           </div>
           <Button variant="outline" size="sm" onClick={() => setShowNewStageDialog(true)}><Plus className="h-4 w-4 mr-1" /> Adicionar Fase</Button>
