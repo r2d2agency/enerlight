@@ -89,10 +89,33 @@ export default function Projetos() {
   const canEdit = isAdmin || isDesignerUser;
   const canDelete = isAdmin || isDesignerUser || (userPermissions as any)?.can_delete_projects === true;
 
+  // Date-filtered projects
+  const dateFilteredProjects = useMemo(() => {
+    if (dateFilter === "all") return projects;
+    const now = new Date();
+    return projects.filter(p => {
+      const created = parseISO(p.created_at);
+      if (dateFilter === "this_month") {
+        return isWithinInterval(created, { start: startOfMonth(now), end: endOfMonth(now) });
+      }
+      if (dateFilter === "this_week") {
+        return isWithinInterval(created, { start: startOfWeek(now, { weekStartsOn: 1 }), end: endOfWeek(now, { weekStartsOn: 1 }) });
+      }
+      if (dateFilter === "custom") {
+        if (customDateFrom && customDateTo) {
+          return isWithinInterval(created, { start: customDateFrom, end: new Date(customDateTo.getTime() + 86400000 - 1) });
+        }
+        if (customDateFrom) return created >= customDateFrom;
+        if (customDateTo) return created <= new Date(customDateTo.getTime() + 86400000 - 1);
+      }
+      return true;
+    });
+  }, [projects, dateFilter, customDateFrom, customDateTo]);
+
   // Group projects by stage
   const projectsByStage = useMemo(() => {
     const map: Record<string, Project[]> = {};
-    const filtered = projects.filter(p => {
+    const filtered = dateFilteredProjects.filter(p => {
       const matchSearch = !search || p.title.toLowerCase().includes(search.toLowerCase());
       const matchSeller = sellerFilter === "all" || p.seller_id === sellerFilter;
       return matchSearch && matchSeller;
@@ -106,7 +129,7 @@ export default function Projetos() {
       map['_unassigned'] = unassigned;
     }
     return map;
-  }, [projects, stages, search, sellerFilter]);
+  }, [dateFilteredProjects, stages, search, sellerFilter]);
 
   const handleCreateProject = () => {
     if (!newProject.title.trim()) return toast.error("Título obrigatório");
