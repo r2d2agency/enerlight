@@ -318,7 +318,7 @@ export default function Homologacao() {
       await updateCompany.mutateAsync({
         id: selectedCompanyId,
         ...editForm,
-        assigned_to: editForm.assigned_to || undefined,
+        assigned_to: editForm.assigned_to && editForm.assigned_to !== "__none__" ? editForm.assigned_to : undefined,
       });
       setEditMode(false);
       toast({ title: "Empresa atualizada!" });
