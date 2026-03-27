@@ -334,6 +334,7 @@ router.post('/plans', requireSuperadmin, async (req, res) => {
       has_tasks: [req.body.has_tasks !== false, null],
       has_lead_gleego: [req.body.has_lead_gleego || false, null],
       has_captador: [req.body.has_captador || false, null],
+      has_licitacao: [req.body.has_licitacao || false, null],
       has_document_signatures: [req.body.has_document_signatures || false, null],
       price: [req.body.price || 0, null],
       billing_period: [req.body.billing_period || 'monthly', null],
@@ -386,7 +387,7 @@ router.patch('/plans/:id', requireSuperadmin, async (req, res) => {
       'has_crm', 'has_ai_agents', 'has_departments', 'has_lead_scoring',
       'has_ai_summary', 'has_group_secretary', 'has_ghost', 'has_projects',
       'has_internal_chat', 'has_homologation', 'has_tasks', 'has_lead_gleego',
-      'has_captador', 'has_document_signatures', 'price', 'billing_period', 'is_active',
+      'has_captador', 'has_licitacao', 'has_document_signatures', 'price', 'billing_period', 'is_active',
       'visible_on_signup', 'trial_days'
     ];
 
@@ -454,6 +455,7 @@ router.post('/plans/sync-all', requireSuperadmin, async (req, res) => {
         tasks: plan.has_tasks !== false,
         lead_gleego: plan.has_lead_gleego ?? false,
         captador: plan.has_captador ?? false,
+        licitacao: plan.has_licitacao ?? false,
         document_signatures: plan.has_document_signatures ?? false,
       };
 

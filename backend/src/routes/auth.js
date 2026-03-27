@@ -96,7 +96,7 @@ router.post('/register', async (req, res) => {
 
       // Get plan modules for organization
       const planModulesResult = await query(
-         `SELECT has_campaigns, has_asaas_integration, has_whatsapp_groups, has_scheduled_messages, has_chatbots, has_chat, has_crm, has_group_secretary, has_ghost, has_projects, has_homologation, has_tasks, has_lead_gleego FROM plans WHERE id = $1`,
+         `SELECT has_campaigns, has_asaas_integration, has_whatsapp_groups, has_scheduled_messages, has_chatbots, has_chat, has_crm, has_group_secretary, has_ghost, has_projects, has_homologation, has_tasks, has_lead_gleego, has_licitacao FROM plans WHERE id = $1`,
         [selectedPlan.id]
       );
       
@@ -116,6 +116,7 @@ router.post('/register', async (req, res) => {
           homologation: plan.has_homologation ?? false,
           tasks: plan.has_tasks !== false,
           lead_gleego: plan.has_lead_gleego ?? false,
+          licitacao: plan.has_licitacao ?? false,
         };
       }
     }
