@@ -147,6 +147,15 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
     ],
   },
   {
+    title: "Licitações",
+    icon: Gavel,
+    moduleKey: 'licitacao',
+    permissionKey: 'can_view_licitacao',
+    items: [
+      { name: "Quadros", href: "/licitacoes", icon: Gavel, permissionKey: 'can_view_licitacao' },
+    ],
+  },
+  {
     title: "Captador",
     icon: MapPin,
     moduleKey: 'captador',
