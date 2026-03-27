@@ -601,55 +601,113 @@ export default function Homologacao() {
               </TabsList>
 
               <TabsContent value="info" className="space-y-4 mt-4">
-                <div className="grid grid-cols-2 gap-4">
-                  {selectedCompany.cnpj && (
-                    <div>
-                      <Label className="text-xs text-muted-foreground">CNPJ</Label>
-                      <p className="text-sm">{selectedCompany.cnpj}</p>
+                {editMode ? (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="col-span-2">
+                        <Label>Nome *</Label>
+                        <Input value={editForm.name} onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))} />
+                      </div>
+                      <div>
+                        <Label>CNPJ</Label>
+                        <Input value={editForm.cnpj} onChange={e => setEditForm(p => ({ ...p, cnpj: e.target.value }))} />
+                      </div>
+                      <div>
+                        <Label>Responsável</Label>
+                        <Select value={editForm.assigned_to} onValueChange={v => setEditForm(p => ({ ...p, assigned_to: v }))}>
+                          <SelectTrigger><SelectValue placeholder={loadingMembers ? "Carregando..." : "Selecionar"} /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">Nenhum</SelectItem>
+                            {orgMembers.map(m => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
-                  )}
-                  {selectedCompany.assigned_to_name && (
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Responsável</Label>
-                      <p className="text-sm">{selectedCompany.assigned_to_name}</p>
+                    <div className="border-t pt-3 space-y-3">
+                      <p className="text-sm font-medium flex items-center gap-1"><MapPin className="h-3.5 w-3.5" /> Endereço</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="col-span-2">
+                          <Label>Logradouro</Label>
+                          <Input value={editForm.address} onChange={e => setEditForm(p => ({ ...p, address: e.target.value }))} />
+                        </div>
+                        <div><Label>Cidade</Label><Input value={editForm.city} onChange={e => setEditForm(p => ({ ...p, city: e.target.value }))} /></div>
+                        <div><Label>UF</Label><Input value={editForm.state} onChange={e => setEditForm(p => ({ ...p, state: e.target.value }))} maxLength={2} /></div>
+                        <div><Label>CEP</Label><Input value={editForm.zip_code} onChange={e => setEditForm(p => ({ ...p, zip_code: e.target.value }))} /></div>
+                      </div>
                     </div>
-                  )}
-                </div>
-                {((selectedCompany as any).address || (selectedCompany as any).city) && (
-                  <div className="border rounded-lg p-3 space-y-2">
-                    <p className="text-sm font-medium flex items-center gap-1"><MapPin className="h-3.5 w-3.5" /> Endereço</p>
-                    {(selectedCompany as any).address && <p className="text-sm">{(selectedCompany as any).address}</p>}
-                    <p className="text-sm text-muted-foreground">
-                      {[(selectedCompany as any).city, (selectedCompany as any).state].filter(Boolean).join(" / ")}
-                      {(selectedCompany as any).zip_code && ` — CEP ${(selectedCompany as any).zip_code}`}
-                    </p>
+                    <div className="border-t pt-3 space-y-3">
+                      <p className="text-sm font-medium">Contato</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div><Label>Nome</Label><Input value={editForm.contact_name} onChange={e => setEditForm(p => ({ ...p, contact_name: e.target.value }))} /></div>
+                        <div><Label>Telefone</Label><Input value={editForm.contact_phone} onChange={e => setEditForm(p => ({ ...p, contact_phone: e.target.value }))} /></div>
+                        <div className="col-span-2"><Label>Email</Label><Input value={editForm.contact_email} onChange={e => setEditForm(p => ({ ...p, contact_email: e.target.value }))} /></div>
+                      </div>
+                    </div>
+                    <div>
+                      <Label>Observações</Label>
+                      <Textarea value={editForm.notes} onChange={e => setEditForm(p => ({ ...p, notes: e.target.value }))} rows={2} />
+                    </div>
+                    <div className="flex gap-2 pt-2">
+                      <Button size="sm" onClick={handleSaveEdit} disabled={updateCompany.isPending || !editForm.name.trim()}>Salvar</Button>
+                      <Button variant="outline" size="sm" onClick={() => setEditMode(false)}>Cancelar</Button>
+                    </div>
                   </div>
-                )}
-                {(selectedCompany.contact_name || selectedCompany.contact_phone || selectedCompany.contact_email) && (
-                  <div className="border rounded-lg p-3 space-y-2">
-                    <p className="text-sm font-medium">Contato</p>
-                    {selectedCompany.contact_name && (
-                      <div className="flex items-center gap-2 text-sm"><User className="h-3.5 w-3.5 text-muted-foreground" /> {selectedCompany.contact_name}</div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      {selectedCompany.cnpj && (
+                        <div>
+                          <Label className="text-xs text-muted-foreground">CNPJ</Label>
+                          <p className="text-sm">{selectedCompany.cnpj}</p>
+                        </div>
+                      )}
+                      {selectedCompany.assigned_to_name && (
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Responsável</Label>
+                          <p className="text-sm">{selectedCompany.assigned_to_name}</p>
+                        </div>
+                      )}
+                    </div>
+                    {((selectedCompany as any).address || (selectedCompany as any).city) && (
+                      <div className="border rounded-lg p-3 space-y-2">
+                        <p className="text-sm font-medium flex items-center gap-1"><MapPin className="h-3.5 w-3.5" /> Endereço</p>
+                        {(selectedCompany as any).address && <p className="text-sm">{(selectedCompany as any).address}</p>}
+                        <p className="text-sm text-muted-foreground">
+                          {[(selectedCompany as any).city, (selectedCompany as any).state].filter(Boolean).join(" / ")}
+                          {(selectedCompany as any).zip_code && ` — CEP ${(selectedCompany as any).zip_code}`}
+                        </p>
+                      </div>
                     )}
-                    {selectedCompany.contact_phone && (
-                      <div className="flex items-center gap-2 text-sm"><Phone className="h-3.5 w-3.5 text-muted-foreground" /> {selectedCompany.contact_phone}</div>
+                    {(selectedCompany.contact_name || selectedCompany.contact_phone || selectedCompany.contact_email) && (
+                      <div className="border rounded-lg p-3 space-y-2">
+                        <p className="text-sm font-medium">Contato</p>
+                        {selectedCompany.contact_name && (
+                          <div className="flex items-center gap-2 text-sm"><User className="h-3.5 w-3.5 text-muted-foreground" /> {selectedCompany.contact_name}</div>
+                        )}
+                        {selectedCompany.contact_phone && (
+                          <div className="flex items-center gap-2 text-sm"><Phone className="h-3.5 w-3.5 text-muted-foreground" /> {selectedCompany.contact_phone}</div>
+                        )}
+                        {selectedCompany.contact_email && (
+                          <div className="flex items-center gap-2 text-sm"><Mail className="h-3.5 w-3.5 text-muted-foreground" /> {selectedCompany.contact_email}</div>
+                        )}
+                      </div>
                     )}
-                    {selectedCompany.contact_email && (
-                      <div className="flex items-center gap-2 text-sm"><Mail className="h-3.5 w-3.5 text-muted-foreground" /> {selectedCompany.contact_email}</div>
+                    {selectedCompany.notes && (
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Observações</Label>
+                        <p className="text-sm whitespace-pre-wrap">{selectedCompany.notes}</p>
+                      </div>
                     )}
-                  </div>
+                    <div className="flex gap-2 pt-2">
+                      <Button variant="outline" size="sm" onClick={handleStartEdit}>
+                        <Edit className="h-4 w-4 mr-1" /> Editar
+                      </Button>
+                      <Button variant="destructive" size="sm" onClick={() => setDeleteConfirm({ type: "company", id: selectedCompany.id, name: selectedCompany.name })}>
+                        <Trash2 className="h-4 w-4 mr-1" /> Excluir
+                      </Button>
+                    </div>
+                  </>
                 )}
-                {selectedCompany.notes && (
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Observações</Label>
-                    <p className="text-sm whitespace-pre-wrap">{selectedCompany.notes}</p>
-                  </div>
-                )}
-                <div className="flex gap-2 pt-2">
-                  <Button variant="destructive" size="sm" onClick={() => setDeleteConfirm({ type: "company", id: selectedCompany.id, name: selectedCompany.name })}>
-                    <Trash2 className="h-4 w-4 mr-1" /> Excluir Empresa
-                  </Button>
-                </div>
               </TabsContent>
 
               <TabsContent value="tasks" className="space-y-3 mt-4">
