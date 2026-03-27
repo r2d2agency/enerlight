@@ -536,9 +536,13 @@ export default function Licitacoes() {
                       {selectedItem.result_date && <div><Label className="text-xs text-muted-foreground">Resultado</Label><p className="text-sm">{safeFormatDate(selectedItem.result_date, "dd/MM/yyyy")}</p></div>}
                     </div>
                     {selectedItem.edital_url && (
-                      <a href={selectedItem.edital_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
-                        <ExternalLink className="h-3.5 w-3.5" /> Ver Edital
-                      </a>
+                      <div className="border rounded-lg p-3 space-y-2 bg-primary/5">
+                        <p className="text-sm font-medium flex items-center gap-1.5"><FileText className="h-4 w-4 text-primary" /> Edital</p>
+                        <a href={selectedItem.edital_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline">
+                          <ExternalLink className="h-3.5 w-3.5" /> Abrir Arquivo do Edital
+                        </a>
+                      </div>
+                    )}
                     )}
                     {selectedItem.entity_name && (
                       <div className="border rounded-lg p-3 space-y-2">
