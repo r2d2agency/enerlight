@@ -13,14 +13,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import {
   Plus, Search, Settings, FolderKanban, Trash2, GripVertical, Edit,
   FileText, MessageSquare, CheckSquare, Paperclip, Upload, Loader2, X,
   Calendar, User, ArrowRight, ExternalLink, Clock, Send, Reply, LayoutTemplate,
-  BarChart3, ChevronDown, ChevronUp as ChevronUpIcon
+  BarChart3, ChevronDown, ChevronUp as ChevronUpIcon, Filter, CalendarDays
 } from "lucide-react";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, isWithinInterval, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn, safeFormatDate } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -28,6 +30,7 @@ import { useUpload } from "@/hooks/use-upload";
 import { useOrganizations } from "@/hooks/use-organizations";
 import { resolveMediaUrl } from "@/lib/media";
 import { useNavigate } from "react-router-dom";
+import { ProjectsDashboard } from "@/components/projects/ProjectsDashboard";
 import {
   useProjectStages, useProjects, useProjectMutations, useProjectStageMutations,
   useProjectAttachments, useProjectNotes, useProjectTasks, useProjectTemplates,
@@ -48,6 +51,10 @@ export default function Projetos() {
 
   const [search, setSearch] = useState("");
   const [sellerFilter, setSellerFilter] = useState("all");
+  const [dateFilter, setDateFilter] = useState<string>("all");
+  const [customDateFrom, setCustomDateFrom] = useState<Date | undefined>();
+  const [customDateTo, setCustomDateTo] = useState<Date | undefined>();
+  const [activeTab, setActiveTab] = useState<string>("kanban");
   const [showCreateProject, setShowCreateProject] = useState(false);
   const [showStageEditor, setShowStageEditor] = useState(false);
   const [showTemplateEditor, setShowTemplateEditor] = useState(false);
@@ -82,10 +89,33 @@ export default function Projetos() {
   const canEdit = isAdmin || isDesignerUser;
   const canDelete = isAdmin || isDesignerUser || (userPermissions as any)?.can_delete_projects === true;
 
+  // Date-filtered projects
+  const dateFilteredProjects = useMemo(() => {
+    if (dateFilter === "all") return projects;
+    const now = new Date();
+    return projects.filter(p => {
+      const created = parseISO(p.created_at);
+      if (dateFilter === "this_month") {
+        return isWithinInterval(created, { start: startOfMonth(now), end: endOfMonth(now) });
+      }
+      if (dateFilter === "this_week") {
+        return isWithinInterval(created, { start: startOfWeek(now, { weekStartsOn: 1 }), end: endOfWeek(now, { weekStartsOn: 1 }) });
+      }
+      if (dateFilter === "custom") {
+        if (customDateFrom && customDateTo) {
+          return isWithinInterval(created, { start: customDateFrom, end: new Date(customDateTo.getTime() + 86400000 - 1) });
+        }
+        if (customDateFrom) return created >= customDateFrom;
+        if (customDateTo) return created <= new Date(customDateTo.getTime() + 86400000 - 1);
+      }
+      return true;
+    });
+  }, [projects, dateFilter, customDateFrom, customDateTo]);
+
   // Group projects by stage
   const projectsByStage = useMemo(() => {
     const map: Record<string, Project[]> = {};
-    const filtered = projects.filter(p => {
+    const filtered = dateFilteredProjects.filter(p => {
       const matchSearch = !search || p.title.toLowerCase().includes(search.toLowerCase());
       const matchSeller = sellerFilter === "all" || p.seller_id === sellerFilter;
       return matchSearch && matchSeller;
@@ -99,7 +129,7 @@ export default function Projetos() {
       map['_unassigned'] = unassigned;
     }
     return map;
-  }, [projects, stages, search, sellerFilter]);
+  }, [dateFilteredProjects, stages, search, sellerFilter]);
 
   const handleCreateProject = () => {
     if (!newProject.title.trim()) return toast.error("Título obrigatório");
@@ -146,6 +176,8 @@ export default function Projetos() {
     }
   };
 
+  const filteredCount = Object.values(projectsByStage).reduce((s, arr) => s + arr.length, 0);
+
   return (
     <MainLayout>
       <div className="space-y-4">
@@ -156,7 +188,7 @@ export default function Projetos() {
               <FolderKanban className="h-6 w-6 text-primary" />
               Projetos
             </h1>
-            <p className="text-sm text-muted-foreground">{projects.length} projeto(s)</p>
+            <p className="text-sm text-muted-foreground">{filteredCount} de {projects.length} projeto(s)</p>
           </div>
           <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             <div className="relative flex-1 min-w-[150px] sm:w-64 sm:flex-none">
@@ -180,6 +212,43 @@ export default function Projetos() {
                 ))}
               </SelectContent>
             </Select>
+            <Select value={dateFilter} onValueChange={v => { setDateFilter(v); if (v !== "custom") { setCustomDateFrom(undefined); setCustomDateTo(undefined); } }}>
+              <SelectTrigger className="w-[160px]">
+                <CalendarDays className="h-4 w-4 mr-1" />
+                <SelectValue placeholder="Período" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os períodos</SelectItem>
+                <SelectItem value="this_week">Esta semana</SelectItem>
+                <SelectItem value="this_month">Mês atual</SelectItem>
+                <SelectItem value="custom">Período customizado</SelectItem>
+              </SelectContent>
+            </Select>
+            {dateFilter === "custom" && (
+              <div className="flex items-center gap-1">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className={cn("text-xs", !customDateFrom && "text-muted-foreground")}>
+                      {customDateFrom ? format(customDateFrom, "dd/MM/yy") : "De"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent mode="single" selected={customDateFrom} onSelect={setCustomDateFrom} locale={ptBR} className="p-3 pointer-events-auto" />
+                  </PopoverContent>
+                </Popover>
+                <span className="text-xs text-muted-foreground">—</span>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className={cn("text-xs", !customDateTo && "text-muted-foreground")}>
+                      {customDateTo ? format(customDateTo, "dd/MM/yy") : "Até"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent mode="single" selected={customDateTo} onSelect={setCustomDateTo} locale={ptBR} className="p-3 pointer-events-auto" />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            )}
             {canEdit && (
               <Button onClick={() => setShowCreateProject(true)} size="sm">
                 <Plus className="h-4 w-4 mr-1" /> <span className="hidden sm:inline">Novo Projeto</span><span className="sm:hidden">Novo</span>
@@ -198,66 +267,89 @@ export default function Projetos() {
           </div>
         </div>
 
-        {/* Kanban Board */}
-        {loadingStages || loadingProjects ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        ) : stages.length === 0 ? (
-          <Card className="py-16 text-center">
-            <CardContent>
-              <FolderKanban className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">Nenhuma etapa configurada</h3>
-              <p className="text-muted-foreground mb-4">Crie etapas para organizar seus projetos no Kanban.</p>
-              {isAdmin && (
-                <Button onClick={() => setShowStageEditor(true)}>
-                  <Plus className="h-4 w-4 mr-1" /> Criar Etapas
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="flex gap-3 overflow-x-auto pb-4 snap-x snap-mandatory" style={{ minHeight: "60vh" }}>
-            {stages.map(stage => {
-              const stageProjects = projectsByStage[stage.id] || [];
-              return (
-                <div
-                  key={stage.id}
-                  className="flex-shrink-0 w-[85vw] sm:w-72 lg:w-80 bg-muted/30 rounded-xl border border-border snap-start"
-                >
-                  <div
-                    className="flex items-center justify-between px-4 py-3 rounded-t-xl border-b border-border"
-                    style={{ borderTopColor: stage.color, borderTopWidth: 3 }}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-sm">{stage.name}</span>
-                      <Badge variant="secondary" className="text-xs">{stageProjects.length}</Badge>
-                    </div>
-                  </div>
-                  <ScrollArea className="p-2 h-[calc(100vh-280px)]">
-                    <div className="space-y-2 pr-2">
-                      {stageProjects.map(project => (
-                        <ProjectCard
-                          key={project.id}
-                          project={project}
-                          stages={stages}
-                          canEdit={canEdit}
-                          onOpen={() => setSelectedProject(project)}
-                          onMove={handleMoveProject}
-                        />
-                      ))}
-                      {stageProjects.length === 0 && (
-                        <div className="py-8 text-center text-xs text-muted-foreground">
-                          Nenhum projeto
+        {/* Tabs: Kanban / Dashboard */}
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList>
+            <TabsTrigger value="kanban"><FolderKanban className="h-4 w-4 mr-1" /> Kanban</TabsTrigger>
+            <TabsTrigger value="dashboard"><BarChart3 className="h-4 w-4 mr-1" /> Dashboard</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="kanban" className="mt-4">
+            {loadingStages || loadingProjects ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : stages.length === 0 ? (
+              <Card className="py-16 text-center">
+                <CardContent>
+                  <FolderKanban className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">Nenhuma etapa configurada</h3>
+                  <p className="text-muted-foreground mb-4">Crie etapas para organizar seus projetos no Kanban.</p>
+                  {isAdmin && (
+                    <Button onClick={() => setShowStageEditor(true)}>
+                      <Plus className="h-4 w-4 mr-1" /> Criar Etapas
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="flex gap-3 overflow-x-auto pb-4 snap-x snap-mandatory" style={{ minHeight: "60vh" }}>
+                {stages.map(stage => {
+                  const stageProjects = projectsByStage[stage.id] || [];
+                  return (
+                    <div
+                      key={stage.id}
+                      className="flex-shrink-0 w-[85vw] sm:w-72 lg:w-80 bg-muted/30 rounded-xl border border-border snap-start"
+                    >
+                      <div
+                        className="flex items-center justify-between px-4 py-3 rounded-t-xl border-b border-border"
+                        style={{ borderTopColor: stage.color, borderTopWidth: 3 }}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-sm">{stage.name}</span>
+                          <Badge variant="secondary" className="text-xs">{stageProjects.length}</Badge>
                         </div>
-                      )}
+                      </div>
+                      <ScrollArea className="p-2 h-[calc(100vh-320px)]">
+                        <div className="space-y-2 pr-2">
+                          {stageProjects.map(project => (
+                            <ProjectCard
+                              key={project.id}
+                              project={project}
+                              stages={stages}
+                              canEdit={canEdit}
+                              onOpen={() => setSelectedProject(project)}
+                              onMove={handleMoveProject}
+                            />
+                          ))}
+                          {stageProjects.length === 0 && (
+                            <div className="py-8 text-center text-xs text-muted-foreground">
+                              Nenhum projeto
+                            </div>
+                          )}
+                        </div>
+                      </ScrollArea>
                     </div>
-                  </ScrollArea>
-                </div>
-              );
-            })}
-          </div>
-        )}
+                  );
+                })}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="dashboard" className="mt-4">
+            {loadingProjects ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : (
+              <ProjectsDashboard projects={dateFilteredProjects.filter(p => {
+                const matchSearch = !search || p.title.toLowerCase().includes(search.toLowerCase());
+                const matchSeller = sellerFilter === "all" || p.seller_id === sellerFilter;
+                return matchSearch && matchSeller;
+              })} stages={stages} />
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Create Project Dialog */}
