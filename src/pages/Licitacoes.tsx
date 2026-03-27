@@ -1,4 +1,5 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +17,7 @@ import { cn, safeFormatDate } from "@/lib/utils";
 import {
   Plus, Search, Settings, Trash2, Edit, FileText, Calendar,
   ClipboardList, User, Phone, Mail, Upload, StickyNote,
-  History, CheckSquare, ExternalLink, Loader2, Gavel, GripVertical, ArrowUp, ArrowDown, Check, X
+  History, CheckSquare, ExternalLink, Loader2, Gavel, GripVertical, ArrowUp, ArrowDown, Check, X, MessageCircle, UserPlus
 } from "lucide-react";
 import {
   useLicitacaoBoards, useCreateLicitacaoBoard, useDeleteLicitacaoBoard,
@@ -26,8 +27,8 @@ import {
   useLicitacaoChecklist, useCreateLicitacaoChecklistItem, useUpdateLicitacaoChecklistItem, useDeleteLicitacaoChecklistItem,
   useLicitacaoDocuments, useCreateLicitacaoDocument, useDeleteLicitacaoDocument,
   useLicitacaoNotes, useCreateLicitacaoNote, useDeleteLicitacaoNote,
-  useLicitacaoHistory, useLicitacaoOrgMembers,
-  Licitacao, LicitacaoStage,
+  useLicitacaoHistory, useLicitacaoOrgMembers, useSearchLicitacaoContacts,
+  Licitacao, LicitacaoStage, LicitacaoContact,
 } from "@/hooks/use-licitacao";
 import { useUpload } from "@/hooks/use-upload";
 import { useAuth } from "@/contexts/AuthContext";
