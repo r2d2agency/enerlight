@@ -294,6 +294,39 @@ export default function Homologacao() {
     await updateTask.mutateAsync({ id: taskId, status: newStatus });
   };
 
+  const handleStartEdit = () => {
+    if (!selectedCompany) return;
+    setEditForm({
+      name: selectedCompany.name || "",
+      cnpj: selectedCompany.cnpj || "",
+      contact_name: selectedCompany.contact_name || "",
+      contact_email: selectedCompany.contact_email || "",
+      contact_phone: selectedCompany.contact_phone || "",
+      notes: selectedCompany.notes || "",
+      assigned_to: selectedCompany.assigned_to || "",
+      address: (selectedCompany as any).address || "",
+      city: (selectedCompany as any).city || "",
+      state: (selectedCompany as any).state || "",
+      zip_code: (selectedCompany as any).zip_code || "",
+    });
+    setEditMode(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selectedCompanyId || !editForm.name.trim()) return;
+    try {
+      await updateCompany.mutateAsync({
+        id: selectedCompanyId,
+        ...editForm,
+        assigned_to: editForm.assigned_to || undefined,
+      });
+      setEditMode(false);
+      toast({ title: "Empresa atualizada!" });
+    } catch (e: any) {
+      toast({ title: "Erro ao salvar", description: e.message, variant: "destructive" });
+    }
+  };
+
   const handleDelete = async () => {
     if (!deleteConfirm) return;
     try {
