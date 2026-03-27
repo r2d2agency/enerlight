@@ -105,9 +105,10 @@ export default function Licitacoes() {
     title: "", description: "", edital_number: "", edital_url: "", modality: "",
     opening_date: "", deadline_date: "", result_date: "", estimated_value: "",
     entity_name: "", entity_cnpj: "", entity_contact: "", entity_phone: "", entity_email: "",
-    assigned_to: "", notes: ""
+    assigned_to: "", notes: "", contact_id: "", contact_name: "", contact_phone: ""
   });
   const [editForm, setEditForm] = useState({ ...itemForm });
+  const [contactSearchTerm, setContactSearchTerm] = useState("");
   const [taskForm, setTaskForm] = useState({ title: "", description: "", priority: "medium", due_date: "", assigned_to: "" });
   const [newStageName, setNewStageName] = useState("");
   const [newStageColor, setNewStageColor] = useState("#6366f1");
