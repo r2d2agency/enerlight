@@ -1,0 +1,705 @@
+import { useState, useMemo, useRef } from "react";
+import { MainLayout } from "@/components/layout/MainLayout";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useToast } from "@/hooks/use-toast";
+import { cn, safeFormatDate } from "@/lib/utils";
+import {
+  Plus, Search, Settings, Trash2, Edit, FileText, Calendar,
+  ClipboardList, User, Phone, Mail, Upload, StickyNote,
+  History, CheckSquare, ExternalLink, Loader2, Gavel
+} from "lucide-react";
+import {
+  useLicitacaoBoards, useCreateLicitacaoBoard, useDeleteLicitacaoBoard,
+  useLicitacaoStages, useCreateLicitacaoStage, useDeleteLicitacaoStage,
+  useLicitacoes, useCreateLicitacao, useUpdateLicitacao, useDeleteLicitacao,
+  useLicitacaoTasks, useCreateLicitacaoTask, useUpdateLicitacaoTask, useDeleteLicitacaoTask,
+  useLicitacaoChecklist, useCreateLicitacaoChecklistItem, useUpdateLicitacaoChecklistItem, useDeleteLicitacaoChecklistItem,
+  useLicitacaoDocuments, useCreateLicitacaoDocument, useDeleteLicitacaoDocument,
+  useLicitacaoNotes, useCreateLicitacaoNote, useDeleteLicitacaoNote,
+  useLicitacaoHistory, useLicitacaoOrgMembers,
+  Licitacao, LicitacaoStage,
+} from "@/hooks/use-licitacao";
+import { useUpload } from "@/hooks/use-upload";
+import { useAuth } from "@/contexts/AuthContext";
+import { LicitacaoKanban } from "@/components/licitacao/LicitacaoKanban";
+
+const MODALITIES = [
+  "Pregão Eletrônico", "Pregão Presencial", "Concorrência", "Tomada de Preços",
+  "Convite", "Leilão", "Concurso", "Dispensa", "Inexigibilidade", "RDC", "Outro"
+];
+
+export default function Licitacoes() {
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "owner" || user?.role === "admin";
+
+  const [selectedBoardId, setSelectedBoardId] = useState<string | null>(null);
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [showNewBoardDialog, setShowNewBoardDialog] = useState(false);
+  const [showNewItemDialog, setShowNewItemDialog] = useState(false);
+  const [showDetailDialog, setShowDetailDialog] = useState(false);
+  const [showNewTaskDialog, setShowNewTaskDialog] = useState(false);
+  const [showStageSettings, setShowStageSettings] = useState(false);
+  const [showNewStageDialog, setShowNewStageDialog] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ type: string; id: string; name: string } | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [editMode, setEditMode] = useState(false);
+
+  // Form states
+  const [boardName, setBoardName] = useState("");
+  const [itemForm, setItemForm] = useState({
+    title: "", description: "", edital_number: "", edital_url: "", modality: "",
+    opening_date: "", deadline_date: "", result_date: "", estimated_value: "",
+    entity_name: "", entity_cnpj: "", entity_contact: "", entity_phone: "", entity_email: "",
+    assigned_to: "", notes: ""
+  });
+  const [editForm, setEditForm] = useState({ ...itemForm });
+  const [taskForm, setTaskForm] = useState({ title: "", description: "", priority: "medium", due_date: "", assigned_to: "" });
+  const [newStageName, setNewStageName] = useState("");
+  const [newStageColor, setNewStageColor] = useState("#6366f1");
+  const [noteContent, setNoteContent] = useState("");
+  const [checklistTitle, setChecklistTitle] = useState("");
+  const taskCreatingRef = useRef(false);
+
+  // Data
+  const { data: boards = [] } = useLicitacaoBoards();
+  const activeBoardId = selectedBoardId || boards[0]?.id || null;
+  const { data: stages = [] } = useLicitacaoStages(activeBoardId);
+  const { data: items = [] } = useLicitacoes(activeBoardId);
+  const { data: tasks = [] } = useLicitacaoTasks(selectedItemId);
+  const { data: checklist = [] } = useLicitacaoChecklist(selectedItemId);
+  const { data: documents = [] } = useLicitacaoDocuments(selectedItemId);
+  const { data: notes = [] } = useLicitacaoNotes(selectedItemId);
+  const { data: history = [] } = useLicitacaoHistory(selectedItemId);
+  const { data: orgMembers = [], isLoading: loadingMembers } = useLicitacaoOrgMembers();
+  const { uploadFile, isUploading } = useUpload();
+
+  // Mutations
+  const createBoard = useCreateLicitacaoBoard();
+  const deleteBoard = useDeleteLicitacaoBoard();
+  const createStage = useCreateLicitacaoStage();
+  const deleteStage = useDeleteLicitacaoStage();
+  const createItem = useCreateLicitacao();
+  const updateItem = useUpdateLicitacao();
+  const deleteItem = useDeleteLicitacao();
+  const createTask = useCreateLicitacaoTask();
+  const updateTask = useUpdateLicitacaoTask();
+  const deleteTask = useDeleteLicitacaoTask();
+  const createChecklistItem = useCreateLicitacaoChecklistItem();
+  const updateChecklistItem = useUpdateLicitacaoChecklistItem();
+  const deleteChecklistItem = useDeleteLicitacaoChecklistItem();
+  const createDocument = useCreateLicitacaoDocument();
+  const deleteDocument = useDeleteLicitacaoDocument();
+  const createNote = useCreateLicitacaoNote();
+  const deleteNote = useDeleteLicitacaoNote();
+
+  const selectedItem = useMemo(() => items.find(i => i.id === selectedItemId), [items, selectedItemId]);
+
+  const itemsByStage = useMemo(() => {
+    const map: Record<string, Licitacao[]> = {};
+    stages.forEach(s => { map[s.id] = []; });
+    items
+      .filter(i => !searchTerm || i.title.toLowerCase().includes(searchTerm.toLowerCase()) || i.edital_number?.toLowerCase().includes(searchTerm.toLowerCase()))
+      .forEach(i => { if (i.stage_id && map[i.stage_id]) map[i.stage_id].push(i); });
+    return map;
+  }, [items, stages, searchTerm]);
+
+  const resetItemForm = () => setItemForm({ title: "", description: "", edital_number: "", edital_url: "", modality: "", opening_date: "", deadline_date: "", result_date: "", estimated_value: "", entity_name: "", entity_cnpj: "", entity_contact: "", entity_phone: "", entity_email: "", assigned_to: "", notes: "" });
+
+  const handleCreateBoard = async () => {
+    if (!boardName.trim()) return;
+    try {
+      const result = await createBoard.mutateAsync({ name: boardName });
+      setSelectedBoardId(result.id);
+      setBoardName("");
+      setShowNewBoardDialog(false);
+      toast({ title: "Quadro criado!" });
+    } catch (e: any) { toast({ title: "Erro", description: e.message, variant: "destructive" }); }
+  };
+
+  const handleCreateItem = async () => {
+    if (!itemForm.title.trim() || !activeBoardId) return;
+    try {
+      await createItem.mutateAsync({
+        boardId: activeBoardId, ...itemForm,
+        assigned_to: itemForm.assigned_to && itemForm.assigned_to !== "__none__" ? itemForm.assigned_to : undefined,
+        estimated_value: itemForm.estimated_value ? Number(itemForm.estimated_value) : undefined,
+      });
+      resetItemForm();
+      setShowNewItemDialog(false);
+      toast({ title: "Licitação adicionada!" });
+    } catch (e: any) { toast({ title: "Erro", description: e.message, variant: "destructive" }); }
+  };
+
+  const handleStartEdit = () => {
+    if (!selectedItem) return;
+    setEditForm({
+      title: selectedItem.title || "", description: selectedItem.description || "",
+      edital_number: selectedItem.edital_number || "", edital_url: selectedItem.edital_url || "",
+      modality: selectedItem.modality || "",
+      opening_date: selectedItem.opening_date?.split("T")[0] || "",
+      deadline_date: selectedItem.deadline_date?.split("T")[0] || "",
+      result_date: selectedItem.result_date?.split("T")[0] || "",
+      estimated_value: String(selectedItem.estimated_value || ""),
+      entity_name: selectedItem.entity_name || "", entity_cnpj: selectedItem.entity_cnpj || "",
+      entity_contact: selectedItem.entity_contact || "", entity_phone: selectedItem.entity_phone || "",
+      entity_email: selectedItem.entity_email || "",
+      assigned_to: selectedItem.assigned_to || "", notes: selectedItem.notes || "",
+    });
+    setEditMode(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selectedItemId || !editForm.title.trim()) return;
+    try {
+      await updateItem.mutateAsync({
+        id: selectedItemId, ...editForm,
+        assigned_to: editForm.assigned_to && editForm.assigned_to !== "__none__" ? editForm.assigned_to : null,
+        estimated_value: editForm.estimated_value ? Number(editForm.estimated_value) : 0,
+      });
+      setEditMode(false);
+      toast({ title: "Licitação atualizada!" });
+    } catch (e: any) { toast({ title: "Erro", description: e.message, variant: "destructive" }); }
+  };
+
+  const handleMoveItem = async (itemId: string, newStageId: string) => {
+    try { await updateItem.mutateAsync({ id: itemId, stage_id: newStageId }); }
+    catch (e: any) { toast({ title: "Erro ao mover", description: e.message, variant: "destructive" }); }
+  };
+
+  const handleCreateTask = async () => {
+    if (!taskForm.title.trim() || !selectedItemId || taskCreatingRef.current) return;
+    taskCreatingRef.current = true;
+    try {
+      await createTask.mutateAsync({
+        licitacaoId: selectedItemId, ...taskForm,
+        assigned_to: taskForm.assigned_to && taskForm.assigned_to !== "__none__" ? taskForm.assigned_to : undefined,
+        due_date: taskForm.due_date || undefined,
+      });
+      setTaskForm({ title: "", description: "", priority: "medium", due_date: "", assigned_to: "" });
+      setShowNewTaskDialog(false);
+      toast({ title: "Tarefa criada!" });
+    } catch (e: any) { toast({ title: "Erro", description: e.message, variant: "destructive" }); }
+    finally { taskCreatingRef.current = false; }
+  };
+
+  const handleAddChecklistItem = async () => {
+    if (!checklistTitle.trim() || !selectedItemId) return;
+    try {
+      await createChecklistItem.mutateAsync({ licitacaoId: selectedItemId, title: checklistTitle });
+      setChecklistTitle("");
+    } catch (e: any) { toast({ title: "Erro", description: e.message, variant: "destructive" }); }
+  };
+
+  const handleUploadDocument = async (file: File) => {
+    if (!selectedItemId) return;
+    try {
+      const url = await uploadFile(file);
+      if (url) {
+        await createDocument.mutateAsync({ licitacaoId: selectedItemId, name: file.name, url, mimetype: file.type, size: file.size });
+        toast({ title: "Documento enviado!" });
+      }
+    } catch (e: any) { toast({ title: "Erro ao enviar", description: e.message, variant: "destructive" }); }
+  };
+
+  const handleAddNote = async () => {
+    if (!noteContent.trim() || !selectedItemId) return;
+    try {
+      await createNote.mutateAsync({ licitacaoId: selectedItemId, content: noteContent });
+      setNoteContent("");
+      toast({ title: "Nota adicionada!" });
+    } catch (e: any) { toast({ title: "Erro", description: e.message, variant: "destructive" }); }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteConfirm) return;
+    try {
+      if (deleteConfirm.type === "board") await deleteBoard.mutateAsync(deleteConfirm.id);
+      if (deleteConfirm.type === "item") { await deleteItem.mutateAsync(deleteConfirm.id); setShowDetailDialog(false); }
+      if (deleteConfirm.type === "task") await deleteTask.mutateAsync(deleteConfirm.id);
+      if (deleteConfirm.type === "stage") await deleteStage.mutateAsync(deleteConfirm.id);
+      toast({ title: "Removido!" });
+    } catch (e: any) { toast({ title: "Erro", description: e.message, variant: "destructive" }); }
+    setDeleteConfirm(null);
+  };
+
+  const handleAddStage = async () => {
+    if (!newStageName.trim() || !activeBoardId) return;
+    try {
+      await createStage.mutateAsync({ boardId: activeBoardId, name: newStageName, color: newStageColor });
+      setNewStageName("");
+      setShowNewStageDialog(false);
+      toast({ title: "Fase adicionada!" });
+    } catch (e: any) { toast({ title: "Erro", description: e.message, variant: "destructive" }); }
+  };
+
+  const priorityColors: Record<string, string> = {
+    low: "bg-muted text-muted-foreground",
+    medium: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
+    high: "bg-destructive/10 text-destructive",
+  };
+
+  const ResponsavelSelect = ({ value, onChange }: { value: string; onChange: (v: string) => void }) => (
+    <Select value={value} onValueChange={v => onChange(v === "__none__" ? "" : v)}>
+      <SelectTrigger><SelectValue placeholder={loadingMembers ? "Carregando..." : "Selecionar"} /></SelectTrigger>
+      <SelectContent>
+        <SelectItem value="__none__">Nenhum</SelectItem>
+        {orgMembers.map(m => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
+      </SelectContent>
+    </Select>
+  );
+
+  return (
+    <MainLayout>
+      <div className="flex flex-col h-[calc(100vh-4rem)]">
+        {/* Top bar */}
+        <div className="flex items-center gap-3 p-4 border-b border-border flex-wrap">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            {boards.length > 0 && (
+              <Select value={activeBoardId || ""} onValueChange={setSelectedBoardId}>
+                <SelectTrigger className="w-[220px]"><SelectValue placeholder="Selecionar quadro" /></SelectTrigger>
+                <SelectContent>
+                  {boards.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            )}
+            {isAdmin && (
+              <Button variant="outline" size="sm" onClick={() => setShowNewBoardDialog(true)}>
+                <Plus className="h-4 w-4 mr-1" /> Novo Quadro
+              </Button>
+            )}
+            {isAdmin && activeBoardId && (
+              <Button variant="ghost" size="sm" className="text-destructive" onClick={() => {
+                const board = boards.find(b => b.id === activeBoardId);
+                if (board) setDeleteConfirm({ type: "board", id: board.id, name: board.name });
+              }}>
+                <Trash2 className="h-4 w-4 mr-1" /> Apagar
+              </Button>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input placeholder="Buscar licitação..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-9 w-[200px]" />
+            </div>
+            {activeBoardId && (
+              <>
+                <Button size="sm" onClick={() => setShowNewItemDialog(true)}>
+                  <Plus className="h-4 w-4 mr-1" /> Nova Licitação
+                </Button>
+                <Button variant="ghost" size="icon" onClick={() => setShowStageSettings(true)}>
+                  <Settings className="h-4 w-4" />
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Content */}
+        {!activeBoardId ? (
+          <div className="flex-1 flex items-center justify-center text-muted-foreground">
+            <div className="text-center space-y-3">
+              <Gavel className="h-12 w-12 mx-auto opacity-40" />
+              <p>Crie seu primeiro quadro de licitação</p>
+              {isAdmin && <Button onClick={() => setShowNewBoardDialog(true)}><Plus className="h-4 w-4 mr-1" /> Criar Quadro</Button>}
+            </div>
+          </div>
+        ) : (
+          <div className="flex-1 overflow-x-auto">
+            <LicitacaoKanban
+              stages={stages}
+              itemsByStage={itemsByStage}
+              onItemClick={item => { setSelectedItemId(item.id); setShowDetailDialog(true); }}
+              onMoveItem={handleMoveItem}
+              onDeleteItem={item => setDeleteConfirm({ type: "item", id: item.id, name: item.title })}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* New Board Dialog */}
+      <Dialog open={showNewBoardDialog} onOpenChange={setShowNewBoardDialog}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Novo Quadro de Licitação</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Nome do Quadro</Label>
+              <Input value={boardName} onChange={e => setBoardName(e.target.value)} placeholder="Ex: Licitações 2025" />
+            </div>
+            <p className="text-xs text-muted-foreground">Fases padrão serão criadas automaticamente.</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowNewBoardDialog(false)}>Cancelar</Button>
+            <Button onClick={handleCreateBoard} disabled={createBoard.isPending}>Criar Quadro</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* New Item Dialog */}
+      <Dialog open={showNewItemDialog} onOpenChange={setShowNewItemDialog}>
+        <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
+          <DialogHeader><DialogTitle>Nova Licitação</DialogTitle></DialogHeader>
+          <ScrollArea className="flex-1 overflow-y-auto max-h-[calc(85vh-130px)] pr-2">
+            <div className="space-y-4">
+              <div>
+                <Label>Título *</Label>
+                <Input value={itemForm.title} onChange={e => setItemForm(p => ({ ...p, title: e.target.value }))} placeholder="Ex: Pregão Eletrônico nº 001/2025" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Nº do Edital</Label>
+                  <Input value={itemForm.edital_number} onChange={e => setItemForm(p => ({ ...p, edital_number: e.target.value }))} placeholder="001/2025" />
+                </div>
+                <div>
+                  <Label>Modalidade</Label>
+                  <Select value={itemForm.modality} onValueChange={v => setItemForm(p => ({ ...p, modality: v }))}>
+                    <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
+                    <SelectContent>
+                      {MODALITIES.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Valor Estimado</Label>
+                  <Input type="number" value={itemForm.estimated_value} onChange={e => setItemForm(p => ({ ...p, estimated_value: e.target.value }))} placeholder="0,00" />
+                </div>
+                <div>
+                  <Label>Responsável</Label>
+                  <ResponsavelSelect value={itemForm.assigned_to} onChange={v => setItemForm(p => ({ ...p, assigned_to: v }))} />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div><Label>Abertura</Label><Input type="date" value={itemForm.opening_date} onChange={e => setItemForm(p => ({ ...p, opening_date: e.target.value }))} /></div>
+                <div><Label>Prazo</Label><Input type="date" value={itemForm.deadline_date} onChange={e => setItemForm(p => ({ ...p, deadline_date: e.target.value }))} /></div>
+                <div><Label>Resultado</Label><Input type="date" value={itemForm.result_date} onChange={e => setItemForm(p => ({ ...p, result_date: e.target.value }))} /></div>
+              </div>
+              <div>
+                <Label>Link do Edital</Label>
+                <Input value={itemForm.edital_url} onChange={e => setItemForm(p => ({ ...p, edital_url: e.target.value }))} placeholder="https://..." />
+              </div>
+              <div className="border-t pt-3 space-y-3">
+                <p className="text-sm font-medium">Órgão / Entidade</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="col-span-2"><Label>Nome</Label><Input value={itemForm.entity_name} onChange={e => setItemForm(p => ({ ...p, entity_name: e.target.value }))} /></div>
+                  <div><Label>CNPJ</Label><Input value={itemForm.entity_cnpj} onChange={e => setItemForm(p => ({ ...p, entity_cnpj: e.target.value }))} /></div>
+                  <div><Label>Contato</Label><Input value={itemForm.entity_contact} onChange={e => setItemForm(p => ({ ...p, entity_contact: e.target.value }))} /></div>
+                  <div><Label>Telefone</Label><Input value={itemForm.entity_phone} onChange={e => setItemForm(p => ({ ...p, entity_phone: e.target.value }))} /></div>
+                  <div><Label>Email</Label><Input value={itemForm.entity_email} onChange={e => setItemForm(p => ({ ...p, entity_email: e.target.value }))} /></div>
+                </div>
+              </div>
+              <div>
+                <Label>Observações</Label>
+                <Textarea value={itemForm.notes} onChange={e => setItemForm(p => ({ ...p, notes: e.target.value }))} rows={2} />
+              </div>
+            </div>
+          </ScrollArea>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowNewItemDialog(false)}>Cancelar</Button>
+            <Button onClick={handleCreateItem} disabled={createItem.isPending}>Adicionar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Detail Dialog */}
+      <Dialog open={showDetailDialog} onOpenChange={v => { setShowDetailDialog(v); if (!v) { setSelectedItemId(null); setEditMode(false); } }}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Gavel className="h-5 w-5" />
+              {selectedItem?.title}
+            </DialogTitle>
+          </DialogHeader>
+          {selectedItem && (
+            <Tabs defaultValue="info" className="mt-2">
+              <TabsList className="w-full flex flex-wrap h-auto gap-1">
+                <TabsTrigger value="info" className="text-xs">Info</TabsTrigger>
+                <TabsTrigger value="tasks" className="text-xs">Tarefas ({tasks.length})</TabsTrigger>
+                <TabsTrigger value="checklist" className="text-xs"><CheckSquare className="h-3 w-3 mr-1" /> Checklist ({checklist.length})</TabsTrigger>
+                <TabsTrigger value="documents" className="text-xs">Docs ({documents.length})</TabsTrigger>
+                <TabsTrigger value="notes" className="text-xs">Notas ({notes.length})</TabsTrigger>
+                <TabsTrigger value="history" className="text-xs">Histórico</TabsTrigger>
+              </TabsList>
+
+              {/* INFO TAB */}
+              <TabsContent value="info" className="space-y-4 mt-4">
+                {editMode ? (
+                  <div className="space-y-4">
+                    <div><Label>Título *</Label><Input value={editForm.title} onChange={e => setEditForm(p => ({ ...p, title: e.target.value }))} /></div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div><Label>Nº Edital</Label><Input value={editForm.edital_number} onChange={e => setEditForm(p => ({ ...p, edital_number: e.target.value }))} /></div>
+                      <div><Label>Modalidade</Label>
+                        <Select value={editForm.modality} onValueChange={v => setEditForm(p => ({ ...p, modality: v }))}>
+                          <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
+                          <SelectContent>{MODALITIES.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
+                        </Select>
+                      </div>
+                      <div><Label>Valor Estimado</Label><Input type="number" value={editForm.estimated_value} onChange={e => setEditForm(p => ({ ...p, estimated_value: e.target.value }))} /></div>
+                      <div><Label>Responsável</Label><ResponsavelSelect value={editForm.assigned_to} onChange={v => setEditForm(p => ({ ...p, assigned_to: v }))} /></div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div><Label>Abertura</Label><Input type="date" value={editForm.opening_date} onChange={e => setEditForm(p => ({ ...p, opening_date: e.target.value }))} /></div>
+                      <div><Label>Prazo</Label><Input type="date" value={editForm.deadline_date} onChange={e => setEditForm(p => ({ ...p, deadline_date: e.target.value }))} /></div>
+                      <div><Label>Resultado</Label><Input type="date" value={editForm.result_date} onChange={e => setEditForm(p => ({ ...p, result_date: e.target.value }))} /></div>
+                    </div>
+                    <div><Label>Link do Edital</Label><Input value={editForm.edital_url} onChange={e => setEditForm(p => ({ ...p, edital_url: e.target.value }))} /></div>
+                    <div className="border-t pt-3 space-y-3">
+                      <p className="text-sm font-medium">Órgão / Entidade</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="col-span-2"><Label>Nome</Label><Input value={editForm.entity_name} onChange={e => setEditForm(p => ({ ...p, entity_name: e.target.value }))} /></div>
+                        <div><Label>CNPJ</Label><Input value={editForm.entity_cnpj} onChange={e => setEditForm(p => ({ ...p, entity_cnpj: e.target.value }))} /></div>
+                        <div><Label>Contato</Label><Input value={editForm.entity_contact} onChange={e => setEditForm(p => ({ ...p, entity_contact: e.target.value }))} /></div>
+                        <div><Label>Telefone</Label><Input value={editForm.entity_phone} onChange={e => setEditForm(p => ({ ...p, entity_phone: e.target.value }))} /></div>
+                        <div><Label>Email</Label><Input value={editForm.entity_email} onChange={e => setEditForm(p => ({ ...p, entity_email: e.target.value }))} /></div>
+                      </div>
+                    </div>
+                    <div><Label>Descrição</Label><Textarea value={editForm.description} onChange={e => setEditForm(p => ({ ...p, description: e.target.value }))} rows={2} /></div>
+                    <div><Label>Observações</Label><Textarea value={editForm.notes} onChange={e => setEditForm(p => ({ ...p, notes: e.target.value }))} rows={2} /></div>
+                    <div className="flex gap-2 pt-2">
+                      <Button size="sm" onClick={handleSaveEdit} disabled={updateItem.isPending}>Salvar</Button>
+                      <Button variant="outline" size="sm" onClick={() => setEditMode(false)}>Cancelar</Button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      {selectedItem.edital_number && <div><Label className="text-xs text-muted-foreground">Nº Edital</Label><p className="text-sm">{selectedItem.edital_number}</p></div>}
+                      {selectedItem.modality && <div><Label className="text-xs text-muted-foreground">Modalidade</Label><p className="text-sm">{selectedItem.modality}</p></div>}
+                      {Number(selectedItem.estimated_value) > 0 && <div><Label className="text-xs text-muted-foreground">Valor Estimado</Label><p className="text-sm font-medium">R$ {Number(selectedItem.estimated_value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p></div>}
+                      {selectedItem.assigned_to_name && <div><Label className="text-xs text-muted-foreground">Responsável</Label><p className="text-sm">{selectedItem.assigned_to_name}</p></div>}
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                      {selectedItem.opening_date && <div><Label className="text-xs text-muted-foreground">Abertura</Label><p className="text-sm">{safeFormatDate(selectedItem.opening_date, "dd/MM/yyyy")}</p></div>}
+                      {selectedItem.deadline_date && <div><Label className="text-xs text-muted-foreground">Prazo</Label><p className={cn("text-sm", new Date(selectedItem.deadline_date) < new Date() && "text-destructive font-medium")}>{safeFormatDate(selectedItem.deadline_date, "dd/MM/yyyy")}</p></div>}
+                      {selectedItem.result_date && <div><Label className="text-xs text-muted-foreground">Resultado</Label><p className="text-sm">{safeFormatDate(selectedItem.result_date, "dd/MM/yyyy")}</p></div>}
+                    </div>
+                    {selectedItem.edital_url && (
+                      <a href={selectedItem.edital_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
+                        <ExternalLink className="h-3.5 w-3.5" /> Ver Edital
+                      </a>
+                    )}
+                    {selectedItem.entity_name && (
+                      <div className="border rounded-lg p-3 space-y-2">
+                        <p className="text-sm font-medium">Órgão / Entidade</p>
+                        <p className="text-sm">{selectedItem.entity_name}</p>
+                        {selectedItem.entity_cnpj && <p className="text-xs text-muted-foreground">CNPJ: {selectedItem.entity_cnpj}</p>}
+                        <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
+                          {selectedItem.entity_contact && <span className="flex items-center gap-1"><User className="h-3 w-3" />{selectedItem.entity_contact}</span>}
+                          {selectedItem.entity_phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{selectedItem.entity_phone}</span>}
+                          {selectedItem.entity_email && <span className="flex items-center gap-1"><Mail className="h-3 w-3" />{selectedItem.entity_email}</span>}
+                        </div>
+                      </div>
+                    )}
+                    {selectedItem.description && <div><Label className="text-xs text-muted-foreground">Descrição</Label><p className="text-sm whitespace-pre-wrap">{selectedItem.description}</p></div>}
+                    {selectedItem.notes && <div><Label className="text-xs text-muted-foreground">Observações</Label><p className="text-sm whitespace-pre-wrap">{selectedItem.notes}</p></div>}
+                    <div className="flex gap-2 pt-2">
+                      <Button variant="outline" size="sm" onClick={handleStartEdit}><Edit className="h-4 w-4 mr-1" /> Editar</Button>
+                      <Button variant="destructive" size="sm" onClick={() => setDeleteConfirm({ type: "item", id: selectedItem.id, name: selectedItem.title })}><Trash2 className="h-4 w-4 mr-1" /> Excluir</Button>
+                    </div>
+                  </>
+                )}
+              </TabsContent>
+
+              {/* TASKS TAB */}
+              <TabsContent value="tasks" className="space-y-3 mt-4">
+                <Button size="sm" onClick={() => setShowNewTaskDialog(true)}><Plus className="h-4 w-4 mr-1" /> Nova Tarefa</Button>
+                <div className="space-y-2">
+                  {tasks.map(task => (
+                    <div key={task.id} className="flex items-center gap-3 p-2.5 rounded-lg border">
+                      <Checkbox checked={task.status === "completed"} onCheckedChange={() => updateTask.mutate({ id: task.id, status: task.status === "completed" ? "pending" : "completed" })} />
+                      <div className="flex-1 min-w-0">
+                        <p className={cn("text-sm", task.status === "completed" && "line-through text-muted-foreground")}>{task.title}</p>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Badge variant="outline" className={cn("text-[10px] h-4", priorityColors[task.priority])}>{task.priority}</Badge>
+                          {task.due_date && <span>{safeFormatDate(task.due_date, "dd/MM/yyyy")}</span>}
+                          {task.assigned_to_name && <span>{task.assigned_to_name}</span>}
+                        </div>
+                      </div>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleteConfirm({ type: "task", id: task.id, name: task.title })}><Trash2 className="h-3.5 w-3.5" /></Button>
+                    </div>
+                  ))}
+                  {tasks.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhuma tarefa</p>}
+                </div>
+              </TabsContent>
+
+              {/* CHECKLIST TAB */}
+              <TabsContent value="checklist" className="space-y-3 mt-4">
+                <div className="flex gap-2">
+                  <Input placeholder="Novo item..." value={checklistTitle} onChange={e => setChecklistTitle(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && handleAddChecklistItem()} className="flex-1" />
+                  <Button size="sm" onClick={handleAddChecklistItem} disabled={!checklistTitle.trim()}><Plus className="h-4 w-4" /></Button>
+                </div>
+                {checklist.length > 0 && (
+                  <div className="text-xs text-muted-foreground">
+                    {checklist.filter(c => c.is_checked).length}/{checklist.length} concluídos
+                  </div>
+                )}
+                <div className="space-y-1">
+                  {checklist.map(item => (
+                    <div key={item.id} className="flex items-center gap-3 p-2 rounded-lg border">
+                      <Checkbox checked={item.is_checked} onCheckedChange={checked => updateChecklistItem.mutate({ id: item.id, is_checked: !!checked })} />
+                      <span className={cn("text-sm flex-1", item.is_checked && "line-through text-muted-foreground")}>{item.title}</span>
+                      {item.checked_by_name && <span className="text-xs text-muted-foreground">{item.checked_by_name}</span>}
+                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => deleteChecklistItem.mutate(item.id)}><Trash2 className="h-3 w-3" /></Button>
+                    </div>
+                  ))}
+                </div>
+              </TabsContent>
+
+              {/* DOCUMENTS TAB */}
+              <TabsContent value="documents" className="space-y-3 mt-4">
+                <div>
+                  <input type="file" id="licitacao-doc-upload" className="hidden"
+                    onChange={e => { const f = e.target.files?.[0]; if (f) handleUploadDocument(f); e.target.value = ""; }} />
+                  <Button size="sm" onClick={() => document.getElementById("licitacao-doc-upload")?.click()} disabled={isUploading}>
+                    <Upload className="h-4 w-4 mr-1" /> {isUploading ? "Enviando..." : "Enviar Documento"}
+                  </Button>
+                </div>
+                <div className="space-y-2">
+                  {documents.map((doc: any) => (
+                    <div key={doc.id} className="flex items-center gap-3 p-2.5 rounded-lg border">
+                      <FileText className="h-4 w-4 text-primary shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium hover:underline truncate block">{doc.name}</a>
+                        <p className="text-xs text-muted-foreground">
+                          {doc.uploaded_by_name && <span>{doc.uploaded_by_name} • </span>}
+                          {safeFormatDate(doc.created_at, "dd/MM/yyyy HH:mm")}
+                        </p>
+                      </div>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteDocument.mutate(doc.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                    </div>
+                  ))}
+                  {documents.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhum documento</p>}
+                </div>
+              </TabsContent>
+
+              {/* NOTES TAB */}
+              <TabsContent value="notes" className="space-y-3 mt-4">
+                <div className="flex gap-2">
+                  <Textarea placeholder="Adicionar nota ou retorno..." value={noteContent} onChange={e => setNoteContent(e.target.value)} rows={2} className="flex-1" />
+                  <Button size="sm" className="self-end" onClick={handleAddNote} disabled={createNote.isPending || !noteContent.trim()}><Plus className="h-4 w-4" /></Button>
+                </div>
+                <div className="space-y-2">
+                  {notes.map((note: any) => (
+                    <div key={note.id} className="p-3 rounded-lg border space-y-1">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-muted-foreground font-medium">{note.user_name} • {safeFormatDate(note.created_at, "dd/MM/yyyy HH:mm")}</p>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => deleteNote.mutate(note.id)}><Trash2 className="h-3 w-3" /></Button>
+                      </div>
+                      <p className="text-sm whitespace-pre-wrap">{note.content}</p>
+                    </div>
+                  ))}
+                  {notes.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhuma nota</p>}
+                </div>
+              </TabsContent>
+
+              {/* HISTORY TAB */}
+              <TabsContent value="history" className="space-y-3 mt-4">
+                {history.map(h => (
+                  <div key={h.id} className="flex gap-3 text-sm">
+                    <div className="w-2 h-2 rounded-full bg-primary mt-1.5 shrink-0" />
+                    <div>
+                      <p><span className="font-medium">{h.user_name}</span> — {h.details}</p>
+                      <p className="text-xs text-muted-foreground">{safeFormatDate(h.created_at, "dd/MM/yyyy HH:mm")}</p>
+                    </div>
+                  </div>
+                ))}
+                {history.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Sem histórico</p>}
+              </TabsContent>
+            </Tabs>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* New Task Dialog */}
+      <Dialog open={showNewTaskDialog} onOpenChange={setShowNewTaskDialog}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Nova Tarefa</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div><Label>Título *</Label><Input value={taskForm.title} onChange={e => setTaskForm(p => ({ ...p, title: e.target.value }))} /></div>
+            <div><Label>Descrição</Label><Textarea value={taskForm.description} onChange={e => setTaskForm(p => ({ ...p, description: e.target.value }))} rows={2} /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Prioridade</Label>
+                <Select value={taskForm.priority} onValueChange={v => setTaskForm(p => ({ ...p, priority: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Baixa</SelectItem>
+                    <SelectItem value="medium">Média</SelectItem>
+                    <SelectItem value="high">Alta</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div><Label>Prazo</Label><Input type="date" value={taskForm.due_date} onChange={e => setTaskForm(p => ({ ...p, due_date: e.target.value }))} /></div>
+            </div>
+            <div>
+              <Label>Responsável</Label>
+              <ResponsavelSelect value={taskForm.assigned_to} onChange={v => setTaskForm(p => ({ ...p, assigned_to: v }))} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowNewTaskDialog(false)}>Cancelar</Button>
+            <Button onClick={handleCreateTask} disabled={createTask.isPending}>Criar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Stage Settings */}
+      <Dialog open={showStageSettings} onOpenChange={setShowStageSettings}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Gerenciar Fases</DialogTitle></DialogHeader>
+          <div className="space-y-2">
+            {stages.map(s => (
+              <div key={s.id} className="flex items-center gap-3 p-2 rounded border">
+                <div className="w-4 h-4 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
+                <span className="flex-1 text-sm">{s.name}</span>
+                {s.is_final && <Badge variant="default" className="text-[10px] bg-green-600">Final</Badge>}
+                <span className="text-xs text-muted-foreground">{s.item_count} itens</span>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleteConfirm({ type: "stage", id: s.id, name: s.name })}><Trash2 className="h-3.5 w-3.5" /></Button>
+              </div>
+            ))}
+          </div>
+          <Button variant="outline" size="sm" onClick={() => setShowNewStageDialog(true)}><Plus className="h-4 w-4 mr-1" /> Adicionar Fase</Button>
+        </DialogContent>
+      </Dialog>
+
+      {/* New Stage Dialog */}
+      <Dialog open={showNewStageDialog} onOpenChange={setShowNewStageDialog}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Nova Fase</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div><Label>Nome</Label><Input value={newStageName} onChange={e => setNewStageName(e.target.value)} /></div>
+            <div><Label>Cor</Label><Input type="color" value={newStageColor} onChange={e => setNewStageColor(e.target.value)} className="h-10 w-20" /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowNewStageDialog(false)}>Cancelar</Button>
+            <Button onClick={handleAddStage}>Adicionar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirm */}
+      <AlertDialog open={!!deleteConfirm} onOpenChange={v => !v && setDeleteConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+            <AlertDialogDescription>Deseja excluir "{deleteConfirm?.name}"? Esta ação não pode ser desfeita.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </MainLayout>
+  );
+}
