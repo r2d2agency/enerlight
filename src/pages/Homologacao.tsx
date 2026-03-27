@@ -69,6 +69,8 @@ export default function Homologacao() {
   const [noteContent, setNoteContent] = useState("");
   const [loadingCNPJ, setLoadingCNPJ] = useState(false);
   const taskCreatingRef = useRef(false);
+  const [editMode, setEditMode] = useState(false);
+  const [editForm, setEditForm] = useState({ name: "", cnpj: "", contact_name: "", contact_email: "", contact_phone: "", notes: "", assigned_to: "", address: "", city: "", state: "", zip_code: "" });
 
   const queryClient = useQueryClient();
 
@@ -83,7 +85,7 @@ export default function Homologacao() {
   const { data: documents = [] } = useHomologationDocuments(selectedCompanyId);
   const { data: notes = [] } = useHomologationNotes(selectedCompanyId);
   const { data: history = [] } = useHomologationHistory(selectedCompanyId);
-  const { data: orgMembers = [] } = useHomologationOrgMembers();
+  const { data: orgMembers = [], isLoading: loadingMembers } = useHomologationOrgMembers();
   const { uploadFile, isUploading } = useUpload();
 
   // WhatsApp scheduled messages for selected company
