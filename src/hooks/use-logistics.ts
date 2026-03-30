@@ -68,6 +68,8 @@ export function useLogisticsShipments(filters?: {
   if (filters?.end_date) params.set("end_date", filters.end_date);
   if (filters?.search) params.set("search", filters.search);
   if (filters?.requester_id) params.set("requester_id", filters.requester_id);
+  if (filters?.company_name) params.set("company_name", filters.company_name);
+  if (filters?.requester_id) params.set("requester_id", filters.requester_id);
 
   return useQuery({
     queryKey: ["logistics-shipments", filters],
