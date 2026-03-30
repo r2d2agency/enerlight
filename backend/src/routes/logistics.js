@@ -18,7 +18,7 @@ router.get('/shipments', requireAuth, async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'Sem organização' });
 
-    const { status, carrier, start_date, end_date, search, requester_id } = req.query;
+    const { status, carrier, start_date, end_date, search, requester_id, company_name } = req.query;
     let sql = `
       SELECT ls.*, u.name as requester_name, u2.name as created_by_name
       FROM logistics_shipments ls
@@ -36,6 +36,10 @@ router.get('/shipments', requireAuth, async (req, res) => {
     if (carrier) {
       sql += ` AND ls.carrier ILIKE $${idx++}`;
       params.push(`%${carrier}%`);
+    }
+    if (company_name && company_name !== 'all') {
+      sql += ` AND ls.company_name = $${idx++}`;
+      params.push(company_name);
     }
     if (start_date) {
       sql += ` AND ls.requested_date >= $${idx++}`;
