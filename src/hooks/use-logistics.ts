@@ -107,7 +107,7 @@ export function useCreateShipment() {
   const qc = useQueryClient();
   const { toast } = useToast();
   return useMutation({
-    mutationFn: (data: Partial<LogisticsShipment>) => api<LogisticsShipment>("/api/logistics/shipments", { method: "POST", body: JSON.stringify(data) }),
+    mutationFn: (data: Partial<LogisticsShipment>) => api<LogisticsShipment>("/api/logistics/shipments", { method: "POST", body: data }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["logistics-shipments"] });
       qc.invalidateQueries({ queryKey: ["logistics-dashboard"] });
@@ -122,7 +122,7 @@ export function useUpdateShipment() {
   const { toast } = useToast();
   return useMutation({
     mutationFn: ({ id, ...data }: Partial<LogisticsShipment> & { id: string }) =>
-      api<LogisticsShipment>(`/api/logistics/shipments/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+      api<LogisticsShipment>(`/api/logistics/shipments/${id}`, { method: "PUT", body: data }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["logistics-shipments"] });
       qc.invalidateQueries({ queryKey: ["logistics-dashboard"] });
@@ -151,7 +151,7 @@ export function useImportShipments() {
   const { toast } = useToast();
   return useMutation({
     mutationFn: (items: Partial<LogisticsShipment>[]) =>
-      api<{ imported: number }>("/api/logistics/import", { method: "POST", body: JSON.stringify({ items }) }),
+      api<{ imported: number }>("/api/logistics/import", { method: "POST", body: { items } }),
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["logistics-shipments"] });
       qc.invalidateQueries({ queryKey: ["logistics-dashboard"] });
