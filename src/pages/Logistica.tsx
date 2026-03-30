@@ -46,6 +46,7 @@ export default function Logistica() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [companyFilter, setCompanyFilter] = useState("all");
+  const [channelFilter, setChannelFilter] = useState("all");
   const [datePreset, setDatePreset] = useState<DatePreset>("month");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
@@ -64,7 +65,13 @@ export default function Logistica() {
     return {};
   }, [datePreset, customStart, customEnd]);
 
-  const { data: shipments, isLoading } = useLogisticsShipments({ search, status: statusFilter, company_name: companyFilter, ...dateRange });
+  const filteredParams = { search, status: statusFilter, company_name: companyFilter, ...dateRange };
+  const { data: allShipments, isLoading } = useLogisticsShipments(filteredParams);
+  const shipments = useMemo(() => {
+    if (!allShipments) return [];
+    if (channelFilter === "all") return allShipments;
+    return allShipments.filter(s => s.channel === channelFilter);
+  }, [allShipments, channelFilter]);
   const { data: dashboard } = useLogisticsDashboard({ ...dateRange, company_name: companyFilter });
   const { data: members } = useLogisticsMembers();
   const { data: companies } = useLogisticsCompanies();
@@ -171,6 +178,13 @@ export default function Logistica() {
                 {companies?.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
               </SelectContent>
             </Select>
+            <Select value={channelFilter} onValueChange={setChannelFilter}>
+              <SelectTrigger className="w-[160px] h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos Canais</SelectItem>
+                {channels?.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              </SelectContent>
+            </Select>
             <Select value={datePreset} onValueChange={(v) => setDatePreset(v as DatePreset)}>
               <SelectTrigger className="w-[140px] h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -208,6 +222,7 @@ export default function Logistica() {
                         <th className="text-left p-2 font-medium">Cliente</th>
                         <th className="text-left p-2 font-medium">Transportadora</th>
                         <th className="text-left p-2 font-medium">Cód. Cotação</th>
+                        <th className="text-left p-2 font-medium">Canal</th>
                         <th className="text-right p-2 font-medium">Frete Pago</th>
                         <th className="text-right p-2 font-medium">Cobrado NF</th>
                         <th className="text-right p-2 font-medium">Imposto</th>
@@ -225,6 +240,7 @@ export default function Logistica() {
                           <td className="p-2 max-w-[200px] truncate">{s.client_name}</td>
                           <td className="p-2">{s.carrier}</td>
                           <td className="p-2 font-mono text-xs">{s.carrier_quote_code || "—"}</td>
+                          <td className="p-2 text-xs">{s.channel || "—"}</td>
                           <td className="p-2 text-right font-mono">{formatCurrency(Number(s.freight_paid))}</td>
                           <td className="p-2 text-right font-mono">{formatCurrency(Number(s.freight_invoiced))}</td>
                           <td className="p-2 text-right font-mono">{formatCurrency(Number(s.tax_value))}</td>
@@ -570,6 +586,37 @@ function DashboardTab({ dashboard }: { dashboard?: any }) {
           <p className={cn("text-lg font-bold", balance >= 0 ? "text-green-600" : "text-red-600")}>{formatCurrency(balance)}</p>
         </Card>
       </div>
+
+      {/* Channel Cards Widget */}
+      {dashboard.byChannel?.length > 0 && (
+        <>
+          <h3 className="font-semibold text-sm mt-2">Resumo por Canal</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {dashboard.byChannel.map((ch: any) => {
+              const paid = Number(ch.freight_paid);
+              const invoiced = Number(ch.freight_invoiced);
+              const saldo = invoiced - paid;
+              const markup = paid > 0 ? ((invoiced / paid) * 100).toFixed(0) : "—";
+              return (
+                <Card key={ch.channel} className={cn("p-4 space-y-1", saldo < 0 ? "border-destructive/50" : "border-green-500/50")}>
+                  <p className="font-semibold text-sm">{ch.channel || "Sem canal"}</p>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
+                    <span className="text-muted-foreground">Cobrado NF</span>
+                    <span className="text-right font-mono font-medium text-green-600">{formatCurrency(invoiced)}</span>
+                    <span className="text-muted-foreground">Valor Pago</span>
+                    <span className="text-right font-mono font-medium text-destructive">{formatCurrency(paid)}</span>
+                    <span className="text-muted-foreground">Saldo</span>
+                    <span className={cn("text-right font-mono font-bold", saldo >= 0 ? "text-green-600" : "text-destructive")}>{formatCurrency(saldo)}</span>
+                    <span className="text-muted-foreground">Markup</span>
+                    <span className="text-right font-mono font-semibold">{markup}%</span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">{ch.total} remessas</p>
+                </Card>
+              );
+            })}
+          </div>
+        </>
+      )}
 
       {/* Status + Carrier charts */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
