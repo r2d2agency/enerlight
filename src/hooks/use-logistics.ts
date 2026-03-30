@@ -151,7 +151,7 @@ export function useImportShipments() {
   const { toast } = useToast();
   return useMutation({
     mutationFn: (items: Partial<LogisticsShipment>[]) =>
-      api<{ imported: number }>("/api/logistics/import", { method: "POST", body: JSON.stringify({ items }) }),
+      api<{ imported: number }>("/api/logistics/import", { method: "POST", body: { items } }),
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["logistics-shipments"] });
       qc.invalidateQueries({ queryKey: ["logistics-dashboard"] });
