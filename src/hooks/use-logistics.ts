@@ -96,6 +96,20 @@ export function useLogisticsCompanies() {
   });
 }
 
+export function useLogisticsCarriers() {
+  return useQuery({
+    queryKey: ["logistics-carriers"],
+    queryFn: () => api<string[]>(`/api/logistics/carriers`),
+  });
+}
+
+export function useLogisticsChannels() {
+  return useQuery({
+    queryKey: ["logistics-channels"],
+    queryFn: () => api<string[]>(`/api/logistics/channels`),
+  });
+}
+
 export function useLogisticsMembers() {
   return useQuery({
     queryKey: ["logistics-members"],

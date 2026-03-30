@@ -368,7 +368,40 @@ router.get('/companies', requireAuth, async (req, res) => {
 });
 
 
-router.get('/members', requireAuth, async (req, res) => {
+// ===================== DISTINCT CARRIERS =====================
+router.get('/carriers', requireAuth, async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+    const result = await query(
+      `SELECT DISTINCT carrier FROM logistics_shipments
+       WHERE organization_id = $1 AND carrier IS NOT NULL AND carrier != ''
+       ORDER BY carrier`,
+      [org.organization_id]
+    );
+    res.json(result.rows.map(r => r.carrier));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ===================== DISTINCT CHANNELS =====================
+router.get('/channels', requireAuth, async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+    const result = await query(
+      `SELECT DISTINCT channel FROM logistics_shipments
+       WHERE organization_id = $1 AND channel IS NOT NULL AND channel != ''
+       ORDER BY channel`,
+      [org.organization_id]
+    );
+    res.json(result.rows.map(r => r.channel));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
   try {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'Sem organização' });
