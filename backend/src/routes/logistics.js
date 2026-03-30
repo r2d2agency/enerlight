@@ -323,6 +323,18 @@ router.get('/dashboard', requireAuth, async (req, res) => {
       GROUP BY channel ORDER BY total DESC
     `, params);
 
+    // By company
+    const byCompany = await query(`
+      SELECT company_name, COUNT(*) as total,
+        COALESCE(SUM(freight_paid),0) as freight_paid,
+        COALESCE(SUM(freight_invoiced),0) as freight_invoiced,
+        COALESCE(SUM(real_cost),0) as real_cost,
+        COALESCE(SUM(freight_invoiced) - SUM(freight_paid),0) as balance
+      FROM logistics_shipments ls
+      WHERE ls.organization_id = $1 ${dateFilter} AND company_name IS NOT NULL AND company_name != ''
+      GROUP BY company_name ORDER BY total DESC
+    `, params);
+
     res.json({
       summary: summary.rows[0],
       byCarrier: byCarrier.rows,
@@ -330,6 +342,7 @@ router.get('/dashboard', requireAuth, async (req, res) => {
       byStatus: byStatus.rows,
       monthlyTrend: monthlyTrend.rows,
       byChannel: byChannel.rows,
+      byCompany: byCompany.rows,
     });
   } catch (e) {
     console.error('Dashboard error:', e);
