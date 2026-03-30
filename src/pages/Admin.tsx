@@ -2074,6 +2074,14 @@ export default function Admin() {
                   />
                 </div>
                 <div className="flex items-center justify-between rounded-lg border p-3">
+                  <Label htmlFor="edit-logistics">Logística</Label>
+                  <Switch
+                    id="edit-logistics"
+                    checked={editingPlan?.has_logistics || false}
+                    onCheckedChange={(v) => setEditingPlan({ ...editingPlan!, has_logistics: v })}
+                  />
+                </div>
+                <div className="flex items-center justify-between rounded-lg border p-3">
                   <Label htmlFor="edit-doc-signatures">Assinaturas de Doc.</Label>
                   <Switch
                     id="edit-doc-signatures"
