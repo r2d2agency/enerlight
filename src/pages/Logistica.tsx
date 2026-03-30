@@ -64,7 +64,13 @@ export default function Logistica() {
     return {};
   }, [datePreset, customStart, customEnd]);
 
-  const { data: shipments, isLoading } = useLogisticsShipments({ search, status: statusFilter, company_name: companyFilter, ...dateRange });
+  const filteredParams = { search, status: statusFilter, company_name: companyFilter, ...dateRange };
+  const { data: allShipments, isLoading } = useLogisticsShipments(filteredParams);
+  const shipments = useMemo(() => {
+    if (!allShipments) return [];
+    if (channelFilter === "all") return allShipments;
+    return allShipments.filter(s => s.channel === channelFilter);
+  }, [allShipments, channelFilter]);
   const { data: dashboard } = useLogisticsDashboard({ ...dateRange, company_name: companyFilter });
   const { data: members } = useLogisticsMembers();
   const { data: companies } = useLogisticsCompanies();
