@@ -537,12 +537,12 @@ function DashboardTab({ dashboard }: { dashboard?: any }) {
           <h3 className="font-semibold mb-3 text-sm">Frete por Transportadora</h3>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={dashboard.byCarrier.slice(0, 8)}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="carrier" tick={{ fontSize: 10 }} />
-              <YAxis tick={{ fontSize: 10 }} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis dataKey="carrier" tick={TICK_STYLE} />
+              <YAxis tick={TICK_STYLE} />
               <RechartsTooltip formatter={(v: number) => formatCurrency(v)} />
-              <Bar dataKey="freight_paid" fill="hsl(var(--primary))" name="Frete Pago" />
-              <Bar dataKey="freight_invoiced" fill="hsl(var(--chart-2))" name="Cobrado NF" />
+              <Bar dataKey="freight_paid" fill={CHART_COLORS.paid} name="Frete Pago" />
+              <Bar dataKey="freight_invoiced" fill={CHART_COLORS.invoiced} name="Cobrado NF" />
             </BarChart>
           </ResponsiveContainer>
         </Card>
