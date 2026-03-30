@@ -666,6 +666,89 @@ function DashboardTab({ dashboard }: { dashboard?: any }) {
           </div>
         </Card>
       )}
+
+      {/* Carrier Status Tracking */}
+      {dashboard.byCarrierStatus?.length > 0 && (
+        <Card className="p-4">
+          <h3 className="font-semibold mb-3 text-sm flex items-center gap-2">
+            <Truck className="h-4 w-4" /> Status por Transportadora
+          </h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b bg-muted/50">
+                  <th className="text-left p-2 font-medium">Transportadora</th>
+                  <th className="text-left p-2 font-medium">Status</th>
+                  <th className="text-right p-2 font-medium">Qtd</th>
+                  <th className="text-left p-2 font-medium">Próx. Entrega</th>
+                  <th className="text-right p-2 font-medium">Futuras</th>
+                  <th className="text-right p-2 font-medium">Atrasadas</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dashboard.byCarrierStatus.map((r: any, i: number) => {
+                  const deliveryDate = r.nearest_delivery ? new Date(r.nearest_delivery) : null;
+                  const now = new Date();
+                  const daysUntil = deliveryDate ? Math.ceil((deliveryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) : null;
+
+                  let rowColor = "";
+                  if (r.status === "Entregue no prazo") rowColor = "bg-green-50 dark:bg-green-950/20";
+                  else if (r.status === "Entregue com atraso") rowColor = "bg-amber-50 dark:bg-amber-950/20";
+                  else if (Number(r.overdue) > 0) rowColor = "bg-red-50 dark:bg-red-950/20";
+                  else if (daysUntil !== null && daysUntil <= 2) rowColor = "bg-orange-50 dark:bg-orange-950/20";
+                  else if (daysUntil !== null && daysUntil <= 7) rowColor = "bg-yellow-50 dark:bg-yellow-950/20";
+                  else if (daysUntil !== null && daysUntil > 7) rowColor = "bg-blue-50 dark:bg-blue-950/20";
+
+                  let dateColor = "text-muted-foreground";
+                  if (daysUntil !== null) {
+                    if (daysUntil < 0) dateColor = "text-red-600 font-bold";
+                    else if (daysUntil <= 2) dateColor = "text-orange-600 font-bold";
+                    else if (daysUntil <= 7) dateColor = "text-amber-600 font-semibold";
+                    else dateColor = "text-blue-600";
+                  }
+
+                  return (
+                    <tr key={`${r.carrier}-${r.status}-${i}`} className={cn("border-b", rowColor)}>
+                      <td className="p-2 font-medium">{r.carrier}</td>
+                      <td className="p-2">
+                        <Badge variant="outline" className={cn("text-[10px]",
+                          r.status === "Entregue no prazo" && "border-green-500 text-green-700",
+                          r.status === "Entregue com atraso" && "border-amber-500 text-amber-700",
+                          r.status === "Em trânsito" && "border-blue-500 text-blue-700",
+                          r.status === "Pendente" && "border-orange-500 text-orange-700",
+                          r.status === "Cancelado" && "border-red-500 text-red-700",
+                        )}>{r.status}</Badge>
+                      </td>
+                      <td className="p-2 text-right font-mono">{r.total}</td>
+                      <td className={cn("p-2", dateColor)}>
+                        {deliveryDate ? (
+                          <>
+                            {format(deliveryDate, "dd/MM/yyyy")}
+                            {daysUntil !== null && (
+                              <span className="ml-1 text-[10px]">
+                                ({daysUntil < 0 ? `${Math.abs(daysUntil)}d atraso` : daysUntil === 0 ? "Hoje" : `${daysUntil}d`})
+                              </span>
+                            )}
+                          </>
+                        ) : "—"}
+                      </td>
+                      <td className="p-2 text-right font-mono">{r.future_deliveries || 0}</td>
+                      <td className={cn("p-2 text-right font-mono", Number(r.overdue) > 0 && "text-red-600 font-bold")}>{r.overdue || 0}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-3 text-[10px] text-muted-foreground">
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-red-100 dark:bg-red-950/40 border border-red-300" /> Atrasado</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-orange-100 dark:bg-orange-950/40 border border-orange-300" /> 1-2 dias</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-yellow-100 dark:bg-yellow-950/40 border border-yellow-300" /> 3-7 dias</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-blue-100 dark:bg-blue-950/40 border border-blue-300" /> +7 dias</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-green-100 dark:bg-green-950/40 border border-green-300" /> Entregue</span>
+          </div>
+        </Card>
+      )}
     </div>
   );
 }
