@@ -83,7 +83,8 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
   {
     title: 'Logística',
     items: [
-      { key: 'can_view_logistics', label: 'Logística', description: 'Módulo de controle logístico' },
+      { key: 'can_view_logistics', label: 'Ver Logística', description: 'Visualizar módulo de logística' },
+      { key: 'can_edit_logistics', label: 'Editar Logística', description: 'Criar e editar remessas' },
       { key: 'can_delete_logistics', label: 'Excluir Logística', description: 'Permite excluir remessas' },
     ],
   },
