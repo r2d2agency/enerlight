@@ -61,9 +61,10 @@ export default function Logistica() {
     return {};
   }, [datePreset, customStart, customEnd]);
 
-  const { data: shipments, isLoading } = useLogisticsShipments({ search, status: statusFilter, ...dateRange });
-  const { data: dashboard } = useLogisticsDashboard(dateRange);
+  const { data: shipments, isLoading } = useLogisticsShipments({ search, status: statusFilter, company_name: companyFilter, ...dateRange });
+  const { data: dashboard } = useLogisticsDashboard({ ...dateRange, company_name: companyFilter });
   const { data: members } = useLogisticsMembers();
+  const { data: companies } = useLogisticsCompanies();
   const createMut = useCreateShipment();
   const updateMut = useUpdateShipment();
   const deleteMut = useDeleteShipment();
