@@ -259,6 +259,7 @@ export default function Organizacoes() {
         homologation: modules.homologation ?? false,
         captador: modules.captador ?? false,
         licitacao: modules.licitacao ?? false,
+        logistics: modules.logistics ?? false,
       });
     } catch (error) {
       console.error('Error loading modules:', error);
