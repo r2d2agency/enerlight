@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import {
   useLogisticsShipments, useLogisticsDashboard, useLogisticsMembers, useLogisticsCompanies,
+  useLogisticsCarriers, useLogisticsChannels,
   useCreateShipment, useUpdateShipment, useDeleteShipment, useImportShipments,
   LogisticsShipment,
 } from "@/hooks/use-logistics";
