@@ -71,6 +71,7 @@ const Reunioes = lazyRetry(() => import("./pages/Reunioes"));
 const ComunicacaoInterna = lazyRetry(() => import("./pages/ComunicacaoInterna"));
 const Homologacao = lazyRetry(() => import("./pages/Homologacao"));
 const LicitacoesPage = lazyRetry(() => import("./pages/Licitacoes"));
+const Logistica = lazyRetry(() => import("./pages/Logistica"));
 const TarefasKanban = lazyRetry(() => import("./pages/TarefasKanban"));
 const LeadGleego = lazyRetry(() => import("./pages/LeadGleego"));
 const VisitasExternas = lazyRetry(() => import("./pages/VisitasExternas"));
