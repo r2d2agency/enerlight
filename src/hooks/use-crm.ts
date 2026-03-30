@@ -102,6 +102,9 @@ export interface CRMDeal {
   project_count?: number;
   contacts?: CRMDealContact[];
   custom_fields?: Record<string, any>;
+  quote_carrier?: string;
+  quote_value?: number;
+  quote_code?: string;
   last_activity_at: string;
   last_opened_at: string;
   created_at: string;

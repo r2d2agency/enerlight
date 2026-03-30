@@ -72,6 +72,7 @@ interface Plan {
   has_lead_gleego: boolean;
   has_captador: boolean;
   has_licitacao: boolean;
+  has_logistics: boolean;
   has_document_signatures: boolean;
   price: number;
   billing_period: string;
@@ -334,6 +335,7 @@ export default function Admin() {
       has_lead_gleego: newPlanLeadGleego,
       has_captador: newPlanCaptador,
       has_licitacao: false,
+      has_logistics: false,
       has_document_signatures: newPlanDocSignatures,
       price: parseFloat(newPlanPrice) || 0,
       billing_period: newPlanPeriod,
@@ -412,6 +414,7 @@ export default function Admin() {
       has_lead_gleego: editingPlan.has_lead_gleego,
       has_captador: editingPlan.has_captador,
       has_licitacao: editingPlan.has_licitacao,
+      has_logistics: editingPlan.has_logistics,
       has_document_signatures: editingPlan.has_document_signatures,
       price: editingPlan.price,
       billing_period: editingPlan.billing_period,
@@ -1165,6 +1168,9 @@ export default function Admin() {
                         )}
                         {plan.has_licitacao && (
                           <Badge variant="secondary" className="text-xs">Licitação</Badge>
+                        )}
+                        {plan.has_logistics && (
+                          <Badge variant="secondary" className="text-xs">Logística</Badge>
                         )}
                         {plan.has_document_signatures && (
                           <Badge variant="secondary" className="text-xs">Assinaturas</Badge>
@@ -2065,6 +2071,14 @@ export default function Admin() {
                     id="edit-licitacao"
                     checked={editingPlan?.has_licitacao || false}
                     onCheckedChange={(v) => setEditingPlan({ ...editingPlan!, has_licitacao: v })}
+                  />
+                </div>
+                <div className="flex items-center justify-between rounded-lg border p-3">
+                  <Label htmlFor="edit-logistics">Logística</Label>
+                  <Switch
+                    id="edit-logistics"
+                    checked={editingPlan?.has_logistics || false}
+                    onCheckedChange={(v) => setEditingPlan({ ...editingPlan!, has_logistics: v })}
                   />
                 </div>
                 <div className="flex items-center justify-between rounded-lg border p-3">

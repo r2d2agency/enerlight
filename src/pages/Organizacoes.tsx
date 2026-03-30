@@ -150,6 +150,7 @@ export default function Organizacoes() {
     homologation: false,
     captador: false,
     licitacao: false,
+    logistics: false,
   });
   const [savingModules, setSavingModules] = useState(false);
 
@@ -258,6 +259,7 @@ export default function Organizacoes() {
         homologation: modules.homologation ?? false,
         captador: modules.captador ?? false,
         licitacao: modules.licitacao ?? false,
+        logistics: modules.logistics ?? false,
       });
     } catch (error) {
       console.error('Error loading modules:', error);
@@ -1495,7 +1497,21 @@ export default function Organizacoes() {
                           />
                         </div>
 
-                        {/* Save Button */}
+                        {/* Logistics Module */}
+                        <div className="flex items-center justify-between rounded-lg border p-4">
+                          <div>
+                            <p className="text-sm font-medium">Logística</p>
+                            <p className="text-xs text-muted-foreground">
+                              Controle de remessas, fretes, entregas e relatórios
+                            </p>
+                          </div>
+                          <Switch
+                            checked={modulesEnabled.logistics}
+                            onCheckedChange={(checked) => setModulesEnabled(prev => ({ ...prev, logistics: checked }))}
+                            disabled={!canManageOrg}
+                          />
+                        </div>
+
                         {canManageOrg && (
                           <div className="flex justify-end pt-4">
                             <Button onClick={handleSaveModules} disabled={savingModules}>

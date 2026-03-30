@@ -15,7 +15,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { CRMDeal, CRMTask, CRMStage, useCRMDeal, useCRMDealMutations, useCRMTaskMutations, useCRMFunnel, useCRMFunnels, useCRMCompanies, useCRMMyTeam } from "@/hooks/use-crm";
 import { useRepresentativesForDeal } from "@/hooks/use-representatives";
 import { api } from "@/lib/api";
-import { Building2, User, Phone, Calendar as CalendarIcon, Clock, CheckCircle, Plus, Trash2, Paperclip, MessageSquare, ChevronRight, Edit2, Save, X, FileText, Image, Loader2, Upload, Search, UserPlus, Building, Mail, Video, Send, ClipboardList, RefreshCw, Flame, ArrowRightLeft, MapPin } from "lucide-react";
+import { Building2, User, Phone, Calendar as CalendarIcon, Clock, CheckCircle, Plus, Trash2, Paperclip, MessageSquare, ChevronRight, Edit2, Save, X, FileText, Image, Loader2, Upload, Search, UserPlus, Building, Mail, Video, Send, ClipboardList, RefreshCw, Flame, ArrowRightLeft, MapPin, Truck } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -938,7 +938,49 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
                   )}
                 </Card>
 
-                {/* Lead Score Card */}
+                {/* Cotação / Logística */}
+                <Card className="p-4">
+                  <h4 className="font-medium flex items-center gap-2 mb-3">
+                    <Truck className="h-4 w-4" /> Cotação Frete
+                  </h4>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <Label className="text-xs">Transportadora</Label>
+                      <Input
+                        value={currentDeal?.quote_carrier || ""}
+                        onChange={(e) => updateDeal.mutate({ id: deal!.id, quote_carrier: e.target.value } as any)}
+                        placeholder="Nome"
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Valor Cotado</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={currentDeal?.quote_value || 0}
+                        onChange={(e) => updateDeal.mutate({ id: deal!.id, quote_value: Number(e.target.value) } as any)}
+                        placeholder="R$"
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Código Cotação</Label>
+                      <Input
+                        value={currentDeal?.quote_code || ""}
+                        onChange={(e) => updateDeal.mutate({ id: deal!.id, quote_code: e.target.value } as any)}
+                        placeholder="Código"
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                  </div>
+                  {currentDeal?.quote_code && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Este código cruza com o módulo de Logística para rastreamento.
+                    </p>
+                  )}
+                </Card>
+
                 {dealScore && dealScore.score > 0 && (
                   <Card className="p-4 sm:col-span-2">
                     <div className="flex items-center justify-between mb-3">

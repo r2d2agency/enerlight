@@ -71,6 +71,7 @@ const Reunioes = lazyRetry(() => import("./pages/Reunioes"));
 const ComunicacaoInterna = lazyRetry(() => import("./pages/ComunicacaoInterna"));
 const Homologacao = lazyRetry(() => import("./pages/Homologacao"));
 const LicitacoesPage = lazyRetry(() => import("./pages/Licitacoes"));
+const Logistica = lazyRetry(() => import("./pages/Logistica"));
 const TarefasKanban = lazyRetry(() => import("./pages/TarefasKanban"));
 const LeadGleego = lazyRetry(() => import("./pages/LeadGleego"));
 const VisitasExternas = lazyRetry(() => import("./pages/VisitasExternas"));
@@ -163,6 +164,7 @@ const App = () => (
               <Route path="/comunicacao" element={<ProtectedRoute><ComunicacaoInterna /></ProtectedRoute>} />
               <Route path="/homologacao" element={<ProtectedRoute><Homologacao /></ProtectedRoute>} />
               <Route path="/licitacoes" element={<ProtectedRoute><LicitacoesPage /></ProtectedRoute>} />
+              <Route path="/logistica" element={<ProtectedRoute><Logistica /></ProtectedRoute>} />
               <Route path="/tarefas" element={<ProtectedRoute><TarefasKanban /></ProtectedRoute>} />
               <Route path="/lead-gleego" element={<ProtectedRoute><LeadGleego /></ProtectedRoute>} />
               <Route path="/crm/visitas-externas" element={<ProtectedRoute><VisitasExternas /></ProtectedRoute>} />
