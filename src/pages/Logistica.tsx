@@ -214,6 +214,7 @@ export default function Logistica() {
                     <tbody>
                       {shipments.map((s) => (
                         <tr key={s.id} className="border-b hover:bg-muted/30 cursor-pointer" onClick={() => setViewShipment(s)}>
+                          <td className="p-2 text-xs font-medium">{s.company_name}</td>
                           <td className="p-2 font-mono text-xs">{s.invoice_number}</td>
                           <td className="p-2 font-mono text-xs">{s.order_number}</td>
                           <td className="p-2 max-w-[200px] truncate">{s.client_name}</td>
