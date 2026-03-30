@@ -1169,6 +1169,9 @@ export default function Admin() {
                         {plan.has_licitacao && (
                           <Badge variant="secondary" className="text-xs">Licitação</Badge>
                         )}
+                        {plan.has_logistics && (
+                          <Badge variant="secondary" className="text-xs">Logística</Badge>
+                        )}
                         {plan.has_document_signatures && (
                           <Badge variant="secondary" className="text-xs">Assinaturas</Badge>
                         )}
