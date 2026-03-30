@@ -4240,10 +4240,6 @@ END $$;
 `;
 
 const step55CaptadorSegments = `
-`;
-
-// After step55, before migrationSteps array - but we need to put it before the array.
-// Actually let me just add after step55CaptadorSegments definition ends.
 
 CREATE TABLE IF NOT EXISTS captador_segments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
