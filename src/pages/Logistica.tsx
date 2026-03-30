@@ -32,6 +32,8 @@ import {
 
 const STATUSES = ["Pendente", "Em trânsito", "Entregue no prazo", "Entregue com atraso", "Cancelado"];
 const COLORS = ["#6366f1", "#22c55e", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#14b8a6", "#f97316"];
+const CHART_COLORS = { paid: "#ef4444", invoiced: "#22c55e", realCost: "#6366f1", primary: "#3b82f6" };
+const TICK_STYLE = { fontSize: 10, fill: "#64748b" };
 
 const formatCurrency = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2 }).format(v);
