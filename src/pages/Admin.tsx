@@ -335,6 +335,7 @@ export default function Admin() {
       has_lead_gleego: newPlanLeadGleego,
       has_captador: newPlanCaptador,
       has_licitacao: false,
+      has_logistics: false,
       has_document_signatures: newPlanDocSignatures,
       price: parseFloat(newPlanPrice) || 0,
       billing_period: newPlanPeriod,
