@@ -20,9 +20,9 @@ import {
 } from "lucide-react";
 import {
   useLogisticsShipments, useLogisticsDashboard, useLogisticsMembers, useLogisticsCompanies,
-  useLogisticsCarriers, useLogisticsChannels,
+  useLogisticsCarriers, useLogisticsChannels, useLogisticsChannelWallet,
   useCreateShipment, useUpdateShipment, useDeleteShipment, useImportShipments,
-  LogisticsShipment,
+  LogisticsShipment, ChannelWalletItem,
 } from "@/hooks/use-logistics";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -77,6 +77,7 @@ export default function Logistica() {
   const { data: companies } = useLogisticsCompanies();
   const { data: carriers } = useLogisticsCarriers();
   const { data: channels } = useLogisticsChannels();
+  const { data: channelWallet } = useLogisticsChannelWallet(dateRange);
   const createMut = useCreateShipment();
   const updateMut = useUpdateShipment();
   const deleteMut = useDeleteShipment();
@@ -272,7 +273,7 @@ export default function Logistica() {
           </TabsContent>
 
           <TabsContent value="wallet" className="mt-3">
-            <WalletTab dashboard={dashboard} />
+            <WalletTab dashboard={dashboard} channelWallet={channelWallet} />
           </TabsContent>
         </Tabs>
       </div>
@@ -801,45 +802,93 @@ function DashboardTab({ dashboard }: { dashboard?: any }) {
 }
 
 // ===================== WALLET TAB =====================
-function WalletTab({ dashboard }: { dashboard?: any }) {
+function WalletTab({ dashboard, channelWallet }: { dashboard?: any; channelWallet?: ChannelWalletItem[] }) {
   if (!dashboard) return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
   return (
-    <div className="space-y-4">
-      <h3 className="font-semibold text-sm">Carteira por Solicitante</h3>
-      <p className="text-xs text-muted-foreground">Saldo = Cobrado NF − Frete Pago. Positivo = crédito. Negativo = débito (vermelho).</p>
+    <div className="space-y-6">
+      {/* Channel Wallet from Metas cross-reference */}
+      <div>
+        <h3 className="font-semibold text-sm mb-1">Carteira por Canal (Metas)</h3>
+        <p className="text-xs text-muted-foreground mb-3">Cruzamento do nº do pedido da logística com os pedidos importados nas metas para identificar o canal.</p>
 
-      <div className="grid gap-3">
-        {dashboard.byRequester?.length === 0 && (
-          <p className="text-center text-muted-foreground py-10">Nenhum solicitante vinculado</p>
+        {(!channelWallet || channelWallet.length === 0) ? (
+          <Card className="p-6 text-center text-muted-foreground text-sm">
+            Nenhum dado encontrado. Certifique-se de que os pedidos importados nas Metas possuem o mesmo número de pedido das remessas.
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {channelWallet.map((ch) => {
+              const paid = Number(ch.freight_paid);
+              const invoiced = Number(ch.freight_invoiced);
+              const saldo = Number(ch.balance);
+              const tax = Number(ch.tax_value);
+              const realCost = Number(ch.real_cost);
+              const markup = paid > 0 ? ((invoiced / paid) * 100).toFixed(0) : "—";
+              return (
+                <Card key={ch.metas_channel} className={cn("p-4 space-y-2", saldo < 0 ? "border-destructive/60 bg-destructive/5" : "border-green-500/50 bg-green-500/5")}>
+                  <p className="font-bold text-base">{ch.metas_channel}</p>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                    <span className="text-muted-foreground">Cobrado NF</span>
+                    <span className="text-right font-mono font-semibold text-green-600">{formatCurrency(invoiced)}</span>
+                    <span className="text-muted-foreground">Valor Pago</span>
+                    <span className="text-right font-mono font-semibold text-destructive">{formatCurrency(paid)}</span>
+                    <span className="text-muted-foreground">Impostos</span>
+                    <span className="text-right font-mono">{formatCurrency(tax)}</span>
+                    <span className="text-muted-foreground">Custo Real</span>
+                    <span className="text-right font-mono">{formatCurrency(realCost)}</span>
+                    <span className="text-muted-foreground font-semibold">Saldo</span>
+                    <span className={cn("text-right font-mono font-bold text-sm", saldo >= 0 ? "text-green-600" : "text-destructive")}>
+                      {saldo >= 0 ? "+" : ""}{formatCurrency(saldo)}
+                    </span>
+                    <span className="text-muted-foreground">Markup</span>
+                    <span className="text-right font-mono font-semibold">{markup}%</span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">{ch.total_shipments} remessas vinculadas</p>
+                </Card>
+              );
+            })}
+          </div>
         )}
-        {dashboard.byRequester?.map((r: any) => {
-          const bal = Number(r.balance);
-          return (
-            <Card key={r.requester_id} className={cn("p-4 flex items-center justify-between", bal < 0 && "border-red-500/50")}>
-              <div>
-                <p className="font-semibold">{r.requester_name || "Sem nome"}</p>
-                <p className="text-xs text-muted-foreground">{r.total_shipments} remessas</p>
-              </div>
-              <div className="text-right">
-                <p className="text-xs text-muted-foreground">Frete Pago: {formatCurrency(Number(r.total_freight_paid))}</p>
-                <p className="text-xs text-muted-foreground">Cobrado: {formatCurrency(Number(r.total_invoiced))}</p>
-                <p className={cn("font-bold text-lg", bal >= 0 ? "text-green-600" : "text-red-600")}>
-                  {bal >= 0 ? "+" : ""}{formatCurrency(bal)}
-                </p>
-              </div>
-            </Card>
-          );
-        })}
       </div>
 
-      {/* By Channel */}
+      {/* Existing: Wallet by requester */}
+      <div>
+        <h3 className="font-semibold text-sm">Carteira por Solicitante</h3>
+        <p className="text-xs text-muted-foreground mb-3">Saldo = Cobrado NF − Frete Pago. Positivo = crédito. Negativo = débito (vermelho).</p>
+
+        <div className="grid gap-3">
+          {dashboard.byRequester?.length === 0 && (
+            <p className="text-center text-muted-foreground py-10">Nenhum solicitante vinculado</p>
+          )}
+          {dashboard.byRequester?.map((r: any) => {
+            const bal = Number(r.balance);
+            return (
+              <Card key={r.requester_id} className={cn("p-4 flex items-center justify-between", bal < 0 && "border-destructive/50")}>
+                <div>
+                  <p className="font-semibold">{r.requester_name || "Sem nome"}</p>
+                  <p className="text-xs text-muted-foreground">{r.total_shipments} remessas</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-muted-foreground">Frete Pago: {formatCurrency(Number(r.total_freight_paid))}</p>
+                  <p className="text-xs text-muted-foreground">Cobrado: {formatCurrency(Number(r.total_invoiced))}</p>
+                  <p className={cn("font-bold text-lg", bal >= 0 ? "text-green-600" : "text-destructive")}>
+                    {bal >= 0 ? "+" : ""}{formatCurrency(bal)}
+                  </p>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* By Channel chart */}
       {dashboard.byChannel?.length > 0 && (
         <Card className="p-4">
-          <h3 className="font-semibold mb-3 text-sm">Por Canal</h3>
+          <h3 className="font-semibold mb-3 text-sm">Por Canal (Logística)</h3>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={dashboard.byChannel}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis dataKey="channel" tick={TICK_STYLE} />
               <YAxis tick={TICK_STYLE} />
               <RechartsTooltip formatter={(v: number) => formatCurrency(v)} />
