@@ -658,12 +658,12 @@ function WalletTab({ dashboard }: { dashboard?: any }) {
           <h3 className="font-semibold mb-3 text-sm">Por Canal</h3>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={dashboard.byChannel}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="channel" tick={{ fontSize: 10 }} />
-              <YAxis tick={{ fontSize: 10 }} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis dataKey="channel" tick={TICK_STYLE} />
+              <YAxis tick={TICK_STYLE} />
               <RechartsTooltip formatter={(v: number) => formatCurrency(v)} />
-              <Bar dataKey="freight_paid" fill="hsl(var(--destructive))" name="Frete Pago" />
-              <Bar dataKey="freight_invoiced" fill="hsl(var(--chart-2))" name="Cobrado NF" />
+              <Bar dataKey="freight_paid" fill={CHART_COLORS.paid} name="Frete Pago" />
+              <Bar dataKey="freight_invoiced" fill={CHART_COLORS.invoiced} name="Cobrado NF" />
             </BarChart>
           </ResponsiveContainer>
         </Card>
