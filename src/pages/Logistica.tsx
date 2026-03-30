@@ -586,6 +586,37 @@ function DashboardTab({ dashboard }: { dashboard?: any }) {
         </Card>
       </div>
 
+      {/* Channel Cards Widget */}
+      {dashboard.byChannel?.length > 0 && (
+        <>
+          <h3 className="font-semibold text-sm mt-2">Resumo por Canal</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {dashboard.byChannel.map((ch: any) => {
+              const paid = Number(ch.freight_paid);
+              const invoiced = Number(ch.freight_invoiced);
+              const saldo = invoiced - paid;
+              const markup = paid > 0 ? ((invoiced / paid) * 100).toFixed(0) : "—";
+              return (
+                <Card key={ch.channel} className={cn("p-4 space-y-1", saldo < 0 ? "border-destructive/50" : "border-green-500/50")}>
+                  <p className="font-semibold text-sm">{ch.channel || "Sem canal"}</p>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
+                    <span className="text-muted-foreground">Cobrado NF</span>
+                    <span className="text-right font-mono font-medium text-green-600">{formatCurrency(invoiced)}</span>
+                    <span className="text-muted-foreground">Valor Pago</span>
+                    <span className="text-right font-mono font-medium text-destructive">{formatCurrency(paid)}</span>
+                    <span className="text-muted-foreground">Saldo</span>
+                    <span className={cn("text-right font-mono font-bold", saldo >= 0 ? "text-green-600" : "text-destructive")}>{formatCurrency(saldo)}</span>
+                    <span className="text-muted-foreground">Markup</span>
+                    <span className="text-right font-mono font-semibold">{markup}%</span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">{ch.total} remessas</p>
+                </Card>
+              );
+            })}
+          </div>
+        </>
+      )}
+
       {/* Status + Carrier charts */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card className="p-4">
