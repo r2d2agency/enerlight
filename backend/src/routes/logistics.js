@@ -414,6 +414,7 @@ router.get('/channels', requireAuth, async (req, res) => {
   }
 });
 
+router.get('/members', requireAuth, async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'Sem organização' });
