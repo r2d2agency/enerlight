@@ -218,6 +218,7 @@ app.use('/api/internal-chat', internalChatRoutes);
 app.use('/api/push', pushNotificationsRoutes);
 app.use('/api/homologation', homologationRoutes);
 app.use('/api/licitacao', licitacaoRoutes);
+app.use('/api/logistics', logisticsRoutes);
 app.use('/api/task-boards', taskBoardsRoutes);
 app.use('/api/erp-billing', erpBillingRoutes);
 app.use('/api/captador', captadorRoutes);
