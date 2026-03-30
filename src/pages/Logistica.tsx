@@ -554,14 +554,14 @@ function DashboardTab({ dashboard }: { dashboard?: any }) {
           <h3 className="font-semibold mb-3 text-sm">Evolução Mensal</h3>
           <ResponsiveContainer width="100%" height={250}>
             <LineChart data={dashboard.monthlyTrend}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" tick={{ fontSize: 10 }} />
-              <YAxis tick={{ fontSize: 10 }} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis dataKey="month" tick={TICK_STYLE} />
+              <YAxis tick={TICK_STYLE} />
               <RechartsTooltip formatter={(v: number) => formatCurrency(v)} />
               <Legend />
-              <Line type="monotone" dataKey="freight_paid" stroke="hsl(var(--destructive))" name="Frete Pago" />
-              <Line type="monotone" dataKey="freight_invoiced" stroke="hsl(var(--chart-2))" name="Cobrado NF" />
-              <Line type="monotone" dataKey="real_cost" stroke="hsl(var(--primary))" name="Custo Real" />
+              <Line type="monotone" dataKey="freight_paid" stroke={CHART_COLORS.paid} name="Frete Pago" strokeWidth={2} />
+              <Line type="monotone" dataKey="freight_invoiced" stroke={CHART_COLORS.invoiced} name="Cobrado NF" strokeWidth={2} />
+              <Line type="monotone" dataKey="real_cost" stroke={CHART_COLORS.realCost} name="Custo Real" strokeWidth={2} />
             </LineChart>
           </ResponsiveContainer>
         </Card>
