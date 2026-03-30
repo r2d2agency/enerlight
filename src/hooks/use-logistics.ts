@@ -48,6 +48,7 @@ export interface LogisticsDashboard {
   byRequester: Array<{ requester_id: string; requester_name: string; total_shipments: number; total_freight_paid: number; total_invoiced: number; balance: number }>;
   byStatus: Array<{ status: string; total: number; freight_paid: number }>;
   monthlyTrend: Array<{ month: string; total: number; freight_paid: number; freight_invoiced: number; real_cost: number }>;
+  byCompany: Array<{ company_name: string; total: number; freight_paid: number; freight_invoiced: number; real_cost: number; balance: number }>;
   byChannel: Array<{ channel: string; total: number; freight_paid: number; freight_invoiced: number }>;
 }
 
