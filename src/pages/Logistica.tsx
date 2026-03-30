@@ -564,6 +564,55 @@ function DashboardTab({ dashboard }: { dashboard?: any }) {
           </ResponsiveContainer>
         </Card>
       )}
+
+      {/* By Company */}
+      {dashboard.byCompany?.length > 0 && (
+        <Card className="p-4">
+          <h3 className="font-semibold mb-3 text-sm">Por Empresa</h3>
+          <ResponsiveContainer width="100%" height={250}>
+            <BarChart data={dashboard.byCompany}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="company_name" tick={{ fontSize: 10 }} />
+              <YAxis tick={{ fontSize: 10 }} />
+              <RechartsTooltip formatter={(v: number) => formatCurrency(v)} />
+              <Legend />
+              <Bar dataKey="freight_paid" fill="hsl(var(--destructive))" name="Frete Pago" />
+              <Bar dataKey="freight_invoiced" fill="hsl(var(--chart-2))" name="Cobrado NF" />
+              <Bar dataKey="real_cost" fill="hsl(var(--primary))" name="Custo Real" />
+            </BarChart>
+          </ResponsiveContainer>
+          {/* Company summary table */}
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b bg-muted/50">
+                  <th className="text-left p-1.5 font-medium">Empresa</th>
+                  <th className="text-right p-1.5 font-medium">Remessas</th>
+                  <th className="text-right p-1.5 font-medium">Frete Pago</th>
+                  <th className="text-right p-1.5 font-medium">Cobrado NF</th>
+                  <th className="text-right p-1.5 font-medium">Custo Real</th>
+                  <th className="text-right p-1.5 font-medium">Saldo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dashboard.byCompany.map((c: any) => {
+                  const bal = Number(c.balance);
+                  return (
+                    <tr key={c.company_name} className="border-b">
+                      <td className="p-1.5 font-medium">{c.company_name}</td>
+                      <td className="p-1.5 text-right">{c.total}</td>
+                      <td className="p-1.5 text-right font-mono">{formatCurrency(Number(c.freight_paid))}</td>
+                      <td className="p-1.5 text-right font-mono">{formatCurrency(Number(c.freight_invoiced))}</td>
+                      <td className="p-1.5 text-right font-mono">{formatCurrency(Number(c.real_cost))}</td>
+                      <td className={cn("p-1.5 text-right font-mono font-semibold", bal >= 0 ? "text-green-600" : "text-destructive")}>{formatCurrency(bal)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
     </div>
   );
 }
