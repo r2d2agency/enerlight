@@ -267,6 +267,9 @@ export default function Logistica() {
         onOpenChange={(v) => { setShowForm(v); if (!v) setEditingShipment(null); }}
         shipment={editingShipment}
         members={members || []}
+        companies={companies || []}
+        carriers={carriers || []}
+        channels={channels || []}
         onSave={handleSave}
         isSaving={createMut.isPending || updateMut.isPending}
       />
