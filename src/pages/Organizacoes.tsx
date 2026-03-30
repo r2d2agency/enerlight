@@ -150,6 +150,7 @@ export default function Organizacoes() {
     homologation: false,
     captador: false,
     licitacao: false,
+    logistics: false,
   });
   const [savingModules, setSavingModules] = useState(false);
 
