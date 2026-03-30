@@ -19,7 +19,7 @@ import {
   Filter, FileSpreadsheet, ArrowUpDown, Eye
 } from "lucide-react";
 import {
-  useLogisticsShipments, useLogisticsDashboard, useLogisticsMembers,
+  useLogisticsShipments, useLogisticsDashboard, useLogisticsMembers, useLogisticsCompanies,
   useCreateShipment, useUpdateShipment, useDeleteShipment, useImportShipments,
   LogisticsShipment,
 } from "@/hooks/use-logistics";
