@@ -89,6 +89,13 @@ export function useLogisticsDashboard(filters?: { start_date?: string; end_date?
   });
 }
 
+export function useLogisticsCompanies() {
+  return useQuery({
+    queryKey: ["logistics-companies"],
+    queryFn: () => api<string[]>(`/api/logistics/companies`),
+  });
+}
+
 export function useLogisticsMembers() {
   return useQuery({
     queryKey: ["logistics-members"],
