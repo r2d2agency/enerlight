@@ -68,6 +68,8 @@ export default function Logistica() {
   const { data: dashboard } = useLogisticsDashboard({ ...dateRange, company_name: companyFilter });
   const { data: members } = useLogisticsMembers();
   const { data: companies } = useLogisticsCompanies();
+  const { data: carriers } = useLogisticsCarriers();
+  const { data: channels } = useLogisticsChannels();
   const createMut = useCreateShipment();
   const updateMut = useUpdateShipment();
   const deleteMut = useDeleteShipment();
