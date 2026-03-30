@@ -350,7 +350,24 @@ router.get('/dashboard', requireAuth, async (req, res) => {
   }
 });
 
-// ===================== ORG MEMBERS (for requester select) =====================
+// ===================== DISTINCT COMPANIES =====================
+router.get('/companies', requireAuth, async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+    const result = await query(
+      `SELECT DISTINCT company_name FROM logistics_shipments
+       WHERE organization_id = $1 AND company_name IS NOT NULL AND company_name != ''
+       ORDER BY company_name`,
+      [org.organization_id]
+    );
+    res.json(result.rows.map(r => r.company_name));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+
 router.get('/members', requireAuth, async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
