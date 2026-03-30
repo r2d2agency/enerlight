@@ -107,7 +107,7 @@ export function useCreateShipment() {
   const qc = useQueryClient();
   const { toast } = useToast();
   return useMutation({
-    mutationFn: (data: Partial<LogisticsShipment>) => api<LogisticsShipment>("/api/logistics/shipments", { method: "POST", body: JSON.stringify(data) }),
+    mutationFn: (data: Partial<LogisticsShipment>) => api<LogisticsShipment>("/api/logistics/shipments", { method: "POST", body: data }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["logistics-shipments"] });
       qc.invalidateQueries({ queryKey: ["logistics-dashboard"] });
