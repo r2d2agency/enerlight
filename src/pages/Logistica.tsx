@@ -573,14 +573,14 @@ function DashboardTab({ dashboard }: { dashboard?: any }) {
           <h3 className="font-semibold mb-3 text-sm">Por Empresa</h3>
           <ResponsiveContainer width="100%" height={250}>
             <BarChart data={dashboard.byCompany}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="company_name" tick={{ fontSize: 10 }} />
-              <YAxis tick={{ fontSize: 10 }} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis dataKey="company_name" tick={TICK_STYLE} />
+              <YAxis tick={TICK_STYLE} />
               <RechartsTooltip formatter={(v: number) => formatCurrency(v)} />
               <Legend />
-              <Bar dataKey="freight_paid" fill="hsl(var(--destructive))" name="Frete Pago" />
-              <Bar dataKey="freight_invoiced" fill="hsl(var(--chart-2))" name="Cobrado NF" />
-              <Bar dataKey="real_cost" fill="hsl(var(--primary))" name="Custo Real" />
+              <Bar dataKey="freight_paid" fill={CHART_COLORS.paid} name="Frete Pago" />
+              <Bar dataKey="freight_invoiced" fill={CHART_COLORS.invoiced} name="Cobrado NF" />
+              <Bar dataKey="real_cost" fill={CHART_COLORS.realCost} name="Custo Real" />
             </BarChart>
           </ResponsiveContainer>
           {/* Company summary table */}
