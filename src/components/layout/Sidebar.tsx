@@ -158,6 +158,15 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
     ],
   },
   {
+    title: "Logística",
+    icon: Truck,
+    moduleKey: 'logistics',
+    permissionKey: 'can_view_logistics',
+    items: [
+      { name: "Remessas", href: "/logistica", icon: Truck, permissionKey: 'can_view_logistics' },
+    ],
+  },
+  {
     title: "Captador",
     icon: MapPin,
     moduleKey: 'captador',
