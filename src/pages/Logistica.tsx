@@ -19,7 +19,7 @@ import {
   Filter, FileSpreadsheet, ArrowUpDown, Eye
 } from "lucide-react";
 import {
-  useLogisticsShipments, useLogisticsDashboard, useLogisticsMembers,
+  useLogisticsShipments, useLogisticsDashboard, useLogisticsMembers, useLogisticsCompanies,
   useCreateShipment, useUpdateShipment, useDeleteShipment, useImportShipments,
   LogisticsShipment,
 } from "@/hooks/use-logistics";
@@ -42,6 +42,7 @@ export default function Logistica() {
   const [activeTab, setActiveTab] = useState("list");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [companyFilter, setCompanyFilter] = useState("all");
   const [datePreset, setDatePreset] = useState<DatePreset>("month");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
@@ -60,9 +61,10 @@ export default function Logistica() {
     return {};
   }, [datePreset, customStart, customEnd]);
 
-  const { data: shipments, isLoading } = useLogisticsShipments({ search, status: statusFilter, ...dateRange });
-  const { data: dashboard } = useLogisticsDashboard(dateRange);
+  const { data: shipments, isLoading } = useLogisticsShipments({ search, status: statusFilter, company_name: companyFilter, ...dateRange });
+  const { data: dashboard } = useLogisticsDashboard({ ...dateRange, company_name: companyFilter });
   const { data: members } = useLogisticsMembers();
+  const { data: companies } = useLogisticsCompanies();
   const createMut = useCreateShipment();
   const updateMut = useUpdateShipment();
   const deleteMut = useDeleteShipment();
@@ -157,6 +159,13 @@ export default function Logistica() {
                 {STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
               </SelectContent>
             </Select>
+            <Select value={companyFilter} onValueChange={setCompanyFilter}>
+              <SelectTrigger className="w-[160px] h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas Empresas</SelectItem>
+                {companies?.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              </SelectContent>
+            </Select>
             <Select value={datePreset} onValueChange={(v) => setDatePreset(v as DatePreset)}>
               <SelectTrigger className="w-[140px] h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -188,6 +197,7 @@ export default function Logistica() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b bg-muted/50">
+                        <th className="text-left p-2 font-medium">Empresa</th>
                         <th className="text-left p-2 font-medium">NF</th>
                         <th className="text-left p-2 font-medium">Pedido</th>
                         <th className="text-left p-2 font-medium">Cliente</th>
@@ -204,6 +214,7 @@ export default function Logistica() {
                     <tbody>
                       {shipments.map((s) => (
                         <tr key={s.id} className="border-b hover:bg-muted/30 cursor-pointer" onClick={() => setViewShipment(s)}>
+                          <td className="p-2 text-xs font-medium">{s.company_name}</td>
                           <td className="p-2 font-mono text-xs">{s.invoice_number}</td>
                           <td className="p-2 font-mono text-xs">{s.order_number}</td>
                           <td className="p-2 max-w-[200px] truncate">{s.client_name}</td>
@@ -551,6 +562,55 @@ function DashboardTab({ dashboard }: { dashboard?: any }) {
               <Line type="monotone" dataKey="real_cost" stroke="hsl(var(--primary))" name="Custo Real" />
             </LineChart>
           </ResponsiveContainer>
+        </Card>
+      )}
+
+      {/* By Company */}
+      {dashboard.byCompany?.length > 0 && (
+        <Card className="p-4">
+          <h3 className="font-semibold mb-3 text-sm">Por Empresa</h3>
+          <ResponsiveContainer width="100%" height={250}>
+            <BarChart data={dashboard.byCompany}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="company_name" tick={{ fontSize: 10 }} />
+              <YAxis tick={{ fontSize: 10 }} />
+              <RechartsTooltip formatter={(v: number) => formatCurrency(v)} />
+              <Legend />
+              <Bar dataKey="freight_paid" fill="hsl(var(--destructive))" name="Frete Pago" />
+              <Bar dataKey="freight_invoiced" fill="hsl(var(--chart-2))" name="Cobrado NF" />
+              <Bar dataKey="real_cost" fill="hsl(var(--primary))" name="Custo Real" />
+            </BarChart>
+          </ResponsiveContainer>
+          {/* Company summary table */}
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b bg-muted/50">
+                  <th className="text-left p-1.5 font-medium">Empresa</th>
+                  <th className="text-right p-1.5 font-medium">Remessas</th>
+                  <th className="text-right p-1.5 font-medium">Frete Pago</th>
+                  <th className="text-right p-1.5 font-medium">Cobrado NF</th>
+                  <th className="text-right p-1.5 font-medium">Custo Real</th>
+                  <th className="text-right p-1.5 font-medium">Saldo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dashboard.byCompany.map((c: any) => {
+                  const bal = Number(c.balance);
+                  return (
+                    <tr key={c.company_name} className="border-b">
+                      <td className="p-1.5 font-medium">{c.company_name}</td>
+                      <td className="p-1.5 text-right">{c.total}</td>
+                      <td className="p-1.5 text-right font-mono">{formatCurrency(Number(c.freight_paid))}</td>
+                      <td className="p-1.5 text-right font-mono">{formatCurrency(Number(c.freight_invoiced))}</td>
+                      <td className="p-1.5 text-right font-mono">{formatCurrency(Number(c.real_cost))}</td>
+                      <td className={cn("p-1.5 text-right font-mono font-semibold", bal >= 0 ? "text-green-600" : "text-destructive")}>{formatCurrency(bal)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </Card>
       )}
     </div>

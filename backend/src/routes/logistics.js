@@ -18,7 +18,7 @@ router.get('/shipments', requireAuth, async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'Sem organização' });
 
-    const { status, carrier, start_date, end_date, search, requester_id } = req.query;
+    const { status, carrier, start_date, end_date, search, requester_id, company_name } = req.query;
     let sql = `
       SELECT ls.*, u.name as requester_name, u2.name as created_by_name
       FROM logistics_shipments ls
@@ -36,6 +36,10 @@ router.get('/shipments', requireAuth, async (req, res) => {
     if (carrier) {
       sql += ` AND ls.carrier ILIKE $${idx++}`;
       params.push(`%${carrier}%`);
+    }
+    if (company_name && company_name !== 'all') {
+      sql += ` AND ls.company_name = $${idx++}`;
+      params.push(company_name);
     }
     if (start_date) {
       sql += ` AND ls.requested_date >= $${idx++}`;
@@ -226,7 +230,7 @@ router.get('/dashboard', requireAuth, async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'Sem organização' });
 
-    const { start_date, end_date } = req.query;
+    const { start_date, end_date, company_name } = req.query;
     let dateFilter = '';
     const params = [org.organization_id];
     let idx = 2;
@@ -238,6 +242,10 @@ router.get('/dashboard', requireAuth, async (req, res) => {
     if (end_date) {
       dateFilter += ` AND ls.requested_date <= $${idx++}`;
       params.push(end_date);
+    }
+    if (company_name && company_name !== 'all') {
+      dateFilter += ` AND ls.company_name = $${idx++}`;
+      params.push(company_name);
     }
 
     // Summary
@@ -315,6 +323,18 @@ router.get('/dashboard', requireAuth, async (req, res) => {
       GROUP BY channel ORDER BY total DESC
     `, params);
 
+    // By company
+    const byCompany = await query(`
+      SELECT company_name, COUNT(*) as total,
+        COALESCE(SUM(freight_paid),0) as freight_paid,
+        COALESCE(SUM(freight_invoiced),0) as freight_invoiced,
+        COALESCE(SUM(real_cost),0) as real_cost,
+        COALESCE(SUM(freight_invoiced) - SUM(freight_paid),0) as balance
+      FROM logistics_shipments ls
+      WHERE ls.organization_id = $1 ${dateFilter} AND company_name IS NOT NULL AND company_name != ''
+      GROUP BY company_name ORDER BY total DESC
+    `, params);
+
     res.json({
       summary: summary.rows[0],
       byCarrier: byCarrier.rows,
@@ -322,6 +342,7 @@ router.get('/dashboard', requireAuth, async (req, res) => {
       byStatus: byStatus.rows,
       monthlyTrend: monthlyTrend.rows,
       byChannel: byChannel.rows,
+      byCompany: byCompany.rows,
     });
   } catch (e) {
     console.error('Dashboard error:', e);
@@ -329,7 +350,24 @@ router.get('/dashboard', requireAuth, async (req, res) => {
   }
 });
 
-// ===================== ORG MEMBERS (for requester select) =====================
+// ===================== DISTINCT COMPANIES =====================
+router.get('/companies', requireAuth, async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+    const result = await query(
+      `SELECT DISTINCT company_name FROM logistics_shipments
+       WHERE organization_id = $1 AND company_name IS NOT NULL AND company_name != ''
+       ORDER BY company_name`,
+      [org.organization_id]
+    );
+    res.json(result.rows.map(r => r.company_name));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+
 router.get('/members', requireAuth, async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);

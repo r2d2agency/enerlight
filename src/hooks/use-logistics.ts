@@ -48,6 +48,7 @@ export interface LogisticsDashboard {
   byRequester: Array<{ requester_id: string; requester_name: string; total_shipments: number; total_freight_paid: number; total_invoiced: number; balance: number }>;
   byStatus: Array<{ status: string; total: number; freight_paid: number }>;
   monthlyTrend: Array<{ month: string; total: number; freight_paid: number; freight_invoiced: number; real_cost: number }>;
+  byCompany: Array<{ company_name: string; total: number; freight_paid: number; freight_invoiced: number; real_cost: number; balance: number }>;
   byChannel: Array<{ channel: string; total: number; freight_paid: number; freight_invoiced: number }>;
 }
 
@@ -58,6 +59,7 @@ export function useLogisticsShipments(filters?: {
   end_date?: string;
   search?: string;
   requester_id?: string;
+  company_name?: string;
 }) {
   const params = new URLSearchParams();
   if (filters?.status) params.set("status", filters.status);
@@ -66,6 +68,8 @@ export function useLogisticsShipments(filters?: {
   if (filters?.end_date) params.set("end_date", filters.end_date);
   if (filters?.search) params.set("search", filters.search);
   if (filters?.requester_id) params.set("requester_id", filters.requester_id);
+  if (filters?.company_name) params.set("company_name", filters.company_name);
+  if (filters?.requester_id) params.set("requester_id", filters.requester_id);
 
   return useQuery({
     queryKey: ["logistics-shipments", filters],
@@ -73,14 +77,22 @@ export function useLogisticsShipments(filters?: {
   });
 }
 
-export function useLogisticsDashboard(filters?: { start_date?: string; end_date?: string }) {
+export function useLogisticsDashboard(filters?: { start_date?: string; end_date?: string; company_name?: string }) {
   const params = new URLSearchParams();
   if (filters?.start_date) params.set("start_date", filters.start_date);
   if (filters?.end_date) params.set("end_date", filters.end_date);
+  if (filters?.company_name) params.set("company_name", filters.company_name);
 
   return useQuery({
     queryKey: ["logistics-dashboard", filters],
     queryFn: () => api<LogisticsDashboard>(`/api/logistics/dashboard?${params.toString()}`),
+  });
+}
+
+export function useLogisticsCompanies() {
+  return useQuery({
+    queryKey: ["logistics-companies"],
+    queryFn: () => api<string[]>(`/api/logistics/companies`),
   });
 }
 
