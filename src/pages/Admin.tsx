@@ -414,6 +414,7 @@ export default function Admin() {
       has_lead_gleego: editingPlan.has_lead_gleego,
       has_captador: editingPlan.has_captador,
       has_licitacao: editingPlan.has_licitacao,
+      has_logistics: editingPlan.has_logistics,
       has_document_signatures: editingPlan.has_document_signatures,
       price: editingPlan.price,
       billing_period: editingPlan.billing_period,
