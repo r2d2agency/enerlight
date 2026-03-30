@@ -159,6 +159,13 @@ export default function Logistica() {
                 {STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
               </SelectContent>
             </Select>
+            <Select value={companyFilter} onValueChange={setCompanyFilter}>
+              <SelectTrigger className="w-[160px] h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas Empresas</SelectItem>
+                {companies?.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              </SelectContent>
+            </Select>
             <Select value={datePreset} onValueChange={(v) => setDatePreset(v as DatePreset)}>
               <SelectTrigger className="w-[140px] h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
