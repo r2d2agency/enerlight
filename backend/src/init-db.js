@@ -4338,6 +4338,8 @@ const migrationSteps = [
   { name: 'Field Captures (Captador)', sql: step53FieldCaptures, critical: false },
   { name: 'Document Signatures', sql: step54DocumentSignatures, critical: false },
   { name: 'Captador Segments & Distribution', sql: step55CaptadorSegments, critical: false },
+  { name: 'Logistics Module', sql: step56Logistics, critical: false },
+  { name: 'CRM Deal Quote Fields', sql: step57DealQuoteFields, critical: false },
 ];
 
 export async function initDatabase() {
