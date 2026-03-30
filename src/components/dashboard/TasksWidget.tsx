@@ -3,12 +3,14 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { CheckSquare, Circle, Clock, ArrowRight, AlertTriangle } from "lucide-react";
 import { useCRMTasks, CRMTask } from "@/hooks/use-crm";
+import { useAuth } from "@/contexts/AuthContext";
 import { format, isPast, isToday } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 
 export function TasksWidget() {
-  const { data: tasks = [] } = useCRMTasks({ period: "week", status: "pending" });
+  const { user } = useAuth();
+  const { data: tasks = [] } = useCRMTasks({ period: "week", status: "pending", assigned_to: user?.id });
 
   const sorted = [...tasks].sort((a, b) => {
     if (!a.due_date) return 1;
