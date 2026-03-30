@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import {
   useLogisticsShipments, useLogisticsDashboard, useLogisticsMembers, useLogisticsCompanies,
+  useLogisticsCarriers, useLogisticsChannels,
   useCreateShipment, useUpdateShipment, useDeleteShipment, useImportShipments,
   LogisticsShipment,
 } from "@/hooks/use-logistics";
@@ -67,6 +68,8 @@ export default function Logistica() {
   const { data: dashboard } = useLogisticsDashboard({ ...dateRange, company_name: companyFilter });
   const { data: members } = useLogisticsMembers();
   const { data: companies } = useLogisticsCompanies();
+  const { data: carriers } = useLogisticsCarriers();
+  const { data: channels } = useLogisticsChannels();
   const createMut = useCreateShipment();
   const updateMut = useUpdateShipment();
   const deleteMut = useDeleteShipment();
@@ -264,6 +267,9 @@ export default function Logistica() {
         onOpenChange={(v) => { setShowForm(v); if (!v) setEditingShipment(null); }}
         shipment={editingShipment}
         members={members || []}
+        companies={companies || []}
+        carriers={carriers || []}
+        channels={channels || []}
         onSave={handleSave}
         isSaving={createMut.isPending || updateMut.isPending}
       />
@@ -331,15 +337,21 @@ export default function Logistica() {
 }
 
 // ===================== FORM DIALOG =====================
-function ShipmentFormDialog({ open, onOpenChange, shipment, members, onSave, isSaving }: {
+function ShipmentFormDialog({ open, onOpenChange, shipment, members, companies, carriers, channels, onSave, isSaving }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   shipment: LogisticsShipment | null;
   members: Array<{ id: string; name: string }>;
+  companies: string[];
+  carriers: string[];
+  channels: string[];
   onSave: (data: Partial<LogisticsShipment>) => void;
   isSaving: boolean;
 }) {
   const [form, setForm] = useState<any>({});
+  const [customCompany, setCustomCompany] = useState(false);
+  const [customCarrier, setCustomCarrier] = useState(false);
+  const [customChannel, setCustomChannel] = useState(false);
 
   const resetForm = () => {
     if (shipment) {
@@ -363,6 +375,9 @@ function ShipmentFormDialog({ open, onOpenChange, shipment, members, onSave, isS
         requester_id: shipment.requester_id || "",
         notes: shipment.notes || "",
       });
+      setCustomCompany(!companies.includes(shipment.company_name || ""));
+      setCustomCarrier(!carriers.includes(shipment.carrier || ""));
+      setCustomChannel(!channels.includes(shipment.channel || ""));
     } else {
       setForm({
         company_name: "", client_name: "", invoice_number: "", order_number: "",
@@ -371,16 +386,61 @@ function ShipmentFormDialog({ open, onOpenChange, shipment, members, onSave, isS
         freight_paid: 0, freight_invoiced: 0, tax_value: 0,
         status: "Pendente", channel: "", requester_id: "", notes: "",
       });
+      setCustomCompany(false);
+      setCustomCarrier(false);
+      setCustomChannel(false);
     }
   };
 
-  // Reset when dialog opens
   useState(() => { resetForm(); });
-  // Also reset when shipment changes
   const [prevShipment, setPrevShipment] = useState(shipment);
   if (shipment !== prevShipment) { setPrevShipment(shipment); resetForm(); }
 
   const upd = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
+
+  const renderSelectOrInput = (
+    label: string, field: string, options: string[], isCustom: boolean, setIsCustom: (v: boolean) => void
+  ) => (
+    <div>
+      <Label>{label}</Label>
+      {!isCustom && options.length > 0 ? (
+        <Select
+          value={form[field] || "__select__"}
+          onValueChange={(v) => {
+            if (v === "__custom__") {
+              setIsCustom(true);
+              upd(field, "");
+            } else if (v === "__select__") {
+              upd(field, "");
+            } else {
+              upd(field, v);
+            }
+          }}
+        >
+          <SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__select__">Selecionar...</SelectItem>
+            {options.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+            <SelectItem value="__custom__">✏️ Digitar novo...</SelectItem>
+          </SelectContent>
+        </Select>
+      ) : (
+        <div className="flex gap-1">
+          <Input
+            value={form[field] || ""}
+            onChange={(e) => upd(field, e.target.value)}
+            placeholder={`Digitar ${label.toLowerCase()}`}
+            className="flex-1"
+          />
+          {options.length > 0 && (
+            <Button type="button" variant="ghost" size="icon" className="shrink-0" onClick={() => { setIsCustom(false); upd(field, ""); }} title="Selecionar existente">
+              <ArrowUpDown className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -389,10 +449,7 @@ function ShipmentFormDialog({ open, onOpenChange, shipment, members, onSave, isS
           <DialogTitle>{shipment ? "Editar Remessa" : "Nova Remessa"}</DialogTitle>
         </DialogHeader>
         <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label>Empresa</Label>
-            <Input value={form.company_name || ""} onChange={(e) => upd("company_name", e.target.value)} />
-          </div>
+          {renderSelectOrInput("Empresa", "company_name", companies, customCompany, setCustomCompany)}
           <div>
             <Label>Cliente *</Label>
             <Input value={form.client_name || ""} onChange={(e) => upd("client_name", e.target.value)} />
@@ -405,10 +462,7 @@ function ShipmentFormDialog({ open, onOpenChange, shipment, members, onSave, isS
             <Label>Pedido</Label>
             <Input value={form.order_number || ""} onChange={(e) => upd("order_number", e.target.value)} />
           </div>
-          <div>
-            <Label>Transportadora</Label>
-            <Input value={form.carrier || ""} onChange={(e) => upd("carrier", e.target.value)} />
-          </div>
+          {renderSelectOrInput("Transportadora", "carrier", carriers, customCarrier, setCustomCarrier)}
           <div>
             <Label>Código Cotação</Label>
             <Input value={form.carrier_quote_code || ""} onChange={(e) => upd("carrier_quote_code", e.target.value)} placeholder="Código da transportadora" />
@@ -417,10 +471,7 @@ function ShipmentFormDialog({ open, onOpenChange, shipment, members, onSave, isS
             <Label>Volumes</Label>
             <Input type="number" value={form.volumes || 0} onChange={(e) => upd("volumes", Number(e.target.value))} />
           </div>
-          <div>
-            <Label>Canal</Label>
-            <Input value={form.channel || ""} onChange={(e) => upd("channel", e.target.value)} />
-          </div>
+          {renderSelectOrInput("Canal", "channel", channels, customChannel, setCustomChannel)}
           <div>
             <Label>Data Solicitada</Label>
             <Input type="date" value={form.requested_date || ""} onChange={(e) => upd("requested_date", e.target.value)} />
