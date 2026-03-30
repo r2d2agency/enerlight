@@ -230,7 +230,7 @@ router.get('/dashboard', requireAuth, async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'Sem organização' });
 
-    const { start_date, end_date } = req.query;
+    const { start_date, end_date, company_name } = req.query;
     let dateFilter = '';
     const params = [org.organization_id];
     let idx = 2;
@@ -242,6 +242,10 @@ router.get('/dashboard', requireAuth, async (req, res) => {
     if (end_date) {
       dateFilter += ` AND ls.requested_date <= $${idx++}`;
       params.push(end_date);
+    }
+    if (company_name && company_name !== 'all') {
+      dateFilter += ` AND ls.company_name = $${idx++}`;
+      params.push(company_name);
     }
 
     // Summary
