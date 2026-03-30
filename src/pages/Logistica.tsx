@@ -20,9 +20,9 @@ import {
 } from "lucide-react";
 import {
   useLogisticsShipments, useLogisticsDashboard, useLogisticsMembers, useLogisticsCompanies,
-  useLogisticsCarriers, useLogisticsChannels,
+  useLogisticsCarriers, useLogisticsChannels, useLogisticsChannelWallet,
   useCreateShipment, useUpdateShipment, useDeleteShipment, useImportShipments,
-  LogisticsShipment,
+  LogisticsShipment, ChannelWalletItem,
 } from "@/hooks/use-logistics";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek } from "date-fns";
 import { ptBR } from "date-fns/locale";
