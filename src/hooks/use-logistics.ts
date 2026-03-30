@@ -59,6 +59,7 @@ export function useLogisticsShipments(filters?: {
   end_date?: string;
   search?: string;
   requester_id?: string;
+  company_name?: string;
 }) {
   const params = new URLSearchParams();
   if (filters?.status) params.set("status", filters.status);
