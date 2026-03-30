@@ -122,7 +122,7 @@ export function useUpdateShipment() {
   const { toast } = useToast();
   return useMutation({
     mutationFn: ({ id, ...data }: Partial<LogisticsShipment> & { id: string }) =>
-      api<LogisticsShipment>(`/api/logistics/shipments/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+      api<LogisticsShipment>(`/api/logistics/shipments/${id}`, { method: "PUT", body: data }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["logistics-shipments"] });
       qc.invalidateQueries({ queryKey: ["logistics-dashboard"] });
