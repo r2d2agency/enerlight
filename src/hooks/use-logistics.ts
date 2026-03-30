@@ -77,10 +77,11 @@ export function useLogisticsShipments(filters?: {
   });
 }
 
-export function useLogisticsDashboard(filters?: { start_date?: string; end_date?: string }) {
+export function useLogisticsDashboard(filters?: { start_date?: string; end_date?: string; company_name?: string }) {
   const params = new URLSearchParams();
   if (filters?.start_date) params.set("start_date", filters.start_date);
   if (filters?.end_date) params.set("end_date", filters.end_date);
+  if (filters?.company_name) params.set("company_name", filters.company_name);
 
   return useQuery({
     queryKey: ["logistics-dashboard", filters],
