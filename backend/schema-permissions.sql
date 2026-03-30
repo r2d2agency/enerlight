@@ -53,6 +53,15 @@ CREATE TABLE IF NOT EXISTS user_permissions (
   can_view_homologation BOOLEAN DEFAULT false,
   can_view_captador BOOLEAN DEFAULT false,
 
+  -- Licitações
+  can_view_licitacao BOOLEAN DEFAULT false,
+  can_delete_licitacao BOOLEAN DEFAULT false,
+
+  -- Logística
+  can_view_logistics BOOLEAN DEFAULT false,
+  can_edit_logistics BOOLEAN DEFAULT false,
+  can_delete_logistics BOOLEAN DEFAULT false,
+
   -- Ações de exclusão
   can_delete_deals BOOLEAN DEFAULT false,
   can_delete_projects BOOLEAN DEFAULT false,

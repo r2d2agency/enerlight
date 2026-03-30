@@ -50,6 +50,7 @@ export interface LogisticsDashboard {
   monthlyTrend: Array<{ month: string; total: number; freight_paid: number; freight_invoiced: number; real_cost: number }>;
   byCompany: Array<{ company_name: string; total: number; freight_paid: number; freight_invoiced: number; real_cost: number; balance: number }>;
   byChannel: Array<{ channel: string; total: number; freight_paid: number; freight_invoiced: number }>;
+  byCarrierStatus: Array<{ carrier: string; status: string; total: number; nearest_delivery: string; future_deliveries: number; overdue: number }>;
 }
 
 export function useLogisticsShipments(filters?: {

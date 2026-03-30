@@ -335,6 +335,17 @@ router.get('/dashboard', requireAuth, async (req, res) => {
       GROUP BY company_name ORDER BY total DESC
     `, params);
 
+    // By carrier + status (for carrier status tracking)
+    const byCarrierStatus = await query(`
+      SELECT carrier, status, COUNT(*) as total,
+        MIN(estimated_delivery) as nearest_delivery,
+        COUNT(CASE WHEN estimated_delivery IS NOT NULL AND estimated_delivery >= CURRENT_DATE THEN 1 END) as future_deliveries,
+        COUNT(CASE WHEN estimated_delivery IS NOT NULL AND estimated_delivery < CURRENT_DATE AND status NOT LIKE 'Entregue%' THEN 1 END) as overdue
+      FROM logistics_shipments ls
+      WHERE ls.organization_id = $1 ${dateFilter} AND carrier IS NOT NULL AND carrier != ''
+      GROUP BY carrier, status ORDER BY carrier, status
+    `, params);
+
     res.json({
       summary: summary.rows[0],
       byCarrier: byCarrier.rows,
@@ -343,6 +354,7 @@ router.get('/dashboard', requireAuth, async (req, res) => {
       monthlyTrend: monthlyTrend.rows,
       byChannel: byChannel.rows,
       byCompany: byCompany.rows,
+      byCarrierStatus: byCarrierStatus.rows,
     });
   } catch (e) {
     console.error('Dashboard error:', e);
