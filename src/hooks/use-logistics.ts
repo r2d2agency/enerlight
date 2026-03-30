@@ -183,3 +183,24 @@ export function useLogisticsByQuoteCode(code?: string) {
     enabled: !!code,
   });
 }
+
+export interface ChannelWalletItem {
+  metas_channel: string;
+  total_shipments: number;
+  freight_paid: number;
+  freight_invoiced: number;
+  tax_value: number;
+  real_cost: number;
+  balance: number;
+}
+
+export function useLogisticsChannelWallet(filters?: { start_date?: string; end_date?: string }) {
+  const params = new URLSearchParams();
+  if (filters?.start_date) params.set("start_date", filters.start_date);
+  if (filters?.end_date) params.set("end_date", filters.end_date);
+
+  return useQuery({
+    queryKey: ["logistics-channel-wallet", filters],
+    queryFn: () => api<ChannelWalletItem[]>(`/api/logistics/channel-wallet?${params.toString()}`),
+  });
+}

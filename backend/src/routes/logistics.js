@@ -449,4 +449,54 @@ router.get('/by-quote-code/:code', requireAuth, async (req, res) => {
   }
 });
 
+// ===================== CHANNEL WALLET (cross-reference with crm_goals_data) =====================
+router.get('/channel-wallet', requireAuth, async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+
+    const { start_date, end_date } = req.query;
+    let dateFilter = '';
+    const params = [org.organization_id];
+    let idx = 2;
+
+    if (start_date) {
+      dateFilter += ` AND ls.requested_date >= $${idx++}`;
+      params.push(start_date);
+    }
+    if (end_date) {
+      dateFilter += ` AND ls.requested_date <= $${idx++}`;
+      params.push(end_date);
+    }
+
+    // Cross-reference: join logistics order_number with crm_goals_data number (pedido)
+    // to get the channel from metas
+    const result = await query(`
+      SELECT 
+        COALESCE(gd.channel, ls.channel, 'Sem canal') as metas_channel,
+        COUNT(*) as total_shipments,
+        COALESCE(SUM(ls.freight_paid), 0) as freight_paid,
+        COALESCE(SUM(ls.freight_invoiced), 0) as freight_invoiced,
+        COALESCE(SUM(ls.tax_value), 0) as tax_value,
+        COALESCE(SUM(ls.real_cost), 0) as real_cost,
+        COALESCE(SUM(ls.freight_invoiced) - SUM(ls.freight_paid), 0) as balance
+      FROM logistics_shipments ls
+      LEFT JOIN crm_goals_data gd 
+        ON gd.organization_id = ls.organization_id 
+        AND gd.data_type = 'pedido'
+        AND TRIM(gd.number) = TRIM(ls.order_number)
+        AND ls.order_number IS NOT NULL 
+        AND ls.order_number != ''
+      WHERE ls.organization_id = $1 ${dateFilter}
+      GROUP BY COALESCE(gd.channel, ls.channel, 'Sem canal')
+      ORDER BY freight_invoiced DESC
+    `, params);
+
+    res.json(result.rows);
+  } catch (e) {
+    console.error('Channel wallet error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 export default router;
