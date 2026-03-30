@@ -32,6 +32,8 @@ import {
 
 const STATUSES = ["Pendente", "Em trânsito", "Entregue no prazo", "Entregue com atraso", "Cancelado"];
 const COLORS = ["#6366f1", "#22c55e", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#14b8a6", "#f97316"];
+const CHART_COLORS = { paid: "#ef4444", invoiced: "#22c55e", realCost: "#6366f1", primary: "#3b82f6" };
+const TICK_STYLE = { fontSize: 10, fill: "#64748b" };
 
 const formatCurrency = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2 }).format(v);
@@ -535,12 +537,12 @@ function DashboardTab({ dashboard }: { dashboard?: any }) {
           <h3 className="font-semibold mb-3 text-sm">Frete por Transportadora</h3>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={dashboard.byCarrier.slice(0, 8)}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="carrier" tick={{ fontSize: 10 }} />
-              <YAxis tick={{ fontSize: 10 }} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis dataKey="carrier" tick={TICK_STYLE} />
+              <YAxis tick={TICK_STYLE} />
               <RechartsTooltip formatter={(v: number) => formatCurrency(v)} />
-              <Bar dataKey="freight_paid" fill="hsl(var(--primary))" name="Frete Pago" />
-              <Bar dataKey="freight_invoiced" fill="hsl(var(--chart-2))" name="Cobrado NF" />
+              <Bar dataKey="freight_paid" fill={CHART_COLORS.paid} name="Frete Pago" />
+              <Bar dataKey="freight_invoiced" fill={CHART_COLORS.invoiced} name="Cobrado NF" />
             </BarChart>
           </ResponsiveContainer>
         </Card>
@@ -552,14 +554,14 @@ function DashboardTab({ dashboard }: { dashboard?: any }) {
           <h3 className="font-semibold mb-3 text-sm">Evolução Mensal</h3>
           <ResponsiveContainer width="100%" height={250}>
             <LineChart data={dashboard.monthlyTrend}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" tick={{ fontSize: 10 }} />
-              <YAxis tick={{ fontSize: 10 }} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis dataKey="month" tick={TICK_STYLE} />
+              <YAxis tick={TICK_STYLE} />
               <RechartsTooltip formatter={(v: number) => formatCurrency(v)} />
               <Legend />
-              <Line type="monotone" dataKey="freight_paid" stroke="hsl(var(--destructive))" name="Frete Pago" />
-              <Line type="monotone" dataKey="freight_invoiced" stroke="hsl(var(--chart-2))" name="Cobrado NF" />
-              <Line type="monotone" dataKey="real_cost" stroke="hsl(var(--primary))" name="Custo Real" />
+              <Line type="monotone" dataKey="freight_paid" stroke={CHART_COLORS.paid} name="Frete Pago" strokeWidth={2} />
+              <Line type="monotone" dataKey="freight_invoiced" stroke={CHART_COLORS.invoiced} name="Cobrado NF" strokeWidth={2} />
+              <Line type="monotone" dataKey="real_cost" stroke={CHART_COLORS.realCost} name="Custo Real" strokeWidth={2} />
             </LineChart>
           </ResponsiveContainer>
         </Card>
@@ -571,14 +573,14 @@ function DashboardTab({ dashboard }: { dashboard?: any }) {
           <h3 className="font-semibold mb-3 text-sm">Por Empresa</h3>
           <ResponsiveContainer width="100%" height={250}>
             <BarChart data={dashboard.byCompany}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="company_name" tick={{ fontSize: 10 }} />
-              <YAxis tick={{ fontSize: 10 }} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis dataKey="company_name" tick={TICK_STYLE} />
+              <YAxis tick={TICK_STYLE} />
               <RechartsTooltip formatter={(v: number) => formatCurrency(v)} />
               <Legend />
-              <Bar dataKey="freight_paid" fill="hsl(var(--destructive))" name="Frete Pago" />
-              <Bar dataKey="freight_invoiced" fill="hsl(var(--chart-2))" name="Cobrado NF" />
-              <Bar dataKey="real_cost" fill="hsl(var(--primary))" name="Custo Real" />
+              <Bar dataKey="freight_paid" fill={CHART_COLORS.paid} name="Frete Pago" />
+              <Bar dataKey="freight_invoiced" fill={CHART_COLORS.invoiced} name="Cobrado NF" />
+              <Bar dataKey="real_cost" fill={CHART_COLORS.realCost} name="Custo Real" />
             </BarChart>
           </ResponsiveContainer>
           {/* Company summary table */}
@@ -656,12 +658,12 @@ function WalletTab({ dashboard }: { dashboard?: any }) {
           <h3 className="font-semibold mb-3 text-sm">Por Canal</h3>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={dashboard.byChannel}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="channel" tick={{ fontSize: 10 }} />
-              <YAxis tick={{ fontSize: 10 }} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis dataKey="channel" tick={TICK_STYLE} />
+              <YAxis tick={TICK_STYLE} />
               <RechartsTooltip formatter={(v: number) => formatCurrency(v)} />
-              <Bar dataKey="freight_paid" fill="hsl(var(--destructive))" name="Frete Pago" />
-              <Bar dataKey="freight_invoiced" fill="hsl(var(--chart-2))" name="Cobrado NF" />
+              <Bar dataKey="freight_paid" fill={CHART_COLORS.paid} name="Frete Pago" />
+              <Bar dataKey="freight_invoiced" fill={CHART_COLORS.invoiced} name="Cobrado NF" />
             </BarChart>
           </ResponsiveContainer>
         </Card>
