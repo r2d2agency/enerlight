@@ -1497,7 +1497,21 @@ export default function Organizacoes() {
                           />
                         </div>
 
-                        {/* Save Button */}
+                        {/* Logistics Module */}
+                        <div className="flex items-center justify-between rounded-lg border p-4">
+                          <div>
+                            <p className="text-sm font-medium">Logística</p>
+                            <p className="text-xs text-muted-foreground">
+                              Controle de remessas, fretes, entregas e relatórios
+                            </p>
+                          </div>
+                          <Switch
+                            checked={modulesEnabled.logistics}
+                            onCheckedChange={(checked) => setModulesEnabled(prev => ({ ...prev, logistics: checked }))}
+                            disabled={!canManageOrg}
+                          />
+                        </div>
+
                         {canManageOrg && (
                           <div className="flex justify-end pt-4">
                             <Button onClick={handleSaveModules} disabled={savingModules}>
