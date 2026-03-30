@@ -273,7 +273,7 @@ export default function Logistica() {
           </TabsContent>
 
           <TabsContent value="wallet" className="mt-3">
-            <WalletTab dashboard={dashboard} />
+            <WalletTab dashboard={dashboard} channelWallet={channelWallet} />
           </TabsContent>
         </Tabs>
       </div>
