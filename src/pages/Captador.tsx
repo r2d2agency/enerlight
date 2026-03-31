@@ -1666,6 +1666,12 @@ export default function Captador() {
 
           <MobileCaptureForm open={showForm} onClose={() => { setShowForm(false); refreshCount(); }} onSuccess={() => { refreshCount(); }} isOnline={isOnline} />
           <CaptureDetailDialog captureId={selectedId} open={!!selectedId} onClose={() => setSelectedId(null)} />
+          <PhotoBookDialog
+            open={showPhotoBook}
+            onClose={() => setShowPhotoBook(false)}
+            captures={captures}
+            periodLabel={filters.start_date || filters.end_date ? `${filters.start_date || "..."} a ${filters.end_date || "..."}` : undefined}
+          />
 
           {/* Settings Panel */}
           {showSettings && settings && (
