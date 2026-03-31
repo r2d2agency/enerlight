@@ -803,8 +803,26 @@ function DashboardTab({ dashboard }: { dashboard?: any }) {
 }
 
 // ===================== WALLET TAB =====================
-function WalletTab({ dashboard, channelWallet }: { dashboard?: any; channelWallet?: ChannelWalletItem[] }) {
+function WalletTab({ dashboard, channelWallet, sellerWallet }: { dashboard?: any; channelWallet?: ChannelWalletItem[]; sellerWallet?: SellerWalletItem[] }) {
   if (!dashboard) return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+
+  // Group seller wallet by channel
+  const sellerByChannel = useMemo(() => {
+    if (!sellerWallet) return {};
+    const groups: Record<string, { sellers: SellerWalletItem[]; totals: { freight_paid: number; freight_invoiced: number; balance: number; total_order_value: number; total_shipments: number } }> = {};
+    for (const s of sellerWallet) {
+      if (!groups[s.channel]) {
+        groups[s.channel] = { sellers: [], totals: { freight_paid: 0, freight_invoiced: 0, balance: 0, total_order_value: 0, total_shipments: 0 } };
+      }
+      groups[s.channel].sellers.push(s);
+      groups[s.channel].totals.freight_paid += Number(s.freight_paid);
+      groups[s.channel].totals.freight_invoiced += Number(s.freight_invoiced);
+      groups[s.channel].totals.balance += Number(s.balance);
+      groups[s.channel].totals.total_order_value += Number(s.total_order_value);
+      groups[s.channel].totals.total_shipments += Number(s.total_shipments);
+    }
+    return groups;
+  }, [sellerWallet]);
 
   return (
     <div className="space-y-6">
@@ -846,6 +864,80 @@ function WalletTab({ dashboard, channelWallet }: { dashboard?: any; channelWalle
                     <span className="text-right font-mono font-semibold">{markup}%</span>
                   </div>
                   <p className="text-[10px] text-muted-foreground">{ch.total_shipments} remessas vinculadas</p>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Seller Wallet by Channel + Seller */}
+      <div>
+        <h3 className="font-semibold text-sm mb-1">Carteira por Grupo/Vendedor</h3>
+        <p className="text-xs text-muted-foreground mb-3">Cruzamento do nº do pedido com metas para identificar canal e vendedor. Mostra quanto cada vendedor gastou em logística por canal.</p>
+
+        {Object.keys(sellerByChannel).length === 0 ? (
+          <Card className="p-6 text-center text-muted-foreground text-sm">
+            Nenhum dado encontrado. Verifique se os pedidos das metas possuem o mesmo número de pedido das remessas.
+          </Card>
+        ) : (
+          <div className="space-y-4">
+            {Object.entries(sellerByChannel).map(([channel, data]) => {
+              const t = data.totals;
+              const markup = t.freight_paid > 0 ? ((t.freight_invoiced / t.freight_paid) * 100).toFixed(0) : "—";
+              const pctFrete = t.total_order_value > 0 ? ((t.freight_paid / t.total_order_value) * 100).toFixed(1) : "—";
+              return (
+                <Card key={channel} className="overflow-hidden">
+                  <div className={cn("px-4 py-3 flex items-center justify-between", t.balance >= 0 ? "bg-green-500/10" : "bg-destructive/10")}>
+                    <div>
+                      <p className="font-bold text-sm">{channel}</p>
+                      <p className="text-xs text-muted-foreground">{t.total_shipments} remessas · Pedidos: {formatCurrency(t.total_order_value)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className={cn("font-bold text-lg", t.balance >= 0 ? "text-green-600" : "text-destructive")}>
+                        {t.balance >= 0 ? "+" : ""}{formatCurrency(t.balance)}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">Markup: {markup}% · Frete/Pedido: {pctFrete}%</p>
+                    </div>
+                  </div>
+                  <div className="divide-y divide-border">
+                    {/* Header */}
+                    <div className="grid grid-cols-6 gap-2 px-4 py-2 text-[10px] font-semibold text-muted-foreground uppercase bg-muted/40">
+                      <span className="col-span-2">Vendedor</span>
+                      <span className="text-right">Cobrado NF</span>
+                      <span className="text-right">Frete Pago</span>
+                      <span className="text-right">Saldo</span>
+                      <span className="text-right">%</span>
+                    </div>
+                    {data.sellers.map((s, i) => {
+                      const sPaid = Number(s.freight_paid);
+                      const sInvoiced = Number(s.freight_invoiced);
+                      const sBal = Number(s.balance);
+                      const sOrderVal = Number(s.total_order_value);
+                      const sPct = sOrderVal > 0 ? ((sPaid / sOrderVal) * 100).toFixed(1) : "—";
+                      return (
+                        <div key={i} className="grid grid-cols-6 gap-2 px-4 py-2 text-xs items-center hover:bg-muted/30">
+                          <span className="col-span-2 font-medium truncate">{s.seller_name}</span>
+                          <span className="text-right font-mono text-green-600">{formatCurrency(sInvoiced)}</span>
+                          <span className="text-right font-mono text-destructive">{formatCurrency(sPaid)}</span>
+                          <span className={cn("text-right font-mono font-semibold", sBal >= 0 ? "text-green-600" : "text-destructive")}>
+                            {sBal >= 0 ? "+" : ""}{formatCurrency(sBal)}
+                          </span>
+                          <span className="text-right font-mono text-muted-foreground">{sPct}%</span>
+                        </div>
+                      );
+                    })}
+                    {/* Channel total row */}
+                    <div className="grid grid-cols-6 gap-2 px-4 py-2 text-xs font-bold bg-muted/20">
+                      <span className="col-span-2">Total</span>
+                      <span className="text-right font-mono text-green-600">{formatCurrency(t.freight_invoiced)}</span>
+                      <span className="text-right font-mono text-destructive">{formatCurrency(t.freight_paid)}</span>
+                      <span className={cn("text-right font-mono", t.balance >= 0 ? "text-green-600" : "text-destructive")}>
+                        {t.balance >= 0 ? "+" : ""}{formatCurrency(t.balance)}
+                      </span>
+                      <span className="text-right font-mono text-muted-foreground">{pctFrete}%</span>
+                    </div>
+                  </div>
                 </Card>
               );
             })}
