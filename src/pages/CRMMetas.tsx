@@ -1086,6 +1086,108 @@ export default function CRMMetas() {
             </Card>
           </TabsContent>
 
+
+          {/* ========== CARTEIRA ========== */}
+          <TabsContent value="carteira" className="mt-4 space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Wallet className="h-5 w-5" /> Carteira por Canal</CardTitle>
+                <CardDescription>Resumo de faturamento e logística por canal — cruzamento Metas × Logística</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {loadingCarteira ? (
+                  <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+                ) : !carteiraData?.length ? (
+                  <div className="py-8 text-center text-muted-foreground">
+                    <Wallet className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                    <p>Nenhum dado encontrado para o período selecionado.</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                      {carteiraData.map((ch: any) => (
+                        <Card key={ch.channel} className="border-l-4 border-l-primary">
+                          <CardContent className="pt-4 space-y-2">
+                            <p className="font-semibold text-base">{ch.channel}</p>
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                              <span className="text-muted-foreground">Faturamento NF</span>
+                              <span className="text-right font-medium text-amber-600">{fmt(ch.billing_value)}</span>
+                              <span className="text-muted-foreground">Pedidos</span>
+                              <span className="text-right font-medium">{fmt(ch.orders_value)}</span>
+                              <span className="text-muted-foreground">Frete Cobrado NF</span>
+                              <span className="text-right font-medium">{fmt(ch.freight_invoiced)}</span>
+                              <span className="text-muted-foreground">Frete Pago</span>
+                              <span className="text-right font-medium text-red-600">{fmt(ch.freight_paid)}</span>
+                              <span className="text-muted-foreground font-semibold">Saldo Frete</span>
+                              <span className={`text-right font-bold ${ch.freight_balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {fmt(ch.freight_balance)}
+                              </span>
+                              <span className="text-muted-foreground">Markup</span>
+                              <span className={`text-right font-medium ${ch.markup_pct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {ch.markup_pct.toFixed(0)}%
+                              </span>
+                            </div>
+                            <div className="text-xs text-muted-foreground pt-1 border-t">
+                              {ch.shipments_count} remessas · {ch.billing_count} notas · {ch.orders_count} pedidos
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+
+                    {/* Summary table */}
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Canal</TableHead>
+                            <TableHead className="text-right">Faturamento</TableHead>
+                            <TableHead className="text-right">Pedidos</TableHead>
+                            <TableHead className="text-right">Frete Cobrado</TableHead>
+                            <TableHead className="text-right">Frete Pago</TableHead>
+                            <TableHead className="text-right">Saldo</TableHead>
+                            <TableHead className="text-right">Markup</TableHead>
+                            <TableHead className="text-center">Remessas</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {carteiraData.map((ch: any) => (
+                            <TableRow key={ch.channel}>
+                              <TableCell className="font-medium">{ch.channel}</TableCell>
+                              <TableCell className="text-right text-amber-600">{fmt(ch.billing_value)}</TableCell>
+                              <TableCell className="text-right">{fmt(ch.orders_value)}</TableCell>
+                              <TableCell className="text-right">{fmt(ch.freight_invoiced)}</TableCell>
+                              <TableCell className="text-right text-red-600">{fmt(ch.freight_paid)}</TableCell>
+                              <TableCell className={`text-right font-bold ${ch.freight_balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {fmt(ch.freight_balance)}
+                              </TableCell>
+                              <TableCell className={`text-right ${ch.markup_pct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {ch.markup_pct.toFixed(0)}%
+                              </TableCell>
+                              <TableCell className="text-center">{ch.shipments_count}</TableCell>
+                            </TableRow>
+                          ))}
+                          <TableRow className="bg-muted/50 font-bold">
+                            <TableCell>Total</TableCell>
+                            <TableCell className="text-right text-amber-600">{fmt(carteiraData.reduce((s: number, c: any) => s + c.billing_value, 0))}</TableCell>
+                            <TableCell className="text-right">{fmt(carteiraData.reduce((s: number, c: any) => s + c.orders_value, 0))}</TableCell>
+                            <TableCell className="text-right">{fmt(carteiraData.reduce((s: number, c: any) => s + c.freight_invoiced, 0))}</TableCell>
+                            <TableCell className="text-right text-red-600">{fmt(carteiraData.reduce((s: number, c: any) => s + c.freight_paid, 0))}</TableCell>
+                            <TableCell className={`text-right font-bold ${carteiraData.reduce((s: number, c: any) => s + c.freight_balance, 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {fmt(carteiraData.reduce((s: number, c: any) => s + c.freight_balance, 0))}
+                            </TableCell>
+                            <TableCell className="text-right">—</TableCell>
+                            <TableCell className="text-center">{carteiraData.reduce((s: number, c: any) => s + c.shipments_count, 0)}</TableCell>
+                          </TableRow>
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           {/* Map tab */}
           <TabsContent value="map" className="space-y-4">
             <GoalsMapTab
