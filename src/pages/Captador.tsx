@@ -1408,6 +1408,7 @@ export default function Captador() {
   const [tab, setTab] = useState("returns");
   const [showForm, setShowForm] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showPhotoBook, setShowPhotoBook] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filters, setFilters] = useState<{ status?: string; assigned_to?: string; unassigned?: boolean; start_date?: string; end_date?: string; segment?: string }>({});
 
