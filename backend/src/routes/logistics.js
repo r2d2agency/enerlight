@@ -473,7 +473,7 @@ router.get('/channel-wallet', requireAuth, async (req, res) => {
     // to get the channel from metas
     const result = await query(`
       SELECT 
-        COALESCE(gd.channel, ls.channel, 'Sem canal') as metas_channel,
+        COALESCE(gd.channel, 'Sem canal') as metas_channel,
         COUNT(*) as total_shipments,
         COALESCE(SUM(ls.freight_paid), 0) as freight_paid,
         COALESCE(SUM(ls.freight_invoiced), 0) as freight_invoiced,
@@ -488,7 +488,7 @@ router.get('/channel-wallet', requireAuth, async (req, res) => {
         AND ls.order_number IS NOT NULL 
         AND ls.order_number != ''
       WHERE ls.organization_id = $1 ${dateFilter}
-      GROUP BY COALESCE(gd.channel, ls.channel, 'Sem canal')
+      GROUP BY COALESCE(gd.channel, 'Sem canal')
       ORDER BY freight_invoiced DESC
     `, params);
 
