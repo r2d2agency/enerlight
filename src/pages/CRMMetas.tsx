@@ -31,8 +31,9 @@ import {
   Target, Plus, Edit2, Trash2, Users, TrendingUp, Upload,
   Briefcase, DollarSign, CalendarDays, Loader2, BarChart3,
   Trophy, Medal, Award, FileText, ShoppingCart, Receipt, MessageSquare,
-  Search, ChevronLeft, ChevronRight, List,
+  Search, ChevronLeft, ChevronRight, List, MapPin,
 } from "lucide-react";
+import { GoalsMapTab } from "@/components/crm/GoalsMapTab";
 import { format, startOfMonth, startOfWeek, endOfWeek, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -232,6 +233,7 @@ export default function CRMMetas() {
             <TabsTrigger value="individual" className="gap-2"><Trophy className="h-4 w-4" /> Individual</TabsTrigger>
             <TabsTrigger value="goals" className="gap-2"><Target className="h-4 w-4" /> Metas</TabsTrigger>
             <TabsTrigger value="records" className="gap-2"><List className="h-4 w-4" /> Registros</TabsTrigger>
+            <TabsTrigger value="map" className="gap-2"><MapPin className="h-4 w-4" /> Mapa</TabsTrigger>
             <TabsTrigger value="imports" className="gap-2"><Upload className="h-4 w-4" /> Importações</TabsTrigger>
           </TabsList>
 
@@ -1048,6 +1050,17 @@ export default function CRMMetas() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Map tab */}
+          <TabsContent value="map" className="space-y-4">
+            <GoalsMapTab
+              startDate={startDate}
+              endDate={endDate}
+              filterUserId={filterUserId}
+              filterChannel={filterChannel}
+              filterGroupId={filterGroupId}
+            />
           </TabsContent>
 
           {/* Imports tab */}
