@@ -31,7 +31,7 @@ import {
   Target, Plus, Edit2, Trash2, Users, TrendingUp, Upload,
   Briefcase, DollarSign, CalendarDays, Loader2, BarChart3,
   Trophy, Medal, Award, FileText, ShoppingCart, Receipt, MessageSquare,
-  Search, ChevronLeft, ChevronRight, List, MapPin,
+  Search, ChevronLeft, ChevronRight, List, MapPin, Wallet, Truck,
 } from "lucide-react";
 import { GoalsMapTab } from "@/components/crm/GoalsMapTab";
 import { format, startOfMonth, startOfWeek, endOfWeek, endOfMonth } from "date-fns";
@@ -129,6 +129,7 @@ export default function CRMMetas() {
   const [recordsType, setRecordsType] = useState<"pedido" | "orcamento" | "faturamento">("pedido");
   const [recordsSearch, setRecordsSearch] = useState("");
   const [recordsPage, setRecordsPage] = useState(1);
+  const [freightDetailOrder, setFreightDetailOrder] = useState<string | null>(null);
 
   const { data: recordsData, isLoading: loadingRecords } = useQuery({
     queryKey: ["crm-goals-records", startDate, endDate, filterUserId, filterChannel, filterGroupId, recordsType, recordsSearch, recordsPage],
@@ -144,6 +145,24 @@ export default function CRMMetas() {
       if (filterGroupId !== "all") sp.set("group_id", filterGroupId);
       if (recordsSearch) sp.set("search", recordsSearch);
       return api<any>(`/api/crm/goals/data-records?${sp.toString()}`);
+    },
+  });
+
+  // Freight detail for clicked record
+  const { data: freightDetail, isLoading: loadingFreight } = useQuery({
+    queryKey: ["freight-by-order", freightDetailOrder],
+    queryFn: () => api<any[]>(`/api/crm/goals/freight-by-order/${encodeURIComponent(freightDetailOrder!)}`),
+    enabled: !!freightDetailOrder,
+  });
+
+  // Carteira data
+  const { data: carteiraData, isLoading: loadingCarteira } = useQuery({
+    queryKey: ["crm-goals-carteira", startDate, endDate],
+    queryFn: () => {
+      const sp = new URLSearchParams();
+      sp.set("start_date", startDate);
+      sp.set("end_date", endDate);
+      return api<any[]>(`/api/crm/goals/carteira?${sp.toString()}`);
     },
   });
 
@@ -227,12 +246,13 @@ export default function CRMMetas() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList>
+          <TabsList className="flex-wrap">
             <TabsTrigger value="dashboard" className="gap-2"><BarChart3 className="h-4 w-4" /> Dashboard</TabsTrigger>
             <TabsTrigger value="by-channel" className="gap-2"><Users className="h-4 w-4" /> Por Canal/Grupo</TabsTrigger>
             <TabsTrigger value="individual" className="gap-2"><Trophy className="h-4 w-4" /> Individual</TabsTrigger>
             <TabsTrigger value="goals" className="gap-2"><Target className="h-4 w-4" /> Metas</TabsTrigger>
             <TabsTrigger value="records" className="gap-2"><List className="h-4 w-4" /> Registros</TabsTrigger>
+            <TabsTrigger value="carteira" className="gap-2"><Wallet className="h-4 w-4" /> Carteira</TabsTrigger>
             <TabsTrigger value="map" className="gap-2"><MapPin className="h-4 w-4" /> Mapa</TabsTrigger>
             <TabsTrigger value="imports" className="gap-2"><Upload className="h-4 w-4" /> Importações</TabsTrigger>
           </TabsList>
@@ -979,11 +999,15 @@ export default function CRMMetas() {
                             <TableHead>UF</TableHead>
                             <TableHead>Cidade</TableHead>
                             {recordsType !== "orcamento" && <TableHead className="text-right">Margem</TableHead>}
+                            {recordsType !== "orcamento" && <TableHead className="text-center"><Truck className="h-4 w-4 inline" /> Frete</TableHead>}
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {recordsData.records.map((r: any) => (
-                            <TableRow key={r.id}>
+                          {recordsData.records.map((r: any) => {
+                            const orderNum = r.order_number || r.number;
+                            const canShowFreight = recordsType !== "orcamento" && orderNum;
+                            return (
+                            <TableRow key={r.id} className={canShowFreight ? "cursor-pointer hover:bg-muted/50" : ""} onClick={() => canShowFreight && setFreightDetailOrder(orderNum)}>
                               <TableCell className="font-mono text-sm">{r.number || "—"}</TableCell>
                               <TableCell className="max-w-[200px] truncate">{r.client_name || "—"}</TableCell>
                               <TableCell>{r.seller_name || "—"}</TableCell>
@@ -1016,8 +1040,18 @@ export default function CRMMetas() {
                                   {r.margin != null ? `${r.margin.toFixed(1)}%` : "—"}
                                 </TableCell>
                               )}
+                              {recordsType !== "orcamento" && (
+                                <TableCell className="text-center">
+                                  {canShowFreight ? (
+                                    <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1" onClick={e => { e.stopPropagation(); setFreightDetailOrder(orderNum); }}>
+                                      <Truck className="h-3 w-3" /> Ver
+                                    </Button>
+                                  ) : "—"}
+                                </TableCell>
+                              )}
                             </TableRow>
-                          ))}
+                          );
+                          })}
                         </TableBody>
                       </Table>
                     </div>
@@ -1046,6 +1080,108 @@ export default function CRMMetas() {
                         </div>
                       </div>
                     )}
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+
+          {/* ========== CARTEIRA ========== */}
+          <TabsContent value="carteira" className="mt-4 space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Wallet className="h-5 w-5" /> Carteira por Canal</CardTitle>
+                <CardDescription>Resumo de faturamento e logística por canal — cruzamento Metas × Logística</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {loadingCarteira ? (
+                  <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+                ) : !carteiraData?.length ? (
+                  <div className="py-8 text-center text-muted-foreground">
+                    <Wallet className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                    <p>Nenhum dado encontrado para o período selecionado.</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                      {carteiraData.map((ch: any) => (
+                        <Card key={ch.channel} className="border-l-4 border-l-primary">
+                          <CardContent className="pt-4 space-y-2">
+                            <p className="font-semibold text-base">{ch.channel}</p>
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                              <span className="text-muted-foreground">Faturamento NF</span>
+                              <span className="text-right font-medium text-amber-600">{fmt(ch.billing_value)}</span>
+                              <span className="text-muted-foreground">Pedidos</span>
+                              <span className="text-right font-medium">{fmt(ch.orders_value)}</span>
+                              <span className="text-muted-foreground">Frete Cobrado NF</span>
+                              <span className="text-right font-medium">{fmt(ch.freight_invoiced)}</span>
+                              <span className="text-muted-foreground">Frete Pago</span>
+                              <span className="text-right font-medium text-red-600">{fmt(ch.freight_paid)}</span>
+                              <span className="text-muted-foreground font-semibold">Saldo Frete</span>
+                              <span className={`text-right font-bold ${ch.freight_balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {fmt(ch.freight_balance)}
+                              </span>
+                              <span className="text-muted-foreground">Markup</span>
+                              <span className={`text-right font-medium ${ch.markup_pct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {ch.markup_pct.toFixed(0)}%
+                              </span>
+                            </div>
+                            <div className="text-xs text-muted-foreground pt-1 border-t">
+                              {ch.shipments_count} remessas · {ch.billing_count} notas · {ch.orders_count} pedidos
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+
+                    {/* Summary table */}
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Canal</TableHead>
+                            <TableHead className="text-right">Faturamento</TableHead>
+                            <TableHead className="text-right">Pedidos</TableHead>
+                            <TableHead className="text-right">Frete Cobrado</TableHead>
+                            <TableHead className="text-right">Frete Pago</TableHead>
+                            <TableHead className="text-right">Saldo</TableHead>
+                            <TableHead className="text-right">Markup</TableHead>
+                            <TableHead className="text-center">Remessas</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {carteiraData.map((ch: any) => (
+                            <TableRow key={ch.channel}>
+                              <TableCell className="font-medium">{ch.channel}</TableCell>
+                              <TableCell className="text-right text-amber-600">{fmt(ch.billing_value)}</TableCell>
+                              <TableCell className="text-right">{fmt(ch.orders_value)}</TableCell>
+                              <TableCell className="text-right">{fmt(ch.freight_invoiced)}</TableCell>
+                              <TableCell className="text-right text-red-600">{fmt(ch.freight_paid)}</TableCell>
+                              <TableCell className={`text-right font-bold ${ch.freight_balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {fmt(ch.freight_balance)}
+                              </TableCell>
+                              <TableCell className={`text-right ${ch.markup_pct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {ch.markup_pct.toFixed(0)}%
+                              </TableCell>
+                              <TableCell className="text-center">{ch.shipments_count}</TableCell>
+                            </TableRow>
+                          ))}
+                          <TableRow className="bg-muted/50 font-bold">
+                            <TableCell>Total</TableCell>
+                            <TableCell className="text-right text-amber-600">{fmt(carteiraData.reduce((s: number, c: any) => s + c.billing_value, 0))}</TableCell>
+                            <TableCell className="text-right">{fmt(carteiraData.reduce((s: number, c: any) => s + c.orders_value, 0))}</TableCell>
+                            <TableCell className="text-right">{fmt(carteiraData.reduce((s: number, c: any) => s + c.freight_invoiced, 0))}</TableCell>
+                            <TableCell className="text-right text-red-600">{fmt(carteiraData.reduce((s: number, c: any) => s + c.freight_paid, 0))}</TableCell>
+                            <TableCell className={`text-right font-bold ${carteiraData.reduce((s: number, c: any) => s + c.freight_balance, 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {fmt(carteiraData.reduce((s: number, c: any) => s + c.freight_balance, 0))}
+                            </TableCell>
+                            <TableCell className="text-right">—</TableCell>
+                            <TableCell className="text-center">{carteiraData.reduce((s: number, c: any) => s + c.shipments_count, 0)}</TableCell>
+                          </TableRow>
+                        </TableBody>
+                      </Table>
+                    </div>
                   </>
                 )}
               </CardContent>
@@ -1196,6 +1332,88 @@ export default function CRMMetas() {
       )}
 
       <GoalsReportConfigDialog open={reportConfigOpen} onOpenChange={setReportConfigOpen} />
+
+      {/* Freight Detail Dialog */}
+      <Dialog open={!!freightDetailOrder} onOpenChange={v => { if (!v) setFreightDetailOrder(null); }}>
+        <DialogContent className="max-w-2xl" aria-describedby={undefined}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Truck className="h-5 w-5" /> Detalhes de Frete — Pedido {freightDetailOrder}
+            </DialogTitle>
+          </DialogHeader>
+          {loadingFreight ? (
+            <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+          ) : !freightDetail?.length ? (
+            <div className="py-8 text-center text-muted-foreground">
+              <Truck className="h-10 w-10 mx-auto mb-3 opacity-30" />
+              <p>Nenhuma remessa encontrada na logística para este pedido.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <Card>
+                  <CardContent className="pt-3 pb-3">
+                    <p className="text-xs text-muted-foreground">Frete Cobrado NF</p>
+                    <p className="text-lg font-bold">{fmt(freightDetail.reduce((s, r) => s + parseFloat(r.freight_invoiced || 0), 0))}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-3 pb-3">
+                    <p className="text-xs text-muted-foreground">Frete Pago</p>
+                    <p className="text-lg font-bold text-red-600">{fmt(freightDetail.reduce((s, r) => s + parseFloat(r.freight_paid || 0), 0))}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-3 pb-3">
+                    <p className="text-xs text-muted-foreground">Saldo</p>
+                    <p className={`text-lg font-bold ${freightDetail.reduce((s, r) => s + parseFloat(r.balance || 0), 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {fmt(freightDetail.reduce((s, r) => s + parseFloat(r.balance || 0), 0))}
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-3 pb-3">
+                    <p className="text-xs text-muted-foreground">Remessas</p>
+                    <p className="text-lg font-bold">{freightDetail.length}</p>
+                  </CardContent>
+                </Card>
+              </div>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Transportadora</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Cobrado NF</TableHead>
+                      <TableHead className="text-right">Pago</TableHead>
+                      <TableHead className="text-right">Saldo</TableHead>
+                      <TableHead>Volumes</TableHead>
+                      <TableHead>Prev. Entrega</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {freightDetail.map((r: any) => (
+                      <TableRow key={r.id}>
+                        <TableCell className="font-medium">{r.carrier || "—"}</TableCell>
+                        <TableCell><Badge variant="secondary" className="text-xs">{r.status || "—"}</Badge></TableCell>
+                        <TableCell className="text-right">{fmt(parseFloat(r.freight_invoiced || 0))}</TableCell>
+                        <TableCell className="text-right text-red-600">{fmt(parseFloat(r.freight_paid || 0))}</TableCell>
+                        <TableCell className={`text-right font-medium ${parseFloat(r.balance || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {fmt(parseFloat(r.balance || 0))}
+                        </TableCell>
+                        <TableCell>{r.volumes || "—"}</TableCell>
+                        <TableCell className="text-sm">
+                          {r.estimated_delivery ? format(new Date(r.estimated_delivery), "dd/MM/yyyy") : "—"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 }
