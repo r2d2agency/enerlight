@@ -1968,6 +1968,12 @@ export default function Captador() {
 
         <DesktopCaptureFormDialog open={showForm} onClose={() => setShowForm(false)} onSuccess={() => {}} />
         <CaptureDetailDialog captureId={selectedId} open={!!selectedId} onClose={() => setSelectedId(null)} />
+        <PhotoBookDialog
+          open={showPhotoBook}
+          onClose={() => setShowPhotoBook(false)}
+          captures={captures}
+          periodLabel={filters.start_date || filters.end_date ? `${filters.start_date || "..."} a ${filters.end_date || "..."}` : undefined}
+        />
       </div>
     </MainLayout>
   );
