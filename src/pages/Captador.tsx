@@ -1267,8 +1267,8 @@ function CaptureDetailDialog({ captureId, open, onClose }: { captureId: string |
                   {visit.attachments && visit.attachments.length > 0 && (
                     <div className="flex gap-1 mt-2">
                       {visit.attachments.map((a) => (
-                        <a key={a.id} href={a.file_url} target="_blank" rel="noopener">
-                          <img src={a.file_url} className="w-16 h-16 object-cover rounded" alt="" />
+                        <a key={a.id} href={resolveMediaUrl(a.file_url) || a.file_url} target="_blank" rel="noopener">
+                          <img src={resolveMediaUrl(a.file_url) || a.file_url} className="w-16 h-16 object-cover rounded" alt="" />
                         </a>
                       ))}
                     </div>
