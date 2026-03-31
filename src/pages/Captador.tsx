@@ -1992,7 +1992,7 @@ function MobileCaptureCard({ capture, onSelect, onDelete, sellers, onAssign }: {
         {/* Thumbnail or icon */}
         <div className="w-14 h-14 rounded-lg bg-muted flex items-center justify-center shrink-0 overflow-hidden">
           {capture.attachments && capture.attachments.length > 0 && capture.attachments[0].file_type === "photo" ? (
-            <img src={capture.attachments[0].file_url} alt="" className="w-full h-full object-cover" />
+            <img src={resolveMediaUrl(capture.attachments[0].file_url) || capture.attachments[0].file_url} alt="" className="w-full h-full object-cover" />
           ) : (
             <Building2 className="h-6 w-6 text-muted-foreground" />
           )}
