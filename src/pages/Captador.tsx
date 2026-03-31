@@ -1221,7 +1221,7 @@ function CaptureDetailDialog({ captureId, open, onClose }: { captureId: string |
                       </>
                     ) : att.file_type === "audio" ? (
                       <div className="p-2">
-                        <audio controls src={att.file_url} className="w-full" />
+                        <audio controls src={resolveMediaUrl(att.file_url) || att.file_url} className="w-full" />
                         <div className="flex items-center justify-between mt-1">
                           <p className="text-xs truncate flex-1">{att.file_name}</p>
                           <a href={att.file_url} download={att.file_name} target="_blank" rel="noopener" className="ml-1">
