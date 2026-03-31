@@ -6500,7 +6500,8 @@ router.get('/goals/freight-by-order/:orderNumber', async (req, res) => {
              ls.departure_date, ls.estimated_delivery, ls.actual_delivery,
              COALESCE(ls.freight_invoiced, 0) - COALESCE(ls.freight_paid, 0) as balance
       FROM logistics_shipments ls
-      WHERE ls.organization_id = $1 AND TRIM(ls.order_number) = TRIM($2)
+      WHERE ls.organization_id = $1
+        AND REGEXP_REPLACE(TRIM(ls.order_number), '^0+', '') = REGEXP_REPLACE(TRIM($2), '^0+', '')
       ORDER BY ls.created_at DESC
     `, [org.organization_id, orderNumber]);
     res.json(result.rows);
