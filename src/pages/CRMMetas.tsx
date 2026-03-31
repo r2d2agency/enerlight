@@ -1332,6 +1332,88 @@ export default function CRMMetas() {
       )}
 
       <GoalsReportConfigDialog open={reportConfigOpen} onOpenChange={setReportConfigOpen} />
+
+      {/* Freight Detail Dialog */}
+      <Dialog open={!!freightDetailOrder} onOpenChange={v => { if (!v) setFreightDetailOrder(null); }}>
+        <DialogContent className="max-w-2xl" aria-describedby={undefined}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Truck className="h-5 w-5" /> Detalhes de Frete — Pedido {freightDetailOrder}
+            </DialogTitle>
+          </DialogHeader>
+          {loadingFreight ? (
+            <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+          ) : !freightDetail?.length ? (
+            <div className="py-8 text-center text-muted-foreground">
+              <Truck className="h-10 w-10 mx-auto mb-3 opacity-30" />
+              <p>Nenhuma remessa encontrada na logística para este pedido.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <Card>
+                  <CardContent className="pt-3 pb-3">
+                    <p className="text-xs text-muted-foreground">Frete Cobrado NF</p>
+                    <p className="text-lg font-bold">{fmt(freightDetail.reduce((s, r) => s + parseFloat(r.freight_invoiced || 0), 0))}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-3 pb-3">
+                    <p className="text-xs text-muted-foreground">Frete Pago</p>
+                    <p className="text-lg font-bold text-red-600">{fmt(freightDetail.reduce((s, r) => s + parseFloat(r.freight_paid || 0), 0))}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-3 pb-3">
+                    <p className="text-xs text-muted-foreground">Saldo</p>
+                    <p className={`text-lg font-bold ${freightDetail.reduce((s, r) => s + parseFloat(r.balance || 0), 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {fmt(freightDetail.reduce((s, r) => s + parseFloat(r.balance || 0), 0))}
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-3 pb-3">
+                    <p className="text-xs text-muted-foreground">Remessas</p>
+                    <p className="text-lg font-bold">{freightDetail.length}</p>
+                  </CardContent>
+                </Card>
+              </div>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Transportadora</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Cobrado NF</TableHead>
+                      <TableHead className="text-right">Pago</TableHead>
+                      <TableHead className="text-right">Saldo</TableHead>
+                      <TableHead>Volumes</TableHead>
+                      <TableHead>Prev. Entrega</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {freightDetail.map((r: any) => (
+                      <TableRow key={r.id}>
+                        <TableCell className="font-medium">{r.carrier || "—"}</TableCell>
+                        <TableCell><Badge variant="secondary" className="text-xs">{r.status || "—"}</Badge></TableCell>
+                        <TableCell className="text-right">{fmt(parseFloat(r.freight_invoiced || 0))}</TableCell>
+                        <TableCell className="text-right text-red-600">{fmt(parseFloat(r.freight_paid || 0))}</TableCell>
+                        <TableCell className={`text-right font-medium ${parseFloat(r.balance || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {fmt(parseFloat(r.balance || 0))}
+                        </TableCell>
+                        <TableCell>{r.volumes || "—"}</TableCell>
+                        <TableCell className="text-sm">
+                          {r.estimated_delivery ? format(new Date(r.estimated_delivery), "dd/MM/yyyy") : "—"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 }
