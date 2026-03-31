@@ -999,11 +999,15 @@ export default function CRMMetas() {
                             <TableHead>UF</TableHead>
                             <TableHead>Cidade</TableHead>
                             {recordsType !== "orcamento" && <TableHead className="text-right">Margem</TableHead>}
+                            {recordsType !== "orcamento" && <TableHead className="text-center"><Truck className="h-4 w-4 inline" /> Frete</TableHead>}
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {recordsData.records.map((r: any) => (
-                            <TableRow key={r.id}>
+                          {recordsData.records.map((r: any) => {
+                            const orderNum = r.order_number || r.number;
+                            const canShowFreight = recordsType !== "orcamento" && orderNum;
+                            return (
+                            <TableRow key={r.id} className={canShowFreight ? "cursor-pointer hover:bg-muted/50" : ""} onClick={() => canShowFreight && setFreightDetailOrder(orderNum)}>
                               <TableCell className="font-mono text-sm">{r.number || "—"}</TableCell>
                               <TableCell className="max-w-[200px] truncate">{r.client_name || "—"}</TableCell>
                               <TableCell>{r.seller_name || "—"}</TableCell>
@@ -1036,8 +1040,18 @@ export default function CRMMetas() {
                                   {r.margin != null ? `${r.margin.toFixed(1)}%` : "—"}
                                 </TableCell>
                               )}
+                              {recordsType !== "orcamento" && (
+                                <TableCell className="text-center">
+                                  {canShowFreight ? (
+                                    <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1" onClick={e => { e.stopPropagation(); setFreightDetailOrder(orderNum); }}>
+                                      <Truck className="h-3 w-3" /> Ver
+                                    </Button>
+                                  ) : "—"}
+                                </TableCell>
+                              )}
                             </TableRow>
-                          ))}
+                          );
+                          })}
                         </TableBody>
                       </Table>
                     </div>
