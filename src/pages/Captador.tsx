@@ -1213,8 +1213,8 @@ function CaptureDetailDialog({ captureId, open, onClose }: { captureId: string |
                   <div key={att.id} className="border rounded overflow-hidden relative group">
                     {att.file_type === "photo" ? (
                       <>
-                        <a href={att.file_url} target="_blank" rel="noopener"><img src={att.file_url} alt={att.file_name} className="w-full h-32 object-cover" /></a>
-                        <a href={att.file_url} download={att.file_name || "foto.jpg"} target="_blank" rel="noopener"
+                        <a href={resolveMediaUrl(att.file_url) || att.file_url} target="_blank" rel="noopener"><img src={resolveMediaUrl(att.file_url) || att.file_url} alt={att.file_name} className="w-full h-32 object-cover" /></a>
+                        <a href={resolveMediaUrl(att.file_url) || att.file_url} download={att.file_name || "foto.jpg"} target="_blank" rel="noopener"
                           className="absolute bottom-1 right-1 bg-background/80 backdrop-blur rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity shadow">
                           <Download className="h-3.5 w-3.5" />
                         </a>
