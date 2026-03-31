@@ -499,4 +499,68 @@ router.get('/channel-wallet', requireAuth, async (req, res) => {
   }
 });
 
+// ===================== SELLER WALLET (cross-reference with crm_goals_data) =====================
+router.get('/seller-wallet', requireAuth, async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+
+    const { start_date, end_date } = req.query;
+    let dateFilter = '';
+    const params = [org.organization_id];
+    let idx = 2;
+
+    if (start_date) {
+      dateFilter += ` AND ls.requested_date >= $${idx++}`;
+      params.push(start_date);
+    }
+    if (end_date) {
+      dateFilter += ` AND ls.requested_date <= $${idx++}`;
+      params.push(end_date);
+    }
+
+    // Use a CTE to deduplicate shipments first, then join with goals
+    const result = await query(`
+      WITH shipment_goals AS (
+        SELECT DISTINCT ON (ls.id)
+          ls.id,
+          ls.order_number,
+          ls.freight_paid,
+          ls.freight_invoiced,
+          ls.channel as ls_channel,
+          gd.channel as gd_channel,
+          gd.seller_name,
+          gd.user_id as seller_user_id,
+          gd.value as order_value
+        FROM logistics_shipments ls
+        LEFT JOIN crm_goals_data gd 
+          ON gd.organization_id = ls.organization_id 
+          AND gd.data_type = 'pedido'
+          AND TRIM(gd.number) = TRIM(ls.order_number)
+          AND ls.order_number IS NOT NULL 
+          AND ls.order_number != ''
+        WHERE ls.organization_id = $1 ${dateFilter}
+        ORDER BY ls.id, gd.value DESC NULLS LAST
+      )
+      SELECT
+        COALESCE(gd_channel, ls_channel, 'Sem canal') as channel,
+        COALESCE(seller_name, 'Sem vendedor') as seller_name,
+        seller_user_id,
+        COUNT(*) as total_shipments,
+        COALESCE(SUM(freight_paid), 0) as freight_paid,
+        COALESCE(SUM(freight_invoiced), 0) as freight_invoiced,
+        COALESCE(SUM(freight_invoiced) - SUM(freight_paid), 0) as balance,
+        COALESCE(SUM(order_value), 0) as total_order_value
+      FROM shipment_goals
+      GROUP BY COALESCE(gd_channel, ls_channel, 'Sem canal'), COALESCE(seller_name, 'Sem vendedor'), seller_user_id
+      ORDER BY channel, freight_invoiced DESC
+    `, params);
+
+    res.json(result.rows);
+  } catch (e) {
+    console.error('Seller wallet error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 export default router;

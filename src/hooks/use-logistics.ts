@@ -194,6 +194,17 @@ export interface ChannelWalletItem {
   balance: number;
 }
 
+export interface SellerWalletItem {
+  channel: string;
+  seller_name: string;
+  seller_user_id: string | null;
+  total_shipments: number;
+  freight_paid: number;
+  freight_invoiced: number;
+  balance: number;
+  total_order_value: number;
+}
+
 export function useLogisticsChannelWallet(filters?: { start_date?: string; end_date?: string }) {
   const params = new URLSearchParams();
   if (filters?.start_date) params.set("start_date", filters.start_date);
@@ -202,5 +213,16 @@ export function useLogisticsChannelWallet(filters?: { start_date?: string; end_d
   return useQuery({
     queryKey: ["logistics-channel-wallet", filters],
     queryFn: () => api<ChannelWalletItem[]>(`/api/logistics/channel-wallet?${params.toString()}`),
+  });
+}
+
+export function useLogisticsSellerWallet(filters?: { start_date?: string; end_date?: string }) {
+  const params = new URLSearchParams();
+  if (filters?.start_date) params.set("start_date", filters.start_date);
+  if (filters?.end_date) params.set("end_date", filters.end_date);
+
+  return useQuery({
+    queryKey: ["logistics-seller-wallet", filters],
+    queryFn: () => api<SellerWalletItem[]>(`/api/logistics/seller-wallet?${params.toString()}`),
   });
 }
