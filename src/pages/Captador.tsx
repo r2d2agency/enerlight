@@ -1501,6 +1501,9 @@ export default function Captador() {
                   </Badge>
                 )}
               </h1>
+              <Button variant="ghost" size="icon" onClick={() => setShowPhotoBook(true)} title="Book de Fotos">
+                <BookImage className="h-5 w-5" />
+              </Button>
               <Button variant="ghost" size="icon" onClick={() => setShowSettings(!showSettings)}>
                 <Settings className="h-5 w-5" />
               </Button>
