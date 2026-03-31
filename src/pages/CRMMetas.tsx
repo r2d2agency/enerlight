@@ -124,9 +124,32 @@ export default function CRMMetas() {
     queryFn: () => api<string[]>("/api/crm/goals/channels"),
   });
 
+  // Records listing state
+  const [recordsType, setRecordsType] = useState<"pedido" | "orcamento" | "faturamento">("pedido");
+  const [recordsSearch, setRecordsSearch] = useState("");
+  const [recordsPage, setRecordsPage] = useState(1);
+
+  const { data: recordsData, isLoading: loadingRecords } = useQuery({
+    queryKey: ["crm-goals-records", startDate, endDate, filterUserId, filterChannel, filterGroupId, recordsType, recordsSearch, recordsPage],
+    queryFn: () => {
+      const sp = new URLSearchParams();
+      sp.set("start_date", startDate);
+      sp.set("end_date", endDate);
+      sp.set("data_type", recordsType);
+      sp.set("page", String(recordsPage));
+      sp.set("limit", "50");
+      if (filterUserId !== "all") sp.set("user_id", filterUserId);
+      if (filterChannel !== "all") sp.set("channel", filterChannel);
+      if (filterGroupId !== "all") sp.set("group_id", filterGroupId);
+      if (recordsSearch) sp.set("search", recordsSearch);
+      return api<any>(`/api/crm/goals/data-records?${sp.toString()}`);
+    },
+  });
+
   const invalidateData = () => {
     qc.invalidateQueries({ queryKey: ["crm-goals-data"] });
     qc.invalidateQueries({ queryKey: ["crm-goals-dashboard"] });
+    qc.invalidateQueries({ queryKey: ["crm-goals-records"] });
   };
 
   const [form, setForm] = useState({
