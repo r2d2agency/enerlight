@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -31,6 +31,7 @@ import {
   Target, Plus, Edit2, Trash2, Users, TrendingUp, Upload,
   Briefcase, DollarSign, CalendarDays, Loader2, BarChart3,
   Trophy, Medal, Award, FileText, ShoppingCart, Receipt, MessageSquare,
+  Search, ChevronLeft, ChevronRight, List,
 } from "lucide-react";
 import { format, startOfMonth, startOfWeek, endOfWeek, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -123,9 +124,32 @@ export default function CRMMetas() {
     queryFn: () => api<string[]>("/api/crm/goals/channels"),
   });
 
+  // Records listing state
+  const [recordsType, setRecordsType] = useState<"pedido" | "orcamento" | "faturamento">("pedido");
+  const [recordsSearch, setRecordsSearch] = useState("");
+  const [recordsPage, setRecordsPage] = useState(1);
+
+  const { data: recordsData, isLoading: loadingRecords } = useQuery({
+    queryKey: ["crm-goals-records", startDate, endDate, filterUserId, filterChannel, filterGroupId, recordsType, recordsSearch, recordsPage],
+    queryFn: () => {
+      const sp = new URLSearchParams();
+      sp.set("start_date", startDate);
+      sp.set("end_date", endDate);
+      sp.set("data_type", recordsType);
+      sp.set("page", String(recordsPage));
+      sp.set("limit", "50");
+      if (filterUserId !== "all") sp.set("user_id", filterUserId);
+      if (filterChannel !== "all") sp.set("channel", filterChannel);
+      if (filterGroupId !== "all") sp.set("group_id", filterGroupId);
+      if (recordsSearch) sp.set("search", recordsSearch);
+      return api<any>(`/api/crm/goals/data-records?${sp.toString()}`);
+    },
+  });
+
   const invalidateData = () => {
     qc.invalidateQueries({ queryKey: ["crm-goals-data"] });
     qc.invalidateQueries({ queryKey: ["crm-goals-dashboard"] });
+    qc.invalidateQueries({ queryKey: ["crm-goals-records"] });
   };
 
   const [form, setForm] = useState({
@@ -207,6 +231,7 @@ export default function CRMMetas() {
             <TabsTrigger value="by-channel" className="gap-2"><Users className="h-4 w-4" /> Por Canal/Grupo</TabsTrigger>
             <TabsTrigger value="individual" className="gap-2"><Trophy className="h-4 w-4" /> Individual</TabsTrigger>
             <TabsTrigger value="goals" className="gap-2"><Target className="h-4 w-4" /> Metas</TabsTrigger>
+            <TabsTrigger value="records" className="gap-2"><List className="h-4 w-4" /> Registros</TabsTrigger>
             <TabsTrigger value="imports" className="gap-2"><Upload className="h-4 w-4" /> Importações</TabsTrigger>
           </TabsList>
 
@@ -895,6 +920,134 @@ export default function CRMMetas() {
                 })}
               </>
             )}
+          </TabsContent>
+
+          {/* ========== RECORDS LIST ========== */}
+          <TabsContent value="records" className="mt-4 space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><List className="h-5 w-5" /> Registros Importados</CardTitle>
+                <CardDescription>Lista detalhada de orçamentos, pedidos e faturamento importados</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex flex-wrap items-center gap-3">
+                  <Tabs value={recordsType} onValueChange={v => { setRecordsType(v as any); setRecordsPage(1); }} className="w-auto">
+                    <TabsList>
+                      <TabsTrigger value="orcamento" className="gap-1"><FileText className="h-3 w-3" /> Orçamentos</TabsTrigger>
+                      <TabsTrigger value="pedido" className="gap-1"><ShoppingCart className="h-3 w-3" /> Pedidos</TabsTrigger>
+                      <TabsTrigger value="faturamento" className="gap-1"><Receipt className="h-3 w-3" /> Faturamento</TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                  <div className="relative flex-1 min-w-[200px]">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar por cliente, número, vendedor..."
+                      value={recordsSearch}
+                      onChange={e => { setRecordsSearch(e.target.value); setRecordsPage(1); }}
+                      className="pl-9"
+                    />
+                  </div>
+                  {recordsData && (
+                    <Badge variant="secondary">{recordsData.total} registros</Badge>
+                  )}
+                </div>
+
+                {loadingRecords ? (
+                  <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+                ) : !recordsData?.records?.length ? (
+                  <div className="py-8 text-center text-muted-foreground">
+                    <List className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                    <p>Nenhum registro encontrado para o período e filtros selecionados.</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Número</TableHead>
+                            <TableHead>Cliente</TableHead>
+                            <TableHead>Vendedor</TableHead>
+                            <TableHead>Canal</TableHead>
+                            <TableHead className="text-right">Valor</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Data Emissão</TableHead>
+                            {recordsType === "pedido" && <TableHead>Nº Pedido</TableHead>}
+                            {recordsType === "faturamento" && <TableHead>Data Faturamento</TableHead>}
+                            <TableHead>UF</TableHead>
+                            <TableHead>Cidade</TableHead>
+                            {recordsType !== "orcamento" && <TableHead className="text-right">Margem</TableHead>}
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {recordsData.records.map((r: any) => (
+                            <TableRow key={r.id}>
+                              <TableCell className="font-mono text-sm">{r.number || "—"}</TableCell>
+                              <TableCell className="max-w-[200px] truncate">{r.client_name || "—"}</TableCell>
+                              <TableCell>{r.seller_name || "—"}</TableCell>
+                              <TableCell>
+                                {r.channel ? (
+                                  <Badge variant="outline" className="text-xs">{r.channel}</Badge>
+                                ) : "—"}
+                              </TableCell>
+                              <TableCell className="text-right font-medium">{fmt(r.value)}</TableCell>
+                              <TableCell>
+                                {r.status ? (
+                                  <Badge variant="secondary" className="text-xs">{r.status}</Badge>
+                                ) : "—"}
+                              </TableCell>
+                              <TableCell className="text-sm">
+                                {r.emission_date ? format(new Date(r.emission_date), "dd/MM/yyyy") : "—"}
+                              </TableCell>
+                              {recordsType === "pedido" && (
+                                <TableCell className="font-mono text-sm">{r.order_number || "—"}</TableCell>
+                              )}
+                              {recordsType === "faturamento" && (
+                                <TableCell className="text-sm">
+                                  {r.billing_date ? format(new Date(r.billing_date), "dd/MM/yyyy") : "—"}
+                                </TableCell>
+                              )}
+                              <TableCell className="text-sm">{r.state || "—"}</TableCell>
+                              <TableCell className="text-sm">{r.city || "—"}</TableCell>
+                              {recordsType !== "orcamento" && (
+                                <TableCell className="text-right text-sm">
+                                  {r.margin != null ? `${r.margin.toFixed(1)}%` : "—"}
+                                </TableCell>
+                              )}
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+
+                    {/* Pagination */}
+                    {recordsData.totalPages > 1 && (
+                      <div className="flex items-center justify-between pt-2">
+                        <p className="text-sm text-muted-foreground">
+                          Página {recordsData.page} de {recordsData.totalPages}
+                        </p>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline" size="sm"
+                            disabled={recordsData.page <= 1}
+                            onClick={() => setRecordsPage(p => Math.max(1, p - 1))}
+                          >
+                            <ChevronLeft className="h-4 w-4" /> Anterior
+                          </Button>
+                          <Button
+                            variant="outline" size="sm"
+                            disabled={recordsData.page >= recordsData.totalPages}
+                            onClick={() => setRecordsPage(p => p + 1)}
+                          >
+                            Próximo <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* Imports tab */}

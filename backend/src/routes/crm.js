@@ -6439,6 +6439,54 @@ router.get('/goals/data-daily', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+// List raw goals data records with pagination
+router.get('/goals/data-records', async (req, res) => {
+  try {
+    await ensureGoalsDataTable();
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const { start_date, end_date, user_id, channel, group_id, data_type, search, page = '1', limit = '50' } = req.query;
+    const sd = start_date || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+    const ed = end_date || new Date().toISOString().split('T')[0];
+
+    const params = [org.organization_id, sd, ed];
+    let extraFilters = '';
+    if (data_type) { params.push(data_type); extraFilters += ` AND data_type = $${params.length}`; }
+    if (user_id) { params.push(user_id); extraFilters += ` AND user_id = $${params.length}`; }
+    if (channel) { params.push(channel); extraFilters += ` AND channel = $${params.length}`; }
+    if (group_id) { params.push(group_id); extraFilters += ` AND client_group = $${params.length}`; }
+    if (search) { params.push(`%${search}%`); extraFilters += ` AND (client_name ILIKE $${params.length} OR number ILIKE $${params.length} OR order_number ILIKE $${params.length} OR seller_name ILIKE $${params.length})`; }
+
+    const dateExpr = `COALESCE(CASE WHEN data_type = 'faturamento' THEN billing_date WHEN data_type = 'pedido' THEN COALESCE(emission_date, delivery_date) ELSE emission_date END, emission_date, delivery_date, created_at::date)`;
+    const baseWhere = `organization_id = $1 AND ${dateExpr} >= $2::date AND ${dateExpr} <= $3::date${extraFilters}`;
+
+    const pageNum = Math.max(1, parseInt(page));
+    const lim = Math.min(200, Math.max(10, parseInt(limit)));
+    const offset = (pageNum - 1) * lim;
+
+    const countResult = await query(`SELECT COUNT(*) as total FROM crm_goals_data WHERE ${baseWhere}`, params);
+    const total = parseInt(countResult.rows[0]?.total || '0');
+
+    const dataParams = [...params, lim, offset];
+    const result = await query(
+      `SELECT id, data_type, number, status, client_name, value, seller_name, channel, client_group, state, city, emission_date, delivery_date, billing_date, margin, observation, order_number, created_at
+       FROM crm_goals_data WHERE ${baseWhere}
+       ORDER BY ${dateExpr} DESC, created_at DESC
+       LIMIT $${dataParams.length - 1} OFFSET $${dataParams.length}`,
+      dataParams
+    );
+
+    res.json({
+      records: result.rows.map(r => ({ ...r, value: parseFloat(r.value || '0'), margin: r.margin ? parseFloat(r.margin) : null })),
+      total,
+      page: pageNum,
+      totalPages: Math.ceil(total / lim),
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // ============================================
 // GOALS DAILY REPORT VIA WHATSAPP
