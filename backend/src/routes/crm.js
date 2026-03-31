@@ -6560,7 +6560,7 @@ router.get('/goals/carteira', async (req, res) => {
         INNER JOIN crm_goals_data gd
           ON gd.organization_id = ls.organization_id
           AND gd.data_type = 'pedido'
-          AND TRIM(gd.number) = TRIM(ls.order_number)
+          AND REGEXP_REPLACE(TRIM(gd.number), '^0+', '') = REGEXP_REPLACE(TRIM(ls.order_number), '^0+', '')
           AND ls.order_number IS NOT NULL AND ls.order_number != ''
         WHERE ls.organization_id = $1
         GROUP BY COALESCE(gd.channel, 'Sem canal')
