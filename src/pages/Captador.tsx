@@ -1774,6 +1774,9 @@ export default function Captador() {
                 </Button>
               </div>
             )}
+            <Button variant="outline" size="sm" onClick={() => setShowPhotoBook(true)}>
+              <BookImage className="h-4 w-4 mr-1" /> Book de Fotos
+            </Button>
             <Button variant="outline" size="sm" onClick={() => setShowSettings(!showSettings)}>
               <Settings className="h-4 w-4" />
             </Button>
