@@ -6494,15 +6494,18 @@ router.get('/goals/freight-by-order/:orderNumber', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
     const orderNumber = req.params.orderNumber;
+    // Extract leading digits and strip leading zeros for matching
+    const cleanOrder = (orderNumber || '').replace(/^0+/, '').replace(/[^0-9].*/g, '');
     const result = await query(`
       SELECT ls.id, ls.order_number, ls.carrier, ls.freight_paid, ls.freight_invoiced,
              ls.tax_value, ls.real_cost, ls.status, ls.volumes,
              ls.departure_date, ls.estimated_delivery, ls.actual_delivery,
              COALESCE(ls.freight_invoiced, 0) - COALESCE(ls.freight_paid, 0) as balance
       FROM logistics_shipments ls
-      WHERE ls.organization_id = $1 AND TRIM(ls.order_number) = TRIM($2)
+      WHERE ls.organization_id = $1
+        AND REGEXP_REPLACE(TRIM(ls.order_number), '^0+', '') = $2
       ORDER BY ls.created_at DESC
-    `, [org.organization_id, orderNumber]);
+    `, [org.organization_id, cleanOrder]);
     res.json(result.rows);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -6559,7 +6562,7 @@ router.get('/goals/carteira', async (req, res) => {
         INNER JOIN crm_goals_data gd
           ON gd.organization_id = ls.organization_id
           AND gd.data_type = 'pedido'
-          AND TRIM(gd.number) = TRIM(ls.order_number)
+          AND REGEXP_REPLACE(TRIM(gd.number), '^0+', '') = REGEXP_REPLACE(TRIM(ls.order_number), '^0+', '')
           AND ls.order_number IS NOT NULL AND ls.order_number != ''
         WHERE ls.organization_id = $1
         GROUP BY COALESCE(gd.channel, 'Sem canal')
