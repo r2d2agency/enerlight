@@ -129,6 +129,7 @@ export default function CRMMetas() {
   const [recordsType, setRecordsType] = useState<"pedido" | "orcamento" | "faturamento">("pedido");
   const [recordsSearch, setRecordsSearch] = useState("");
   const [recordsPage, setRecordsPage] = useState(1);
+  const [freightDetailOrder, setFreightDetailOrder] = useState<string | null>(null);
 
   const { data: recordsData, isLoading: loadingRecords } = useQuery({
     queryKey: ["crm-goals-records", startDate, endDate, filterUserId, filterChannel, filterGroupId, recordsType, recordsSearch, recordsPage],
@@ -144,6 +145,24 @@ export default function CRMMetas() {
       if (filterGroupId !== "all") sp.set("group_id", filterGroupId);
       if (recordsSearch) sp.set("search", recordsSearch);
       return api<any>(`/api/crm/goals/data-records?${sp.toString()}`);
+    },
+  });
+
+  // Freight detail for clicked record
+  const { data: freightDetail, isLoading: loadingFreight } = useQuery({
+    queryKey: ["freight-by-order", freightDetailOrder],
+    queryFn: () => api<any[]>(`/api/crm/goals/freight-by-order/${encodeURIComponent(freightDetailOrder!)}`),
+    enabled: !!freightDetailOrder,
+  });
+
+  // Carteira data
+  const { data: carteiraData, isLoading: loadingCarteira } = useQuery({
+    queryKey: ["crm-goals-carteira", startDate, endDate],
+    queryFn: () => {
+      const sp = new URLSearchParams();
+      sp.set("start_date", startDate);
+      sp.set("end_date", endDate);
+      return api<any[]>(`/api/crm/goals/carteira?${sp.toString()}`);
     },
   });
 
