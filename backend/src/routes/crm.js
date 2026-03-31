@@ -6494,6 +6494,8 @@ router.get('/goals/freight-by-order/:orderNumber', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
     const orderNumber = req.params.orderNumber;
+    // Extract leading digits and strip leading zeros for matching
+    const cleanOrder = (orderNumber || '').replace(/^0+/, '').replace(/[^0-9].*/g, '');
     const result = await query(`
       SELECT ls.id, ls.order_number, ls.carrier, ls.freight_paid, ls.freight_invoiced,
              ls.tax_value, ls.real_cost, ls.status, ls.volumes,
@@ -6501,9 +6503,9 @@ router.get('/goals/freight-by-order/:orderNumber', async (req, res) => {
              COALESCE(ls.freight_invoiced, 0) - COALESCE(ls.freight_paid, 0) as balance
       FROM logistics_shipments ls
       WHERE ls.organization_id = $1
-        AND REGEXP_REPLACE(TRIM(ls.order_number), '^0+', '') = REGEXP_REPLACE(TRIM($2), '^0+', '')
+        AND REGEXP_REPLACE(TRIM(ls.order_number), '^0+', '') = $2
       ORDER BY ls.created_at DESC
-    `, [org.organization_id, orderNumber]);
+    `, [org.organization_id, cleanOrder]);
     res.json(result.rows);
   } catch (error) {
     res.status(500).json({ error: error.message });
