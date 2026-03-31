@@ -1052,6 +1052,17 @@ export default function CRMMetas() {
             </Card>
           </TabsContent>
 
+          {/* Map tab */}
+          <TabsContent value="map" className="space-y-4">
+            <GoalsMapTab
+              startDate={startDate}
+              endDate={endDate}
+              filterUserId={filterUserId}
+              filterChannel={filterChannel}
+              filterGroupId={filterGroupId}
+            />
+          </TabsContent>
+
           {/* Imports tab */}
           <TabsContent value="imports" className="space-y-4">
             <ImportBatchList onDeleted={invalidateData} />
