@@ -34,6 +34,7 @@ import {
 import { PhotoBookDialog } from "@/components/captador/PhotoBookDialog";
 import { format } from "date-fns";
 import { safeFormatDate } from "@/lib/utils";
+import { resolveMediaUrl } from "@/lib/media";
 
 // ─── Haversine distance in meters ───
 function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
