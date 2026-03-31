@@ -29,8 +29,9 @@ import {
   MapPin, Camera, Mic, Plus, Eye, User, Building2,
   Phone, Mail, FileText, Trash2, Navigation, Image, AudioLines,
   ClipboardList, Settings, UserPlus, Users, LogIn, LogOut, Clock,
-  ChevronRight, CheckCircle2, Circle, ArrowLeft, WifiOff, Wifi, Square, Download,
+  ChevronRight, CheckCircle2, Circle, ArrowLeft, WifiOff, Wifi, Square, Download, BookImage,
 } from "lucide-react";
+import { PhotoBookDialog } from "@/components/captador/PhotoBookDialog";
 import { format } from "date-fns";
 import { safeFormatDate } from "@/lib/utils";
 
