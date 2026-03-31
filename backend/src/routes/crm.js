@@ -6488,6 +6488,122 @@ router.get('/goals/data-records', async (req, res) => {
   }
 });
 
+// Get freight info for a specific order number (cross-reference logistics)
+router.get('/goals/freight-by-order/:orderNumber', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+    const orderNumber = req.params.orderNumber;
+    const result = await query(`
+      SELECT ls.id, ls.order_number, ls.carrier, ls.freight_paid, ls.freight_invoiced,
+             ls.tax_value, ls.real_cost, ls.status, ls.volumes,
+             ls.departure_date, ls.estimated_delivery, ls.actual_delivery,
+             COALESCE(ls.freight_invoiced, 0) - COALESCE(ls.freight_paid, 0) as balance
+      FROM logistics_shipments ls
+      WHERE ls.organization_id = $1 AND TRIM(ls.order_number) = TRIM($2)
+      ORDER BY ls.created_at DESC
+    `, [org.organization_id, orderNumber]);
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Carteira: billing summary per channel with logistics freight cross-reference
+router.get('/goals/carteira', async (req, res) => {
+  try {
+    await ensureGoalsDataTable();
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const { start_date, end_date } = req.query;
+    const sd = start_date || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+    const ed = end_date || new Date().toISOString().split('T')[0];
+
+    // Get billing (faturamento) per channel from goals data
+    // Then cross-reference with logistics for freight
+    const result = await query(`
+      WITH billing_by_channel AS (
+        SELECT
+          COALESCE(channel, 'Sem canal') as channel,
+          COUNT(*) as billing_count,
+          COALESCE(SUM(value), 0) as billing_value
+        FROM crm_goals_data
+        WHERE organization_id = $1
+          AND data_type = 'faturamento'
+          AND COALESCE(billing_date, emission_date, created_at::date) >= $2::date
+          AND COALESCE(billing_date, emission_date, created_at::date) <= $3::date
+        GROUP BY COALESCE(channel, 'Sem canal')
+      ),
+      orders_by_channel AS (
+        SELECT
+          COALESCE(channel, 'Sem canal') as channel,
+          COUNT(*) as orders_count,
+          COALESCE(SUM(value), 0) as orders_value
+        FROM crm_goals_data
+        WHERE organization_id = $1
+          AND data_type = 'pedido'
+          AND COALESCE(emission_date, delivery_date, created_at::date) >= $2::date
+          AND COALESCE(emission_date, delivery_date, created_at::date) <= $3::date
+        GROUP BY COALESCE(channel, 'Sem canal')
+      ),
+      freight_by_channel AS (
+        SELECT
+          COALESCE(gd.channel, 'Sem canal') as channel,
+          COUNT(DISTINCT ls.id) as shipments_count,
+          COALESCE(SUM(ls.freight_paid), 0) as freight_paid,
+          COALESCE(SUM(ls.freight_invoiced), 0) as freight_invoiced,
+          COALESCE(SUM(ls.tax_value), 0) as tax_value,
+          COALESCE(SUM(ls.real_cost), 0) as real_cost
+        FROM logistics_shipments ls
+        INNER JOIN crm_goals_data gd
+          ON gd.organization_id = ls.organization_id
+          AND gd.data_type = 'pedido'
+          AND TRIM(gd.number) = TRIM(ls.order_number)
+          AND ls.order_number IS NOT NULL AND ls.order_number != ''
+        WHERE ls.organization_id = $1
+        GROUP BY COALESCE(gd.channel, 'Sem canal')
+      )
+      SELECT
+        COALESCE(b.channel, o.channel, f.channel) as channel,
+        COALESCE(b.billing_count, 0) as billing_count,
+        COALESCE(b.billing_value, 0) as billing_value,
+        COALESCE(o.orders_count, 0) as orders_count,
+        COALESCE(o.orders_value, 0) as orders_value,
+        COALESCE(f.shipments_count, 0) as shipments_count,
+        COALESCE(f.freight_paid, 0) as freight_paid,
+        COALESCE(f.freight_invoiced, 0) as freight_invoiced,
+        COALESCE(f.tax_value, 0) as tax_value,
+        COALESCE(f.real_cost, 0) as real_cost,
+        COALESCE(f.freight_invoiced, 0) - COALESCE(f.freight_paid, 0) as freight_balance,
+        CASE WHEN COALESCE(f.freight_paid, 0) > 0
+          THEN ROUND(((COALESCE(f.freight_invoiced, 0) / COALESCE(f.freight_paid, 0)) - 1) * 100, 1)
+          ELSE 0 END as markup_pct
+      FROM billing_by_channel b
+      FULL OUTER JOIN orders_by_channel o ON o.channel = b.channel
+      FULL OUTER JOIN freight_by_channel f ON f.channel = COALESCE(b.channel, o.channel)
+      ORDER BY billing_value DESC
+    `, [org.organization_id, sd, ed]);
+
+    res.json(result.rows.map(r => ({
+      ...r,
+      billing_value: parseFloat(r.billing_value || '0'),
+      orders_value: parseFloat(r.orders_value || '0'),
+      freight_paid: parseFloat(r.freight_paid || '0'),
+      freight_invoiced: parseFloat(r.freight_invoiced || '0'),
+      tax_value: parseFloat(r.tax_value || '0'),
+      real_cost: parseFloat(r.real_cost || '0'),
+      freight_balance: parseFloat(r.freight_balance || '0'),
+      markup_pct: parseFloat(r.markup_pct || '0'),
+      billing_count: parseInt(r.billing_count || '0'),
+      orders_count: parseInt(r.orders_count || '0'),
+      shipments_count: parseInt(r.shipments_count || '0'),
+    })));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ============================================
 // GOALS DAILY REPORT VIA WHATSAPP
 // ============================================
