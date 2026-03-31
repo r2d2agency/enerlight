@@ -78,6 +78,7 @@ export default function Logistica() {
   const { data: carriers } = useLogisticsCarriers();
   const { data: channels } = useLogisticsChannels();
   const { data: channelWallet } = useLogisticsChannelWallet(dateRange);
+  const { data: sellerWallet } = useLogisticsSellerWallet(dateRange);
   const createMut = useCreateShipment();
   const updateMut = useUpdateShipment();
   const deleteMut = useDeleteShipment();
