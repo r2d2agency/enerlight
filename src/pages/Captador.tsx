@@ -29,10 +29,12 @@ import {
   MapPin, Camera, Mic, Plus, Eye, User, Building2,
   Phone, Mail, FileText, Trash2, Navigation, Image, AudioLines,
   ClipboardList, Settings, UserPlus, Users, LogIn, LogOut, Clock,
-  ChevronRight, CheckCircle2, Circle, ArrowLeft, WifiOff, Wifi, Square, Download,
+  ChevronRight, CheckCircle2, Circle, ArrowLeft, WifiOff, Wifi, Square, Download, BookImage,
 } from "lucide-react";
+import { PhotoBookDialog } from "@/components/captador/PhotoBookDialog";
 import { format } from "date-fns";
 import { safeFormatDate } from "@/lib/utils";
+import { resolveMediaUrl } from "@/lib/media";
 
 // ─── Haversine distance in meters ───
 function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -1211,15 +1213,15 @@ function CaptureDetailDialog({ captureId, open, onClose }: { captureId: string |
                   <div key={att.id} className="border rounded overflow-hidden relative group">
                     {att.file_type === "photo" ? (
                       <>
-                        <a href={att.file_url} target="_blank" rel="noopener"><img src={att.file_url} alt={att.file_name} className="w-full h-32 object-cover" /></a>
-                        <a href={att.file_url} download={att.file_name || "foto.jpg"} target="_blank" rel="noopener"
+                        <a href={resolveMediaUrl(att.file_url) || att.file_url} target="_blank" rel="noopener"><img src={resolveMediaUrl(att.file_url) || att.file_url} alt={att.file_name} className="w-full h-32 object-cover" /></a>
+                        <a href={resolveMediaUrl(att.file_url) || att.file_url} download={att.file_name || "foto.jpg"} target="_blank" rel="noopener"
                           className="absolute bottom-1 right-1 bg-background/80 backdrop-blur rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity shadow">
                           <Download className="h-3.5 w-3.5" />
                         </a>
                       </>
                     ) : att.file_type === "audio" ? (
                       <div className="p-2">
-                        <audio controls src={att.file_url} className="w-full" />
+                        <audio controls src={resolveMediaUrl(att.file_url) || att.file_url} className="w-full" />
                         <div className="flex items-center justify-between mt-1">
                           <p className="text-xs truncate flex-1">{att.file_name}</p>
                           <a href={att.file_url} download={att.file_name} target="_blank" rel="noopener" className="ml-1">
@@ -1265,8 +1267,8 @@ function CaptureDetailDialog({ captureId, open, onClose }: { captureId: string |
                   {visit.attachments && visit.attachments.length > 0 && (
                     <div className="flex gap-1 mt-2">
                       {visit.attachments.map((a) => (
-                        <a key={a.id} href={a.file_url} target="_blank" rel="noopener">
-                          <img src={a.file_url} className="w-16 h-16 object-cover rounded" alt="" />
+                        <a key={a.id} href={resolveMediaUrl(a.file_url) || a.file_url} target="_blank" rel="noopener">
+                          <img src={resolveMediaUrl(a.file_url) || a.file_url} className="w-16 h-16 object-cover rounded" alt="" />
                         </a>
                       ))}
                     </div>
@@ -1407,6 +1409,7 @@ export default function Captador() {
   const [tab, setTab] = useState("returns");
   const [showForm, setShowForm] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showPhotoBook, setShowPhotoBook] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filters, setFilters] = useState<{ status?: string; assigned_to?: string; unassigned?: boolean; start_date?: string; end_date?: string; segment?: string }>({});
 
@@ -1499,6 +1502,9 @@ export default function Captador() {
                   </Badge>
                 )}
               </h1>
+              <Button variant="ghost" size="icon" onClick={() => setShowPhotoBook(true)} title="Book de Fotos">
+                <BookImage className="h-5 w-5" />
+              </Button>
               <Button variant="ghost" size="icon" onClick={() => setShowSettings(!showSettings)}>
                 <Settings className="h-5 w-5" />
               </Button>
@@ -1661,6 +1667,12 @@ export default function Captador() {
 
           <MobileCaptureForm open={showForm} onClose={() => { setShowForm(false); refreshCount(); }} onSuccess={() => { refreshCount(); }} isOnline={isOnline} />
           <CaptureDetailDialog captureId={selectedId} open={!!selectedId} onClose={() => setSelectedId(null)} />
+          <PhotoBookDialog
+            open={showPhotoBook}
+            onClose={() => setShowPhotoBook(false)}
+            captures={captures}
+            periodLabel={filters.start_date || filters.end_date ? `${filters.start_date || "..."} a ${filters.end_date || "..."}` : undefined}
+          />
 
           {/* Settings Panel */}
           {showSettings && settings && (
@@ -1763,6 +1775,9 @@ export default function Captador() {
                 </Button>
               </div>
             )}
+            <Button variant="outline" size="sm" onClick={() => setShowPhotoBook(true)}>
+              <BookImage className="h-4 w-4 mr-1" /> Book de Fotos
+            </Button>
             <Button variant="outline" size="sm" onClick={() => setShowSettings(!showSettings)}>
               <Settings className="h-4 w-4" />
             </Button>
@@ -1954,6 +1969,12 @@ export default function Captador() {
 
         <DesktopCaptureFormDialog open={showForm} onClose={() => setShowForm(false)} onSuccess={() => {}} />
         <CaptureDetailDialog captureId={selectedId} open={!!selectedId} onClose={() => setSelectedId(null)} />
+        <PhotoBookDialog
+          open={showPhotoBook}
+          onClose={() => setShowPhotoBook(false)}
+          captures={captures}
+          periodLabel={filters.start_date || filters.end_date ? `${filters.start_date || "..."} a ${filters.end_date || "..."}` : undefined}
+        />
       </div>
     </MainLayout>
   );
@@ -1971,7 +1992,7 @@ function MobileCaptureCard({ capture, onSelect, onDelete, sellers, onAssign }: {
         {/* Thumbnail or icon */}
         <div className="w-14 h-14 rounded-lg bg-muted flex items-center justify-center shrink-0 overflow-hidden">
           {capture.attachments && capture.attachments.length > 0 && capture.attachments[0].file_type === "photo" ? (
-            <img src={capture.attachments[0].file_url} alt="" className="w-full h-full object-cover" />
+            <img src={resolveMediaUrl(capture.attachments[0].file_url) || capture.attachments[0].file_url} alt="" className="w-full h-full object-cover" />
           ) : (
             <Building2 className="h-6 w-6 text-muted-foreground" />
           )}
