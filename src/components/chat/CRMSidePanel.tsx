@@ -840,7 +840,7 @@ export function CRMSidePanel({
               </div>
             )}
 
-            <Accordion type="single" collapsible className="space-y-1">
+            <Accordion type="multiple" className="space-y-1">
               {/* Deal Info - Editable */}
               <AccordionItem value="deal" className="border rounded-lg px-3">
                 <AccordionTrigger className="py-2 hover:no-underline">
@@ -1174,7 +1174,7 @@ export function CRMSidePanel({
             )}
 
             {/* Always visible sections */}
-            <Accordion type="single" collapsible className="space-y-1 mt-1">
+            <Accordion type="multiple" className="space-y-1 mt-1">
               {/* Contact */}
               <AccordionItem value="contact" className="border rounded-lg px-3">
                 <AccordionTrigger className="py-2 hover:no-underline">
