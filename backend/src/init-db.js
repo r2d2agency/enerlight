@@ -4081,6 +4081,20 @@ CREATE TABLE IF NOT EXISTS licitacoes (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Add missing contact columns to licitacoes
+DO $$ BEGIN
+  ALTER TABLE licitacoes ADD COLUMN IF NOT EXISTS contact_id UUID REFERENCES contacts(id) ON DELETE SET NULL;
+EXCEPTION WHEN others THEN NULL;
+END $$;
+DO $$ BEGIN
+  ALTER TABLE licitacoes ADD COLUMN IF NOT EXISTS contact_name VARCHAR(255);
+EXCEPTION WHEN others THEN NULL;
+END $$;
+DO $$ BEGIN
+  ALTER TABLE licitacoes ADD COLUMN IF NOT EXISTS contact_phone VARCHAR(50);
+EXCEPTION WHEN others THEN NULL;
+END $$;
+
 CREATE TABLE IF NOT EXISTS licitacao_tasks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   licitacao_id UUID REFERENCES licitacoes(id) ON DELETE CASCADE NOT NULL,
