@@ -34,6 +34,7 @@ import {
   Search, ChevronLeft, ChevronRight, List, MapPin, Wallet, Truck,
 } from "lucide-react";
 import { GoalsMapTab } from "@/components/crm/GoalsMapTab";
+import { QuarterlyViewTab } from "@/components/crm/QuarterlyViewTab";
 import { format, startOfMonth, startOfWeek, endOfWeek, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
