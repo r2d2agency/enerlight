@@ -533,10 +533,19 @@ router.get('/org-members', async (req, res) => {
   try {
     const orgId = await getUserOrg(req.userId);
     if (!orgId) return res.json([]);
-    const result = await pool.query(
-      `SELECT u.id, u.name, u.email FROM organization_members om JOIN users u ON u.id = om.user_id WHERE om.organization_id = $1 AND COALESCE(om.is_active, true) = true ORDER BY u.name`,
-      [orgId]
-    );
+    let sql;
+    try {
+      // Try with is_active column first
+      const testCol = await pool.query(`SELECT column_name FROM information_schema.columns WHERE table_name = 'organization_members' AND column_name = 'is_active'`);
+      if (testCol.rows.length > 0) {
+        sql = `SELECT u.id, u.name, u.email FROM organization_members om JOIN users u ON u.id = om.user_id WHERE om.organization_id = $1 AND COALESCE(om.is_active, true) = true ORDER BY u.name`;
+      } else {
+        sql = `SELECT u.id, u.name, u.email FROM organization_members om JOIN users u ON u.id = om.user_id WHERE om.organization_id = $1 ORDER BY u.name`;
+      }
+    } catch {
+      sql = `SELECT u.id, u.name, u.email FROM organization_members om JOIN users u ON u.id = om.user_id WHERE om.organization_id = $1 ORDER BY u.name`;
+    }
+    const result = await pool.query(sql, [orgId]);
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
