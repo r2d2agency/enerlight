@@ -673,18 +673,16 @@ export function ChatArea({
     dragCounterRef.current = 0;
     setIsDragOver(false);
 
-    const file = e.dataTransfer.files?.[0];
-    if (!file) return;
+    const files = e.dataTransfer.files;
+    if (!files || files.length === 0) return;
 
-    const inferredType = inferMessageTypeFromFile(file);
+    const newFiles = Array.from(files).map(file => {
+      const inferredType = inferMessageTypeFromFile(file);
+      const preview = inferredType === 'image' ? URL.createObjectURL(file) : undefined;
+      return { file, preview };
+    });
 
-    // Create preview for images
-    let preview: string | undefined;
-    if (inferredType === 'image') {
-      preview = URL.createObjectURL(file);
-    }
-
-    setPendingFile({ file, preview });
+    setPendingFiles(prev => [...prev, ...newFiles]);
   }, [inferMessageTypeFromFile]);
 
   const handlePaste = useCallback((e: React.ClipboardEvent) => {
