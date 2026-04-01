@@ -12,6 +12,24 @@ async function getUserOrg(userId) {
   return r.rows[0] || null;
 }
 
+function buildShipmentDateFilter({ alias = 'ls', startDate, endDate, params, startIndex = 2 }) {
+  const dateExpr = `COALESCE(${alias}.requested_date, ${alias}.created_at::date)`;
+  let filter = '';
+  let idx = startIndex;
+
+  if (startDate) {
+    filter += ` AND ${dateExpr} >= $${idx++}`;
+    params.push(startDate);
+  }
+
+  if (endDate) {
+    filter += ` AND ${dateExpr} <= $${idx++}`;
+    params.push(endDate);
+  }
+
+  return { filter, nextIndex: idx };
+}
+
 // ===================== LIST SHIPMENTS =====================
 router.get('/shipments', requireAuth, async (req, res) => {
   try {
@@ -41,14 +59,15 @@ router.get('/shipments', requireAuth, async (req, res) => {
       sql += ` AND ls.company_name = $${idx++}`;
       params.push(company_name);
     }
-    if (start_date) {
-      sql += ` AND ls.requested_date >= $${idx++}`;
-      params.push(start_date);
-    }
-    if (end_date) {
-      sql += ` AND ls.requested_date <= $${idx++}`;
-      params.push(end_date);
-    }
+    const { filter: dateFilter, nextIndex } = buildShipmentDateFilter({
+      alias: 'ls',
+      startDate: start_date,
+      endDate: end_date,
+      params,
+      startIndex: idx,
+    });
+    sql += dateFilter;
+    idx = nextIndex;
     if (search) {
       sql += ` AND (ls.client_name ILIKE $${idx} OR ls.invoice_number ILIKE $${idx} OR ls.order_number ILIKE $${idx} OR ls.carrier ILIKE $${idx})`;
       params.push(`%${search}%`);
@@ -340,18 +359,16 @@ router.get('/dashboard', requireAuth, async (req, res) => {
     if (!org) return res.status(403).json({ error: 'Sem organização' });
 
     const { start_date, end_date, company_name } = req.query;
-    let dateFilter = '';
     const params = [org.organization_id];
-    let idx = 2;
-
-    if (start_date) {
-      dateFilter += ` AND ls.requested_date >= $${idx++}`;
-      params.push(start_date);
-    }
-    if (end_date) {
-      dateFilter += ` AND ls.requested_date <= $${idx++}`;
-      params.push(end_date);
-    }
+    const { filter: baseDateFilter, nextIndex } = buildShipmentDateFilter({
+      alias: 'ls',
+      startDate: start_date,
+      endDate: end_date,
+      params,
+      startIndex: 2,
+    });
+    let dateFilter = baseDateFilter;
+    let idx = nextIndex;
     if (company_name && company_name !== 'all') {
       dateFilter += ` AND ls.company_name = $${idx++}`;
       params.push(company_name);
@@ -565,18 +582,14 @@ router.get('/channel-wallet', requireAuth, async (req, res) => {
     if (!org) return res.status(403).json({ error: 'Sem organização' });
 
     const { start_date, end_date } = req.query;
-    let dateFilter = '';
     const params = [org.organization_id];
-    let idx = 2;
-
-    if (start_date) {
-      dateFilter += ` AND ls.requested_date >= $${idx++}`;
-      params.push(start_date);
-    }
-    if (end_date) {
-      dateFilter += ` AND ls.requested_date <= $${idx++}`;
-      params.push(end_date);
-    }
+    const { filter: dateFilter } = buildShipmentDateFilter({
+      alias: 'ls',
+      startDate: start_date,
+      endDate: end_date,
+      params,
+      startIndex: 2,
+    });
 
     // Cross-reference: join logistics order_number with crm_goals_data number (pedido)
     // to get the channel from metas
@@ -615,18 +628,14 @@ router.get('/seller-wallet', requireAuth, async (req, res) => {
     if (!org) return res.status(403).json({ error: 'Sem organização' });
 
     const { start_date, end_date } = req.query;
-    let dateFilter = '';
     const params = [org.organization_id];
-    let idx = 2;
-
-    if (start_date) {
-      dateFilter += ` AND ls.requested_date >= $${idx++}`;
-      params.push(start_date);
-    }
-    if (end_date) {
-      dateFilter += ` AND ls.requested_date <= $${idx++}`;
-      params.push(end_date);
-    }
+    const { filter: dateFilter } = buildShipmentDateFilter({
+      alias: 'ls',
+      startDate: start_date,
+      endDate: end_date,
+      params,
+      startIndex: 2,
+    });
 
     // Use a CTE to deduplicate shipments first, then join with goals
     const result = await query(`
