@@ -237,7 +237,8 @@ export function NewConversationDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[85vh] flex flex-col overflow-hidden p-0">
+        <div className="flex flex-col h-full min-h-0 p-6 pb-0">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <MessageSquarePlus className="h-5 w-5 text-primary" />
@@ -248,7 +249,7 @@ export function NewConversationDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 min-h-0 flex flex-col">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="agenda" className="flex items-center gap-2">
               <BookUser className="h-4 w-4" />
@@ -261,7 +262,7 @@ export function NewConversationDialog({
           </TabsList>
 
           {/* Agenda Tab */}
-          <TabsContent value="agenda" className="space-y-4 mt-4">
+          <TabsContent value="agenda" className="space-y-4 mt-4 flex-1 min-h-0 flex flex-col overflow-hidden">
             <div className="flex gap-2">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -287,7 +288,7 @@ export function NewConversationDialog({
               </Select>
             </div>
 
-            <ScrollArea className="h-[250px] border rounded-md">
+            <ScrollArea className="flex-1 min-h-0 max-h-[50vh] border rounded-md">
               {loadingAgenda ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -421,6 +422,7 @@ export function NewConversationDialog({
             </DialogFooter>
           </TabsContent>
         </Tabs>
+        </div>
       </DialogContent>
     </Dialog>
   );
