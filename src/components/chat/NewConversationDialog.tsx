@@ -262,7 +262,7 @@ export function NewConversationDialog({
           </TabsList>
 
           {/* Agenda Tab */}
-          <TabsContent value="agenda" className="space-y-4 mt-4">
+          <TabsContent value="agenda" className="space-y-4 mt-4 flex-1 min-h-0 flex flex-col overflow-hidden">
             <div className="flex gap-2">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
