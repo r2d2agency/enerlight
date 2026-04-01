@@ -1036,5 +1036,3 @@ function ImportBatchHistory() {
     </div>
   );
 }
-  );
-}
