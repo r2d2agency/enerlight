@@ -249,7 +249,7 @@ export function NewConversationDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 min-h-0 flex flex-col">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="agenda" className="flex items-center gap-2">
               <BookUser className="h-4 w-4" />
