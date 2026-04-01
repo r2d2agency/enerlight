@@ -201,14 +201,26 @@ export function QuarterlyViewTab({ goals, filterUserId, filterChannel, filterGro
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <CalendarRange className="h-5 w-5 text-primary" />
-        <div>
-          <h2 className="text-lg font-semibold">Visão Trimestral — {quarterLabel}</h2>
-          <p className="text-sm text-muted-foreground">
-            {format(qStart, "dd/MM/yyyy")} até {format(qEnd, "dd/MM/yyyy")} — Metas mensais acumuladas para o trimestre
-          </p>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <CalendarRange className="h-5 w-5 text-primary" />
+          <div>
+            <h2 className="text-lg font-semibold">Visão Trimestral — {quarterLabel}</h2>
+            <p className="text-sm text-muted-foreground">
+              {format(qStart, "dd/MM/yyyy")} até {format(qEnd, "dd/MM/yyyy")} — Metas mensais acumuladas para o trimestre
+            </p>
+          </div>
         </div>
+        <Select value={selectedQuarter} onValueChange={setSelectedQuarter}>
+          <SelectTrigger className="w-[140px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {quarterOptions.map(opt => (
+              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* KPI Cards — Quarterly Summary */}
