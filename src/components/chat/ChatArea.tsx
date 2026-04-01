@@ -697,12 +697,9 @@ export function ChatArea({
         if (!file) continue;
 
         const inferredType = inferMessageTypeFromFile(file);
-        let preview: string | undefined;
-        if (inferredType === 'image') {
-          preview = URL.createObjectURL(file);
-        }
+        const preview = inferredType === 'image' ? URL.createObjectURL(file) : undefined;
 
-        setPendingFile({ file, preview });
+        setPendingFiles(prev => [...prev, { file, preview }]);
         return;
       }
     }
