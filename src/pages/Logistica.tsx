@@ -996,3 +996,45 @@ function WalletTab({ dashboard, channelWallet, sellerWallet }: { dashboard?: any
     </div>
   );
 }
+
+// ===================== IMPORT BATCH HISTORY =====================
+function ImportBatchHistory() {
+  const { data: batches, isLoading } = useLogisticsImportBatches();
+  const deleteBatch = useDeleteImportBatch();
+  const [deleting, setDeleting] = useState<string | null>(null);
+
+  const handleDelete = async (batchId: string) => {
+    if (!confirm("Excluir esta importação e todas as remessas vinculadas?")) return;
+    setDeleting(batchId);
+    deleteBatch.mutate(batchId, { onSettled: () => setDeleting(null) });
+  };
+
+  if (isLoading) return <div className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
+  if (!batches?.length) return <p className="text-xs text-muted-foreground text-center py-2">Nenhuma importação realizada.</p>;
+
+  return (
+    <div className="space-y-2 mt-2">
+      <p className="text-sm font-medium">Histórico de Importações</p>
+      <ScrollArea className="max-h-[200px]">
+        {batches.map(b => (
+          <div key={b.id} className="flex items-center justify-between p-2 border rounded mb-1">
+            <div className="text-xs space-y-0.5">
+              <p className="font-medium">{b.row_count} registros • {b.current_count} ativos</p>
+              <p className="text-muted-foreground">
+                Pago: {formatCurrency(Number(b.total_freight_paid))} | Cobrado: {formatCurrency(Number(b.total_freight_invoiced))}
+              </p>
+              <p className="text-muted-foreground">
+                {b.created_by_name} • {format(new Date(b.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+              </p>
+            </div>
+            <Button variant="ghost" size="icon" className="text-destructive h-7 w-7" onClick={() => handleDelete(b.id)} disabled={deleting === b.id}>
+              {deleting === b.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+            </Button>
+          </div>
+        ))}
+      </ScrollArea>
+    </div>
+  );
+}
+  );
+}
