@@ -20,28 +20,25 @@ async function getUserOrganization(userId) {
 // QUICK REPLIES
 // ==========================================
 
-// Get all quick replies for organization
+// Get quick replies: user's own + global ones
 router.get('/', authenticate, async (req, res) => {
   try {
     const orgId = await getUserOrganization(req.userId);
-    console.log('Quick replies - userId:', req.userId, 'orgId:', orgId);
-    
-    if (!orgId) {
-      console.log('Quick replies - no organization found, returning empty array');
-      return res.json([]);
-    }
+    if (!orgId) return res.json([]);
 
     const { category, search } = req.query;
     
+    // Show: own replies + global replies from anyone in the org
     let sql = `
       SELECT qr.*, u.name as created_by_name
       FROM quick_replies qr
       LEFT JOIN users u ON u.id = qr.created_by
       WHERE qr.organization_id = $1
+        AND (qr.created_by = $2 OR qr.is_global = true)
     `;
     
-    const params = [orgId];
-    let paramIndex = 2;
+    const params = [orgId, req.userId];
+    let paramIndex = 3;
 
     if (category) {
       sql += ` AND qr.category = $${paramIndex}`;
@@ -55,7 +52,7 @@ router.get('/', authenticate, async (req, res) => {
       paramIndex++;
     }
 
-    sql += ` ORDER BY qr.title ASC`;
+    sql += ` ORDER BY qr.is_global ASC, qr.title ASC`;
 
     const result = await query(sql, params);
     res.json(result.rows);
@@ -69,18 +66,14 @@ router.get('/', authenticate, async (req, res) => {
 router.get('/categories', authenticate, async (req, res) => {
   try {
     const orgId = await getUserOrganization(req.userId);
-    console.log('Quick replies categories - userId:', req.userId, 'orgId:', orgId);
-    
-    if (!orgId) {
-      console.log('Quick replies categories - no organization found, returning empty array');
-      return res.json([]);
-    }
+    if (!orgId) return res.json([]);
 
     const result = await query(
       `SELECT DISTINCT category FROM quick_replies 
        WHERE organization_id = $1 AND category IS NOT NULL AND category != ''
+         AND (created_by = $2 OR is_global = true)
        ORDER BY category`,
-      [orgId]
+      [orgId, req.userId]
     );
     
     res.json(result.rows.map(r => r.category));
@@ -94,12 +87,9 @@ router.get('/categories', authenticate, async (req, res) => {
 router.post('/', authenticate, async (req, res) => {
   try {
     const orgId = await getUserOrganization(req.userId);
-    
-    if (!orgId) {
-      return res.status(400).json({ error: 'Usuário não pertence a uma organização' });
-    }
+    if (!orgId) return res.status(400).json({ error: 'Usuário não pertence a uma organização' });
 
-    const { title, content, shortcut, category } = req.body;
+    const { title, content, shortcut, category, is_global } = req.body;
 
     if (!title || !content) {
       return res.status(400).json({ error: 'Título e conteúdo são obrigatórios' });
@@ -117,10 +107,10 @@ router.post('/', authenticate, async (req, res) => {
     }
 
     const result = await query(
-      `INSERT INTO quick_replies (organization_id, title, content, shortcut, category, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO quick_replies (organization_id, title, content, shortcut, category, is_global, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [orgId, title, content, shortcut || null, category || null, req.userId]
+      [orgId, title, content, shortcut || null, category || null, is_global || false, req.userId]
     );
 
     res.status(201).json(result.rows[0]);
@@ -130,17 +120,14 @@ router.post('/', authenticate, async (req, res) => {
   }
 });
 
-// Update quick reply
+// Update quick reply (only owner can edit)
 router.patch('/:id', authenticate, async (req, res) => {
   try {
     const { id } = req.params;
     const orgId = await getUserOrganization(req.userId);
-    
-    if (!orgId) {
-      return res.status(400).json({ error: 'Usuário não pertence a uma organização' });
-    }
+    if (!orgId) return res.status(400).json({ error: 'Usuário não pertence a uma organização' });
 
-    const { title, content, shortcut, category } = req.body;
+    const { title, content, shortcut, category, is_global } = req.body;
 
     if (!title || !content) {
       return res.status(400).json({ error: 'Título e conteúdo são obrigatórios' });
@@ -159,14 +146,14 @@ router.patch('/:id', authenticate, async (req, res) => {
 
     const result = await query(
       `UPDATE quick_replies 
-       SET title = $1, content = $2, shortcut = $3, category = $4, updated_at = NOW()
-       WHERE id = $5 AND organization_id = $6
+       SET title = $1, content = $2, shortcut = $3, category = $4, is_global = $5, updated_at = NOW()
+       WHERE id = $6 AND organization_id = $7 AND created_by = $8
        RETURNING *`,
-      [title, content, shortcut || null, category || null, id, orgId]
+      [title, content, shortcut || null, category || null, is_global || false, id, orgId, req.userId]
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Resposta rápida não encontrada' });
+      return res.status(404).json({ error: 'Resposta rápida não encontrada ou sem permissão' });
     }
 
     res.json(result.rows[0]);
@@ -176,23 +163,20 @@ router.patch('/:id', authenticate, async (req, res) => {
   }
 });
 
-// Delete quick reply
+// Delete quick reply (only owner can delete)
 router.delete('/:id', authenticate, async (req, res) => {
   try {
     const { id } = req.params;
     const orgId = await getUserOrganization(req.userId);
-    
-    if (!orgId) {
-      return res.status(400).json({ error: 'Usuário não pertence a uma organização' });
-    }
+    if (!orgId) return res.status(400).json({ error: 'Usuário não pertence a uma organização' });
 
     const result = await query(
-      `DELETE FROM quick_replies WHERE id = $1 AND organization_id = $2 RETURNING id`,
-      [id, orgId]
+      `DELETE FROM quick_replies WHERE id = $1 AND organization_id = $2 AND created_by = $3 RETURNING id`,
+      [id, orgId, req.userId]
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Resposta rápida não encontrada' });
+      return res.status(404).json({ error: 'Resposta rápida não encontrada ou sem permissão' });
     }
 
     res.json({ success: true });

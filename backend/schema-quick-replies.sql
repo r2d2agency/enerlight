@@ -8,6 +8,7 @@ CREATE TABLE quick_replies (
     content TEXT NOT NULL,
     shortcut VARCHAR(50),
     category VARCHAR(100),
+    is_global BOOLEAN DEFAULT false,
     created_by UUID REFERENCES users(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
