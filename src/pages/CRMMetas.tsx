@@ -34,6 +34,7 @@ import {
   Search, ChevronLeft, ChevronRight, List, MapPin, Wallet, Truck,
 } from "lucide-react";
 import { GoalsMapTab } from "@/components/crm/GoalsMapTab";
+import { QuarterlyViewTab } from "@/components/crm/QuarterlyViewTab";
 import { format, startOfMonth, startOfWeek, endOfWeek, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -254,6 +255,7 @@ export default function CRMMetas() {
             <TabsTrigger value="records" className="gap-2"><List className="h-4 w-4" /> Registros</TabsTrigger>
             <TabsTrigger value="carteira" className="gap-2"><Wallet className="h-4 w-4" /> Carteira</TabsTrigger>
             <TabsTrigger value="map" className="gap-2"><MapPin className="h-4 w-4" /> Mapa</TabsTrigger>
+            <TabsTrigger value="trimestral" className="gap-2"><CalendarDays className="h-4 w-4" /> Trimestral</TabsTrigger>
             <TabsTrigger value="imports" className="gap-2"><Upload className="h-4 w-4" /> Importações</TabsTrigger>
           </TabsList>
 
@@ -1193,6 +1195,16 @@ export default function CRMMetas() {
             <GoalsMapTab
               startDate={startDate}
               endDate={endDate}
+              filterUserId={filterUserId}
+              filterChannel={filterChannel}
+              filterGroupId={filterGroupId}
+            />
+          </TabsContent>
+
+          {/* ========== TRIMESTRAL ========== */}
+          <TabsContent value="trimestral" className="mt-4 space-y-6">
+            <QuarterlyViewTab
+              goals={goals}
               filterUserId={filterUserId}
               filterChannel={filterChannel}
               filterGroupId={filterGroupId}
