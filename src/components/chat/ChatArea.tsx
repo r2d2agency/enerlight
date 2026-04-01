@@ -266,7 +266,7 @@ export function ChatArea({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const { uploadFile, isUploading, progress: uploadProgress, resetProgress } = useUpload();
-  const [pendingFile, setPendingFile] = useState<{ file: File; preview?: string } | null>(null);
+  const [pendingFiles, setPendingFiles] = useState<Array<{ file: File; preview?: string }>>([]);
   const [isDragOver, setIsDragOver] = useState(false);
   const dragCounterRef = useRef(0);
   const { user, modulesEnabled } = useAuth();
@@ -627,18 +627,16 @@ export function ChatArea({
   }, []);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
-    const inferredType = inferMessageTypeFromFile(file);
+    const newFiles = Array.from(files).map(file => {
+      const inferredType = inferMessageTypeFromFile(file);
+      const preview = inferredType === 'image' ? URL.createObjectURL(file) : undefined;
+      return { file, preview };
+    });
 
-    // Create preview for images
-    let preview: string | undefined;
-    if (inferredType === 'image') {
-      preview = URL.createObjectURL(file);
-    }
-
-    setPendingFile({ file, preview });
+    setPendingFiles(prev => [...prev, ...newFiles]);
 
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -675,18 +673,16 @@ export function ChatArea({
     dragCounterRef.current = 0;
     setIsDragOver(false);
 
-    const file = e.dataTransfer.files?.[0];
-    if (!file) return;
+    const files = e.dataTransfer.files;
+    if (!files || files.length === 0) return;
 
-    const inferredType = inferMessageTypeFromFile(file);
+    const newFiles = Array.from(files).map(file => {
+      const inferredType = inferMessageTypeFromFile(file);
+      const preview = inferredType === 'image' ? URL.createObjectURL(file) : undefined;
+      return { file, preview };
+    });
 
-    // Create preview for images
-    let preview: string | undefined;
-    if (inferredType === 'image') {
-      preview = URL.createObjectURL(file);
-    }
-
-    setPendingFile({ file, preview });
+    setPendingFiles(prev => [...prev, ...newFiles]);
   }, [inferMessageTypeFromFile]);
 
   const handlePaste = useCallback((e: React.ClipboardEvent) => {
@@ -701,12 +697,9 @@ export function ChatArea({
         if (!file) continue;
 
         const inferredType = inferMessageTypeFromFile(file);
-        let preview: string | undefined;
-        if (inferredType === 'image') {
-          preview = URL.createObjectURL(file);
-        }
+        const preview = inferredType === 'image' ? URL.createObjectURL(file) : undefined;
 
-        setPendingFile({ file, preview });
+        setPendingFiles(prev => [...prev, { file, preview }]);
         return;
       }
     }
@@ -739,45 +732,48 @@ export function ChatArea({
   };
 
   const handleConfirmFileUpload = async () => {
-    if (!pendingFile) return;
+    if (pendingFiles.length === 0) return;
 
-    const { file, preview } = pendingFile;
+    const filesToSend = [...pendingFiles];
+    setPendingFiles([]);
     
-    try {
-      console.log('[Upload] Starting upload for:', file.name, 'type:', file.type, 'size:', file.size);
-      const url = await uploadFile(file);
-      console.log('[Upload] Result URL:', url);
-      
-      if (url) {
-        const type = inferMessageTypeFromFile(file);
-
-        // For documents, send filename in content so W-API can set the correct filename
-        // (it uses "content" as filename) and UI can display it.
-        const content = type === 'document' ? file.name : '';
-        console.log('[Upload] Sending message with type:', type, 'content:', content);
-        await onSendMessage(content, type, url, undefined, file.type);
-        toast.success("Arquivo enviado!");
-      } else {
-        console.error('[Upload] Upload returned null/empty URL');
-        toast.error("Falha no upload - tente novamente");
+    let successCount = 0;
+    for (const { file, preview } of filesToSend) {
+      try {
+        const url = await uploadFile(file);
+        if (url) {
+          const type = inferMessageTypeFromFile(file);
+          const content = type === 'document' ? file.name : '';
+          await onSendMessage(content, type, url, undefined, file.type);
+          successCount++;
+        } else {
+          toast.error(`Falha ao enviar: ${file.name}`);
+        }
+      } catch (error) {
+        console.error('[Upload] Error:', error);
+        toast.error(`Erro ao enviar: ${file.name}`);
+      } finally {
+        if (preview) URL.revokeObjectURL(preview);
       }
-    } catch (error) {
-      console.error('[Upload] Error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
-      toast.error(`Erro ao enviar: ${errorMessage}`);
-    } finally {
-      if (preview) URL.revokeObjectURL(preview);
-      setPendingFile(null);
-      resetProgress();
     }
+    if (successCount > 0) {
+      toast.success(successCount === 1 ? "Arquivo enviado!" : `${successCount} arquivos enviados!`);
+    }
+    resetProgress();
   };
 
   const handleCancelFileUpload = () => {
-    if (pendingFile?.preview) {
-      URL.revokeObjectURL(pendingFile.preview);
-    }
-    setPendingFile(null);
+    pendingFiles.forEach(f => { if (f.preview) URL.revokeObjectURL(f.preview); });
+    setPendingFiles([]);
     resetProgress();
+  };
+
+  const handleRemovePendingFile = (index: number) => {
+    setPendingFiles(prev => {
+      const item = prev[index];
+      if (item?.preview) URL.revokeObjectURL(item.preview);
+      return prev.filter((_, i) => i !== index);
+    });
   };
 
   const getFileIcon = (mimeType: string) => {
@@ -2110,73 +2106,92 @@ export function ChatArea({
           ref={fileInputRef}
           type="file"
           className="hidden"
+          multiple
           accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar"
           onChange={handleFileSelect}
         />
 
-        {/* File Preview UI */}
-        {pendingFile && (
+        {/* Multi-file Preview UI */}
+        {pendingFiles.length > 0 && (
           <div className="mb-3 p-3 rounded-lg border bg-muted/50 animate-in fade-in slide-in-from-bottom-2">
-            <div className="flex items-start gap-3">
-              {/* File preview/icon */}
-              <div className="flex-shrink-0">
-                {pendingFile.preview ? (
-                  <div className="w-16 h-16 rounded-lg overflow-hidden bg-muted">
-                    <img 
-                      src={pendingFile.preview} 
-                      alt="Preview" 
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                ) : (
-                  <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center">
-                    {getFileIcon(pendingFile.file.type)}
-                  </div>
-                )}
-              </div>
-
-              {/* File info */}
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{pendingFile.file.name}</p>
-                <p className="text-xs text-muted-foreground">
-                  {formatFileSize(pendingFile.file.size)}
-                </p>
-                
-                {/* Progress bar during upload */}
-                {isUploading && (
-                  <div className="mt-2 space-y-1">
-                    <Progress value={uploadProgress} className="h-2" />
-                    <p className="text-xs text-muted-foreground text-right">{uploadProgress}%</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Action buttons */}
-              <div className="flex items-center gap-1 flex-shrink-0">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs text-muted-foreground font-medium">
+                {pendingFiles.length} {pendingFiles.length === 1 ? "arquivo selecionado" : "arquivos selecionados"}
+              </p>
+              <div className="flex items-center gap-1">
                 <Button
                   variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                  onClick={handleCancelFileUpload}
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => fileInputRef.current?.click()}
                   disabled={isUploading}
-                  title="Cancelar"
                 >
-                  <X className="h-4 w-4" />
+                  <Plus className="h-3 w-3 mr-1" />
+                  Mais
                 </Button>
                 <Button
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={handleConfirmFileUpload}
-                  disabled={isUploading || sending}
-                  title="Enviar"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs text-destructive hover:text-destructive"
+                  onClick={handleCancelFileUpload}
+                  disabled={isUploading}
                 >
-                  {isUploading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Send className="h-4 w-4" />
-                  )}
+                  Limpar
                 </Button>
               </div>
+            </div>
+
+            {/* Thumbnails grid */}
+            <div className="flex flex-wrap gap-2 mb-2">
+              {pendingFiles.map((pf, index) => (
+                <div key={index} className="relative group">
+                  {pf.preview ? (
+                    <div className="w-16 h-16 rounded-lg overflow-hidden bg-muted border">
+                      <img src={pf.preview} alt={pf.file.name} className="w-full h-full object-cover" />
+                    </div>
+                  ) : (
+                    <div className="w-16 h-16 rounded-lg bg-muted border flex flex-col items-center justify-center p-1">
+                      {getFileIcon(pf.file.type)}
+                      <span className="text-[8px] text-muted-foreground truncate w-full text-center mt-0.5">
+                        {pf.file.name.split('.').pop()?.toUpperCase()}
+                      </span>
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={() => handleRemovePendingFile(index)}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                  <p className="text-[9px] text-muted-foreground truncate w-16 mt-0.5">{pf.file.name}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Progress bar during upload */}
+            {isUploading && (
+              <div className="space-y-1 mb-2">
+                <Progress value={uploadProgress} className="h-2" />
+                <p className="text-xs text-muted-foreground text-right">{uploadProgress}%</p>
+              </div>
+            )}
+
+            {/* Send button */}
+            <div className="flex justify-end">
+              <Button
+                size="sm"
+                onClick={handleConfirmFileUpload}
+                disabled={isUploading || sending}
+                className="h-8"
+              >
+                {isUploading ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+                ) : (
+                  <Send className="h-4 w-4 mr-1.5" />
+                )}
+                Enviar {pendingFiles.length > 1 ? `(${pendingFiles.length})` : ""}
+              </Button>
             </div>
           </div>
         )}
