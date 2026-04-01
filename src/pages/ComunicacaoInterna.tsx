@@ -145,7 +145,9 @@ export default function ComunicacaoInterna() {
       setShowNewTopic(false);
       setNewTopicTitle("");
       setSelectedTopic(t);
-      toast.success("Tópico criado!");
+      // Open members dialog right after creation
+      setShowMembers(true);
+      toast.success("Tópico criado! Adicione os membros.");
     } catch {
       toast.error("Erro ao criar tópico");
     }
