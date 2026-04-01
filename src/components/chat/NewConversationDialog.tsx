@@ -288,7 +288,7 @@ export function NewConversationDialog({
               </Select>
             </div>
 
-            <ScrollArea className="h-[250px] border rounded-md">
+            <ScrollArea className="flex-1 min-h-0 max-h-[50vh] border rounded-md">
               {loadingAgenda ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
