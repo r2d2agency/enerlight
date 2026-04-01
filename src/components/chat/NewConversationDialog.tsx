@@ -422,6 +422,7 @@ export function NewConversationDialog({
             </DialogFooter>
           </TabsContent>
         </Tabs>
+        </div>
       </DialogContent>
     </Dialog>
   );
