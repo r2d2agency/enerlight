@@ -1201,6 +1201,16 @@ export default function CRMMetas() {
             />
           </TabsContent>
 
+          {/* ========== TRIMESTRAL ========== */}
+          <TabsContent value="trimestral" className="mt-4 space-y-6">
+            <QuarterlyViewTab
+              goals={goals}
+              filterUserId={filterUserId}
+              filterChannel={filterChannel}
+              filterGroupId={filterGroupId}
+            />
+          </TabsContent>
+
           {/* Imports tab */}
           <TabsContent value="imports" className="space-y-4">
             <ImportBatchList onDeleted={invalidateData} />
