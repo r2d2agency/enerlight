@@ -1,10 +1,11 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api } from "@/lib/api";
 import { Goal } from "@/hooks/use-goals";
 import {
@@ -14,7 +15,7 @@ import {
 import {
   Target, FileText, ShoppingCart, Receipt, TrendingUp, Loader2, CalendarRange,
 } from "lucide-react";
-import { format, startOfQuarter, endOfQuarter, startOfMonth, endOfMonth, addMonths } from "date-fns";
+import { format, startOfMonth, endOfMonth, addMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 function fmt(v: number) {
@@ -29,8 +30,8 @@ interface Props {
 }
 
 interface MonthData {
-  month: string;         // YYYY-MM
-  monthLabel: string;    // "Jan/25"
+  month: string;
+  monthLabel: string;
   quotes_value: number;
   orders_value: number;
   billing_value: number;
@@ -41,9 +42,31 @@ interface MonthData {
 
 export function QuarterlyViewTab({ goals, filterUserId, filterChannel, filterGroupId }: Props) {
   const now = new Date();
-  const qStart = startOfQuarter(now);
-  const qEnd = endOfQuarter(now);
-  const quarterLabel = `Q${Math.ceil((now.getMonth() + 1) / 3)}/${now.getFullYear()}`;
+  const currentYear = now.getFullYear();
+  const currentQuarter = Math.ceil((now.getMonth() + 1) / 3);
+
+  const [selectedQuarter, setSelectedQuarter] = useState(`${currentYear}-Q${currentQuarter}`);
+
+  // Parse selected quarter
+  const [selectedYear, selectedQ] = useMemo(() => {
+    const parts = selectedQuarter.split("-Q");
+    return [parseInt(parts[0]), parseInt(parts[1])];
+  }, [selectedQuarter]);
+
+  const qStart = new Date(selectedYear, (selectedQ - 1) * 3, 1);
+  const qEnd = new Date(selectedYear, selectedQ * 3, 0, 23, 59, 59, 999);
+  const quarterLabel = `Q${selectedQ}/${selectedYear}`;
+
+  // Quarter options: current year + previous year
+  const quarterOptions = useMemo(() => {
+    const options: { value: string; label: string }[] = [];
+    for (const y of [currentYear - 1, currentYear]) {
+      for (let q = 1; q <= 4; q++) {
+        options.push({ value: `${y}-Q${q}`, label: `Q${q}/${y}` });
+      }
+    }
+    return options;
+  }, [currentYear]);
 
   // Build month ranges for the quarter
   const months = useMemo(() => {
@@ -61,7 +84,7 @@ export function QuarterlyViewTab({ goals, filterUserId, filterChannel, filterGro
       d = addMonths(d, 1);
     }
     return result;
-  }, [qStart]);
+  }, [selectedQuarter]);
 
   // Fetch data for each month
   const { data: monthlyData, isLoading } = useQuery({
@@ -178,14 +201,26 @@ export function QuarterlyViewTab({ goals, filterUserId, filterChannel, filterGro
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <CalendarRange className="h-5 w-5 text-primary" />
-        <div>
-          <h2 className="text-lg font-semibold">Visão Trimestral — {quarterLabel}</h2>
-          <p className="text-sm text-muted-foreground">
-            {format(qStart, "dd/MM/yyyy")} até {format(qEnd, "dd/MM/yyyy")} — Metas mensais acumuladas para o trimestre
-          </p>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <CalendarRange className="h-5 w-5 text-primary" />
+          <div>
+            <h2 className="text-lg font-semibold">Visão Trimestral — {quarterLabel}</h2>
+            <p className="text-sm text-muted-foreground">
+              {format(qStart, "dd/MM/yyyy")} até {format(qEnd, "dd/MM/yyyy")} — Metas mensais acumuladas para o trimestre
+            </p>
+          </div>
         </div>
+        <Select value={selectedQuarter} onValueChange={setSelectedQuarter}>
+          <SelectTrigger className="w-[140px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {quarterOptions.map(opt => (
+              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* KPI Cards — Quarterly Summary */}
