@@ -330,11 +330,12 @@ export default function Logistica() {
 
       {/* Import Dialog */}
       <Dialog open={showImport} onOpenChange={setShowImport}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>Importar Planilha XLSX</DialogTitle></DialogHeader>
-          <p className="text-sm text-muted-foreground">Selecione um arquivo .xlsx com as colunas: EMPRESA, CLIENTE, NOTA FISCAL, PEDIDO, etc.</p>
+          <p className="text-sm text-muted-foreground">Selecione um arquivo .xlsx. Pedidos com mesmo número serão atualizados automaticamente.</p>
           <Input type="file" accept=".xlsx,.xls" onChange={handleImportFile} disabled={importMut.isPending} />
           {importMut.isPending && <div className="flex items-center gap-2 text-sm"><Loader2 className="h-4 w-4 animate-spin" /> Importando...</div>}
+          <ImportBatchHistory />
         </DialogContent>
       </Dialog>
 
