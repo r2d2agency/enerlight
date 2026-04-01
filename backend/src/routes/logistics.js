@@ -188,7 +188,7 @@ router.delete('/shipments/:id', requireAuth, async (req, res) => {
   }
 });
 
-// ===================== IMPORT XLSX =====================
+// ===================== IMPORT XLSX (with batch tracking + upsert) =====================
 router.post('/import', requireAuth, async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
@@ -197,29 +197,138 @@ router.post('/import', requireAuth, async (req, res) => {
     const { items } = req.body;
     if (!items || !items.length) return res.status(400).json({ error: 'Nenhum item para importar' });
 
+    // Create batch record
+    const batchResult = await query(
+      `INSERT INTO logistics_import_batches (organization_id, row_count, created_by)
+       VALUES ($1, $2, $3) RETURNING id`,
+      [org.organization_id, items.length, req.userId]
+    );
+    const batchId = batchResult.rows[0].id;
+
     let imported = 0;
+    let updated = 0;
+    let totalPaid = 0;
+    let totalInvoiced = 0;
+
     for (const item of items) {
       const real_cost = (parseFloat(item.freight_paid) || 0) + (parseFloat(item.tax_value) || 0);
-      await query(
-        `INSERT INTO logistics_shipments (
-          organization_id, company_name, client_name, invoice_number, order_number,
-          requested_date, departure_date, estimated_delivery, actual_delivery,
-          carrier, volumes, freight_paid, freight_invoiced, tax_value, real_cost,
-          status, channel, created_by
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
-        ON CONFLICT DO NOTHING`,
-        [
-          org.organization_id, item.company_name, item.client_name, item.invoice_number, item.order_number,
-          item.requested_date || null, item.departure_date || null, item.estimated_delivery || null, item.actual_delivery || null,
-          item.carrier, item.volumes || 0, item.freight_paid || 0, item.freight_invoiced || 0, item.tax_value || 0, real_cost,
-          item.status || 'Pendente', item.channel, req.userId
-        ]
-      );
-      imported++;
+      const orderNum = (item.order_number || '').toString().trim();
+      totalPaid += parseFloat(item.freight_paid) || 0;
+      totalInvoiced += parseFloat(item.freight_invoiced) || 0;
+
+      if (orderNum) {
+        // UPSERT: if same org + order_number exists, update it
+        const result = await query(
+          `INSERT INTO logistics_shipments (
+            organization_id, company_name, client_name, invoice_number, order_number,
+            requested_date, departure_date, estimated_delivery, actual_delivery,
+            carrier, volumes, freight_paid, freight_invoiced, tax_value, real_cost,
+            status, channel, created_by, import_batch_id
+          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
+          ON CONFLICT (organization_id, order_number) WHERE order_number IS NOT NULL AND order_number != ''
+          DO UPDATE SET
+            company_name = COALESCE(EXCLUDED.company_name, logistics_shipments.company_name),
+            client_name = COALESCE(EXCLUDED.client_name, logistics_shipments.client_name),
+            invoice_number = COALESCE(EXCLUDED.invoice_number, logistics_shipments.invoice_number),
+            requested_date = COALESCE(EXCLUDED.requested_date, logistics_shipments.requested_date),
+            departure_date = COALESCE(EXCLUDED.departure_date, logistics_shipments.departure_date),
+            estimated_delivery = COALESCE(EXCLUDED.estimated_delivery, logistics_shipments.estimated_delivery),
+            actual_delivery = COALESCE(EXCLUDED.actual_delivery, logistics_shipments.actual_delivery),
+            carrier = COALESCE(EXCLUDED.carrier, logistics_shipments.carrier),
+            volumes = EXCLUDED.volumes,
+            freight_paid = EXCLUDED.freight_paid,
+            freight_invoiced = EXCLUDED.freight_invoiced,
+            tax_value = EXCLUDED.tax_value,
+            real_cost = EXCLUDED.real_cost,
+            status = COALESCE(EXCLUDED.status, logistics_shipments.status),
+            channel = COALESCE(EXCLUDED.channel, logistics_shipments.channel),
+            import_batch_id = EXCLUDED.import_batch_id,
+            updated_at = NOW()
+          RETURNING (xmax = 0) as is_insert`,
+          [
+            org.organization_id, item.company_name, item.client_name, item.invoice_number, orderNum,
+            item.requested_date || null, item.departure_date || null, item.estimated_delivery || null, item.actual_delivery || null,
+            item.carrier, item.volumes || 0, item.freight_paid || 0, item.freight_invoiced || 0, item.tax_value || 0, real_cost,
+            item.status || 'Pendente', item.channel, req.userId, batchId
+          ]
+        );
+        if (result.rows[0]?.is_insert) imported++;
+        else updated++;
+      } else {
+        // No order_number: just insert
+        await query(
+          `INSERT INTO logistics_shipments (
+            organization_id, company_name, client_name, invoice_number, order_number,
+            requested_date, departure_date, estimated_delivery, actual_delivery,
+            carrier, volumes, freight_paid, freight_invoiced, tax_value, real_cost,
+            status, channel, created_by, import_batch_id
+          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
+          [
+            org.organization_id, item.company_name, item.client_name, item.invoice_number, null,
+            item.requested_date || null, item.departure_date || null, item.estimated_delivery || null, item.actual_delivery || null,
+            item.carrier, item.volumes || 0, item.freight_paid || 0, item.freight_invoiced || 0, item.tax_value || 0, real_cost,
+            item.status || 'Pendente', item.channel, req.userId, batchId
+          ]
+        );
+        imported++;
+      }
     }
-    res.json({ imported });
+
+    // Update batch totals
+    await query(
+      `UPDATE logistics_import_batches SET row_count = $1, total_freight_paid = $2, total_freight_invoiced = $3 WHERE id = $4`,
+      [imported + updated, totalPaid, totalInvoiced, batchId]
+    );
+
+    res.json({ imported, updated, batchId });
   } catch (e) {
     console.error('Import shipments error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ===================== IMPORT BATCHES (history) =====================
+router.get('/import-batches', requireAuth, async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+
+    const result = await query(
+      `SELECT b.*, u.name as created_by_name,
+        (SELECT COUNT(*) FROM logistics_shipments ls WHERE ls.import_batch_id = b.id) as current_count
+       FROM logistics_import_batches b
+       LEFT JOIN users u ON u.id = b.created_by
+       WHERE b.organization_id = $1
+       ORDER BY b.created_at DESC`,
+      [org.organization_id]
+    );
+    res.json(result.rows);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ===================== DELETE IMPORT BATCH =====================
+router.delete('/import-batches/:batchId', requireAuth, async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+
+    // Delete all shipments linked to this batch
+    const deleted = await query(
+      `DELETE FROM logistics_shipments WHERE import_batch_id = $1 AND organization_id = $2`,
+      [req.params.batchId, org.organization_id]
+    );
+
+    // Delete the batch record
+    await query(
+      `DELETE FROM logistics_import_batches WHERE id = $1 AND organization_id = $2`,
+      [req.params.batchId, org.organization_id]
+    );
+
+    res.json({ success: true, deleted: deleted.rowCount });
+  } catch (e) {
+    console.error('Delete batch error:', e);
     res.status(500).json({ error: e.message });
   }
 });
