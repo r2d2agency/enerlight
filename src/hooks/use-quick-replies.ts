@@ -7,6 +7,7 @@ export interface QuickReply {
   content: string;
   shortcut?: string;
   category?: string;
+  is_global?: boolean;
   created_by?: string;
   created_by_name?: string;
   created_at: string;
@@ -18,6 +19,7 @@ export interface CreateQuickReplyData {
   content: string;
   shortcut?: string;
   category?: string;
+  is_global?: boolean;
 }
 
 export function useQuickReplies() {

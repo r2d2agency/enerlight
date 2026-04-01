@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -28,6 +29,8 @@ import {
   FolderOpen,
   X,
   Loader2,
+  Globe,
+  User,
 } from "lucide-react";
 import { useQuickReplies, QuickReply, CreateQuickReplyData } from "@/hooks/use-quick-replies";
 import { toast } from "sonner";
@@ -52,6 +55,7 @@ export function QuickRepliesPanel({ onSelect, onClose }: QuickRepliesPanelProps)
     content: "",
     shortcut: "",
     category: "",
+    is_global: false,
   });
 
   const {
@@ -90,7 +94,7 @@ export function QuickRepliesPanel({ onSelect, onClose }: QuickRepliesPanelProps)
 
   const handleCreate = () => {
     setEditingReply(null);
-    setFormData({ title: "", content: "", shortcut: "", category: "" });
+    setFormData({ title: "", content: "", shortcut: "", category: "", is_global: false });
     setShowDialog(true);
   };
 
@@ -101,6 +105,7 @@ export function QuickRepliesPanel({ onSelect, onClose }: QuickRepliesPanelProps)
       content: reply.content,
       shortcut: reply.shortcut || "",
       category: reply.category || "",
+      is_global: reply.is_global || false,
     });
     setShowDialog(true);
   };
@@ -143,6 +148,10 @@ export function QuickRepliesPanel({ onSelect, onClose }: QuickRepliesPanelProps)
     onSelect(reply.content);
     onClose();
   };
+
+  // Separate own vs global
+  const ownReplies = quickReplies.filter(r => !r.is_global);
+  const globalReplies = quickReplies.filter(r => r.is_global);
 
   return (
     <div className={cn(
@@ -219,62 +228,31 @@ export function QuickRepliesPanel({ onSelect, onClose }: QuickRepliesPanelProps)
           </div>
         ) : (
           <div className="p-2 space-y-1">
-            {quickReplies.map((reply) => (
-              <div
-                key={reply.id}
-                className={cn(
-                  "group flex items-start gap-2 p-3 rounded-lg cursor-pointer",
-                  "hover:bg-muted/50 transition-colors"
-                )}
-                onClick={() => handleSelectReply(reply)}
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-sm truncate">
-                      {reply.title}
-                    </span>
-                    {reply.shortcut && (
-                      <Badge variant="secondary" className="text-[10px] px-1">
-                        /{reply.shortcut}
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
-                    {reply.content}
-                  </p>
-                  {reply.category && (
-                    <Badge variant="outline" className="text-[10px] mt-1">
-                      {reply.category}
-                    </Badge>
-                  )}
+            {/* Own replies */}
+            {ownReplies.length > 0 && (
+              <>
+                <div className="flex items-center gap-1.5 px-2 pt-2 pb-1">
+                  <User className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Minhas</span>
                 </div>
+                {ownReplies.map((reply) => (
+                  <ReplyItem key={reply.id} reply={reply} onSelect={handleSelectReply} onEdit={handleEdit} onDelete={handleDelete} isOwner />
+                ))}
+              </>
+            )}
 
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 opacity-0 group-hover:opacity-100"
-                    >
-                      <MoreVertical className="h-3 w-3" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEdit(reply); }}>
-                      <Edit className="h-4 w-4 mr-2" />
-                      Editar
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className="text-destructive"
-                      onClick={(e) => { e.stopPropagation(); handleDelete(reply.id); }}
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Excluir
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            ))}
+            {/* Global replies */}
+            {globalReplies.length > 0 && (
+              <>
+                <div className="flex items-center gap-1.5 px-2 pt-3 pb-1">
+                  <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Globais</span>
+                </div>
+                {globalReplies.map((reply) => (
+                  <ReplyItem key={reply.id} reply={reply} onSelect={handleSelectReply} onEdit={handleEdit} onDelete={handleDelete} isOwner={false} />
+                ))}
+              </>
+            )}
           </div>
         )}
       </ScrollArea>
@@ -343,6 +321,24 @@ export function QuickRepliesPanel({ onSelect, onClose }: QuickRepliesPanelProps)
                 </datalist>
               </div>
             </div>
+
+            {/* Global checkbox */}
+            <div className="flex items-center space-x-2 rounded-md border p-3 bg-muted/30">
+              <Checkbox
+                id="is_global"
+                checked={formData.is_global || false}
+                onCheckedChange={(checked) => setFormData({ ...formData, is_global: !!checked })}
+              />
+              <div className="flex-1">
+                <label htmlFor="is_global" className="text-sm font-medium cursor-pointer flex items-center gap-1.5">
+                  <Globe className="h-3.5 w-3.5" />
+                  Resposta Global
+                </label>
+                <p className="text-xs text-muted-foreground">
+                  Visível para todos os membros da organização
+                </p>
+              </div>
+            </div>
           </div>
 
           <DialogFooter>
@@ -355,6 +351,81 @@ export function QuickRepliesPanel({ onSelect, onClose }: QuickRepliesPanelProps)
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+// ===================== REPLY ITEM =====================
+function ReplyItem({ reply, onSelect, onEdit, onDelete, isOwner }: {
+  reply: QuickReply;
+  onSelect: (reply: QuickReply) => void;
+  onEdit: (reply: QuickReply) => void;
+  onDelete: (id: string) => void;
+  isOwner: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "group flex items-start gap-2 p-3 rounded-lg cursor-pointer",
+        "hover:bg-muted/50 transition-colors"
+      )}
+      onClick={() => onSelect(reply)}
+    >
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="font-medium text-sm truncate">
+            {reply.title}
+          </span>
+          {reply.shortcut && (
+            <Badge variant="secondary" className="text-[10px] px-1">
+              /{reply.shortcut}
+            </Badge>
+          )}
+          {reply.is_global && (
+            <Globe className="h-3 w-3 text-muted-foreground shrink-0" />
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
+          {reply.content}
+        </p>
+        <div className="flex items-center gap-1 mt-0.5">
+          {reply.category && (
+            <Badge variant="outline" className="text-[10px]">
+              {reply.category}
+            </Badge>
+          )}
+          {reply.is_global && reply.created_by_name && (
+            <span className="text-[10px] text-muted-foreground">por {reply.created_by_name}</span>
+          )}
+        </div>
+      </div>
+
+      {isOwner && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 opacity-0 group-hover:opacity-100"
+            >
+              <MoreVertical className="h-3 w-3" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(reply); }}>
+              <Edit className="h-4 w-4 mr-2" />
+              Editar
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="text-destructive"
+              onClick={(e) => { e.stopPropagation(); onDelete(reply.id); }}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Excluir
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
     </div>
   );
 }
