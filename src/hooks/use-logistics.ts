@@ -166,13 +166,49 @@ export function useImportShipments() {
   const { toast } = useToast();
   return useMutation({
     mutationFn: (items: Partial<LogisticsShipment>[]) =>
-      api<{ imported: number }>("/api/logistics/import", { method: "POST", body: { items } }),
+      api<{ imported: number; updated: number; batchId: string }>("/api/logistics/import", { method: "POST", body: { items } }),
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["logistics-shipments"] });
       qc.invalidateQueries({ queryKey: ["logistics-dashboard"] });
-      toast({ title: `${data.imported} remessas importadas` });
+      qc.invalidateQueries({ queryKey: ["logistics-import-batches"] });
+      toast({ title: `${data.imported} novas, ${data.updated} atualizadas` });
     },
     onError: (e: any) => toast({ title: "Erro na importação", description: e.message, variant: "destructive" }),
+  });
+}
+
+export interface LogisticsImportBatch {
+  id: string;
+  organization_id: string;
+  row_count: number;
+  total_freight_paid: number;
+  total_freight_invoiced: number;
+  created_by: string;
+  created_by_name: string;
+  current_count: number;
+  created_at: string;
+}
+
+export function useLogisticsImportBatches() {
+  return useQuery({
+    queryKey: ["logistics-import-batches"],
+    queryFn: () => api<LogisticsImportBatch[]>(`/api/logistics/import-batches`),
+  });
+}
+
+export function useDeleteImportBatch() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: (batchId: string) =>
+      api<{ success: boolean; deleted: number }>(`/api/logistics/import-batches/${batchId}`, { method: "DELETE" }),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["logistics-shipments"] });
+      qc.invalidateQueries({ queryKey: ["logistics-dashboard"] });
+      qc.invalidateQueries({ queryKey: ["logistics-import-batches"] });
+      toast({ title: `${data.deleted} remessas removidas` });
+    },
+    onError: (e: any) => toast({ title: "Erro ao excluir lote", description: e.message, variant: "destructive" }),
   });
 }
 
