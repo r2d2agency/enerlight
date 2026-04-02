@@ -55,7 +55,17 @@ router.get('/lookup/:cnpj', authenticate, async (req, res) => {
         capital_social: data.empresa?.capital_social || '',
         natureza: data.empresa?.natureza_descricao || '',
         situacao: data.estabelecimento?.situacao_cadastral || '',
-        cnae_principal: data.estabelecimento?.cnae_principal || '',
+        cnae_principal: (() => {
+          const cnae = data.estabelecimento?.cnae_principal || data.estabelecimento?.atividade_principal;
+          if (!cnae) return '';
+          if (typeof cnae === 'string') return cnae;
+          if (typeof cnae === 'object') {
+            const code = cnae.codigo || cnae.code || cnae.subclasse || '';
+            const desc = cnae.descricao || cnae.description || '';
+            return code && desc ? `${code} - ${desc}` : code || desc || '';
+          }
+          return '';
+        })(),
         data_abertura: data.estabelecimento?.data_inicio_atividade || '',
         socios: (data.socios || []).map(s => ({
           nome: s.nome_socio || s.nome || '',
