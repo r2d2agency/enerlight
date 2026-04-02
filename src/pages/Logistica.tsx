@@ -228,6 +228,7 @@ export default function Logistica() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b bg-muted/50">
+                        <th className="text-left p-2 font-medium">Data</th>
                         <th className="text-left p-2 font-medium">Empresa</th>
                         <th className="text-left p-2 font-medium">NF</th>
                         <th className="text-left p-2 font-medium">Pedido</th>
