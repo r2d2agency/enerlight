@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import { GoalsMapTab } from "@/components/crm/GoalsMapTab";
 import { QuarterlyViewTab } from "@/components/crm/QuarterlyViewTab";
+import { SalesFunnelCard } from "@/components/crm/SalesFunnelCard";
 import { format, startOfMonth, startOfWeek, endOfWeek, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -362,6 +363,17 @@ export default function CRMMetas() {
                     </CardContent>
                   </Card>
                 </div>
+
+                {/* Funil de Vendas */}
+                <SalesFunnelCard
+                  quotesValue={gd.orcamento.value}
+                  quotesCount={gd.orcamento.count}
+                  ordersValue={gd.pedido.value}
+                  ordersCount={gd.pedido.count}
+                  billingValue={gd.faturamento.value}
+                  billingCount={gd.faturamento.count}
+                  title="Funil de Vendas — Mensal"
+                />
 
                 {/* Resumo Planejado vs Realizado vs MTD */}
 
