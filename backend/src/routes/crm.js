@@ -833,16 +833,16 @@ router.put('/companies/:id', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
-    const { name, cnpj, email, phone, website, address, city, state, zip_code, notes, segment_id, custom_fields, sales_position_id } = req.body;
+    const { name, cnpj, email, phone, website, address, city, state, zip_code, notes, segment_id, custom_fields, sales_position_id, cnae_principal } = req.body;
     
     const result = await query(
       `UPDATE crm_companies SET 
         name = $1, cnpj = $2, email = $3, phone = $4, website = $5, 
         address = $6, city = $7, state = $8, zip_code = $9, notes = $10, 
-        segment_id = $11, custom_fields = $12, sales_position_id = $13, updated_at = NOW()
-       WHERE id = $14 AND organization_id = $15 RETURNING *`,
+        segment_id = $11, custom_fields = $12, sales_position_id = $13, cnae_principal = $14, updated_at = NOW()
+       WHERE id = $15 AND organization_id = $16 RETURNING *`,
       [name, cnpj, email, phone, website, address, city, state, zip_code, notes, segment_id || null,
-       custom_fields ? JSON.stringify(custom_fields) : '{}', sales_position_id || null, req.params.id, org.organization_id]
+       custom_fields ? JSON.stringify(custom_fields) : '{}', sales_position_id || null, cnae_principal || null, req.params.id, org.organization_id]
     );
     res.json(result.rows[0]);
   } catch (error) {
