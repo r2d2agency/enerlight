@@ -364,6 +364,17 @@ export default function CRMMetas() {
                   </Card>
                 </div>
 
+                {/* Funil de Vendas */}
+                <SalesFunnelCard
+                  quotesValue={gd.orcamento.value}
+                  quotesCount={gd.orcamento.count}
+                  ordersValue={gd.pedido.value}
+                  ordersCount={gd.pedido.count}
+                  billingValue={gd.faturamento.value}
+                  billingCount={gd.faturamento.count}
+                  title="Funil de Vendas — Mensal"
+                />
+
                 {/* Resumo Planejado vs Realizado vs MTD */}
 
 
