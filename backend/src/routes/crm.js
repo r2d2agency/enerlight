@@ -13,6 +13,23 @@ function isMissingSchemaError(error) {
   return ['42P01', '42703'].includes(error?.code);
 }
 
+async function ensureCnaeGroupsSchema() {
+  await query(`ALTER TABLE crm_companies ADD COLUMN IF NOT EXISTS cnae_principal VARCHAR(255)`);
+  await query(`
+    CREATE TABLE IF NOT EXISTS crm_cnae_groups (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      name VARCHAR(255) NOT NULL,
+      cnae_codes JSONB NOT NULL DEFAULT '[]'::jsonb,
+      color VARCHAR(20) DEFAULT '#3b82f6',
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    )
+  `);
+  await query(`CREATE INDEX IF NOT EXISTS idx_crm_cnae_groups_org ON crm_cnae_groups(organization_id)`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_crm_companies_cnae ON crm_companies(cnae_principal)`);
+}
+
 function closedAtSql(alias = 'd') {
   return `COALESCE(${alias}.won_at, ${alias}.lost_at)`;
 }
@@ -717,6 +734,7 @@ router.patch('/companies/:id', async (req, res) => {
 // List companies
 router.get('/companies', async (req, res) => {
   try {
+    await ensureCnaeGroupsSchema();
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
@@ -747,9 +765,14 @@ router.get('/companies', async (req, res) => {
         `SELECT cnae_codes FROM crm_cnae_groups WHERE id = $1 AND organization_id = $2`,
         [cnae_group_id, org.organization_id]
       );
-      if (cnaeResult.rows[0]?.cnae_codes?.length) {
-        params.push(cnaeResult.rows[0].cnae_codes);
-        whereClause += ` AND c.cnae_principal = ANY($${params.length})`;
+      const cnaeCodes = Array.isArray(cnaeResult.rows[0]?.cnae_codes)
+        ? cnaeResult.rows[0].cnae_codes.map((code) => String(code).trim()).filter(Boolean)
+        : [];
+      if (cnaeCodes.length > 0) {
+        params.push(cnaeCodes);
+        whereClause += ` AND c.cnae_principal = ANY($${params.length}::text[])`;
+      } else {
+        whereClause += ` AND FALSE`;
       }
     }
 
@@ -920,13 +943,20 @@ router.post('/companies/import', async (req, res) => {
 // List CNAE groups
 router.get('/cnae-groups', async (req, res) => {
   try {
+    await ensureCnaeGroupsSchema();
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
     const result = await query(
       `SELECT cg.*, 
         (SELECT COUNT(*)::int FROM crm_companies cc 
-         WHERE cc.organization_id = $1 AND cc.cnae_principal = ANY(cg.cnae_codes)
+         WHERE cc.organization_id = $1
+           AND EXISTS (
+             SELECT 1
+             FROM jsonb_array_elements_text(COALESCE(cg.cnae_codes, '[]'::jsonb)) AS c(code)
+             WHERE NULLIF(TRIM(c.code), '') IS NOT NULL
+               AND cc.cnae_principal = c.code
+           )
         ) as companies_count
        FROM crm_cnae_groups cg
        WHERE cg.organization_id = $1
@@ -944,6 +974,7 @@ router.get('/cnae-groups', async (req, res) => {
 // Get distinct CNAEs from companies
 router.get('/cnae-distinct', async (req, res) => {
   try {
+    await ensureCnaeGroupsSchema();
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
@@ -966,6 +997,7 @@ router.get('/cnae-distinct', async (req, res) => {
 // Create CNAE group
 router.post('/cnae-groups', async (req, res) => {
   try {
+    await ensureCnaeGroupsSchema();
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
@@ -985,6 +1017,7 @@ router.post('/cnae-groups', async (req, res) => {
 // Update CNAE group
 router.put('/cnae-groups/:id', async (req, res) => {
   try {
+    await ensureCnaeGroupsSchema();
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
@@ -1004,6 +1037,7 @@ router.put('/cnae-groups/:id', async (req, res) => {
 // Delete CNAE group
 router.delete('/cnae-groups/:id', async (req, res) => {
   try {
+    await ensureCnaeGroupsSchema();
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
@@ -6563,7 +6597,7 @@ router.get('/goals/data-records', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
-    const { start_date, end_date, user_id, channel, group_id, data_type, search, page = '1', limit = '50' } = req.query;
+    const { start_date, end_date, user_id, channel, group_id, cnae_group_id, data_type, search, page = '1', limit = '50' } = req.query;
     const sd = start_date || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
     const ed = end_date || new Date().toISOString().split('T')[0];
 
@@ -6573,6 +6607,28 @@ router.get('/goals/data-records', async (req, res) => {
     if (user_id) { params.push(user_id); extraFilters += ` AND user_id = $${params.length}`; }
     if (channel) { params.push(channel); extraFilters += ` AND channel = $${params.length}`; }
     if (group_id) { params.push(group_id); extraFilters += ` AND client_group = $${params.length}`; }
+    if (cnae_group_id) {
+      await ensureCnaeGroupsSchema();
+      const cnaeResult = await query(
+        `SELECT cnae_codes FROM crm_cnae_groups WHERE id = $1 AND organization_id = $2`,
+        [cnae_group_id, org.organization_id]
+      );
+      const cnaeCodes = Array.isArray(cnaeResult.rows[0]?.cnae_codes)
+        ? cnaeResult.rows[0].cnae_codes.map((code) => String(code).trim()).filter(Boolean)
+        : [];
+      if (cnaeCodes.length > 0) {
+        params.push(cnaeCodes);
+        extraFilters += ` AND EXISTS (
+          SELECT 1
+          FROM crm_companies c
+          WHERE c.organization_id = $1
+            AND c.cnae_principal = ANY($${params.length}::text[])
+            AND LOWER(TRIM(c.name)) = LOWER(TRIM(crm_goals_data.client_name))
+        )`;
+      } else {
+        extraFilters += ` AND FALSE`;
+      }
+    }
     if (search) { params.push(`%${search}%`); extraFilters += ` AND (client_name ILIKE $${params.length} OR number ILIKE $${params.length} OR order_number ILIKE $${params.length} OR seller_name ILIKE $${params.length})`; }
 
     const dateExpr = `COALESCE(CASE WHEN data_type = 'faturamento' THEN billing_date WHEN data_type = 'pedido' THEN COALESCE(emission_date, delivery_date) ELSE emission_date END, emission_date, delivery_date, created_at::date)`;

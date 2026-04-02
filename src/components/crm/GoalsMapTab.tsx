@@ -5,7 +5,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, ShoppingCart, Receipt, MapPin } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useCRMCnaeGroups } from "@/hooks/use-crm";
+import { FileText, ShoppingCart, Receipt, MapPin, Filter } from "lucide-react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { getCoordinates } from "@/hooks/use-map-data";
@@ -115,9 +117,11 @@ function GoalsLeafletMap({ locations, color }: { locations: RecordLocation[]; co
 
 export function GoalsMapTab({ startDate, endDate, filterUserId, filterChannel, filterGroupId }: GoalsMapTabProps) {
   const [mapType, setMapType] = useState("pedido");
+  const [selectedCnaeGroup, setSelectedCnaeGroup] = useState("all");
+  const { data: cnaeGroups } = useCRMCnaeGroups();
 
   const { data: recordsData, isLoading } = useQuery({
-    queryKey: ["crm-goals-map", startDate, endDate, filterUserId, filterChannel, filterGroupId, mapType],
+    queryKey: ["crm-goals-map", startDate, endDate, filterUserId, filterChannel, filterGroupId, mapType, selectedCnaeGroup],
     queryFn: () => {
       const sp = new URLSearchParams();
       sp.set("start_date", startDate);
@@ -128,6 +132,7 @@ export function GoalsMapTab({ startDate, endDate, filterUserId, filterChannel, f
       if (filterUserId !== "all") sp.set("user_id", filterUserId);
       if (filterChannel !== "all") sp.set("channel", filterChannel);
       if (filterGroupId !== "all") sp.set("group_id", filterGroupId);
+      if (selectedCnaeGroup !== "all") sp.set("cnae_group_id", selectedCnaeGroup);
       return api<any>(`/api/crm/goals/data-records?${sp.toString()}`);
     },
   });
@@ -165,13 +170,37 @@ export function GoalsMapTab({ startDate, endDate, filterUserId, filterChannel, f
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Tabs value={mapType} onValueChange={setMapType} className="w-auto">
-          <TabsList>
-            <TabsTrigger value="orcamento" className="gap-1"><FileText className="h-3 w-3" /> Orçamentos</TabsTrigger>
-            <TabsTrigger value="pedido" className="gap-1"><ShoppingCart className="h-3 w-3" /> Pedidos</TabsTrigger>
-            <TabsTrigger value="faturamento" className="gap-1"><Receipt className="h-3 w-3" /> Faturamento</TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <div className="flex flex-wrap items-center gap-3">
+          <Tabs value={mapType} onValueChange={setMapType} className="w-auto">
+            <TabsList>
+              <TabsTrigger value="orcamento" className="gap-1"><FileText className="h-3 w-3" /> Orçamentos</TabsTrigger>
+              <TabsTrigger value="pedido" className="gap-1"><ShoppingCart className="h-3 w-3" /> Pedidos</TabsTrigger>
+              <TabsTrigger value="faturamento" className="gap-1"><Receipt className="h-3 w-3" /> Faturamento</TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          {cnaeGroups && cnaeGroups.length > 0 && (
+            <Select value={selectedCnaeGroup} onValueChange={setSelectedCnaeGroup}>
+              <SelectTrigger className="w-[250px]">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Filter className="h-4 w-4 shrink-0" />
+                  <SelectValue placeholder="Todos os grupos CNAE" />
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os grupos CNAE</SelectItem>
+                {cnaeGroups.map((group) => (
+                  <SelectItem key={group.id} value={group.id}>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: group.color }} />
+                      <span className="truncate">{group.name}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
 
         <div className="flex items-center gap-3 text-sm">
           <Badge variant="outline" className="gap-1">
