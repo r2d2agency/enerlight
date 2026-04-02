@@ -247,6 +247,7 @@ export default function Logistica() {
                     <tbody>
                       {shipments.map((s) => (
                         <tr key={s.id} className="border-b hover:bg-muted/30 cursor-pointer" onClick={() => setViewShipment(s)}>
+                          <td className="p-2 text-xs whitespace-nowrap">{s.requested_date ? s.requested_date.split("T")[0].split("-").reverse().join("/") : s.created_at ? new Date(s.created_at).toLocaleDateString("pt-BR") : "—"}</td>
                           <td className="p-2 text-xs font-medium">{s.company_name}</td>
                           <td className="p-2 font-mono text-xs">{s.invoice_number}</td>
                           <td className="p-2 font-mono text-xs">{s.order_number}</td>
