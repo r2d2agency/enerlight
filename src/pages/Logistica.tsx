@@ -25,7 +25,7 @@ import {
   useLogisticsImportBatches, useDeleteImportBatch,
   LogisticsShipment, ChannelWalletItem, SellerWalletItem,
 } from "@/hooks/use-logistics";
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek } from "date-fns";
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, subMonths, subDays, startOfDay, endOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
@@ -40,7 +40,7 @@ const TICK_STYLE = { fontSize: 10, fill: "#64748b" };
 const formatCurrency = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2 }).format(v);
 
-type DatePreset = "month" | "week" | "all" | "custom";
+type DatePreset = "today" | "week" | "biweekly" | "month" | "prev_month" | "all" | "custom";
 
 export default function Logistica() {
   const [activeTab, setActiveTab] = useState("list");
@@ -60,8 +60,14 @@ export default function Logistica() {
 
   const dateRange = useMemo(() => {
     const now = new Date();
-    if (datePreset === "month") return { start_date: format(startOfMonth(now), "yyyy-MM-dd"), end_date: format(endOfMonth(now), "yyyy-MM-dd") };
+    if (datePreset === "today") return { start_date: format(startOfDay(now), "yyyy-MM-dd"), end_date: format(endOfDay(now), "yyyy-MM-dd") };
     if (datePreset === "week") return { start_date: format(startOfWeek(now, { locale: ptBR }), "yyyy-MM-dd"), end_date: format(endOfWeek(now, { locale: ptBR }), "yyyy-MM-dd") };
+    if (datePreset === "biweekly") return { start_date: format(subDays(now, 14), "yyyy-MM-dd"), end_date: format(now, "yyyy-MM-dd") };
+    if (datePreset === "month") return { start_date: format(startOfMonth(now), "yyyy-MM-dd"), end_date: format(endOfMonth(now), "yyyy-MM-dd") };
+    if (datePreset === "prev_month") {
+      const prev = subMonths(now, 1);
+      return { start_date: format(startOfMonth(prev), "yyyy-MM-dd"), end_date: format(endOfMonth(prev), "yyyy-MM-dd") };
+    }
     if (datePreset === "custom" && customStart && customEnd) return { start_date: customStart, end_date: customEnd };
     return {};
   }, [datePreset, customStart, customEnd]);
@@ -189,11 +195,14 @@ export default function Logistica() {
               </SelectContent>
             </Select>
             <Select value={datePreset} onValueChange={(v) => setDatePreset(v as DatePreset)}>
-              <SelectTrigger className="w-[140px] h-9"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-[160px] h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todo Período</SelectItem>
-                <SelectItem value="month">Mês Atual</SelectItem>
+                <SelectItem value="today">Hoje</SelectItem>
                 <SelectItem value="week">Semana</SelectItem>
+                <SelectItem value="biweekly">Quinzenal</SelectItem>
+                <SelectItem value="month">Mês Atual</SelectItem>
+                <SelectItem value="prev_month">Mês Anterior</SelectItem>
                 <SelectItem value="custom">Personalizado</SelectItem>
               </SelectContent>
             </Select>
