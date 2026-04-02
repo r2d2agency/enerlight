@@ -40,7 +40,7 @@ const TICK_STYLE = { fontSize: 10, fill: "#64748b" };
 const formatCurrency = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2 }).format(v);
 
-type DatePreset = "month" | "week" | "all" | "custom";
+type DatePreset = "today" | "week" | "biweekly" | "month" | "prev_month" | "all" | "custom";
 
 export default function Logistica() {
   const [activeTab, setActiveTab] = useState("list");
