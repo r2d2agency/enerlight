@@ -35,6 +35,7 @@ interface CNPJData {
   capital_social: string;
   natureza: string;
   data_abertura: string;
+  cnae_principal?: any;
   socios: { nome: string; qualificacao: string; data_entrada: string }[];
 }
 
@@ -68,6 +69,7 @@ export function CompanyDialog({ company, open, onOpenChange, onCreated }: Compan
     notes: "",
     segment_id: "",
     sales_position_id: "",
+    cnae_principal: "",
   });
 
   const [contacts, setContacts] = useState<CompanyContact[]>([]);
@@ -113,8 +115,8 @@ export function CompanyDialog({ company, open, onOpenChange, onCreated }: Compan
         notes: company.notes || "",
         segment_id: company.segment_id || "",
         sales_position_id: (company as any).sales_position_id || "",
+        cnae_principal: (company as any).cnae_principal || "",
       });
-      // TODO: Load existing contacts from API
       setContacts([]);
       setCnpjData(null);
     } else {
@@ -131,6 +133,7 @@ export function CompanyDialog({ company, open, onOpenChange, onCreated }: Compan
         notes: "",
         segment_id: "",
         sales_position_id: "",
+        cnae_principal: "",
       });
       setContacts([]);
       setCnpjData(null);
@@ -163,6 +166,9 @@ export function CompanyDialog({ company, open, onOpenChange, onCreated }: Compan
         state: prev.state || data.uf || prev.state,
         zip_code: prev.zip_code || data.cep || prev.zip_code,
         notes: prev.notes || buildCNPJNotes(data),
+        cnae_principal: prev.cnae_principal || (typeof data.cnae_principal === 'object' 
+          ? `${(data.cnae_principal as any).codigo || (data.cnae_principal as any).code || ''} - ${(data.cnae_principal as any).descricao || (data.cnae_principal as any).description || ''}`
+          : (data.cnae_principal || '')) || prev.cnae_principal,
       }));
       toast.success("Dados do CNPJ preenchidos!");
     } catch {
@@ -426,6 +432,16 @@ export function CompanyDialog({ company, open, onOpenChange, onCreated }: Compan
                   placeholder="00000-000"
                 />
               </div>
+            </div>
+
+            {/* CNAE Principal */}
+            <div className="space-y-2">
+              <Label>CNAE Principal</Label>
+              <Input
+                value={formData.cnae_principal}
+                onChange={(e) => handleChange("cnae_principal", e.target.value)}
+                placeholder="Ex: 47.31-8-00 - Comércio varejista de combustíveis"
+              />
             </div>
 
             {/* Contacts Section */}

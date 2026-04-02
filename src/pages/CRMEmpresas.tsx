@@ -6,14 +6,16 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CompanyDialog } from "@/components/crm/CompanyDialog";
 import { CompanyImportDialog } from "@/components/crm/CompanyImportDialog";
 import { BulkCNPJUpdateDialog } from "@/components/crm/BulkCNPJUpdateDialog";
 import { DealFormDialog } from "@/components/crm/DealFormDialog";
-import { useCRMCompaniesPaginated, useCRMCompanyMutations, useCRMFunnels, CRMCompany, CRMFunnel } from "@/hooks/use-crm";
+import { CnaeGroupsDialog } from "@/components/crm/CnaeGroupsDialog";
+import { useCRMCompaniesPaginated, useCRMCompanyMutations, useCRMFunnels, useCRMCnaeGroups, CRMCompany, CRMFunnel } from "@/hooks/use-crm";
 import { useAuth } from "@/contexts/AuthContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Search, MoreHorizontal, Building2, Phone, Mail, Trash2, Edit, Loader2, FileSpreadsheet, Briefcase, Database, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Building2, Phone, Mail, Trash2, Edit, Loader2, FileSpreadsheet, Briefcase, Database, ChevronLeft, ChevronRight, Settings2, Filter } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { useDebounce } from "@/hooks/use-debounce";
 
@@ -25,22 +27,26 @@ export default function CRMEmpresas() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [bulkCNPJOpen, setBulkCNPJOpen] = useState(false);
+  const [cnaeGroupsOpen, setCnaeGroupsOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<CRMCompany | null>(null);
   const [funnelPickerOpen, setFunnelPickerOpen] = useState(false);
   const [dealDialogOpen, setDealDialogOpen] = useState(false);
   const [selectedFunnel, setSelectedFunnel] = useState<CRMFunnel | null>(null);
   const [selectedCompanyForDeal, setSelectedCompanyForDeal] = useState<CRMCompany | null>(null);
+  const [selectedCnaeGroup, setSelectedCnaeGroup] = useState<string>("");
 
   const { data: companiesResponse, isLoading, isFetching } = useCRMCompaniesPaginated({
     search: debouncedSearch || undefined,
     page,
     pageSize,
+    cnae_group_id: selectedCnaeGroup || undefined,
   });
   const companies = companiesResponse?.items || [];
   const total = companiesResponse?.total || 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   const { data: funnels } = useCRMFunnels();
+  const { data: cnaeGroups } = useCRMCnaeGroups();
   const { deleteCompany, importCompanies } = useCRMCompanyMutations();
   const { user } = useAuth();
   const isAdmin = user?.role === 'owner' || user?.role === 'admin';
@@ -79,7 +85,7 @@ export default function CRMEmpresas() {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch]);
+  }, [debouncedSearch, selectedCnaeGroup]);
 
   return (
     <MainLayout>
@@ -92,10 +98,16 @@ export default function CRMEmpresas() {
           </div>
           <div className="flex items-center gap-2">
             {isAdmin && (
-              <Button variant="outline" onClick={() => setBulkCNPJOpen(true)}>
-                <Database className="h-4 w-4 mr-2" />
-                Atualizar CNPJs
-              </Button>
+              <>
+                <Button variant="outline" size="sm" onClick={() => setCnaeGroupsOpen(true)}>
+                  <Settings2 className="h-4 w-4 mr-2" />
+                  Grupos CNAE
+                </Button>
+                <Button variant="outline" onClick={() => setBulkCNPJOpen(true)}>
+                  <Database className="h-4 w-4 mr-2" />
+                  Atualizar CNPJs
+                </Button>
+              </>
             )}
             <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
               <FileSpreadsheet className="h-4 w-4 mr-2" />
@@ -108,8 +120,8 @@ export default function CRMEmpresas() {
           </div>
         </div>
 
-        {/* Search */}
-        <div className="flex items-center justify-between gap-3">
+        {/* Search + Filters */}
+        <div className="flex items-center gap-3 flex-wrap">
           <div className="relative max-w-md w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -119,8 +131,32 @@ export default function CRMEmpresas() {
               className="pl-10"
             />
           </div>
+
+          {/* CNAE Group Filter */}
+          {cnaeGroups && cnaeGroups.length > 0 && (
+            <Select value={selectedCnaeGroup || "all"} onValueChange={(v) => setSelectedCnaeGroup(v === "all" ? "" : v)}>
+              <SelectTrigger className="w-[240px]">
+                <div className="flex items-center gap-2">
+                  <Filter className="h-4 w-4" />
+                  <SelectValue placeholder="Filtrar por CNAE" />
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os CNAEs</SelectItem>
+                {cnaeGroups.map((group) => (
+                  <SelectItem key={group.id} value={group.id}>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: group.color }} />
+                      {group.name} ({group.companies_count})
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+
           {isFetching && !isLoading && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground ml-auto">
               <Loader2 className="h-4 w-4 animate-spin" />
               Atualizando...
             </div>
@@ -150,14 +186,15 @@ export default function CRMEmpresas() {
               <Table className="table-fixed w-full">
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[24%]">Empresa</TableHead>
-                    <TableHead className="w-[11%]">Segmento</TableHead>
-                    <TableHead className="w-[12%]">Vendedor</TableHead>
-                    <TableHead className="w-[12%]">CNPJ</TableHead>
-                    <TableHead className="w-[13%]">Contato</TableHead>
-                    <TableHead className="w-[8%]">Negociações</TableHead>
-                    <TableHead className="w-[12%]">Criado em</TableHead>
-                    <TableHead className="w-[8%] text-right">Ações</TableHead>
+                    <TableHead className="w-[22%]">Empresa</TableHead>
+                    <TableHead className="w-[10%]">Segmento</TableHead>
+                    <TableHead className="w-[10%]">Vendedor</TableHead>
+                    <TableHead className="w-[10%]">CNPJ</TableHead>
+                    <TableHead className="w-[14%]">CNAE</TableHead>
+                    <TableHead className="w-[11%]">Contato</TableHead>
+                    <TableHead className="w-[6%]">Negociações</TableHead>
+                    <TableHead className="w-[10%]">Criado em</TableHead>
+                    <TableHead className="w-[7%] text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -211,6 +248,15 @@ export default function CRMEmpresas() {
                         <span className="font-mono text-sm truncate block">
                           {company.cnpj || "-"}
                         </span>
+                      </TableCell>
+                      <TableCell>
+                        {company.cnae_principal ? (
+                          <span className="text-xs text-muted-foreground truncate block" title={company.cnae_principal}>
+                            {company.cnae_principal}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         <div className="space-y-1 min-w-0">
@@ -322,6 +368,11 @@ export default function CRMEmpresas() {
       <BulkCNPJUpdateDialog
         open={bulkCNPJOpen}
         onOpenChange={setBulkCNPJOpen}
+      />
+
+      <CnaeGroupsDialog
+        open={cnaeGroupsOpen}
+        onOpenChange={setCnaeGroupsOpen}
       />
 
       {/* Funnel Picker Dialog */}
