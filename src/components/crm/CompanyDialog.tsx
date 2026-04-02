@@ -114,8 +114,8 @@ export function CompanyDialog({ company, open, onOpenChange, onCreated }: Compan
         notes: company.notes || "",
         segment_id: company.segment_id || "",
         sales_position_id: (company as any).sales_position_id || "",
+        cnae_principal: (company as any).cnae_principal || "",
       });
-      // TODO: Load existing contacts from API
       setContacts([]);
       setCnpjData(null);
     } else {
@@ -132,6 +132,7 @@ export function CompanyDialog({ company, open, onOpenChange, onCreated }: Compan
         notes: "",
         segment_id: "",
         sales_position_id: "",
+        cnae_principal: "",
       });
       setContacts([]);
       setCnpjData(null);
