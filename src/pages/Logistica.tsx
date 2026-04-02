@@ -228,6 +228,7 @@ export default function Logistica() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b bg-muted/50">
+                        <th className="text-left p-2 font-medium">Data</th>
                         <th className="text-left p-2 font-medium">Empresa</th>
                         <th className="text-left p-2 font-medium">NF</th>
                         <th className="text-left p-2 font-medium">Pedido</th>
@@ -246,6 +247,7 @@ export default function Logistica() {
                     <tbody>
                       {shipments.map((s) => (
                         <tr key={s.id} className="border-b hover:bg-muted/30 cursor-pointer" onClick={() => setViewShipment(s)}>
+                          <td className="p-2 text-xs whitespace-nowrap">{s.requested_date ? s.requested_date.split("T")[0].split("-").reverse().join("/") : s.created_at ? new Date(s.created_at).toLocaleDateString("pt-BR") : "—"}</td>
                           <td className="p-2 text-xs font-medium">{s.company_name}</td>
                           <td className="p-2 font-mono text-xs">{s.invoice_number}</td>
                           <td className="p-2 font-mono text-xs">{s.order_number}</td>
@@ -410,7 +412,7 @@ function ShipmentFormDialog({ open, onOpenChange, shipment, members, companies, 
     } else {
       setForm({
         company_name: "", client_name: "", invoice_number: "", order_number: "",
-        requested_date: "", departure_date: "", estimated_delivery: "", actual_delivery: "",
+        requested_date: format(new Date(), "yyyy-MM-dd"), departure_date: "", estimated_delivery: "", actual_delivery: "",
         carrier: "", carrier_quote_code: "", volumes: 0,
         freight_paid: 0, freight_invoiced: 0, tax_value: 0,
         status: "Pendente", channel: "", requester_id: "", notes: "",
