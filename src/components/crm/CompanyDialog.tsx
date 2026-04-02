@@ -68,6 +68,7 @@ export function CompanyDialog({ company, open, onOpenChange, onCreated }: Compan
     notes: "",
     segment_id: "",
     sales_position_id: "",
+    cnae_principal: "",
   });
 
   const [contacts, setContacts] = useState<CompanyContact[]>([]);
