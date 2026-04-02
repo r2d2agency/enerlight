@@ -61,6 +61,7 @@ export interface CRMCompany {
   sales_position_id?: string;
   sales_position_name?: string;
   sales_position_user_name?: string;
+  cnae_principal?: string;
   custom_fields?: Record<string, any>;
   deals_count: number;
   created_by_name?: string;
