@@ -35,6 +35,7 @@ interface CNPJData {
   capital_social: string;
   natureza: string;
   data_abertura: string;
+  cnae_principal?: any;
   socios: { nome: string; qualificacao: string; data_entrada: string }[];
 }
 
