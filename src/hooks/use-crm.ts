@@ -356,14 +356,15 @@ export interface CRMPaginatedCompaniesResponse {
   pageSize: number;
 }
 
-export function useCRMCompaniesPaginated(params: { search?: string; page: number; pageSize: number }) {
+export function useCRMCompaniesPaginated(params: { search?: string; page: number; pageSize: number; cnae_group_id?: string }) {
   return useQuery({
-    queryKey: ["crm-companies-paginated", params.search, params.page, params.pageSize],
+    queryKey: ["crm-companies-paginated", params.search, params.page, params.pageSize, params.cnae_group_id],
     queryFn: async () => {
       const searchParams = new URLSearchParams();
       if (params.search) searchParams.set("search", params.search);
       searchParams.set("page", String(params.page));
       searchParams.set("page_size", String(params.pageSize));
+      if (params.cnae_group_id) searchParams.set("cnae_group_id", params.cnae_group_id);
 
       return api<CRMPaginatedCompaniesResponse>(`/api/crm/companies?${searchParams.toString()}`);
     },
@@ -371,6 +372,30 @@ export function useCRMCompaniesPaginated(params: { search?: string; page: number
     retry: 2,
     refetchOnWindowFocus: false,
     placeholderData: keepPreviousData,
+  });
+}
+
+export interface CRMCnaeGroup {
+  id: string;
+  name: string;
+  cnae_codes: string[];
+  color: string;
+  companies_count: number;
+}
+
+export function useCRMCnaeGroups() {
+  return useQuery({
+    queryKey: ["crm-cnae-groups"],
+    queryFn: () => api<CRMCnaeGroup[]>("/api/crm/cnae-groups"),
+    staleTime: 60000,
+  });
+}
+
+export function useCRMCnaeDistinct() {
+  return useQuery({
+    queryKey: ["crm-cnae-distinct"],
+    queryFn: () => api<{ code: string; count: number }[]>("/api/crm/cnae-distinct"),
+    staleTime: 60000,
   });
 }
 
