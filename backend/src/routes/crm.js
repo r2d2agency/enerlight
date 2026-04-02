@@ -914,6 +914,111 @@ router.post('/companies/import', async (req, res) => {
 });
 
 // ============================================
+// CNAE GROUPS
+// ============================================
+
+// List CNAE groups
+router.get('/cnae-groups', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const result = await query(
+      `SELECT cg.*, 
+        (SELECT COUNT(*)::int FROM crm_companies cc 
+         WHERE cc.organization_id = $1 AND cc.cnae_principal = ANY(cg.cnae_codes)
+        ) as companies_count
+       FROM crm_cnae_groups cg
+       WHERE cg.organization_id = $1
+       ORDER BY cg.name`,
+      [org.organization_id]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    if (isMissingSchemaError(error)) return res.json([]);
+    console.error('Error fetching CNAE groups:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get distinct CNAEs from companies
+router.get('/cnae-distinct', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const result = await query(
+      `SELECT DISTINCT cnae_principal as code, COUNT(*)::int as count
+       FROM crm_companies 
+       WHERE organization_id = $1 AND cnae_principal IS NOT NULL AND cnae_principal != ''
+       GROUP BY cnae_principal
+       ORDER BY cnae_principal`,
+      [org.organization_id]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    if (isMissingSchemaError(error)) return res.json([]);
+    console.error('Error fetching distinct CNAEs:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create CNAE group
+router.post('/cnae-groups', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const { name, cnae_codes, color } = req.body;
+    const result = await query(
+      `INSERT INTO crm_cnae_groups (organization_id, name, cnae_codes, color)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [org.organization_id, name, JSON.stringify(cnae_codes || []), color || '#3b82f6']
+    );
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error creating CNAE group:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update CNAE group
+router.put('/cnae-groups/:id', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const { name, cnae_codes, color } = req.body;
+    const result = await query(
+      `UPDATE crm_cnae_groups SET name = $1, cnae_codes = $2, color = $3, updated_at = NOW()
+       WHERE id = $4 AND organization_id = $5 RETURNING *`,
+      [name, JSON.stringify(cnae_codes || []), color || '#3b82f6', req.params.id, org.organization_id]
+    );
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating CNAE group:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete CNAE group
+router.delete('/cnae-groups/:id', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    await query(
+      `DELETE FROM crm_cnae_groups WHERE id = $1 AND organization_id = $2`,
+      [req.params.id, org.organization_id]
+    );
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting CNAE group:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
 // DEALS
 // ============================================
 
