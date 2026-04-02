@@ -720,7 +720,7 @@ router.get('/companies', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
-    const { search, page, page_size } = req.query;
+    const { search, page, page_size, cnae_group_id } = req.query;
     const hasPagination = page !== undefined || page_size !== undefined;
 
     const pageNumber = Math.max(parseInt(page || '1', 10) || 1, 1);
@@ -738,6 +738,18 @@ router.get('/companies', async (req, res) => {
         whereClause += ` AND (c.name ILIKE $2 OR c.cnpj ILIKE $2 OR c.email ILIKE $2 OR REGEXP_REPLACE(c.cnpj, '[^0-9]', '', 'g') ILIKE $3)`;
       } else {
         whereClause += ` AND (c.name ILIKE $2 OR c.cnpj ILIKE $2 OR c.email ILIKE $2)`;
+      }
+    }
+
+    // Filter by CNAE group (multiple CNAEs)
+    if (cnae_group_id) {
+      const cnaeResult = await query(
+        `SELECT cnae_codes FROM crm_cnae_groups WHERE id = $1 AND organization_id = $2`,
+        [cnae_group_id, org.organization_id]
+      );
+      if (cnaeResult.rows[0]?.cnae_codes?.length) {
+        params.push(cnaeResult.rows[0].cnae_codes);
+        whereClause += ` AND c.cnae_principal = ANY($${params.length})`;
       }
     }
 
