@@ -98,7 +98,7 @@ router.get('/lookup/:cnpj', authenticate, async (req, res) => {
         capital_social: data.capital_social || '',
         natureza: data.natureza_juridica || '',
         situacao: data.situacao_cadastral || '',
-        cnae_principal: '',
+        cnae_principal: data.cnae_fiscal_descricao ? `${data.cnae_fiscal || ''} - ${data.cnae_fiscal_descricao}` : (data.cnae_fiscal || ''),
         data_abertura: data.data_inicio_atividade || '',
         socios: (data.qsa || []).map(s => ({
           nome: s.nome_socio || '',
