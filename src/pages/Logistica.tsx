@@ -195,11 +195,14 @@ export default function Logistica() {
               </SelectContent>
             </Select>
             <Select value={datePreset} onValueChange={(v) => setDatePreset(v as DatePreset)}>
-              <SelectTrigger className="w-[140px] h-9"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-[160px] h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todo Período</SelectItem>
-                <SelectItem value="month">Mês Atual</SelectItem>
+                <SelectItem value="today">Hoje</SelectItem>
                 <SelectItem value="week">Semana</SelectItem>
+                <SelectItem value="biweekly">Quinzenal</SelectItem>
+                <SelectItem value="month">Mês Atual</SelectItem>
+                <SelectItem value="prev_month">Mês Anterior</SelectItem>
                 <SelectItem value="custom">Personalizado</SelectItem>
               </SelectContent>
             </Select>
