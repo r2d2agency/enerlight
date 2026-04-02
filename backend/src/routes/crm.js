@@ -682,7 +682,7 @@ router.patch('/companies/:id', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
-    const fields = ['name', 'cnpj', 'email', 'phone', 'website', 'address', 'city', 'state', 'zip_code', 'notes'];
+    const fields = ['name', 'cnpj', 'email', 'phone', 'website', 'address', 'city', 'state', 'zip_code', 'notes', 'cnae_principal'];
     const sets = [];
     const params = [];
     let paramIdx = 1;
