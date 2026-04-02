@@ -265,6 +265,17 @@ export function QuarterlyViewTab({ goals, filterUserId, filterChannel, filterGro
         })}
       </div>
 
+      {/* Sales Funnel */}
+      <SalesFunnelCard
+        quotesValue={totals.quotes_value}
+        quotesCount={totals.quotes_count}
+        ordersValue={totals.orders_value}
+        ordersCount={totals.orders_count}
+        billingValue={totals.billing_value}
+        billingCount={totals.billing_count}
+        title={`Funil de Vendas — ${quarterLabel}`}
+      />
+
       {/* Monthly Breakdown Table */}
       <Card>
         <CardHeader>
