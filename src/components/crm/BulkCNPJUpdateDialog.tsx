@@ -136,6 +136,9 @@ export function BulkCNPJUpdateDialog({ open, onOpenChange }: BulkCNPJUpdateDialo
         if (cnpjData.municipio) updatePayload.city = cnpjData.municipio;
         if (cnpjData.uf) updatePayload.state = cnpjData.uf;
         if (cnpjData.cep) updatePayload.zip_code = cnpjData.cep;
+        if (cnpjData.cnae_principal) updatePayload.cnae_principal = typeof cnpjData.cnae_principal === 'object' 
+          ? `${cnpjData.cnae_principal.codigo || cnpjData.cnae_principal.code || ''} - ${cnpjData.cnae_principal.descricao || cnpjData.cnae_principal.description || ''}`
+          : cnpjData.cnae_principal;
 
         // Build notes with extra info
         const notesParts: string[] = [];
