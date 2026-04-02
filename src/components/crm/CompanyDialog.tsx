@@ -165,6 +165,9 @@ export function CompanyDialog({ company, open, onOpenChange, onCreated }: Compan
         state: prev.state || data.uf || prev.state,
         zip_code: prev.zip_code || data.cep || prev.zip_code,
         notes: prev.notes || buildCNPJNotes(data),
+        cnae_principal: prev.cnae_principal || (typeof data.cnae_principal === 'object' 
+          ? `${(data.cnae_principal as any).codigo || (data.cnae_principal as any).code || ''} - ${(data.cnae_principal as any).descricao || (data.cnae_principal as any).description || ''}`
+          : (data.cnae_principal || '')) || prev.cnae_principal,
       }));
       toast.success("Dados do CNPJ preenchidos!");
     } catch {
