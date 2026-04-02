@@ -434,6 +434,16 @@ export function CompanyDialog({ company, open, onOpenChange, onCreated }: Compan
               </div>
             </div>
 
+            {/* CNAE Principal */}
+            <div className="space-y-2">
+              <Label>CNAE Principal</Label>
+              <Input
+                value={formData.cnae_principal}
+                onChange={(e) => handleChange("cnae_principal", e.target.value)}
+                placeholder="Ex: 47.31-8-00 - Comércio varejista de combustíveis"
+              />
+            </div>
+
             {/* Contacts Section */}
             <div className="space-y-3 border-t pt-4">
               <Label className="flex items-center gap-2 text-base">
