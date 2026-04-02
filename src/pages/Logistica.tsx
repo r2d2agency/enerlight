@@ -25,7 +25,7 @@ import {
   useLogisticsImportBatches, useDeleteImportBatch,
   LogisticsShipment, ChannelWalletItem, SellerWalletItem,
 } from "@/hooks/use-logistics";
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek } from "date-fns";
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, subMonths, subDays, startOfDay, endOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
