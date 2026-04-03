@@ -42,7 +42,14 @@ export function CnaeGroupsDialog({ open, onOpenChange }: CnaeGroupsDialogProps) 
     setFormName("");
     setFormColor("#3b82f6");
     setFormCodes([]);
+    setManualCode("");
     setShowForm(true);
+  };
+
+  const closeForm = () => {
+    setShowForm(false);
+    setEditingGroup(null);
+    setManualCode("");
   };
 
   const handleSave = async () => {
@@ -66,8 +73,7 @@ export function CnaeGroupsDialog({ open, onOpenChange }: CnaeGroupsDialogProps) 
         toast.success("Grupo criado!");
       }
       queryClient.invalidateQueries({ queryKey: ["crm-cnae-groups"] });
-      setShowForm(false);
-      setEditingGroup(null);
+      closeForm();
     } catch {
       toast.error("Erro ao salvar grupo");
     }
@@ -102,67 +108,71 @@ export function CnaeGroupsDialog({ open, onOpenChange }: CnaeGroupsDialogProps) 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col" aria-describedby={undefined}>
-        <DialogHeader>
+      <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col overflow-hidden p-0 gap-0" aria-describedby={undefined}>
+        <DialogHeader className="shrink-0 border-b px-6 py-4">
           <DialogTitle>Grupos de CNAE</DialogTitle>
         </DialogHeader>
 
-        <ScrollArea className="flex-1" style={{ maxHeight: "calc(85vh - 120px)" }}>
-          <div className="space-y-4 pr-4">
-            {!showForm ? (
-              <>
-                {/* Groups List */}
-                <div className="space-y-2">
-                  {groups?.map((group) => (
-                    <Card key={group.id} className="p-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: group.color }} />
-                          <div className="min-w-0">
-                            <p className="font-medium">{group.name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {group.cnae_codes?.length || 0} CNAEs • {group.companies_count} empresas
-                            </p>
+        <div className="flex flex-1 min-h-0 flex-col">
+          {!showForm ? (
+            <>
+              <ScrollArea className="flex-1 min-h-0">
+                <div className="space-y-4 px-6 py-4 pr-10">
+                  <div className="space-y-2">
+                    {groups?.map((group) => (
+                      <Card key={group.id} className="p-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: group.color }} />
+                            <div className="min-w-0">
+                              <p className="font-medium">{group.name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {group.cnae_codes?.length || 0} CNAEs • {group.companies_count} empresas
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingGroup(group)}>
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDelete(group.id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           </div>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingGroup(group)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDelete(group.id)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {group.cnae_codes?.map((code) => (
+                            <Badge key={code} variant="secondary" className="text-xs">
+                              {code}
+                            </Badge>
+                          ))}
                         </div>
+                      </Card>
+                    ))}
+                    {(!groups || groups.length === 0) && !isLoading && (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Tag className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p>Nenhum grupo de CNAE criado</p>
+                        <p className="text-sm">Crie grupos para filtrar empresas por atividade</p>
                       </div>
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {group.cnae_codes?.map((code) => (
-                          <Badge key={code} variant="secondary" className="text-xs">
-                            {code}
-                          </Badge>
-                        ))}
-                      </div>
-                    </Card>
-                  ))}
-                  {(!groups || groups.length === 0) && !isLoading && (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <Tag className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p>Nenhum grupo de CNAE criado</p>
-                      <p className="text-sm">Crie grupos para filtrar empresas por atividade</p>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
+              </ScrollArea>
 
+              <div className="shrink-0 border-t px-6 py-4">
                 <Button onClick={handleNew} className="w-full">
                   <Plus className="h-4 w-4 mr-2" />
                   Novo Grupo CNAE
                 </Button>
-              </>
-            ) : (
-              <>
-                {/* Form */}
-                <div className="space-y-4">
+              </div>
+            </>
+          ) : (
+            <>
+              <ScrollArea className="flex-1 min-h-0">
+                <div className="space-y-4 px-6 py-4 pr-10">
                   <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="sm" onClick={() => { setShowForm(false); setEditingGroup(null); }}>
+                    <Button variant="ghost" size="sm" onClick={closeForm}>
                       <X className="h-4 w-4" />
                     </Button>
                     <h3 className="font-medium">{editingGroup ? "Editar Grupo" : "Novo Grupo"}</h3>
@@ -188,7 +198,6 @@ export function CnaeGroupsDialog({ open, onOpenChange }: CnaeGroupsDialogProps) 
                     </div>
                   </div>
 
-                  {/* Selected codes */}
                   <div className="space-y-2">
                     <Label>CNAEs selecionados ({formCodes.length})</Label>
                     <div className="flex flex-wrap gap-1 min-h-[32px]">
@@ -209,7 +218,6 @@ export function CnaeGroupsDialog({ open, onOpenChange }: CnaeGroupsDialogProps) 
                     </div>
                   </div>
 
-                  {/* Manual code entry */}
                   <div className="space-y-1">
                     <Label>Adicionar CNAE manualmente</Label>
                     <div className="flex gap-2">
@@ -225,11 +233,10 @@ export function CnaeGroupsDialog({ open, onOpenChange }: CnaeGroupsDialogProps) 
                     </div>
                   </div>
 
-                  {/* Available CNAEs from existing companies */}
                   {distinctCnaes && distinctCnaes.length > 0 && (
                     <div className="space-y-2">
                       <Label>CNAEs encontrados na sua base</Label>
-                      <div className="max-h-[200px] overflow-y-auto border rounded-md p-2 space-y-1">
+                      <div className="max-h-[200px] overflow-y-auto rounded-md border p-2 space-y-1">
                         {distinctCnaes.map((cnae) => {
                           const isSelected = formCodes.includes(cnae.code);
                           return (
@@ -252,19 +259,19 @@ export function CnaeGroupsDialog({ open, onOpenChange }: CnaeGroupsDialogProps) 
                     </div>
                   )}
                 </div>
+              </ScrollArea>
 
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => { setShowForm(false); setEditingGroup(null); }}>
-                    Cancelar
-                  </Button>
-                  <Button onClick={handleSave}>
-                    {editingGroup ? "Salvar" : "Criar Grupo"}
-                  </Button>
-                </DialogFooter>
-              </>
-            )}
-          </div>
-        </ScrollArea>
+              <DialogFooter className="shrink-0 border-t px-6 py-4">
+                <Button variant="outline" onClick={closeForm}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleSave}>
+                  {editingGroup ? "Salvar" : "Criar Grupo"}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
