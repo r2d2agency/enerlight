@@ -12,7 +12,7 @@ import { LossReasonDialog } from "@/components/crm/LossReasonDialog";
 import { CRMImportDialog } from "@/components/crm/CRMImportDialog";
 import { QuoteImportDialog } from "@/components/crm/QuoteImportDialog";
 import { useCRMFunnels, useCRMFunnel, useCRMDeals, useCRMMyTeam, useCRMDealMutations, useCRMDeal, useCRMGroups, useCRMGroupMembers, CRMDeal, CRMFunnel } from "@/hooks/use-crm";
-import { Plus, Settings, Loader2, Filter, User, ArrowUpDown, CalendarIcon, X, LayoutGrid, List, Trophy, XCircle, Pause, FileSpreadsheet, CheckSquare, Trash2, ArrowRight, Users } from "lucide-react";
+import { Plus, Settings, Loader2, Filter, User, ArrowUpDown, CalendarIcon, X, LayoutGrid, List, Trophy, XCircle, Pause, FileSpreadsheet, CheckSquare, Trash2, ArrowRight, Users, Search } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { parseISO, format, startOfDay, endOfDay, isWithinInterval } from "date-fns";
 import { ptBR } from "date-fns/locale";
