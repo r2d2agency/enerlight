@@ -451,7 +451,7 @@ function ShipmentFormDialog({ open, onOpenChange, shipment, members, companies, 
     } else {
       setForm({
         company_name: "", client_name: "", invoice_number: "", order_number: "",
-        requested_date: format(new Date(), "yyyy-MM-dd"), departure_date: "", estimated_delivery: "", actual_delivery: "",
+        requested_date: format(new Date(), "yyyy-MM-dd"), departure_date: "", estimated_delivery: format(new Date(Date.now() + 15 * 86400000), "yyyy-MM-dd"), actual_delivery: "",
         carrier: "", carrier_quote_code: "", volumes: 0,
         freight_paid: 0, freight_invoiced: 0, tax_value: 0,
         status: "Pendente", channel: "", requester_id: "", notes: "",
