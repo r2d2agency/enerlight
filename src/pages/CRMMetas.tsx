@@ -396,8 +396,8 @@ export default function CRMMetas() {
                     } catch { return []; }
                   })();
 
-                  const totalBizDays = allMonthDays.filter(d => d.getDay() !== 0 && d.getDay() !== 6).length;
-                  const elapsedBizDays = allMonthDays.filter(d => d <= today && d.getDay() !== 0 && d.getDay() !== 6).length;
+                   const totalBizDays = allMonthDays.filter(d => isBusinessDay(d)).length;
+                   const elapsedBizDays = allMonthDays.filter(d => d <= today && isBusinessDay(d)).length;
 
                   const getGeralGoal = (metricValue: string) => {
                     if (!goals) return 0;
