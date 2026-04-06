@@ -112,7 +112,7 @@ export function DailyEvolutionTable({ startDate, endDate, filterUserId, filterCh
       const dayData = dayMap[key];
       const dayValue = dayData?.total_value || 0;
       const dayCount = dayData?.count || 0;
-      const isBizDay = !isWeekend(d);
+      const isBizDay = isBusinessDay(d);
       const planned = isBizDay ? dailyGoal : 0;
 
       accValue += dayValue;
