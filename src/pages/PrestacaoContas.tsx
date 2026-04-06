@@ -482,9 +482,13 @@ export default function PrestacaoContas() {
 
 // Sub-component: items table with fetch
 function ExpenseItemsTable({ reportId, status, onAddItem }: { reportId: string; status: string; onAddItem: () => void }) {
-  const { report, deleteItem } = useExpenses();
-  const { data, isLoading } = report(reportId);
+  const { deleteItem } = useExpenses();
   const { toast } = useToast();
+  const { data, isLoading } = useQuery({
+    queryKey: ['expense', reportId],
+    queryFn: () => api<ExpenseReport>(`/api/expenses/${reportId}`),
+    enabled: !!reportId,
+  });
 
   const handleDeleteItem = async (itemId: string) => {
     try {
