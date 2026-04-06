@@ -93,9 +93,17 @@ export default function Logistica() {
   const { data: allShipments, isLoading } = useLogisticsShipments(filteredParams);
   const shipments = useMemo(() => {
     if (!allShipments) return [];
-    if (channelFilter === "all") return allShipments;
-    return allShipments.filter(s => s.channel === channelFilter);
-  }, [allShipments, channelFilter]);
+    let filtered = allShipments;
+    if (channelFilter !== "all") filtered = filtered.filter(s => s.channel === channelFilter);
+    if (deliveryDateRange) {
+      filtered = filtered.filter(s => {
+        const ed = s.estimated_delivery?.split("T")[0];
+        if (!ed) return false;
+        return ed >= deliveryDateRange.start && ed <= deliveryDateRange.end;
+      });
+    }
+    return filtered;
+  }, [allShipments, channelFilter, deliveryDateRange]);
   const { data: dashboard } = useLogisticsDashboard({ ...dateRange, company_name: companyFilter });
   const { data: members } = useLogisticsMembers();
   const { data: companies } = useLogisticsCompanies();
