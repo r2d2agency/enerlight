@@ -146,7 +146,7 @@ export function DailyEvolutionTable({ startDate, endDate, filterUserId, filterCh
               const dayName = DAY_NAMES[getDay(r.date)];
               const accMet = r.accPlanned > 0 ? r.accValue >= r.accPlanned : true;
               return (
-                <TableRow key={r.key} className={weekend ? "bg-muted/30" : ""}>
+                <TableRow key={r.key} className={weekend ? "bg-muted/30" : !r.isBizDay ? "bg-yellow-50/50 dark:bg-yellow-950/20" : ""}>
                   <TableCell className="text-sm font-medium">
                     {format(r.date, "dd/MM", { locale: ptBR })}
                   </TableCell>
