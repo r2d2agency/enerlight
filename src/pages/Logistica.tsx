@@ -292,6 +292,7 @@ export default function Logistica() {
                           <td className="p-2 max-w-[200px] truncate">{s.client_name}</td>
                           <td className="p-2">{s.carrier}</td>
                           <td className="p-2 font-mono text-xs">{s.carrier_quote_code || "—"}</td>
+                          <td className="p-2 text-xs whitespace-nowrap">{s.estimated_delivery ? s.estimated_delivery.split("T")[0].split("-").reverse().join("/") : "—"}</td>
                           <td className="p-2 text-xs">{s.channel || "—"}</td>
                           <td className="p-2 text-right font-mono">{formatCurrency(Number(s.freight_paid))}</td>
                           <td className="p-2 text-right font-mono">{formatCurrency(Number(s.freight_invoiced))}</td>
