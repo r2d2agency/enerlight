@@ -10,12 +10,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useExpenses, EXPENSE_CATEGORIES, ExpenseReport } from "@/hooks/use-expenses";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useExpenses, EXPENSE_CATEGORIES, PAYMENT_TYPES, ExpenseReport, ExpenseItem } from "@/hooks/use-expenses";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Send, Check, X, DollarSign, FileText, Users, Trash2, Receipt } from "lucide-react";
+import { Plus, Send, Check, X, DollarSign, FileText, Users, Trash2, Receipt, Package, FolderPlus } from "lucide-react";
 import { format } from "date-fns";
 
 const statusColors: Record<string, string> = {
@@ -38,70 +39,91 @@ export default function PrestacaoContas() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [statusFilter, setStatusFilter] = useState<string>("");
-  const [activeTab, setActiveTab] = useState("reports");
-  const { reports, groupSummary, createReport, addItem, deleteItem, submitReport, approveReport, rejectReport, payReport, deleteReport } = useExpenses(
-    statusFilter ? { status: statusFilter } : undefined
-  );
+  const [activeTab, setActiveTab] = useState("items");
+  const {
+    reports, ungroupedItems, groupSummary,
+    createItem, deleteItem, groupItems,
+    submitReport, approveReport, rejectReport, payReport, deleteReport
+  } = useExpenses(statusFilter ? { status: statusFilter } : undefined);
 
-  const [showCreate, setShowCreate] = useState(false);
+  const [showCreateItem, setShowCreateItem] = useState(false);
   const [showDetail, setShowDetail] = useState<ExpenseReport | null>(null);
-  const [showAddItem, setShowAddItem] = useState(false);
   const [showReject, setShowReject] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState("");
+  const [showGroupDialog, setShowGroupDialog] = useState(false);
+  const [selectedItems, setSelectedItems] = useState<string[]>([]);
+  const [groupTitle, setGroupTitle] = useState("");
+  const [groupDesc, setGroupDesc] = useState("");
 
-  // Create form
-  const [newTitle, setNewTitle] = useState("");
-  const [newDesc, setNewDesc] = useState("");
-  const [newItems, setNewItems] = useState<Array<{ category: string; description: string; amount: string; expense_date: string }>>([
-    { category: "combustivel", description: "", amount: "", expense_date: format(new Date(), "yyyy-MM-dd") },
-  ]);
-
-  // Add item form
+  // Create item form
   const [itemCategory, setItemCategory] = useState("combustivel");
   const [itemDesc, setItemDesc] = useState("");
   const [itemAmount, setItemAmount] = useState("");
   const [itemDate, setItemDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [itemTime, setItemTime] = useState("");
+  const [itemPaymentType, setItemPaymentType] = useState("");
+  const [itemLocation, setItemLocation] = useState("");
+  const [itemEstablishment, setItemEstablishment] = useState("");
+  const [itemCnpj, setItemCnpj] = useState("");
 
-  const handleCreate = async () => {
-    if (!newTitle.trim()) return;
-    const validItems = newItems.filter(i => i.amount && Number(i.amount) > 0);
+  const resetItemForm = () => {
+    setItemCategory("combustivel");
+    setItemDesc("");
+    setItemAmount("");
+    setItemDate(format(new Date(), "yyyy-MM-dd"));
+    setItemTime("");
+    setItemPaymentType("");
+    setItemLocation("");
+    setItemEstablishment("");
+    setItemCnpj("");
+  };
+
+  const handleCreateItem = async () => {
+    if (!itemAmount || Number(itemAmount) <= 0) return;
     try {
-      await createReport.mutateAsync({
-        title: newTitle,
-        description: newDesc,
-        items: validItems.map(i => ({
-          category: i.category,
-          description: i.description,
-          amount: Number(i.amount),
-          expense_date: i.expense_date,
-        })),
+      await createItem.mutateAsync({
+        category: itemCategory,
+        description: itemDesc,
+        amount: Number(itemAmount),
+        expense_date: itemDate,
+        expense_time: itemTime || undefined,
+        payment_type: itemPaymentType || undefined,
+        location: itemLocation || undefined,
+        establishment: itemEstablishment || undefined,
+        cnpj: itemCnpj || undefined,
       });
-      toast({ title: "Relatório criado com sucesso" });
-      setShowCreate(false);
-      setNewTitle("");
-      setNewDesc("");
-      setNewItems([{ category: "combustivel", description: "", amount: "", expense_date: format(new Date(), "yyyy-MM-dd") }]);
+      toast({ title: "Despesa lançada com sucesso" });
+      setShowCreateItem(false);
+      resetItemForm();
     } catch (err: any) {
-      toast({ title: "Erro ao criar", description: err.message, variant: "destructive" });
+      toast({ title: "Erro ao lançar", description: err.message, variant: "destructive" });
     }
   };
 
-  const handleAddItem = async () => {
-    if (!showDetail || !itemAmount) return;
+  const handleGroupItems = async () => {
+    if (!groupTitle.trim() || !selectedItems.length) return;
     try {
-      await addItem.mutateAsync({
-        reportId: showDetail.id,
-        item: { category: itemCategory, description: itemDesc, amount: Number(itemAmount), expense_date: itemDate },
-      });
-      toast({ title: "Item adicionado" });
-      setShowAddItem(false);
-      setItemDesc("");
-      setItemAmount("");
-      // Refresh detail
-      const updated = reports.data?.find(r => r.id === showDetail.id);
-      if (updated) setShowDetail({ ...updated });
+      await groupItems.mutateAsync({ title: groupTitle, description: groupDesc, item_ids: selectedItems });
+      toast({ title: "Relatório criado com os itens selecionados" });
+      setShowGroupDialog(false);
+      setSelectedItems([]);
+      setGroupTitle("");
+      setGroupDesc("");
     } catch (err: any) {
-      toast({ title: "Erro", description: err.message, variant: "destructive" });
+      toast({ title: "Erro ao agrupar", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const toggleItem = (id: string) => {
+    setSelectedItems(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const toggleAll = () => {
+    const items = ungroupedItems.data || [];
+    if (selectedItems.length === items.length) {
+      setSelectedItems([]);
+    } else {
+      setSelectedItems(items.map(i => i.id));
     }
   };
 
@@ -110,9 +132,7 @@ export default function PrestacaoContas() {
       switch (action) {
         case 'submit': await submitReport.mutateAsync(id); toast({ title: "Enviado para aprovação" }); break;
         case 'approve': await approveReport.mutateAsync(id); toast({ title: "Aprovado" }); break;
-        case 'reject':
-          setShowReject(id);
-          return;
+        case 'reject': setShowReject(id); return;
         case 'pay': await payReport.mutateAsync(id); toast({ title: "Marcado como pago" }); break;
         case 'delete': await deleteReport.mutateAsync(id); toast({ title: "Excluído" }); break;
       }
@@ -139,17 +159,31 @@ export default function PrestacaoContas() {
   const totalPending = reports.data?.filter(r => r.status === 'submitted').reduce((s, r) => s + Number(r.total_amount), 0) || 0;
   const totalApproved = reports.data?.filter(r => r.status === 'approved').reduce((s, r) => s + Number(r.total_amount), 0) || 0;
   const totalPaid = reports.data?.filter(r => r.status === 'paid').reduce((s, r) => s + Number(r.total_amount), 0) || 0;
+  const ungroupedTotal = ungroupedItems.data?.reduce((s, i) => s + Number(i.amount), 0) || 0;
+
+  const catLabel = (cat: string) => EXPENSE_CATEGORIES.find(c => c.value === cat);
+  const payLabel = (pay: string) => PAYMENT_TYPES.find(p => p.value === pay);
 
   return (
     <MainLayout>
       <div className="space-y-4">
         {/* Summary Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <Card>
+            <CardContent className="pt-4 pb-3">
+              <div className="flex items-center gap-2">
+                <Package className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">Não Agrupados</span>
+              </div>
+              <p className="text-2xl font-bold mt-1">R$ {ungroupedTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+              <p className="text-xs text-muted-foreground">{ungroupedItems.data?.length || 0} itens</p>
+            </CardContent>
+          </Card>
           <Card>
             <CardContent className="pt-4 pb-3">
               <div className="flex items-center gap-2">
                 <FileText className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Total Geral</span>
+                <span className="text-sm text-muted-foreground">Total Relatórios</span>
               </div>
               <p className="text-2xl font-bold mt-1">R$ {totalGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
             </CardContent>
@@ -158,7 +192,7 @@ export default function PrestacaoContas() {
             <CardContent className="pt-4 pb-3">
               <div className="flex items-center gap-2">
                 <Send className="h-4 w-4 text-yellow-500" />
-                <span className="text-sm text-muted-foreground">Pendente Aprovação</span>
+                <span className="text-sm text-muted-foreground">Pendente</span>
               </div>
               <p className="text-2xl font-bold mt-1">R$ {totalPending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
             </CardContent>
@@ -186,8 +220,12 @@ export default function PrestacaoContas() {
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <div className="flex items-center justify-between flex-wrap gap-2">
             <TabsList>
-              <TabsTrigger value="reports">
+              <TabsTrigger value="items">
                 <Receipt className="h-4 w-4 mr-1" />
+                Despesas ({ungroupedItems.data?.length || 0})
+              </TabsTrigger>
+              <TabsTrigger value="reports">
+                <FileText className="h-4 w-4 mr-1" />
                 Relatórios
               </TabsTrigger>
               <TabsTrigger value="groups">
@@ -196,25 +234,113 @@ export default function PrestacaoContas() {
               </TabsTrigger>
             </TabsList>
             <div className="flex items-center gap-2">
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[160px]">
-                  <SelectValue placeholder="Todos os status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="draft">Rascunho</SelectItem>
-                  <SelectItem value="submitted">Enviado</SelectItem>
-                  <SelectItem value="approved">Aprovado</SelectItem>
-                  <SelectItem value="rejected">Rejeitado</SelectItem>
-                  <SelectItem value="paid">Pago</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button onClick={() => setShowCreate(true)}>
-                <Plus className="h-4 w-4 mr-1" /> Novo Relatório
-              </Button>
+              {activeTab === 'items' && selectedItems.length > 0 && (
+                <Button variant="secondary" onClick={() => setShowGroupDialog(true)}>
+                  <FolderPlus className="h-4 w-4 mr-1" /> Agrupar ({selectedItems.length})
+                </Button>
+              )}
+              {activeTab === 'reports' && (
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-[160px]">
+                    <SelectValue placeholder="Todos os status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="draft">Rascunho</SelectItem>
+                    <SelectItem value="submitted">Enviado</SelectItem>
+                    <SelectItem value="approved">Aprovado</SelectItem>
+                    <SelectItem value="rejected">Rejeitado</SelectItem>
+                    <SelectItem value="paid">Pago</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+              {activeTab === 'items' && (
+                <Button onClick={() => setShowCreateItem(true)}>
+                  <Plus className="h-4 w-4 mr-1" /> Lançar Despesa
+                </Button>
+              )}
             </div>
           </div>
 
+          {/* ITEMS TAB - Item-first */}
+          <TabsContent value="items" className="mt-4">
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-10">
+                        <Checkbox
+                          checked={ungroupedItems.data?.length ? selectedItems.length === ungroupedItems.data.length : false}
+                          onCheckedChange={toggleAll}
+                        />
+                      </TableHead>
+                      <TableHead>Categoria</TableHead>
+                      <TableHead>Descrição</TableHead>
+                      <TableHead>Estabelecimento</TableHead>
+                      <TableHead>Pagamento</TableHead>
+                      <TableHead>Data</TableHead>
+                      <TableHead className="text-right">Valor</TableHead>
+                      <TableHead>Usuário</TableHead>
+                      <TableHead className="w-10" />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {ungroupedItems.data?.map(item => {
+                      const cat = catLabel(item.category);
+                      const pay = item.payment_type ? payLabel(item.payment_type) : null;
+                      return (
+                        <TableRow key={item.id}>
+                          <TableCell>
+                            <Checkbox
+                              checked={selectedItems.includes(item.id)}
+                              onCheckedChange={() => toggleItem(item.id)}
+                            />
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">{cat?.icon} {cat?.label || item.category}</TableCell>
+                          <TableCell className="max-w-[200px] truncate">{item.description || '-'}</TableCell>
+                          <TableCell className="max-w-[150px] truncate">{item.establishment || '-'}</TableCell>
+                          <TableCell>{pay?.label || item.payment_type || '-'}</TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            {format(new Date(item.expense_date), 'dd/MM/yyyy')}
+                            {item.expense_time && <span className="text-muted-foreground text-xs ml-1">{item.expense_time.slice(0,5)}</span>}
+                          </TableCell>
+                          <TableCell className="text-right font-mono whitespace-nowrap">
+                            R$ {Number(item.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </TableCell>
+                          <TableCell className="text-sm">{item.user_name}</TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="icon" onClick={() => deleteItem.mutateAsync(item.id)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    {!ungroupedItems.data?.length && (
+                      <TableRow>
+                        <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
+                          Nenhuma despesa avulsa. Clique em "Lançar Despesa" para registrar.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+                {(ungroupedItems.data?.length || 0) > 0 && (
+                  <div className="p-3 border-t flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">
+                      {selectedItems.length > 0 ? `${selectedItems.length} selecionado(s)` : `${ungroupedItems.data?.length} item(ns)`}
+                    </span>
+                    <span className="font-mono font-semibold">
+                      Total: R$ {ungroupedTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* REPORTS TAB */}
           <TabsContent value="reports" className="mt-4">
             <Card>
               <CardContent className="p-0">
@@ -249,7 +375,7 @@ export default function PrestacaoContas() {
                     {!reports.data?.length && (
                       <TableRow>
                         <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                          Nenhum relatório encontrado
+                          Nenhum relatório. Selecione despesas e agrupe-as.
                         </TableCell>
                       </TableRow>
                     )}
@@ -259,6 +385,7 @@ export default function PrestacaoContas() {
             </Card>
           </TabsContent>
 
+          {/* GROUPS TAB */}
           <TabsContent value="groups" className="mt-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {groupSummary.data?.map(g => (
@@ -283,7 +410,7 @@ export default function PrestacaoContas() {
                       <span className="text-muted-foreground">Pago</span>
                       <span className="font-mono text-green-600">R$ {Number(g.paid).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                     </div>
-                    <div className="text-xs text-muted-foreground">{g.report_count} relatório(s)</div>
+                    <div className="text-xs text-muted-foreground">{g.item_count} item(ns)</div>
                   </CardContent>
                 </Card>
               ))}
@@ -295,79 +422,104 @@ export default function PrestacaoContas() {
         </Tabs>
       </div>
 
-      {/* Create Report Dialog */}
-      <Dialog open={showCreate} onOpenChange={setShowCreate}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      {/* Create Item Dialog */}
+      <Dialog open={showCreateItem} onOpenChange={setShowCreateItem}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Novo Relatório de Despesas</DialogTitle>
+            <DialogTitle>Lançar Despesa</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Título</Label>
-              <Input value={newTitle} onChange={e => setNewTitle(e.target.value)} placeholder="Ex: Viagem São Paulo - Março" />
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Categoria</Label>
+                <Select value={itemCategory} onValueChange={setItemCategory}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {EXPENSE_CATEGORIES.map(c => (
+                      <SelectItem key={c.value} value={c.value}>{c.icon} {c.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Valor (R$)</Label>
+                <Input type="number" step="0.01" value={itemAmount} onChange={e => setItemAmount(e.target.value)} placeholder="0,00" />
+              </div>
             </div>
             <div>
               <Label>Descrição</Label>
-              <Textarea value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="Detalhes da viagem/despesa" />
+              <Input value={itemDesc} onChange={e => setItemDesc(e.target.value)} placeholder="Detalhe do gasto" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Data</Label>
+                <Input type="date" value={itemDate} onChange={e => setItemDate(e.target.value)} />
+              </div>
+              <div>
+                <Label>Hora</Label>
+                <Input type="time" value={itemTime} onChange={e => setItemTime(e.target.value)} />
+              </div>
             </div>
             <div>
-              <Label className="text-base font-semibold">Itens de Despesa</Label>
-              {newItems.map((item, idx) => (
-                <div key={idx} className="grid grid-cols-12 gap-2 mt-2 items-end">
-                  <div className="col-span-3">
-                    <Label className="text-xs">Categoria</Label>
-                    <Select value={item.category} onValueChange={v => {
-                      const copy = [...newItems]; copy[idx].category = v; setNewItems(copy);
-                    }}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {EXPENSE_CATEGORIES.map(c => (
-                          <SelectItem key={c.value} value={c.value}>{c.icon} {c.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="col-span-3">
-                    <Label className="text-xs">Descrição</Label>
-                    <Input value={item.description} onChange={e => {
-                      const copy = [...newItems]; copy[idx].description = e.target.value; setNewItems(copy);
-                    }} placeholder="Detalhe" />
-                  </div>
-                  <div className="col-span-2">
-                    <Label className="text-xs">Valor (R$)</Label>
-                    <Input type="number" step="0.01" value={item.amount} onChange={e => {
-                      const copy = [...newItems]; copy[idx].amount = e.target.value; setNewItems(copy);
-                    }} placeholder="0,00" />
-                  </div>
-                  <div className="col-span-3">
-                    <Label className="text-xs">Data</Label>
-                    <Input type="date" value={item.expense_date} onChange={e => {
-                      const copy = [...newItems]; copy[idx].expense_date = e.target.value; setNewItems(copy);
-                    }} />
-                  </div>
-                  <div className="col-span-1">
-                    <Button variant="ghost" size="icon" onClick={() => setNewItems(newItems.filter((_, i) => i !== idx))} disabled={newItems.length === 1}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-              <Button variant="outline" size="sm" className="mt-2" onClick={() => setNewItems([...newItems, { category: "combustivel", description: "", amount: "", expense_date: format(new Date(), "yyyy-MM-dd") }])}>
-                <Plus className="h-3 w-3 mr-1" /> Adicionar Item
-              </Button>
+              <Label>Tipo de Pagamento</Label>
+              <Select value={itemPaymentType} onValueChange={setItemPaymentType}>
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  {PAYMENT_TYPES.map(p => (
+                    <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <div className="text-right font-semibold">
-              Total: R$ {newItems.reduce((s, i) => s + (Number(i.amount) || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            <div>
+              <Label>Estabelecimento</Label>
+              <Input value={itemEstablishment} onChange={e => setItemEstablishment(e.target.value)} placeholder="Nome do estabelecimento" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Local</Label>
+                <Input value={itemLocation} onChange={e => setItemLocation(e.target.value)} placeholder="Cidade/Local" />
+              </div>
+              <div>
+                <Label>CNPJ</Label>
+                <Input value={itemCnpj} onChange={e => setItemCnpj(e.target.value)} placeholder="00.000.000/0000-00" />
+              </div>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreate(false)}>Cancelar</Button>
-            <Button onClick={handleCreate} disabled={createReport.isPending}>Criar Relatório</Button>
+            <Button variant="outline" onClick={() => setShowCreateItem(false)}>Cancelar</Button>
+            <Button onClick={handleCreateItem} disabled={createItem.isPending}>Lançar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Detail Dialog */}
+      {/* Group Items Dialog */}
+      <Dialog open={showGroupDialog} onOpenChange={setShowGroupDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Agrupar em Relatório</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              {selectedItems.length} item(ns) selecionado(s) — Total: R$ {(ungroupedItems.data?.filter(i => selectedItems.includes(i.id)).reduce((s, i) => s + Number(i.amount), 0) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            </p>
+            <div>
+              <Label>Título do Relatório</Label>
+              <Input value={groupTitle} onChange={e => setGroupTitle(e.target.value)} placeholder="Ex: Viagem São Paulo - Abril" />
+            </div>
+            <div>
+              <Label>Descrição (opcional)</Label>
+              <Textarea value={groupDesc} onChange={e => setGroupDesc(e.target.value)} placeholder="Detalhes..." />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowGroupDialog(false)}>Cancelar</Button>
+            <Button onClick={handleGroupItems} disabled={groupItems.isPending}>Criar Relatório</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Report Detail Dialog */}
       <Dialog open={!!showDetail} onOpenChange={() => setShowDetail(null)}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           {showDetail && (
@@ -392,8 +544,7 @@ export default function PrestacaoContas() {
                   </div>
                 )}
 
-                {/* Items table - fetched inline */}
-                <ExpenseItemsTable reportId={showDetail.id} status={showDetail.status} onAddItem={() => setShowAddItem(true)} />
+                <ExpenseItemsTable reportId={showDetail.id} />
 
                 <DialogFooter className="flex-wrap gap-2">
                   {showDetail.status === 'draft' && (
@@ -428,42 +579,6 @@ export default function PrestacaoContas() {
         </DialogContent>
       </Dialog>
 
-      {/* Add Item Dialog */}
-      <Dialog open={showAddItem} onOpenChange={setShowAddItem}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Adicionar Item</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <Label>Categoria</Label>
-              <Select value={itemCategory} onValueChange={setItemCategory}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {EXPENSE_CATEGORIES.map(c => (
-                    <SelectItem key={c.value} value={c.value}>{c.icon} {c.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Descrição</Label>
-              <Input value={itemDesc} onChange={e => setItemDesc(e.target.value)} />
-            </div>
-            <div>
-              <Label>Valor (R$)</Label>
-              <Input type="number" step="0.01" value={itemAmount} onChange={e => setItemAmount(e.target.value)} />
-            </div>
-            <div>
-              <Label>Data</Label>
-              <Input type="date" value={itemDate} onChange={e => setItemDate(e.target.value)} />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddItem(false)}>Cancelar</Button>
-            <Button onClick={handleAddItem}>Adicionar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {/* Reject Dialog */}
       <Dialog open={!!showReject} onOpenChange={() => setShowReject(null)}>
         <DialogContent>
@@ -482,71 +597,54 @@ export default function PrestacaoContas() {
   );
 }
 
-// Sub-component: items table with fetch
-function ExpenseItemsTable({ reportId, status, onAddItem }: { reportId: string; status: string; onAddItem: () => void }) {
-  const { deleteItem } = useExpenses();
-  const { toast } = useToast();
+// Sub-component: items table for report detail
+function ExpenseItemsTable({ reportId }: { reportId: string }) {
   const { data, isLoading } = useQuery({
     queryKey: ['expense', reportId],
     queryFn: () => api<ExpenseReport>(`/api/expenses/${reportId}`),
     enabled: !!reportId,
   });
 
-  const handleDeleteItem = async (itemId: string) => {
-    try {
-      await deleteItem.mutateAsync(itemId);
-      toast({ title: "Item removido" });
-    } catch (err: any) {
-      toast({ title: "Erro", description: err.message, variant: "destructive" });
-    }
-  };
-
   if (isLoading) return <p className="text-sm text-muted-foreground">Carregando itens...</p>;
 
   const items = data?.items || [];
   const catLabel = (cat: string) => EXPENSE_CATEGORIES.find(c => c.value === cat);
+  const payLabel = (pay: string) => PAYMENT_TYPES.find(p => p.value === pay);
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-2">
-        <Label className="text-base font-semibold">Itens ({items.length})</Label>
-        {status === 'draft' && (
-          <Button variant="outline" size="sm" onClick={onAddItem}>
-            <Plus className="h-3 w-3 mr-1" /> Adicionar
-          </Button>
-        )}
-      </div>
+      <Label className="text-base font-semibold mb-2 block">Itens ({items.length})</Label>
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead>Categoria</TableHead>
             <TableHead>Descrição</TableHead>
+            <TableHead>Estabelecimento</TableHead>
+            <TableHead>Pagamento</TableHead>
             <TableHead>Data</TableHead>
             <TableHead className="text-right">Valor</TableHead>
-            {status === 'draft' && <TableHead />}
           </TableRow>
         </TableHeader>
         <TableBody>
           {items.map(item => {
             const cat = catLabel(item.category);
+            const pay = item.payment_type ? payLabel(item.payment_type) : null;
             return (
               <TableRow key={item.id}>
                 <TableCell>{cat?.icon} {cat?.label || item.category}</TableCell>
                 <TableCell>{item.description || '-'}</TableCell>
-                <TableCell>{format(new Date(item.expense_date), 'dd/MM/yyyy')}</TableCell>
+                <TableCell>{item.establishment || '-'}</TableCell>
+                <TableCell>{pay?.label || item.payment_type || '-'}</TableCell>
+                <TableCell>
+                  {format(new Date(item.expense_date), 'dd/MM/yyyy')}
+                  {item.expense_time && <span className="text-muted-foreground text-xs ml-1">{item.expense_time.slice(0,5)}</span>}
+                </TableCell>
                 <TableCell className="text-right font-mono">R$ {Number(item.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
-                {status === 'draft' && (
-                  <TableCell>
-                    <Button variant="ghost" size="icon" onClick={() => handleDeleteItem(item.id)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </TableCell>
-                )}
               </TableRow>
             );
           })}
           {!items.length && (
-            <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">Nenhum item</TableCell></TableRow>
+            <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">Nenhum item</TableCell></TableRow>
           )}
         </TableBody>
       </Table>
