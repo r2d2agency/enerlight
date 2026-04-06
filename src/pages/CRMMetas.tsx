@@ -1216,6 +1216,16 @@ export default function CRMMetas() {
             />
           </TabsContent>
 
+          {/* ========== SEMANAL ========== */}
+          <TabsContent value="semanal" className="mt-4 space-y-6">
+            <WeeklyViewTab
+              goals={goals}
+              filterUserId={filterUserId}
+              filterChannel={filterChannel}
+              filterGroupId={filterGroupId}
+            />
+          </TabsContent>
+
           {/* ========== TRIMESTRAL ========== */}
           <TabsContent value="trimestral" className="mt-4 space-y-6">
             <QuarterlyViewTab
