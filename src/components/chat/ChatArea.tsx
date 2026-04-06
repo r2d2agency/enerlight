@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { renderTextWithLinks, MessageLinkPreviews } from "@/components/chat/LinkPreview";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -1899,9 +1900,12 @@ export function ChatArea({
                     {msg.content || '🚫 Mensagem apagada'}
                   </p>
                 ) : msg.content && msg.message_type !== 'call_log' && !(msg.message_type === 'document' && looksLikeFilename(msg.content)) ? (
-                  <p className="text-sm whitespace-pre-wrap" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
-                    {searchQuery ? highlightText(msg.content, searchQuery) : msg.content}
-                  </p>
+                  <>
+                    <MessageLinkPreviews text={msg.content} />
+                    <p className="text-sm whitespace-pre-wrap" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+                      {searchQuery ? renderTextWithLinks(msg.content, highlightText, searchQuery) : renderTextWithLinks(msg.content)}
+                    </p>
+                  </>
                 ) : null}
 
                 {/* Timestamp and status */}
