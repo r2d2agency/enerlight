@@ -52,6 +52,7 @@ import taskBoardsRoutes from './routes/task-boards.js';
 import erpBillingRoutes from './routes/erp-billing.js';
 import captadorRoutes from './routes/captador.js';
 import documentSignaturesRoutes from './routes/document-signatures.js';
+import expensesRoutes from './routes/expenses.js';
 import metaTemplatesRoutes from './routes/meta-templates.js';
 import { initDatabase } from './init-db.js';
 import { executeNotifications } from './scheduler.js';
