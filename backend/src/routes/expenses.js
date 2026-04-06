@@ -6,6 +6,28 @@ const router = express.Router();
 router.use(authenticate);
 
 async function ensureExpensesSchema() {
+  // Items table - independent, report_id is optional
+  await query(`
+    CREATE TABLE IF NOT EXISTS expense_items (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      group_id UUID REFERENCES groups(id) ON DELETE SET NULL,
+      report_id UUID,
+      category VARCHAR(50) NOT NULL,
+      description VARCHAR(500),
+      amount DECIMAL(12,2) NOT NULL,
+      expense_date DATE NOT NULL,
+      expense_time TIME,
+      payment_type VARCHAR(50),
+      location VARCHAR(255),
+      establishment VARCHAR(255),
+      cnpj VARCHAR(20),
+      receipt_url TEXT,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    )
+  `);
+  // Reports table
   await query(`
     CREATE TABLE IF NOT EXISTS expense_reports (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -28,22 +50,28 @@ async function ensureExpensesSchema() {
       updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     )
   `);
-  await query(`
-    CREATE TABLE IF NOT EXISTS expense_items (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      report_id UUID NOT NULL REFERENCES expense_reports(id) ON DELETE CASCADE,
-      category VARCHAR(50) NOT NULL,
-      description VARCHAR(500),
-      amount DECIMAL(12,2) NOT NULL,
-      expense_date DATE NOT NULL,
-      receipt_url TEXT,
-      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-    )
-  `);
+  // Add new columns if missing (migration for existing DBs)
+  const cols = ['organization_id', 'user_id', 'group_id', 'expense_time', 'payment_type', 'location', 'establishment', 'cnpj'];
+  for (const col of cols) {
+    try {
+      await query(`ALTER TABLE expense_items ADD COLUMN IF NOT EXISTS ${col} ${
+        col === 'organization_id' ? 'UUID REFERENCES organizations(id) ON DELETE CASCADE' :
+        col === 'user_id' ? 'UUID REFERENCES users(id) ON DELETE CASCADE' :
+        col === 'group_id' ? 'UUID REFERENCES groups(id) ON DELETE SET NULL' :
+        col === 'expense_time' ? 'TIME' :
+        'VARCHAR(255)'
+      }`);
+    } catch (e) { /* column exists */ }
+  }
+  // Make report_id nullable if it was NOT NULL before
+  try { await query(`ALTER TABLE expense_items ALTER COLUMN report_id DROP NOT NULL`); } catch (e) {}
+
+  await query(`CREATE INDEX IF NOT EXISTS idx_expense_items_org ON expense_items(organization_id)`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_expense_items_user ON expense_items(user_id)`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_expense_items_report ON expense_items(report_id)`);
   await query(`CREATE INDEX IF NOT EXISTS idx_expense_reports_org ON expense_reports(organization_id)`);
   await query(`CREATE INDEX IF NOT EXISTS idx_expense_reports_user ON expense_reports(user_id)`);
   await query(`CREATE INDEX IF NOT EXISTS idx_expense_reports_status ON expense_reports(status)`);
-  await query(`CREATE INDEX IF NOT EXISTS idx_expense_items_report ON expense_items(report_id)`);
 }
 
 let schemaReady = false;
@@ -51,7 +79,120 @@ async function init() {
   if (!schemaReady) { await ensureExpensesSchema(); schemaReady = true; }
 }
 
-// List expense reports for org (with filters)
+// ===================== ITEMS (standalone) =====================
+
+// List standalone items (not in a report, or all)
+router.get('/items', async (req, res) => {
+  try {
+    await init();
+    const { organization_id } = req.user;
+    const { ungrouped, user_id, category } = req.query;
+    let sql = `
+      SELECT ei.*, u.name as user_name, g.name as group_name
+      FROM expense_items ei
+      LEFT JOIN users u ON u.id = ei.user_id
+      LEFT JOIN groups g ON g.id = ei.group_id
+      WHERE ei.organization_id = $1
+    `;
+    const params = [organization_id];
+    let idx = 2;
+    if (ungrouped === 'true') { sql += ` AND ei.report_id IS NULL`; }
+    if (user_id) { sql += ` AND ei.user_id = $${idx++}`; params.push(user_id); }
+    if (category) { sql += ` AND ei.category = $${idx++}`; params.push(category); }
+    sql += ' ORDER BY ei.expense_date DESC, ei.created_at DESC';
+    const result = await query(sql, params);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error listing items:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Create standalone item
+router.post('/items', async (req, res) => {
+  try {
+    await init();
+    const { organization_id, id: userId } = req.user;
+    const { category, description, amount, expense_date, expense_time, payment_type, location, establishment, cnpj, receipt_url } = req.body;
+
+    // Get user group
+    let group_id = null;
+    const ug = await query('SELECT group_id FROM user_groups WHERE user_id = $1 LIMIT 1', [userId]);
+    group_id = ug.rows[0]?.group_id || null;
+
+    const result = await query(
+      `INSERT INTO expense_items (organization_id, user_id, group_id, category, description, amount, expense_date, expense_time, payment_type, location, establishment, cnpj, receipt_url)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
+      [organization_id, userId, group_id, category, description, amount, expense_date, expense_time || null, payment_type || null, location || null, establishment || null, cnpj || null, receipt_url || null]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error creating item:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete standalone item (only if not in a submitted+ report)
+router.delete('/items/:itemId', async (req, res) => {
+  try {
+    await init();
+    const item = await query('SELECT report_id FROM expense_items WHERE id = $1', [req.params.itemId]);
+    if (!item.rows[0]) return res.status(404).json({ error: 'Not found' });
+    const reportId = item.rows[0].report_id;
+    await query('DELETE FROM expense_items WHERE id = $1', [req.params.itemId]);
+    if (reportId) {
+      await query(
+        `UPDATE expense_reports SET total_amount = (SELECT COALESCE(SUM(amount),0) FROM expense_items WHERE report_id = $1), updated_at = NOW() WHERE id = $1`,
+        [reportId]
+      );
+    }
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Group items into a new report
+router.post('/items/group', async (req, res) => {
+  try {
+    await init();
+    const { organization_id, id: userId } = req.user;
+    const { title, description, item_ids } = req.body;
+    if (!item_ids?.length) return res.status(400).json({ error: 'No items selected' });
+
+    let group_id = null;
+    const ug = await query('SELECT group_id FROM user_groups WHERE user_id = $1 LIMIT 1', [userId]);
+    group_id = ug.rows[0]?.group_id || null;
+
+    // Calculate total
+    const totalResult = await query(
+      `SELECT COALESCE(SUM(amount), 0) as total FROM expense_items WHERE id = ANY($1) AND organization_id = $2`,
+      [item_ids, organization_id]
+    );
+    const total = totalResult.rows[0].total;
+
+    const report = await query(
+      `INSERT INTO expense_reports (organization_id, user_id, group_id, title, description, total_amount)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [organization_id, userId, group_id, title, description || null, total]
+    );
+
+    // Link items to report
+    await query(
+      `UPDATE expense_items SET report_id = $1 WHERE id = ANY($2) AND organization_id = $3`,
+      [report.rows[0].id, item_ids, organization_id]
+    );
+
+    res.json(report.rows[0]);
+  } catch (err) {
+    console.error('Error grouping items:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ===================== REPORTS =====================
+
+// List reports
 router.get('/', async (req, res) => {
   try {
     await init();
@@ -67,7 +208,7 @@ router.get('/', async (req, res) => {
     `;
     const params = [organization_id];
     let idx = 2;
-    if (status) { sql += ` AND er.status = $${idx++}`; params.push(status); }
+    if (status && status !== 'all') { sql += ` AND er.status = $${idx++}`; params.push(status); }
     if (user_id) { sql += ` AND er.user_id = $${idx++}`; params.push(user_id); }
     if (group_id) { sql += ` AND er.group_id = $${idx++}`; params.push(group_id); }
     sql += ' ORDER BY er.created_at DESC';
@@ -95,86 +236,6 @@ router.get('/:id', async (req, res) => {
     if (!report.rows[0]) return res.status(404).json({ error: 'Not found' });
     const items = await query('SELECT * FROM expense_items WHERE report_id = $1 ORDER BY expense_date', [req.params.id]);
     res.json({ ...report.rows[0], items: items.rows });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Create report
-router.post('/', async (req, res) => {
-  try {
-    await init();
-    const { organization_id, id: userId } = req.user;
-    const { title, description, group_id, items } = req.body;
-
-    // Get user group if not provided
-    let gid = group_id;
-    if (!gid) {
-      const ug = await query('SELECT group_id FROM user_groups WHERE user_id = $1 LIMIT 1', [userId]);
-      gid = ug.rows[0]?.group_id || null;
-    }
-
-    const result = await query(
-      `INSERT INTO expense_reports (organization_id, user_id, group_id, title, description)
-       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [organization_id, userId, gid, title, description]
-    );
-    const report = result.rows[0];
-
-    let total = 0;
-    if (items?.length) {
-      for (const item of items) {
-        await query(
-          `INSERT INTO expense_items (report_id, category, description, amount, expense_date, receipt_url)
-           VALUES ($1, $2, $3, $4, $5, $6)`,
-          [report.id, item.category, item.description, item.amount, item.expense_date, item.receipt_url]
-        );
-        total += Number(item.amount);
-      }
-      await query('UPDATE expense_reports SET total_amount = $1 WHERE id = $2', [total, report.id]);
-    }
-
-    res.json({ ...report, total_amount: total });
-  } catch (err) {
-    console.error('Error creating expense report:', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Add item to report
-router.post('/:id/items', async (req, res) => {
-  try {
-    await init();
-    const { category, description, amount, expense_date, receipt_url } = req.body;
-    const result = await query(
-      `INSERT INTO expense_items (report_id, category, description, amount, expense_date, receipt_url)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [req.params.id, category, description, amount, expense_date, receipt_url]
-    );
-    // Recalculate total
-    await query(
-      `UPDATE expense_reports SET total_amount = (SELECT COALESCE(SUM(amount),0) FROM expense_items WHERE report_id = $1), updated_at = NOW() WHERE id = $1`,
-      [req.params.id]
-    );
-    res.json(result.rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Delete item
-router.delete('/items/:itemId', async (req, res) => {
-  try {
-    await init();
-    const item = await query('SELECT report_id FROM expense_items WHERE id = $1', [req.params.itemId]);
-    if (!item.rows[0]) return res.status(404).json({ error: 'Not found' });
-    const reportId = item.rows[0].report_id;
-    await query('DELETE FROM expense_items WHERE id = $1', [req.params.itemId]);
-    await query(
-      `UPDATE expense_reports SET total_amount = (SELECT COALESCE(SUM(amount),0) FROM expense_items WHERE report_id = $1), updated_at = NOW() WHERE id = $1`,
-      [reportId]
-    );
-    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -241,10 +302,12 @@ router.patch('/:id/pay', async (req, res) => {
   }
 });
 
-// Delete report
+// Delete report (unlinks items back to ungrouped)
 router.delete('/:id', async (req, res) => {
   try {
     await init();
+    // Unlink items first
+    await query('UPDATE expense_items SET report_id = NULL WHERE report_id = $1', [req.params.id]);
     await query('DELETE FROM expense_reports WHERE id = $1 AND status = $2', [req.params.id, 'draft']);
     res.json({ success: true });
   } catch (err) {
@@ -259,13 +322,14 @@ router.get('/summary/by-group', async (req, res) => {
     const { organization_id } = req.user;
     const result = await query(`
       SELECT g.id, g.name as group_name,
-        COALESCE(SUM(CASE WHEN er.status != 'rejected' THEN er.total_amount ELSE 0 END), 0) as total,
-        COALESCE(SUM(CASE WHEN er.status = 'paid' THEN er.total_amount ELSE 0 END), 0) as paid,
-        COALESCE(SUM(CASE WHEN er.status = 'approved' THEN er.total_amount ELSE 0 END), 0) as approved,
-        COALESCE(SUM(CASE WHEN er.status = 'submitted' THEN er.total_amount ELSE 0 END), 0) as pending,
-        COUNT(er.id) as report_count
+        COALESCE(SUM(ei.amount), 0) as total,
+        COALESCE(SUM(CASE WHEN er.status = 'paid' THEN ei.amount ELSE 0 END), 0) as paid,
+        COALESCE(SUM(CASE WHEN er.status = 'approved' THEN ei.amount ELSE 0 END), 0) as approved,
+        COALESCE(SUM(CASE WHEN er.status = 'submitted' THEN ei.amount ELSE 0 END), 0) as pending,
+        COUNT(DISTINCT ei.id) as item_count
       FROM groups g
-      LEFT JOIN expense_reports er ON er.group_id = g.id
+      LEFT JOIN expense_items ei ON ei.group_id = g.id
+      LEFT JOIN expense_reports er ON er.id = ei.report_id
       WHERE g.organization_id = $1
       GROUP BY g.id, g.name
       ORDER BY total DESC

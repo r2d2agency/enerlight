@@ -3,13 +3,23 @@ import { api } from '@/lib/api';
 
 export interface ExpenseItem {
   id: string;
-  report_id: string;
+  organization_id: string;
+  user_id: string;
+  group_id?: string;
+  report_id?: string | null;
   category: string;
   description: string;
   amount: number;
   expense_date: string;
+  expense_time?: string;
+  payment_type?: string;
+  location?: string;
+  establishment?: string;
+  cnpj?: string;
   receipt_url?: string;
   created_at: string;
+  user_name?: string;
+  group_name?: string;
 }
 
 export interface ExpenseReport {
@@ -44,7 +54,7 @@ export interface GroupSummary {
   paid: number;
   approved: number;
   pending: number;
-  report_count: number;
+  item_count: number;
 }
 
 export const EXPENSE_CATEGORIES = [
@@ -53,6 +63,14 @@ export const EXPENSE_CATEGORIES = [
   { value: 'transporte', label: 'Transporte', icon: '🚗' },
   { value: 'hospedagem', label: 'Hospedagem', icon: '🏨' },
   { value: 'outros', label: 'Outros', icon: '📦' },
+];
+
+export const PAYMENT_TYPES = [
+  { value: 'dinheiro', label: 'Dinheiro' },
+  { value: 'cartao_credito', label: 'Cartão de Crédito' },
+  { value: 'cartao_debito', label: 'Cartão de Débito' },
+  { value: 'pix', label: 'PIX' },
+  { value: 'outros', label: 'Outros' },
 ];
 
 export function useExpenses(filters?: { status?: string; user_id?: string; group_id?: string }) {
@@ -75,6 +93,12 @@ export function useExpenses(filters?: { status?: string; user_id?: string; group
     enabled: !!id,
   });
 
+  // Standalone items (ungrouped)
+  const ungroupedItems = useQuery({
+    queryKey: ['expense-items-ungrouped'],
+    queryFn: () => api<ExpenseItem[]>('/api/expenses/items?ungrouped=true'),
+  });
+
   const groupSummary = useQuery({
     queryKey: ['expenses-summary'],
     queryFn: () => api<GroupSummary[]>('/api/expenses/summary/by-group'),
@@ -83,23 +107,27 @@ export function useExpenses(filters?: { status?: string; user_id?: string; group
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['expenses'] });
     queryClient.invalidateQueries({ queryKey: ['expense'] });
+    queryClient.invalidateQueries({ queryKey: ['expense-items-ungrouped'] });
     queryClient.invalidateQueries({ queryKey: ['expenses-summary'] });
   };
 
-  const createReport = useMutation({
-    mutationFn: (data: { title: string; description?: string; group_id?: string; items?: Partial<ExpenseItem>[] }) =>
-      api<ExpenseReport>('/api/expenses', { method: 'POST', body: data }),
+  // Create standalone item
+  const createItem = useMutation({
+    mutationFn: (data: Partial<ExpenseItem>) =>
+      api<ExpenseItem>('/api/expenses/items', { method: 'POST', body: data }),
     onSuccess: invalidate,
   });
 
-  const addItem = useMutation({
-    mutationFn: ({ reportId, item }: { reportId: string; item: Partial<ExpenseItem> }) =>
-      api<ExpenseItem>(`/api/expenses/${reportId}/items`, { method: 'POST', body: item }),
-    onSuccess: invalidate,
-  });
-
+  // Delete item
   const deleteItem = useMutation({
     mutationFn: (itemId: string) => api(`/api/expenses/items/${itemId}`, { method: 'DELETE' }),
+    onSuccess: invalidate,
+  });
+
+  // Group items into a report
+  const groupItems = useMutation({
+    mutationFn: (data: { title: string; description?: string; item_ids: string[] }) =>
+      api<ExpenseReport>('/api/expenses/items/group', { method: 'POST', body: data }),
     onSuccess: invalidate,
   });
 
@@ -132,10 +160,11 @@ export function useExpenses(filters?: { status?: string; user_id?: string; group
   return {
     reports,
     report,
+    ungroupedItems,
     groupSummary,
-    createReport,
-    addItem,
+    createItem,
     deleteItem,
+    groupItems,
     submitReport,
     approveReport,
     rejectReport,
