@@ -49,6 +49,9 @@ export default function Logistica() {
   const [companyFilter, setCompanyFilter] = useState("all");
   const [channelFilter, setChannelFilter] = useState("all");
   const [datePreset, setDatePreset] = useState<DatePreset>("all");
+  const [deliveryDatePreset, setDeliveryDatePreset] = useState<DatePreset>("all");
+  const [deliveryCustomStart, setDeliveryCustomStart] = useState("");
+  const [deliveryCustomEnd, setDeliveryCustomEnd] = useState("");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
   const [editingShipment, setEditingShipment] = useState<LogisticsShipment | null>(null);
@@ -72,13 +75,35 @@ export default function Logistica() {
     return {};
   }, [datePreset, customStart, customEnd]);
 
+  const deliveryDateRange = useMemo(() => {
+    const now = new Date();
+    if (deliveryDatePreset === "today") return { start: format(startOfDay(now), "yyyy-MM-dd"), end: format(endOfDay(now), "yyyy-MM-dd") };
+    if (deliveryDatePreset === "week") return { start: format(startOfWeek(now, { locale: ptBR }), "yyyy-MM-dd"), end: format(endOfWeek(now, { locale: ptBR }), "yyyy-MM-dd") };
+    if (deliveryDatePreset === "biweekly") return { start: format(subDays(now, 14), "yyyy-MM-dd"), end: format(now, "yyyy-MM-dd") };
+    if (deliveryDatePreset === "month") return { start: format(startOfMonth(now), "yyyy-MM-dd"), end: format(endOfMonth(now), "yyyy-MM-dd") };
+    if (deliveryDatePreset === "prev_month") {
+      const prev = subMonths(now, 1);
+      return { start: format(startOfMonth(prev), "yyyy-MM-dd"), end: format(endOfMonth(prev), "yyyy-MM-dd") };
+    }
+    if (deliveryDatePreset === "custom" && deliveryCustomStart && deliveryCustomEnd) return { start: deliveryCustomStart, end: deliveryCustomEnd };
+    return null;
+  }, [deliveryDatePreset, deliveryCustomStart, deliveryCustomEnd]);
+
   const filteredParams = { search, status: statusFilter, company_name: companyFilter, ...dateRange };
   const { data: allShipments, isLoading } = useLogisticsShipments(filteredParams);
   const shipments = useMemo(() => {
     if (!allShipments) return [];
-    if (channelFilter === "all") return allShipments;
-    return allShipments.filter(s => s.channel === channelFilter);
-  }, [allShipments, channelFilter]);
+    let filtered = allShipments;
+    if (channelFilter !== "all") filtered = filtered.filter(s => s.channel === channelFilter);
+    if (deliveryDateRange) {
+      filtered = filtered.filter(s => {
+        const ed = s.estimated_delivery?.split("T")[0];
+        if (!ed) return false;
+        return ed >= deliveryDateRange.start && ed <= deliveryDateRange.end;
+      });
+    }
+    return filtered;
+  }, [allShipments, channelFilter, deliveryDateRange]);
   const { data: dashboard } = useLogisticsDashboard({ ...dateRange, company_name: companyFilter });
   const { data: members } = useLogisticsMembers();
   const { data: companies } = useLogisticsCompanies();
@@ -206,10 +231,22 @@ export default function Logistica() {
                 <SelectItem value="custom">Personalizado</SelectItem>
               </SelectContent>
             </Select>
-            {datePreset === "custom" && (
+            <Select value={deliveryDatePreset} onValueChange={(v) => setDeliveryDatePreset(v as DatePreset)}>
+              <SelectTrigger className="w-[180px] h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Prev. Entrega: Todas</SelectItem>
+                <SelectItem value="today">Prev. Hoje</SelectItem>
+                <SelectItem value="week">Prev. Semana</SelectItem>
+                <SelectItem value="biweekly">Prev. Quinzenal</SelectItem>
+                <SelectItem value="month">Prev. Mês Atual</SelectItem>
+                <SelectItem value="prev_month">Prev. Mês Anterior</SelectItem>
+                <SelectItem value="custom">Prev. Personalizado</SelectItem>
+              </SelectContent>
+            </Select>
+            {deliveryDatePreset === "custom" && (
               <>
-                <Input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)} className="w-[140px] h-9" />
-                <Input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} className="w-[140px] h-9" />
+                <Input type="date" value={deliveryCustomStart} onChange={(e) => setDeliveryCustomStart(e.target.value)} className="w-[140px] h-9" />
+                <Input type="date" value={deliveryCustomEnd} onChange={(e) => setDeliveryCustomEnd(e.target.value)} className="w-[140px] h-9" />
               </>
             )}
           </div>
@@ -235,6 +272,7 @@ export default function Logistica() {
                         <th className="text-left p-2 font-medium">Cliente</th>
                         <th className="text-left p-2 font-medium">Transportadora</th>
                         <th className="text-left p-2 font-medium">Cód. Cotação</th>
+                        <th className="text-left p-2 font-medium">Prev. Entrega</th>
                         <th className="text-left p-2 font-medium">Canal</th>
                         <th className="text-right p-2 font-medium">Frete Pago</th>
                         <th className="text-right p-2 font-medium">Cobrado NF</th>
@@ -254,6 +292,7 @@ export default function Logistica() {
                           <td className="p-2 max-w-[200px] truncate">{s.client_name}</td>
                           <td className="p-2">{s.carrier}</td>
                           <td className="p-2 font-mono text-xs">{s.carrier_quote_code || "—"}</td>
+                          <td className="p-2 text-xs whitespace-nowrap">{s.estimated_delivery ? s.estimated_delivery.split("T")[0].split("-").reverse().join("/") : "—"}</td>
                           <td className="p-2 text-xs">{s.channel || "—"}</td>
                           <td className="p-2 text-right font-mono">{formatCurrency(Number(s.freight_paid))}</td>
                           <td className="p-2 text-right font-mono">{formatCurrency(Number(s.freight_invoiced))}</td>
