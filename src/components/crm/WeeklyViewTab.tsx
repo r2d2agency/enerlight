@@ -157,6 +157,14 @@ export function WeeklyViewTab({ goals, filterUserId, filterChannel, filterGroupI
   const getMonthlyGoalValue = (metric: string) => {
     if (!goals) return 0;
     const active = goals.filter(g => g.metric === metric && g.is_active && g.period === "monthly");
+
+    // When a specific channel is selected, use that channel's goals
+    if (filterChannel !== "all") {
+      const channelGoals = active.filter(g => g.target_channel === filterChannel);
+      if (channelGoals.length > 0) return channelGoals.reduce((s, g) => s + g.target_value, 0);
+    }
+
+    // When "all" or no channel goals found, use geral goals
     const geral = active.filter(g => g.type === "geral");
     if (geral.length > 0) return geral.reduce((s, g) => s + g.target_value, 0);
     const group = active.filter(g => g.type !== "individual");
