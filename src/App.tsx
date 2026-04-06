@@ -77,6 +77,7 @@ const LeadGleego = lazyRetry(() => import("./pages/LeadGleego"));
 const VisitasExternas = lazyRetry(() => import("./pages/VisitasExternas"));
 const Captador = lazyRetry(() => import("./pages/Captador"));
 const AssinaturasDoc = lazyRetry(() => import("./pages/AssinaturasDoc"));
+const PrestacaoContas = lazyRetry(() => import("./pages/PrestacaoContas"));
 const NotFound = lazyRetry(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
@@ -170,6 +171,7 @@ const App = () => (
               <Route path="/crm/visitas-externas" element={<ProtectedRoute><VisitasExternas /></ProtectedRoute>} />
               <Route path="/captador" element={<ProtectedRoute><Captador /></ProtectedRoute>} />
               <Route path="/assinaturas" element={<ProtectedRoute><AssinaturasDoc /></ProtectedRoute>} />
+              <Route path="/prestacao-contas" element={<ProtectedRoute><PrestacaoContas /></ProtectedRoute>} />
               <Route path="/assinar/:token" element={<AssinaturasDoc />} />
               <Route path="/f/:slug" element={<PublicFormPage />} />
               <Route path="/politica-privacidade" element={<PoliticaPrivacidade />} />

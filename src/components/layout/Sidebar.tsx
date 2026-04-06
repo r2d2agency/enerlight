@@ -44,6 +44,7 @@ import {
   Radio,
   Gavel,
   Truck,
+  Wallet,
 } from "lucide-react";
 import { API_URL, getAuthToken } from "@/lib/api";
 import gleegoLogo from "@/assets/gleego-logo.png";
@@ -164,6 +165,13 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
     permissionKey: 'can_view_logistics',
     items: [
       { name: "Remessas", href: "/logistica", icon: Truck, permissionKey: 'can_view_logistics' },
+    ],
+  },
+  {
+    title: "Prestação de Contas",
+    icon: Wallet,
+    items: [
+      { name: "Despesas", href: "/prestacao-contas", icon: Wallet },
     ],
   },
   {
