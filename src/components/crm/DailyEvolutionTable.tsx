@@ -224,7 +224,7 @@ export function DailyEvolutionTable({ startDate, endDate, filterUserId, filterCh
             const today = startOfDay(new Date());
             const monthEnd = endOfMonth(today);
             const remaining = eachDayOfInterval({ start: today, end: monthEnd })
-              .filter(d => !isWeekend(d) && isAfter(d, today)).length;
+              .filter(d => isBusinessDay(d) && isAfter(d, today)).length;
             return remaining > 0 ? ` • ${remaining} dias úteis restantes no mês` : "";
           })()}
         </p>
