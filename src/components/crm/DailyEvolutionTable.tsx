@@ -7,6 +7,7 @@ import { Loader2, FileText, ShoppingCart, Receipt } from "lucide-react";
 import { format, eachDayOfInterval, parseISO, isWeekend, getDay, endOfMonth, isAfter, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Goal } from "@/hooks/use-goals";
+import { isBusinessDay } from "@/lib/brazilian-holidays";
 
 interface Props {
   startDate: string;
