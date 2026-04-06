@@ -272,6 +272,7 @@ export default function Logistica() {
                         <th className="text-left p-2 font-medium">Cliente</th>
                         <th className="text-left p-2 font-medium">Transportadora</th>
                         <th className="text-left p-2 font-medium">Cód. Cotação</th>
+                        <th className="text-left p-2 font-medium">Prev. Entrega</th>
                         <th className="text-left p-2 font-medium">Canal</th>
                         <th className="text-right p-2 font-medium">Frete Pago</th>
                         <th className="text-right p-2 font-medium">Cobrado NF</th>
