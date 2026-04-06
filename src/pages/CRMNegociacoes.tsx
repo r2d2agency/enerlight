@@ -284,7 +284,7 @@ export default function CRMNegociacoes() {
         filtered = filtered.filter(d =>
           (d.title || "").toLowerCase().includes(q) ||
           (d.company_name || "").toLowerCase().includes(q) ||
-          (d.contact_name || "").toLowerCase().includes(q)
+          ((d as any).contact_name || "").toLowerCase().includes(q)
         );
       }
       
