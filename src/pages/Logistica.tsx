@@ -75,6 +75,20 @@ export default function Logistica() {
     return {};
   }, [datePreset, customStart, customEnd]);
 
+  const deliveryDateRange = useMemo(() => {
+    const now = new Date();
+    if (deliveryDatePreset === "today") return { start: format(startOfDay(now), "yyyy-MM-dd"), end: format(endOfDay(now), "yyyy-MM-dd") };
+    if (deliveryDatePreset === "week") return { start: format(startOfWeek(now, { locale: ptBR }), "yyyy-MM-dd"), end: format(endOfWeek(now, { locale: ptBR }), "yyyy-MM-dd") };
+    if (deliveryDatePreset === "biweekly") return { start: format(subDays(now, 14), "yyyy-MM-dd"), end: format(now, "yyyy-MM-dd") };
+    if (deliveryDatePreset === "month") return { start: format(startOfMonth(now), "yyyy-MM-dd"), end: format(endOfMonth(now), "yyyy-MM-dd") };
+    if (deliveryDatePreset === "prev_month") {
+      const prev = subMonths(now, 1);
+      return { start: format(startOfMonth(prev), "yyyy-MM-dd"), end: format(endOfMonth(prev), "yyyy-MM-dd") };
+    }
+    if (deliveryDatePreset === "custom" && deliveryCustomStart && deliveryCustomEnd) return { start: deliveryCustomStart, end: deliveryCustomEnd };
+    return null;
+  }, [deliveryDatePreset, deliveryCustomStart, deliveryCustomEnd]);
+
   const filteredParams = { search, status: statusFilter, company_name: companyFilter, ...dateRange };
   const { data: allShipments, isLoading } = useLogisticsShipments(filteredParams);
   const shipments = useMemo(() => {
