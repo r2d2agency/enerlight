@@ -90,7 +90,8 @@ export default function CRMNegociacoes() {
   const [dateFilterType, setDateFilterType] = useState<string>("created");
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+   const [statusFilter, setStatusFilter] = useState<string>("all");
+   const [searchQuery, setSearchQuery] = useState("");
   
   const { data: funnels, isLoading: loadingFunnels } = useCRMFunnels();
   const { data: teamMembers } = useCRMMyTeam();
