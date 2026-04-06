@@ -49,6 +49,9 @@ export default function Logistica() {
   const [companyFilter, setCompanyFilter] = useState("all");
   const [channelFilter, setChannelFilter] = useState("all");
   const [datePreset, setDatePreset] = useState<DatePreset>("all");
+  const [deliveryDatePreset, setDeliveryDatePreset] = useState<DatePreset>("all");
+  const [deliveryCustomStart, setDeliveryCustomStart] = useState("");
+  const [deliveryCustomEnd, setDeliveryCustomEnd] = useState("");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
   const [editingShipment, setEditingShipment] = useState<LogisticsShipment | null>(null);
