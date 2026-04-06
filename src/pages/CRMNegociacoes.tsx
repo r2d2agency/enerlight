@@ -12,7 +12,7 @@ import { LossReasonDialog } from "@/components/crm/LossReasonDialog";
 import { CRMImportDialog } from "@/components/crm/CRMImportDialog";
 import { QuoteImportDialog } from "@/components/crm/QuoteImportDialog";
 import { useCRMFunnels, useCRMFunnel, useCRMDeals, useCRMMyTeam, useCRMDealMutations, useCRMDeal, useCRMGroups, useCRMGroupMembers, CRMDeal, CRMFunnel } from "@/hooks/use-crm";
-import { Plus, Settings, Loader2, Filter, User, ArrowUpDown, CalendarIcon, X, LayoutGrid, List, Trophy, XCircle, Pause, FileSpreadsheet, CheckSquare, Trash2, ArrowRight, Users } from "lucide-react";
+import { Plus, Settings, Loader2, Filter, User, ArrowUpDown, CalendarIcon, X, LayoutGrid, List, Trophy, XCircle, Pause, FileSpreadsheet, CheckSquare, Trash2, ArrowRight, Users, Search } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { parseISO, format, startOfDay, endOfDay, isWithinInterval } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -90,7 +90,8 @@ export default function CRMNegociacoes() {
   const [dateFilterType, setDateFilterType] = useState<string>("created");
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+   const [statusFilter, setStatusFilter] = useState<string>("all");
+   const [searchQuery, setSearchQuery] = useState("");
   
   const { data: funnels, isLoading: loadingFunnels } = useCRMFunnels();
   const { data: teamMembers } = useCRMMyTeam();
@@ -276,12 +277,22 @@ export default function CRMNegociacoes() {
           return true;
         });
       }
+
+      // Search filter
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        filtered = filtered.filter(d =>
+          (d.title || "").toLowerCase().includes(q) ||
+          (d.company_name || "").toLowerCase().includes(q) ||
+          ((d as any).contact_name || "").toLowerCase().includes(q)
+        );
+      }
       
       filtered = sortDeals(filtered);
       acc[stageId] = filtered;
       return acc;
     }, {} as Record<string, CRMDeal[]>);
-  }, [dealsByStage, ownerFilter, groupFilter, sortOrder, user?.id, startDate, endDate, dateFilterType, statusFilter]);
+  }, [dealsByStage, ownerFilter, groupFilter, sortOrder, user?.id, startDate, endDate, dateFilterType, statusFilter, searchQuery]);
 
   const totalVisibleDeals = useMemo(() => {
     return Object.values(filteredDealsByStage).flat().length;
@@ -479,8 +490,23 @@ export default function CRMNegociacoes() {
             )}
           </div>
 
-          {/* Filters Row */}
+          {/* Search + Filters Row */}
           <div className="flex items-center gap-3 overflow-x-auto pb-1">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Buscar negociação..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="h-9 w-[200px] rounded-md border border-input bg-background pl-8 pr-3 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+              {searchQuery && (
+                <button onClick={() => setSearchQuery("")} className="absolute right-2 top-2.5">
+                  <X className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                </button>
+              )}
+            </div>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Filter className="h-4 w-4" />
               <span>Filtros:</span>

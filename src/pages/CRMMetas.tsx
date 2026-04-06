@@ -35,9 +35,11 @@ import {
 } from "lucide-react";
 import { GoalsMapTab } from "@/components/crm/GoalsMapTab";
 import { QuarterlyViewTab } from "@/components/crm/QuarterlyViewTab";
+import { WeeklyViewTab } from "@/components/crm/WeeklyViewTab";
 import { SalesFunnelCard } from "@/components/crm/SalesFunnelCard";
 import { format, startOfMonth, startOfWeek, endOfWeek, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { isBusinessDay } from "@/lib/brazilian-holidays";
 
 const METRICS = [
   { value: "quotes_count", label: "Orçamentos (Qtd)", icon: FileText, group: "orcamento" },
@@ -256,6 +258,7 @@ export default function CRMMetas() {
             <TabsTrigger value="records" className="gap-2"><List className="h-4 w-4" /> Registros</TabsTrigger>
             <TabsTrigger value="carteira" className="gap-2"><Wallet className="h-4 w-4" /> Carteira</TabsTrigger>
             <TabsTrigger value="map" className="gap-2"><MapPin className="h-4 w-4" /> Mapa</TabsTrigger>
+            <TabsTrigger value="semanal" className="gap-2"><CalendarDays className="h-4 w-4" /> Semanal</TabsTrigger>
             <TabsTrigger value="trimestral" className="gap-2"><CalendarDays className="h-4 w-4" /> Trimestral</TabsTrigger>
             <TabsTrigger value="imports" className="gap-2"><Upload className="h-4 w-4" /> Importações</TabsTrigger>
           </TabsList>
@@ -394,8 +397,8 @@ export default function CRMMetas() {
                     } catch { return []; }
                   })();
 
-                  const totalBizDays = allMonthDays.filter(d => d.getDay() !== 0 && d.getDay() !== 6).length;
-                  const elapsedBizDays = allMonthDays.filter(d => d <= today && d.getDay() !== 0 && d.getDay() !== 6).length;
+                   const totalBizDays = allMonthDays.filter(d => isBusinessDay(d)).length;
+                   const elapsedBizDays = allMonthDays.filter(d => d <= today && isBusinessDay(d)).length;
 
                   const getGeralGoal = (metricValue: string) => {
                     if (!goals) return 0;
@@ -1207,6 +1210,16 @@ export default function CRMMetas() {
             <GoalsMapTab
               startDate={startDate}
               endDate={endDate}
+              filterUserId={filterUserId}
+              filterChannel={filterChannel}
+              filterGroupId={filterGroupId}
+            />
+          </TabsContent>
+
+          {/* ========== SEMANAL ========== */}
+          <TabsContent value="semanal" className="mt-4 space-y-6">
+            <WeeklyViewTab
+              goals={goals}
               filterUserId={filterUserId}
               filterChannel={filterChannel}
               filterGroupId={filterGroupId}

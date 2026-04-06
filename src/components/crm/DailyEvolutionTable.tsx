@@ -7,6 +7,7 @@ import { Loader2, FileText, ShoppingCart, Receipt } from "lucide-react";
 import { format, eachDayOfInterval, parseISO, isWeekend, getDay, endOfMonth, isAfter, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Goal } from "@/hooks/use-goals";
+import { isBusinessDay } from "@/lib/brazilian-holidays";
 
 interface Props {
   startDate: string;
@@ -39,7 +40,7 @@ const TYPE_CONFIG = {
 function countBusinessDays(start: string, end: string): number {
   try {
     const days = eachDayOfInterval({ start: parseISO(start), end: parseISO(end) });
-    return days.filter(d => !isWeekend(d)).length;
+    return days.filter(d => isBusinessDay(d)).length;
   } catch { return 22; }
 }
 
@@ -48,7 +49,7 @@ function countBusinessDaysInMonth(): number {
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const monthEndDate = endOfMonth(now);
   try {
-    return eachDayOfInterval({ start: monthStart, end: monthEndDate }).filter(d => !isWeekend(d)).length;
+    return eachDayOfInterval({ start: monthStart, end: monthEndDate }).filter(d => isBusinessDay(d)).length;
   } catch { return 22; }
 }
 
@@ -111,7 +112,7 @@ export function DailyEvolutionTable({ startDate, endDate, filterUserId, filterCh
       const dayData = dayMap[key];
       const dayValue = dayData?.total_value || 0;
       const dayCount = dayData?.count || 0;
-      const isBizDay = !isWeekend(d);
+      const isBizDay = isBusinessDay(d);
       const planned = isBizDay ? dailyGoal : 0;
 
       accValue += dayValue;
@@ -145,7 +146,7 @@ export function DailyEvolutionTable({ startDate, endDate, filterUserId, filterCh
               const dayName = DAY_NAMES[getDay(r.date)];
               const accMet = r.accPlanned > 0 ? r.accValue >= r.accPlanned : true;
               return (
-                <TableRow key={r.key} className={weekend ? "bg-muted/30" : ""}>
+                <TableRow key={r.key} className={weekend ? "bg-muted/30" : !r.isBizDay ? "bg-yellow-50/50 dark:bg-yellow-950/20" : ""}>
                   <TableCell className="text-sm font-medium">
                     {format(r.date, "dd/MM", { locale: ptBR })}
                   </TableCell>
@@ -223,7 +224,7 @@ export function DailyEvolutionTable({ startDate, endDate, filterUserId, filterCh
             const today = startOfDay(new Date());
             const monthEnd = endOfMonth(today);
             const remaining = eachDayOfInterval({ start: today, end: monthEnd })
-              .filter(d => !isWeekend(d) && isAfter(d, today)).length;
+              .filter(d => isBusinessDay(d) && isAfter(d, today)).length;
             return remaining > 0 ? ` • ${remaining} dias úteis restantes no mês` : "";
           })()}
         </p>
