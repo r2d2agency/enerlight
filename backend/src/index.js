@@ -222,6 +222,7 @@ app.use('/api/licitacao', licitacaoRoutes);
 app.use('/api/logistics', logisticsRoutes);
 app.use('/api/task-boards', taskBoardsRoutes);
 app.use('/api/erp-billing', erpBillingRoutes);
+app.use('/api/expenses', expensesRoutes);
 app.use('/api/captador', captadorRoutes);
 app.use('/api/document-signatures', documentSignaturesRoutes);
 app.use('/api/meta', metaTemplatesRoutes);

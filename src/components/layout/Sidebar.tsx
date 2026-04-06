@@ -168,6 +168,13 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
     ],
   },
   {
+    title: "Prestação de Contas",
+    icon: Wallet,
+    items: [
+      { name: "Despesas", href: "/prestacao-contas", icon: Wallet },
+    ],
+  },
+  {
     title: "Captador",
     icon: MapPin,
     moduleKey: 'captador',

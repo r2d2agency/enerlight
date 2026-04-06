@@ -139,7 +139,7 @@ export default function PrestacaoContas() {
   const totalPaid = reports.data?.filter(r => r.status === 'paid').reduce((s, r) => s + Number(r.total_amount), 0) || 0;
 
   return (
-    <MainLayout title="Prestação de Contas">
+    <MainLayout>
       <div className="space-y-4">
         {/* Summary Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
