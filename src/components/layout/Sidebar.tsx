@@ -44,6 +44,7 @@ import {
   Radio,
   Gavel,
   Truck,
+  Wallet,
 } from "lucide-react";
 import { API_URL, getAuthToken } from "@/lib/api";
 import gleegoLogo from "@/assets/gleego-logo.png";
