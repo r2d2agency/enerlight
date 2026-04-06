@@ -231,10 +231,22 @@ export default function Logistica() {
                 <SelectItem value="custom">Personalizado</SelectItem>
               </SelectContent>
             </Select>
-            {datePreset === "custom" && (
+            <Select value={deliveryDatePreset} onValueChange={(v) => setDeliveryDatePreset(v as DatePreset)}>
+              <SelectTrigger className="w-[180px] h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Prev. Entrega: Todas</SelectItem>
+                <SelectItem value="today">Prev. Hoje</SelectItem>
+                <SelectItem value="week">Prev. Semana</SelectItem>
+                <SelectItem value="biweekly">Prev. Quinzenal</SelectItem>
+                <SelectItem value="month">Prev. Mês Atual</SelectItem>
+                <SelectItem value="prev_month">Prev. Mês Anterior</SelectItem>
+                <SelectItem value="custom">Prev. Personalizado</SelectItem>
+              </SelectContent>
+            </Select>
+            {deliveryDatePreset === "custom" && (
               <>
-                <Input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)} className="w-[140px] h-9" />
-                <Input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} className="w-[140px] h-9" />
+                <Input type="date" value={deliveryCustomStart} onChange={(e) => setDeliveryCustomStart(e.target.value)} className="w-[140px] h-9" />
+                <Input type="date" value={deliveryCustomEnd} onChange={(e) => setDeliveryCustomEnd(e.target.value)} className="w-[140px] h-9" />
               </>
             )}
           </div>
