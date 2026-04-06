@@ -40,7 +40,7 @@ const TYPE_CONFIG = {
 function countBusinessDays(start: string, end: string): number {
   try {
     const days = eachDayOfInterval({ start: parseISO(start), end: parseISO(end) });
-    return days.filter(d => !isWeekend(d)).length;
+    return days.filter(d => isBusinessDay(d)).length;
   } catch { return 22; }
 }
 
@@ -49,7 +49,7 @@ function countBusinessDaysInMonth(): number {
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const monthEndDate = endOfMonth(now);
   try {
-    return eachDayOfInterval({ start: monthStart, end: monthEndDate }).filter(d => !isWeekend(d)).length;
+    return eachDayOfInterval({ start: monthStart, end: monthEndDate }).filter(d => isBusinessDay(d)).length;
   } catch { return 22; }
 }
 
