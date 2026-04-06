@@ -277,12 +277,22 @@ export default function CRMNegociacoes() {
           return true;
         });
       }
+
+      // Search filter
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        filtered = filtered.filter(d =>
+          (d.title || "").toLowerCase().includes(q) ||
+          (d.company_name || "").toLowerCase().includes(q) ||
+          (d.contact_name || "").toLowerCase().includes(q)
+        );
+      }
       
       filtered = sortDeals(filtered);
       acc[stageId] = filtered;
       return acc;
     }, {} as Record<string, CRMDeal[]>);
-  }, [dealsByStage, ownerFilter, groupFilter, sortOrder, user?.id, startDate, endDate, dateFilterType, statusFilter]);
+  }, [dealsByStage, ownerFilter, groupFilter, sortOrder, user?.id, startDate, endDate, dateFilterType, statusFilter, searchQuery]);
 
   const totalVisibleDeals = useMemo(() => {
     return Object.values(filteredDealsByStage).flat().length;
