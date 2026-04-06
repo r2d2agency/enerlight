@@ -490,8 +490,23 @@ export default function CRMNegociacoes() {
             )}
           </div>
 
-          {/* Filters Row */}
+          {/* Search + Filters Row */}
           <div className="flex items-center gap-3 overflow-x-auto pb-1">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Buscar negociação..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="h-9 w-[200px] rounded-md border border-input bg-background pl-8 pr-3 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+              {searchQuery && (
+                <button onClick={() => setSearchQuery("")} className="absolute right-2 top-2.5">
+                  <X className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                </button>
+              )}
+            </div>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Filter className="h-4 w-4" />
               <span>Filtros:</span>
