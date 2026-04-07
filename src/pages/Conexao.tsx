@@ -930,7 +930,41 @@ const handleGetQRCode = async (connection: Connection) => {
                     </Badge>
                   </div>
 
-                  <div className="flex gap-2">
+                  {/* AI Agent Section */}
+                  <div className="rounded-lg border p-3 bg-muted/30 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Bot className="h-4 w-4 text-muted-foreground" />
+                        <div>
+                          <p className="text-sm font-medium">Agente de IA</p>
+                          <p className="text-xs text-muted-foreground">Atendimento automático via IA</p>
+                        </div>
+                      </div>
+                      {connectionAgents[connection.id] && (
+                        <Switch
+                          checked={connectionAgents[connection.id]?.is_active || false}
+                          onCheckedChange={(checked) => handleAgentToggle(connection.id, checked)}
+                        />
+                      )}
+                    </div>
+                    <Select
+                      value={connectionAgents[connection.id]?.agent_id || 'none'}
+                      onValueChange={(value) => handleAgentChange(connection.id, value === 'none' ? null : value)}
+                    >
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Selecionar agente..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Nenhum agente</SelectItem>
+                        {availableAgents.map((agent) => (
+                          <SelectItem key={agent.id} value={agent.id}>
+                            {agent.name} {!agent.is_active && '(inativo)'}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
                     {connection.status === 'connected' ? (
                       <>
                         <Button 
