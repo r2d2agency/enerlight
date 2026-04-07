@@ -18,6 +18,7 @@ import { AgentStatsDialog } from '@/components/ai-agents/AgentStatsDialog';
 import { KnowledgeBaseDialog } from '@/components/ai-agents/KnowledgeBaseDialog';
 import { AgentTestChatDialog } from '@/components/ai-agents/AgentTestChatDialog';
 import { API_URL, getAuthToken } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   DropdownMenu,
   DropdownMenuContent,
