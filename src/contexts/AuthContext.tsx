@@ -194,7 +194,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     toast({ title: 'Logout realizado' });
   };
 
-  const modulesEnabled = user?.modules_enabled || defaultModules;
+  const modulesEnabled = { ...defaultModules, ...(user?.modules_enabled || {}) };
   const userPermissions = user?.user_permissions || null;
 
   return (
