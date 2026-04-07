@@ -4,6 +4,7 @@ import { query } from '../db.js';
 import { logInfo, logError } from '../logger.js';
 import { callAI, callAIWithTools } from '../lib/ai-caller.js';
 import { processKnowledgeSource, searchKnowledge } from '../lib/knowledge-processor.js';
+import { normalizeExpenseContactPhone } from '../lib/expense-contact-authorization.js';
 
 const router = Router();
 const MASKED_AI_API_KEY = '••••••••';
@@ -1741,17 +1742,34 @@ router.post('/:id/expense-contacts', authenticate, async (req, res) => {
     }
 
     const { name, phone, user_id } = req.body;
-    if (!name || !phone) {
-      return res.status(400).json({ error: 'Nome e telefone são obrigatórios' });
+    if (!name || !phone || !user_id) {
+      return res.status(400).json({ error: 'Nome, telefone e membro interno são obrigatórios' });
     }
 
     // Normalize phone
-    const normalizedPhone = phone.replace(/\D/g, '');
+    const normalizedPhone = normalizeExpenseContactPhone(phone);
+    if (!normalizedPhone) {
+      return res.status(400).json({ error: 'Telefone inválido' });
+    }
+
+    const linkedMember = await query(
+      `SELECT 1 FROM organization_members WHERE organization_id = $1 AND user_id = $2 LIMIT 1`,
+      [userCtx.organization_id, user_id]
+    );
+
+    if (!linkedMember.rows[0]) {
+      return res.status(400).json({ error: 'Membro interno inválido para esta organização' });
+    }
 
     const result = await query(
       `INSERT INTO ai_agent_expense_contacts (agent_id, organization_id, user_id, name, phone)
        VALUES ($1, $2, $3, $4, $5)
-       ON CONFLICT (agent_id, phone) DO UPDATE SET name = EXCLUDED.name, is_active = true
+       ON CONFLICT (agent_id, phone) DO UPDATE SET
+         organization_id = EXCLUDED.organization_id,
+         user_id = EXCLUDED.user_id,
+         name = EXCLUDED.name,
+         phone = EXCLUDED.phone,
+         is_active = true
        RETURNING *`,
       [req.params.id, userCtx.organization_id, user_id || null, name, normalizedPhone]
     );
