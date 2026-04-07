@@ -1066,22 +1066,49 @@ async function executeCallAgent(organizationId, agentName, question) {
   }
 }
 
-async function executeCreateExpense(organizationId, userId, args, contactPhone) {
+async function executeCreateExpense(organizationId, userId, args, contactPhone, agentId) {
   try {
     // Find the authorized contact by phone to get user_id
-    let expenseUserId = userId;
+    let expenseUserId = null;
     let contactName = 'Desconhecido';
 
     if (contactPhone) {
       const normalizedPhone = contactPhone.replace(/\D/g, '');
-      const contactResult = await query(
-        `SELECT user_id, name FROM ai_agent_expense_contacts WHERE organization_id = $1 AND phone = $2 AND is_active = true LIMIT 1`,
-        [organizationId, normalizedPhone]
-      );
-      if (contactResult.rows.length > 0) {
-        expenseUserId = contactResult.rows[0].user_id || userId;
-        contactName = contactResult.rows[0].name;
+      // Try multiple phone formats: full, without country code, with country code
+      const phoneVariants = [normalizedPhone];
+      if (normalizedPhone.startsWith('55') && normalizedPhone.length > 10) {
+        phoneVariants.push(normalizedPhone.slice(2)); // without country code
+      } else if (normalizedPhone.length <= 11) {
+        phoneVariants.push('55' + normalizedPhone); // with country code
       }
+
+      // Search by agent_id first, then by organization
+      for (const phone of phoneVariants) {
+        let contactResult;
+        if (agentId) {
+          contactResult = await query(
+            `SELECT user_id, name FROM ai_agent_expense_contacts WHERE agent_id = $1 AND phone = $2 AND is_active = true LIMIT 1`,
+            [agentId, phone]
+          );
+        }
+        if (!contactResult || contactResult.rows.length === 0) {
+          contactResult = await query(
+            `SELECT user_id, name FROM ai_agent_expense_contacts WHERE organization_id = $1 AND phone = $2 AND is_active = true LIMIT 1`,
+            [organizationId, phone]
+          );
+        }
+        if (contactResult.rows.length > 0) {
+          expenseUserId = contactResult.rows[0].user_id;
+          contactName = contactResult.rows[0].name;
+          break;
+        }
+      }
+    }
+
+    // If no authorized contact found, reject
+    if (!expenseUserId) {
+      logInfo('ai_agent_processor.expense_unauthorized', { contactPhone, agentId });
+      return `⚠️ Este número de telefone não está autorizado a lançar despesas. Peça ao administrador para cadastrar seu número na lista de contatos autorizados do agente.`;
     }
 
     // Get user's group
