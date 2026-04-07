@@ -199,8 +199,35 @@ export function AgentEditorDialog({ open, onOpenChange, agent, onSaved }: AgentE
 
   const loadAvailableAgents = async () => {
     const agents = await getAgents();
-    // Exclude current agent from the list
     setAvailableAgents(agents.filter(a => a.id !== agent?.id));
+  };
+
+  const loadExpenseContacts = async (agentId: string) => {
+    const contacts = await getExpenseContacts(agentId);
+    setExpenseContacts(contacts);
+  };
+
+  const handleAddExpenseContact = async () => {
+    if (!agent?.id || !newContactName.trim() || !newContactPhone.trim()) {
+      toast.error('Nome e telefone são obrigatórios');
+      return;
+    }
+    const result = await addExpenseContact(agent.id, { name: newContactName.trim(), phone: newContactPhone.trim() });
+    if (result) {
+      setExpenseContacts(prev => [...prev, result]);
+      setNewContactName('');
+      setNewContactPhone('');
+      toast.success('Contato adicionado');
+    }
+  };
+
+  const handleRemoveExpenseContact = async (contactId: string) => {
+    if (!agent?.id) return;
+    const ok = await removeExpenseContact(agent.id, contactId);
+    if (ok) {
+      setExpenseContacts(prev => prev.filter(c => c.id !== contactId));
+      toast.success('Contato removido');
+    }
   };
 
   const toggleAllowedAgent = (agentId: string) => {
