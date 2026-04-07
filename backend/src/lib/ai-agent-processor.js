@@ -541,6 +541,7 @@ async function buildSystemPrompt(agent, organizationId, contactName, userMessage
   if (capabilities.includes('manage_expenses')) {
     prompt += `\n\n## Prestação de Contas (Despesas)
 IMPORTANTE: Para registrar despesas e gastos, use SEMPRE a ferramenta "create_expense". NÃO use "create_deal" para despesas.
+Para consultar despesas já registradas, use a ferramenta "query_expenses". Você pode listar, ver totais e resumos por categoria.
 A ferramenta "create_expense" é independente do CRM e não precisa de funil nem etapa.
 
 Quando o usuário enviar uma foto de nota fiscal, recibo, ou descrever um gasto:
@@ -549,6 +550,10 @@ Quando o usuário enviar uma foto de nota fiscal, recibo, ou descrever um gasto:
 3. Se não conseguir identificar a CATEGORIA, pergunte ao usuário qual categoria usar (combustivel, alimentacao, transporte, hospedagem, material, servico, outros)
 4. Se não conseguir identificar o VALOR, pergunte ao usuário
 5. Após registrar, confirme informando: valor, categoria, data e estabelecimento
+
+Quando o usuário perguntar sobre despesas já lançadas, totais, quanto gastou, histórico:
+- Use "query_expenses" com action "list" para listar, "summary" para resumo por categoria, "total" para total geral
+- Você sabe a data de hoje, use-a para calcular períodos como "este mês", "esta semana", "hoje"
 
 REGRA CRÍTICA: Quando receber informações suficientes (valor + descrição), chame "create_expense" IMEDIATAMENTE. Não faça perguntas desnecessárias. Aja como um sistema de lançamento rápido.
 Tipos de pagamento: dinheiro, cartao_credito, cartao_debito, pix, outros.
