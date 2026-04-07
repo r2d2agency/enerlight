@@ -203,7 +203,7 @@ export async function processIncomingWithAgent({
       toolCallsExecuted = result.toolCallsExecuted || [];
     } else {
       result = await callAI(aiConfig, messages, {
-        temperature: agent.temperature || 0.7,
+        temperature: parseFloat(agent.temperature) || 0.7,
         maxTokens: agent.max_tokens || 1000,
       });
     }
