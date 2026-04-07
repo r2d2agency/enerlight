@@ -868,6 +868,8 @@ function createToolExecutor(organizationId, userId) {
         return executeGenerateContent(args);
       case 'consult_specialist_agent':
         return executeCallAgent(organizationId, args.agent_name, args.question);
+      case 'create_expense':
+        return executeCreateExpense(organizationId, userId, args, contactPhone);
       default:
         return 'Ferramenta desconhecida';
     }
