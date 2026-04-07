@@ -539,26 +539,28 @@ async function buildSystemPrompt(agent, organizationId, contactName, userMessage
   // Add expense management instructions if capability is enabled
   const capabilities = parseArray(agent.capabilities, []);
   if (capabilities.includes('manage_expenses')) {
-    prompt += `\n\n## Prestação de Contas (Despesas)
-IMPORTANTE: Para registrar despesas e gastos, use SEMPRE a ferramenta "create_expense". NÃO use "create_deal" para despesas.
-Para consultar despesas já registradas, use a ferramenta "query_expenses". Você pode listar, ver totais e resumos por categoria.
-A ferramenta "create_expense" é independente do CRM e não precisa de funil nem etapa.
+    const todayISO = new Date().toISOString().split('T')[0];
+    prompt += `\n\n## Prestação de Contas (Despesas) - INSTRUÇÕES OBRIGATÓRIAS
+VOCÊ TEM ACESSO ÀS FERRAMENTAS "create_expense" e "query_expenses". USE-AS SEMPRE.
 
-Quando o usuário enviar uma foto de nota fiscal, recibo, ou descrever um gasto:
-1. Extraia as informações: valor, categoria, descrição, data, tipo de pagamento, estabelecimento, CNPJ
-2. Se conseguir identificar VALOR e CATEGORIA, chame IMEDIATAMENTE a ferramenta "create_expense" para registrar. NÃO pergunte confirmação, registre direto.
-3. Se não conseguir identificar a CATEGORIA, pergunte ao usuário qual categoria usar (combustivel, alimentacao, transporte, hospedagem, material, servico, outros)
-4. Se não conseguir identificar o VALOR, pergunte ao usuário
-5. Após registrar, confirme informando: valor, categoria, data e estabelecimento
+### Para REGISTRAR despesas:
+Use SEMPRE a ferramenta "create_expense". NUNCA responda textualmente que não pode registrar.
+- Extraia: valor, categoria, descrição, data, pagamento, estabelecimento, CNPJ
+- Se tiver VALOR + DESCRIÇÃO, chame "create_expense" IMEDIATAMENTE sem pedir confirmação
+- Categorias: combustivel, alimentacao, transporte, hospedagem, material, servico, outros
+- Inferência: "gasolina"→combustivel, "almoço"→alimentacao, "uber"→transporte, "hotel"→hospedagem
+- Data padrão: hoje (${todayISO})
+- Pagamento: dinheiro, cartao_credito, cartao_debito, pix, outros
 
-Quando o usuário perguntar sobre despesas já lançadas, totais, quanto gastou, histórico:
-- Use "query_expenses" com action "list" para listar, "summary" para resumo por categoria, "total" para total geral
-- Você sabe a data de hoje, use-a para calcular períodos como "este mês", "esta semana", "hoje"
+### Para CONSULTAR despesas:
+Use SEMPRE a ferramenta "query_expenses". NUNCA diga que não tem acesso a lançamentos.
+- action "list": lista despesas com detalhes
+- action "summary": resumo por categoria (totais)  
+- action "total": total geral do período
+- Calcule datas: "este mês" = primeiro dia do mês até hoje, "esta semana" = segunda até hoje, "hoje" = ${todayISO}
+- NUNCA responda que não consegue acessar informações de despesas. SEMPRE use a ferramenta.
 
-REGRA CRÍTICA: Quando receber informações suficientes (valor + descrição), chame "create_expense" IMEDIATAMENTE. Não faça perguntas desnecessárias. Aja como um sistema de lançamento rápido.
-Tipos de pagamento: dinheiro, cartao_credito, cartao_debito, pix, outros.
-Se a data não for informada, use a data de hoje (${new Date().toISOString().split('T')[0]}).
-Se a categoria não for informada mas puder ser inferida pela descrição (ex: "gasolina" = combustivel, "almoço" = alimentacao, "uber" = transporte, "hotel" = hospedagem), use a categoria inferida.`;
+REGRA CRÍTICA: Se o usuário perguntar sobre gastos/despesas/lançamentos, CHAME "query_expenses". Se informar um gasto, CHAME "create_expense". NUNCA responda sem usar as ferramentas.`;
   }
 
   // Add language instruction
