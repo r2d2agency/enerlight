@@ -282,7 +282,7 @@ export const useAIAgents = () => {
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao criar agente';
       setError(message);
-      return null;
+      throw err instanceof Error ? err : new Error(message);
     } finally {
       setLoading(false);
     }
@@ -301,7 +301,7 @@ export const useAIAgents = () => {
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao atualizar agente';
       setError(message);
-      return null;
+      throw err instanceof Error ? err : new Error(message);
     } finally {
       setLoading(false);
     }
