@@ -227,11 +227,16 @@ export function AgentEditorDialog({ open, onOpenChange, agent, onSaved }: AgentE
       toast.error('Nome e telefone são obrigatórios');
       return;
     }
-    const result = await addExpenseContact(agent.id, { name: newContactName.trim(), phone: newContactPhone.trim() });
+    if (!newContactUserId) {
+      toast.error('Selecione o membro interno vinculado a este contato');
+      return;
+    }
+    const result = await addExpenseContact(agent.id, { name: newContactName.trim(), phone: newContactPhone.trim(), user_id: newContactUserId });
     if (result) {
       setExpenseContacts(prev => [...prev, result]);
       setNewContactName('');
       setNewContactPhone('');
+      setNewContactUserId('');
       toast.success('Contato adicionado');
     }
   };
