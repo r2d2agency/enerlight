@@ -335,6 +335,7 @@ router.post('/plans', requireSuperadmin, async (req, res) => {
       has_lead_gleego: [req.body.has_lead_gleego || false, null],
       has_captador: [req.body.has_captador || false, null],
       has_licitacao: [req.body.has_licitacao || false, null],
+      has_logistics: [req.body.has_logistics || false, null],
       has_document_signatures: [req.body.has_document_signatures || false, null],
       price: [req.body.price || 0, null],
       billing_period: [req.body.billing_period || 'monthly', null],
@@ -387,7 +388,7 @@ router.patch('/plans/:id', requireSuperadmin, async (req, res) => {
       'has_crm', 'has_ai_agents', 'has_departments', 'has_lead_scoring',
       'has_ai_summary', 'has_group_secretary', 'has_ghost', 'has_projects',
       'has_internal_chat', 'has_homologation', 'has_tasks', 'has_lead_gleego',
-      'has_captador', 'has_licitacao', 'has_document_signatures', 'price', 'billing_period', 'is_active',
+      'has_captador', 'has_licitacao', 'has_logistics', 'has_document_signatures', 'price', 'billing_period', 'is_active',
       'visible_on_signup', 'trial_days'
     ];
 
@@ -456,6 +457,7 @@ router.post('/plans/sync-all', requireSuperadmin, async (req, res) => {
         lead_gleego: plan.has_lead_gleego ?? false,
         captador: plan.has_captador ?? false,
         licitacao: plan.has_licitacao ?? false,
+        logistics: plan.has_logistics ?? false,
         document_signatures: plan.has_document_signatures ?? false,
       };
 
@@ -784,11 +786,12 @@ router.post('/organizations', requireSuperadmin, async (req, res) => {
       chatbots: true,
       chat: true,
       crm: true,
+      logistics: false,
     };
 
     if (plan_id) {
       const planResult = await query(
-        `SELECT has_campaigns, has_asaas_integration, has_whatsapp_groups, has_scheduled_messages, has_chatbots, has_chat, has_crm FROM plans WHERE id = $1`,
+        `SELECT has_campaigns, has_asaas_integration, has_whatsapp_groups, has_scheduled_messages, has_chatbots, has_chat, has_crm, has_logistics FROM plans WHERE id = $1`,
         [plan_id]
       );
       if (planResult.rows.length > 0) {
@@ -801,6 +804,7 @@ router.post('/organizations', requireSuperadmin, async (req, res) => {
           chatbots: plan.has_chatbots ?? true,
           chat: plan.has_chat ?? true,
           crm: plan.has_crm ?? true,
+          logistics: plan.has_logistics ?? false,
         };
       }
     }
@@ -841,7 +845,7 @@ router.patch('/organizations/:id', requireSuperadmin, async (req, res) => {
     let modulesEnabled = null;
     if (plan_id && sync_modules !== false) {
       const planResult = await query(
-        `SELECT has_campaigns, has_asaas_integration, has_whatsapp_groups, has_scheduled_messages, has_chatbots, has_chat, has_crm FROM plans WHERE id = $1`,
+        `SELECT has_campaigns, has_asaas_integration, has_whatsapp_groups, has_scheduled_messages, has_chatbots, has_chat, has_crm, has_logistics FROM plans WHERE id = $1`,
         [plan_id]
       );
       if (planResult.rows.length > 0) {
@@ -854,6 +858,7 @@ router.patch('/organizations/:id', requireSuperadmin, async (req, res) => {
           chatbots: plan.has_chatbots ?? true,
           chat: plan.has_chat ?? true,
           crm: plan.has_crm ?? true,
+          logistics: plan.has_logistics ?? false,
         };
       }
     }

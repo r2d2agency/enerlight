@@ -220,12 +220,13 @@ router.get('/:id([0-9a-fA-F-]{36})/modules', async (req, res) => {
       billing: true,
       groups: true,
       scheduled_messages: true,
-       chatbots: true,
-       chat: true,
-       crm: true
+      chatbots: true,
+      chat: true,
+      crm: true,
+      logistics: false,
     };
     
-    res.json(result.rows[0].modules_enabled || defaultModules);
+    res.json({ ...defaultModules, ...(result.rows[0].modules_enabled || {}) });
   } catch (error) {
     console.error('Get org modules error:', error);
     res.status(500).json({ error: 'Erro ao buscar configurações' });
