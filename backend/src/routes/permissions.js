@@ -36,7 +36,7 @@ const ROLE_DEFAULTS = {
     can_view_external_flows: false, can_view_webhooks: false, can_view_ctwa: false,
     can_view_billing: false, can_view_connections: false, can_view_organizations: false,
     can_view_settings: true, can_view_internal_chat: true, can_view_lead_gleego: false,
-    can_view_homologation: false, can_view_captador: false, can_view_licitacao: false, can_view_logistics: false,
+    can_view_homologation: false, can_view_captador: false, can_view_licitacao: false, can_view_logistics: true,
     can_delete_deals: true, can_delete_projects: true, can_delete_tasks: true, can_delete_homologation: true, can_delete_licitacao: false,
     can_edit_logistics: false, can_delete_logistics: false,
   },
@@ -52,7 +52,7 @@ const ROLE_DEFAULTS = {
     can_view_external_flows: false, can_view_webhooks: false, can_view_ctwa: false,
     can_view_billing: false, can_view_connections: false, can_view_organizations: false,
     can_view_settings: true, can_view_internal_chat: true, can_view_lead_gleego: false,
-    can_view_homologation: false, can_view_captador: false, can_view_licitacao: false, can_view_logistics: false,
+    can_view_homologation: false, can_view_captador: false, can_view_licitacao: false, can_view_logistics: true,
     can_delete_deals: true, can_delete_projects: true, can_delete_tasks: true, can_delete_homologation: true, can_delete_licitacao: false,
     can_edit_logistics: false, can_delete_logistics: false,
   },
@@ -68,7 +68,7 @@ const ROLE_DEFAULTS = {
     can_view_external_flows: false, can_view_webhooks: false, can_view_ctwa: false,
     can_view_billing: false, can_view_connections: false, can_view_organizations: false,
     can_view_settings: true, can_view_internal_chat: true, can_view_lead_gleego: false,
-    can_view_homologation: false, can_view_captador: false, can_view_licitacao: false, can_view_logistics: false,
+    can_view_homologation: false, can_view_captador: false, can_view_licitacao: false, can_view_logistics: true,
     can_delete_deals: false, can_delete_projects: true, can_delete_tasks: true, can_delete_homologation: false, can_delete_licitacao: false,
     can_edit_logistics: false, can_delete_logistics: false,
   },
@@ -84,7 +84,7 @@ const ROLE_DEFAULTS = {
     can_view_external_flows: false, can_view_webhooks: false, can_view_ctwa: false,
     can_view_billing: false, can_view_connections: false, can_view_organizations: false,
     can_view_settings: true, can_view_internal_chat: true, can_view_lead_gleego: false,
-    can_view_homologation: false, can_view_captador: false, can_view_licitacao: false, can_view_logistics: false,
+    can_view_homologation: false, can_view_captador: false, can_view_licitacao: false, can_view_logistics: true,
     can_delete_deals: false, can_delete_projects: false, can_delete_tasks: false, can_delete_homologation: false, can_delete_licitacao: false,
     can_edit_logistics: false, can_delete_logistics: false,
   },
@@ -124,9 +124,10 @@ router.get('/:userId', authenticate, async (req, res) => {
     );
     
     if (permResult.rows.length > 0) {
+      const defaults = ROLE_DEFAULTS[role] || ROLE_DEFAULTS.agent;
       const perms = {};
       for (const col of PERMISSION_COLUMNS) {
-        perms[col] = permResult.rows[0][col] !== undefined ? permResult.rows[0][col] : true;
+        perms[col] = permResult.rows[0][col] ?? defaults[col];
       }
       res.json({ permissions: perms, is_custom: true, role });
     } else {
