@@ -1596,7 +1596,7 @@ router.post('/:id/test', authenticate, async (req, res) => {
       };
 
       result = await callAIWithTools(aiConfig, messages, {
-        temperature: agent.temperature || 0.7,
+        temperature: parseFloat(agent.temperature) || 0.7,
         maxTokens: agent.max_tokens || 1000,
         tools,
       }, toolExecutor);
