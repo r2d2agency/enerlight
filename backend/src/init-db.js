@@ -4543,6 +4543,8 @@ const migrationSteps = [
   { name: 'Logistics Module', sql: step56Logistics, critical: false },
   { name: 'CRM Deal Quote Fields', sql: step57DealQuoteFields, critical: false },
   { name: 'CNAE Groups', sql: step58CnaeGroups, critical: false },
+  { name: 'Expense Reports', sql: step59Expenses, critical: false },
+  { name: 'AI Expense Contacts', sql: step60AIExpenseContacts, critical: false },
 ];
 
 export async function initDatabase() {
