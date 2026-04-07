@@ -120,11 +120,81 @@ const Conexao = () => {
     try {
       const data = await api<Connection[]>('/api/connections');
       setConnections(data);
+      // Load AI agent info for each connection
+      loadConnectionAgents(data);
+      loadAvailableAgents(data);
     } catch (error) {
       console.error('Error loading connections:', error);
       toast.error('Erro ao carregar conexões');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadAvailableAgents = async (conns: Connection[]) => {
+    if (conns.length === 0) return;
+    try {
+      const agents = await api<{id: string; name: string; description?: string; is_active: boolean}[]>(
+        `/api/connections/${conns[0].id}/available-agents`
+      );
+      setAvailableAgents(agents);
+    } catch (err) {
+      console.error('Error loading available agents:', err);
+    }
+  };
+
+  const loadConnectionAgents = async (conns: Connection[]) => {
+    const agentMap: Record<string, {agent_id: string; is_active: boolean}> = {};
+    await Promise.all(conns.map(async (conn) => {
+      try {
+        const data = await api<any>(`/api/connections/${conn.id}/ai-agent`);
+        if (data) {
+          agentMap[conn.id] = { agent_id: data.agent_id, is_active: data.is_active };
+        }
+      } catch {}
+    }));
+    setConnectionAgents(agentMap);
+  };
+
+  const handleAgentChange = async (connectionId: string, agentId: string | null) => {
+    try {
+      if (agentId) {
+        await api(`/api/connections/${connectionId}/ai-agent`, {
+          method: 'PATCH',
+          body: { agent_id: agentId, is_active: true },
+        });
+        setConnectionAgents(prev => ({ ...prev, [connectionId]: { agent_id: agentId, is_active: true } }));
+        toast.success('Agente de IA vinculado');
+      } else {
+        await api(`/api/connections/${connectionId}/ai-agent`, {
+          method: 'PATCH',
+          body: { agent_id: null },
+        });
+        setConnectionAgents(prev => {
+          const copy = { ...prev };
+          delete copy[connectionId];
+          return copy;
+        });
+        toast.success('Agente de IA removido');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao atualizar agente');
+    }
+  };
+
+  const handleAgentToggle = async (connectionId: string, isActive: boolean) => {
+    try {
+      await api(`/api/connections/${connectionId}/ai-agent`, {
+        method: 'PATCH',
+        body: { is_active: isActive },
+      });
+      setConnectionAgents(prev => ({
+        ...prev,
+        [connectionId]: { ...prev[connectionId], is_active: isActive }
+      }));
+      toast.success(isActive ? 'Agente ativado' : 'Agente desativado');
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao atualizar agente');
     }
   };
 
