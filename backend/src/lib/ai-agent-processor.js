@@ -475,6 +475,12 @@ async function sendAgentMessage(connection, contactPhone, text, sessionId) {
 async function buildSystemPrompt(agent, organizationId, contactName, userMessage, aiConfig) {
   let prompt = agent.system_prompt || 'Você é um assistente virtual profissional e prestativo.';
 
+  // Always add current date/time context
+  const now = new Date();
+  const brDate = now.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const brTime = now.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
+  prompt += `\n\nInformações do momento atual: Hoje é ${brDate}, ${brTime} (horário de Brasília). Data ISO: ${now.toISOString().split('T')[0]}.`;
+
   // Add personality traits
   const traits = parseArray(agent.personality_traits, []);
   if (traits.length > 0) {
@@ -637,6 +643,7 @@ async function buildToolsForAgent(agent, capabilities, organizationId) {
 
   if (capabilities.includes('manage_expenses')) {
     tools.push(buildManageExpensesTool());
+    tools.push(buildQueryExpensesTool());
   }
 
   return tools;
@@ -890,6 +897,8 @@ function createToolExecutor(organizationId, userId, contactPhone, agentId) {
         return executeCallAgent(organizationId, args.agent_name, args.question);
       case 'create_expense':
         return executeCreateExpense(organizationId, userId, args, contactPhone, agentId);
+      case 'query_expenses':
+        return executeQueryExpenses(organizationId, userId, args, contactPhone, agentId);
       default:
         return 'Ferramenta desconhecida';
     }
