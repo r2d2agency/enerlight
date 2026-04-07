@@ -2140,7 +2140,9 @@ DO $$ BEGIN
     'summarize_history',
     'qualify_leads',
     'manage_tasks',
-    'google_calendar'
+    'google_calendar',
+    'call_agent',
+    'manage_expenses'
   );
 EXCEPTION WHEN duplicate_object THEN null; END $$;
 
@@ -2151,6 +2153,14 @@ EXCEPTION WHEN duplicate_object THEN null; END $$;
 
 DO $$ BEGIN
   ALTER TYPE agent_capability ADD VALUE IF NOT EXISTS 'google_calendar';
+EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+DO $$ BEGIN
+  ALTER TYPE agent_capability ADD VALUE IF NOT EXISTS 'call_agent';
+EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+DO $$ BEGIN
+  ALTER TYPE agent_capability ADD VALUE IF NOT EXISTS 'manage_expenses';
 EXCEPTION WHEN duplicate_object THEN null; END $$;
 
 -- AI Agents main table
@@ -2197,6 +2207,12 @@ EXCEPTION WHEN duplicate_column THEN null; END $$;
 
 DO $$ BEGIN
   ALTER TABLE ai_agents ADD COLUMN IF NOT EXISTS call_agent_config JSONB DEFAULT '{}';
+EXCEPTION WHEN duplicate_column THEN null; END $$;
+
+DO $$ BEGIN
+  ALTER TABLE ai_agents ADD COLUMN IF NOT EXISTS notify_external_enabled BOOLEAN DEFAULT false;
+  ALTER TABLE ai_agents ADD COLUMN IF NOT EXISTS notify_external_phone VARCHAR(50);
+  ALTER TABLE ai_agents ADD COLUMN IF NOT EXISTS notify_external_summary BOOLEAN DEFAULT true;
 EXCEPTION WHEN duplicate_column THEN null; END $$;
 
 -- Knowledge sources

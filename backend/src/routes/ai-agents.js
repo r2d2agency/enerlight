@@ -6,6 +6,7 @@ import { callAI, callAIWithTools } from '../lib/ai-caller.js';
 import { processKnowledgeSource, searchKnowledge } from '../lib/knowledge-processor.js';
 
 const router = Router();
+const MASKED_AI_API_KEY = '••••••••';
 
 // Helper to get user's organization and info
 async function getUserContext(userId) {
@@ -18,6 +19,15 @@ async function getUserContext(userId) {
     [userId]
   );
   return result.rows[0] || null;
+}
+
+function sanitizeAgentResponse(agent) {
+  if (!agent) return agent;
+
+  return {
+    ...agent,
+    ai_api_key: agent.ai_api_key ? MASKED_AI_API_KEY : null,
+  };
 }
 
 // ==================== AGENTES ====================
@@ -43,7 +53,7 @@ router.get('/', authenticate, async (req, res) => {
       ORDER BY a.created_at DESC
     `, [userCtx.organization_id]);
 
-    res.json(result.rows);
+    res.json(result.rows.map(sanitizeAgentResponse));
   } catch (error) {
     logError('ai_agents.list_error', error);
     res.status(500).json({ error: 'Erro ao buscar agentes' });
@@ -71,7 +81,7 @@ router.get('/:id', authenticate, async (req, res) => {
       return res.status(404).json({ error: 'Agente não encontrado' });
     }
 
-    res.json(result.rows[0]);
+    res.json(sanitizeAgentResponse(result.rows[0]));
   } catch (error) {
     logError('ai_agents.get_error', error);
     res.status(500).json({ error: 'Erro ao buscar agente' });
@@ -149,7 +159,7 @@ router.post('/', authenticate, async (req, res) => {
     ]);
 
     logInfo('ai_agents.created', { agentId: result.rows[0].id, userId: userCtx.id });
-    res.status(201).json(result.rows[0]);
+    res.status(201).json(sanitizeAgentResponse(result.rows[0]));
   } catch (error) {
     logError('ai_agents.create_error', error);
     res.status(500).json({ error: 'Erro ao criar agente' });
@@ -220,7 +230,7 @@ router.patch('/:id', authenticate, async (req, res) => {
       RETURNING *
     `, values);
 
-    res.json(result.rows[0]);
+    res.json(sanitizeAgentResponse(result.rows[0]));
   } catch (error) {
     logError('ai_agents.update_error', error);
     res.status(500).json({ error: 'Erro ao atualizar agente' });
