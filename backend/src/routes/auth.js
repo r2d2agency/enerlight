@@ -2,8 +2,26 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { query } from '../db.js';
+import { ROLE_DEFAULTS } from './permissions.js';
 
 const router = Router();
+
+const SESSION_PERMISSION_PREFIXES = ['can_view_', 'can_edit_', 'can_delete_'];
+
+function buildSessionPermissions(row, role) {
+  if (row) {
+    const permissions = {};
+    for (const key of Object.keys(row)) {
+      if (SESSION_PERMISSION_PREFIXES.some(prefix => key.startsWith(prefix))) {
+        permissions[key] = row[key];
+      }
+    }
+    return permissions;
+  }
+
+  if (!role) return null;
+  return ROLE_DEFAULTS[role] || ROLE_DEFAULTS.agent;
+}
 
 // Get visible plans for signup (public endpoint)
 router.get('/plans', async (req, res) => {
@@ -84,7 +102,8 @@ router.post('/register', async (req, res) => {
       scheduled_messages: true,
       chatbots: true,
       chat: true,
-      crm: true
+      crm: true,
+      logistics: false,
     };
 
     let expiresAt = null;
@@ -96,7 +115,7 @@ router.post('/register', async (req, res) => {
 
       // Get plan modules for organization
       const planModulesResult = await query(
-         `SELECT has_campaigns, has_asaas_integration, has_whatsapp_groups, has_scheduled_messages, has_chatbots, has_chat, has_crm, has_group_secretary, has_ghost, has_projects, has_homologation, has_tasks, has_lead_gleego, has_licitacao FROM plans WHERE id = $1`,
+        `SELECT has_campaigns, has_asaas_integration, has_whatsapp_groups, has_scheduled_messages, has_chatbots, has_chat, has_crm, has_group_secretary, has_ghost, has_projects, has_homologation, has_tasks, has_lead_gleego, has_licitacao, has_logistics FROM plans WHERE id = $1`,
         [selectedPlan.id]
       );
       
@@ -117,6 +136,7 @@ router.post('/register', async (req, res) => {
           tasks: plan.has_tasks !== false,
           lead_gleego: plan.has_lead_gleego ?? false,
           licitacao: plan.has_licitacao ?? false,
+          logistics: plan.has_logistics ?? false,
         };
       }
     }
@@ -164,7 +184,7 @@ router.post('/register', async (req, res) => {
     const organizationId = orgRoleResult.rows[0]?.organization_id || null;
     const finalModules = orgRoleResult.rows[0]?.modules_enabled || {
       campaigns: true, billing: true, groups: true,
-      scheduled_messages: true, chatbots: true, chat: true, crm: true
+       scheduled_messages: true, chatbots: true, chat: true, crm: true, logistics: false,
     };
 
     res.status(201).json({ 
@@ -175,6 +195,7 @@ router.post('/register', async (req, res) => {
         role,
         organization_id: organizationId,
         modules_enabled: finalModules,
+         user_permissions: buildSessionPermissions(null, role),
       }, 
       token 
     });
@@ -265,20 +286,14 @@ router.post('/login', async (req, res) => {
     }
 
     // Get user-level permissions
-    let userPermissions = null;
+    let userPermissions = buildSessionPermissions(null, role);
     try {
       const permResult = await query(
         `SELECT * FROM user_permissions WHERE user_id = $1 AND organization_id = $2`,
         [user.id, organizationId]
       );
       if (permResult.rows.length > 0) {
-        const row = permResult.rows[0];
-        userPermissions = {};
-        for (const key of Object.keys(row)) {
-          if (key.startsWith('can_view_') || key.startsWith('can_delete_')) {
-            userPermissions[key] = row[key];
-          }
-        }
+        userPermissions = buildSessionPermissions(permResult.rows[0], role);
       }
     } catch (_) {
       // table might not exist yet
@@ -416,20 +431,14 @@ router.get('/me', async (req, res) => {
     }
 
     // Get user-level permissions
-    let userPermissions = null;
+    let userPermissions = buildSessionPermissions(null, role);
     try {
       const permResult = await query(
         `SELECT * FROM user_permissions WHERE user_id = $1 AND organization_id = $2`,
         [decoded.userId, organizationId]
       );
       if (permResult.rows.length > 0) {
-        const row = permResult.rows[0];
-        userPermissions = {};
-        for (const key of Object.keys(row)) {
-          if (key.startsWith('can_view_') || key.startsWith('can_delete_')) {
-            userPermissions[key] = row[key];
-          }
-        }
+        userPermissions = buildSessionPermissions(permResult.rows[0], role);
       }
     } catch (_) {
       // table might not exist yet

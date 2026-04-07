@@ -3154,6 +3154,9 @@ CREATE TABLE IF NOT EXISTS user_permissions (
   can_view_homologation BOOLEAN DEFAULT false,
   can_view_captador BOOLEAN DEFAULT false,
   can_view_licitacao BOOLEAN DEFAULT false,
+  can_view_logistics BOOLEAN DEFAULT false,
+  can_edit_logistics BOOLEAN DEFAULT false,
+  can_delete_logistics BOOLEAN DEFAULT false,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   UNIQUE(user_id, organization_id)
@@ -4385,6 +4388,10 @@ WHERE modules_enabled IS NOT NULL
 -- Permission columns
 DO $$ BEGIN
   ALTER TABLE user_permissions ADD COLUMN IF NOT EXISTS can_view_logistics BOOLEAN DEFAULT false;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+DO $$ BEGIN
+  ALTER TABLE user_permissions ADD COLUMN IF NOT EXISTS can_edit_logistics BOOLEAN DEFAULT false;
 EXCEPTION WHEN duplicate_column THEN NULL;
 END $$;
 DO $$ BEGIN
