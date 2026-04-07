@@ -20,6 +20,8 @@ interface ModulesEnabled {
   lead_gleego: boolean;
   captador: boolean;
   licitacao: boolean;
+  logistics: boolean;
+  document_signatures: boolean;
 }
 
 export interface UserPermissions {
@@ -62,6 +64,10 @@ export interface UserPermissions {
   can_delete_tasks: boolean;
   can_delete_homologation: boolean;
   can_delete_licitacao: boolean;
+  can_view_logistics: boolean;
+  can_edit_logistics: boolean;
+  can_delete_logistics: boolean;
+  can_view_document_signatures: boolean;
 }
 
 interface User {
@@ -112,6 +118,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     lead_gleego: false,
     captador: false,
     licitacao: false,
+    logistics: false,
+    document_signatures: false,
   };
 
   const refreshUser = async () => {
