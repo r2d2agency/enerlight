@@ -1046,6 +1046,56 @@ async function executeCallAgent(organizationId, agentName, question) {
   }
 }
 
+async function executeCreateExpense(organizationId, userId, args, contactPhone) {
+  try {
+    // Find the authorized contact by phone to get user_id
+    let expenseUserId = userId;
+    let contactName = 'Desconhecido';
+
+    if (contactPhone) {
+      const normalizedPhone = contactPhone.replace(/\D/g, '');
+      const contactResult = await query(
+        `SELECT user_id, name FROM ai_agent_expense_contacts WHERE organization_id = $1 AND phone = $2 AND is_active = true LIMIT 1`,
+        [organizationId, normalizedPhone]
+      );
+      if (contactResult.rows.length > 0) {
+        expenseUserId = contactResult.rows[0].user_id || userId;
+        contactName = contactResult.rows[0].name;
+      }
+    }
+
+    // Get user's group
+    let groupId = null;
+    try {
+      const groupResult = await query(
+        `SELECT g.id FROM groups g 
+         JOIN group_members gm ON gm.group_id = g.id 
+         WHERE gm.user_id = $1 LIMIT 1`,
+        [expenseUserId]
+      );
+      groupId = groupResult.rows[0]?.id || null;
+    } catch (_) {}
+
+    const result = await query(`
+      INSERT INTO expense_items (organization_id, user_id, group_id, category, description, amount, expense_date, expense_time, payment_type, location, establishment, cnpj)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      RETURNING id, amount, category, description, expense_date
+    `, [
+      organizationId, expenseUserId, groupId,
+      args.category, args.description, args.amount,
+      args.expense_date, args.expense_time || null,
+      args.payment_type || null, args.location || null,
+      args.establishment || null, args.cnpj || null,
+    ]);
+
+    const item = result.rows[0];
+    return `✅ Despesa registrada com sucesso!\n• Valor: R$ ${parseFloat(item.amount).toFixed(2)}\n• Categoria: ${item.category}\n• Descrição: ${item.description}\n• Data: ${item.expense_date}\n• Colaborador: ${contactName}`;
+  } catch (error) {
+    logError('ai_agent_processor.create_expense_error', error);
+    return `Erro ao registrar despesa: ${error.message}`;
+  }
+}
+
 // ==================== WORK SCHEDULE HELPERS ====================
 
 async function getWorkSchedule(organizationId) {
