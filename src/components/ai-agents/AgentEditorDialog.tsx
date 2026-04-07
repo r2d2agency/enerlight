@@ -212,6 +212,15 @@ export function AgentEditorDialog({ open, onOpenChange, agent, onSaved }: AgentE
     setExpenseContacts(contacts);
   };
 
+  const loadMembers = async () => {
+    try {
+      const members = await api<Array<{ id: string; name: string; email: string }>>('/api/logistics/members', { auth: true });
+      setOrgMembers(members);
+    } catch {
+      setOrgMembers([]);
+    }
+  };
+
   const handleAddExpenseContact = async () => {
     if (!agent?.id || !newContactName.trim() || !newContactPhone.trim()) {
       toast.error('Nome e telefone são obrigatórios');
