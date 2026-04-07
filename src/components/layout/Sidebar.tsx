@@ -82,7 +82,7 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
     items: [
       ...(hasConnections ? [{ name: "Chat", href: "/chat", icon: MessagesSquare, moduleKey: 'chat' as const, permissionKey: 'can_view_chat' }] : []),
       ...(hasConnections ? [{ name: "Secretária IA", href: "/secretaria-grupos", icon: Bot, moduleKey: 'group_secretary' as const, adminOnly: true, permissionKey: 'can_view_ai_secretary' }] : []),
-      { name: "Agentes IA", href: "/agentes-ia", icon: Sparkles, superadminOnly: true, permissionKey: 'can_view_ai_agents' },
+      { name: "Agentes IA", href: "/agentes-ia", icon: Sparkles, moduleKey: 'ai_agents' as const, adminOnly: true, permissionKey: 'can_view_ai_agents' },
       ...(hasConnections ? [{ name: "Chatbots", href: "/chatbots", icon: Bot, moduleKey: 'chatbots' as const, adminOnly: true, permissionKey: 'can_view_chatbots' }] : []),
       ...(hasConnections ? [{ name: "Fluxos", href: "/fluxos", icon: GitBranch, moduleKey: 'chatbots' as const, adminOnly: true, permissionKey: 'can_view_flows' }] : []),
       { name: "Departamentos", href: "/departamentos", icon: Building2, adminOnly: true, permissionKey: 'can_view_departments' },
@@ -284,6 +284,8 @@ function SidebarContentComponent({ isExpanded, isSuperadmin, onNavigate }: Sideb
   // Filter sections and items based on modules enabled, role AND permissions
   const filteredSections = navSections
     .filter(section => {
+      // Owner always sees all sections
+      if (userIsOwner) return true;
       // Check module access
       if (section.moduleKey && !modulesEnabled[section.moduleKey] && !isSuperadmin) return false;
       // Check admin-only section
@@ -295,6 +297,8 @@ function SidebarContentComponent({ isExpanded, isSuperadmin, onNavigate }: Sideb
     .map(section => ({
       ...section,
       items: section.items.filter(item => {
+        // Owner (proprietário) always sees everything
+        if (userIsOwner) return true;
         // Check module access
         if (item.moduleKey && !modulesEnabled[item.moduleKey] && !isSuperadmin) return false;
         // Check superadmin-only item
