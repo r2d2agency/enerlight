@@ -867,7 +867,7 @@ Se não conseguir identificar a categoria, pergunte ao usuário.`,
 
 // ==================== TOOL EXECUTOR ====================
 
-function createToolExecutor(organizationId, userId, contactPhone) {
+function createToolExecutor(organizationId, userId, contactPhone, agentId) {
   return async (toolName, args) => {
     switch (toolName) {
       case 'create_deal':
@@ -889,7 +889,7 @@ function createToolExecutor(organizationId, userId, contactPhone) {
       case 'consult_specialist_agent':
         return executeCallAgent(organizationId, args.agent_name, args.question);
       case 'create_expense':
-        return executeCreateExpense(organizationId, userId, args, contactPhone);
+        return executeCreateExpense(organizationId, userId, args, contactPhone, agentId);
       default:
         return 'Ferramenta desconhecida';
     }
