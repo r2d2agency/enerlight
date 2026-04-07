@@ -542,6 +542,39 @@ export const useAIAgents = () => {
     }
   }, []);
 
+  // ==================== EXPENSE CONTACTS ====================
+
+  const getExpenseContacts = useCallback(async (agentId: string): Promise<ExpenseContact[]> => {
+    try {
+      return await api<ExpenseContact[]>(`/api/ai-agents/${agentId}/expense-contacts`, { auth: true });
+    } catch {
+      return [];
+    }
+  }, []);
+
+  const addExpenseContact = useCallback(async (agentId: string, data: { name: string; phone: string; user_id?: string }): Promise<ExpenseContact | null> => {
+    try {
+      return await api<ExpenseContact>(`/api/ai-agents/${agentId}/expense-contacts`, {
+        method: 'POST',
+        body: data,
+        auth: true,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erro ao adicionar contato';
+      setError(message);
+      return null;
+    }
+  }, []);
+
+  const removeExpenseContact = useCallback(async (agentId: string, contactId: string): Promise<boolean> => {
+    try {
+      await api(`/api/ai-agents/${agentId}/expense-contacts/${contactId}`, { method: 'DELETE', auth: true });
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
   return {
     loading,
     error,
@@ -568,5 +601,9 @@ export const useAIAgents = () => {
     getAIModels,
     getPromptTemplates,
     createPromptTemplate,
+    // Expense Contacts
+    getExpenseContacts,
+    addExpenseContact,
+    removeExpenseContact,
   };
 };
