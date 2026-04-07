@@ -97,6 +97,9 @@ export function AgentEditorDialog({ open, onOpenChange, agent, onSaved }: AgentE
   const [models, setModels] = useState<AIModels>({ openai: [], gemini: [] });
   const [handoffKeyword, setHandoffKeyword] = useState('');
   const [availableAgents, setAvailableAgents] = useState<AIAgent[]>([]);
+  const [expenseContacts, setExpenseContacts] = useState<ExpenseContact[]>([]);
+  const [newContactName, setNewContactName] = useState('');
+  const [newContactPhone, setNewContactPhone] = useState('');
 
   const [formData, setFormData] = useState({
     name: '',
