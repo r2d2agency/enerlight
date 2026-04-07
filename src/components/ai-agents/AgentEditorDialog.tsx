@@ -134,7 +134,8 @@ export function AgentEditorDialog({ open, onOpenChange, agent, onSaved }: AgentE
     if (open) {
       loadModels();
       loadAvailableAgents();
-      if (agent && agent.id) {
+      if (agent?.id) {
+        loadExpenseContacts(agent.id);
         const parsedConfig = typeof agent.call_agent_config === 'string'
           ? JSON.parse(agent.call_agent_config || '{}')
           : (agent.call_agent_config || {});
