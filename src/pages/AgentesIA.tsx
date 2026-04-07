@@ -18,6 +18,7 @@ import { AgentStatsDialog } from '@/components/ai-agents/AgentStatsDialog';
 import { KnowledgeBaseDialog } from '@/components/ai-agents/KnowledgeBaseDialog';
 import { AgentTestChatDialog } from '@/components/ai-agents/AgentTestChatDialog';
 import { API_URL, getAuthToken } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -50,18 +51,26 @@ export default function AgentesIA() {
   const [agentToDelete, setAgentToDelete] = useState<AIAgent | null>(null);
   const [testChatOpen, setTestChatOpen] = useState(false);
   const [testChatAgent, setTestChatAgent] = useState<AIAgent | null>(null);
-  const [isSuperadmin, setIsSuperadmin] = useState(false);
+  const [hasAccess, setHasAccess] = useState(false);
   const [checkingAccess, setCheckingAccess] = useState(true);
 
   const { getAgents, toggleAgent, deleteAgent, loading } = useAIAgents();
+  const { user } = useAuth();
 
-  // Check superadmin access
+  // Check superadmin or owner access
   useEffect(() => {
     const checkAccess = async () => {
       try {
         const token = getAuthToken();
         if (!token) {
           navigate('/dashboard');
+          return;
+        }
+
+        // Owner always has access
+        if (user?.role === 'owner') {
+          setHasAccess(true);
+          setCheckingAccess(false);
           return;
         }
 
@@ -72,11 +81,11 @@ export default function AgentesIA() {
         if (response.ok) {
           const data = await response.json();
           if (!data.isSuperadmin) {
-            toast.error('Acesso restrito a superadmins');
+            toast.error('Acesso restrito');
             navigate('/dashboard');
             return;
           }
-          setIsSuperadmin(true);
+          setHasAccess(true);
         } else {
           navigate('/dashboard');
           return;
@@ -88,7 +97,7 @@ export default function AgentesIA() {
       }
     };
     checkAccess();
-  }, [navigate]);
+  }, [navigate, user?.role]);
 
   const loadAgents = async () => {
     const data = await getAgents();
@@ -96,10 +105,10 @@ export default function AgentesIA() {
   };
 
   useEffect(() => {
-    if (isSuperadmin) {
+    if (hasAccess) {
       loadAgents();
     }
-  }, [isSuperadmin]);
+  }, [hasAccess]);
 
   const handleToggle = async (agent: AIAgent) => {
     const result = await toggleAgent(agent.id);
