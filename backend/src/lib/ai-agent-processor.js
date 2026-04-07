@@ -615,6 +615,10 @@ async function buildToolsForAgent(agent, capabilities, organizationId) {
     }
   }
 
+  if (capabilities.includes('manage_expenses')) {
+    tools.push(buildManageExpensesTool());
+  }
+
   return tools;
 }
 
