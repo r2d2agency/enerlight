@@ -539,13 +539,15 @@ A ferramenta "create_expense" é independente do CRM e não precisa de funil nem
 
 Quando o usuário enviar uma foto de nota fiscal, recibo, ou descrever um gasto:
 1. Extraia as informações: valor, categoria, descrição, data, tipo de pagamento, estabelecimento, CNPJ
-2. Se não conseguir identificar a CATEGORIA, pergunte ao usuário qual categoria usar (combustivel, alimentacao, transporte, hospedagem, material, servico, outros)
-3. Se não conseguir identificar o VALOR, pergunte ao usuário
-4. Use DIRETAMENTE a ferramenta "create_expense" para registrar - sem pedir funil, sem pedir etapa
-5. Confirme o registro informando: valor, categoria, data e estabelecimento
+2. Se conseguir identificar VALOR e CATEGORIA, chame IMEDIATAMENTE a ferramenta "create_expense" para registrar. NÃO pergunte confirmação, registre direto.
+3. Se não conseguir identificar a CATEGORIA, pergunte ao usuário qual categoria usar (combustivel, alimentacao, transporte, hospedagem, material, servico, outros)
+4. Se não conseguir identificar o VALOR, pergunte ao usuário
+5. Após registrar, confirme informando: valor, categoria, data e estabelecimento
 
+REGRA CRÍTICA: Quando receber informações suficientes (valor + descrição), chame "create_expense" IMEDIATAMENTE. Não faça perguntas desnecessárias. Aja como um sistema de lançamento rápido.
 Tipos de pagamento: dinheiro, cartao_credito, cartao_debito, pix, outros.
-Se a data não for informada, use a data de hoje.`;
+Se a data não for informada, use a data de hoje (${new Date().toISOString().split('T')[0]}).
+Se a categoria não for informada mas puder ser inferida pela descrição (ex: "gasolina" = combustivel, "almoço" = alimentacao, "uber" = transporte, "hotel" = hospedagem), use a categoria inferida.`;
   }
 
   // Add language instruction
