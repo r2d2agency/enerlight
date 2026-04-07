@@ -61,6 +61,8 @@ Diretrizes:
 - Quando apropriado, faça perguntas para entender melhor a necessidade
 - Mantenha o foco no atendimento ao cliente`;
 
+const MASKED_API_KEY = '••••••••';
+
 // Helper to normalize PostgreSQL arrays (can come as string "{a,b,c}" or actual array)
 function normalizeArray<T>(value: unknown, defaultValue: T[] = []): T[] {
   if (Array.isArray(value)) return value;
@@ -145,7 +147,7 @@ export function AgentEditorDialog({ open, onOpenChange, agent, onSaved }: AgentE
           avatar_url: agent.avatar_url || '',
           ai_provider: agent.ai_provider,
           ai_model: agent.ai_model,
-          ai_api_key: '',
+          ai_api_key: agent.ai_api_key ? MASKED_API_KEY : '',
           system_prompt: agent.system_prompt,
           personality_traits: normalizeArray<string>(agent.personality_traits, []),
           language: agent.language,
@@ -270,14 +272,22 @@ export function AgentEditorDialog({ open, onOpenChange, agent, onSaved }: AgentE
     try {
       const payload = {
         ...formData,
-        ai_api_key: formData.ai_api_key || undefined, // Não enviar se vazio
+        ai_api_key: formData.ai_api_key && formData.ai_api_key !== MASKED_API_KEY
+          ? formData.ai_api_key
+          : undefined,
       };
 
+      const savedAgent = agent?.id
+        ? await updateAgent(agent.id, payload)
+        : await createAgent(payload);
+
+      if (!savedAgent) {
+        throw new Error('Não foi possível salvar o agente');
+      }
+
       if (agent?.id) {
-        await updateAgent(agent.id, payload);
         toast.success('Agente atualizado');
       } else {
-        await createAgent(payload);
         toast.success('Agente criado');
       }
       onSaved();
@@ -476,7 +486,9 @@ export function AgentEditorDialog({ open, onOpenChange, agent, onSaved }: AgentE
                       onChange={(e) => setFormData(prev => ({ ...prev, ai_api_key: e.target.value }))}
                     />
                     <p className="text-xs text-muted-foreground">
-                      Use uma chave específica para este agente ou deixe vazio para usar a configuração global
+                      {formData.ai_api_key === MASKED_API_KEY
+                        ? 'Este agente já possui uma chave salva. Digite outra somente se quiser substituir.'
+                        : 'Use uma chave específica para este agente ou deixe vazio para usar a configuração global'}
                     </p>
                   </div>
 
@@ -559,6 +571,7 @@ export function AgentEditorDialog({ open, onOpenChange, agent, onSaved }: AgentE
                       </div>
                       <Switch
                         checked={formData.capabilities.includes(cap.id)}
+                        onClick={(e) => e.stopPropagation()}
                         onCheckedChange={() => toggleCapability(cap.id)}
                       />
                     </div>
