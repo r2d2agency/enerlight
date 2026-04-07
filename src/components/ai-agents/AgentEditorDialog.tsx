@@ -24,9 +24,10 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   Bot, Brain, MessageSquare, Settings, Zap, Shield,
-  Sparkles, X, Plus, Save, Loader2, Phone, BellRing
+  Sparkles, X, Plus, Save, Loader2, Phone, BellRing,
+  Receipt, Trash2, UserPlus
 } from 'lucide-react';
-import { useAIAgents, AIAgent, AgentCapability, AIModels, CallAgentConfig, CallAgentRule } from '@/hooks/use-ai-agents';
+import { useAIAgents, AIAgent, AgentCapability, AIModels, CallAgentConfig, CallAgentRule, ExpenseContact } from '@/hooks/use-ai-agents';
 import { toast } from 'sonner';
 
 interface AgentEditorDialogProps {
@@ -48,6 +49,7 @@ const ALL_CAPABILITIES: { id: AgentCapability; label: string; description: strin
   { id: 'summarize_history', label: 'Resumir Histórico', description: 'Resume interações anteriores com o cliente' },
   { id: 'qualify_leads', label: 'Qualificar Leads', description: 'Scoring automático baseado em dados' },
   { id: 'call_agent', label: 'Chamar Outro Agente', description: 'Consulta outro agente especialista para informações' },
+  { id: 'manage_expenses', label: 'Prestação de Contas', description: 'Recebe notas/recibos via WhatsApp, categoriza e lança despesas automaticamente' },
 ];
 
 const DEFAULT_SYSTEM_PROMPT = `Você é um assistente virtual profissional e prestativo. Seu objetivo é ajudar os clientes de forma clara, objetiva e amigável.
@@ -95,6 +97,9 @@ export function AgentEditorDialog({ open, onOpenChange, agent, onSaved }: AgentE
   const [models, setModels] = useState<AIModels>({ openai: [], gemini: [] });
   const [handoffKeyword, setHandoffKeyword] = useState('');
   const [availableAgents, setAvailableAgents] = useState<AIAgent[]>([]);
+  const [expenseContacts, setExpenseContacts] = useState<ExpenseContact[]>([]);
+  const [newContactName, setNewContactName] = useState('');
+  const [newContactPhone, setNewContactPhone] = useState('');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -121,7 +126,7 @@ export function AgentEditorDialog({ open, onOpenChange, agent, onSaved }: AgentE
     notify_external_summary: true,
   });
 
-  const { createAgent, updateAgent, getAIModels, getAgents } = useAIAgents();
+  const { createAgent, updateAgent, getAIModels, getAgents, getExpenseContacts, addExpenseContact, removeExpenseContact } = useAIAgents();
 
   const defaultCallAgentConfig: CallAgentConfig = { allow_all: true, allowed_agent_ids: [], rules: [] };
 
@@ -129,7 +134,8 @@ export function AgentEditorDialog({ open, onOpenChange, agent, onSaved }: AgentE
     if (open) {
       loadModels();
       loadAvailableAgents();
-      if (agent && agent.id) {
+      if (agent?.id) {
+        loadExpenseContacts(agent.id);
         const parsedConfig = typeof agent.call_agent_config === 'string'
           ? JSON.parse(agent.call_agent_config || '{}')
           : (agent.call_agent_config || {});
@@ -193,8 +199,35 @@ export function AgentEditorDialog({ open, onOpenChange, agent, onSaved }: AgentE
 
   const loadAvailableAgents = async () => {
     const agents = await getAgents();
-    // Exclude current agent from the list
     setAvailableAgents(agents.filter(a => a.id !== agent?.id));
+  };
+
+  const loadExpenseContacts = async (agentId: string) => {
+    const contacts = await getExpenseContacts(agentId);
+    setExpenseContacts(contacts);
+  };
+
+  const handleAddExpenseContact = async () => {
+    if (!agent?.id || !newContactName.trim() || !newContactPhone.trim()) {
+      toast.error('Nome e telefone são obrigatórios');
+      return;
+    }
+    const result = await addExpenseContact(agent.id, { name: newContactName.trim(), phone: newContactPhone.trim() });
+    if (result) {
+      setExpenseContacts(prev => [...prev, result]);
+      setNewContactName('');
+      setNewContactPhone('');
+      toast.success('Contato adicionado');
+    }
+  };
+
+  const handleRemoveExpenseContact = async (contactId: string) => {
+    if (!agent?.id) return;
+    const ok = await removeExpenseContact(agent.id, contactId);
+    if (ok) {
+      setExpenseContacts(prev => prev.filter(c => c.id !== contactId));
+      toast.success('Contato removido');
+    }
   };
 
   const toggleAllowedAgent = (agentId: string) => {
@@ -598,6 +631,71 @@ export function AgentEditorDialog({ open, onOpenChange, agent, onSaved }: AgentE
                           })
                         )}
                       </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Expense Contacts Configuration */}
+                {formData.capabilities.includes('manage_expenses') && (
+                  <div className="mt-4 space-y-3 border-t pt-4">
+                    <div className="flex items-center gap-2">
+                      <Receipt className="h-4 w-4 text-primary" />
+                      <h4 className="font-medium text-sm">Prestação de Contas: Contatos Autorizados</h4>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Cadastre os contatos que poderão enviar notas e recibos via WhatsApp para este agente lançar despesas automaticamente.
+                    </p>
+
+                    {agent?.id ? (
+                      <>
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="Nome"
+                            value={newContactName}
+                            onChange={(e) => setNewContactName(e.target.value)}
+                            className="flex-1"
+                          />
+                          <Input
+                            placeholder="5511999999999"
+                            value={newContactPhone}
+                            onChange={(e) => setNewContactPhone(e.target.value)}
+                            className="w-40"
+                          />
+                          <Button type="button" variant="outline" size="icon" onClick={handleAddExpenseContact}>
+                            <UserPlus className="h-4 w-4" />
+                          </Button>
+                        </div>
+
+                        {expenseContacts.length === 0 ? (
+                          <p className="text-xs text-muted-foreground italic p-3 border rounded-lg">
+                            Nenhum contato cadastrado. Adicione os colaboradores autorizados.
+                          </p>
+                        ) : (
+                          <div className="space-y-2 max-h-48 overflow-y-auto">
+                            {expenseContacts.map((contact) => (
+                              <div key={contact.id} className="flex items-center justify-between p-2 rounded-lg border">
+                                <div>
+                                  <p className="font-medium text-sm">{contact.name}</p>
+                                  <p className="text-xs text-muted-foreground">{contact.phone}</p>
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-destructive"
+                                  onClick={() => handleRemoveExpenseContact(contact.id)}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-xs text-muted-foreground italic p-3 border rounded-lg">
+                        Salve o agente primeiro para cadastrar contatos autorizados.
+                      </p>
                     )}
                   </div>
                 )}

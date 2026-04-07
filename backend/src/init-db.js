@@ -4409,6 +4409,80 @@ CREATE INDEX IF NOT EXISTS idx_crm_cnae_groups_org ON crm_cnae_groups(organizati
 CREATE INDEX IF NOT EXISTS idx_crm_companies_cnae ON crm_companies(cnae_principal);
 `;
 
+const step59Expenses = `
+-- Expense Reports / Prestação de Contas
+
+CREATE TABLE IF NOT EXISTS expense_reports (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  group_id UUID,
+  title VARCHAR(255) NOT NULL,
+  description TEXT,
+  status VARCHAR(30) NOT NULL DEFAULT 'draft',
+  total_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
+  submitted_at TIMESTAMP WITH TIME ZONE,
+  approved_at TIMESTAMP WITH TIME ZONE,
+  approved_by UUID REFERENCES users(id),
+  rejected_at TIMESTAMP WITH TIME ZONE,
+  rejected_by UUID REFERENCES users(id),
+  rejection_reason TEXT,
+  paid_at TIMESTAMP WITH TIME ZONE,
+  paid_by UUID REFERENCES users(id),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS expense_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  group_id UUID,
+  report_id UUID REFERENCES expense_reports(id) ON DELETE SET NULL,
+  category VARCHAR(50) NOT NULL,
+  description VARCHAR(500),
+  amount DECIMAL(12,2) NOT NULL,
+  expense_date DATE NOT NULL,
+  expense_time TIME,
+  payment_type VARCHAR(50),
+  location VARCHAR(255),
+  establishment VARCHAR(255),
+  cnpj VARCHAR(20),
+  receipt_url TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_expense_items_org ON expense_items(organization_id);
+CREATE INDEX IF NOT EXISTS idx_expense_items_user ON expense_items(user_id);
+CREATE INDEX IF NOT EXISTS idx_expense_items_report ON expense_items(report_id);
+CREATE INDEX IF NOT EXISTS idx_expense_reports_org ON expense_reports(organization_id);
+CREATE INDEX IF NOT EXISTS idx_expense_reports_user ON expense_reports(user_id);
+CREATE INDEX IF NOT EXISTS idx_expense_reports_status ON expense_reports(status);
+`;
+
+const step60AIExpenseContacts = `
+-- AI Agent Expense capability enum
+DO $$ BEGIN
+  ALTER TYPE agent_capability ADD VALUE IF NOT EXISTS 'manage_expenses';
+EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+-- Authorized contacts for expense management via AI
+CREATE TABLE IF NOT EXISTS ai_agent_expense_contacts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  agent_id UUID NOT NULL REFERENCES ai_agents(id) ON DELETE CASCADE,
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  name VARCHAR(255) NOT NULL,
+  phone VARCHAR(50) NOT NULL,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_expense_contacts_agent ON ai_agent_expense_contacts(agent_id);
+CREATE INDEX IF NOT EXISTS idx_ai_expense_contacts_phone ON ai_agent_expense_contacts(phone);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_ai_expense_contacts_agent_phone ON ai_agent_expense_contacts(agent_id, phone);
+`;
+
 const migrationSteps = [
   { name: 'Enums', sql: step1Enums, critical: true },
   { name: 'Core Tables (users, plans)', sql: step2CoreTables, critical: true },
@@ -4469,6 +4543,8 @@ const migrationSteps = [
   { name: 'Logistics Module', sql: step56Logistics, critical: false },
   { name: 'CRM Deal Quote Fields', sql: step57DealQuoteFields, critical: false },
   { name: 'CNAE Groups', sql: step58CnaeGroups, critical: false },
+  { name: 'Expense Reports', sql: step59Expenses, critical: false },
+  { name: 'AI Expense Contacts', sql: step60AIExpenseContacts, critical: false },
 ];
 
 export async function initDatabase() {

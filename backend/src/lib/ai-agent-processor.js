@@ -194,7 +194,7 @@ export async function processIncomingWithAgent({
     const userId = agent.default_user_id || agent.created_by;
 
     if (tools.length > 0) {
-      const toolExecutor = createToolExecutor(organizationId, userId);
+      const toolExecutor = createToolExecutor(organizationId, userId, contactPhone);
       result = await callAIWithTools(aiConfig, messages, {
         temperature: agent.temperature || 0.7,
         maxTokens: agent.max_tokens || 1000,
@@ -530,6 +530,20 @@ async function buildSystemPrompt(agent, organizationId, contactName, userMessage
     prompt += `\n\nVocê está conversando com: ${contactName}`;
   }
 
+  // Add expense management instructions if capability is enabled
+  const capabilities = parseArray(agent.capabilities, []);
+  if (capabilities.includes('manage_expenses')) {
+    prompt += `\n\n## Prestação de Contas
+Você tem a capacidade de registrar despesas/gastos. Quando o usuário enviar uma foto de nota fiscal, recibo, ou descrever um gasto:
+1. Extraia as informações: valor, categoria, descrição, data, tipo de pagamento, estabelecimento, CNPJ
+2. Se não conseguir identificar a CATEGORIA, pergunte ao usuário qual categoria usar
+3. Se não conseguir identificar o VALOR, pergunte ao usuário
+4. Use a ferramenta "create_expense" para registrar
+5. Confirme o registro para o usuário
+
+Categorias disponíveis: combustível, alimentação, transporte, hospedagem, material, serviço, outros.`;
+  }
+
   // Add language instruction
   prompt += `\n\nResponda sempre em ${agent.language || 'pt-BR'}.`;
 
@@ -613,6 +627,10 @@ async function buildToolsForAgent(agent, capabilities, organizationId) {
     if (otherAgentsResult.rows.length > 0) {
       tools.push(buildCallAgentTool(otherAgentsResult.rows));
     }
+  }
+
+  if (capabilities.includes('manage_expenses')) {
+    tools.push(buildManageExpensesTool());
   }
 
   return tools;
@@ -812,9 +830,38 @@ function buildCallAgentTool(availableAgents) {
   };
 }
 
+function buildManageExpensesTool() {
+  return {
+    type: 'function',
+    function: {
+      name: 'create_expense',
+      description: `Registra uma despesa/gasto. Use quando o usuário enviar uma nota fiscal, recibo ou informar um gasto.
+Extraia do texto ou imagem: valor, categoria, descrição, data, tipo de pagamento, estabelecimento e CNPJ se disponível.
+Categorias: combustivel, alimentacao, transporte, hospedagem, material, servico, outros.
+Tipos de pagamento: dinheiro, cartao_credito, cartao_debito, pix, outros.
+Se não conseguir identificar a categoria, pergunte ao usuário.`,
+      parameters: {
+        type: 'object',
+        properties: {
+          amount: { type: 'number', description: 'Valor da despesa em reais' },
+          category: { type: 'string', enum: ['combustivel', 'alimentacao', 'transporte', 'hospedagem', 'material', 'servico', 'outros'], description: 'Categoria da despesa' },
+          description: { type: 'string', description: 'Descrição do gasto' },
+          expense_date: { type: 'string', description: 'Data da despesa (YYYY-MM-DD). Use a data atual se não informada.' },
+          expense_time: { type: 'string', description: 'Hora da despesa (HH:MM) se disponível' },
+          payment_type: { type: 'string', enum: ['dinheiro', 'cartao_credito', 'cartao_debito', 'pix', 'outros'], description: 'Tipo de pagamento' },
+          establishment: { type: 'string', description: 'Nome do estabelecimento' },
+          cnpj: { type: 'string', description: 'CNPJ do estabelecimento se disponível' },
+          location: { type: 'string', description: 'Local/cidade se disponível' },
+        },
+        required: ['amount', 'category', 'description', 'expense_date'],
+      },
+    },
+  };
+}
+
 // ==================== TOOL EXECUTOR ====================
 
-function createToolExecutor(organizationId, userId) {
+function createToolExecutor(organizationId, userId, contactPhone) {
   return async (toolName, args) => {
     switch (toolName) {
       case 'create_deal':
@@ -835,6 +882,8 @@ function createToolExecutor(organizationId, userId) {
         return executeGenerateContent(args);
       case 'consult_specialist_agent':
         return executeCallAgent(organizationId, args.agent_name, args.question);
+      case 'create_expense':
+        return executeCreateExpense(organizationId, userId, args, contactPhone);
       default:
         return 'Ferramenta desconhecida';
     }
@@ -1008,6 +1057,56 @@ async function executeCallAgent(organizationId, agentName, question) {
     return result.content || 'Sem resposta do especialista.';
   } catch (error) {
     return `Erro ao consultar agente: ${error.message}`;
+  }
+}
+
+async function executeCreateExpense(organizationId, userId, args, contactPhone) {
+  try {
+    // Find the authorized contact by phone to get user_id
+    let expenseUserId = userId;
+    let contactName = 'Desconhecido';
+
+    if (contactPhone) {
+      const normalizedPhone = contactPhone.replace(/\D/g, '');
+      const contactResult = await query(
+        `SELECT user_id, name FROM ai_agent_expense_contacts WHERE organization_id = $1 AND phone = $2 AND is_active = true LIMIT 1`,
+        [organizationId, normalizedPhone]
+      );
+      if (contactResult.rows.length > 0) {
+        expenseUserId = contactResult.rows[0].user_id || userId;
+        contactName = contactResult.rows[0].name;
+      }
+    }
+
+    // Get user's group
+    let groupId = null;
+    try {
+      const groupResult = await query(
+        `SELECT g.id FROM groups g 
+         JOIN group_members gm ON gm.group_id = g.id 
+         WHERE gm.user_id = $1 LIMIT 1`,
+        [expenseUserId]
+      );
+      groupId = groupResult.rows[0]?.id || null;
+    } catch (_) {}
+
+    const result = await query(`
+      INSERT INTO expense_items (organization_id, user_id, group_id, category, description, amount, expense_date, expense_time, payment_type, location, establishment, cnpj)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      RETURNING id, amount, category, description, expense_date
+    `, [
+      organizationId, expenseUserId, groupId,
+      args.category, args.description, args.amount,
+      args.expense_date, args.expense_time || null,
+      args.payment_type || null, args.location || null,
+      args.establishment || null, args.cnpj || null,
+    ]);
+
+    const item = result.rows[0];
+    return `✅ Despesa registrada com sucesso!\n• Valor: R$ ${parseFloat(item.amount).toFixed(2)}\n• Categoria: ${item.category}\n• Descrição: ${item.description}\n• Data: ${item.expense_date}\n• Colaborador: ${contactName}`;
+  } catch (error) {
+    logError('ai_agent_processor.create_expense_error', error);
+    return `Erro ao registrar despesa: ${error.message}`;
   }
 }
 
