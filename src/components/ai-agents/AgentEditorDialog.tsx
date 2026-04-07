@@ -126,7 +126,7 @@ export function AgentEditorDialog({ open, onOpenChange, agent, onSaved }: AgentE
     notify_external_summary: true,
   });
 
-  const { createAgent, updateAgent, getAIModels, getAgents } = useAIAgents();
+  const { createAgent, updateAgent, getAIModels, getAgents, getExpenseContacts, addExpenseContact, removeExpenseContact } = useAIAgents();
 
   const defaultCallAgentConfig: CallAgentConfig = { allow_all: true, allowed_agent_ids: [], rules: [] };
 
