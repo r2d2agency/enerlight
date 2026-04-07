@@ -634,6 +634,71 @@ export function AgentEditorDialog({ open, onOpenChange, agent, onSaved }: AgentE
                     )}
                   </div>
                 )}
+
+                {/* Expense Contacts Configuration */}
+                {formData.capabilities.includes('manage_expenses') && (
+                  <div className="mt-4 space-y-3 border-t pt-4">
+                    <div className="flex items-center gap-2">
+                      <Receipt className="h-4 w-4 text-primary" />
+                      <h4 className="font-medium text-sm">Prestação de Contas: Contatos Autorizados</h4>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Cadastre os contatos que poderão enviar notas e recibos via WhatsApp para este agente lançar despesas automaticamente.
+                    </p>
+
+                    {agent?.id ? (
+                      <>
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="Nome"
+                            value={newContactName}
+                            onChange={(e) => setNewContactName(e.target.value)}
+                            className="flex-1"
+                          />
+                          <Input
+                            placeholder="5511999999999"
+                            value={newContactPhone}
+                            onChange={(e) => setNewContactPhone(e.target.value)}
+                            className="w-40"
+                          />
+                          <Button type="button" variant="outline" size="icon" onClick={handleAddExpenseContact}>
+                            <UserPlus className="h-4 w-4" />
+                          </Button>
+                        </div>
+
+                        {expenseContacts.length === 0 ? (
+                          <p className="text-xs text-muted-foreground italic p-3 border rounded-lg">
+                            Nenhum contato cadastrado. Adicione os colaboradores autorizados.
+                          </p>
+                        ) : (
+                          <div className="space-y-2 max-h-48 overflow-y-auto">
+                            {expenseContacts.map((contact) => (
+                              <div key={contact.id} className="flex items-center justify-between p-2 rounded-lg border">
+                                <div>
+                                  <p className="font-medium text-sm">{contact.name}</p>
+                                  <p className="text-xs text-muted-foreground">{contact.phone}</p>
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-destructive"
+                                  onClick={() => handleRemoveExpenseContact(contact.id)}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-xs text-muted-foreground italic p-3 border rounded-lg">
+                        Salve o agente primeiro para cadastrar contatos autorizados.
+                      </p>
+                    )}
+                  </div>
+                )}
               </TabsContent>
 
               {/* Handoff Tab */}
