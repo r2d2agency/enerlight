@@ -14,6 +14,7 @@ import { callAI, callAIWithTools } from './ai-caller.js';
 import { logInfo, logError } from '../logger.js';
 import { searchKnowledge } from './knowledge-processor.js';
 import * as whatsappProvider from './whatsapp-provider.js';
+import { resolveExpenseContactAuthorization } from './expense-contact-authorization.js';
 
 // ==================== MAIN ENTRY POINT ====================
 
@@ -1109,48 +1110,23 @@ async function executeCallAgent(organizationId, agentName, question) {
 
 async function executeCreateExpense(organizationId, userId, args, contactPhone, agentId) {
   try {
-    // Find the authorized contact by phone to get user_id
-    let expenseUserId = null;
-    let contactName = 'Desconhecido';
+    const { status, contact } = await resolveExpenseContactAuthorization({
+      organizationId,
+      agentId,
+      contactPhone,
+      requireUserId: true,
+    });
 
-    if (contactPhone) {
-      const normalizedPhone = contactPhone.replace(/\D/g, '');
-      // Try multiple phone formats: full, without country code, with country code
-      const phoneVariants = [normalizedPhone];
-      if (normalizedPhone.startsWith('55') && normalizedPhone.length > 10) {
-        phoneVariants.push(normalizedPhone.slice(2)); // without country code
-      } else if (normalizedPhone.length <= 11) {
-        phoneVariants.push('55' + normalizedPhone); // with country code
+    if (!contact?.user_id) {
+      logInfo('ai_agent_processor.expense_unauthorized', { contactPhone, agentId, status });
+      if (status === 'unlinked') {
+        return `⚠️ Seu número está cadastrado, mas ainda não foi vinculado a um membro interno. Peça ao administrador para selecionar seu usuário em "Prestação de Contas > Contatos Autorizados" no agente.`;
       }
-
-      // Search by agent_id first, then by organization
-      for (const phone of phoneVariants) {
-        let contactResult;
-        if (agentId) {
-          contactResult = await query(
-            `SELECT user_id, name FROM ai_agent_expense_contacts WHERE agent_id = $1 AND phone = $2 AND is_active = true LIMIT 1`,
-            [agentId, phone]
-          );
-        }
-        if (!contactResult || contactResult.rows.length === 0) {
-          contactResult = await query(
-            `SELECT user_id, name FROM ai_agent_expense_contacts WHERE organization_id = $1 AND phone = $2 AND is_active = true LIMIT 1`,
-            [organizationId, phone]
-          );
-        }
-        if (contactResult.rows.length > 0) {
-          expenseUserId = contactResult.rows[0].user_id;
-          contactName = contactResult.rows[0].name;
-          break;
-        }
-      }
-    }
-
-    // If no authorized contact found, reject
-    if (!expenseUserId) {
-      logInfo('ai_agent_processor.expense_unauthorized', { contactPhone, agentId });
       return `⚠️ Este número de telefone não está autorizado a lançar despesas. Peça ao administrador para cadastrar seu número na lista de contatos autorizados do agente.`;
     }
+
+    const expenseUserId = contact.user_id;
+    const contactName = contact.name || 'Desconhecido';
 
     // Get user's group
     let groupId = null;
@@ -1186,38 +1162,19 @@ async function executeCreateExpense(organizationId, userId, args, contactPhone, 
 
 async function executeQueryExpenses(organizationId, userId, args, contactPhone, agentId) {
   try {
-    // Find the authorized contact to get their user_id
-    let expenseUserId = null;
-    if (contactPhone) {
-      const normalizedPhone = contactPhone.replace(/\D/g, '');
-      const phoneVariants = [normalizedPhone];
-      if (normalizedPhone.startsWith('55') && normalizedPhone.length > 10) {
-        phoneVariants.push(normalizedPhone.slice(2));
-      } else if (normalizedPhone.length <= 11) {
-        phoneVariants.push('55' + normalizedPhone);
-      }
-      for (const phone of phoneVariants) {
-        let contactResult;
-        if (agentId) {
-          contactResult = await query(
-            `SELECT user_id FROM ai_agent_expense_contacts WHERE agent_id = $1 AND phone = $2 AND is_active = true LIMIT 1`,
-            [agentId, phone]
-          );
-        }
-        if (!contactResult || contactResult.rows.length === 0) {
-          contactResult = await query(
-            `SELECT user_id FROM ai_agent_expense_contacts WHERE organization_id = $1 AND phone = $2 AND is_active = true LIMIT 1`,
-            [organizationId, phone]
-          );
-        }
-        if (contactResult.rows.length > 0) {
-          expenseUserId = contactResult.rows[0].user_id;
-          break;
-        }
-      }
-    }
+    const { status, contact } = await resolveExpenseContactAuthorization({
+      organizationId,
+      agentId,
+      contactPhone,
+      requireUserId: true,
+    });
+
+    const expenseUserId = contact?.user_id;
 
     if (!expenseUserId) {
+      if (status === 'unlinked') {
+        return '⚠️ Seu número está cadastrado, mas ainda não foi vinculado a um membro interno para consultar despesas.';
+      }
       return '⚠️ Este número não está autorizado para consultar despesas.';
     }
 
