@@ -965,6 +965,7 @@ const handleGetQRCode = async (connection: Connection) => {
                     </Select>
                   </div>
 
+                  <div className="flex gap-2">
                     {connection.status === 'connected' ? (
                       <>
                         <Button 
