@@ -49,6 +49,7 @@ const ALL_CAPABILITIES: { id: AgentCapability; label: string; description: strin
   { id: 'summarize_history', label: 'Resumir Histórico', description: 'Resume interações anteriores com o cliente' },
   { id: 'qualify_leads', label: 'Qualificar Leads', description: 'Scoring automático baseado em dados' },
   { id: 'call_agent', label: 'Chamar Outro Agente', description: 'Consulta outro agente especialista para informações' },
+  { id: 'manage_expenses', label: 'Prestação de Contas', description: 'Recebe notas/recibos via WhatsApp, categoriza e lança despesas automaticamente' },
 ];
 
 const DEFAULT_SYSTEM_PROMPT = `Você é um assistente virtual profissional e prestativo. Seu objetivo é ajudar os clientes de forma clara, objetiva e amigável.
