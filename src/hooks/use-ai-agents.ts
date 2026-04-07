@@ -71,7 +71,19 @@ export type AgentCapability =
   | 'generate_content'
   | 'summarize_history'
   | 'qualify_leads'
-  | 'call_agent';
+  | 'call_agent'
+  | 'manage_expenses';
+
+export interface ExpenseContact {
+  id: string;
+  agent_id: string;
+  organization_id: string;
+  user_id: string | null;
+  name: string;
+  phone: string;
+  is_active: boolean;
+  created_at: string;
+}
 
 export interface CallAgentRule {
   agent_id: string;
