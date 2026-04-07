@@ -816,6 +816,35 @@ function buildCallAgentTool(availableAgents) {
   };
 }
 
+function buildManageExpensesTool() {
+  return {
+    type: 'function',
+    function: {
+      name: 'create_expense',
+      description: `Registra uma despesa/gasto. Use quando o usuário enviar uma nota fiscal, recibo ou informar um gasto.
+Extraia do texto ou imagem: valor, categoria, descrição, data, tipo de pagamento, estabelecimento e CNPJ se disponível.
+Categorias: combustivel, alimentacao, transporte, hospedagem, material, servico, outros.
+Tipos de pagamento: dinheiro, cartao_credito, cartao_debito, pix, outros.
+Se não conseguir identificar a categoria, pergunte ao usuário.`,
+      parameters: {
+        type: 'object',
+        properties: {
+          amount: { type: 'number', description: 'Valor da despesa em reais' },
+          category: { type: 'string', enum: ['combustivel', 'alimentacao', 'transporte', 'hospedagem', 'material', 'servico', 'outros'], description: 'Categoria da despesa' },
+          description: { type: 'string', description: 'Descrição do gasto' },
+          expense_date: { type: 'string', description: 'Data da despesa (YYYY-MM-DD). Use a data atual se não informada.' },
+          expense_time: { type: 'string', description: 'Hora da despesa (HH:MM) se disponível' },
+          payment_type: { type: 'string', enum: ['dinheiro', 'cartao_credito', 'cartao_debito', 'pix', 'outros'], description: 'Tipo de pagamento' },
+          establishment: { type: 'string', description: 'Nome do estabelecimento' },
+          cnpj: { type: 'string', description: 'CNPJ do estabelecimento se disponível' },
+          location: { type: 'string', description: 'Local/cidade se disponível' },
+        },
+        required: ['amount', 'category', 'description', 'expense_date'],
+      },
+    },
+  };
+}
+
 // ==================== TOOL EXECUTOR ====================
 
 function createToolExecutor(organizationId, userId) {
