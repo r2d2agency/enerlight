@@ -756,7 +756,6 @@ export function AgentEditorDialog({ open, onOpenChange, agent, onSaved }: AgentE
                             })}
                           </div>
                         )}
-                        )}
                       </>
                     ) : (
                       <p className="text-xs text-muted-foreground italic p-3 border rounded-lg">
