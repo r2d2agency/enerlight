@@ -1177,6 +1177,94 @@ async function executeCreateExpense(organizationId, userId, args, contactPhone, 
   }
 }
 
+async function executeQueryExpenses(organizationId, userId, args, contactPhone, agentId) {
+  try {
+    // Find the authorized contact to get their user_id
+    let expenseUserId = null;
+    if (contactPhone) {
+      const normalizedPhone = contactPhone.replace(/\D/g, '');
+      const phoneVariants = [normalizedPhone];
+      if (normalizedPhone.startsWith('55') && normalizedPhone.length > 10) {
+        phoneVariants.push(normalizedPhone.slice(2));
+      } else if (normalizedPhone.length <= 11) {
+        phoneVariants.push('55' + normalizedPhone);
+      }
+      for (const phone of phoneVariants) {
+        let contactResult;
+        if (agentId) {
+          contactResult = await query(
+            `SELECT user_id FROM ai_agent_expense_contacts WHERE agent_id = $1 AND phone = $2 AND is_active = true LIMIT 1`,
+            [agentId, phone]
+          );
+        }
+        if (!contactResult || contactResult.rows.length === 0) {
+          contactResult = await query(
+            `SELECT user_id FROM ai_agent_expense_contacts WHERE organization_id = $1 AND phone = $2 AND is_active = true LIMIT 1`,
+            [organizationId, phone]
+          );
+        }
+        if (contactResult.rows.length > 0) {
+          expenseUserId = contactResult.rows[0].user_id;
+          break;
+        }
+      }
+    }
+
+    if (!expenseUserId) {
+      return '⚠️ Este número não está autorizado para consultar despesas.';
+    }
+
+    const now = new Date();
+    const startDate = args.start_date || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+    const endDate = args.end_date || now.toISOString().split('T')[0];
+    const limit = args.limit || 20;
+
+    if (args.action === 'summary') {
+      let sql = `SELECT category, COUNT(*) as count, SUM(amount) as total
+        FROM expense_items WHERE organization_id = $1 AND user_id = $2
+        AND expense_date >= $3 AND expense_date <= $4`;
+      const params = [organizationId, expenseUserId, startDate, endDate];
+      if (args.category) { sql += ` AND category = $5`; params.push(args.category); }
+      sql += ` GROUP BY category ORDER BY total DESC`;
+      const result = await query(sql, params);
+      if (result.rows.length === 0) return `Nenhuma despesa encontrada de ${startDate} a ${endDate}.`;
+      const grandTotal = result.rows.reduce((s, r) => s + parseFloat(r.total), 0);
+      const lines = result.rows.map(r => `• ${r.category}: ${r.count} lançamento(s) = R$ ${parseFloat(r.total).toFixed(2)}`);
+      return `📊 Resumo de despesas (${startDate} a ${endDate}):\n${lines.join('\n')}\n\n💰 Total geral: R$ ${grandTotal.toFixed(2)}`;
+    }
+
+    if (args.action === 'total') {
+      let sql = `SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total
+        FROM expense_items WHERE organization_id = $1 AND user_id = $2
+        AND expense_date >= $3 AND expense_date <= $4`;
+      const params = [organizationId, expenseUserId, startDate, endDate];
+      if (args.category) { sql += ` AND category = $5`; params.push(args.category); }
+      const result = await query(sql, params);
+      const row = result.rows[0];
+      return `💰 Total: R$ ${parseFloat(row.total).toFixed(2)} em ${row.count} lançamento(s) (${startDate} a ${endDate})`;
+    }
+
+    // list
+    let sql = `SELECT id, category, description, amount, expense_date, establishment, payment_type
+      FROM expense_items WHERE organization_id = $1 AND user_id = $2
+      AND expense_date >= $3 AND expense_date <= $4`;
+    const params = [organizationId, expenseUserId, startDate, endDate];
+    if (args.category) { sql += ` AND category = $5`; params.push(args.category); }
+    sql += ` ORDER BY expense_date DESC, created_at DESC LIMIT $${params.length + 1}`;
+    params.push(limit);
+    const result = await query(sql, params);
+    if (result.rows.length === 0) return `Nenhuma despesa encontrada de ${startDate} a ${endDate}.`;
+    const lines = result.rows.map(r =>
+      `• ${r.expense_date} | ${r.category} | R$ ${parseFloat(r.amount).toFixed(2)} | ${r.description}${r.establishment ? ` (${r.establishment})` : ''}`
+    );
+    const total = result.rows.reduce((s, r) => s + parseFloat(r.amount), 0);
+    return `📋 Despesas (${startDate} a ${endDate}):\n${lines.join('\n')}\n\n💰 Subtotal listado: R$ ${total.toFixed(2)}`;
+  } catch (error) {
+    logError('ai_agent_processor.query_expenses_error', error);
+    return `Erro ao consultar despesas: ${error.message}`;
+  }
+}
+
 // ==================== WORK SCHEDULE HELPERS ====================
 
 async function getWorkSchedule(organizationId) {
