@@ -25,9 +25,10 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   Bot, Brain, MessageSquare, Settings, Zap, Shield,
   Sparkles, X, Plus, Save, Loader2, Phone, BellRing,
-  Receipt, Trash2, UserPlus
+  Receipt, Trash2, UserPlus, Link2
 } from 'lucide-react';
 import { useAIAgents, AIAgent, AgentCapability, AIModels, CallAgentConfig, CallAgentRule, ExpenseContact } from '@/hooks/use-ai-agents';
+import { api } from '@/lib/api';
 import { toast } from 'sonner';
 
 interface AgentEditorDialogProps {
@@ -102,6 +103,8 @@ export function AgentEditorDialog({ open, onOpenChange, agent, onSaved }: AgentE
   const [expenseContacts, setExpenseContacts] = useState<ExpenseContact[]>([]);
   const [newContactName, setNewContactName] = useState('');
   const [newContactPhone, setNewContactPhone] = useState('');
+  const [newContactUserId, setNewContactUserId] = useState('');
+  const [orgMembers, setOrgMembers] = useState<Array<{ id: string; name: string; email: string }>>([]);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -136,6 +139,7 @@ export function AgentEditorDialog({ open, onOpenChange, agent, onSaved }: AgentE
     if (open) {
       loadModels();
       loadAvailableAgents();
+      loadMembers();
       if (agent?.id) {
         loadExpenseContacts(agent.id);
         const parsedConfig = typeof agent.call_agent_config === 'string'
@@ -209,16 +213,30 @@ export function AgentEditorDialog({ open, onOpenChange, agent, onSaved }: AgentE
     setExpenseContacts(contacts);
   };
 
+  const loadMembers = async () => {
+    try {
+      const members = await api<Array<{ id: string; name: string; email: string }>>('/api/logistics/members', { auth: true });
+      setOrgMembers(members);
+    } catch {
+      setOrgMembers([]);
+    }
+  };
+
   const handleAddExpenseContact = async () => {
     if (!agent?.id || !newContactName.trim() || !newContactPhone.trim()) {
       toast.error('Nome e telefone são obrigatórios');
       return;
     }
-    const result = await addExpenseContact(agent.id, { name: newContactName.trim(), phone: newContactPhone.trim() });
+    if (!newContactUserId) {
+      toast.error('Selecione o membro interno vinculado a este contato');
+      return;
+    }
+    const result = await addExpenseContact(agent.id, { name: newContactName.trim(), phone: newContactPhone.trim(), user_id: newContactUserId });
     if (result) {
       setExpenseContacts(prev => [...prev, result]);
       setNewContactName('');
       setNewContactPhone('');
+      setNewContactUserId('');
       toast.success('Contato adicionado');
     }
   };
@@ -656,27 +674,46 @@ export function AgentEditorDialog({ open, onOpenChange, agent, onSaved }: AgentE
                       <h4 className="font-medium text-sm">Prestação de Contas: Contatos Autorizados</h4>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Cadastre os contatos que poderão enviar notas e recibos via WhatsApp para este agente lançar despesas automaticamente.
+                      Cadastre os contatos que poderão enviar notas e recibos via WhatsApp. Vincule cada contato a um membro interno para que a despesa seja lançada no nome dele.
                     </p>
 
                     {agent?.id ? (
                       <>
-                        <div className="flex gap-2">
-                          <Input
-                            placeholder="Nome"
-                            value={newContactName}
-                            onChange={(e) => setNewContactName(e.target.value)}
-                            className="flex-1"
-                          />
-                          <Input
-                            placeholder="5511999999999"
-                            value={newContactPhone}
-                            onChange={(e) => setNewContactPhone(e.target.value)}
-                            className="w-40"
-                          />
-                          <Button type="button" variant="outline" size="icon" onClick={handleAddExpenseContact}>
-                            <UserPlus className="h-4 w-4" />
-                          </Button>
+                        <div className="space-y-2">
+                          <div className="flex gap-2">
+                            <Input
+                              placeholder="Nome"
+                              value={newContactName}
+                              onChange={(e) => setNewContactName(e.target.value)}
+                              className="flex-1"
+                            />
+                            <Input
+                              placeholder="5511999999999"
+                              value={newContactPhone}
+                              onChange={(e) => setNewContactPhone(e.target.value)}
+                              className="w-36"
+                            />
+                          </div>
+                          <div className="flex gap-2">
+                            <Select value={newContactUserId} onValueChange={setNewContactUserId}>
+                              <SelectTrigger className="flex-1">
+                                <SelectValue placeholder="Vincular ao membro interno..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {orgMembers.map((m) => (
+                                  <SelectItem key={m.id} value={m.id}>
+                                    <div className="flex items-center gap-1">
+                                      <Link2 className="h-3 w-3" />
+                                      {m.name}
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Button type="button" variant="outline" size="icon" onClick={handleAddExpenseContact}>
+                              <UserPlus className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
 
                         {expenseContacts.length === 0 ? (
@@ -685,23 +722,38 @@ export function AgentEditorDialog({ open, onOpenChange, agent, onSaved }: AgentE
                           </p>
                         ) : (
                           <div className="space-y-2 max-h-48 overflow-y-auto">
-                            {expenseContacts.map((contact) => (
-                              <div key={contact.id} className="flex items-center justify-between p-2 rounded-lg border">
-                                <div>
-                                  <p className="font-medium text-sm">{contact.name}</p>
-                                  <p className="text-xs text-muted-foreground">{contact.phone}</p>
+                            {expenseContacts.map((contact) => {
+                              const linkedMember = orgMembers.find(m => m.id === contact.user_id);
+                              return (
+                                <div key={contact.id} className="flex items-center justify-between p-2 rounded-lg border">
+                                  <div>
+                                    <p className="font-medium text-sm">{contact.name}</p>
+                                    <p className="text-xs text-muted-foreground">{contact.phone}</p>
+                                    {linkedMember && (
+                                      <p className="text-xs text-primary flex items-center gap-1 mt-0.5">
+                                        <Link2 className="h-3 w-3" />
+                                        Vinculado: {linkedMember.name}
+                                      </p>
+                                    )}
+                                    {!linkedMember && contact.user_id && (
+                                      <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                                        <Link2 className="h-3 w-3" />
+                                        Conta vinculada
+                                      </p>
+                                    )}
+                                  </div>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-destructive"
+                                    onClick={() => handleRemoveExpenseContact(contact.id)}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
                                 </div>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-7 w-7 text-destructive"
-                                  onClick={() => handleRemoveExpenseContact(contact.id)}
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         )}
                       </>

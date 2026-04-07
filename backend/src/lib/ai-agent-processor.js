@@ -194,7 +194,7 @@ export async function processIncomingWithAgent({
     const userId = agent.default_user_id || agent.created_by;
 
     if (tools.length > 0) {
-      const toolExecutor = createToolExecutor(organizationId, userId, contactPhone);
+      const toolExecutor = createToolExecutor(organizationId, userId, contactPhone, agent.id);
       result = await callAIWithTools(aiConfig, messages, {
         temperature: parseFloat(agent.temperature) || 0.7,
         maxTokens: agent.max_tokens || 1000,
@@ -539,13 +539,15 @@ A ferramenta "create_expense" é independente do CRM e não precisa de funil nem
 
 Quando o usuário enviar uma foto de nota fiscal, recibo, ou descrever um gasto:
 1. Extraia as informações: valor, categoria, descrição, data, tipo de pagamento, estabelecimento, CNPJ
-2. Se não conseguir identificar a CATEGORIA, pergunte ao usuário qual categoria usar (combustivel, alimentacao, transporte, hospedagem, material, servico, outros)
-3. Se não conseguir identificar o VALOR, pergunte ao usuário
-4. Use DIRETAMENTE a ferramenta "create_expense" para registrar - sem pedir funil, sem pedir etapa
-5. Confirme o registro informando: valor, categoria, data e estabelecimento
+2. Se conseguir identificar VALOR e CATEGORIA, chame IMEDIATAMENTE a ferramenta "create_expense" para registrar. NÃO pergunte confirmação, registre direto.
+3. Se não conseguir identificar a CATEGORIA, pergunte ao usuário qual categoria usar (combustivel, alimentacao, transporte, hospedagem, material, servico, outros)
+4. Se não conseguir identificar o VALOR, pergunte ao usuário
+5. Após registrar, confirme informando: valor, categoria, data e estabelecimento
 
+REGRA CRÍTICA: Quando receber informações suficientes (valor + descrição), chame "create_expense" IMEDIATAMENTE. Não faça perguntas desnecessárias. Aja como um sistema de lançamento rápido.
 Tipos de pagamento: dinheiro, cartao_credito, cartao_debito, pix, outros.
-Se a data não for informada, use a data de hoje.`;
+Se a data não for informada, use a data de hoje (${new Date().toISOString().split('T')[0]}).
+Se a categoria não for informada mas puder ser inferida pela descrição (ex: "gasolina" = combustivel, "almoço" = alimentacao, "uber" = transporte, "hotel" = hospedagem), use a categoria inferida.`;
   }
 
   // Add language instruction
@@ -865,7 +867,7 @@ Se não conseguir identificar a categoria, pergunte ao usuário.`,
 
 // ==================== TOOL EXECUTOR ====================
 
-function createToolExecutor(organizationId, userId, contactPhone) {
+function createToolExecutor(organizationId, userId, contactPhone, agentId) {
   return async (toolName, args) => {
     switch (toolName) {
       case 'create_deal':
@@ -887,7 +889,7 @@ function createToolExecutor(organizationId, userId, contactPhone) {
       case 'consult_specialist_agent':
         return executeCallAgent(organizationId, args.agent_name, args.question);
       case 'create_expense':
-        return executeCreateExpense(organizationId, userId, args, contactPhone);
+        return executeCreateExpense(organizationId, userId, args, contactPhone, agentId);
       default:
         return 'Ferramenta desconhecida';
     }
@@ -1064,22 +1066,49 @@ async function executeCallAgent(organizationId, agentName, question) {
   }
 }
 
-async function executeCreateExpense(organizationId, userId, args, contactPhone) {
+async function executeCreateExpense(organizationId, userId, args, contactPhone, agentId) {
   try {
     // Find the authorized contact by phone to get user_id
-    let expenseUserId = userId;
+    let expenseUserId = null;
     let contactName = 'Desconhecido';
 
     if (contactPhone) {
       const normalizedPhone = contactPhone.replace(/\D/g, '');
-      const contactResult = await query(
-        `SELECT user_id, name FROM ai_agent_expense_contacts WHERE organization_id = $1 AND phone = $2 AND is_active = true LIMIT 1`,
-        [organizationId, normalizedPhone]
-      );
-      if (contactResult.rows.length > 0) {
-        expenseUserId = contactResult.rows[0].user_id || userId;
-        contactName = contactResult.rows[0].name;
+      // Try multiple phone formats: full, without country code, with country code
+      const phoneVariants = [normalizedPhone];
+      if (normalizedPhone.startsWith('55') && normalizedPhone.length > 10) {
+        phoneVariants.push(normalizedPhone.slice(2)); // without country code
+      } else if (normalizedPhone.length <= 11) {
+        phoneVariants.push('55' + normalizedPhone); // with country code
       }
+
+      // Search by agent_id first, then by organization
+      for (const phone of phoneVariants) {
+        let contactResult;
+        if (agentId) {
+          contactResult = await query(
+            `SELECT user_id, name FROM ai_agent_expense_contacts WHERE agent_id = $1 AND phone = $2 AND is_active = true LIMIT 1`,
+            [agentId, phone]
+          );
+        }
+        if (!contactResult || contactResult.rows.length === 0) {
+          contactResult = await query(
+            `SELECT user_id, name FROM ai_agent_expense_contacts WHERE organization_id = $1 AND phone = $2 AND is_active = true LIMIT 1`,
+            [organizationId, phone]
+          );
+        }
+        if (contactResult.rows.length > 0) {
+          expenseUserId = contactResult.rows[0].user_id;
+          contactName = contactResult.rows[0].name;
+          break;
+        }
+      }
+    }
+
+    // If no authorized contact found, reject
+    if (!expenseUserId) {
+      logInfo('ai_agent_processor.expense_unauthorized', { contactPhone, agentId });
+      return `⚠️ Este número de telefone não está autorizado a lançar despesas. Peça ao administrador para cadastrar seu número na lista de contatos autorizados do agente.`;
     }
 
     // Get user's group
