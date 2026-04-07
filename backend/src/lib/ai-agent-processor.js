@@ -138,8 +138,10 @@ export async function processIncomingWithAgent({
     } else if (messageType === 'image' && mediaUrl) {
       const caption = messageContent || '';
       userMessageForHistory = caption ? `[Imagem com legenda]: ${caption}` : '[Imagem recebida]';
-      // Build multimodal message for AI
-      userMessageForAI = buildImageMessage(mediaUrl, caption);
+      // Build multimodal message for AI - check if agent has expense capabilities
+      const agentCaps = parseArray(agentResult.rows[0]?.capabilities, []);
+      const hasExpenses = agentCaps.includes('manage_expenses');
+      userMessageForAI = buildImageMessage(mediaUrl, caption, hasExpenses);
     } else if (messageType === 'video' && mediaUrl) {
       const caption = messageContent || '';
       userMessageForHistory = caption ? `[Vídeo com legenda]: ${caption}` : '[Vídeo recebido]';
@@ -1540,10 +1542,15 @@ async function transcribeAudio(audioUrl, mimetype) {
  * Build a multimodal message content array for image messages
  * Compatible with OpenAI vision API format
  */
-function buildImageMessage(imageUrl, caption) {
+function buildImageMessage(imageUrl, caption, hasExpenseCapability = false) {
   const content = [];
 
-  if (caption) {
+  if (hasExpenseCapability) {
+    const expenseInstruction = caption
+      ? `${caption}\n\nANALISE esta imagem com atenção. Se for um cupom fiscal, nota fiscal, recibo ou comprovante de pagamento, extraia TODOS os dados visíveis (valor total, itens, estabelecimento, CNPJ, data, forma de pagamento) e chame a ferramenta "create_expense" IMEDIATAMENTE para registrar a despesa. Se houver múltiplos itens, registre o valor TOTAL. Não peça confirmação, apenas registre.`
+      : 'ANALISE esta imagem com atenção. Se for um cupom fiscal, nota fiscal, recibo ou comprovante de pagamento, extraia TODOS os dados visíveis (valor total, itens, estabelecimento, CNPJ, data, forma de pagamento) e chame a ferramenta "create_expense" IMEDIATAMENTE para registrar a despesa. Se houver múltiplos itens, registre o valor TOTAL. Não peça confirmação, apenas registre. Se NÃO for um documento fiscal, descreva o que você vê e responda adequadamente.';
+    content.push({ type: 'text', text: expenseInstruction });
+  } else if (caption) {
     content.push({ type: 'text', text: caption });
   } else {
     content.push({ type: 'text', text: 'O cliente enviou esta imagem. Descreva o que você vê e responda adequadamente.' });
