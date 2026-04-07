@@ -563,7 +563,14 @@ Use SEMPRE a ferramenta "query_expenses". NUNCA diga que não tem acesso a lanç
 - Calcule datas: "este mês" = primeiro dia do mês até hoje, "esta semana" = segunda até hoje, "hoje" = ${todayISO}
 - NUNCA responda que não consegue acessar informações de despesas. SEMPRE use a ferramenta.
 
-REGRA CRÍTICA: Se o usuário perguntar sobre gastos/despesas/lançamentos, CHAME "query_expenses". Se informar um gasto, CHAME "create_expense". NUNCA responda sem usar as ferramentas.`;
+### Para IMAGENS (fotos de recibos/notas):
+- Quando receber uma IMAGEM, analise se é um cupom fiscal, nota fiscal, recibo ou comprovante
+- Se for, EXTRAIA todos os dados visíveis: valor, estabelecimento, CNPJ, data, itens, forma de pagamento
+- Chame "create_expense" IMEDIATAMENTE com os dados extraídos da imagem
+- Use o valor TOTAL do documento. Infira a categoria pelo tipo de estabelecimento
+- NÃO peça confirmação. Registre e informe o que foi lançado.
+
+REGRA CRÍTICA: Se o usuário perguntar sobre gastos/despesas/lançamentos, CHAME "query_expenses". Se informar um gasto ou enviar foto de recibo, CHAME "create_expense". NUNCA responda sem usar as ferramentas.`;
   }
 
   // Add language instruction
