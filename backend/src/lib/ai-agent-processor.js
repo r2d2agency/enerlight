@@ -533,15 +533,19 @@ async function buildSystemPrompt(agent, organizationId, contactName, userMessage
   // Add expense management instructions if capability is enabled
   const capabilities = parseArray(agent.capabilities, []);
   if (capabilities.includes('manage_expenses')) {
-    prompt += `\n\n## Prestação de Contas
-Você tem a capacidade de registrar despesas/gastos. Quando o usuário enviar uma foto de nota fiscal, recibo, ou descrever um gasto:
-1. Extraia as informações: valor, categoria, descrição, data, tipo de pagamento, estabelecimento, CNPJ
-2. Se não conseguir identificar a CATEGORIA, pergunte ao usuário qual categoria usar
-3. Se não conseguir identificar o VALOR, pergunte ao usuário
-4. Use a ferramenta "create_expense" para registrar
-5. Confirme o registro para o usuário
+    prompt += `\n\n## Prestação de Contas (Despesas)
+IMPORTANTE: Para registrar despesas e gastos, use SEMPRE a ferramenta "create_expense". NÃO use "create_deal" para despesas.
+A ferramenta "create_expense" é independente do CRM e não precisa de funil nem etapa.
 
-Categorias disponíveis: combustível, alimentação, transporte, hospedagem, material, serviço, outros.`;
+Quando o usuário enviar uma foto de nota fiscal, recibo, ou descrever um gasto:
+1. Extraia as informações: valor, categoria, descrição, data, tipo de pagamento, estabelecimento, CNPJ
+2. Se não conseguir identificar a CATEGORIA, pergunte ao usuário qual categoria usar (combustivel, alimentacao, transporte, hospedagem, material, servico, outros)
+3. Se não conseguir identificar o VALOR, pergunte ao usuário
+4. Use DIRETAMENTE a ferramenta "create_expense" para registrar - sem pedir funil, sem pedir etapa
+5. Confirme o registro informando: valor, categoria, data e estabelecimento
+
+Tipos de pagamento: dinheiro, cartao_credito, cartao_debito, pix, outros.
+Se a data não for informada, use a data de hoje.`;
   }
 
   // Add language instruction
