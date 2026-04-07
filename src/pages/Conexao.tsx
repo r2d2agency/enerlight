@@ -107,6 +107,10 @@ const Conexao = () => {
   const [leadDistributionDialogOpen, setLeadDistributionDialogOpen] = useState(false);
   const [leadDistributionConnection, setLeadDistributionConnection] = useState<Connection | null>(null);
 
+  // AI Agent per connection state
+  const [availableAgents, setAvailableAgents] = useState<{id: string; name: string; description?: string; is_active: boolean}[]>([]);
+  const [connectionAgents, setConnectionAgents] = useState<Record<string, {agent_id: string; is_active: boolean}>>({});
+
   useEffect(() => {
     loadConnections();
     loadPlanLimits();
