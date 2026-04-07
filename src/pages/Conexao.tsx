@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Plus, QrCode, RefreshCw, Plug, Unplug, Trash2, Phone, Loader2, Wifi, WifiOff, Send, Settings2, AlertTriangle, CheckCircle, Eye, Activity, Radio, Users, Download, Pencil, UserCheck, MessageSquare } from "lucide-react";
+import { Plus, QrCode, RefreshCw, Plug, Unplug, Trash2, Phone, Loader2, Wifi, WifiOff, Send, Settings2, AlertTriangle, CheckCircle, Eye, Activity, Radio, Users, Download, Pencil, UserCheck, MessageSquare, Bot } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
@@ -107,6 +107,10 @@ const Conexao = () => {
   const [leadDistributionDialogOpen, setLeadDistributionDialogOpen] = useState(false);
   const [leadDistributionConnection, setLeadDistributionConnection] = useState<Connection | null>(null);
 
+  // AI Agent per connection state
+  const [availableAgents, setAvailableAgents] = useState<{id: string; name: string; description?: string; is_active: boolean}[]>([]);
+  const [connectionAgents, setConnectionAgents] = useState<Record<string, {agent_id: string; is_active: boolean}>>({});
+
   useEffect(() => {
     loadConnections();
     loadPlanLimits();
@@ -116,11 +120,81 @@ const Conexao = () => {
     try {
       const data = await api<Connection[]>('/api/connections');
       setConnections(data);
+      // Load AI agent info for each connection
+      loadConnectionAgents(data);
+      loadAvailableAgents(data);
     } catch (error) {
       console.error('Error loading connections:', error);
       toast.error('Erro ao carregar conexões');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadAvailableAgents = async (conns: Connection[]) => {
+    if (conns.length === 0) return;
+    try {
+      const agents = await api<{id: string; name: string; description?: string; is_active: boolean}[]>(
+        `/api/connections/${conns[0].id}/available-agents`
+      );
+      setAvailableAgents(agents);
+    } catch (err) {
+      console.error('Error loading available agents:', err);
+    }
+  };
+
+  const loadConnectionAgents = async (conns: Connection[]) => {
+    const agentMap: Record<string, {agent_id: string; is_active: boolean}> = {};
+    await Promise.all(conns.map(async (conn) => {
+      try {
+        const data = await api<any>(`/api/connections/${conn.id}/ai-agent`);
+        if (data) {
+          agentMap[conn.id] = { agent_id: data.agent_id, is_active: data.is_active };
+        }
+      } catch {}
+    }));
+    setConnectionAgents(agentMap);
+  };
+
+  const handleAgentChange = async (connectionId: string, agentId: string | null) => {
+    try {
+      if (agentId) {
+        await api(`/api/connections/${connectionId}/ai-agent`, {
+          method: 'PATCH',
+          body: { agent_id: agentId, is_active: true },
+        });
+        setConnectionAgents(prev => ({ ...prev, [connectionId]: { agent_id: agentId, is_active: true } }));
+        toast.success('Agente de IA vinculado');
+      } else {
+        await api(`/api/connections/${connectionId}/ai-agent`, {
+          method: 'PATCH',
+          body: { agent_id: null },
+        });
+        setConnectionAgents(prev => {
+          const copy = { ...prev };
+          delete copy[connectionId];
+          return copy;
+        });
+        toast.success('Agente de IA removido');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao atualizar agente');
+    }
+  };
+
+  const handleAgentToggle = async (connectionId: string, isActive: boolean) => {
+    try {
+      await api(`/api/connections/${connectionId}/ai-agent`, {
+        method: 'PATCH',
+        body: { is_active: isActive },
+      });
+      setConnectionAgents(prev => ({
+        ...prev,
+        [connectionId]: { ...prev[connectionId], is_active: isActive }
+      }));
+      toast.success(isActive ? 'Agente ativado' : 'Agente desativado');
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao atualizar agente');
     }
   };
 
@@ -854,6 +928,41 @@ const handleGetQRCode = async (connection: Connection) => {
                     <Badge variant="outline" className="text-xs">
                       Configurar
                     </Badge>
+                  </div>
+
+                  {/* AI Agent Section */}
+                  <div className="rounded-lg border p-3 bg-muted/30 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Bot className="h-4 w-4 text-muted-foreground" />
+                        <div>
+                          <p className="text-sm font-medium">Agente de IA</p>
+                          <p className="text-xs text-muted-foreground">Atendimento automático via IA</p>
+                        </div>
+                      </div>
+                      {connectionAgents[connection.id] && (
+                        <Switch
+                          checked={connectionAgents[connection.id]?.is_active || false}
+                          onCheckedChange={(checked) => handleAgentToggle(connection.id, checked)}
+                        />
+                      )}
+                    </div>
+                    <Select
+                      value={connectionAgents[connection.id]?.agent_id || 'none'}
+                      onValueChange={(value) => handleAgentChange(connection.id, value === 'none' ? null : value)}
+                    >
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Selecionar agente..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Nenhum agente</SelectItem>
+                        {availableAgents.map((agent) => (
+                          <SelectItem key={agent.id} value={agent.id}>
+                            {agent.name} {!agent.is_active && '(inativo)'}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="flex gap-2">

@@ -670,5 +670,81 @@ router.post('/:id/wapi/sync-messages', async (req, res) => {
   }
 });
 
+// ==================== AI AGENT PER CONNECTION ====================
+
+// Get AI agent linked to a connection
+router.get('/:id/ai-agent', async (req, res) => {
+  try {
+    const result = await query(`
+      SELECT ac.*, a.name as agent_name, a.is_active as agent_active
+      FROM ai_agent_connections ac
+      JOIN ai_agents a ON a.id = ac.agent_id
+      WHERE ac.connection_id = $1
+      ORDER BY ac.priority DESC
+      LIMIT 1
+    `, [req.params.id]);
+
+    res.json(result.rows[0] || null);
+  } catch (error) {
+    console.error('Get connection AI agent error:', error);
+    res.status(500).json({ error: 'Erro ao buscar agente' });
+  }
+});
+
+// Toggle AI agent active/inactive for a connection
+router.patch('/:id/ai-agent', async (req, res) => {
+  try {
+    const { agent_id, is_active } = req.body;
+
+    if (agent_id && is_active !== undefined) {
+      // Link or update agent
+      const org = await getUserOrganization(req.userId);
+      if (!org) return res.status(403).json({ error: 'Sem organização' });
+
+      const result = await query(`
+        INSERT INTO ai_agent_connections (agent_id, connection_id, is_active)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (agent_id, connection_id) DO UPDATE SET is_active = $3
+        RETURNING *
+      `, [agent_id, req.params.id, is_active]);
+
+      res.json(result.rows[0]);
+    } else if (agent_id === null) {
+      // Remove all agent links for this connection
+      await query('DELETE FROM ai_agent_connections WHERE connection_id = $1', [req.params.id]);
+      res.json({ success: true });
+    } else if (is_active !== undefined) {
+      // Toggle existing
+      const result = await query(
+        'UPDATE ai_agent_connections SET is_active = $1 WHERE connection_id = $2 RETURNING *',
+        [is_active, req.params.id]
+      );
+      res.json(result.rows[0] || null);
+    } else {
+      res.status(400).json({ error: 'agent_id ou is_active é obrigatório' });
+    }
+  } catch (error) {
+    console.error('Toggle connection AI agent error:', error);
+    res.status(500).json({ error: 'Erro ao atualizar agente' });
+  }
+});
+
+// List all available AI agents for the org (used by connection page dropdown)
+router.get('/:id/available-agents', async (req, res) => {
+  try {
+    const org = await getUserOrganization(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+
+    const result = await query(
+      'SELECT id, name, description, is_active FROM ai_agents WHERE organization_id = $1 ORDER BY name',
+      [org.organization_id]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error('List available agents error:', error);
+    res.status(500).json({ error: 'Erro ao listar agentes' });
+  }
+});
+
 export default router;
 
