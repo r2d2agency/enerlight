@@ -872,6 +872,31 @@ Se não conseguir identificar a categoria, pergunte ao usuário.`,
   };
 }
 
+function buildQueryExpensesTool() {
+  return {
+    type: 'function',
+    function: {
+      name: 'query_expenses',
+      description: `Consulta despesas/gastos já registrados. Use quando o usuário perguntar sobre lançamentos, totais, histórico de despesas, quanto gastou, etc.
+Ações disponíveis:
+- "list": Lista despesas com filtros opcionais (data, categoria)
+- "summary": Retorna totais por categoria em um período
+- "total": Retorna o total geral de despesas em um período`,
+      parameters: {
+        type: 'object',
+        properties: {
+          action: { type: 'string', enum: ['list', 'summary', 'total'], description: 'Tipo de consulta' },
+          start_date: { type: 'string', description: 'Data inicial do filtro (YYYY-MM-DD). Se não informada, usa início do mês atual.' },
+          end_date: { type: 'string', description: 'Data final do filtro (YYYY-MM-DD). Se não informada, usa hoje.' },
+          category: { type: 'string', enum: ['combustivel', 'alimentacao', 'transporte', 'hospedagem', 'material', 'servico', 'outros'], description: 'Filtrar por categoria (opcional)' },
+          limit: { type: 'number', description: 'Quantidade máxima de itens a retornar (padrão: 20)' },
+        },
+        required: ['action'],
+      },
+    },
+  };
+}
+
 // ==================== TOOL EXECUTOR ====================
 
 function createToolExecutor(organizationId, userId, contactPhone, agentId) {
