@@ -102,6 +102,8 @@ export function AgentEditorDialog({ open, onOpenChange, agent, onSaved }: AgentE
   const [expenseContacts, setExpenseContacts] = useState<ExpenseContact[]>([]);
   const [newContactName, setNewContactName] = useState('');
   const [newContactPhone, setNewContactPhone] = useState('');
+  const [newContactUserId, setNewContactUserId] = useState('');
+  const [orgMembers, setOrgMembers] = useState<Array<{ id: string; name: string; email: string }>>([]);
 
   const [formData, setFormData] = useState({
     name: '',
