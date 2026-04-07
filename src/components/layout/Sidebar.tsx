@@ -75,6 +75,8 @@ interface NavSection {
   permissionKey?: string;
 }
 
+type ModuleKey = NonNullable<NavItem['moduleKey']>;
+
 const getNavSections = (hasConnections: boolean): NavSection[] => [
   {
     title: "Atendimento",
@@ -279,6 +281,18 @@ function SidebarContentComponent({ isExpanded, isSuperadmin, onNavigate }: Sideb
     return (userPermissions as any)[permKey] === true;
   };
 
+  const hasModuleAccess = (moduleKey?: ModuleKey): boolean => {
+    if (!moduleKey) return true;
+    if (isSuperadmin || userIsOwner) return true;
+
+    const rawModules = user?.modules_enabled as Partial<Record<ModuleKey, boolean>> | undefined;
+    if (rawModules && !(moduleKey in rawModules)) {
+      return true;
+    }
+
+    return modulesEnabled[moduleKey];
+  };
+
   const navSections = getNavSections(hasConnections);
 
   // Filter sections and items based on modules enabled, role AND permissions
@@ -287,7 +301,7 @@ function SidebarContentComponent({ isExpanded, isSuperadmin, onNavigate }: Sideb
       // Owner always sees all sections
       if (userIsOwner) return true;
       // Check module access
-      if (section.moduleKey && !modulesEnabled[section.moduleKey] && !isSuperadmin) return false;
+      if (!hasModuleAccess(section.moduleKey)) return false;
       // Check admin-only section
       if (section.adminOnly && !userIsAdmin) return false;
       // Check permission
@@ -300,7 +314,7 @@ function SidebarContentComponent({ isExpanded, isSuperadmin, onNavigate }: Sideb
         // Owner (proprietário) always sees everything
         if (userIsOwner) return true;
         // Check module access
-        if (item.moduleKey && !modulesEnabled[item.moduleKey] && !isSuperadmin) return false;
+        if (!hasModuleAccess(item.moduleKey)) return false;
         // Check superadmin-only item
         if (item.superadminOnly && !isSuperadmin) return false;
         // Check admin-only item

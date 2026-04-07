@@ -9,18 +9,27 @@ const router = Router();
 const SESSION_PERMISSION_PREFIXES = ['can_view_', 'can_edit_', 'can_delete_'];
 
 function buildSessionPermissions(row, role) {
+  const roleDefaults = role ? (ROLE_DEFAULTS[role] || ROLE_DEFAULTS.agent) : null;
+
   if (row) {
     const permissions = {};
-    for (const key of Object.keys(row)) {
+    const permissionKeys = new Set([
+      ...Object.keys(roleDefaults || {}),
+      ...Object.keys(row),
+    ]);
+
+    for (const key of permissionKeys) {
       if (SESSION_PERMISSION_PREFIXES.some(prefix => key.startsWith(prefix))) {
-        permissions[key] = row[key];
+        const value = row[key] ?? roleDefaults?.[key];
+        if (value !== undefined) {
+          permissions[key] = value;
+        }
       }
     }
     return permissions;
   }
 
-  if (!role) return null;
-  return ROLE_DEFAULTS[role] || ROLE_DEFAULTS.agent;
+  return roleDefaults;
 }
 
 // Get visible plans for signup (public endpoint)
