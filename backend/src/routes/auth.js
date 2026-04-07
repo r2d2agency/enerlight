@@ -255,6 +255,7 @@ router.post('/login', async (req, res) => {
       captador: true,
       licitacao: true,
       document_signatures: true,
+      logistics: true,
     };
     
     // Only superadmin bypasses module restrictions - owners/admins follow plan settings
@@ -405,6 +406,7 @@ router.get('/me', async (req, res) => {
       captador: true,
       licitacao: true,
       document_signatures: true,
+      logistics: true,
     };
     
     // Only superadmin bypasses module restrictions - owners/admins follow plan settings
