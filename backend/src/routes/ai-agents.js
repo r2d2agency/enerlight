@@ -1706,4 +1706,65 @@ router.post('/templates', authenticate, async (req, res) => {
   }
 });
 
+// ==================== EXPENSE CONTACTS ====================
+
+// List expense contacts for an agent
+router.get('/:id/expense-contacts', authenticate, async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT * FROM ai_agent_expense_contacts WHERE agent_id = $1 ORDER BY name`,
+      [req.params.id]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    logError('ai_agents.expense_contacts_list_error', error);
+    res.status(500).json({ error: 'Erro ao listar contatos de despesa' });
+  }
+});
+
+// Add expense contact
+router.post('/:id/expense-contacts', authenticate, async (req, res) => {
+  try {
+    const userCtx = await getUserContext(req.userId);
+    if (!userCtx?.organization_id) {
+      return res.status(403).json({ error: 'Usuário não pertence a uma organização' });
+    }
+
+    const { name, phone, user_id } = req.body;
+    if (!name || !phone) {
+      return res.status(400).json({ error: 'Nome e telefone são obrigatórios' });
+    }
+
+    // Normalize phone
+    const normalizedPhone = phone.replace(/\D/g, '');
+
+    const result = await query(
+      `INSERT INTO ai_agent_expense_contacts (agent_id, organization_id, user_id, name, phone)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (agent_id, phone) DO UPDATE SET name = EXCLUDED.name, is_active = true
+       RETURNING *`,
+      [req.params.id, userCtx.organization_id, user_id || null, name, normalizedPhone]
+    );
+
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    logError('ai_agents.expense_contact_add_error', error);
+    res.status(500).json({ error: 'Erro ao adicionar contato' });
+  }
+});
+
+// Remove expense contact
+router.delete('/:id/expense-contacts/:contactId', authenticate, async (req, res) => {
+  try {
+    await query(
+      `DELETE FROM ai_agent_expense_contacts WHERE id = $1 AND agent_id = $2`,
+      [req.params.contactId, req.params.id]
+    );
+    res.json({ success: true });
+  } catch (error) {
+    logError('ai_agents.expense_contact_delete_error', error);
+    res.status(500).json({ error: 'Erro ao remover contato' });
+  }
+});
+
 export default router;
