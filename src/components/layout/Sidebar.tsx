@@ -284,6 +284,8 @@ function SidebarContentComponent({ isExpanded, isSuperadmin, onNavigate }: Sideb
   // Filter sections and items based on modules enabled, role AND permissions
   const filteredSections = navSections
     .filter(section => {
+      // Owner always sees all sections
+      if (userIsOwner) return true;
       // Check module access
       if (section.moduleKey && !modulesEnabled[section.moduleKey] && !isSuperadmin) return false;
       // Check admin-only section
