@@ -754,9 +754,8 @@ export function AgentEditorDialog({ open, onOpenChange, agent, onSaved }: AgentE
                                 </div>
                               );
                             })}
-                              </div>
-                            ))}
                           </div>
+                        )}
                         )}
                       </>
                     ) : (
