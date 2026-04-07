@@ -530,6 +530,20 @@ async function buildSystemPrompt(agent, organizationId, contactName, userMessage
     prompt += `\n\nVocê está conversando com: ${contactName}`;
   }
 
+  // Add expense management instructions if capability is enabled
+  const capabilities = parseArray(agent.capabilities, []);
+  if (capabilities.includes('manage_expenses')) {
+    prompt += `\n\n## Prestação de Contas
+Você tem a capacidade de registrar despesas/gastos. Quando o usuário enviar uma foto de nota fiscal, recibo, ou descrever um gasto:
+1. Extraia as informações: valor, categoria, descrição, data, tipo de pagamento, estabelecimento, CNPJ
+2. Se não conseguir identificar a CATEGORIA, pergunte ao usuário qual categoria usar
+3. Se não conseguir identificar o VALOR, pergunte ao usuário
+4. Use a ferramenta "create_expense" para registrar
+5. Confirme o registro para o usuário
+
+Categorias disponíveis: combustível, alimentação, transporte, hospedagem, material, serviço, outros.`;
+  }
+
   // Add language instruction
   prompt += `\n\nResponda sempre em ${agent.language || 'pt-BR'}.`;
 
