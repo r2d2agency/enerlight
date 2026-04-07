@@ -295,6 +295,8 @@ function SidebarContentComponent({ isExpanded, isSuperadmin, onNavigate }: Sideb
     .map(section => ({
       ...section,
       items: section.items.filter(item => {
+        // Owner (proprietário) always sees everything
+        if (userIsOwner) return true;
         // Check module access
         if (item.moduleKey && !modulesEnabled[item.moduleKey] && !isSuperadmin) return false;
         // Check superadmin-only item
