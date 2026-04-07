@@ -194,7 +194,7 @@ export async function processIncomingWithAgent({
     const userId = agent.default_user_id || agent.created_by;
 
     if (tools.length > 0) {
-      const toolExecutor = createToolExecutor(organizationId, userId, contactPhone);
+      const toolExecutor = createToolExecutor(organizationId, userId, contactPhone, agent.id);
       result = await callAIWithTools(aiConfig, messages, {
         temperature: parseFloat(agent.temperature) || 0.7,
         maxTokens: agent.max_tokens || 1000,
