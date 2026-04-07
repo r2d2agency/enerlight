@@ -25,11 +25,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   Bot, Brain, MessageSquare, Settings, Zap, Shield,
   Sparkles, X, Plus, Save, Loader2, Phone, BellRing,
-  Receipt, Trash2, UserPlus
-} from 'lucide-react';
-import { 
-  Bot, Brain, MessageSquare, Settings, Zap, Shield,
-  Sparkles, X, Plus, Save, Loader2, Phone, BellRing,
   Receipt, Trash2, UserPlus, Link2
 } from 'lucide-react';
 import { useAIAgents, AIAgent, AgentCapability, AIModels, CallAgentConfig, CallAgentRule, ExpenseContact } from '@/hooks/use-ai-agents';
