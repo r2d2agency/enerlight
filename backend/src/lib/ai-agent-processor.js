@@ -847,7 +847,7 @@ Se não conseguir identificar a categoria, pergunte ao usuário.`,
 
 // ==================== TOOL EXECUTOR ====================
 
-function createToolExecutor(organizationId, userId) {
+function createToolExecutor(organizationId, userId, contactPhone) {
   return async (toolName, args) => {
     switch (toolName) {
       case 'create_deal':
