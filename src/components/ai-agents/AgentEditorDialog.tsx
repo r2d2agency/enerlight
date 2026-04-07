@@ -24,9 +24,10 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   Bot, Brain, MessageSquare, Settings, Zap, Shield,
-  Sparkles, X, Plus, Save, Loader2, Phone, BellRing
+  Sparkles, X, Plus, Save, Loader2, Phone, BellRing,
+  Receipt, Trash2, UserPlus
 } from 'lucide-react';
-import { useAIAgents, AIAgent, AgentCapability, AIModels, CallAgentConfig, CallAgentRule } from '@/hooks/use-ai-agents';
+import { useAIAgents, AIAgent, AgentCapability, AIModels, CallAgentConfig, CallAgentRule, ExpenseContact } from '@/hooks/use-ai-agents';
 import { toast } from 'sonner';
 
 interface AgentEditorDialogProps {
