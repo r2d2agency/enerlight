@@ -62,8 +62,11 @@ export interface CRMCompany {
   sales_position_name?: string;
   sales_position_user_name?: string;
   cnae_principal?: string;
+  qualification?: 'bronze' | 'prata' | 'ouro' | 'platina';
   custom_fields?: Record<string, any>;
   deals_count: number;
+  open_deals_count?: number;
+  last_deal_date?: string;
   created_by_name?: string;
   created_at: string;
 }
@@ -356,15 +359,17 @@ export interface CRMPaginatedCompaniesResponse {
   pageSize: number;
 }
 
-export function useCRMCompaniesPaginated(params: { search?: string; page: number; pageSize: number; cnae_group_id?: string }) {
+export function useCRMCompaniesPaginated(params: { search?: string; page: number; pageSize: number; cnae_group_id?: string; has_open_deals?: boolean; qualification?: string }) {
   return useQuery({
-    queryKey: ["crm-companies-paginated", params.search, params.page, params.pageSize, params.cnae_group_id],
+    queryKey: ["crm-companies-paginated", params.search, params.page, params.pageSize, params.cnae_group_id, params.has_open_deals, params.qualification],
     queryFn: async () => {
       const searchParams = new URLSearchParams();
       if (params.search) searchParams.set("search", params.search);
       searchParams.set("page", String(params.page));
       searchParams.set("page_size", String(params.pageSize));
       if (params.cnae_group_id) searchParams.set("cnae_group_id", params.cnae_group_id);
+      if (params.has_open_deals) searchParams.set("has_open_deals", "true");
+      if (params.qualification) searchParams.set("qualification", params.qualification);
 
       return api<CRMPaginatedCompaniesResponse>(`/api/crm/companies?${searchParams.toString()}`);
     },

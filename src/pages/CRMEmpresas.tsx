@@ -15,7 +15,7 @@ import { CnaeGroupsDialog } from "@/components/crm/CnaeGroupsDialog";
 import { useCRMCompaniesPaginated, useCRMCompanyMutations, useCRMFunnels, useCRMCnaeGroups, CRMCompany, CRMFunnel } from "@/hooks/use-crm";
 import { useAuth } from "@/contexts/AuthContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Search, MoreHorizontal, Building2, Phone, Mail, Trash2, Edit, Loader2, FileSpreadsheet, Briefcase, Database, ChevronLeft, ChevronRight, Settings2, Filter } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Building2, Phone, Mail, Trash2, Edit, Loader2, FileSpreadsheet, Briefcase, Database, ChevronLeft, ChevronRight, Settings2, Filter, Award } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { useDebounce } from "@/hooks/use-debounce";
 
@@ -34,12 +34,16 @@ export default function CRMEmpresas() {
   const [selectedFunnel, setSelectedFunnel] = useState<CRMFunnel | null>(null);
   const [selectedCompanyForDeal, setSelectedCompanyForDeal] = useState<CRMCompany | null>(null);
   const [selectedCnaeGroup, setSelectedCnaeGroup] = useState<string>("");
+  const [filterOpenDeals, setFilterOpenDeals] = useState(false);
+  const [filterQualification, setFilterQualification] = useState<string>("");
 
   const { data: companiesResponse, isLoading, isFetching } = useCRMCompaniesPaginated({
     search: debouncedSearch || undefined,
     page,
     pageSize,
     cnae_group_id: selectedCnaeGroup || undefined,
+    has_open_deals: filterOpenDeals || undefined,
+    qualification: filterQualification || undefined,
   });
   const companies = companiesResponse?.items || [];
   const total = companiesResponse?.total || 0;
@@ -85,7 +89,7 @@ export default function CRMEmpresas() {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, selectedCnaeGroup]);
+  }, [debouncedSearch, selectedCnaeGroup, filterOpenDeals, filterQualification]);
 
   return (
     <MainLayout>
@@ -155,6 +159,33 @@ export default function CRMEmpresas() {
             </Select>
           )}
 
+          {/* Qualification Filter */}
+          <Select value={filterQualification || "all"} onValueChange={(v) => setFilterQualification(v === "all" ? "" : v)}>
+            <SelectTrigger className="w-[180px]">
+              <div className="flex items-center gap-2">
+                <Award className="h-4 w-4" />
+                <SelectValue placeholder="Qualificação" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas</SelectItem>
+              <SelectItem value="bronze">🥉 Bronze</SelectItem>
+              <SelectItem value="prata">🥈 Prata</SelectItem>
+              <SelectItem value="ouro">🥇 Ouro</SelectItem>
+              <SelectItem value="platina">💎 Platina</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Open Deals Filter */}
+          <Button
+            variant={filterOpenDeals ? "default" : "outline"}
+            size="sm"
+            onClick={() => setFilterOpenDeals(!filterOpenDeals)}
+          >
+            <Briefcase className="h-4 w-4 mr-2" />
+            Com negociação aberta
+          </Button>
+
           {isFetching && !isLoading && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground ml-auto">
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -186,14 +217,16 @@ export default function CRMEmpresas() {
               <Table className="table-fixed w-full">
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[22%]">Empresa</TableHead>
-                    <TableHead className="w-[10%]">Segmento</TableHead>
-                    <TableHead className="w-[10%]">Vendedor</TableHead>
-                    <TableHead className="w-[10%]">CNPJ</TableHead>
-                    <TableHead className="w-[14%]">CNAE</TableHead>
-                    <TableHead className="w-[11%]">Contato</TableHead>
-                    <TableHead className="w-[6%]">Negociações</TableHead>
-                    <TableHead className="w-[10%]">Criado em</TableHead>
+                    <TableHead className="w-[18%]">Empresa</TableHead>
+                    <TableHead className="w-[8%]">Qualificação</TableHead>
+                    <TableHead className="w-[8%]">Segmento</TableHead>
+                    <TableHead className="w-[8%]">Vendedor</TableHead>
+                    <TableHead className="w-[9%]">CNPJ</TableHead>
+                    <TableHead className="w-[10%]">CNAE</TableHead>
+                    <TableHead className="w-[10%]">Contato</TableHead>
+                    <TableHead className="w-[5%]">Neg.</TableHead>
+                    <TableHead className="w-[9%]">Últ. Negociação</TableHead>
+                    <TableHead className="w-[8%]">Criado em</TableHead>
                     <TableHead className="w-[7%] text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -214,6 +247,21 @@ export default function CRMEmpresas() {
                             )}
                           </div>
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        {company.qualification ? (
+                          <Badge variant="outline" className={
+                            company.qualification === 'platina' ? 'border-purple-400 text-purple-600' :
+                            company.qualification === 'ouro' ? 'border-yellow-400 text-yellow-600' :
+                            company.qualification === 'prata' ? 'border-gray-400 text-gray-500' :
+                            'border-orange-400 text-orange-600'
+                          }>
+                            {company.qualification === 'platina' ? '💎' : company.qualification === 'ouro' ? '🥇' : company.qualification === 'prata' ? '🥈' : '🥉'}{' '}
+                            {company.qualification.charAt(0).toUpperCase() + company.qualification.slice(1)}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         {company.segment_name ? (
@@ -279,6 +327,9 @@ export default function CRMEmpresas() {
                         <Badge variant="secondary">
                           {company.deals_count || 0}
                         </Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {company.last_deal_date ? format(parseISO(company.last_deal_date), "dd/MM/yyyy") : "-"}
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
                         {company.created_at ? format(parseISO(company.created_at), "dd/MM/yyyy") : "-"}

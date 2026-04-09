@@ -70,6 +70,7 @@ export function CompanyDialog({ company, open, onOpenChange, onCreated }: Compan
     segment_id: "",
     sales_position_id: "",
     cnae_principal: "",
+    qualification: "",
   });
 
   const [contacts, setContacts] = useState<CompanyContact[]>([]);
@@ -116,6 +117,7 @@ export function CompanyDialog({ company, open, onOpenChange, onCreated }: Compan
         segment_id: company.segment_id || "",
         sales_position_id: (company as any).sales_position_id || "",
         cnae_principal: (company as any).cnae_principal || "",
+        qualification: company.qualification || "",
       });
       setContacts([]);
       setCnpjData(null);
@@ -134,6 +136,7 @@ export function CompanyDialog({ company, open, onOpenChange, onCreated }: Compan
         segment_id: "",
         sales_position_id: "",
         cnae_principal: "",
+        qualification: "",
       });
       setContacts([]);
       setCnpjData(null);
@@ -286,6 +289,29 @@ export function CompanyDialog({ company, open, onOpenChange, onCreated }: Compan
                       </div>
                     </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Qualificação */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <Tag className="h-4 w-4" />
+                Qualificação
+              </Label>
+              <Select
+                value={formData.qualification || "none"}
+                onValueChange={(value) => handleChange("qualification", value === "none" ? "" : value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a qualificação" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Nenhuma</SelectItem>
+                  <SelectItem value="bronze">🥉 Bronze</SelectItem>
+                  <SelectItem value="prata">🥈 Prata</SelectItem>
+                  <SelectItem value="ouro">🥇 Ouro</SelectItem>
+                  <SelectItem value="platina">💎 Platina</SelectItem>
                 </SelectContent>
               </Select>
             </div>
