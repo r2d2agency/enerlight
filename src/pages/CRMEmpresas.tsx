@@ -249,6 +249,20 @@ export default function CRMEmpresas() {
                         </div>
                       </TableCell>
                       <TableCell>
+                        {company.qualification ? (
+                          <Badge variant="outline" className={
+                            company.qualification === 'platina' ? 'border-purple-400 text-purple-600' :
+                            company.qualification === 'ouro' ? 'border-yellow-400 text-yellow-600' :
+                            company.qualification === 'prata' ? 'border-gray-400 text-gray-500' :
+                            'border-orange-400 text-orange-600'
+                          }>
+                            {company.qualification === 'platina' ? '💎' : company.qualification === 'ouro' ? '🥇' : company.qualification === 'prata' ? '🥈' : '🥉'}{' '}
+                            {company.qualification.charAt(0).toUpperCase() + company.qualification.slice(1)}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      <TableCell>
                         {company.segment_name ? (
                           <Badge 
                             variant="outline" 
