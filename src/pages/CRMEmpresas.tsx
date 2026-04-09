@@ -329,6 +329,9 @@ export default function CRMEmpresas() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
+                        {company.last_deal_date ? format(parseISO(company.last_deal_date), "dd/MM/yyyy") : "-"}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
                         {company.created_at ? format(parseISO(company.created_at), "dd/MM/yyyy") : "-"}
                       </TableCell>
                       <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
