@@ -293,6 +293,28 @@ export function CompanyDialog({ company, open, onOpenChange, onCreated }: Compan
               </Select>
             </div>
 
+            {/* Qualificação */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <Tag className="h-4 w-4" />
+                Qualificação
+              </Label>
+              <Select
+                value={formData.qualification || "none"}
+                onValueChange={(value) => handleChange("qualification", value === "none" ? "" : value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a qualificação" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Nenhuma</SelectItem>
+                  <SelectItem value="bronze">🥉 Bronze</SelectItem>
+                  <SelectItem value="prata">🥈 Prata</SelectItem>
+                  <SelectItem value="ouro">🥇 Ouro</SelectItem>
+                  <SelectItem value="platina">💎 Platina</SelectItem>
+                </SelectContent>
+              </Select>
+
             {/* Posição de Vendas */}
             {salesPositions.length > 0 && (
               <div className="space-y-2">
