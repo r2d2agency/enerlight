@@ -314,6 +314,7 @@ export function CompanyDialog({ company, open, onOpenChange, onCreated }: Compan
                   <SelectItem value="platina">💎 Platina</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
 
             {/* Posição de Vendas */}
             {salesPositions.length > 0 && (
