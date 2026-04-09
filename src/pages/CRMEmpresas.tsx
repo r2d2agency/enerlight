@@ -159,6 +159,33 @@ export default function CRMEmpresas() {
             </Select>
           )}
 
+          {/* Qualification Filter */}
+          <Select value={filterQualification || "all"} onValueChange={(v) => setFilterQualification(v === "all" ? "" : v)}>
+            <SelectTrigger className="w-[180px]">
+              <div className="flex items-center gap-2">
+                <Award className="h-4 w-4" />
+                <SelectValue placeholder="Qualificação" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas</SelectItem>
+              <SelectItem value="bronze">🥉 Bronze</SelectItem>
+              <SelectItem value="prata">🥈 Prata</SelectItem>
+              <SelectItem value="ouro">🥇 Ouro</SelectItem>
+              <SelectItem value="platina">💎 Platina</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Open Deals Filter */}
+          <Button
+            variant={filterOpenDeals ? "default" : "outline"}
+            size="sm"
+            onClick={() => setFilterOpenDeals(!filterOpenDeals)}
+          >
+            <Briefcase className="h-4 w-4 mr-2" />
+            Com negociação aberta
+          </Button>
+
           {isFetching && !isLoading && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground ml-auto">
               <Loader2 className="h-4 w-4 animate-spin" />
