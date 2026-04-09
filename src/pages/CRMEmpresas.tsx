@@ -262,6 +262,7 @@ export default function CRMEmpresas() {
                         ) : (
                           <span className="text-muted-foreground">-</span>
                         )}
+                      </TableCell>
                       <TableCell>
                         {company.segment_name ? (
                           <Badge 
