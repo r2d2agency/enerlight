@@ -15,6 +15,7 @@ function isMissingSchemaError(error) {
 
 async function ensureCnaeGroupsSchema() {
   await query(`ALTER TABLE crm_companies ADD COLUMN IF NOT EXISTS cnae_principal VARCHAR(255)`);
+  await query(`ALTER TABLE crm_companies ADD COLUMN IF NOT EXISTS qualification VARCHAR(20)`);
   await query(`
     CREATE TABLE IF NOT EXISTS crm_cnae_groups (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -738,7 +739,7 @@ router.get('/companies', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
-    const { search, page, page_size, cnae_group_id } = req.query;
+    const { search, page, page_size, cnae_group_id, has_open_deals, qualification } = req.query;
     const hasPagination = page !== undefined || page_size !== undefined;
 
     const pageNumber = Math.max(parseInt(page || '1', 10) || 1, 1);
@@ -776,9 +777,22 @@ router.get('/companies', async (req, res) => {
       }
     }
 
+    // Filter by qualification
+    if (qualification) {
+      params.push(qualification);
+      whereClause += ` AND c.qualification = $${params.length}`;
+    }
+
+    // Filter by open deals
+    const openDealJoin = has_open_deals === 'true'
+      ? `INNER JOIN (SELECT DISTINCT company_id FROM crm_deals WHERE organization_id = $1 AND status = 'open') od ON od.company_id = c.id`
+      : '';
+
     const baseSql = `SELECT c.*, u.name as created_by_name,
       s.name as segment_name, s.color as segment_color,
       COALESCE(dc.deals_count, 0)::int as deals_count,
+      COALESCE(odc.open_deals_count, 0)::int as open_deals_count,
+      ldd.last_deal_date,
       sp.name as sales_position_name,
       spu.name as sales_position_user_name,
       sp.id as sales_position_id_resolved
@@ -793,6 +807,19 @@ router.get('/companies', async (req, res) => {
         WHERE organization_id = $1
         GROUP BY company_id
       ) dc ON dc.company_id = c.id
+      LEFT JOIN (
+        SELECT company_id, COUNT(*)::int as open_deals_count
+        FROM crm_deals
+        WHERE organization_id = $1 AND status = 'open'
+        GROUP BY company_id
+      ) odc ON odc.company_id = c.id
+      LEFT JOIN (
+        SELECT company_id, MAX(created_at) as last_deal_date
+        FROM crm_deals
+        WHERE organization_id = $1
+        GROUP BY company_id
+      ) ldd ON ldd.company_id = c.id
+      ${openDealJoin}
       ${whereClause}`;
 
     if (hasPagination) {
