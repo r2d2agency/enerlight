@@ -70,6 +70,7 @@ export function CompanyDialog({ company, open, onOpenChange, onCreated }: Compan
     segment_id: "",
     sales_position_id: "",
     cnae_principal: "",
+    qualification: "",
   });
 
   const [contacts, setContacts] = useState<CompanyContact[]>([]);
@@ -116,6 +117,7 @@ export function CompanyDialog({ company, open, onOpenChange, onCreated }: Compan
         segment_id: company.segment_id || "",
         sales_position_id: (company as any).sales_position_id || "",
         cnae_principal: (company as any).cnae_principal || "",
+        qualification: company.qualification || "",
       });
       setContacts([]);
       setCnpjData(null);
@@ -134,6 +136,7 @@ export function CompanyDialog({ company, open, onOpenChange, onCreated }: Compan
         segment_id: "",
         sales_position_id: "",
         cnae_principal: "",
+        qualification: "",
       });
       setContacts([]);
       setCnpjData(null);
