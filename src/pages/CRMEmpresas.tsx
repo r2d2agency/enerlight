@@ -217,14 +217,16 @@ export default function CRMEmpresas() {
               <Table className="table-fixed w-full">
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[22%]">Empresa</TableHead>
-                    <TableHead className="w-[10%]">Segmento</TableHead>
-                    <TableHead className="w-[10%]">Vendedor</TableHead>
-                    <TableHead className="w-[10%]">CNPJ</TableHead>
-                    <TableHead className="w-[14%]">CNAE</TableHead>
-                    <TableHead className="w-[11%]">Contato</TableHead>
-                    <TableHead className="w-[6%]">Negociações</TableHead>
-                    <TableHead className="w-[10%]">Criado em</TableHead>
+                    <TableHead className="w-[18%]">Empresa</TableHead>
+                    <TableHead className="w-[8%]">Qualificação</TableHead>
+                    <TableHead className="w-[8%]">Segmento</TableHead>
+                    <TableHead className="w-[8%]">Vendedor</TableHead>
+                    <TableHead className="w-[9%]">CNPJ</TableHead>
+                    <TableHead className="w-[10%]">CNAE</TableHead>
+                    <TableHead className="w-[10%]">Contato</TableHead>
+                    <TableHead className="w-[5%]">Neg.</TableHead>
+                    <TableHead className="w-[9%]">Últ. Negociação</TableHead>
+                    <TableHead className="w-[8%]">Criado em</TableHead>
                     <TableHead className="w-[7%] text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
