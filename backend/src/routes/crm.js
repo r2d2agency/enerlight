@@ -874,13 +874,13 @@ router.post('/companies', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
-    const { name, cnpj, email, phone, website, address, city, state, zip_code, notes, segment_id, custom_fields, sales_position_id, cnae_principal } = req.body;
+    const { name, cnpj, email, phone, website, address, city, state, zip_code, notes, segment_id, custom_fields, sales_position_id, cnae_principal, qualification } = req.body;
     
     const result = await query(
-      `INSERT INTO crm_companies (organization_id, name, cnpj, email, phone, website, address, city, state, zip_code, notes, segment_id, custom_fields, sales_position_id, cnae_principal, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING *`,
+      `INSERT INTO crm_companies (organization_id, name, cnpj, email, phone, website, address, city, state, zip_code, notes, segment_id, custom_fields, sales_position_id, cnae_principal, qualification, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING *`,
       [org.organization_id, name, cnpj, email, phone, website, address, city, state, zip_code, notes, segment_id || null,
-       custom_fields ? JSON.stringify(custom_fields) : '{}', sales_position_id || null, cnae_principal || null, req.userId]
+       custom_fields ? JSON.stringify(custom_fields) : '{}', sales_position_id || null, cnae_principal || null, qualification || null, req.userId]
     );
     res.json(result.rows[0]);
   } catch (error) {
@@ -895,16 +895,16 @@ router.put('/companies/:id', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
-    const { name, cnpj, email, phone, website, address, city, state, zip_code, notes, segment_id, custom_fields, sales_position_id, cnae_principal } = req.body;
+    const { name, cnpj, email, phone, website, address, city, state, zip_code, notes, segment_id, custom_fields, sales_position_id, cnae_principal, qualification } = req.body;
     
     const result = await query(
       `UPDATE crm_companies SET 
         name = $1, cnpj = $2, email = $3, phone = $4, website = $5, 
         address = $6, city = $7, state = $8, zip_code = $9, notes = $10, 
-        segment_id = $11, custom_fields = $12, sales_position_id = $13, cnae_principal = $14, updated_at = NOW()
-       WHERE id = $15 AND organization_id = $16 RETURNING *`,
+        segment_id = $11, custom_fields = $12, sales_position_id = $13, cnae_principal = $14, qualification = $15, updated_at = NOW()
+       WHERE id = $16 AND organization_id = $17 RETURNING *`,
       [name, cnpj, email, phone, website, address, city, state, zip_code, notes, segment_id || null,
-       custom_fields ? JSON.stringify(custom_fields) : '{}', sales_position_id || null, cnae_principal || null, req.params.id, org.organization_id]
+       custom_fields ? JSON.stringify(custom_fields) : '{}', sales_position_id || null, cnae_principal || null, qualification || null, req.params.id, org.organization_id]
     );
     res.json(result.rows[0]);
   } catch (error) {
