@@ -15,7 +15,7 @@ import { CnaeGroupsDialog } from "@/components/crm/CnaeGroupsDialog";
 import { useCRMCompaniesPaginated, useCRMCompanyMutations, useCRMFunnels, useCRMCnaeGroups, CRMCompany, CRMFunnel } from "@/hooks/use-crm";
 import { useAuth } from "@/contexts/AuthContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Search, MoreHorizontal, Building2, Phone, Mail, Trash2, Edit, Loader2, FileSpreadsheet, Briefcase, Database, ChevronLeft, ChevronRight, Settings2, Filter } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Building2, Phone, Mail, Trash2, Edit, Loader2, FileSpreadsheet, Briefcase, Database, ChevronLeft, ChevronRight, Settings2, Filter, Award } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { useDebounce } from "@/hooks/use-debounce";
 
@@ -34,12 +34,16 @@ export default function CRMEmpresas() {
   const [selectedFunnel, setSelectedFunnel] = useState<CRMFunnel | null>(null);
   const [selectedCompanyForDeal, setSelectedCompanyForDeal] = useState<CRMCompany | null>(null);
   const [selectedCnaeGroup, setSelectedCnaeGroup] = useState<string>("");
+  const [filterOpenDeals, setFilterOpenDeals] = useState(false);
+  const [filterQualification, setFilterQualification] = useState<string>("");
 
   const { data: companiesResponse, isLoading, isFetching } = useCRMCompaniesPaginated({
     search: debouncedSearch || undefined,
     page,
     pageSize,
     cnae_group_id: selectedCnaeGroup || undefined,
+    has_open_deals: filterOpenDeals || undefined,
+    qualification: filterQualification || undefined,
   });
   const companies = companiesResponse?.items || [];
   const total = companiesResponse?.total || 0;
@@ -85,7 +89,7 @@ export default function CRMEmpresas() {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, selectedCnaeGroup]);
+  }, [debouncedSearch, selectedCnaeGroup, filterOpenDeals, filterQualification]);
 
   return (
     <MainLayout>
