@@ -24,6 +24,8 @@ interface ImportResult {
   success: boolean;
   updated: number;
   not_found: string[];
+  unmatched_canals?: string[];
+  available_groups?: string[];
 }
 
 const QUAL_COLORS: Record<string, string> = {
