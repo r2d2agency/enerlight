@@ -67,19 +67,7 @@ export function TopBar() {
         }
       }
 
-      // Fallback: API pública de horário (São Paulo)
-      try {
-        const response = await fetch('https://worldtimeapi.org/api/timezone/America/Sao_Paulo');
-        if (response.ok) {
-          const data = await response.json();
-          const serverTimestamp = new Date(data?.datetime).getTime();
-          if (isMounted && Number.isFinite(serverTimestamp)) {
-            setServerOffsetMs(serverTimestamp - Date.now());
-          }
-        }
-      } catch {
-        // usa relógio local como último recurso
-      }
+      // Fallback: usa relógio local
     };
 
     syncServerTime();
