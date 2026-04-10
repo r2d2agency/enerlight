@@ -784,6 +784,13 @@ router.get('/companies', async (req, res) => {
       whereClause += ` AND c.qualification = $${params.length}`;
     }
 
+    // Filter by group (canal)
+    const { group_id } = req.query;
+    if (group_id) {
+      params.push(group_id);
+      whereClause += ` AND c.group_id = $${params.length}`;
+    }
+
     // Filter by open deals
     const openDealJoin = has_open_deals === 'true'
       ? `INNER JOIN (SELECT DISTINCT company_id FROM crm_deals WHERE organization_id = $1 AND status = 'open') od ON od.company_id = c.id`

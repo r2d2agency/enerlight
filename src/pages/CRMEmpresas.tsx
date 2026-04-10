@@ -13,10 +13,10 @@ import { BulkCNPJUpdateDialog } from "@/components/crm/BulkCNPJUpdateDialog";
 import { DealFormDialog } from "@/components/crm/DealFormDialog";
 import { CnaeGroupsDialog } from "@/components/crm/CnaeGroupsDialog";
 import { QualificationImportDialog } from "@/components/crm/QualificationImportDialog";
-import { useCRMCompaniesPaginated, useCRMCompanyMutations, useCRMFunnels, useCRMCnaeGroups, CRMCompany, CRMFunnel } from "@/hooks/use-crm";
+import { useCRMCompaniesPaginated, useCRMCompanyMutations, useCRMFunnels, useCRMCnaeGroups, useCRMGroups, CRMCompany, CRMFunnel } from "@/hooks/use-crm";
 import { useAuth } from "@/contexts/AuthContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Search, MoreHorizontal, Building2, Phone, Mail, Trash2, Edit, Loader2, FileSpreadsheet, Briefcase, Database, ChevronLeft, ChevronRight, Settings2, Filter, Award } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Building2, Phone, Mail, Trash2, Edit, Loader2, FileSpreadsheet, Briefcase, Database, ChevronLeft, ChevronRight, Settings2, Filter, Award, UsersRound } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { useDebounce } from "@/hooks/use-debounce";
 
@@ -38,6 +38,9 @@ export default function CRMEmpresas() {
   const [selectedCnaeGroup, setSelectedCnaeGroup] = useState<string>("");
   const [filterOpenDeals, setFilterOpenDeals] = useState(false);
   const [filterQualification, setFilterQualification] = useState<string>("");
+  const [filterGroupId, setFilterGroupId] = useState<string>("");
+
+  const { data: crmGroups } = useCRMGroups();
 
   const { data: companiesResponse, isLoading, isFetching } = useCRMCompaniesPaginated({
     search: debouncedSearch || undefined,
@@ -46,6 +49,7 @@ export default function CRMEmpresas() {
     cnae_group_id: selectedCnaeGroup || undefined,
     has_open_deals: filterOpenDeals || undefined,
     qualification: filterQualification || undefined,
+    group_id: filterGroupId || undefined,
   });
   const companies = companiesResponse?.items || [];
   const total = companiesResponse?.total || 0;
@@ -91,7 +95,7 @@ export default function CRMEmpresas() {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, selectedCnaeGroup, filterOpenDeals, filterQualification]);
+  }, [debouncedSearch, selectedCnaeGroup, filterOpenDeals, filterQualification, filterGroupId]);
 
   return (
     <MainLayout>
@@ -181,6 +185,24 @@ export default function CRMEmpresas() {
               <SelectItem value="platina">💎 Platina</SelectItem>
             </SelectContent>
           </Select>
+
+          {/* Canal/Group Filter */}
+          {crmGroups && crmGroups.length > 0 && (
+            <Select value={filterGroupId || "all"} onValueChange={(v) => setFilterGroupId(v === "all" ? "" : v)}>
+              <SelectTrigger className="w-[200px]">
+                <div className="flex items-center gap-2">
+                  <UsersRound className="h-4 w-4" />
+                  <SelectValue placeholder="Canal" />
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os canais</SelectItem>
+                {crmGroups.map((group: any) => (
+                  <SelectItem key={group.id} value={group.id}>{group.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
 
           {/* Open Deals Filter */}
           <Button
