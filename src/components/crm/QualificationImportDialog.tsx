@@ -122,8 +122,8 @@ export function QualificationImportDialog({ open, onOpenChange }: Props) {
           <div className="flex flex-col items-center gap-4 py-8">
             <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleFile} />
             <p className="text-sm text-muted-foreground text-center">
-              Envie uma planilha com as colunas <strong>"Nome Cliente"</strong> e <strong>"Classificação"</strong> (Bronze, Prata, Ouro ou Platina).
-              <br />O sistema irá buscar as empresas pelo nome e atualizar a qualificação.
+              Envie uma planilha com as colunas <strong>"Empresa"</strong>, <strong>"Qualificação"</strong> (Bronze, Prata, Ouro ou Platina) e opcionalmente <strong>"Canal"</strong> (nome do grupo/canal).
+              <br />O sistema irá buscar as empresas pelo nome e atualizar a qualificação e o canal.
             </p>
             <Button onClick={() => fileRef.current?.click()} variant="outline" size="lg">
               <Upload className="h-4 w-4 mr-2" /> Selecionar Planilha
@@ -148,6 +148,7 @@ export function QualificationImportDialog({ open, onOpenChange }: Props) {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Empresa</TableHead>
+                    <TableHead>Canal</TableHead>
                     <TableHead>Qualificação</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -155,6 +156,7 @@ export function QualificationImportDialog({ open, onOpenChange }: Props) {
                   {items.slice(0, 100).map((item, i) => (
                     <TableRow key={i}>
                       <TableCell className="text-xs">{item.name}</TableCell>
+                      <TableCell className="text-xs">{item.canal || '—'}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className={QUAL_COLORS[item.qualification]}>
                           {QUAL_ICONS[item.qualification]} {item.qualification.charAt(0).toUpperCase() + item.qualification.slice(1)}
@@ -164,7 +166,7 @@ export function QualificationImportDialog({ open, onOpenChange }: Props) {
                   ))}
                   {items.length > 100 && (
                     <TableRow>
-                      <TableCell colSpan={2} className="text-center text-xs text-muted-foreground">
+                      <TableCell colSpan={3} className="text-center text-xs text-muted-foreground">
                         ... e mais {items.length - 100} empresas
                       </TableCell>
                     </TableRow>
