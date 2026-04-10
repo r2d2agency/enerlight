@@ -17,6 +17,7 @@ interface Props {
 interface ImportItem {
   name: string;
   qualification: string;
+  canal?: string;
 }
 
 interface ImportResult {
