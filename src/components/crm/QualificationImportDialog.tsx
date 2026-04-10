@@ -61,10 +61,11 @@ export function QualificationImportDialog({ open, onOpenChange }: Props) {
 
         const parsed: ImportItem[] = [];
         for (const row of data) {
-          const name = (row["Nome Cliente"] || row["nome"] || row["Name"] || row["name"] || row["Nome"] || "").toString().trim();
-          const qual = (row["Classificação"] || row["classificação"] || row["classificacao"] || row["Qualificação"] || row["qualification"] || "").toString().trim().toLowerCase();
+          const name = (row["Empresa"] || row["Nome Cliente"] || row["nome"] || row["Name"] || row["name"] || row["Nome"] || "").toString().trim();
+          const qual = (row["Qualificação"] || row["Classificação"] || row["classificação"] || row["classificacao"] || row["qualification"] || "").toString().trim().toLowerCase();
+          const canal = (row["Canal"] || row["canal"] || row["Channel"] || "").toString().trim();
           if (name && ["bronze", "prata", "ouro", "platina"].includes(qual)) {
-            parsed.push({ name, qualification: qual });
+            parsed.push({ name, qualification: qual, ...(canal ? { canal } : {}) });
           }
         }
 
