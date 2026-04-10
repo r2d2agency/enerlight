@@ -796,12 +796,14 @@ router.get('/companies', async (req, res) => {
       ldd.last_deal_date,
       sp.name as sales_position_name,
       spu.name as sales_position_user_name,
-      sp.id as sales_position_id_resolved
+      sp.id as sales_position_id_resolved,
+      cug.name as group_name
       FROM crm_companies c
       LEFT JOIN users u ON u.id = c.created_by
       LEFT JOIN crm_segments s ON s.id = c.segment_id
       LEFT JOIN crm_sales_positions sp ON sp.id = c.sales_position_id
       LEFT JOIN users spu ON spu.id = sp.current_user_id
+      LEFT JOIN crm_user_groups cug ON cug.id = c.group_id
       LEFT JOIN (
         SELECT company_id, COUNT(*)::int as deals_count
         FROM crm_deals
