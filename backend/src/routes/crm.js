@@ -989,26 +989,53 @@ router.post('/companies/bulk-qualification', async (req, res) => {
 
     // Pre-load groups for canal mapping
     const groupsResult = await query(
-      `SELECT id, LOWER(TRIM(name)) as name_lower FROM crm_user_groups WHERE organization_id = $1`,
+      `SELECT id, name, LOWER(TRIM(name)) as name_lower FROM crm_user_groups WHERE organization_id = $1`,
       [org.organization_id]
     );
     const groupsByName = {};
-    for (const g of groupsResult.rows) {
+    const groupsList = groupsResult.rows;
+    for (const g of groupsList) {
       groupsByName[g.name_lower] = g.id;
     }
 
+    // Build flexible canal matcher: exact, normalized, contains, numeric
+    const resolveGroup = (canalStr) => {
+      if (!canalStr) return null;
+      const cl = canalStr.toLowerCase().trim();
+      // Exact match
+      if (groupsByName[cl]) return groupsByName[cl];
+      // Try without accents/special chars
+      const normalize = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+      const clNorm = normalize(cl);
+      for (const g of groupsList) {
+        if (normalize(g.name_lower) === clNorm) return g.id;
+      }
+      // Try contains (e.g. "CANAL 1" matches "Canal 1 - Vendas")
+      for (const g of groupsList) {
+        if (g.name_lower.includes(cl) || cl.includes(g.name_lower)) return g.id;
+      }
+      // Try extracting number (e.g. "CANAL 3" -> find group with "3" in name)
+      const numMatch = cl.match(/\d+/);
+      if (numMatch) {
+        for (const g of groupsList) {
+          const gNum = g.name_lower.match(/\d+/);
+          if (gNum && gNum[0] === numMatch[0]) return g.id;
+        }
+      }
+      return null;
+    };
+
     let updated = 0;
     let notFound = [];
+    const unmatchedCanals = new Set();
     for (const item of items) {
       if (!item.name || !item.qualification) continue;
       const qual = item.qualification.toLowerCase().trim();
       if (!['bronze', 'prata', 'ouro', 'platina'].includes(qual)) continue;
 
-      // Resolve group_id from canal name
-      let groupId = null;
-      if (item.canal) {
-        const canalLower = item.canal.toLowerCase().trim();
-        groupId = groupsByName[canalLower] || null;
+      const groupId = resolveGroup(item.canal);
+      if (item.canal && !groupId) {
+        unmatchedCanals.add(item.canal);
       }
 
       const setClauses = ['qualification = $1', 'updated_at = NOW()'];
@@ -1031,7 +1058,13 @@ router.post('/companies/bulk-qualification', async (req, res) => {
       }
     }
 
-    res.json({ success: true, updated, not_found: notFound });
+    res.json({ 
+      success: true, 
+      updated, 
+      not_found: notFound,
+      unmatched_canals: [...unmatchedCanals],
+      available_groups: groupsList.map(g => g.name)
+    });
   } catch (error) {
     console.error('Error bulk updating qualifications:', error);
     res.status(500).json({ error: error.message });
