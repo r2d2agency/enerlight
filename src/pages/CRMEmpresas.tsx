@@ -248,6 +248,7 @@ export default function CRMEmpresas() {
                     <TableHead className="w-[18%]">Empresa</TableHead>
                     <TableHead className="w-[8%]">Qualificação</TableHead>
                     <TableHead className="w-[8%]">Segmento</TableHead>
+                    <TableHead className="w-[8%]">Canal</TableHead>
                     <TableHead className="w-[8%]">Vendedor</TableHead>
                     <TableHead className="w-[9%]">CNPJ</TableHead>
                     <TableHead className="w-[10%]">CNAE</TableHead>
@@ -306,6 +307,16 @@ export default function CRMEmpresas() {
                               style={{ backgroundColor: company.segment_color }} 
                             />
                             <span className="truncate">{company.segment_name}</span>
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {company.group_name ? (
+                          <Badge variant="outline">
+                            <UsersRound className="h-3 w-3 mr-1" />
+                            {company.group_name}
                           </Badge>
                         ) : (
                           <span className="text-muted-foreground">-</span>
