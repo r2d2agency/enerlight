@@ -64,7 +64,7 @@ export function QualificationImportDialog({ open, onOpenChange }: Props) {
   // Fetch system groups when dialog opens
   useEffect(() => {
     if (open) {
-      api<any[]>("/api/crm/user-groups").then(setSystemGroups).catch(() => {});
+      api<any[]>("/api/crm/groups").then(groups => setSystemGroups(groups.map(g => ({ id: g.id, name: g.name })))).catch(() => {});
     }
   }, [open]);
 
