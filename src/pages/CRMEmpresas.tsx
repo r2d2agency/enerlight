@@ -12,6 +12,7 @@ import { CompanyImportDialog } from "@/components/crm/CompanyImportDialog";
 import { BulkCNPJUpdateDialog } from "@/components/crm/BulkCNPJUpdateDialog";
 import { DealFormDialog } from "@/components/crm/DealFormDialog";
 import { CnaeGroupsDialog } from "@/components/crm/CnaeGroupsDialog";
+import { QualificationImportDialog } from "@/components/crm/QualificationImportDialog";
 import { useCRMCompaniesPaginated, useCRMCompanyMutations, useCRMFunnels, useCRMCnaeGroups, CRMCompany, CRMFunnel } from "@/hooks/use-crm";
 import { useAuth } from "@/contexts/AuthContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -28,6 +29,7 @@ export default function CRMEmpresas() {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [bulkCNPJOpen, setBulkCNPJOpen] = useState(false);
   const [cnaeGroupsOpen, setCnaeGroupsOpen] = useState(false);
+  const [qualImportOpen, setQualImportOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<CRMCompany | null>(null);
   const [funnelPickerOpen, setFunnelPickerOpen] = useState(false);
   const [dealDialogOpen, setDealDialogOpen] = useState(false);
@@ -116,6 +118,10 @@ export default function CRMEmpresas() {
             <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
               <FileSpreadsheet className="h-4 w-4 mr-2" />
               Importar Excel
+            </Button>
+            <Button variant="outline" onClick={() => setQualImportOpen(true)}>
+              <Award className="h-4 w-4 mr-2" />
+              Importar Qualificações
             </Button>
             <Button onClick={handleNew}>
               <Plus className="h-4 w-4 mr-2" />
@@ -424,6 +430,11 @@ export default function CRMEmpresas() {
       <CnaeGroupsDialog
         open={cnaeGroupsOpen}
         onOpenChange={setCnaeGroupsOpen}
+      />
+
+      <QualificationImportDialog
+        open={qualImportOpen}
+        onOpenChange={setQualImportOpen}
       />
 
       {/* Funnel Picker Dialog */}

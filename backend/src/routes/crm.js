@@ -963,6 +963,43 @@ router.post('/companies/import', async (req, res) => {
   }
 });
 
+// Bulk update qualifications by company name
+router.post('/companies/bulk-qualification', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const { items } = req.body;
+    if (!items || !Array.isArray(items)) {
+      return res.status(400).json({ error: 'Invalid items data' });
+    }
+
+    let updated = 0;
+    let notFound = [];
+    for (const item of items) {
+      if (!item.name || !item.qualification) continue;
+      const qual = item.qualification.toLowerCase().trim();
+      if (!['bronze', 'prata', 'ouro', 'platina'].includes(qual)) continue;
+
+      const result = await query(
+        `UPDATE crm_companies SET qualification = $1, updated_at = NOW()
+         WHERE organization_id = $2 AND LOWER(TRIM(name)) = LOWER(TRIM($3))`,
+        [qual, org.organization_id, item.name]
+      );
+      if (result.rowCount > 0) {
+        updated++;
+      } else {
+        notFound.push(item.name);
+      }
+    }
+
+    res.json({ success: true, updated, not_found: notFound });
+  } catch (error) {
+    console.error('Error bulk updating qualifications:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ============================================
 // CNAE GROUPS
 // ============================================
