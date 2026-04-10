@@ -3699,14 +3699,48 @@ router.get('/map-data', async (req, res) => {
       'sao bernardo do campo': { lat: -23.7117, lng: -46.5653 },
     };
 
-    const getCoords = (city, state) => {
-      // Try city first
+    // In-memory geocode cache (persists across requests for server lifetime)
+    if (!global._geocodeCache) global._geocodeCache = {};
+
+    const geocodeCity = async (cityName, stateName) => {
+      const key = `${cityName.toLowerCase().trim()}|${(stateName || '').toUpperCase().trim()}`;
+      if (global._geocodeCache[key] !== undefined) return global._geocodeCache[key];
+      try {
+        const q = encodeURIComponent(`${cityName}, ${stateName || 'Brasil'}, Brazil`);
+        const resp = await fetch(`https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1&countrycodes=br`, {
+          headers: { 'User-Agent': 'CRM-Map/1.0' },
+          signal: AbortSignal.timeout(5000),
+        });
+        const data = await resp.json();
+        if (data && data.length > 0) {
+          const result = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+          global._geocodeCache[key] = result;
+          return result;
+        }
+        global._geocodeCache[key] = null;
+        return null;
+      } catch (e) {
+        global._geocodeCache[key] = null;
+        return null;
+      }
+    };
+
+    const getCoords = async (city, state) => {
+      // Try hardcoded city first
       if (city) {
         const cityLower = city.toLowerCase().trim();
         if (CITY_COORDS[cityLower]) {
           const cap = CITY_COORDS[cityLower];
           const offset = () => (Math.random() - 0.5) * 0.02;
           return { lat: cap.lat + offset(), lng: cap.lng + offset() };
+        }
+        // Try Nominatim geocoding for unknown cities
+        const geocoded = await geocodeCity(city, state);
+        if (geocoded) {
+          // Also cache in CITY_COORDS for this request
+          CITY_COORDS[cityLower] = geocoded;
+          const offset = () => (Math.random() - 0.5) * 0.02;
+          return { lat: geocoded.lat + offset(), lng: geocoded.lng + offset() };
         }
       }
       // Fallback to state capital
@@ -3750,7 +3784,7 @@ router.get('/map-data', async (req, res) => {
       for (const deal of dealsResult.rows) {
         const city = deal.company_city;
         const state = deal.company_state;
-        const coords = getCoords(city, state);
+        const coords = await getCoords(city, state);
         if (coords) {
           locations.push({
             id: deal.id,
@@ -3781,7 +3815,7 @@ router.get('/map-data', async (req, res) => {
         [org.organization_id]
       );
       for (const p of prospectsResult.rows) {
-        const coords = getCoords(p.city, p.state);
+        const coords = await getCoords(p.city, p.state);
         if (coords) {
           locations.push({
             id: p.id,
@@ -3821,7 +3855,7 @@ router.get('/map-data', async (req, res) => {
         compParams
       );
       for (const company of companiesResult.rows) {
-        const coords = getCoords(company.city, company.state);
+        const coords = await getCoords(company.city, company.state);
         if (coords) {
           locations.push({
             id: company.id,
@@ -3853,7 +3887,7 @@ router.get('/map-data', async (req, res) => {
         [org.organization_id]
       );
       for (const rep of repsResult.rows) {
-        const coords = getCoords(rep.city, rep.state);
+        const coords = await getCoords(rep.city, rep.state);
         if (coords) {
           locations.push({
             id: rep.id,
