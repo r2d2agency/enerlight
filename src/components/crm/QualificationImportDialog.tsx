@@ -198,6 +198,27 @@ export function QualificationImportDialog({ open, onOpenChange }: Props) {
                 </div>
               </div>
             )}
+            {result.unmatched_canals && result.unmatched_canals.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-amber-600">
+                  <AlertCircle className="h-4 w-4" />
+                  <span className="text-sm">Canais da planilha não encontrados no sistema:</span>
+                </div>
+                <div className="border rounded-lg p-3 bg-muted/50 space-y-1">
+                  {result.unmatched_canals.map((c, i) => (
+                    <p key={i} className="text-xs text-destructive font-medium">{c}</p>
+                  ))}
+                  {result.available_groups && result.available_groups.length > 0 && (
+                    <div className="mt-2 pt-2 border-t">
+                      <p className="text-xs text-muted-foreground mb-1">Canais disponíveis no sistema:</p>
+                      {result.available_groups.map((g, i) => (
+                        <p key={i} className="text-xs text-muted-foreground">• {g}</p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
             <Button onClick={() => handleClose(false)} className="w-full">Fechar</Button>
           </div>
         )}
