@@ -16,6 +16,7 @@ function isMissingSchemaError(error) {
 async function ensureCnaeGroupsSchema() {
   await query(`ALTER TABLE crm_companies ADD COLUMN IF NOT EXISTS cnae_principal VARCHAR(255)`);
   await query(`ALTER TABLE crm_companies ADD COLUMN IF NOT EXISTS qualification VARCHAR(20)`);
+  await query(`ALTER TABLE crm_companies ADD COLUMN IF NOT EXISTS group_id UUID REFERENCES crm_user_groups(id) ON DELETE SET NULL`).catch(() => {});
   await query(`
     CREATE TABLE IF NOT EXISTS crm_cnae_groups (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -795,12 +796,14 @@ router.get('/companies', async (req, res) => {
       ldd.last_deal_date,
       sp.name as sales_position_name,
       spu.name as sales_position_user_name,
-      sp.id as sales_position_id_resolved
+      sp.id as sales_position_id_resolved,
+      cug.name as group_name
       FROM crm_companies c
       LEFT JOIN users u ON u.id = c.created_by
       LEFT JOIN crm_segments s ON s.id = c.segment_id
       LEFT JOIN crm_sales_positions sp ON sp.id = c.sales_position_id
       LEFT JOIN users spu ON spu.id = sp.current_user_id
+      LEFT JOIN crm_user_groups cug ON cug.id = c.group_id
       LEFT JOIN (
         SELECT company_id, COUNT(*)::int as deals_count
         FROM crm_deals
@@ -974,6 +977,19 @@ router.post('/companies/bulk-qualification', async (req, res) => {
       return res.status(400).json({ error: 'Invalid items data' });
     }
 
+    // Ensure group_id column exists
+    await query(`ALTER TABLE crm_companies ADD COLUMN IF NOT EXISTS group_id UUID REFERENCES crm_user_groups(id) ON DELETE SET NULL`).catch(() => {});
+
+    // Pre-load groups for canal mapping
+    const groupsResult = await query(
+      `SELECT id, LOWER(TRIM(name)) as name_lower FROM crm_user_groups WHERE organization_id = $1`,
+      [org.organization_id]
+    );
+    const groupsByName = {};
+    for (const g of groupsResult.rows) {
+      groupsByName[g.name_lower] = g.id;
+    }
+
     let updated = 0;
     let notFound = [];
     for (const item of items) {
@@ -981,10 +997,25 @@ router.post('/companies/bulk-qualification', async (req, res) => {
       const qual = item.qualification.toLowerCase().trim();
       if (!['bronze', 'prata', 'ouro', 'platina'].includes(qual)) continue;
 
+      // Resolve group_id from canal name
+      let groupId = null;
+      if (item.canal) {
+        const canalLower = item.canal.toLowerCase().trim();
+        groupId = groupsByName[canalLower] || null;
+      }
+
+      const setClauses = ['qualification = $1', 'updated_at = NOW()'];
+      const params = [qual, org.organization_id, item.name];
+
+      if (groupId) {
+        params.push(groupId);
+        setClauses.push(`group_id = $${params.length}`);
+      }
+
       const result = await query(
-        `UPDATE crm_companies SET qualification = $1, updated_at = NOW()
+        `UPDATE crm_companies SET ${setClauses.join(', ')}
          WHERE organization_id = $2 AND LOWER(TRIM(name)) = LOWER(TRIM($3))`,
-        [qual, org.organization_id, item.name]
+        params
       );
       if (result.rowCount > 0) {
         updated++;
