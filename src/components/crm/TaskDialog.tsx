@@ -168,7 +168,7 @@ export function TaskDialog({ task, dealId, companyId, open, onOpenChange, defaul
     if (dueDate && !endTime) {
       const start = new Date(dueDate);
       const end = new Date(start.getTime() + 60 * 60 * 1000);
-      setEndTime(end.toISOString().slice(0, 16));
+      setEndTime(toLocalDatetimeString(end));
     }
   }, [dueDate]);
 
@@ -203,7 +203,7 @@ export function TaskDialog({ task, dealId, companyId, open, onOpenChange, defaul
         const allAttendees = [...memberEmails, ...externalEmails];
 
         const startDateTime = dueDate.includes("T") ? dueDate : `${dueDate}T09:00`;
-        const endDateTime = endTime || new Date(new Date(startDateTime).getTime() + 60 * 60 * 1000).toISOString().slice(0, 16);
+        const endDateTime = endTime || toLocalDatetimeString(new Date(new Date(startDateTime).getTime() + 60 * 60 * 1000));
 
         const result = await createMeeting.mutateAsync({
           title,
