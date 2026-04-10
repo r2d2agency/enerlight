@@ -116,7 +116,7 @@ export function TaskDialog({ task, dealId, companyId, open, onOpenChange, defaul
       setDescription(task.description || "");
       setType(task.type);
       setPriority(task.priority);
-      setDueDate(task.due_date ? task.due_date.slice(0, 16) : "");
+      setDueDate(task.due_date ? toLocalDatetimeString(new Date(task.due_date)) : "");
       setEndTime("");
       setAssignedTo(task.assigned_to || "");
       setAddGoogleMeet(false);
@@ -132,11 +132,11 @@ export function TaskDialog({ task, dealId, companyId, open, onOpenChange, defaul
       setPriority("medium");
       // Set default date if provided
       if (defaultDate) {
-        const dateStr = defaultDate.toISOString().slice(0, 16);
+        const dateStr = toLocalDatetimeString(defaultDate);
         setDueDate(dateStr);
         // Default end time = start + 1 hour
         const endDate = new Date(defaultDate.getTime() + 60 * 60 * 1000);
-        setEndTime(endDate.toISOString().slice(0, 16));
+        setEndTime(toLocalDatetimeString(endDate));
       } else {
         setDueDate("");
         setEndTime("");
