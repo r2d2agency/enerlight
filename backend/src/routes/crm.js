@@ -3784,7 +3784,7 @@ router.get('/map-data', async (req, res) => {
       for (const deal of dealsResult.rows) {
         const city = deal.company_city;
         const state = deal.company_state;
-        const coords = getCoords(city, state);
+        const coords = await getCoords(city, state);
         if (coords) {
           locations.push({
             id: deal.id,
@@ -3815,7 +3815,7 @@ router.get('/map-data', async (req, res) => {
         [org.organization_id]
       );
       for (const p of prospectsResult.rows) {
-        const coords = getCoords(p.city, p.state);
+        const coords = await getCoords(p.city, p.state);
         if (coords) {
           locations.push({
             id: p.id,
@@ -3855,7 +3855,7 @@ router.get('/map-data', async (req, res) => {
         compParams
       );
       for (const company of companiesResult.rows) {
-        const coords = getCoords(company.city, company.state);
+        const coords = await getCoords(company.city, company.state);
         if (coords) {
           locations.push({
             id: company.id,
@@ -3887,7 +3887,7 @@ router.get('/map-data', async (req, res) => {
         [org.organization_id]
       );
       for (const rep of repsResult.rows) {
-        const coords = getCoords(rep.city, rep.state);
+        const coords = await getCoords(rep.city, rep.state);
         if (coords) {
           locations.push({
             id: rep.id,
