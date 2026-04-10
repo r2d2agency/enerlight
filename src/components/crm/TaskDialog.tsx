@@ -16,6 +16,16 @@ import { toast } from "sonner";
 import { Video, Users, Calendar, X, Plus, Mail, Loader2, ExternalLink, Bell, MessageSquare } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 
+// Format a Date to "YYYY-MM-DDTHH:mm" in local time (avoids UTC shift from toISOString)
+function toLocalDatetimeString(d: Date): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
 interface TaskDialogProps {
   task: CRMTask | null;
   dealId?: string;
@@ -106,7 +116,7 @@ export function TaskDialog({ task, dealId, companyId, open, onOpenChange, defaul
       setDescription(task.description || "");
       setType(task.type);
       setPriority(task.priority);
-      setDueDate(task.due_date ? task.due_date.slice(0, 16) : "");
+      setDueDate(task.due_date ? toLocalDatetimeString(new Date(task.due_date)) : "");
       setEndTime("");
       setAssignedTo(task.assigned_to || "");
       setAddGoogleMeet(false);
@@ -122,11 +132,11 @@ export function TaskDialog({ task, dealId, companyId, open, onOpenChange, defaul
       setPriority("medium");
       // Set default date if provided
       if (defaultDate) {
-        const dateStr = defaultDate.toISOString().slice(0, 16);
+        const dateStr = toLocalDatetimeString(defaultDate);
         setDueDate(dateStr);
         // Default end time = start + 1 hour
         const endDate = new Date(defaultDate.getTime() + 60 * 60 * 1000);
-        setEndTime(endDate.toISOString().slice(0, 16));
+        setEndTime(toLocalDatetimeString(endDate));
       } else {
         setDueDate("");
         setEndTime("");
@@ -158,7 +168,7 @@ export function TaskDialog({ task, dealId, companyId, open, onOpenChange, defaul
     if (dueDate && !endTime) {
       const start = new Date(dueDate);
       const end = new Date(start.getTime() + 60 * 60 * 1000);
-      setEndTime(end.toISOString().slice(0, 16));
+      setEndTime(toLocalDatetimeString(end));
     }
   }, [dueDate]);
 
@@ -193,7 +203,7 @@ export function TaskDialog({ task, dealId, companyId, open, onOpenChange, defaul
         const allAttendees = [...memberEmails, ...externalEmails];
 
         const startDateTime = dueDate.includes("T") ? dueDate : `${dueDate}T09:00`;
-        const endDateTime = endTime || new Date(new Date(startDateTime).getTime() + 60 * 60 * 1000).toISOString().slice(0, 16);
+        const endDateTime = endTime || toLocalDatetimeString(new Date(new Date(startDateTime).getTime() + 60 * 60 * 1000));
 
         const result = await createMeeting.mutateAsync({
           title,
