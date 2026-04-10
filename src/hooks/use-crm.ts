@@ -63,6 +63,8 @@ export interface CRMCompany {
   sales_position_user_name?: string;
   cnae_principal?: string;
   qualification?: 'bronze' | 'prata' | 'ouro' | 'platina';
+  group_id?: string;
+  group_name?: string;
   custom_fields?: Record<string, any>;
   deals_count: number;
   open_deals_count?: number;
