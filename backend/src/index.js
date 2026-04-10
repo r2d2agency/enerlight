@@ -227,6 +227,9 @@ app.use('/api/captador', captadorRoutes);
 app.use('/api/document-signatures', documentSignaturesRoutes);
 app.use('/api/meta', metaTemplatesRoutes);
 
+// Force Node.js process timezone to São Paulo
+process.env.TZ = 'America/Sao_Paulo';
+
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
