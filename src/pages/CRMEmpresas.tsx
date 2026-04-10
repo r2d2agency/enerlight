@@ -313,6 +313,16 @@ export default function CRMEmpresas() {
                         )}
                       </TableCell>
                       <TableCell>
+                        {company.group_name ? (
+                          <Badge variant="outline">
+                            <UsersRound className="h-3 w-3 mr-1" />
+                            {company.group_name}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
                         {company.sales_position_user_name ? (
                           <span className="text-sm font-medium truncate block">{company.sales_position_user_name}</span>
                         ) : company.sales_position_name ? (
