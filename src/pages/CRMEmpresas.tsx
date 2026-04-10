@@ -248,6 +248,7 @@ export default function CRMEmpresas() {
                     <TableHead className="w-[18%]">Empresa</TableHead>
                     <TableHead className="w-[8%]">Qualificação</TableHead>
                     <TableHead className="w-[8%]">Segmento</TableHead>
+                    <TableHead className="w-[8%]">Canal</TableHead>
                     <TableHead className="w-[8%]">Vendedor</TableHead>
                     <TableHead className="w-[9%]">CNPJ</TableHead>
                     <TableHead className="w-[10%]">CNAE</TableHead>
