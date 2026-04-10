@@ -10,7 +10,7 @@ import { useCRMCnaeGroups } from "@/hooks/use-crm";
 import { FileText, ShoppingCart, Receipt, MapPin, Filter } from "lucide-react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { getCoordinates } from "@/hooks/use-map-data";
+import { getCoordinatesAsync } from "@/hooks/use-map-data";
 
 interface GoalsMapTabProps {
   startDate: string;
@@ -137,7 +137,9 @@ export function GoalsMapTab({ startDate, endDate, filterUserId, filterChannel, f
     },
   });
 
-  const locations = useMemo(() => {
+  const [locations, setLocations] = useState<RecordLocation[]>([]);
+
+  useEffect(() => {
     const records = recordsData?.records || [];
     const grouped: Record<string, { city: string; state: string; count: number; total_value: number }> = {};
 
@@ -153,14 +155,16 @@ export function GoalsMapTab({ startDate, endDate, filterUserId, filterChannel, f
       grouped[key].total_value += Number(r.value) || 0;
     });
 
-    const result: RecordLocation[] = [];
-    Object.values(grouped).forEach((g) => {
-      const coords = getCoordinates(g.city, g.state);
-      if (coords) {
-        result.push({ ...g, ...coords, type: mapType });
+    (async () => {
+      const result: RecordLocation[] = [];
+      for (const g of Object.values(grouped)) {
+        const coords = await getCoordinatesAsync(g.city, g.state);
+        if (coords) {
+          result.push({ ...g, ...coords, type: mapType });
+        }
       }
-    });
-    return result;
+      setLocations(result);
+    })();
   }, [recordsData, mapType]);
 
   const totalRecords = locations.reduce((s, l) => s + l.count, 0);
