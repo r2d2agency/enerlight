@@ -979,7 +979,7 @@ router.post('/companies/bulk-qualification', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
-    const { items } = req.body;
+    const { items, canal_mapping } = req.body;
     if (!items || !Array.isArray(items)) {
       return res.status(400).json({ error: 'Invalid items data' });
     }
@@ -992,35 +992,14 @@ router.post('/companies/bulk-qualification', async (req, res) => {
       `SELECT id, name, LOWER(TRIM(name)) as name_lower FROM crm_user_groups WHERE organization_id = $1`,
       [org.organization_id]
     );
-    const groupsByName = {};
     const groupsList = groupsResult.rows;
-    for (const g of groupsList) {
-      groupsByName[g.name_lower] = g.id;
-    }
 
-    // Build flexible canal matcher: exact, normalized, contains, numeric
+    // If canal_mapping provided (manual mapping from frontend), use it directly
     const resolveGroup = (canalStr) => {
       if (!canalStr) return null;
-      const cl = canalStr.toLowerCase().trim();
-      // Exact match
-      if (groupsByName[cl]) return groupsByName[cl];
-      // Try without accents/special chars
-      const normalize = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
-      const clNorm = normalize(cl);
-      for (const g of groupsList) {
-        if (normalize(g.name_lower) === clNorm) return g.id;
-      }
-      // Try contains (e.g. "CANAL 1" matches "Canal 1 - Vendas")
-      for (const g of groupsList) {
-        if (g.name_lower.includes(cl) || cl.includes(g.name_lower)) return g.id;
-      }
-      // Try extracting number (e.g. "CANAL 3" -> find group with "3" in name)
-      const numMatch = cl.match(/\d+/);
-      if (numMatch) {
-        for (const g of groupsList) {
-          const gNum = g.name_lower.match(/\d+/);
-          if (gNum && gNum[0] === numMatch[0]) return g.id;
-        }
+      // Check manual mapping first
+      if (canal_mapping && canal_mapping[canalStr]) {
+        return canal_mapping[canalStr];
       }
       return null;
     };
