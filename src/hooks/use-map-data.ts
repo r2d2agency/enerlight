@@ -76,6 +76,31 @@ const CITY_COORDS: Record<string, { lat: number; lng: number }> = {
   "campo grande": { lat: -20.4697, lng: -54.6201 },
 };
 
+// In-memory geocode cache for Nominatim results
+const geocodeCache: Record<string, { lat: number; lng: number } | null> = {};
+
+async function geocodeCityNominatim(city: string, state?: string): Promise<{ lat: number; lng: number } | null> {
+  const key = `${city.toLowerCase().trim()}|${(state || '').toUpperCase().trim()}`;
+  if (key in geocodeCache) return geocodeCache[key];
+  try {
+    const q = encodeURIComponent(`${city}, ${state || 'Brasil'}, Brazil`);
+    const resp = await fetch(`https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1&countrycodes=br`, {
+      headers: { 'User-Agent': 'CRM-Map/1.0' },
+    });
+    const data = await resp.json();
+    if (data?.length > 0) {
+      const result = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+      geocodeCache[key] = result;
+      return result;
+    }
+    geocodeCache[key] = null;
+    return null;
+  } catch {
+    geocodeCache[key] = null;
+    return null;
+  }
+}
+
 export function getCoordinates(city?: string, state?: string): { lat: number; lng: number } | null {
   if (city) {
     const cityLower = city.toLowerCase().trim();
@@ -95,6 +120,31 @@ export function getCoordinates(city?: string, state?: string): { lat: number; ln
         lat: STATE_CAPITALS[stateUpper].lat + offset(),
         lng: STATE_CAPITALS[stateUpper].lng + offset(),
       };
+    }
+  }
+  return null;
+}
+
+export async function getCoordinatesAsync(city?: string, state?: string): Promise<{ lat: number; lng: number } | null> {
+  if (city) {
+    const cityLower = city.toLowerCase().trim();
+    if (CITY_COORDS[cityLower]) {
+      const offset = () => (Math.random() - 0.5) * 0.05;
+      return { lat: CITY_COORDS[cityLower].lat + offset(), lng: CITY_COORDS[cityLower].lng + offset() };
+    }
+    // Try Nominatim
+    const geocoded = await geocodeCityNominatim(city, state);
+    if (geocoded) {
+      CITY_COORDS[cityLower] = geocoded;
+      const offset = () => (Math.random() - 0.5) * 0.05;
+      return { lat: geocoded.lat + offset(), lng: geocoded.lng + offset() };
+    }
+  }
+  if (state) {
+    const stateUpper = state.toUpperCase().trim();
+    if (STATE_CAPITALS[stateUpper]) {
+      const offset = () => (Math.random() - 0.5) * 0.1;
+      return { lat: STATE_CAPITALS[stateUpper].lat + offset(), lng: STATE_CAPITALS[stateUpper].lng + offset() };
     }
   }
   return null;
