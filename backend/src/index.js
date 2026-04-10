@@ -1,3 +1,6 @@
+// Force São Paulo timezone before anything else
+process.env.TZ = 'America/Sao_Paulo';
+
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
@@ -226,6 +229,7 @@ app.use('/api/expenses', expensesRoutes);
 app.use('/api/captador', captadorRoutes);
 app.use('/api/document-signatures', documentSignaturesRoutes);
 app.use('/api/meta', metaTemplatesRoutes);
+
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

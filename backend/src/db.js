@@ -63,6 +63,11 @@ const dbConfig = parseConnectionString(process.env.DATABASE_URL);
 
 export const pool = new Pool(dbConfig);
 
+// Set São Paulo timezone for every new connection
+pool.on('connect', (client) => {
+  client.query("SET timezone = 'America/Sao_Paulo'");
+});
+
 export async function query(text, params) {
   const startedAt = Date.now();
   try {
