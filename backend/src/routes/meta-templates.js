@@ -120,7 +120,7 @@ router.post('/send/:connectionId', async (req, res) => {
       return res.status(400).json({ error: 'Phone Number ID ou Token não configurado' });
     }
 
-    const { to, template_name, language_code, components } = req.body;
+    const { to, template_name, language_code, components, conversation_id, sender_id } = req.body;
 
     if (!to || !template_name) {
       return res.status(400).json({ error: 'to e template_name são obrigatórios' });
@@ -147,6 +147,29 @@ router.post('/send/:connectionId', async (req, res) => {
       method: 'POST',
       body: JSON.stringify(body),
     });
+
+    // Build a readable text from template components for chat display
+    let templateText = `[Template: ${template_name}]`;
+
+    // Save sent message to chat_messages so it appears in the conversation
+    if (conversation_id) {
+      const messageId = data?.messages?.[0]?.id || `meta_tpl_${Date.now()}`;
+      try {
+        await query(
+          `INSERT INTO chat_messages 
+            (conversation_id, message_id, from_me, sender_id, content, message_type, status, timestamp)
+           VALUES ($1, $2, true, $3, $4, 'text', 'sent', NOW())
+           ON CONFLICT (conversation_id, message_id) DO NOTHING`,
+          [conversation_id, messageId, sender_id || req.user?.id || null, templateText]
+        );
+        await query(
+          `UPDATE conversations SET last_message_at = NOW(), updated_at = NOW() WHERE id = $1`,
+          [conversation_id]
+        );
+      } catch (dbErr) {
+        console.error('Failed to save template message to chat:', dbErr.message);
+      }
+    }
 
     res.json(data);
   } catch (error) {
