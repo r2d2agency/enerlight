@@ -3,7 +3,7 @@ import { Handle, Position, NodeProps } from 'reactflow';
 import { 
   Play, MessageSquare, List, FormInput, GitBranch, 
   Zap, ArrowRightLeft, Sparkles, Square, Trash2, Settings,
-  Clock, Webhook, Bot
+  Clock, Webhook, Bot, MessageCircleReply
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -27,6 +27,7 @@ const nodeColors: Record<string, { bg: string; border: string; icon: string }> =
   delay: { bg: 'bg-sky-500/10', border: 'border-sky-500', icon: 'text-sky-500' },
   webhook: { bg: 'bg-rose-500/10', border: 'border-rose-500', icon: 'text-rose-500' },
   ai_agent: { bg: 'bg-emerald-500/10', border: 'border-emerald-500', icon: 'text-emerald-500' },
+  wait_response: { bg: 'bg-teal-500/10', border: 'border-teal-500', icon: 'text-teal-500' },
   end: { bg: 'bg-red-500/10', border: 'border-red-500', icon: 'text-red-500' },
 };
 
@@ -42,6 +43,7 @@ const nodeIcons: Record<string, React.ElementType> = {
   delay: Clock,
   webhook: Webhook,
   ai_agent: Bot,
+  wait_response: MessageCircleReply,
   end: Square,
 };
 
@@ -122,6 +124,7 @@ function BaseFlowNode({ id, data, nodeType, selected }: BaseNodeProps) {
           {nodeType === 'transfer' && 'Transferir para atendente'}
           {nodeType === 'ai_response' && 'Resposta da IA'}
           {nodeType === 'ai_agent' && ((data.content?.agent_name as string) || 'Selecionar agente...')}
+          {nodeType === 'wait_response' && `Timeout: ${data.content.timeout_hours || 24}h`}
           {nodeType === 'delay' && `${data.content.duration || 5}${data.content.unit === 'minutes' ? 'min' : 's'}`}
           {nodeType === 'webhook' && (data.content.url ? 'API configurada' : 'Configurar...')}
         </div>
