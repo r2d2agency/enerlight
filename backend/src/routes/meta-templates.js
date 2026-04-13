@@ -40,6 +40,9 @@ async function metaFetch(path, token, options = {}) {
   return data;
 }
 
+// All routes below require authentication
+router.use(authenticate);
+
 // List templates from Meta
 router.get('/templates/:connectionId', async (req, res) => {
   try {
