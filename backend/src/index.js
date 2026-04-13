@@ -419,6 +419,17 @@ initDatabase().then((ok) => {
       timezone: 'America/Sao_Paulo'
     });
 
+    // Check wait_response timeouts - every 2 minutes
+    cron.schedule('*/2 * * * *', async () => {
+      try {
+        await checkWaitResponseTimeouts();
+      } catch (error) {
+        console.error('⏳ [CRON] Error checking wait_response timeouts:', error);
+      }
+    }, {
+      timezone: 'America/Sao_Paulo'
+    });
+
     console.log('⏰ Notification scheduler started - checks every hour (timezone: America/Sao_Paulo)');
     console.log('📤 Campaign scheduler started - checks every 30 seconds');
     console.log('📅 Scheduled messages started - checks every minute');
@@ -431,5 +442,6 @@ initDatabase().then((ok) => {
     console.log('📌 Secretary follow-up started - checks every 30 minutes');
     console.log('📊 Secretary daily digest started - checks every hour');
     console.log('📊 Goals daily report started - checks every minute');
+    console.log('⏳ Wait response timeout checker started - checks every 2 minutes');
   });
 });
