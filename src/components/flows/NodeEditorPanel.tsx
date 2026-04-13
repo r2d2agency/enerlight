@@ -1559,3 +1559,43 @@ function AIAgentNodeEditor({ content, onChange }: { content: Record<string, any>
     </div>
   );
 }
+
+// ==================== Wait Response Node Editor ====================
+function WaitResponseNodeEditor({ content, onChange }: { content: Record<string, any>; onChange: (c: Record<string, any>) => void }) {
+  return (
+    <div className="space-y-4">
+      <div className="p-3 bg-teal-500/10 border border-teal-500/30 rounded-lg">
+        <p className="text-sm text-teal-700 dark:text-teal-300">
+          Este nó aguarda uma resposta do contato. Se o contato responder, o fluxo segue pelo caminho <strong>"Respondeu"</strong>. 
+          Se não responder dentro do tempo configurado, segue pelo caminho <strong>"Timeout"</strong>.
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <Label>Tempo de espera (horas)</Label>
+        <Input
+          type="number"
+          min={1}
+          max={720}
+          value={content.timeout_hours || 24}
+          onChange={(e) => onChange({ ...content, timeout_hours: parseInt(e.target.value) || 24 })}
+        />
+        <p className="text-xs text-muted-foreground">
+          Após esse período sem resposta, o fluxo seguirá automaticamente pelo caminho de timeout.
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <Label>Salvar resposta na variável (opcional)</Label>
+        <Input
+          value={content.variable || ''}
+          onChange={(e) => onChange({ ...content, variable: e.target.value })}
+          placeholder="Ex: resposta_cliente"
+        />
+        <p className="text-xs text-muted-foreground">
+          Se preenchido, a resposta do contato será salva nesta variável para uso em nós posteriores.
+        </p>
+      </div>
+    </div>
+  );
+}
