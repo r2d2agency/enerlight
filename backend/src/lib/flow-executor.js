@@ -254,11 +254,29 @@ export async function executeFlow(flowId, conversationId, startNodeId = 'start',
           nodeId: node.node_id,
           nodeType: node.node_type,
           step: processedNodes,
-          message: `Aguardando entrada do usuário`,
+          message: result.isWaitResponse ? `Aguardando resposta do contato` : `Aguardando entrada do usuário`,
           variables: { ...variables },
         });
         // Update session with current state
         await updateFlowSession(flowId, conversationId, currentNodeId, variables);
+        
+        // If wait_response node, set the timeout
+        if (result.isWaitResponse) {
+          const timeoutHours = content.timeout_hours || 24;
+          const timeoutAt = new Date();
+          timeoutAt.setHours(timeoutAt.getHours() + timeoutHours);
+          try {
+            await query(
+              `UPDATE flow_sessions 
+               SET wait_response_timeout = $1
+               WHERE conversation_id = $2 AND flow_id = $3 AND is_active = true`,
+              [timeoutAt.toISOString(), conversationId, flowId]
+            );
+          } catch (e) {
+            console.log('Flow executor: Could not set wait_response_timeout:', e.message);
+          }
+        }
+        
         return { success: true, waitingForInput: true, currentNode: currentNodeId };
       }
 
