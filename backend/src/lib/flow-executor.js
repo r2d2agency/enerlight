@@ -755,7 +755,15 @@ export async function continueFlowWithInput(conversationId, userInput) {
     // Process user input based on node type
     let nextHandle = null;
     
-    if (currentNode.node_type === 'input') {
+    if (currentNode.node_type === 'wait_response') {
+      // Contact responded! Follow the "responded" path
+      nextHandle = 'responded';
+      const varName = content.variable;
+      if (varName) {
+        variables[varName] = userInput;
+      }
+      console.log(`Flow executor: wait_response node - contact responded, following 'responded' handle`);
+    } else if (currentNode.node_type === 'input') {
       // Store the input in the variable (frontend saves as 'variable', not 'variable_name')
       const varName = content.variable || content.variable_name || 'resposta';
       variables[varName] = userInput;
