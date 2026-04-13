@@ -20,7 +20,7 @@ import { Slider } from '@/components/ui/slider';
 import { 
   X, Plus, Trash2, GripVertical, MessageSquare, List, 
   FormInput, GitBranch, Zap, ArrowRightLeft, Sparkles, 
-  Clock, Webhook, Image, Images, FileText, Video, Mic, Upload, Loader2, Bot
+  Clock, Webhook, Image, Images, FileText, Video, Mic, Upload, Loader2, Bot, MessageCircleReply
 } from 'lucide-react';
 import { FlowNodeData } from '@/components/chatbots/FlowNodes';
 import { useUpload } from '@/hooks/use-upload';
@@ -76,6 +76,7 @@ export function NodeEditorPanel({ node, onSave, onClose }: NodeEditorPanelProps)
       ai_agent: <Bot className="h-5 w-5" />,
       delay: <Clock className="h-5 w-5" />,
       webhook: <Webhook className="h-5 w-5" />,
+      wait_response: <MessageCircleReply className="h-5 w-5" />,
     };
     return icons[node.type || ''] || <MessageSquare className="h-5 w-5" />;
   };
@@ -92,6 +93,7 @@ export function NodeEditorPanel({ node, onSave, onClose }: NodeEditorPanelProps)
       ai_agent: 'Agente IA',
       delay: 'Delay',
       webhook: 'Webhook',
+      wait_response: 'Aguardar Resposta',
     };
     return titles[node.type || ''] || 'Editar Nó';
   };
@@ -155,6 +157,9 @@ export function NodeEditorPanel({ node, onSave, onClose }: NodeEditorPanelProps)
           )}
           {node.type === 'ai_agent' && (
             <AIAgentNodeEditor content={content} onChange={setContent} />
+          )}
+          {node.type === 'wait_response' && (
+            <WaitResponseNodeEditor content={content} onChange={setContent} />
           )}
         </div>
       </ScrollArea>
