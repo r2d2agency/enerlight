@@ -20,7 +20,7 @@ import { Slider } from '@/components/ui/slider';
 import { 
   X, Plus, Trash2, GripVertical, MessageSquare, List, 
   FormInput, GitBranch, Zap, ArrowRightLeft, Sparkles, 
-  Clock, Webhook, Image, Images, FileText, Video, Mic, Upload, Loader2, Bot
+  Clock, Webhook, Image, Images, FileText, Video, Mic, Upload, Loader2, Bot, MessageCircleReply
 } from 'lucide-react';
 import { FlowNodeData } from '@/components/chatbots/FlowNodes';
 import { useUpload } from '@/hooks/use-upload';
@@ -76,6 +76,7 @@ export function NodeEditorPanel({ node, onSave, onClose }: NodeEditorPanelProps)
       ai_agent: <Bot className="h-5 w-5" />,
       delay: <Clock className="h-5 w-5" />,
       webhook: <Webhook className="h-5 w-5" />,
+      wait_response: <MessageCircleReply className="h-5 w-5" />,
     };
     return icons[node.type || ''] || <MessageSquare className="h-5 w-5" />;
   };
@@ -92,6 +93,7 @@ export function NodeEditorPanel({ node, onSave, onClose }: NodeEditorPanelProps)
       ai_agent: 'Agente IA',
       delay: 'Delay',
       webhook: 'Webhook',
+      wait_response: 'Aguardar Resposta',
     };
     return titles[node.type || ''] || 'Editar Nó';
   };
@@ -155,6 +157,9 @@ export function NodeEditorPanel({ node, onSave, onClose }: NodeEditorPanelProps)
           )}
           {node.type === 'ai_agent' && (
             <AIAgentNodeEditor content={content} onChange={setContent} />
+          )}
+          {node.type === 'wait_response' && (
+            <WaitResponseNodeEditor content={content} onChange={setContent} />
           )}
         </div>
       </ScrollArea>
@@ -1550,6 +1555,46 @@ function AIAgentNodeEditor({ content, onChange }: { content: Record<string, any>
           checked={content.continue_after_handoff || false}
           onCheckedChange={(v) => onChange({ ...content, continue_after_handoff: v })}
         />
+      </div>
+    </div>
+  );
+}
+
+// ==================== Wait Response Node Editor ====================
+function WaitResponseNodeEditor({ content, onChange }: { content: Record<string, any>; onChange: (c: Record<string, any>) => void }) {
+  return (
+    <div className="space-y-4">
+      <div className="p-3 bg-teal-500/10 border border-teal-500/30 rounded-lg">
+        <p className="text-sm text-teal-700 dark:text-teal-300">
+          Este nó aguarda uma resposta do contato. Se o contato responder, o fluxo segue pelo caminho <strong>"Respondeu"</strong>. 
+          Se não responder dentro do tempo configurado, segue pelo caminho <strong>"Timeout"</strong>.
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <Label>Tempo de espera (horas)</Label>
+        <Input
+          type="number"
+          min={1}
+          max={720}
+          value={content.timeout_hours || 24}
+          onChange={(e) => onChange({ ...content, timeout_hours: parseInt(e.target.value) || 24 })}
+        />
+        <p className="text-xs text-muted-foreground">
+          Após esse período sem resposta, o fluxo seguirá automaticamente pelo caminho de timeout.
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <Label>Salvar resposta na variável (opcional)</Label>
+        <Input
+          value={content.variable || ''}
+          onChange={(e) => onChange({ ...content, variable: e.target.value })}
+          placeholder="Ex: resposta_cliente"
+        />
+        <p className="text-xs text-muted-foreground">
+          Se preenchido, a resposta do contato será salva nesta variável para uso em nós posteriores.
+        </p>
       </div>
     </div>
   );

@@ -1294,6 +1294,7 @@ CREATE TABLE IF NOT EXISTS flow_sessions (
 DO $$ BEGIN
   ALTER TABLE flow_sessions ADD COLUMN IF NOT EXISTS last_interaction_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
   ALTER TABLE flow_sessions ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+  ALTER TABLE flow_sessions ADD COLUMN IF NOT EXISTS wait_response_timeout TIMESTAMP WITH TIME ZONE;
 EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 
 -- Apenas uma sessão ativa por conversa (permite ON CONFLICT (conversation_id) WHERE is_active = true)

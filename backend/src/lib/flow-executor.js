@@ -254,11 +254,29 @@ export async function executeFlow(flowId, conversationId, startNodeId = 'start',
           nodeId: node.node_id,
           nodeType: node.node_type,
           step: processedNodes,
-          message: `Aguardando entrada do usuário`,
+          message: result.isWaitResponse ? `Aguardando resposta do contato` : `Aguardando entrada do usuário`,
           variables: { ...variables },
         });
         // Update session with current state
         await updateFlowSession(flowId, conversationId, currentNodeId, variables);
+        
+        // If wait_response node, set the timeout
+        if (result.isWaitResponse) {
+          const timeoutHours = content.timeout_hours || 24;
+          const timeoutAt = new Date();
+          timeoutAt.setHours(timeoutAt.getHours() + timeoutHours);
+          try {
+            await query(
+              `UPDATE flow_sessions 
+               SET wait_response_timeout = $1
+               WHERE conversation_id = $2 AND flow_id = $3 AND is_active = true`,
+              [timeoutAt.toISOString(), conversationId, flowId]
+            );
+          } catch (e) {
+            console.log('Flow executor: Could not set wait_response_timeout:', e.message);
+          }
+        }
+        
         return { success: true, waitingForInput: true, currentNode: currentNodeId };
       }
 
@@ -339,6 +357,10 @@ async function processNode(node, connection, phone, variables, conversationId) {
       // Input requires user input
       await processInputNode(content, connection, phone, variables, conversationId);
       return { success: true, waitForInput: true };
+
+    case 'wait_response':
+      // Wait for response - pause flow and set timeout
+      return { success: true, waitForInput: true, isWaitResponse: true };
 
     case 'delay':
       // Frontend stores delay as { duration, unit }, but older payloads may use delay_seconds.
@@ -733,7 +755,15 @@ export async function continueFlowWithInput(conversationId, userInput) {
     // Process user input based on node type
     let nextHandle = null;
     
-    if (currentNode.node_type === 'input') {
+    if (currentNode.node_type === 'wait_response') {
+      // Contact responded! Follow the "responded" path
+      nextHandle = 'responded';
+      const varName = content.variable;
+      if (varName) {
+        variables[varName] = userInput;
+      }
+      console.log(`Flow executor: wait_response node - contact responded, following 'responded' handle`);
+    } else if (currentNode.node_type === 'input') {
       // Store the input in the variable (frontend saves as 'variable', not 'variable_name')
       const varName = content.variable || content.variable_name || 'resposta';
       variables[varName] = userInput;
@@ -1034,5 +1064,84 @@ async function resumeFlowFromNode(flowId, conversationId, startNodeId, variables
   } catch (error) {
     console.error('Flow executor: Resume flow error:', error);
     return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Check for wait_response timeouts and follow the timeout path
+ * Called periodically by a cron job
+ */
+export async function checkWaitResponseTimeouts() {
+  try {
+    // Find sessions with wait_response timeout expired
+    const result = await query(
+      `SELECT fs.*, fn.node_type, fn.content as node_content
+       FROM flow_sessions fs
+       JOIN flow_nodes fn ON fn.flow_id = fs.flow_id AND fn.node_id = fs.current_node_id
+       WHERE fs.is_active = true
+         AND fn.node_type = 'wait_response'
+         AND fs.wait_response_timeout IS NOT NULL
+         AND fs.wait_response_timeout < NOW()
+       LIMIT 20`
+    );
+
+    if (result.rows.length === 0) return { processed: 0 };
+
+    let processed = 0;
+
+    for (const session of result.rows) {
+      try {
+        const flowId = session.flow_id;
+        const conversationId = session.conversation_id;
+        const currentNodeId = session.current_node_id;
+        const variables = typeof session.variables === 'string'
+          ? JSON.parse(session.variables || '{}')
+          : (session.variables || {});
+
+        console.log(`Flow executor: wait_response timeout for conversation ${conversationId}, following timeout path`);
+
+        addExecutionLog(conversationId, {
+          type: 'timeout',
+          flowId,
+          nodeId: currentNodeId,
+          nodeType: 'wait_response',
+          message: 'Tempo de espera esgotado - seguindo caminho de timeout',
+        });
+
+        // Find the "timeout" edge
+        const edgesResult = await query(
+          'SELECT * FROM flow_edges WHERE flow_id = $1 AND source_node_id = $2',
+          [flowId, currentNodeId]
+        );
+
+        const timeoutEdge = edgesResult.rows.find(e => e.source_handle === 'timeout');
+        
+        if (timeoutEdge) {
+          // Update session to next node
+          await query(
+            `UPDATE flow_sessions 
+             SET current_node_id = $1, wait_response_timeout = NULL, updated_at = NOW()
+             WHERE conversation_id = $2 AND is_active = true`,
+            [timeoutEdge.target_node_id, conversationId]
+          );
+
+          // Resume flow from timeout path
+          await resumeFlowFromNode(flowId, conversationId, timeoutEdge.target_node_id, variables);
+        } else {
+          // No timeout edge, complete the flow
+          console.log(`Flow executor: No timeout edge found, completing flow for conversation ${conversationId}`);
+          await completeFlowSession(conversationId);
+        }
+
+        processed++;
+      } catch (err) {
+        console.error(`Flow executor: Error processing wait_response timeout for session:`, err);
+      }
+    }
+
+    return { processed };
+  } catch (error) {
+    console.error('Flow executor: checkWaitResponseTimeouts error:', error);
+    return { processed: 0 };
   }
 }
