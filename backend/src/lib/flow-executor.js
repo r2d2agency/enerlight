@@ -340,6 +340,10 @@ async function processNode(node, connection, phone, variables, conversationId) {
       await processInputNode(content, connection, phone, variables, conversationId);
       return { success: true, waitForInput: true };
 
+    case 'wait_response':
+      // Wait for response - pause flow and set timeout
+      return { success: true, waitForInput: true, isWaitResponse: true };
+
     case 'delay':
       // Frontend stores delay as { duration, unit }, but older payloads may use delay_seconds.
       // Support both formats.
