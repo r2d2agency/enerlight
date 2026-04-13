@@ -1,9 +1,9 @@
 import express from 'express';
+import crypto from 'crypto';
 import { query } from '../db.js';
 import { authenticate } from '../middleware/auth.js';
 
 const router = express.Router();
-router.use(authenticate);
 
 const META_API_BASE = 'https://graph.facebook.com/v21.0';
 
