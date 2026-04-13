@@ -265,15 +265,21 @@ export async function executeFlow(flowId, conversationId, startNodeId = 'start',
           const timeoutHours = content.timeout_hours || 24;
           const timeoutAt = new Date();
           timeoutAt.setHours(timeoutAt.getHours() + timeoutHours);
+          console.log(`Flow executor: Setting wait_response timeout to ${timeoutAt.toISOString()} (${timeoutHours}h from now) for conversation ${conversationId}, flow ${flowId}, node ${currentNodeId}`);
           try {
-            await query(
+            const updateResult = await query(
               `UPDATE flow_sessions 
-               SET wait_response_timeout = $1
-               WHERE conversation_id = $2 AND flow_id = $3 AND is_active = true`,
-              [timeoutAt.toISOString(), conversationId, flowId]
+               SET wait_response_timeout = $1, current_node_id = $2
+               WHERE conversation_id = $3 AND flow_id = $4 AND is_active = true
+               RETURNING id, wait_response_timeout, current_node_id`,
+              [timeoutAt.toISOString(), currentNodeId, conversationId, flowId]
             );
+            console.log(`Flow executor: wait_response_timeout update result: ${JSON.stringify(updateResult.rows)}`);
+            if (updateResult.rows.length === 0) {
+              console.warn(`Flow executor: No active session found for conversation ${conversationId}, flow ${flowId} to set timeout`);
+            }
           } catch (e) {
-            console.log('Flow executor: Could not set wait_response_timeout:', e.message);
+            console.error('Flow executor: Could not set wait_response_timeout:', e.message);
           }
         }
         
@@ -1073,6 +1079,25 @@ async function resumeFlowFromNode(flowId, conversationId, startNodeId, variables
  */
 export async function checkWaitResponseTimeouts() {
   try {
+    // First check if there are ANY sessions waiting
+    const pendingCheck = await query(
+      `SELECT fs.id, fs.conversation_id, fs.flow_id, fs.current_node_id, fs.wait_response_timeout, fs.is_active,
+              fn.node_type, fn.node_id as fn_node_id
+       FROM flow_sessions fs
+       LEFT JOIN flow_nodes fn ON fn.flow_id = fs.flow_id AND fn.node_id = fs.current_node_id
+       WHERE fs.is_active = true
+         AND fs.wait_response_timeout IS NOT NULL
+       LIMIT 10`
+    );
+    
+    if (pendingCheck.rows.length > 0) {
+      console.log(`⏳ [wait_response] Found ${pendingCheck.rows.length} sessions with timeout set:`);
+      pendingCheck.rows.forEach(s => {
+        const isExpired = new Date(s.wait_response_timeout) < new Date();
+        console.log(`  - session=${s.id}, conv=${s.conversation_id}, node=${s.current_node_id}, fn_node=${s.fn_node_id}, fn_type=${s.node_type}, timeout=${s.wait_response_timeout}, expired=${isExpired}`);
+      });
+    }
+
     // Find sessions with wait_response timeout expired
     const result = await query(
       `SELECT fs.*, fn.node_type, fn.content as node_content
@@ -1085,7 +1110,14 @@ export async function checkWaitResponseTimeouts() {
        LIMIT 20`
     );
 
-    if (result.rows.length === 0) return { processed: 0 };
+    if (result.rows.length === 0) {
+      if (pendingCheck.rows.length > 0) {
+        console.log(`⏳ [wait_response] No expired timeouts yet (all still waiting or node_type mismatch)`);
+      }
+      return { processed: 0 };
+    }
+    
+    console.log(`⏳ [wait_response] Processing ${result.rows.length} expired timeouts`);
 
     let processed = 0;
 
