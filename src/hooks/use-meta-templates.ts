@@ -40,7 +40,7 @@ export function useMetaTemplateMutations(connectionId?: string) {
   });
 
   const sendTemplate = useMutation({
-    mutationFn: (data: { to: string; template_name: string; language_code?: string; components?: any[] }) =>
+    mutationFn: (data: { to: string; template_name: string; language_code?: string; components?: any[]; conversation_id?: string; sender_id?: string }) =>
       api(`/api/meta/send/${connectionId}`, { method: "POST", body: data }),
   });
 
