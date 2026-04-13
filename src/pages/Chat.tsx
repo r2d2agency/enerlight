@@ -908,6 +908,13 @@ const Chat = () => {
                   try {
                     const conv = await getConversation(conversationId);
                     if (conv) {
+                      // Switch filter to match conversation status so it's visible in the list
+                      const status = conv.attendance_status || 'waiting';
+                      const targetFilter = status === 'finished' ? 'finished' : 
+                                          (status === 'waiting' || status === 'attending') ? 'active' : 'active';
+                      if (filters.attendance_status !== targetFilter && filters.attendance_status !== targetFilter) {
+                        handleFiltersChange({ ...filters, attendance_status: targetFilter as any });
+                      }
                       selectedIdRef.current = conv.id;
                       setSelectedConversation(conv);
                       const msgs = await getMessages(conversationId);
@@ -1019,6 +1026,11 @@ const Chat = () => {
                     try {
                       const conv = await getConversation(conversationId);
                       if (conv) {
+                        const status = conv.attendance_status || 'waiting';
+                        const targetFilter = status === 'finished' ? 'finished' : 'active';
+                        if (filters.attendance_status !== targetFilter) {
+                          handleFiltersChange({ ...filters, attendance_status: targetFilter as any });
+                        }
                         selectedIdRef.current = conv.id;
                         setSelectedConversation(conv);
                         const msgs = await getMessages(conversationId);
