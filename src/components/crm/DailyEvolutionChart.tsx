@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import {
   ResponsiveContainer, ComposedChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine,
 } from "recharts";
-import { eachDayOfInterval, parseISO, format, subMonths, startOfMonth, endOfMonth, subDays, getMonth, getYear } from "date-fns";
+import { eachDayOfInterval, parseISO, format, subMonths, startOfMonth, endOfMonth, subDays, getMonth, getYear, getWeek, startOfWeek, endOfWeek, differenceInCalendarDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 interface DailyRow {
