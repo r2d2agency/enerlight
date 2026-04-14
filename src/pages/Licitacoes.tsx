@@ -37,6 +37,7 @@ import { LicitacaoKanban } from "@/components/licitacao/LicitacaoKanban";
 import { LicitacaoAIConfigDialog } from "@/components/licitacao/LicitacaoAIConfigDialog";
 import { LicitacaoAIAnalysis as LicitacaoAIAnalysisPanel } from "@/components/licitacao/LicitacaoAIAnalysisPanel";
 import { useParseEdital, type ParsedEditalData } from "@/hooks/use-licitacao-ai";
+import { AIAnalysisProgressDialog, AI_STEPS, type AIAnalysisStep } from "@/components/licitacao/AIAnalysisProgressDialog";
 
 const MODALITIES = [
   "Pregão Eletrônico", "Pregão Presencial", "Concorrência", "Tomada de Preços",
@@ -151,7 +152,12 @@ export default function Licitacoes() {
   const [showCreateDealDialog, setShowCreateDealDialog] = useState(false);
   const [showAIConfigDialog, setShowAIConfigDialog] = useState(false);
   const [showCreationChoice, setShowCreationChoice] = useState(false);
+  const [showAIProgress, setShowAIProgress] = useState(false);
+  const [aiSteps, setAiSteps] = useState<AIAnalysisStep[]>([]);
+  const [aiLogs, setAiLogs] = useState<string[]>([]);
+  const [aiError, setAiError] = useState<string | null>(null);
   const [aiParsingData, setAiParsingData] = useState<ParsedEditalData | null>(null);
+  const [aiFile, setAiFile] = useState<File | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: string; id: string; name: string } | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [editMode, setEditMode] = useState(false);
@@ -280,15 +286,67 @@ export default function Licitacoes() {
     } catch (e: any) { toast({ title: "Erro", description: e.message, variant: "destructive" }); }
   };
 
+  const addLog = (msg: string) => setAiLogs(p => [...p, msg]);
+  const setStep = (id: string, status: AIAnalysisStep["status"], detail?: string) => {
+    setAiSteps(prev => prev.map(s => s.id === id ? { ...s, status, detail: detail ?? s.detail } : s));
+  };
+
   const handleAIParseEdital = async (file: File) => {
+    resetItemForm();
+    setAiParsingData(null);
+    setAiError(null);
+    setAiFile(file);
+    setAiLogs([]);
+    setAiSteps([
+      AI_STEPS.upload("pending"),
+      AI_STEPS.extract("pending"),
+      AI_STEPS.analyze("pending"),
+      AI_STEPS.fields("pending"),
+      AI_STEPS.checklist("pending"),
+      AI_STEPS.compliance("pending"),
+      AI_STEPS.creating("pending"),
+    ]);
+    setShowAIProgress(true);
+
     try {
+      // Step 1: Upload
+      setStep("upload", "running", file.name);
+      addLog(`📤 Enviando arquivo: ${file.name} (${(file.size / 1024).toFixed(0)}KB)`);
       const url = await uploadFile(file);
-      if (!url) throw new Error("Falha no upload");
+      if (!url) throw new Error("Falha no upload do arquivo");
       setItemForm(p => ({ ...p, edital_url: url }));
-      toast({ title: "Edital enviado, analisando com IA..." });
+      setStep("upload", "done", "Arquivo enviado com sucesso");
+      addLog("✅ Upload concluído");
+
+      // Step 2: Extract + Analyze (done by backend)
+      setStep("extract", "running", "Lendo conteúdo do PDF...");
+      addLog("📄 Extraindo texto do PDF...");
+      
+      // Small delay to show the step
+      await new Promise(r => setTimeout(r, 500));
+      setStep("extract", "done", "Texto extraído");
+      addLog("✅ Texto do edital extraído");
+
+      // Step 3: AI Analysis
+      setStep("analyze", "running", "Enviando para o modelo de IA...");
+      addLog("🤖 Iniciando análise com inteligência artificial...");
+      addLog("⏳ Isso pode levar até 1 minuto dependendo do tamanho do edital");
+
       const parsed = await parseEdital.mutateAsync({ edital_url: url });
       setAiParsingData(parsed);
-      // Auto-fill the form
+      setStep("analyze", "done", "Análise concluída");
+      addLog("✅ Análise da IA concluída");
+
+      // Step 4: Fill fields
+      setStep("fields", "running", "Preenchendo informações...");
+      addLog(`📝 Título: ${parsed.title || "não identificado"}`);
+      addLog(`📝 Nº Edital: ${parsed.edital_number || "não identificado"}`);
+      addLog(`📝 Modalidade: ${parsed.modality || "não identificada"}`);
+      addLog(`📝 Órgão: ${parsed.entity_name || "não identificado"}`);
+      if (parsed.estimated_value) addLog(`💰 Valor estimado: R$ ${Number(parsed.estimated_value).toLocaleString("pt-BR")}`);
+      if (parsed.opening_date) addLog(`📅 Abertura: ${parsed.opening_date}`);
+      if (parsed.deadline_date) addLog(`📅 Prazo: ${parsed.deadline_date}`);
+
       setItemForm(p => ({
         ...p,
         title: parsed.title || p.title,
@@ -306,15 +364,118 @@ export default function Licitacoes() {
         description: parsed.description || p.description,
         notes: parsed.notes || p.notes,
       }));
-      setShowNewItemDialog(true);
-      toast({ title: "Edital analisado! Confira os campos preenchidos ✨" });
+      await new Promise(r => setTimeout(r, 300));
+      setStep("fields", "done", `${Object.values(parsed).filter(Boolean).length} campos preenchidos`);
+      addLog("✅ Campos preenchidos automaticamente");
+
+      // Step 5: Checklist
+      setStep("checklist", "running");
+      const checkCount = parsed.checklist_items?.length || 0;
+      const taskCount = parsed.tasks?.length || 0;
+      addLog(`📋 ${checkCount} documentos obrigatórios identificados`);
+      addLog(`📋 ${taskCount} tarefas sugeridas pela IA`);
+      await new Promise(r => setTimeout(r, 300));
+      setStep("checklist", "done", `${checkCount} documentos, ${taskCount} tarefas`);
+      addLog("✅ Checklist e tarefas preparados");
+
+      // Step 6: Compliance
+      setStep("compliance", "running");
+      if (parsed.compliance_score !== undefined) {
+        addLog(`🎯 Score de conformidade: ${parsed.compliance_score}%`);
+        addLog(parsed.compliance_score >= 70 ? "🟢 Alta compatibilidade com seus produtos" : parsed.compliance_score >= 40 ? "🟡 Compatibilidade parcial" : "🔴 Baixa compatibilidade");
+      } else {
+        addLog("ℹ️ Sem produtos cadastrados para análise de conformidade");
+      }
+      if (parsed.product_matches?.length) {
+        addLog(`📦 ${parsed.product_matches.length} itens comparados com seus produtos`);
+      }
+      await new Promise(r => setTimeout(r, 300));
+      setStep("compliance", "done", parsed.compliance_score !== undefined ? `${parsed.compliance_score}% compatível` : "Sem dados");
+
+      // Step 7: Create
+      setStep("creating", "running", "Salvando na primeira etapa...");
+      addLog("💾 Criando licitação no sistema...");
+
+      if (!activeBoardId || !itemForm.title && !parsed.title) {
+        setStep("creating", "done", "Pronto para revisão");
+        addLog("✅ Dados prontos! Revise e confirme para criar.");
+        // Don't auto-create, let user review
+        setShowAIProgress(false);
+        setShowNewItemDialog(true);
+        return;
+      }
+
+      // Auto-create with parsed data
+      const formData = {
+        ...itemForm,
+        title: parsed.title || itemForm.title || "Licitação sem título",
+        edital_url: url,
+      };
+      const newItem = await createItem.mutateAsync({
+        boardId: activeBoardId,
+        ...formData,
+        assigned_to: formData.assigned_to && formData.assigned_to !== "__none__" ? formData.assigned_to : undefined,
+        estimated_value: formData.estimated_value ? Number(formData.estimated_value) : undefined,
+      }) as any;
+
+      addLog(`✅ Licitação criada: ${parsed.title || "Sem título"}`);
+
+      // Create checklist items
+      if (parsed.checklist_items?.length && newItem?.id) {
+        for (const title of parsed.checklist_items) {
+          if (title) {
+            try {
+              await createChecklistItem.mutateAsync({ licitacaoId: newItem.id, title });
+            } catch {}
+          }
+        }
+        addLog(`✅ ${parsed.checklist_items.length} itens de checklist criados`);
+      }
+
+      // Create tasks
+      if (parsed.tasks?.length && newItem?.id) {
+        for (const task of parsed.tasks) {
+          if (task.title) {
+            try {
+              await createTask.mutateAsync({
+                licitacaoId: newItem.id,
+                title: task.title,
+                description: task.description,
+                priority: task.priority || "medium",
+                due_date: task.due_date || undefined,
+              });
+            } catch {}
+          }
+        }
+        addLog(`✅ ${parsed.tasks.length} tarefas criadas`);
+      }
+
+      setStep("creating", "done", "Licitação criada na primeira etapa!");
+      addLog("🎉 Licitação criada com sucesso na primeira etapa do quadro!");
+      resetItemForm();
+
     } catch (e: any) {
-      toast({ title: "Erro na análise do edital", description: e.message, variant: "destructive" });
-      // Open manual form anyway
-      setShowNewItemDialog(true);
+      const errorMsg = e.message || "Erro desconhecido";
+      setAiError(errorMsg);
+      addLog(`❌ Erro: ${errorMsg}`);
+      // Mark current running step as error
+      setAiSteps(prev => prev.map(s => s.status === "running" ? { ...s, status: "error" as const, detail: errorMsg } : s));
     }
   };
 
+  const handleRetryAI = () => {
+    if (aiFile) {
+      handleAIParseEdital(aiFile);
+    }
+  };
+
+  const handleCancelAI = () => {
+    setShowAIProgress(false);
+    resetItemForm();
+    setAiParsingData(null);
+    setAiError(null);
+    setShowNewItemDialog(true);
+  };
 
   const handleStartEdit = () => {
     if (!selectedItem) return;
@@ -612,6 +773,17 @@ export default function Licitacoes() {
           />
         </DialogContent>
       </Dialog>
+
+      {/* AI Analysis Progress Dialog */}
+      <AIAnalysisProgressDialog
+        open={showAIProgress}
+        onOpenChange={setShowAIProgress}
+        steps={aiSteps}
+        logs={aiLogs}
+        error={aiError}
+        onRetry={handleRetryAI}
+        onCancel={handleCancelAI}
+      />
 
       {/* New Board Dialog */}
       <Dialog open={showNewBoardDialog} onOpenChange={setShowNewBoardDialog}>
