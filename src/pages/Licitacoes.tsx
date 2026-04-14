@@ -540,6 +540,61 @@ export default function Licitacoes() {
         )}
       </div>
 
+      {/* Creation Choice Dialog */}
+      <Dialog open={showCreationChoice} onOpenChange={setShowCreationChoice}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Nova Licitação</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">Como deseja criar a licitação?</p>
+          <div className="grid grid-cols-1 gap-3 mt-2">
+            <button
+              className="flex items-start gap-3 p-4 rounded-lg border-2 border-border hover:border-primary/50 hover:bg-muted/30 transition-all text-left group"
+              onClick={() => { setShowCreationChoice(false); resetItemForm(); setAiParsingData(null); setShowNewItemDialog(true); }}
+            >
+              <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center shrink-0 group-hover:bg-primary/10">
+                <Edit className="h-5 w-5 text-muted-foreground group-hover:text-primary" />
+              </div>
+              <div>
+                <p className="font-medium text-sm">Criar Manualmente</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Preencha todos os campos manualmente</p>
+              </div>
+            </button>
+            <button
+              className="flex items-start gap-3 p-4 rounded-lg border-2 border-border hover:border-primary/50 hover:bg-muted/30 transition-all text-left group relative"
+              onClick={() => document.getElementById("ai-edital-upload")?.click()}
+              disabled={parseEdital.isPending || isUploading}
+            >
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                {parseEdital.isPending || isUploading ? (
+                  <Loader2 className="h-5 w-5 text-primary animate-spin" />
+                ) : (
+                  <Sparkles className="h-5 w-5 text-primary" />
+                )}
+              </div>
+              <div>
+                <p className="font-medium text-sm">Criar com IA</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {parseEdital.isPending ? "Analisando edital com IA..." : isUploading ? "Enviando arquivo..." : "Envie o PDF do edital e a IA preenche tudo automaticamente"}
+                </p>
+              </div>
+            </button>
+          </div>
+          <input
+            type="file"
+            id="ai-edital-upload"
+            className="hidden"
+            accept=".pdf,.doc,.docx,.txt"
+            onChange={async (e) => {
+              const f = e.target.files?.[0];
+              if (f) {
+                setShowCreationChoice(false);
+                await handleAIParseEdital(f);
+              }
+              e.target.value = "";
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+
       {/* New Board Dialog */}
       <Dialog open={showNewBoardDialog} onOpenChange={setShowNewBoardDialog}>
         <DialogContent>
