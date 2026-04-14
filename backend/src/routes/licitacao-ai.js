@@ -3,6 +3,7 @@ import { query } from '../db.js';
 import { authenticate as requireAuth } from '../middleware/auth.js';
 import { callAI } from '../lib/ai-caller.js';
 import { logInfo, logError } from '../logger.js';
+import pdf from 'pdf-parse/lib/pdf-parse.js';
 
 const router = Router();
 
