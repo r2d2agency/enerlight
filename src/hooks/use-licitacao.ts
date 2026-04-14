@@ -44,6 +44,8 @@ export interface Licitacao {
   contact_id: string | null;
   contact_name: string | null;
   contact_phone: string | null;
+  deal_id: string | null;
+  linked_deal_id: string | null;
   assigned_to: string | null;
   assigned_to_name: string | null;
   notes: string | null;
