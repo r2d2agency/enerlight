@@ -538,17 +538,16 @@ IMPORTANTE: Retorne APENAS o JSON, sem markdown, sem \`\`\`json, sem texto extra
 
     const result = await callAI(aiConfig, messages, {
       temperature: 0.2,
-      maxTokens: parseInt(configRow?.max_tokens) || 4000,
+      maxTokens: parseInt(configRow?.max_tokens) || 8000,
       responseFormat: { type: 'json_object' },
     });
 
     let parsed;
     try {
-      parsed = JSON.parse(result.content);
-    } catch {
-      const jsonMatch = result.content.match(/\{[\s\S]*\}/);
-      if (jsonMatch) parsed = JSON.parse(jsonMatch[0]);
-      else throw new Error('Resposta da IA não é JSON válido');
+      parsed = extractJsonFromResponse(result.content);
+    } catch (parseErr) {
+      logError('licitacao_ai.parse_json_error', { error: parseErr.message, contentPreview: result.content?.substring(0, 500) });
+      throw new Error('Resposta da IA não é JSON válido. Tente novamente ou reduza o tamanho do edital.');
     }
 
     res.json(parsed);
