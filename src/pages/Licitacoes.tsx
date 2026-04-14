@@ -374,7 +374,7 @@ export default function Licitacoes() {
     setShowCreateDealDialog(true);
   };
 
-
+  const handleDelete = async () => {
     if (!deleteConfirm) return;
     try {
       if (deleteConfirm.type === "board") await deleteBoard.mutateAsync(deleteConfirm.id);
