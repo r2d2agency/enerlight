@@ -633,11 +633,31 @@ export default function Licitacoes() {
       </Dialog>
 
       {/* New Item Dialog */}
-      <Dialog open={showNewItemDialog} onOpenChange={setShowNewItemDialog}>
+      <Dialog open={showNewItemDialog} onOpenChange={v => { setShowNewItemDialog(v); if (!v) setAiParsingData(null); }}>
         <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
-          <DialogHeader><DialogTitle>Nova Licitação</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{aiParsingData ? "Nova Licitação (preenchida por IA)" : "Nova Licitação"}</DialogTitle></DialogHeader>
           <ScrollArea className="flex-1 overflow-y-auto max-h-[calc(85vh-130px)] pr-2">
             <div className="space-y-4">
+              {aiParsingData && (
+                <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-primary" />
+                    <span className="text-sm font-medium text-primary">Preenchido pela IA</span>
+                    {aiParsingData.compliance_score !== undefined && (
+                      <Badge variant={aiParsingData.compliance_score >= 70 ? "default" : "secondary"} className={cn("text-xs ml-auto", aiParsingData.compliance_score >= 70 && "bg-green-600")}>
+                        {aiParsingData.compliance_score}% compatível
+                      </Badge>
+                    )}
+                  </div>
+                  {aiParsingData.summary && <p className="text-xs text-muted-foreground line-clamp-3">{aiParsingData.summary}</p>}
+                  <div className="flex gap-3 text-xs text-muted-foreground">
+                    {aiParsingData.checklist_items?.length ? <span>✓ {aiParsingData.checklist_items.length} documentos</span> : null}
+                    {aiParsingData.tasks?.length ? <span>📋 {aiParsingData.tasks.length} tarefas</span> : null}
+                    {aiParsingData.edital_items?.length ? <span>📦 {aiParsingData.edital_items.length} itens</span> : null}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">Revise os campos e clique em Adicionar. Checklist e tarefas serão criados automaticamente.</p>
+                </div>
+              )}
               <div>
                 <Label>Título *</Label>
                 <Input value={itemForm.title} onChange={e => setItemForm(p => ({ ...p, title: e.target.value }))} placeholder="Ex: Pregão Eletrônico nº 001/2025" />
