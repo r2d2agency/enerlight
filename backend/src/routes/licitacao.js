@@ -153,16 +153,25 @@ router.post('/boards/:boardId/stages/reorder', requireAuth, async (req, res) => 
 
 router.get('/boards/:boardId/items', requireAuth, async (req, res) => {
   try {
-    // Check if crm_deals table exists to avoid errors
-    let hasCrmDeals = false;
-    try {
-      await query(`SELECT 1 FROM crm_deals LIMIT 0`);
-      hasCrmDeals = true;
-    } catch (_) {}
+    const licitacoesColumns = await query(
+      `SELECT column_name
+       FROM information_schema.columns
+       WHERE table_schema = 'public' AND table_name = 'licitacoes'`
+    );
+    const existingColumns = new Set(licitacoesColumns.rows.map(row => row.column_name));
+    const hasDealId = existingColumns.has('deal_id');
 
-    const dealSubquery = hasCrmDeals
+    const crmDealsTable = await query(
+      `SELECT 1
+       FROM information_schema.tables
+       WHERE table_schema = 'public' AND table_name = 'crm_deals'
+       LIMIT 1`
+    );
+    const hasCrmDeals = crmDealsTable.rows.length > 0;
+
+    const linkedDealSelect = hasDealId && hasCrmDeals
       ? `(SELECT d.id FROM crm_deals d WHERE d.id = l.deal_id LIMIT 1)`
-      : `NULL`;
+      : `NULL::uuid`;
 
     const result = await query(
       `SELECT l.*, u.name as assigned_to_name, cu.name as created_by_name,
@@ -170,7 +179,7 @@ router.get('/boards/:boardId/items', requireAuth, async (req, res) => {
         (SELECT COUNT(*) FROM licitacao_tasks t WHERE t.licitacao_id = l.id AND t.status = 'completed') as completed_task_count,
         (SELECT COUNT(*) FROM licitacao_checklist c WHERE c.licitacao_id = l.id) as checklist_count,
         (SELECT COUNT(*) FROM licitacao_checklist c WHERE c.licitacao_id = l.id AND c.is_checked = true) as checked_count,
-        ${dealSubquery} as linked_deal_id
+        ${linkedDealSelect} as linked_deal_id
        FROM licitacoes l
        LEFT JOIN users u ON u.id = l.assigned_to
        LEFT JOIN users cu ON cu.id = l.created_by

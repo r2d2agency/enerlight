@@ -4101,7 +4101,7 @@ CREATE TABLE IF NOT EXISTS licitacoes (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Add missing contact columns to licitacoes
+-- Add missing contact and CRM link columns to licitacoes
 DO $$ BEGIN
   ALTER TABLE licitacoes ADD COLUMN IF NOT EXISTS contact_id UUID REFERENCES contacts(id) ON DELETE SET NULL;
 EXCEPTION WHEN others THEN NULL;
@@ -4112,6 +4112,10 @@ EXCEPTION WHEN others THEN NULL;
 END $$;
 DO $$ BEGIN
   ALTER TABLE licitacoes ADD COLUMN IF NOT EXISTS contact_phone VARCHAR(50);
+EXCEPTION WHEN others THEN NULL;
+END $$;
+DO $$ BEGIN
+  ALTER TABLE licitacoes ADD COLUMN IF NOT EXISTS deal_id UUID;
 EXCEPTION WHEN others THEN NULL;
 END $$;
 
