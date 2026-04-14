@@ -247,7 +247,7 @@ export default function Licitacoes() {
         boardId: activeBoardId, ...itemForm,
         assigned_to: itemForm.assigned_to && itemForm.assigned_to !== "__none__" ? itemForm.assigned_to : undefined,
         estimated_value: itemForm.estimated_value ? Number(itemForm.estimated_value) : undefined,
-      });
+      }) as any;
 
       // If AI parsed data, create checklist items and tasks
       if (aiParsingData && newItem?.id) {
@@ -278,7 +278,6 @@ export default function Licitacoes() {
       setAiParsingData(null);
       toast({ title: aiParsingData ? "Licitação criada com dados da IA! ✨" : "Licitação adicionada!" });
     } catch (e: any) { toast({ title: "Erro", description: e.message, variant: "destructive" }); }
-  };
   };
 
   const handleAIParseEdital = async (file: File) => {
