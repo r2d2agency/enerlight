@@ -1130,6 +1130,9 @@ export default function Licitacoes() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* AI Config Dialog */}
+      <LicitacaoAIConfigDialog open={showAIConfigDialog} onOpenChange={setShowAIConfigDialog} />
     </MainLayout>
   );
 }
