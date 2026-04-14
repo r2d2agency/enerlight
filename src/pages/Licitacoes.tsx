@@ -17,7 +17,7 @@ import { cn, safeFormatDate } from "@/lib/utils";
 import {
   Plus, Search, Settings, Trash2, Edit, FileText, Calendar,
   ClipboardList, User, Phone, Mail, Upload, StickyNote,
-  History, CheckSquare, ExternalLink, Loader2, Gavel, GripVertical, ArrowUp, ArrowDown, Check, X, MessageCircle, UserPlus
+  History, CheckSquare, ExternalLink, Loader2, Gavel, GripVertical, ArrowUp, ArrowDown, Check, X, MessageCircle, UserPlus, Trophy, XCircle, Briefcase, Link2
 } from "lucide-react";
 import {
   useLicitacaoBoards, useCreateLicitacaoBoard, useDeleteLicitacaoBoard,
@@ -27,9 +27,10 @@ import {
   useLicitacaoChecklist, useCreateLicitacaoChecklistItem, useUpdateLicitacaoChecklistItem, useDeleteLicitacaoChecklistItem,
   useLicitacaoDocuments, useCreateLicitacaoDocument, useDeleteLicitacaoDocument,
   useLicitacaoNotes, useCreateLicitacaoNote, useDeleteLicitacaoNote,
-  useLicitacaoHistory, useLicitacaoOrgMembers, useSearchLicitacaoContacts,
+  useLicitacaoHistory, useLicitacaoOrgMembers, useSearchLicitacaoContacts, useCreateDealFromLicitacao,
   Licitacao, LicitacaoStage, LicitacaoContact,
 } from "@/hooks/use-licitacao";
+import { useCRMFunnels, useCRMCompanies } from "@/hooks/use-crm";
 import { useUpload } from "@/hooks/use-upload";
 import { useAuth } from "@/contexts/AuthContext";
 import { LicitacaoKanban } from "@/components/licitacao/LicitacaoKanban";
