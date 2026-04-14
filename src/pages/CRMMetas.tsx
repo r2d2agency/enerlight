@@ -322,23 +322,23 @@ export default function CRMMetas() {
                     </CardContent>
                   </Card>
                   <Card className="border-l-4 border-l-green-500">
-                    <CardContent className="pt-4">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><ShoppingCart className="h-4 w-4" /> Pedidos</div>
-                      <p className="text-2xl font-bold text-green-600">{fmt(gd.pedido.value)}</p>
+                    <CardContent className="pt-4 px-3">
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1"><ShoppingCart className="h-3.5 w-3.5 shrink-0" /> Pedidos</div>
+                      <p className="text-lg sm:text-2xl font-bold text-green-600 truncate">{fmt(gd.pedido.value)}</p>
                       <p className="text-xs text-muted-foreground">{gd.pedido.count} pedidos</p>
                     </CardContent>
                   </Card>
                   <Card className="border-l-4 border-l-amber-500">
-                    <CardContent className="pt-4">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><Receipt className="h-4 w-4" /> Faturamento</div>
-                      <p className="text-2xl font-bold text-amber-600">{fmt(gd.faturamento.value)}</p>
+                    <CardContent className="pt-4 px-3">
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1"><Receipt className="h-3.5 w-3.5 shrink-0" /> Faturamento</div>
+                      <p className="text-lg sm:text-2xl font-bold text-amber-600 truncate">{fmt(gd.faturamento.value)}</p>
                       <p className="text-xs text-muted-foreground">{gd.faturamento.count} notas</p>
                     </CardContent>
                   </Card>
                   <Card className="border-l-4 border-l-purple-500">
-                    <CardContent className="pt-4">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><Target className="h-4 w-4" /> Conversão</div>
-                      <p className="text-2xl font-bold text-purple-600">
+                    <CardContent className="pt-4 px-3">
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1"><Target className="h-3.5 w-3.5 shrink-0" /> Conversão</div>
+                      <p className="text-lg sm:text-2xl font-bold text-purple-600">
                         {gd.orcamento.count > 0 ? ((gd.pedido.count / gd.orcamento.count) * 100).toFixed(0) : 0}%
                       </p>
                       <p className="text-xs text-muted-foreground">Pedidos / Orçamentos</p>
