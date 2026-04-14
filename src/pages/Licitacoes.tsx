@@ -254,6 +254,50 @@ export default function Licitacoes() {
     } catch (e: any) { toast({ title: "Erro", description: e.message, variant: "destructive" }); }
   };
 
+  const handleAIParseEdital = async (file: File) => {
+    try {
+      const url = await uploadFile(file);
+      if (!url) throw new Error("Falha no upload");
+      setItemForm(p => ({ ...p, edital_url: url }));
+      toast({ title: "Edital enviado, analisando com IA..." });
+      const parsed = await parseEdital.mutateAsync({ edital_url: url });
+      setAiParsingData(parsed);
+      // Auto-fill the form
+      setItemForm(p => ({
+        ...p,
+        title: parsed.title || p.title,
+        edital_number: parsed.edital_number || p.edital_number,
+        modality: parsed.modality || p.modality,
+        opening_date: parsed.opening_date || p.opening_date,
+        deadline_date: parsed.deadline_date || p.deadline_date,
+        result_date: parsed.result_date || p.result_date,
+        estimated_value: parsed.estimated_value ? String(parsed.estimated_value) : p.estimated_value,
+        entity_name: parsed.entity_name || p.entity_name,
+        entity_cnpj: parsed.entity_cnpj || p.entity_cnpj,
+        entity_contact: parsed.entity_contact || p.entity_contact,
+        entity_phone: parsed.entity_phone || p.entity_phone,
+        entity_email: parsed.entity_email || p.entity_email,
+        description: parsed.description || p.description,
+        notes: parsed.notes || p.notes,
+      }));
+      setShowNewItemDialog(true);
+      toast({ title: "Edital analisado! Confira os campos preenchidos ✨" });
+    } catch (e: any) {
+      toast({ title: "Erro na análise do edital", description: e.message, variant: "destructive" });
+      // Open manual form anyway
+      setShowNewItemDialog(true);
+    }
+  };
+
+  const handleCreateItemWithAIData = async () => {
+    await handleCreateItem();
+    // After creating, if we have AI data with checklist/tasks, add them
+    if (aiParsingData && selectedItemId) {
+      // We'll handle this post-creation
+    }
+    setAiParsingData(null);
+  };
+
   const handleStartEdit = () => {
     if (!selectedItem) return;
     setEditForm({
