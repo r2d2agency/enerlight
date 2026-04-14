@@ -184,6 +184,12 @@ export default function Licitacoes() {
   const { data: contactResults = [] } = useSearchLicitacaoContacts(contactSearchTerm);
   const { data: crmFunnels = [] } = useCRMFunnels();
   const { data: crmCompanies = [] } = useCRMCompanies(companySearch);
+  const selectedItem = useMemo(() => items.find(i => i.id === selectedItemId), [items, selectedItemId]);
+  const linkedDealId = selectedItem?.linked_deal_id || null;
+  const { data: linkedDeal } = useCRMDeal(linkedDealId);
+  const linkedFunnelId = linkedDeal?.funnel_id || null;
+  const { data: linkedFunnel } = useCRMFunnel(linkedFunnelId);
+  const { moveDeal: moveCrmDeal, updateDeal: updateCrmDeal } = useCRMDealMutations();
   // Mutations
   const createBoard = useCreateLicitacaoBoard();
   const deleteBoard = useDeleteLicitacaoBoard();
@@ -205,7 +211,6 @@ export default function Licitacoes() {
   const createNote = useCreateLicitacaoNote();
   const deleteNote = useDeleteLicitacaoNote();
   const createDealFromLicitacao = useCreateDealFromLicitacao();
-  const selectedItem = useMemo(() => items.find(i => i.id === selectedItemId), [items, selectedItemId]);
 
   const itemsByStage = useMemo(() => {
     const map: Record<string, Licitacao[]> = {};
