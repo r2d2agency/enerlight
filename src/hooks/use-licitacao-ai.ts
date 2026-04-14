@@ -134,3 +134,34 @@ export function useAnalyzeEdital() {
     },
   });
 }
+
+export interface ParsedEditalData {
+  title?: string;
+  edital_number?: string;
+  modality?: string;
+  opening_date?: string;
+  deadline_date?: string;
+  result_date?: string;
+  estimated_value?: number;
+  entity_name?: string;
+  entity_cnpj?: string;
+  entity_contact?: string;
+  entity_phone?: string;
+  entity_email?: string;
+  description?: string;
+  notes?: string;
+  checklist_items?: string[];
+  tasks?: Array<{ title: string; description?: string; priority?: string; due_date?: string }>;
+  summary?: string;
+  edital_items?: Array<{ item_number: string; description: string; quantity?: string; unit?: string; estimated_value?: string }>;
+  product_matches?: Array<{ edital_item: string; product_name: string; match_level: string; notes?: string }>;
+  compliance_score?: number;
+  compliance_analysis?: string;
+}
+
+export function useParseEdital() {
+  return useMutation({
+    mutationFn: (data: { edital_url?: string; edital_text?: string }) =>
+      api<ParsedEditalData>("/api/licitacao-ai/parse-edital", { method: "POST", body: data }),
+  });
+}
