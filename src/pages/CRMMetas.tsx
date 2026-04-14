@@ -265,13 +265,13 @@ export default function CRMMetas() {
           </TabsList>
 
           {/* Filters - shared */}
-          <div className="flex flex-wrap items-center gap-3 mt-4">
-            <CalendarDays className="h-4 w-4 text-muted-foreground" />
-            <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-40" />
+          <div className="flex flex-wrap items-center gap-2 mt-4">
+            <CalendarDays className="h-4 w-4 text-muted-foreground hidden sm:block" />
+            <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full sm:w-40" />
             <span className="text-sm text-muted-foreground">até</span>
-            <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-40" />
+            <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full sm:w-40" />
             <Select value={filterUserId} onValueChange={setFilterUserId}>
-              <SelectTrigger className="w-[180px]"><SelectValue placeholder="Todos" /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Todos" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos usuários</SelectItem>
                 {user && <SelectItem value={user.id}>{user.name} (Eu)</SelectItem>}
@@ -279,7 +279,7 @@ export default function CRMMetas() {
               </SelectContent>
             </Select>
             <Select value={filterChannel} onValueChange={setFilterChannel}>
-              <SelectTrigger className="w-[180px]"><SelectValue placeholder="Todos canais" /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Todos canais" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos canais</SelectItem>
                 {availableChannels?.map(ch => (
@@ -289,7 +289,7 @@ export default function CRMMetas() {
             </Select>
             {groups && groups.length > 0 && (
               <Select value={filterGroupId} onValueChange={setFilterGroupId}>
-                <SelectTrigger className="w-[180px]"><SelectValue placeholder="Todos grupos" /></SelectTrigger>
+                <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Todos grupos" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos grupos</SelectItem>
                   {groups.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
@@ -297,7 +297,7 @@ export default function CRMMetas() {
               </Select>
             )}
             <Select value={filterPeriod} onValueChange={handlePeriodChange}>
-              <SelectTrigger className="w-[130px]"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-[130px]"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="daily">Diário</SelectItem>
                 <SelectItem value="weekly">Semanal</SelectItem>
