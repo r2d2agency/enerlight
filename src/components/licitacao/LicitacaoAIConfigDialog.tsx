@@ -17,7 +17,7 @@ import {
   LicitacaoAIConfig, LicitacaoAIProduct,
 } from "@/hooks/use-licitacao-ai";
 import {
-  Sparkles, Save, Loader2, Plus, Trash2, Edit, Package, Settings2, Brain, Eye, EyeOff, Upload, X, Check
+  Sparkles, Save, Loader2, Plus, Trash2, Edit, Package, Settings2, Brain, Eye, EyeOff, Upload, X, Check, FileSpreadsheet
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
