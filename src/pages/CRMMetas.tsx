@@ -368,16 +368,38 @@ export default function CRMMetas() {
                   </Card>
                 </div>
 
-                {/* Funil de Vendas */}
-                <SalesFunnelCard
-                  quotesValue={gd.orcamento.value}
-                  quotesCount={gd.orcamento.count}
-                  ordersValue={gd.pedido.value}
-                  ordersCount={gd.pedido.count}
-                  billingValue={gd.faturamento.value}
-                  billingCount={gd.faturamento.count}
-                  title="Funil de Vendas — Mensal"
+                {/* Gráfico de Evolução Acumulada */}
+                <DailyEvolutionChart
+                  startDate={startDate}
+                  endDate={endDate}
+                  filterUserId={filterUserId}
+                  filterChannel={filterChannel}
+                  filterGroupId={filterGroupId}
                 />
+
+                {/* Funil de Vendas */}
+                {(() => {
+                  const getGoal = (metric: string) => {
+                    if (!goals) return undefined;
+                    const g = goals.filter(g => g.metric === metric && g.is_active && g.type === "geral");
+                    if (g.length > 0) return g.reduce((s, x) => s + x.target_value, 0);
+                    return undefined;
+                  };
+                  return (
+                    <SalesFunnelCard
+                      quotesValue={gd.orcamento.value}
+                      quotesCount={gd.orcamento.count}
+                      ordersValue={gd.pedido.value}
+                      ordersCount={gd.pedido.count}
+                      billingValue={gd.faturamento.value}
+                      billingCount={gd.faturamento.count}
+                      quotesGoal={getGoal("quotes_value")}
+                      ordersGoal={getGoal("orders_value")}
+                      billingGoal={getGoal("billing_value")}
+                      title="Funil de Vendas — Meta vs Realizado"
+                    />
+                  );
+                })()}
 
                 {/* Resumo Planejado vs Realizado vs MTD */}
 
