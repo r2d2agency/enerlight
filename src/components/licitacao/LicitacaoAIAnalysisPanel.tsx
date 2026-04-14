@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { useLicitacaoAIAnalysis, useAnalyzeEdital, LicitacaoAIAnalysis } from "@/hooks/use-licitacao-ai";
+import { useLicitacaoAIAnalysis, useAnalyzeEdital, type LicitacaoAIAnalysis as LicitacaoAIAnalysisType } from "@/hooks/use-licitacao-ai";
 import {
   Sparkles, Loader2, FileText, Calendar, ClipboardList, Package, ShieldCheck, AlertTriangle,
   Lightbulb, RefreshCw, CheckCircle2, XCircle, MinusCircle
