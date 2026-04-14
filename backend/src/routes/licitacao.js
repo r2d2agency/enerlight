@@ -198,7 +198,7 @@ router.post('/boards/:boardId/items', requireAuth, async (req, res) => {
 
 router.patch('/items/:id', requireAuth, async (req, res) => {
   try {
-    const fields = ['title','description','edital_number','edital_url','modality','opening_date','deadline_date','result_date','estimated_value','entity_name','entity_cnpj','entity_contact','entity_phone','entity_email','assigned_to','stage_id','status','notes','sort_order','contact_id','contact_name','contact_phone'];
+    const fields = ['title','description','edital_number','edital_url','modality','opening_date','deadline_date','result_date','estimated_value','entity_name','entity_cnpj','entity_contact','entity_phone','entity_email','assigned_to','stage_id','status','notes','sort_order','contact_id','contact_name','contact_phone','deal_id'];
     const sets = []; const vals = []; let i = 1;
     for (const f of fields) {
       if (req.body[f] !== undefined) { sets.push(`${f}=$${i++}`); vals.push(req.body[f]); }
