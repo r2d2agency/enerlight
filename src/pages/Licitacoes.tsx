@@ -338,7 +338,43 @@ export default function Licitacoes() {
     } catch (e: any) { toast({ title: "Erro", description: e.message, variant: "destructive" }); }
   };
 
-  const handleDelete = async () => {
+  const handleChangeStatus = async (status: string) => {
+    if (!selectedItemId) return;
+    try {
+      await updateItem.mutateAsync({ id: selectedItemId, status });
+      toast({ title: status === "won" ? "Licitação ganha! 🎉" : status === "lost" ? "Licitação perdida" : "Status atualizado" });
+    } catch (e: any) { toast({ title: "Erro", description: e.message, variant: "destructive" }); }
+  };
+
+  const handleCreateDeal = async () => {
+    if (!selectedItemId || !dealForm.funnel_id || !dealForm.company_id) return;
+    try {
+      await createDealFromLicitacao.mutateAsync({
+        licitacaoId: selectedItemId,
+        funnel_id: dealForm.funnel_id,
+        company_id: dealForm.company_id,
+        title: dealForm.title || undefined,
+        value: dealForm.value ? Number(dealForm.value) : undefined,
+      });
+      setDealForm({ funnel_id: "", company_id: "", title: "", value: "" });
+      setShowCreateDealDialog(false);
+      toast({ title: "Negociação CRM criada e vinculada!" });
+    } catch (e: any) { toast({ title: "Erro", description: e.message, variant: "destructive" }); }
+  };
+
+  const openCreateDealDialog = () => {
+    if (selectedItem) {
+      setDealForm({
+        funnel_id: "",
+        company_id: "",
+        title: selectedItem.title,
+        value: String(selectedItem.estimated_value || ""),
+      });
+    }
+    setShowCreateDealDialog(true);
+  };
+
+
     if (!deleteConfirm) return;
     try {
       if (deleteConfirm.type === "board") await deleteBoard.mutateAsync(deleteConfirm.id);
