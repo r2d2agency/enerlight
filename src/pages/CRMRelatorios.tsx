@@ -187,11 +187,10 @@ export default function CRMRelatorios() {
           </div>
 
           {/* Filters */}
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Date Range */}
+          <div className="flex flex-wrap items-center gap-2">
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" className="justify-start text-left font-normal">
+                <Button variant="outline" className="w-full sm:w-auto justify-start text-left font-normal text-sm">
                   <CalendarIcon className="mr-2 h-4 w-4" />
                   {dateRange?.from ? (
                     dateRange.to ? (
@@ -232,9 +231,8 @@ export default function CRMRelatorios() {
               </PopoverContent>
             </Popover>
 
-            {/* Funnel Filter */}
             <Select value={selectedFunnel} onValueChange={setSelectedFunnel}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue placeholder="Todos os funis" />
               </SelectTrigger>
               <SelectContent>
@@ -247,9 +245,8 @@ export default function CRMRelatorios() {
               </SelectContent>
             </Select>
 
-            {/* User Filter */}
             <Select value={filterUserId} onValueChange={setFilterUserId}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue placeholder="Todos usuários" />
               </SelectTrigger>
               <SelectContent>
@@ -260,9 +257,8 @@ export default function CRMRelatorios() {
               </SelectContent>
             </Select>
 
-            {/* Group By */}
             <Select value={groupBy} onValueChange={(v) => setGroupBy(v as typeof groupBy)}>
-              <SelectTrigger className="w-[140px]">
+              <SelectTrigger className="w-full sm:w-[140px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -281,52 +277,52 @@ export default function CRMRelatorios() {
         ) : (
           <>
             {/* KPI Cards - Row 1: Orçamentos, Pedidos, Faturamento (from imported spreadsheets) */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <Card className="border-blue-200 dark:border-blue-800">
-                <CardContent className="pt-6">
+                <CardContent className="pt-4 px-3 sm:pt-6 sm:px-6">
                   <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Orçamentos</p>
-                      <p className="text-2xl font-bold text-blue-600">{formatCurrency(gd.orcamento.value)}</p>
-                      <p className="text-sm text-muted-foreground">{gd.orcamento.count} orçamentos</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs sm:text-sm text-muted-foreground">Orçamentos</p>
+                      <p className="text-lg sm:text-2xl font-bold text-blue-600 truncate">{formatCurrency(gd.orcamento.value)}</p>
+                      <p className="text-xs text-muted-foreground">{gd.orcamento.count} orçamentos</p>
                     </div>
-                    <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center">
-                      <FileSpreadsheet className="h-6 w-6 text-blue-600" />
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0 ml-2">
+                      <FileSpreadsheet className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
               <Card className="border-green-200 dark:border-green-800">
-                <CardContent className="pt-6">
+                <CardContent className="pt-4 px-3 sm:pt-6 sm:px-6">
                   <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Pedidos</p>
-                      <p className="text-2xl font-bold text-green-600">{formatCurrency(gd.pedido.value)}</p>
-                      <p className="text-sm text-muted-foreground">{gd.pedido.count} pedidos</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs sm:text-sm text-muted-foreground">Pedidos</p>
+                      <p className="text-lg sm:text-2xl font-bold text-green-600 truncate">{formatCurrency(gd.pedido.value)}</p>
+                      <p className="text-xs text-muted-foreground">{gd.pedido.count} pedidos</p>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {gd.orcamento.count > 0
                           ? `${((gd.pedido.count / gd.orcamento.count) * 100).toFixed(0)}% conversão`
                           : "—"}
                       </p>
                     </div>
-                    <div className="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center">
-                      <ShoppingCart className="h-6 w-6 text-green-600" />
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-green-500/10 flex items-center justify-center shrink-0 ml-2">
+                      <ShoppingCart className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
               <Card className="border-amber-200 dark:border-amber-800">
-                <CardContent className="pt-6">
+                <CardContent className="pt-4 px-3 sm:pt-6 sm:px-6">
                   <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Faturamento</p>
-                      <p className="text-2xl font-bold text-amber-600">{formatCurrency(gd.faturamento.value)}</p>
-                      <p className="text-sm text-muted-foreground">{gd.faturamento.count} notas</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs sm:text-sm text-muted-foreground">Faturamento</p>
+                      <p className="text-lg sm:text-2xl font-bold text-amber-600 truncate">{formatCurrency(gd.faturamento.value)}</p>
+                      <p className="text-xs text-muted-foreground">{gd.faturamento.count} notas</p>
                     </div>
-                    <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center">
-                      <DollarSign className="h-6 w-6 text-amber-600" />
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0 ml-2">
+                      <DollarSign className="h-5 w-5 sm:h-6 sm:w-6 text-amber-600" />
                     </div>
                   </div>
                 </CardContent>
@@ -334,32 +330,32 @@ export default function CRMRelatorios() {
             </div>
 
             {/* KPI Cards - Row 2: Negociações */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <Card>
-                <CardContent className="pt-6">
-                  <p className="text-sm text-muted-foreground">Negociações</p>
-                  <p className="text-2xl font-bold">{summary.open.count + summary.won.count + summary.lost.count}</p>
-                  <p className="text-xs text-muted-foreground">{formatCurrency(summary.totalValue)}</p>
+                <CardContent className="pt-4 px-3 sm:pt-6 sm:px-6">
+                  <p className="text-xs sm:text-sm text-muted-foreground">Negociações</p>
+                  <p className="text-lg sm:text-2xl font-bold">{summary.open.count + summary.won.count + summary.lost.count}</p>
+                  <p className="text-xs text-muted-foreground truncate">{formatCurrency(summary.totalValue)}</p>
                 </CardContent>
               </Card>
               <Card>
-                <CardContent className="pt-6">
-                  <p className="text-sm text-muted-foreground">Ganhas</p>
-                  <p className="text-2xl font-bold text-green-600">{summary.won.count}</p>
-                  <p className="text-xs text-green-600">{formatCurrency(summary.won.value)}</p>
+                <CardContent className="pt-4 px-3 sm:pt-6 sm:px-6">
+                  <p className="text-xs sm:text-sm text-muted-foreground">Ganhas</p>
+                  <p className="text-lg sm:text-2xl font-bold text-green-600">{summary.won.count}</p>
+                  <p className="text-xs text-green-600 truncate">{formatCurrency(summary.won.value)}</p>
                 </CardContent>
               </Card>
               <Card>
-                <CardContent className="pt-6">
-                  <p className="text-sm text-muted-foreground">Perdidas</p>
-                  <p className="text-2xl font-bold text-red-600">{summary.lost.count}</p>
-                  <p className="text-xs text-red-600">{formatCurrency(summary.lost.value)}</p>
+                <CardContent className="pt-4 px-3 sm:pt-6 sm:px-6">
+                  <p className="text-xs sm:text-sm text-muted-foreground">Perdidas</p>
+                  <p className="text-lg sm:text-2xl font-bold text-red-600">{summary.lost.count}</p>
+                  <p className="text-xs text-red-600 truncate">{formatCurrency(summary.lost.value)}</p>
                 </CardContent>
               </Card>
               <Card>
-                <CardContent className="pt-6">
-                  <p className="text-sm text-muted-foreground">Taxa Conversão</p>
-                  <p className="text-2xl font-bold">{summary.winRate}%</p>
+                <CardContent className="pt-4 px-3 sm:pt-6 sm:px-6">
+                  <p className="text-xs sm:text-sm text-muted-foreground">Taxa Conversão</p>
+                  <p className="text-lg sm:text-2xl font-bold">{summary.winRate}%</p>
                 </CardContent>
               </Card>
             </div>

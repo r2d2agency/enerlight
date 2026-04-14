@@ -265,13 +265,13 @@ export default function CRMMetas() {
           </TabsList>
 
           {/* Filters - shared */}
-          <div className="flex flex-wrap items-center gap-3 mt-4">
-            <CalendarDays className="h-4 w-4 text-muted-foreground" />
-            <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-40" />
+          <div className="flex flex-wrap items-center gap-2 mt-4">
+            <CalendarDays className="h-4 w-4 text-muted-foreground hidden sm:block" />
+            <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full sm:w-40" />
             <span className="text-sm text-muted-foreground">até</span>
-            <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-40" />
+            <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full sm:w-40" />
             <Select value={filterUserId} onValueChange={setFilterUserId}>
-              <SelectTrigger className="w-[180px]"><SelectValue placeholder="Todos" /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Todos" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos usuários</SelectItem>
                 {user && <SelectItem value={user.id}>{user.name} (Eu)</SelectItem>}
@@ -279,7 +279,7 @@ export default function CRMMetas() {
               </SelectContent>
             </Select>
             <Select value={filterChannel} onValueChange={setFilterChannel}>
-              <SelectTrigger className="w-[180px]"><SelectValue placeholder="Todos canais" /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Todos canais" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos canais</SelectItem>
                 {availableChannels?.map(ch => (
@@ -289,7 +289,7 @@ export default function CRMMetas() {
             </Select>
             {groups && groups.length > 0 && (
               <Select value={filterGroupId} onValueChange={setFilterGroupId}>
-                <SelectTrigger className="w-[180px]"><SelectValue placeholder="Todos grupos" /></SelectTrigger>
+                <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Todos grupos" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos grupos</SelectItem>
                   {groups.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
@@ -297,7 +297,7 @@ export default function CRMMetas() {
               </Select>
             )}
             <Select value={filterPeriod} onValueChange={handlePeriodChange}>
-              <SelectTrigger className="w-[130px]"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-[130px]"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="daily">Diário</SelectItem>
                 <SelectItem value="weekly">Semanal</SelectItem>
@@ -313,32 +313,32 @@ export default function CRMMetas() {
             ) : (
               <>
                 {/* KPI Summary Cards - ONLY from imported data */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <Card className="border-l-4 border-l-blue-500">
-                    <CardContent className="pt-4">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><FileText className="h-4 w-4" /> Orçamentos</div>
-                      <p className="text-2xl font-bold text-blue-600">{fmt(gd.orcamento.value)}</p>
+                    <CardContent className="pt-4 px-3">
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1"><FileText className="h-3.5 w-3.5 shrink-0" /> Orçamentos</div>
+                      <p className="text-lg sm:text-2xl font-bold text-blue-600 truncate">{fmt(gd.orcamento.value)}</p>
                       <p className="text-xs text-muted-foreground">{gd.orcamento.count} orçamentos</p>
                     </CardContent>
                   </Card>
                   <Card className="border-l-4 border-l-green-500">
-                    <CardContent className="pt-4">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><ShoppingCart className="h-4 w-4" /> Pedidos</div>
-                      <p className="text-2xl font-bold text-green-600">{fmt(gd.pedido.value)}</p>
+                    <CardContent className="pt-4 px-3">
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1"><ShoppingCart className="h-3.5 w-3.5 shrink-0" /> Pedidos</div>
+                      <p className="text-lg sm:text-2xl font-bold text-green-600 truncate">{fmt(gd.pedido.value)}</p>
                       <p className="text-xs text-muted-foreground">{gd.pedido.count} pedidos</p>
                     </CardContent>
                   </Card>
                   <Card className="border-l-4 border-l-amber-500">
-                    <CardContent className="pt-4">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><Receipt className="h-4 w-4" /> Faturamento</div>
-                      <p className="text-2xl font-bold text-amber-600">{fmt(gd.faturamento.value)}</p>
+                    <CardContent className="pt-4 px-3">
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1"><Receipt className="h-3.5 w-3.5 shrink-0" /> Faturamento</div>
+                      <p className="text-lg sm:text-2xl font-bold text-amber-600 truncate">{fmt(gd.faturamento.value)}</p>
                       <p className="text-xs text-muted-foreground">{gd.faturamento.count} notas</p>
                     </CardContent>
                   </Card>
                   <Card className="border-l-4 border-l-purple-500">
-                    <CardContent className="pt-4">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><Target className="h-4 w-4" /> Conversão</div>
-                      <p className="text-2xl font-bold text-purple-600">
+                    <CardContent className="pt-4 px-3">
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1"><Target className="h-3.5 w-3.5 shrink-0" /> Conversão</div>
+                      <p className="text-lg sm:text-2xl font-bold text-purple-600">
                         {gd.orcamento.count > 0 ? ((gd.pedido.count / gd.orcamento.count) * 100).toFixed(0) : 0}%
                       </p>
                       <p className="text-xs text-muted-foreground">Pedidos / Orçamentos</p>
