@@ -733,6 +733,58 @@ export default function Licitacoes() {
                     )}
                     {selectedItem.description && <div><Label className="text-xs text-muted-foreground">Descrição</Label><p className="text-sm whitespace-pre-wrap">{selectedItem.description}</p></div>}
                     {selectedItem.notes && <div><Label className="text-xs text-muted-foreground">Observações</Label><p className="text-sm whitespace-pre-wrap">{selectedItem.notes}</p></div>}
+                    {/* Status Section */}
+                    <div className="border rounded-lg p-3 space-y-3">
+                      <p className="text-sm font-medium flex items-center gap-1.5">
+                        <Briefcase className="h-4 w-4" /> Status da Licitação
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={selectedItem.status === "won" ? "default" : selectedItem.status === "lost" ? "destructive" : "secondary"} className={cn(
+                          "text-xs",
+                          selectedItem.status === "won" && "bg-green-600 hover:bg-green-700",
+                        )}>
+                          {selectedItem.status === "won" ? "Ganha" : selectedItem.status === "lost" ? "Perdida" : selectedItem.status === "canceled" ? "Cancelada" : "Aberta"}
+                        </Badge>
+                        {selectedItem.status === "open" && (
+                          <div className="flex gap-1.5 ml-auto">
+                            <Button size="sm" variant="outline" className="text-green-600 border-green-600 hover:bg-green-50 dark:hover:bg-green-950" onClick={() => handleChangeStatus("won")}>
+                              <Trophy className="h-4 w-4 mr-1" /> Ganhou
+                            </Button>
+                            <Button size="sm" variant="outline" className="text-destructive border-destructive hover:bg-destructive/10" onClick={() => handleChangeStatus("lost")}>
+                              <XCircle className="h-4 w-4 mr-1" /> Perdeu
+                            </Button>
+                          </div>
+                        )}
+                        {(selectedItem.status === "won" || selectedItem.status === "lost") && (
+                          <Button size="sm" variant="ghost" className="ml-auto text-xs" onClick={() => handleChangeStatus("open")}>
+                            Reabrir
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Deal Link Section */}
+                    <div className="border rounded-lg p-3 space-y-2">
+                      <p className="text-sm font-medium flex items-center gap-1.5">
+                        <Link2 className="h-4 w-4" /> Negociação CRM
+                      </p>
+                      {selectedItem.linked_deal_id ? (
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-xs">Vinculada</Badge>
+                          <Button size="sm" variant="outline" onClick={() => {
+                            setShowDetailDialog(false);
+                            navigate(`/crm/negociacoes?deal=${selectedItem.linked_deal_id}`);
+                          }}>
+                            <ExternalLink className="h-3.5 w-3.5 mr-1" /> Abrir Negociação
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button size="sm" variant="outline" onClick={openCreateDealDialog}>
+                          <Plus className="h-4 w-4 mr-1" /> Criar Negociação
+                        </Button>
+                      )}
+                    </div>
+
                     <div className="flex gap-2 pt-2">
                       <Button variant="outline" size="sm" onClick={handleStartEdit}><Edit className="h-4 w-4 mr-1" /> Editar</Button>
                       <Button variant="destructive" size="sm" onClick={() => setDeleteConfirm({ type: "item", id: selectedItem.id, name: selectedItem.title })}><Trash2 className="h-4 w-4 mr-1" /> Excluir</Button>
