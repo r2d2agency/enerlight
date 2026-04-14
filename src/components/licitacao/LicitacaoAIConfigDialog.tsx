@@ -391,7 +391,7 @@ export function LicitacaoAIConfigDialog({ open, onOpenChange }: Props) {
                     <Button size="sm" variant="ghost" onClick={() => setShowImport(false)}>Cancelar</Button>
                   </div>
                 </div>
-              )
+              )}
 
               {showProductForm && (
                 <div className="border rounded-lg p-3 space-y-3 bg-muted/30">
