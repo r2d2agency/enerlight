@@ -447,11 +447,10 @@ router.post('/parse-edital', requireAuth, async (req, res) => {
         if (!response.ok) throw new Error('Falha ao baixar arquivo');
         const contentType = response.headers.get('content-type') || '';
         
-        if (contentType.includes('application/pdf')) {
-          // For PDF, get as buffer and extract text
+        if (contentType.includes('application/pdf') || edital_url.endsWith('.pdf')) {
           const buffer = await response.arrayBuffer();
-          const pdfParse = (await import('pdf-parse')).default;
-          const pdfData = await pdfParse(Buffer.from(buffer));
+          const pdfData = await pdf(Buffer.from(buffer));
+          textContent = pdfData.text;
           textContent = pdfData.text;
         } else if (contentType.includes('text') || contentType.includes('html')) {
           textContent = await response.text();
