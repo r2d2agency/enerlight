@@ -489,42 +489,72 @@ router.post('/parse-edital', requireAuth, async (req, res) => {
     );
     const productsContext = productsRes.rows.map(r => r.content).join('\n---\n');
 
-    const systemPrompt = `Você é um especialista em licitações públicas brasileiras. Analise o texto do edital e extraia as informações estruturadas em JSON.
+    const responseTemplate = {
+      title: 'Pregão Eletrônico nº 001/2025 - Aquisição de materiais',
+      edital_number: '001/2025',
+      modality: 'Pregão Eletrônico',
+      opening_date: '2025-01-15',
+      deadline_date: '2025-01-14',
+      result_date: null,
+      estimated_value: 0,
+      entity_name: 'Prefeitura Municipal de Exemplo',
+      entity_cnpj: null,
+      entity_contact: null,
+      entity_phone: null,
+      entity_email: null,
+      description: 'Objeto resumido da licitação',
+      notes: 'Informações importantes extraídas do edital',
+      checklist_items: ['Documento obrigatório 1'],
+      tasks: [
+        {
+          title: 'Separar documentação obrigatória',
+          description: 'Reunir os documentos exigidos no edital',
+          priority: 'high',
+          due_date: null,
+        },
+      ],
+      summary: 'Resumo executivo do edital',
+      edital_items: [
+        {
+          item_number: '1',
+          description: 'Descrição do item',
+          quantity: '10',
+          unit: 'UN',
+          estimated_value: '1000.00',
+        },
+      ],
+    };
 
-Retorne EXATAMENTE este formato JSON:
-{
-  "title": "título descritivo da licitação (ex: Pregão Eletrônico nº 001/2025 - Aquisição de...)",
-  "edital_number": "número do edital (ex: 001/2025)",
-  "modality": "modalidade (deve ser uma destas: Pregão Eletrônico, Pregão Presencial, Concorrência, Tomada de Preços, Convite, Leilão, Concurso, Dispensa, Inexigibilidade, RDC, Outro)",
-  "opening_date": "data de abertura no formato YYYY-MM-DD ou null",
-  "deadline_date": "data limite/prazo no formato YYYY-MM-DD ou null",
-  "result_date": "data do resultado no formato YYYY-MM-DD ou null",
-  "estimated_value": número do valor estimado ou 0,
-  "entity_name": "nome do órgão/entidade/prefeitura",
-  "entity_cnpj": "CNPJ do órgão se disponível ou null",
-  "entity_contact": "nome do contato/pregoeiro se disponível ou null",
-  "entity_phone": "telefone do órgão se disponível ou null",
-  "entity_email": "email do órgão se disponível ou null",
-  "description": "descrição/objeto da licitação",
-  "notes": "informações importantes extraídas (local de entrega, condições, etc)",
-  "checklist_items": ["documento obrigatório 1", "documento obrigatório 2", ...],
-  "tasks": [
-    { "title": "tarefa sugerida", "description": "detalhes", "priority": "high/medium/low", "due_date": "YYYY-MM-DD ou null" }
-  ],
-  "summary": "resumo executivo do edital",
-  "edital_items": [
-    { "item_number": "1", "description": "descrição do item", "quantity": "10", "unit": "UN", "estimated_value": "1000.00" }
-  ]${productsContext ? `,
-  "product_matches": [
-    { "edital_item": "item do edital", "product_name": "produto da empresa", "match_level": "total/parcial/não atende", "notes": "observações" }
-  ],
-  "compliance_score": 0-100,
-  "compliance_analysis": "análise de conformidade detalhada"` : ''}
-}
+    if (productsContext) {
+      responseTemplate.product_matches = [
+        {
+          edital_item: 'Item 1',
+          product_name: 'Produto Exemplo',
+          match_level: 'parcial',
+          notes: 'Compatibilidade parcial com o catálogo da empresa',
+        },
+      ];
+      responseTemplate.compliance_score = 0;
+      responseTemplate.compliance_analysis = 'Análise de conformidade detalhada';
+    }
 
-${productsContext ? `\nPRODUTOS E SERVIÇOS DA EMPRESA:\n${productsContext}` : ''}
+    const systemPrompt = `Você é um especialista em licitações públicas brasileiras. Analise o texto do edital e extraia as informações estruturadas em um único objeto JSON válido.
 
-IMPORTANTE: Retorne APENAS o JSON, sem markdown, sem \`\`\`json, sem texto extra.`;
+MODELO JSON VÁLIDO:
+${JSON.stringify(responseTemplate, null, 2)}
+
+${productsContext ? `PRODUTOS E SERVIÇOS DA EMPRESA:\n${productsContext}\n` : ''}
+REGRAS OBRIGATÓRIAS:
+- Retorne APENAS um objeto JSON válido.
+- Use sempre aspas duplas em chaves e strings.
+- Use null quando a informação não estiver disponível.
+- Nunca use undefined, comentários, markdown, blocos \`\`\`, ou texto antes/depois do JSON.
+- compliance_score deve ser um único número inteiro entre 0 e 100.
+- estimated_value deve ser número no campo principal e string numérica em edital_items. Nunca use R$, pontos de milhar ou intervalos como 0-100.
+- opening_date, deadline_date e result_date devem estar em YYYY-MM-DD ou null.
+- priority deve ser exatamente high, medium ou low.
+- match_level deve ser exatamente total, parcial ou não atende.
+- checklist_items, tasks e edital_items devem ser arrays; se não houver dados, retorne arrays vazios.`;
 
     const messages = [
       { role: 'system', content: systemPrompt },
@@ -541,7 +571,10 @@ IMPORTANTE: Retorne APENAS o JSON, sem markdown, sem \`\`\`json, sem texto extra
     try {
       parsed = extractJsonFromResponse(result.content);
     } catch (parseErr) {
-      logError('licitacao_ai.parse_json_error', { error: parseErr.message, contentPreview: result.content?.substring(0, 500) });
+      logError('licitacao_ai.parse_json_error', {
+        error: parseErr.message,
+        contentPreview: result.content?.substring(0, 500),
+      });
       throw new Error('Resposta da IA não é JSON válido. Tente novamente ou reduza o tamanho do edital.');
     }
 
@@ -555,61 +588,199 @@ IMPORTANTE: Retorne APENAS o JSON, sem markdown, sem \`\`\`json, sem texto extra
 // ===================== HELPERS =====================
 
 function extractJsonFromResponse(response) {
-  if (!response || typeof response !== 'string') throw new Error('Empty AI response');
-  
-  // Remove markdown code blocks
-  let cleaned = response
+  if (response == null) throw new Error('Empty AI response');
+
+  const normalized = String(response)
+    .replace(/^\uFEFF/, '')
     .replace(/```json\s*/gi, '')
     .replace(/```\s*/g, '')
     .trim();
 
-  // Find JSON boundaries
-  const jsonStart = cleaned.search(/[\{\[]/);
-  if (jsonStart === -1) throw new Error('No JSON found in response');
-  
-  const startChar = cleaned[jsonStart];
-  const endChar = startChar === '[' ? ']' : '}';
-  const jsonEnd = cleaned.lastIndexOf(endChar);
-  if (jsonEnd === -1) throw new Error('No closing JSON bracket found');
+  if (!normalized) throw new Error('Empty AI response after cleanup');
 
-  cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
+  const candidates = [normalized];
 
-  // Try direct parse first
   try {
-    return JSON.parse(cleaned);
-  } catch (_) {
-    // Fix common issues
-    cleaned = cleaned
-      .replace(/,\s*}/g, '}')
-      .replace(/,\s*]/g, ']')
-      .replace(/[\x00-\x1F\x7F]/g, ' ')  // control characters
-      .replace(/\n/g, '\\n')  // unescaped newlines in strings
-      .replace(/\r/g, '\\r');
+    const balanced = extractBalancedJson(normalized);
+    if (balanced && balanced !== normalized) candidates.push(balanced);
+    candidates.push(repairJsonCandidate(balanced || normalized));
+  } catch (error) {
+    candidates.push(repairJsonCandidate(normalized));
+    logInfo('licitacao_ai.json_extract_fallback', { error: error.message });
+  }
 
+  let lastError = null;
+  for (const candidate of candidates) {
+    if (!candidate) continue;
     try {
-      return JSON.parse(cleaned);
-    } catch (_) {
-      // Try to repair truncated JSON by closing open braces/brackets
-      let repaired = cleaned;
-      const openBraces = (repaired.match(/{/g) || []).length;
-      const closeBraces = (repaired.match(/}/g) || []).length;
-      const openBrackets = (repaired.match(/\[/g) || []).length;
-      const closeBrackets = (repaired.match(/]/g) || []).length;
+      return JSON.parse(candidate);
+    } catch (error) {
+      lastError = error;
+    }
+  }
 
-      // Remove trailing comma if present
-      repaired = repaired.replace(/,\s*$/, '');
+  throw new Error(`Failed to parse AI response as JSON: ${lastError?.message || 'unknown error'}`);
+}
 
-      // Close unclosed brackets/braces
-      for (let i = 0; i < openBrackets - closeBrackets; i++) repaired += ']';
-      for (let i = 0; i < openBraces - closeBraces; i++) repaired += '}';
+function extractBalancedJson(text) {
+  const start = text.search(/[\{\[]/);
+  if (start === -1) throw new Error('No JSON found in response');
 
-      try {
-        return JSON.parse(repaired);
-      } catch (finalErr) {
-        throw new Error(`Failed to parse AI response as JSON: ${finalErr.message}`);
+  const stack = [];
+  let inString = false;
+  let escaped = false;
+  let end = -1;
+
+  for (let i = start; i < text.length; i++) {
+    const char = text[i];
+
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (char === '\\') {
+        escaped = true;
+        continue;
+      }
+      if (char === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === '"') {
+      inString = true;
+      continue;
+    }
+
+    if (char === '{' || char === '[') {
+      stack.push(char);
+      continue;
+    }
+
+    if (char === '}' || char === ']') {
+      const last = stack[stack.length - 1];
+      if ((char === '}' && last === '{') || (char === ']' && last === '[')) {
+        stack.pop();
+        if (stack.length === 0) {
+          end = i;
+          break;
+        }
       }
     }
   }
+
+  return end === -1 ? text.slice(start) : text.slice(start, end + 1);
+}
+
+function repairJsonCandidate(candidate) {
+  let repaired = escapeJsonStringControlChars(candidate)
+    .replace(/,\s*([}\]])/g, '$1')
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '');
+
+  const stack = [];
+  let inString = false;
+  let escaped = false;
+
+  for (let i = 0; i < repaired.length; i++) {
+    const char = repaired[i];
+
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (char === '\\') {
+        escaped = true;
+        continue;
+      }
+      if (char === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === '"') {
+      inString = true;
+      continue;
+    }
+
+    if (char === '{' || char === '[') {
+      stack.push(char);
+      continue;
+    }
+
+    if (char === '}' || char === ']') {
+      const last = stack[stack.length - 1];
+      if ((char === '}' && last === '{') || (char === ']' && last === '[')) {
+        stack.pop();
+      }
+    }
+  }
+
+  if (escaped) {
+    repaired = repaired.slice(0, -1);
+  }
+  if (inString) {
+    repaired += '"';
+  }
+
+  repaired = repaired.replace(/,\s*$/, '');
+
+  while (stack.length) {
+    const opener = stack.pop();
+    repaired += opener === '{' ? '}' : ']';
+  }
+
+  return repaired;
+}
+
+function escapeJsonStringControlChars(text) {
+  let output = '';
+  let inString = false;
+  let escaped = false;
+
+  for (const char of text) {
+    if (inString) {
+      if (escaped) {
+        output += char;
+        escaped = false;
+        continue;
+      }
+      if (char === '\\') {
+        output += char;
+        escaped = true;
+        continue;
+      }
+      if (char === '"') {
+        output += char;
+        inString = false;
+        continue;
+      }
+      if (char === '\n') {
+        output += '\\n';
+        continue;
+      }
+      if (char === '\r') {
+        output += '\\r';
+        continue;
+      }
+      if (char === '\t') {
+        output += '\\t';
+        continue;
+      }
+      output += char;
+      continue;
+    }
+
+    if (char === '"') {
+      inString = true;
+    }
+    output += char;
+  }
+
+  return output;
 }
 
 function buildProductChunk(product) {
