@@ -109,10 +109,29 @@ export function DailyEvolutionChart({ startDate, endDate, filterUserId, filterCh
         faturamento: accFat,
       };
     });
-  }, [dailyData, startDate, endDate]);
+  }, [dailyData, effStart, effEnd]);
 
   if (isLoading) return <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
-  if (!chartData.length) return null;
+  if (!chartData.length && !isLoading) return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <TrendingUp className="h-4 w-4" />
+          Evolução Acumulada no Período
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="flex flex-wrap gap-1 mb-4">
+          {PERIOD_OPTIONS.map(o => (
+            <Button key={o.key} size="sm" variant={period === o.key ? "default" : "outline"} onClick={() => setPeriod(o.key)} className="text-xs h-7">
+              {o.label}
+            </Button>
+          ))}
+        </div>
+        <p className="text-sm text-muted-foreground text-center py-8">Nenhum dado encontrado para o período selecionado.</p>
+      </CardContent>
+    </Card>
+  );
 
   return (
     <Card>
