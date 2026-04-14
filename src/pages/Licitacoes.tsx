@@ -452,9 +452,38 @@ export default function Licitacoes() {
         addLog(`✅ ${parsed.tasks.length} tarefas criadas`);
       }
 
+      // Save AI analysis record so the AI tab shows data immediately
+      if (newItem?.id) {
+        try {
+          await saveAIAnalysis.mutateAsync({
+            licitacaoId: newItem.id,
+            summary: parsed.summary,
+            dates_extracted: parsed.edital_items ? undefined : undefined,
+            required_documents: parsed.checklist_items,
+            edital_items: parsed.edital_items,
+            product_matches: parsed.product_matches,
+            compliance_analysis: parsed.compliance_analysis,
+            compliance_score: parsed.compliance_score,
+            risk_assessment: undefined,
+            recommendations: undefined,
+          });
+          addLog("✅ Análise da IA salva no card");
+        } catch (saveErr) {
+          console.error("Erro ao salvar análise:", saveErr);
+        }
+      }
+
       setStep("creating", "done", "Licitação criada na primeira etapa!");
       addLog("🎉 Licitação criada com sucesso na primeira etapa do quadro!");
       resetItemForm();
+
+      // Auto-open detail dialog on AI tab
+      if (newItem?.id) {
+        setSelectedItemId(newItem.id);
+        setDetailDefaultTab("ai");
+        setShowAIProgress(false);
+        setShowDetailDialog(true);
+      }
 
     } catch (e: any) {
       const errorMsg = e.message || "Erro desconhecido";
