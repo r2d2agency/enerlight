@@ -165,3 +165,15 @@ export function useParseEdital() {
       api<ParsedEditalData>("/api/licitacao-ai/parse-edital", { method: "POST", body: data }),
   });
 }
+
+export function useSaveAIAnalysis() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ licitacaoId, ...data }: { licitacaoId: string; [key: string]: any }) =>
+      api<any>(`/api/licitacao-ai/save-analysis/${licitacaoId}`, { method: "POST", body: data }),
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ["licitacao-ai-analysis", vars.licitacaoId] });
+      qc.invalidateQueries({ queryKey: ["licitacao-history"] });
+    },
+  });
+}

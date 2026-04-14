@@ -36,7 +36,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { LicitacaoKanban } from "@/components/licitacao/LicitacaoKanban";
 import { LicitacaoAIConfigDialog } from "@/components/licitacao/LicitacaoAIConfigDialog";
 import { LicitacaoAIAnalysis as LicitacaoAIAnalysisPanel } from "@/components/licitacao/LicitacaoAIAnalysisPanel";
-import { useParseEdital, type ParsedEditalData } from "@/hooks/use-licitacao-ai";
+import { useParseEdital, useSaveAIAnalysis, type ParsedEditalData } from "@/hooks/use-licitacao-ai";
 import { AIAnalysisProgressDialog, AI_STEPS, type AIAnalysisStep } from "@/components/licitacao/AIAnalysisProgressDialog";
 
 const MODALITIES = [
@@ -224,6 +224,8 @@ export default function Licitacoes() {
   const deleteNote = useDeleteLicitacaoNote();
   const createDealFromLicitacao = useCreateDealFromLicitacao();
   const parseEdital = useParseEdital();
+  const saveAIAnalysis = useSaveAIAnalysis();
+  const [detailDefaultTab, setDetailDefaultTab] = useState("info");
   const itemsByStage = useMemo(() => {
     const map: Record<string, Licitacao[]> = {};
     stages.forEach(s => { map[s.id] = []; });
@@ -450,9 +452,38 @@ export default function Licitacoes() {
         addLog(`✅ ${parsed.tasks.length} tarefas criadas`);
       }
 
+      // Save AI analysis record so the AI tab shows data immediately
+      if (newItem?.id) {
+        try {
+          await saveAIAnalysis.mutateAsync({
+            licitacaoId: newItem.id,
+            summary: parsed.summary,
+            dates_extracted: parsed.edital_items ? undefined : undefined,
+            required_documents: parsed.checklist_items,
+            edital_items: parsed.edital_items,
+            product_matches: parsed.product_matches,
+            compliance_analysis: parsed.compliance_analysis,
+            compliance_score: parsed.compliance_score,
+            risk_assessment: undefined,
+            recommendations: undefined,
+          });
+          addLog("✅ Análise da IA salva no card");
+        } catch (saveErr) {
+          console.error("Erro ao salvar análise:", saveErr);
+        }
+      }
+
       setStep("creating", "done", "Licitação criada na primeira etapa!");
       addLog("🎉 Licitação criada com sucesso na primeira etapa do quadro!");
       resetItemForm();
+
+      // Auto-open detail dialog on AI tab
+      if (newItem?.id) {
+        setSelectedItemId(newItem.id);
+        setDetailDefaultTab("ai");
+        setShowAIProgress(false);
+        setShowDetailDialog(true);
+      }
 
     } catch (e: any) {
       const errorMsg = e.message || "Erro desconhecido";
@@ -919,7 +950,7 @@ export default function Licitacoes() {
       </Dialog>
 
       {/* Detail Dialog */}
-      <Dialog open={showDetailDialog} onOpenChange={v => { setShowDetailDialog(v); if (!v) { setSelectedItemId(null); setEditMode(false); } }}>
+      <Dialog open={showDetailDialog} onOpenChange={v => { setShowDetailDialog(v); if (!v) { setSelectedItemId(null); setEditMode(false); setDetailDefaultTab("info"); } }}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -928,7 +959,7 @@ export default function Licitacoes() {
             </DialogTitle>
           </DialogHeader>
           {selectedItem && (
-            <Tabs defaultValue="info" className="mt-2">
+            <Tabs defaultValue={detailDefaultTab} key={detailDefaultTab} className="mt-2">
               <TabsList className="w-full flex flex-wrap h-auto gap-1">
                 <TabsTrigger value="info" className="text-xs">Info</TabsTrigger>
                 <TabsTrigger value="ai" className="text-xs"><Sparkles className="h-3 w-3 mr-1" /> IA</TabsTrigger>

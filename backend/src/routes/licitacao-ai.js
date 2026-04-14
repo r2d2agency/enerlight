@@ -585,6 +585,60 @@ REGRAS OBRIGATÓRIAS:
   }
 });
 
+// ===================== SAVE PRE-PARSED ANALYSIS =====================
+
+router.post('/save-analysis/:licitacaoId', requireAuth, async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+
+    const { licitacaoId } = req.params;
+    const data = req.body;
+
+    // Delete any existing analysis for this licitacao
+    await query('DELETE FROM licitacao_ai_analyses WHERE licitacao_id=$1', [licitacaoId]);
+
+    // Insert the pre-parsed analysis as completed
+    const analysisRes = await query(
+      `INSERT INTO licitacao_ai_analyses (
+        licitacao_id, organization_id, status, 
+        summary, dates_extracted, required_documents, edital_items,
+        product_matches, compliance_analysis, compliance_score,
+        risk_assessment, recommendations, tokens_used, model_used,
+        analyzed_by
+      ) VALUES ($1,$2,'completed',$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
+      [
+        licitacaoId,
+        org.organization_id,
+        data.summary || '',
+        JSON.stringify(data.dates_extracted || data.dates || []),
+        JSON.stringify(data.required_documents || data.checklist_items || []),
+        JSON.stringify(data.edital_items || []),
+        JSON.stringify(data.product_matches || []),
+        data.compliance_analysis || '',
+        data.compliance_score || 0,
+        data.risk_assessment || '',
+        data.recommendations || '',
+        0,
+        'parse-edital',
+        req.userId,
+      ]
+    );
+
+    // Add history
+    const u = await query('SELECT name FROM users WHERE id=$1', [req.userId]);
+    await query(
+      'INSERT INTO licitacao_history (licitacao_id, user_id, user_name, action, details) VALUES ($1,$2,$3,$4,$5)',
+      [licitacaoId, req.userId, u.rows[0]?.name || 'Sistema', 'ai_analysis', 'Análise de edital por IA (criação automática)']
+    );
+
+    res.json(analysisRes.rows[0]);
+  } catch (e) {
+    logError('licitacao_ai.save_analysis_error', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ===================== HELPERS =====================
 
 function extractJsonFromResponse(response) {
