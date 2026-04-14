@@ -257,22 +257,15 @@ router.post('/analyze/:licitacaoId', requireAuth, async (req, res) => {
     const lic = licRes.rows[0];
     if (!lic) return res.status(404).json({ error: 'Licitação não encontrada' });
 
-    // Get edital text from documents or description
-    let editalText = req.body.edital_text || '';
+    // Get edital text from manual input or uploaded file
+    let editalText = '';
+    const editalUrl = req.body.edital_url || lic.edital_url;
 
-    // If edital URL exists, try to fetch text from uploaded documents
-    if (!editalText && lic.edital_url) {
-      try {
-        const response = await fetch(lic.edital_url);
-        if (response.ok) {
-          const contentType = response.headers.get('content-type') || '';
-          if (contentType.includes('text') || contentType.includes('html')) {
-            editalText = await response.text();
-          }
-        }
-      } catch (fetchErr) {
-        logError('licitacao_ai.fetch_edital', fetchErr);
-      }
+    try {
+      editalText = await resolveEditalText({ editalText: req.body.edital_text, editalUrl });
+    } catch (fetchErr) {
+      logError('licitacao_ai.fetch_edital', fetchErr);
+      return res.status(400).json({ error: `Não foi possível ler o edital enviado: ${fetchErr.message}` });
     }
 
     // Also include description and notes
@@ -323,6 +316,11 @@ ${compliancePrompt || 'Compare cada item do edital com os produtos da empresa. I
 
 Adicione o campo:
 - product_matches: array de objetos { edital_item, product_name, match_level ("total", "parcial", "não atende"), notes }
+
+REGRAS DE CONFORMIDADE:
+- Você DEVE preencher product_matches, compliance_score e compliance_analysis usando o catálogo acima.
+- product_matches deve listar os produtos relacionados por item do edital quando houver atendimento total, parcial ou ausência de atendimento.
+- Não retorne compliance_score zerado se houver itens atendidos parcialmente ou totalmente.
 ` : ''}
 
 IMPORTANTE: Retorne APENAS o JSON, sem markdown, sem \`\`\`json, sem texto extra.`;
@@ -342,7 +340,7 @@ IMPORTANTE: Retorne APENAS o JSON, sem markdown, sem \`\`\`json, sem texto extra
     // Parse result
     let analysis;
     try {
-      analysis = extractJsonFromResponse(result.content);
+      analysis = normalizeParsedEditalData(extractJsonFromResponse(result.content));
     } catch (parseErr) {
       logError('licitacao_ai.analyze_json_error', { error: parseErr.message, contentPreview: result.content?.substring(0, 500) });
       throw new Error('Resposta da IA não é um JSON válido. Tente novamente.');
@@ -368,12 +366,12 @@ IMPORTANTE: Retorne APENAS o JSON, sem markdown, sem \`\`\`json, sem texto extra
       [
         analysisId,
         analysis.summary || '',
-        JSON.stringify(analysis.dates || []),
+        JSON.stringify(analysis.dates_extracted || analysis.dates || []),
         JSON.stringify(analysis.required_documents || []),
         JSON.stringify(analysis.edital_items || []),
         JSON.stringify(analysis.product_matches || []),
         analysis.compliance_analysis || '',
-        analysis.compliance_score || 0,
+        analysis.compliance_score ?? null,
         analysis.risk_assessment || '',
         analysis.recommendations || '',
         result.tokensUsed || 0,
@@ -381,25 +379,7 @@ IMPORTANTE: Retorne APENAS o JSON, sem markdown, sem \`\`\`json, sem texto extra
       ]
     );
 
-    // Auto-generate checklist items from required documents
-    if (analysis.required_documents && analysis.required_documents.length > 0) {
-      for (const doc of analysis.required_documents) {
-        const docTitle = typeof doc === 'string' ? doc : doc.name || doc.title || String(doc);
-        if (!docTitle) continue;
-        // Check if already exists
-        const existing = await query(
-          'SELECT 1 FROM licitacao_checklist WHERE licitacao_id=$1 AND title=$2 LIMIT 1',
-          [req.params.licitacaoId, docTitle]
-        );
-        if (existing.rows.length === 0) {
-          const maxOrder = await query('SELECT COALESCE(MAX(sort_order),0)+1 as next FROM licitacao_checklist WHERE licitacao_id=$1', [req.params.licitacaoId]);
-          await query(
-            'INSERT INTO licitacao_checklist (licitacao_id, title, sort_order) VALUES ($1,$2,$3)',
-            [req.params.licitacaoId, docTitle, maxOrder.rows[0].next]
-          );
-        }
-      }
-    }
+    await syncChecklistItems(req.params.licitacaoId, analysis.required_documents);
 
     // Add history
     const u = await query('SELECT name FROM users WHERE id=$1', [req.userId]);
@@ -433,30 +413,13 @@ router.post('/parse-edital', requireAuth, async (req, res) => {
     if (!org) return res.status(403).json({ error: 'Sem organização' });
 
     const { edital_url, edital_text } = req.body;
-    let textContent = edital_text || '';
+    let textContent = '';
 
-    // If URL provided, try to fetch content
-    if (edital_url && !textContent) {
-      try {
-        const response = await fetch(edital_url);
-        if (!response.ok) throw new Error('Falha ao baixar arquivo');
-        const contentType = response.headers.get('content-type') || '';
-        
-        if (contentType.includes('application/pdf') || edital_url.endsWith('.pdf')) {
-          const buffer = await response.arrayBuffer();
-          const pdfData = await pdf(Buffer.from(buffer));
-          textContent = pdfData.text;
-          textContent = pdfData.text;
-        } else if (contentType.includes('text') || contentType.includes('html')) {
-          textContent = await response.text();
-        } else {
-          // Try as text anyway
-          textContent = await response.text();
-        }
-      } catch (fetchErr) {
-        logError('licitacao_ai.parse_fetch', fetchErr);
-        return res.status(400).json({ error: `Não foi possível ler o arquivo: ${fetchErr.message}` });
-      }
+    try {
+      textContent = await resolveEditalText({ editalText: edital_text, editalUrl: edital_url });
+    } catch (fetchErr) {
+      logError('licitacao_ai.parse_fetch', fetchErr);
+      return res.status(400).json({ error: `Não foi possível ler o arquivo: ${fetchErr.message}` });
     }
 
     if (!textContent || textContent.trim().length < 30) {
@@ -504,6 +467,14 @@ router.post('/parse-edital', requireAuth, async (req, res) => {
       entity_email: null,
       description: 'Objeto resumido da licitação',
       notes: 'Informações importantes extraídas do edital',
+      dates: [
+        {
+          label: 'Sessão pública',
+          date: '2025-01-15',
+          description: 'Data de abertura da disputa',
+        },
+      ],
+      required_documents: ['Documento obrigatório 1'],
       checklist_items: ['Documento obrigatório 1'],
       tasks: [
         {
@@ -523,6 +494,8 @@ router.post('/parse-edital', requireAuth, async (req, res) => {
           estimated_value: '1000.00',
         },
       ],
+      risk_assessment: 'Principais pontos de atenção e riscos do edital',
+      recommendations: 'Próximos passos recomendados para participação',
     };
 
     if (productsContext) {
@@ -534,7 +507,7 @@ router.post('/parse-edital', requireAuth, async (req, res) => {
           notes: 'Compatibilidade parcial com o catálogo da empresa',
         },
       ];
-      responseTemplate.compliance_score = 0;
+      responseTemplate.compliance_score = 65;
       responseTemplate.compliance_analysis = 'Análise de conformidade detalhada';
     }
 
@@ -552,9 +525,12 @@ REGRAS OBRIGATÓRIAS:
 - compliance_score deve ser um único número inteiro entre 0 e 100.
 - estimated_value deve ser número no campo principal e string numérica em edital_items. Nunca use R$, pontos de milhar ou intervalos como 0-100.
 - opening_date, deadline_date e result_date devem estar em YYYY-MM-DD ou null.
+- dates deve ser um array com as principais datas no formato { label, date, description }.
+- required_documents deve listar todos os documentos obrigatórios identificados.
 - priority deve ser exatamente high, medium ou low.
 - match_level deve ser exatamente total, parcial ou não atende.
-- checklist_items, tasks e edital_items devem ser arrays; se não houver dados, retorne arrays vazios.`;
+- checklist_items, required_documents, tasks, dates e edital_items devem ser arrays; se não houver dados, retorne arrays vazios.
+- Se houver catálogo da empresa, compare os itens com o catálogo e preencha obrigatoriamente product_matches, compliance_score, compliance_analysis, risk_assessment e recommendations.`;
 
     const messages = [
       { role: 'system', content: systemPrompt },
@@ -569,7 +545,7 @@ REGRAS OBRIGATÓRIAS:
 
     let parsed;
     try {
-      parsed = extractJsonFromResponse(result.content);
+      parsed = normalizeParsedEditalData(extractJsonFromResponse(result.content));
     } catch (parseErr) {
       logError('licitacao_ai.parse_json_error', {
         error: parseErr.message,
@@ -593,7 +569,7 @@ router.post('/save-analysis/:licitacaoId', requireAuth, async (req, res) => {
     if (!org) return res.status(403).json({ error: 'Sem organização' });
 
     const { licitacaoId } = req.params;
-    const data = req.body;
+    const data = normalizeParsedEditalData(req.body);
 
     // Delete any existing analysis for this licitacao
     await query('DELETE FROM licitacao_ai_analyses WHERE licitacao_id=$1', [licitacaoId]);
@@ -616,7 +592,7 @@ router.post('/save-analysis/:licitacaoId', requireAuth, async (req, res) => {
         JSON.stringify(data.edital_items || []),
         JSON.stringify(data.product_matches || []),
         data.compliance_analysis || '',
-        data.compliance_score || 0,
+        data.compliance_score ?? null,
         data.risk_assessment || '',
         data.recommendations || '',
         0,
@@ -624,6 +600,8 @@ router.post('/save-analysis/:licitacaoId', requireAuth, async (req, res) => {
         req.userId,
       ]
     );
+
+    await syncChecklistItems(licitacaoId, data.required_documents || data.checklist_items);
 
     // Add history
     const u = await query('SELECT name FROM users WHERE id=$1', [req.userId]);
@@ -640,6 +618,261 @@ router.post('/save-analysis/:licitacaoId', requireAuth, async (req, res) => {
 });
 
 // ===================== HELPERS =====================
+
+async function extractTextFromUrl(editalUrl) {
+  const response = await fetch(editalUrl);
+  if (!response.ok) throw new Error('Falha ao baixar arquivo');
+
+  const contentType = response.headers.get('content-type') || '';
+  if (contentType.includes('application/pdf') || String(editalUrl).toLowerCase().endsWith('.pdf')) {
+    const buffer = await response.arrayBuffer();
+    const pdfData = await pdf(Buffer.from(buffer));
+    return pdfData.text || '';
+  }
+
+  return await response.text();
+}
+
+async function resolveEditalText({ editalText, editalUrl }) {
+  if (typeof editalText === 'string' && editalText.trim()) return editalText.trim();
+  if (editalUrl) return (await extractTextFromUrl(editalUrl)).trim();
+  return '';
+}
+
+function asArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function normalizeText(value) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function normalizeNumber(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value !== 'string') return null;
+
+  const cleaned = value
+    .replace(/R\$/gi, '')
+    .replace(/\s+/g, '')
+    .replace(/\.(?=\d{3}(\D|$))/g, '')
+    .replace(',', '.');
+
+  const parsed = Number(cleaned);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function normalizeRequiredDocuments(data) {
+  const source = [...asArray(data?.required_documents), ...asArray(data?.checklist_items)];
+
+  return Array.from(new Set(source.map((entry) => {
+    if (typeof entry === 'string') return entry.trim();
+    if (!entry || typeof entry !== 'object') return '';
+    return normalizeText(entry.name || entry.title || entry.label || entry.description);
+  }).filter(Boolean)));
+}
+
+function normalizeDateEntries(entries) {
+  return asArray(entries).map((entry) => {
+    if (typeof entry === 'string' && entry.trim()) {
+      return { label: 'Data importante', date: entry.trim() };
+    }
+
+    if (!entry || typeof entry !== 'object') return null;
+
+    const date = normalizeText(entry.date || entry.value);
+    if (!date) return null;
+
+    const normalized = {
+      label: normalizeText(entry.label) || 'Data importante',
+      date,
+    };
+
+    const description = normalizeText(entry.description);
+    if (description) normalized.description = description;
+
+    return normalized;
+  }).filter(Boolean);
+}
+
+function buildFallbackDateEntries(data) {
+  return [
+    data?.opening_date ? { label: 'Abertura', date: String(data.opening_date).trim() } : null,
+    data?.deadline_date ? { label: 'Prazo', date: String(data.deadline_date).trim() } : null,
+    data?.result_date ? { label: 'Resultado', date: String(data.result_date).trim() } : null,
+  ].filter(Boolean);
+}
+
+function normalizeEditalItems(items) {
+  return asArray(items).map((item, index) => {
+    if (typeof item === 'string' && item.trim()) {
+      return {
+        item_number: String(index + 1),
+        description: item.trim(),
+      };
+    }
+
+    if (!item || typeof item !== 'object') return null;
+
+    const description = normalizeText(item.description || item.name || item.item || item.title);
+    if (!description) return null;
+
+    const normalized = {
+      item_number: normalizeText(item.item_number || item.number || item.code),
+      description,
+    };
+
+    const quantity = normalizeText(item.quantity);
+    const unit = normalizeText(item.unit);
+    const estimatedValue = normalizeText(item.estimated_value);
+
+    if (quantity) normalized.quantity = quantity;
+    if (unit) normalized.unit = unit;
+    if (estimatedValue) normalized.estimated_value = estimatedValue;
+
+    return normalized;
+  }).filter(Boolean);
+}
+
+function normalizeTasks(tasks) {
+  return asArray(tasks).map((task) => {
+    if (!task || typeof task !== 'object') return null;
+
+    const title = normalizeText(task.title || task.name);
+    if (!title) return null;
+
+    const normalized = {
+      title,
+      priority: ['high', 'medium', 'low'].includes(task.priority) ? task.priority : 'medium',
+    };
+
+    const description = normalizeText(task.description);
+    const dueDate = normalizeText(task.due_date);
+
+    if (description) normalized.description = description;
+    if (dueDate) normalized.due_date = dueDate;
+
+    return normalized;
+  }).filter(Boolean);
+}
+
+function normalizeMatchLevel(matchLevel) {
+  const level = normalizeText(matchLevel).toLowerCase();
+  if (!level) return 'parcial';
+  if (['total', 'atende', 'completo', 'completa'].includes(level)) return 'total';
+  if (['parcial', 'partial', 'parcialmente'].includes(level)) return 'parcial';
+  if (['não atende', 'nao atende', 'nao_atende', 'não_atende', 'sem aderência', 'incompatível', 'incompativel'].includes(level)) return 'não atende';
+  return 'parcial';
+}
+
+function normalizeProductMatches(matches) {
+  return asArray(matches).map((match) => {
+    if (!match || typeof match !== 'object') return null;
+
+    const editalItem = normalizeText(match.edital_item || match.item || match.item_number || match.description);
+    const productName = normalizeText(match.product_name || match.product || match.name);
+    if (!editalItem && !productName) return null;
+
+    const normalized = {
+      edital_item: editalItem || 'Item sem identificação',
+      product_name: productName || 'Sem produto correspondente',
+      match_level: normalizeMatchLevel(match.match_level || match.status),
+    };
+
+    const notes = normalizeText(match.notes || match.observations || match.reason);
+    if (notes) normalized.notes = notes;
+
+    return normalized;
+  }).filter(Boolean);
+}
+
+function inferComplianceScore(rawScore, productMatches) {
+  const numericScore = Number(rawScore);
+  if (Number.isFinite(numericScore) && numericScore >= 0 && numericScore <= 100 && (numericScore !== 0 || productMatches.length === 0)) {
+    return Math.round(numericScore);
+  }
+
+  if (!productMatches.length) {
+    return Number.isFinite(numericScore) && numericScore >= 0 && numericScore <= 100 ? Math.round(numericScore) : null;
+  }
+
+  const weightByLevel = {
+    total: 100,
+    parcial: 50,
+    'não atende': 0,
+  };
+
+  const total = productMatches.reduce((sum, match) => sum + (weightByLevel[match.match_level] ?? 0), 0);
+  return Math.round(total / productMatches.length);
+}
+
+function buildComplianceAnalysisFallback(productMatches) {
+  if (!productMatches.length) return '';
+
+  const total = productMatches.filter((match) => match.match_level === 'total').length;
+  const partial = productMatches.filter((match) => match.match_level === 'parcial').length;
+  const noMatch = productMatches.filter((match) => match.match_level === 'não atende').length;
+  return `Produtos relacionados analisados: ${total} item(ns) atendem totalmente, ${partial} parcialmente e ${noMatch} não atendem ao catálogo atual.`;
+}
+
+function normalizeParsedEditalData(payload) {
+  const data = payload && typeof payload === 'object' ? payload : {};
+  const requiredDocuments = normalizeRequiredDocuments(data);
+  const parsedDates = normalizeDateEntries(data.dates || data.dates_extracted);
+  const finalDates = parsedDates.length ? parsedDates : buildFallbackDateEntries(data);
+  const productMatches = normalizeProductMatches(data.product_matches);
+
+  return {
+    ...data,
+    title: normalizeText(data.title),
+    edital_number: normalizeText(data.edital_number),
+    modality: normalizeText(data.modality),
+    opening_date: normalizeText(data.opening_date) || null,
+    deadline_date: normalizeText(data.deadline_date) || null,
+    result_date: normalizeText(data.result_date) || null,
+    estimated_value: normalizeNumber(data.estimated_value),
+    entity_name: normalizeText(data.entity_name),
+    entity_cnpj: normalizeText(data.entity_cnpj),
+    entity_contact: normalizeText(data.entity_contact),
+    entity_phone: normalizeText(data.entity_phone),
+    entity_email: normalizeText(data.entity_email),
+    description: normalizeText(data.description),
+    notes: normalizeText(data.notes),
+    checklist_items: requiredDocuments,
+    required_documents: requiredDocuments,
+    tasks: normalizeTasks(data.tasks),
+    summary: normalizeText(data.summary) || normalizeText(data.description) || normalizeText(data.title),
+    dates: finalDates,
+    dates_extracted: finalDates,
+    edital_items: normalizeEditalItems(data.edital_items),
+    product_matches: productMatches,
+    compliance_score: inferComplianceScore(data.compliance_score, productMatches),
+    compliance_analysis: normalizeText(data.compliance_analysis) || buildComplianceAnalysisFallback(productMatches),
+    risk_assessment: normalizeText(data.risk_assessment),
+    recommendations: normalizeText(data.recommendations),
+  };
+}
+
+async function syncChecklistItems(licitacaoId, requiredDocuments) {
+  if (!requiredDocuments?.length) return;
+
+  for (const doc of requiredDocuments) {
+    const docTitle = normalizeText(doc);
+    if (!docTitle) continue;
+
+    const existing = await query(
+      'SELECT 1 FROM licitacao_checklist WHERE licitacao_id=$1 AND title=$2 LIMIT 1',
+      [licitacaoId, docTitle]
+    );
+
+    if (existing.rows.length > 0) continue;
+
+    const maxOrder = await query('SELECT COALESCE(MAX(sort_order),0)+1 as next FROM licitacao_checklist WHERE licitacao_id=$1', [licitacaoId]);
+    await query(
+      'INSERT INTO licitacao_checklist (licitacao_id, title, sort_order) VALUES ($1,$2,$3)',
+      [licitacaoId, docTitle, maxOrder.rows[0].next]
+    );
+  }
+}
 
 function extractJsonFromResponse(response) {
   if (response == null) throw new Error('Empty AI response');

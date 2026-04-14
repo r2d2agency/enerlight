@@ -1,15 +1,15 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { useLicitacaoAIAnalysis, useAnalyzeEdital, type LicitacaoAIAnalysis as LicitacaoAIAnalysisType } from "@/hooks/use-licitacao-ai";
+import { useLicitacaoAIAnalysis, useAnalyzeEdital } from "@/hooks/use-licitacao-ai";
+import { useUpload } from "@/hooks/use-upload";
+import { useUpdateLicitacao } from "@/hooks/use-licitacao";
 import {
   Sparkles, Loader2, FileText, Calendar, ClipboardList, Package, ShieldCheck, AlertTriangle,
-  Lightbulb, RefreshCw, CheckCircle2, XCircle, MinusCircle
+  Lightbulb, RefreshCw, CheckCircle2, XCircle, MinusCircle, ExternalLink, Upload
 } from "lucide-react";
 import { cn, safeFormatDate } from "@/lib/utils";
 
@@ -22,12 +22,58 @@ export function LicitacaoAIAnalysis({ licitacaoId, editalUrl }: Props) {
   const { toast } = useToast();
   const { data: analysis, isLoading } = useLicitacaoAIAnalysis(licitacaoId);
   const analyzeEdital = useAnalyzeEdital();
+  const updateLicitacao = useUpdateLicitacao();
+  const { uploadFile, isUploading } = useUpload();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [editalText, setEditalText] = useState("");
   const [showInput, setShowInput] = useState(false);
+  const [uploadedEditalUrl, setUploadedEditalUrl] = useState("");
+
+  useEffect(() => {
+    setEditalText("");
+    setShowInput(false);
+    setUploadedEditalUrl("");
+  }, [licitacaoId]);
+
+  const currentEditalUrl = uploadedEditalUrl || editalUrl || "";
+  const canAnalyze = Boolean(editalText.trim() || currentEditalUrl);
+
+  const handleImportFile = async (file?: File | null) => {
+    if (!file) return;
+
+    try {
+      const url = await uploadFile(file);
+      if (!url) throw new Error("Falha ao enviar arquivo");
+
+      setUploadedEditalUrl(url);
+
+      try {
+        await updateLicitacao.mutateAsync({ id: licitacaoId, edital_url: url });
+        toast({ title: "Novo edital importado" });
+      } catch (updateError: any) {
+        toast({
+          title: "Arquivo importado com aviso",
+          description: updateError.message || "Não foi possível vincular automaticamente o novo arquivo ao card, mas ele já pode ser usado na reanálise.",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      toast({ title: "Erro ao importar edital", description: error.message, variant: "destructive" });
+    }
+  };
 
   const handleAnalyze = async () => {
     try {
-      await analyzeEdital.mutateAsync({ licitacaoId, edital_text: editalText || undefined });
+      if (!canAnalyze) {
+        toast({ title: "Adicione um arquivo ou texto do edital", variant: "destructive" });
+        return;
+      }
+
+      await analyzeEdital.mutateAsync({
+        licitacaoId,
+        edital_text: editalText.trim() || undefined,
+        edital_url: currentEditalUrl || undefined,
+      });
       setShowInput(false);
       setEditalText("");
       toast({ title: "Análise concluída! ✨" });
@@ -35,6 +81,69 @@ export function LicitacaoAIAnalysis({ licitacaoId, editalUrl }: Props) {
       toast({ title: "Erro na análise", description: e.message, variant: "destructive" });
     }
   };
+
+  const renderAnalyzeInput = (submitLabel: string) => (
+    <div className="space-y-3 border rounded-lg p-3 bg-muted/30">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".pdf,.txt,.html,text/plain,text/html,application/pdf"
+        className="hidden"
+        onChange={e => {
+          void handleImportFile(e.target.files?.[0]);
+          e.target.value = "";
+        }}
+      />
+
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isUploading || updateLicitacao.isPending}
+        >
+          {isUploading || updateLicitacao.isPending ? (
+            <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+          ) : (
+            <Upload className="h-3.5 w-3.5 mr-1" />
+          )}
+          {currentEditalUrl ? "Trocar edital" : "Importar edital"}
+        </Button>
+
+        {currentEditalUrl && (
+          <a
+            href={currentEditalUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
+          >
+            <ExternalLink className="h-3.5 w-3.5" /> Abrir arquivo atual
+          </a>
+        )}
+      </div>
+
+      <Textarea
+        value={editalText}
+        onChange={e => setEditalText(e.target.value)}
+        rows={5}
+        placeholder="Cole aqui o texto completo do edital ou ajuste manualmente o conteúdo para reanalisar..."
+        className="text-sm"
+      />
+
+      <p className="text-xs text-muted-foreground">
+        Você pode usar o edital atual, importar um novo arquivo ou complementar/editar manualmente o texto antes da análise.
+      </p>
+
+      <div className="flex gap-2">
+        <Button onClick={handleAnalyze} disabled={analyzeEdital.isPending || !canAnalyze} size="sm">
+          {analyzeEdital.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Sparkles className="h-3.5 w-3.5 mr-1" />}
+          {submitLabel}
+        </Button>
+        <Button variant="ghost" size="sm" onClick={() => setShowInput(false)}>Cancelar</Button>
+      </div>
+    </div>
+  );
 
   if (isLoading) {
     return <div className="flex items-center justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
@@ -57,32 +166,12 @@ export function LicitacaoAIAnalysis({ licitacaoId, editalUrl }: Props) {
             <Button onClick={() => setShowInput(true)} className="w-full" size="sm">
               <Sparkles className="h-4 w-4 mr-1" /> Analisar Edital com IA
             </Button>
-            {editalUrl && (
-              <p className="text-xs text-muted-foreground text-center">
-                O edital enviado será utilizado automaticamente
-              </p>
-            )}
+            <p className="text-xs text-muted-foreground text-center">
+              Você pode usar o arquivo atual, importar um novo edital ou colar o texto manualmente.
+            </p>
           </div>
         ) : (
-          <div className="space-y-2">
-            <Textarea
-              value={editalText}
-              onChange={e => setEditalText(e.target.value)}
-              rows={6}
-              placeholder="Cole aqui o texto completo do edital para análise..."
-              className="text-sm"
-            />
-            <p className="text-xs text-muted-foreground">
-              {editalUrl ? "Opcional: cole texto adicional. O arquivo do edital já será analisado." : "Cole o texto do edital ou as informações mais relevantes."}
-            </p>
-            <div className="flex gap-2">
-              <Button onClick={handleAnalyze} disabled={analyzeEdital.isPending} size="sm">
-                {analyzeEdital.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Sparkles className="h-4 w-4 mr-1" />}
-                {analyzeEdital.isPending ? "Analisando..." : "Analisar"}
-              </Button>
-              <Button variant="ghost" size="sm" onClick={() => setShowInput(false)}>Cancelar</Button>
-            </div>
-          </div>
+          renderAnalyzeInput(analyzeEdital.isPending ? "Analisando..." : "Analisar")
         )}
       </div>
     );
@@ -99,15 +188,7 @@ export function LicitacaoAIAnalysis({ licitacaoId, editalUrl }: Props) {
         <Button size="sm" variant="outline" onClick={() => setShowInput(true)}>
           <RefreshCw className="h-4 w-4 mr-1" /> Tentar novamente
         </Button>
-        {showInput && (
-          <div className="space-y-2">
-            <Textarea value={editalText} onChange={e => setEditalText(e.target.value)} rows={4} placeholder="Cole o texto do edital..." className="text-sm" />
-            <Button onClick={handleAnalyze} disabled={analyzeEdital.isPending} size="sm">
-              {analyzeEdital.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Sparkles className="h-4 w-4 mr-1" />}
-              Analisar
-            </Button>
-          </div>
-        )}
+        {showInput && renderAnalyzeInput(analyzeEdital.isPending ? "Analisando..." : "Analisar novamente")}
       </div>
     );
   }
@@ -142,18 +223,7 @@ export function LicitacaoAIAnalysis({ licitacaoId, editalUrl }: Props) {
         </Button>
       </div>
 
-      {showInput && (
-        <div className="space-y-2 border rounded-lg p-3 bg-muted/30">
-          <Textarea value={editalText} onChange={e => setEditalText(e.target.value)} rows={4} placeholder="Cole novo texto do edital..." className="text-sm" />
-          <div className="flex gap-2">
-            <Button onClick={handleAnalyze} disabled={analyzeEdital.isPending} size="sm">
-              {analyzeEdital.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Sparkles className="h-3.5 w-3.5 mr-1" />}
-              Reanalisar
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => setShowInput(false)}>Cancelar</Button>
-          </div>
-        </div>
-      )}
+      {showInput && renderAnalyzeInput(analyzeEdital.isPending ? "Reanalisando..." : "Reanalisar")}
 
       <Tabs defaultValue="summary" className="mt-2">
         <TabsList className="w-full flex flex-wrap h-auto gap-1">
@@ -179,6 +249,9 @@ export function LicitacaoAIAnalysis({ licitacaoId, editalUrl }: Props) {
               <p className="text-sm font-medium flex items-center gap-1.5 text-blue-700 dark:text-blue-400"><Lightbulb className="h-4 w-4" /> Recomendações</p>
               <p className="text-sm text-muted-foreground whitespace-pre-wrap">{analysis.recommendations}</p>
             </div>
+          )}
+          {!analysis.summary && !analysis.risk_assessment && !analysis.recommendations && (
+            <p className="text-sm text-muted-foreground text-center py-4">Nenhum resumo foi gerado nesta análise.</p>
           )}
         </TabsContent>
 
@@ -286,6 +359,28 @@ export function LicitacaoAIAnalysis({ licitacaoId, editalUrl }: Props) {
           )}
           {analysis.compliance_analysis && (
             <div className="text-sm whitespace-pre-wrap leading-relaxed">{analysis.compliance_analysis}</div>
+          )}
+          {analysis.product_matches && analysis.product_matches.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Produtos relacionados</p>
+              {analysis.product_matches.map((match: any, i: number) => (
+                <div key={i} className="flex items-start gap-2 p-2 rounded border text-sm">
+                  {match.match_level === "total" && <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />}
+                  {match.match_level === "parcial" && <MinusCircle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />}
+                  {(match.match_level === "não atende" || match.match_level === "nao_atende") && <XCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />}
+                  <div className="flex-1">
+                    <p className="font-medium">{match.edital_item}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {match.product_name && <span className="text-primary">{match.product_name}</span>}
+                      {match.notes && <span> — {match.notes}</span>}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {analysis.compliance_score === null && !analysis.compliance_analysis && !analysis.product_matches?.length && (
+            <p className="text-sm text-muted-foreground text-center py-4">Nenhuma conformidade foi calculada nesta análise.</p>
           )}
         </TabsContent>
       </Tabs>
