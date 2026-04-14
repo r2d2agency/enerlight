@@ -90,8 +90,9 @@ export function DailyEvolutionChart({ startDate, endDate, filterUserId, filterCh
     // Build map by day+type
     const map: Record<string, Record<string, number>> = {};
     dailyData.forEach(r => {
-      if (!map[r.day]) map[r.day] = {};
-      map[r.day][r.data_type] = r.total_value;
+      const dayKey = typeof r.day === "string" ? r.day.split("T")[0] : String(r.day);
+      if (!map[dayKey]) map[dayKey] = {};
+      map[dayKey][r.data_type] = Number(r.total_value) || 0;
     });
 
     // Accumulate values

@@ -6730,7 +6730,7 @@ router.get('/goals/data-daily', async (req, res) => {
 
     res.json(daily.rows.map(r => ({
       data_type: r.data_type,
-      day: r.day,
+      day: r.day ? new Date(r.day).toISOString().split('T')[0] : null,
       count: parseInt(r.count),
       total_value: parseFloat(r.total_value),
     })));
