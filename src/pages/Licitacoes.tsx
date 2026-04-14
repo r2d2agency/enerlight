@@ -17,7 +17,7 @@ import { cn, safeFormatDate } from "@/lib/utils";
 import {
   Plus, Search, Settings, Trash2, Edit, FileText, Calendar,
   ClipboardList, User, Phone, Mail, Upload, StickyNote,
-  History, CheckSquare, ExternalLink, Loader2, Gavel, GripVertical, ArrowUp, ArrowDown, Check, X, MessageCircle, UserPlus, Trophy, XCircle, Briefcase, Link2
+  History, CheckSquare, ExternalLink, Loader2, Gavel, GripVertical, ArrowUp, ArrowDown, Check, X, MessageCircle, UserPlus, Trophy, XCircle, Briefcase, Link2, Brain, Sparkles
 } from "lucide-react";
 import {
   useLicitacaoBoards, useCreateLicitacaoBoard, useDeleteLicitacaoBoard,
@@ -34,6 +34,8 @@ import { useCRMFunnels, useCRMCompanies, useCRMDeal, useCRMFunnel, useCRMDealMut
 import { useUpload } from "@/hooks/use-upload";
 import { useAuth } from "@/contexts/AuthContext";
 import { LicitacaoKanban } from "@/components/licitacao/LicitacaoKanban";
+import { LicitacaoAIConfigDialog } from "@/components/licitacao/LicitacaoAIConfigDialog";
+import { LicitacaoAIAnalysis as LicitacaoAIAnalysisPanel } from "@/components/licitacao/LicitacaoAIAnalysisPanel";
 
 const MODALITIES = [
   "Pregão Eletrônico", "Pregão Presencial", "Concorrência", "Tomada de Preços",
@@ -146,6 +148,7 @@ export default function Licitacoes() {
   const [showStageSettings, setShowStageSettings] = useState(false);
   const [showNewStageDialog, setShowNewStageDialog] = useState(false);
   const [showCreateDealDialog, setShowCreateDealDialog] = useState(false);
+  const [showAIConfigDialog, setShowAIConfigDialog] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: string; id: string; name: string } | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [editMode, setEditMode] = useState(false);
@@ -458,6 +461,11 @@ export default function Licitacoes() {
                 <Button variant="ghost" size="icon" onClick={() => setShowStageSettings(true)}>
                   <Settings className="h-4 w-4" />
                 </Button>
+                {isAdmin && (
+                  <Button variant="ghost" size="icon" onClick={() => setShowAIConfigDialog(true)} title="Configurar IA">
+                    <Brain className="h-4 w-4" />
+                  </Button>
+                )}
               </>
             )}
           </div>
@@ -608,6 +616,7 @@ export default function Licitacoes() {
             <Tabs defaultValue="info" className="mt-2">
               <TabsList className="w-full flex flex-wrap h-auto gap-1">
                 <TabsTrigger value="info" className="text-xs">Info</TabsTrigger>
+                <TabsTrigger value="ai" className="text-xs"><Sparkles className="h-3 w-3 mr-1" /> IA</TabsTrigger>
                 <TabsTrigger value="tasks" className="text-xs">Tarefas ({tasks.length})</TabsTrigger>
                 <TabsTrigger value="checklist" className="text-xs"><CheckSquare className="h-3 w-3 mr-1" /> Checklist ({checklist.length})</TabsTrigger>
                 <TabsTrigger value="documents" className="text-xs">Docs ({documents.length})</TabsTrigger>
@@ -844,6 +853,11 @@ export default function Licitacoes() {
                     </div>
                   </>
                 )}
+              </TabsContent>
+
+              {/* AI TAB */}
+              <TabsContent value="ai" className="mt-4">
+                <LicitacaoAIAnalysisPanel licitacaoId={selectedItem.id} editalUrl={selectedItem.edital_url} />
               </TabsContent>
 
               {/* TASKS TAB */}
@@ -1116,6 +1130,9 @@ export default function Licitacoes() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* AI Config Dialog */}
+      <LicitacaoAIConfigDialog open={showAIConfigDialog} onOpenChange={setShowAIConfigDialog} />
     </MainLayout>
   );
 }
