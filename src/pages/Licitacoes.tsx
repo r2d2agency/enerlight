@@ -30,7 +30,7 @@ import {
   useLicitacaoHistory, useLicitacaoOrgMembers, useSearchLicitacaoContacts, useCreateDealFromLicitacao,
   Licitacao, LicitacaoStage, LicitacaoContact,
 } from "@/hooks/use-licitacao";
-import { useCRMFunnels, useCRMCompanies } from "@/hooks/use-crm";
+import { useCRMFunnels, useCRMCompanies, useCRMDeal, useCRMFunnel, useCRMDealMutations } from "@/hooks/use-crm";
 import { useUpload } from "@/hooks/use-upload";
 import { useAuth } from "@/contexts/AuthContext";
 import { LicitacaoKanban } from "@/components/licitacao/LicitacaoKanban";
