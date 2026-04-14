@@ -220,7 +220,21 @@ export function DailyEvolutionChart({ startDate, endDate, filterUserId, filterCh
       <CardContent>
         {periodButtons}
 
-        {/* Monthly summary cards */}
+        {/* Series toggles */}
+        <div className="flex flex-wrap gap-4 mb-4">
+          <label className="flex items-center gap-2 text-xs cursor-pointer">
+            <Checkbox checked={showOrcamento} onCheckedChange={(v) => setShowOrcamento(!!v)} />
+            <span className="text-blue-500 font-medium">Orçamentos</span>
+          </label>
+          <label className="flex items-center gap-2 text-xs cursor-pointer">
+            <Checkbox checked={showPedido} onCheckedChange={(v) => setShowPedido(!!v)} />
+            <span className="text-green-500 font-medium">Pedidos</span>
+          </label>
+          <label className="flex items-center gap-2 text-xs cursor-pointer">
+            <Checkbox checked={showFaturamento} onCheckedChange={(v) => setShowFaturamento(!!v)} />
+            <span className="text-amber-500 font-medium">Faturamento</span>
+          </label>
+        </div>
         {monthBoundaries.length > 1 && (
           <div className="flex flex-wrap gap-2 mb-4">
             {monthBoundaries.map((mb, i) => (
