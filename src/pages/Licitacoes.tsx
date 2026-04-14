@@ -461,6 +461,11 @@ export default function Licitacoes() {
                 <Button variant="ghost" size="icon" onClick={() => setShowStageSettings(true)}>
                   <Settings className="h-4 w-4" />
                 </Button>
+                {isAdmin && (
+                  <Button variant="ghost" size="icon" onClick={() => setShowAIConfigDialog(true)} title="Configurar IA">
+                    <Brain className="h-4 w-4" />
+                  </Button>
+                )}
               </>
             )}
           </div>
