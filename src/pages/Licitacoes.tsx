@@ -148,6 +148,7 @@ export default function Licitacoes() {
   const [showStageSettings, setShowStageSettings] = useState(false);
   const [showNewStageDialog, setShowNewStageDialog] = useState(false);
   const [showCreateDealDialog, setShowCreateDealDialog] = useState(false);
+  const [showAIConfigDialog, setShowAIConfigDialog] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: string; id: string; name: string } | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [editMode, setEditMode] = useState(false);
