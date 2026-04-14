@@ -502,7 +502,7 @@ export default function Licitacoes() {
             </div>
             {activeBoardId && (
               <>
-                <Button size="sm" onClick={() => setShowNewItemDialog(true)}>
+                <Button size="sm" onClick={() => setShowCreationChoice(true)}>
                   <Plus className="h-4 w-4 mr-1" /> Nova Licitação
                 </Button>
                 <Button variant="ghost" size="icon" onClick={() => setShowStageSettings(true)}>
