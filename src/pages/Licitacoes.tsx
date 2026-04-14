@@ -36,7 +36,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { LicitacaoKanban } from "@/components/licitacao/LicitacaoKanban";
 import { LicitacaoAIConfigDialog } from "@/components/licitacao/LicitacaoAIConfigDialog";
 import { LicitacaoAIAnalysis as LicitacaoAIAnalysisPanel } from "@/components/licitacao/LicitacaoAIAnalysisPanel";
-import { useParseEdital, type ParsedEditalData } from "@/hooks/use-licitacao-ai";
+import { useParseEdital, useSaveAIAnalysis, type ParsedEditalData } from "@/hooks/use-licitacao-ai";
 import { AIAnalysisProgressDialog, AI_STEPS, type AIAnalysisStep } from "@/components/licitacao/AIAnalysisProgressDialog";
 
 const MODALITIES = [
