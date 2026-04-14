@@ -225,6 +225,45 @@ router.delete('/items/:id', requireAuth, async (req, res) => {
   }
 });
 
+// ===================== CREATE DEAL FROM LICITAÇÃO =====================
+
+router.post('/items/:id/create-deal', requireAuth, async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+
+    const { funnel_id, company_id, title, value } = req.body;
+    if (!funnel_id || !company_id) return res.status(400).json({ error: 'funnel_id e company_id são obrigatórios' });
+
+    // Get first stage of the funnel
+    const stageRes = await query('SELECT id FROM crm_stages WHERE funnel_id = $1 ORDER BY position LIMIT 1', [funnel_id]);
+    const stageId = stageRes.rows[0]?.id;
+    if (!stageId) return res.status(400).json({ error: 'Funil sem etapas' });
+
+    // Get licitação data
+    const licRes = await query('SELECT * FROM licitacoes WHERE id = $1', [req.params.id]);
+    const lic = licRes.rows[0];
+    if (!lic) return res.status(404).json({ error: 'Licitação não encontrada' });
+
+    // Create deal
+    const dealRes = await query(
+      `INSERT INTO crm_deals (funnel_id, stage_id, company_id, title, value, status, owner_id, organization_id, description)
+       VALUES ($1, $2, $3, $4, $5, 'open', $6, $7, $8) RETURNING *`,
+      [funnel_id, stageId, company_id, title || lic.title, value || lic.estimated_value || 0, req.userId, org.organization_id, `Negociação criada a partir da licitação: ${lic.title}`]
+    );
+    const deal = dealRes.rows[0];
+
+    // Link deal to licitação
+    await query('UPDATE licitacoes SET deal_id = $1, updated_at = NOW() WHERE id = $2', [deal.id, req.params.id]);
+    await addHistory(req.params.id, req.userId, 'deal_created', `Negociação CRM "${deal.title}" criada e vinculada`);
+
+    res.json(deal);
+  } catch (e) {
+    console.error('Create deal from licitacao error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ===================== TASKS =====================
 
 router.get('/items/:licitacaoId/tasks', requireAuth, async (req, res) => {
