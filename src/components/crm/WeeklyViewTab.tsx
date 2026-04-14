@@ -289,6 +289,9 @@ export function WeeklyViewTab({ goals, filterUserId, filterChannel, filterGroupI
         ordersCount={gd.pedido.count}
         billingValue={gd.faturamento.value}
         billingCount={gd.faturamento.count}
+        quotesGoal={weeklyGoal("quotes_value") || undefined}
+        ordersGoal={weeklyGoal("orders_value") || undefined}
+        billingGoal={weeklyGoal("billing_value") || undefined}
         title={`Funil de Vendas — ${activeWeek?.label || "Semana"}`}
       />
 
