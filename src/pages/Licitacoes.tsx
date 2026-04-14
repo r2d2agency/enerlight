@@ -476,6 +476,8 @@ export default function Licitacoes() {
     setAiError(null);
     setShowNewItemDialog(true);
   };
+
+  const handleStartEdit = () => {
     if (!selectedItem) return;
     setEditForm({
       title: selectedItem.title || "", description: selectedItem.description || "",
