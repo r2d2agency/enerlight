@@ -1,12 +1,13 @@
-import { useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, TrendingUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
 } from "recharts";
-import { eachDayOfInterval, parseISO, format } from "date-fns";
+import { eachDayOfInterval, parseISO, format, subMonths, startOfMonth, endOfMonth, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 interface DailyRow {
@@ -24,6 +25,34 @@ interface Props {
   filterGroupId?: string;
 }
 
+type PeriodKey = "inherited" | "current_month" | "previous_month" | "60days" | "90days";
+
+const PERIOD_OPTIONS: { key: PeriodKey; label: string }[] = [
+  { key: "inherited", label: "Período Atual" },
+  { key: "current_month", label: "Mês Atual" },
+  { key: "previous_month", label: "Mês Anterior" },
+  { key: "60days", label: "60 dias" },
+  { key: "90days", label: "90 dias" },
+];
+
+function getPeriodDates(key: PeriodKey, parentStart: string, parentEnd: string) {
+  const today = new Date();
+  switch (key) {
+    case "current_month":
+      return { start: format(startOfMonth(today), "yyyy-MM-dd"), end: format(endOfMonth(today), "yyyy-MM-dd") };
+    case "previous_month": {
+      const prev = subMonths(today, 1);
+      return { start: format(startOfMonth(prev), "yyyy-MM-dd"), end: format(endOfMonth(prev), "yyyy-MM-dd") };
+    }
+    case "60days":
+      return { start: format(subDays(today, 60), "yyyy-MM-dd"), end: format(today, "yyyy-MM-dd") };
+    case "90days":
+      return { start: format(subDays(today, 90), "yyyy-MM-dd"), end: format(today, "yyyy-MM-dd") };
+    default:
+      return { start: parentStart, end: parentEnd };
+  }
+}
+
 function fmtShort(v: number) {
   if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
   if (v >= 1_000) return `${(v / 1_000).toFixed(0)}K`;
@@ -35,12 +64,15 @@ function fmtFull(v: number) {
 }
 
 export function DailyEvolutionChart({ startDate, endDate, filterUserId, filterChannel, filterGroupId }: Props) {
+  const [period, setPeriod] = useState<PeriodKey>("inherited");
+  const { start: effStart, end: effEnd } = getPeriodDates(period, startDate, endDate);
+
   const { data: dailyData, isLoading } = useQuery<DailyRow[]>({
-    queryKey: ["crm-goals-daily", startDate, endDate, filterUserId, filterChannel, filterGroupId],
+    queryKey: ["crm-goals-daily", effStart, effEnd, filterUserId, filterChannel, filterGroupId],
     queryFn: () => {
       const sp = new URLSearchParams();
-      sp.set("start_date", startDate);
-      sp.set("end_date", endDate);
+      sp.set("start_date", effStart);
+      sp.set("end_date", effEnd);
       if (filterUserId && filterUserId !== "all") sp.set("user_id", filterUserId);
       if (filterChannel && filterChannel !== "all") sp.set("channel", filterChannel);
       if (filterGroupId && filterGroupId !== "all") sp.set("group_id", filterGroupId);
