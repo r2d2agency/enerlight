@@ -44,6 +44,8 @@ export interface Licitacao {
   contact_id: string | null;
   contact_name: string | null;
   contact_phone: string | null;
+  deal_id: string | null;
+  linked_deal_id: string | null;
   assigned_to: string | null;
   assigned_to_name: string | null;
   notes: string | null;
@@ -345,6 +347,20 @@ export function useLicitacaoOrgMembers() {
   return useQuery({
     queryKey: ["licitacao-org-members"],
     queryFn: () => api<OrgMember[]>("/api/licitacao/org-members"),
+  });
+}
+
+// Create CRM deal from licitação
+export function useCreateDealFromLicitacao() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ licitacaoId, ...data }: { licitacaoId: string; funnel_id: string; company_id: string; title?: string; value?: number }) =>
+      api<any>(`/api/licitacao/items/${licitacaoId}/create-deal`, { method: "POST", body: data }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["licitacoes"] });
+      qc.invalidateQueries({ queryKey: ["licitacao-history"] });
+      qc.invalidateQueries({ queryKey: ["crm-deals"] });
+    },
   });
 }
 

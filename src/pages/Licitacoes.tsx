@@ -17,7 +17,7 @@ import { cn, safeFormatDate } from "@/lib/utils";
 import {
   Plus, Search, Settings, Trash2, Edit, FileText, Calendar,
   ClipboardList, User, Phone, Mail, Upload, StickyNote,
-  History, CheckSquare, ExternalLink, Loader2, Gavel, GripVertical, ArrowUp, ArrowDown, Check, X, MessageCircle, UserPlus
+  History, CheckSquare, ExternalLink, Loader2, Gavel, GripVertical, ArrowUp, ArrowDown, Check, X, MessageCircle, UserPlus, Trophy, XCircle, Briefcase, Link2
 } from "lucide-react";
 import {
   useLicitacaoBoards, useCreateLicitacaoBoard, useDeleteLicitacaoBoard,
@@ -27,9 +27,10 @@ import {
   useLicitacaoChecklist, useCreateLicitacaoChecklistItem, useUpdateLicitacaoChecklistItem, useDeleteLicitacaoChecklistItem,
   useLicitacaoDocuments, useCreateLicitacaoDocument, useDeleteLicitacaoDocument,
   useLicitacaoNotes, useCreateLicitacaoNote, useDeleteLicitacaoNote,
-  useLicitacaoHistory, useLicitacaoOrgMembers, useSearchLicitacaoContacts,
+  useLicitacaoHistory, useLicitacaoOrgMembers, useSearchLicitacaoContacts, useCreateDealFromLicitacao,
   Licitacao, LicitacaoStage, LicitacaoContact,
 } from "@/hooks/use-licitacao";
+import { useCRMFunnels, useCRMCompanies } from "@/hooks/use-crm";
 import { useUpload } from "@/hooks/use-upload";
 import { useAuth } from "@/contexts/AuthContext";
 import { LicitacaoKanban } from "@/components/licitacao/LicitacaoKanban";
@@ -144,6 +145,7 @@ export default function Licitacoes() {
   const [showNewTaskDialog, setShowNewTaskDialog] = useState(false);
   const [showStageSettings, setShowStageSettings] = useState(false);
   const [showNewStageDialog, setShowNewStageDialog] = useState(false);
+  const [showCreateDealDialog, setShowCreateDealDialog] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: string; id: string; name: string } | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [editMode, setEditMode] = useState(false);
@@ -163,6 +165,8 @@ export default function Licitacoes() {
   const [newStageColor, setNewStageColor] = useState("#6366f1");
   const [noteContent, setNoteContent] = useState("");
   const [checklistTitle, setChecklistTitle] = useState("");
+  const [dealForm, setDealForm] = useState({ funnel_id: "", company_id: "", title: "", value: "" });
+  const [companySearch, setCompanySearch] = useState("");
   const taskCreatingRef = useRef(false);
 
   // Data
@@ -178,7 +182,8 @@ export default function Licitacoes() {
   const { data: orgMembers = [], isLoading: loadingMembers } = useLicitacaoOrgMembers();
   const { uploadFile, isUploading } = useUpload();
   const { data: contactResults = [] } = useSearchLicitacaoContacts(contactSearchTerm);
-
+  const { data: crmFunnels = [] } = useCRMFunnels();
+  const { data: crmCompanies = [] } = useCRMCompanies(companySearch);
   // Mutations
   const createBoard = useCreateLicitacaoBoard();
   const deleteBoard = useDeleteLicitacaoBoard();
@@ -199,7 +204,7 @@ export default function Licitacoes() {
   const deleteDocument = useDeleteLicitacaoDocument();
   const createNote = useCreateLicitacaoNote();
   const deleteNote = useDeleteLicitacaoNote();
-
+  const createDealFromLicitacao = useCreateDealFromLicitacao();
   const selectedItem = useMemo(() => items.find(i => i.id === selectedItemId), [items, selectedItemId]);
 
   const itemsByStage = useMemo(() => {
@@ -333,7 +338,43 @@ export default function Licitacoes() {
     } catch (e: any) { toast({ title: "Erro", description: e.message, variant: "destructive" }); }
   };
 
-  const handleDelete = async () => {
+  const handleChangeStatus = async (status: string) => {
+    if (!selectedItemId) return;
+    try {
+      await updateItem.mutateAsync({ id: selectedItemId, status });
+      toast({ title: status === "won" ? "Licitação ganha! 🎉" : status === "lost" ? "Licitação perdida" : "Status atualizado" });
+    } catch (e: any) { toast({ title: "Erro", description: e.message, variant: "destructive" }); }
+  };
+
+  const handleCreateDeal = async () => {
+    if (!selectedItemId || !dealForm.funnel_id || !dealForm.company_id) return;
+    try {
+      await createDealFromLicitacao.mutateAsync({
+        licitacaoId: selectedItemId,
+        funnel_id: dealForm.funnel_id,
+        company_id: dealForm.company_id,
+        title: dealForm.title || undefined,
+        value: dealForm.value ? Number(dealForm.value) : undefined,
+      });
+      setDealForm({ funnel_id: "", company_id: "", title: "", value: "" });
+      setShowCreateDealDialog(false);
+      toast({ title: "Negociação CRM criada e vinculada!" });
+    } catch (e: any) { toast({ title: "Erro", description: e.message, variant: "destructive" }); }
+  };
+
+  const openCreateDealDialog = () => {
+    if (selectedItem) {
+      setDealForm({
+        funnel_id: "",
+        company_id: "",
+        title: selectedItem.title,
+        value: String(selectedItem.estimated_value || ""),
+      });
+    }
+    setShowCreateDealDialog(true);
+  };
+
+
     if (!deleteConfirm) return;
     try {
       if (deleteConfirm.type === "board") await deleteBoard.mutateAsync(deleteConfirm.id);
@@ -692,6 +733,58 @@ export default function Licitacoes() {
                     )}
                     {selectedItem.description && <div><Label className="text-xs text-muted-foreground">Descrição</Label><p className="text-sm whitespace-pre-wrap">{selectedItem.description}</p></div>}
                     {selectedItem.notes && <div><Label className="text-xs text-muted-foreground">Observações</Label><p className="text-sm whitespace-pre-wrap">{selectedItem.notes}</p></div>}
+                    {/* Status Section */}
+                    <div className="border rounded-lg p-3 space-y-3">
+                      <p className="text-sm font-medium flex items-center gap-1.5">
+                        <Briefcase className="h-4 w-4" /> Status da Licitação
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={selectedItem.status === "won" ? "default" : selectedItem.status === "lost" ? "destructive" : "secondary"} className={cn(
+                          "text-xs",
+                          selectedItem.status === "won" && "bg-green-600 hover:bg-green-700",
+                        )}>
+                          {selectedItem.status === "won" ? "Ganha" : selectedItem.status === "lost" ? "Perdida" : selectedItem.status === "canceled" ? "Cancelada" : "Aberta"}
+                        </Badge>
+                        {selectedItem.status === "open" && (
+                          <div className="flex gap-1.5 ml-auto">
+                            <Button size="sm" variant="outline" className="text-green-600 border-green-600 hover:bg-green-50 dark:hover:bg-green-950" onClick={() => handleChangeStatus("won")}>
+                              <Trophy className="h-4 w-4 mr-1" /> Ganhou
+                            </Button>
+                            <Button size="sm" variant="outline" className="text-destructive border-destructive hover:bg-destructive/10" onClick={() => handleChangeStatus("lost")}>
+                              <XCircle className="h-4 w-4 mr-1" /> Perdeu
+                            </Button>
+                          </div>
+                        )}
+                        {(selectedItem.status === "won" || selectedItem.status === "lost") && (
+                          <Button size="sm" variant="ghost" className="ml-auto text-xs" onClick={() => handleChangeStatus("open")}>
+                            Reabrir
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Deal Link Section */}
+                    <div className="border rounded-lg p-3 space-y-2">
+                      <p className="text-sm font-medium flex items-center gap-1.5">
+                        <Link2 className="h-4 w-4" /> Negociação CRM
+                      </p>
+                      {selectedItem.linked_deal_id ? (
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-xs">Vinculada</Badge>
+                          <Button size="sm" variant="outline" onClick={() => {
+                            setShowDetailDialog(false);
+                            navigate(`/crm/negociacoes?deal=${selectedItem.linked_deal_id}`);
+                          }}>
+                            <ExternalLink className="h-3.5 w-3.5 mr-1" /> Abrir Negociação
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button size="sm" variant="outline" onClick={openCreateDealDialog}>
+                          <Plus className="h-4 w-4 mr-1" /> Criar Negociação
+                        </Button>
+                      )}
+                    </div>
+
                     <div className="flex gap-2 pt-2">
                       <Button variant="outline" size="sm" onClick={handleStartEdit}><Edit className="h-4 w-4 mr-1" /> Editar</Button>
                       <Button variant="destructive" size="sm" onClick={() => setDeleteConfirm({ type: "item", id: selectedItem.id, name: selectedItem.title })}><Trash2 className="h-4 w-4 mr-1" /> Excluir</Button>
@@ -900,6 +993,59 @@ export default function Licitacoes() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowNewStageDialog(false)}>Cancelar</Button>
             <Button onClick={handleAddStage}>Adicionar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Deal Dialog */}
+      <Dialog open={showCreateDealDialog} onOpenChange={setShowCreateDealDialog}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Criar Negociação CRM</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Título</Label>
+              <Input value={dealForm.title} onChange={e => setDealForm(p => ({ ...p, title: e.target.value }))} placeholder="Título da negociação" />
+            </div>
+            <div>
+              <Label>Valor</Label>
+              <Input type="number" value={dealForm.value} onChange={e => setDealForm(p => ({ ...p, value: e.target.value }))} placeholder="0,00" />
+            </div>
+            <div>
+              <Label>Funil *</Label>
+              <Select value={dealForm.funnel_id} onValueChange={v => setDealForm(p => ({ ...p, funnel_id: v }))}>
+                <SelectTrigger><SelectValue placeholder="Selecionar funil" /></SelectTrigger>
+                <SelectContent>
+                  {crmFunnels.map(f => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Empresa *</Label>
+              <div className="space-y-2">
+                <Input placeholder="Buscar empresa..." value={companySearch} onChange={e => setCompanySearch(e.target.value)} />
+                {companySearch && (
+                  <div className="border rounded-lg max-h-32 overflow-y-auto">
+                    {crmCompanies.length === 0 ? (
+                      <p className="text-xs text-muted-foreground p-2 text-center">Nenhuma empresa encontrada</p>
+                    ) : (
+                      crmCompanies.slice(0, 10).map(c => (
+                        <button key={c.id} className={cn("w-full text-left p-2 text-sm hover:bg-muted/50", dealForm.company_id === c.id && "bg-primary/10")}
+                          onClick={() => { setDealForm(p => ({ ...p, company_id: c.id })); setCompanySearch(c.name); }}>
+                          {c.name} {c.cnpj && <span className="text-xs text-muted-foreground ml-1">({c.cnpj})</span>}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateDealDialog(false)}>Cancelar</Button>
+            <Button onClick={handleCreateDeal} disabled={createDealFromLicitacao.isPending || !dealForm.funnel_id || !dealForm.company_id}>
+              {createDealFromLicitacao.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Plus className="h-4 w-4 mr-1" />}
+              Criar Negociação
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
