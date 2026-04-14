@@ -247,7 +247,7 @@ export default function Licitacoes() {
         boardId: activeBoardId, ...itemForm,
         assigned_to: itemForm.assigned_to && itemForm.assigned_to !== "__none__" ? itemForm.assigned_to : undefined,
         estimated_value: itemForm.estimated_value ? Number(itemForm.estimated_value) : undefined,
-      });
+      }) as any;
 
       // If AI parsed data, create checklist items and tasks
       if (aiParsingData && newItem?.id) {
