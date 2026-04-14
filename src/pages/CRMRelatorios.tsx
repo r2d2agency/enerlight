@@ -330,32 +330,32 @@ export default function CRMRelatorios() {
             </div>
 
             {/* KPI Cards - Row 2: Negociações */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <Card>
-                <CardContent className="pt-6">
-                  <p className="text-sm text-muted-foreground">Negociações</p>
-                  <p className="text-2xl font-bold">{summary.open.count + summary.won.count + summary.lost.count}</p>
-                  <p className="text-xs text-muted-foreground">{formatCurrency(summary.totalValue)}</p>
+                <CardContent className="pt-4 px-3 sm:pt-6 sm:px-6">
+                  <p className="text-xs sm:text-sm text-muted-foreground">Negociações</p>
+                  <p className="text-lg sm:text-2xl font-bold">{summary.open.count + summary.won.count + summary.lost.count}</p>
+                  <p className="text-xs text-muted-foreground truncate">{formatCurrency(summary.totalValue)}</p>
                 </CardContent>
               </Card>
               <Card>
-                <CardContent className="pt-6">
-                  <p className="text-sm text-muted-foreground">Ganhas</p>
-                  <p className="text-2xl font-bold text-green-600">{summary.won.count}</p>
-                  <p className="text-xs text-green-600">{formatCurrency(summary.won.value)}</p>
+                <CardContent className="pt-4 px-3 sm:pt-6 sm:px-6">
+                  <p className="text-xs sm:text-sm text-muted-foreground">Ganhas</p>
+                  <p className="text-lg sm:text-2xl font-bold text-green-600">{summary.won.count}</p>
+                  <p className="text-xs text-green-600 truncate">{formatCurrency(summary.won.value)}</p>
                 </CardContent>
               </Card>
               <Card>
-                <CardContent className="pt-6">
-                  <p className="text-sm text-muted-foreground">Perdidas</p>
-                  <p className="text-2xl font-bold text-red-600">{summary.lost.count}</p>
-                  <p className="text-xs text-red-600">{formatCurrency(summary.lost.value)}</p>
+                <CardContent className="pt-4 px-3 sm:pt-6 sm:px-6">
+                  <p className="text-xs sm:text-sm text-muted-foreground">Perdidas</p>
+                  <p className="text-lg sm:text-2xl font-bold text-red-600">{summary.lost.count}</p>
+                  <p className="text-xs text-red-600 truncate">{formatCurrency(summary.lost.value)}</p>
                 </CardContent>
               </Card>
               <Card>
-                <CardContent className="pt-6">
-                  <p className="text-sm text-muted-foreground">Taxa Conversão</p>
-                  <p className="text-2xl font-bold">{summary.winRate}%</p>
+                <CardContent className="pt-4 px-3 sm:pt-6 sm:px-6">
+                  <p className="text-xs sm:text-sm text-muted-foreground">Taxa Conversão</p>
+                  <p className="text-lg sm:text-2xl font-bold">{summary.winRate}%</p>
                 </CardContent>
               </Card>
             </div>
