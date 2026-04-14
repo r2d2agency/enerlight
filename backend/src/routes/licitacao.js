@@ -158,7 +158,8 @@ router.get('/boards/:boardId/items', requireAuth, async (req, res) => {
         (SELECT COUNT(*) FROM licitacao_tasks t WHERE t.licitacao_id = l.id) as task_count,
         (SELECT COUNT(*) FROM licitacao_tasks t WHERE t.licitacao_id = l.id AND t.status = 'completed') as completed_task_count,
         (SELECT COUNT(*) FROM licitacao_checklist c WHERE c.licitacao_id = l.id) as checklist_count,
-        (SELECT COUNT(*) FROM licitacao_checklist c WHERE c.licitacao_id = l.id AND c.is_checked = true) as checked_count
+        (SELECT COUNT(*) FROM licitacao_checklist c WHERE c.licitacao_id = l.id AND c.is_checked = true) as checked_count,
+        (SELECT d.id FROM crm_deals d WHERE d.id = l.deal_id LIMIT 1) as linked_deal_id
        FROM licitacoes l
        LEFT JOIN users u ON u.id = l.assigned_to
        LEFT JOIN users cu ON cu.id = l.created_by
