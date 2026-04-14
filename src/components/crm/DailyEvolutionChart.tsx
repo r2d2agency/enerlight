@@ -1,12 +1,13 @@
-import { useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, TrendingUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
 } from "recharts";
-import { eachDayOfInterval, parseISO, format } from "date-fns";
+import { eachDayOfInterval, parseISO, format, subMonths, startOfMonth, endOfMonth, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 interface DailyRow {
@@ -24,6 +25,34 @@ interface Props {
   filterGroupId?: string;
 }
 
+type PeriodKey = "inherited" | "current_month" | "previous_month" | "60days" | "90days";
+
+const PERIOD_OPTIONS: { key: PeriodKey; label: string }[] = [
+  { key: "inherited", label: "Período Atual" },
+  { key: "current_month", label: "Mês Atual" },
+  { key: "previous_month", label: "Mês Anterior" },
+  { key: "60days", label: "60 dias" },
+  { key: "90days", label: "90 dias" },
+];
+
+function getPeriodDates(key: PeriodKey, parentStart: string, parentEnd: string) {
+  const today = new Date();
+  switch (key) {
+    case "current_month":
+      return { start: format(startOfMonth(today), "yyyy-MM-dd"), end: format(endOfMonth(today), "yyyy-MM-dd") };
+    case "previous_month": {
+      const prev = subMonths(today, 1);
+      return { start: format(startOfMonth(prev), "yyyy-MM-dd"), end: format(endOfMonth(prev), "yyyy-MM-dd") };
+    }
+    case "60days":
+      return { start: format(subDays(today, 60), "yyyy-MM-dd"), end: format(today, "yyyy-MM-dd") };
+    case "90days":
+      return { start: format(subDays(today, 90), "yyyy-MM-dd"), end: format(today, "yyyy-MM-dd") };
+    default:
+      return { start: parentStart, end: parentEnd };
+  }
+}
+
 function fmtShort(v: number) {
   if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
   if (v >= 1_000) return `${(v / 1_000).toFixed(0)}K`;
@@ -35,12 +64,15 @@ function fmtFull(v: number) {
 }
 
 export function DailyEvolutionChart({ startDate, endDate, filterUserId, filterChannel, filterGroupId }: Props) {
+  const [period, setPeriod] = useState<PeriodKey>("inherited");
+  const { start: effStart, end: effEnd } = getPeriodDates(period, startDate, endDate);
+
   const { data: dailyData, isLoading } = useQuery<DailyRow[]>({
-    queryKey: ["crm-goals-daily", startDate, endDate, filterUserId, filterChannel, filterGroupId],
+    queryKey: ["crm-goals-daily", effStart, effEnd, filterUserId, filterChannel, filterGroupId],
     queryFn: () => {
       const sp = new URLSearchParams();
-      sp.set("start_date", startDate);
-      sp.set("end_date", endDate);
+      sp.set("start_date", effStart);
+      sp.set("end_date", effEnd);
       if (filterUserId && filterUserId !== "all") sp.set("user_id", filterUserId);
       if (filterChannel && filterChannel !== "all") sp.set("channel", filterChannel);
       if (filterGroupId && filterGroupId !== "all") sp.set("group_id", filterGroupId);
@@ -52,7 +84,7 @@ export function DailyEvolutionChart({ startDate, endDate, filterUserId, filterCh
     if (!dailyData) return [];
     let allDays: Date[];
     try {
-      allDays = eachDayOfInterval({ start: parseISO(startDate), end: parseISO(endDate) });
+      allDays = eachDayOfInterval({ start: parseISO(effStart), end: parseISO(effEnd) });
     } catch { return []; }
 
     // Build map by day+type
@@ -77,10 +109,29 @@ export function DailyEvolutionChart({ startDate, endDate, filterUserId, filterCh
         faturamento: accFat,
       };
     });
-  }, [dailyData, startDate, endDate]);
+  }, [dailyData, effStart, effEnd]);
 
   if (isLoading) return <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
-  if (!chartData.length) return null;
+  if (!chartData.length && !isLoading) return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <TrendingUp className="h-4 w-4" />
+          Evolução Acumulada no Período
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="flex flex-wrap gap-1 mb-4">
+          {PERIOD_OPTIONS.map(o => (
+            <Button key={o.key} size="sm" variant={period === o.key ? "default" : "outline"} onClick={() => setPeriod(o.key)} className="text-xs h-7">
+              {o.label}
+            </Button>
+          ))}
+        </div>
+        <p className="text-sm text-muted-foreground text-center py-8">Nenhum dado encontrado para o período selecionado.</p>
+      </CardContent>
+    </Card>
+  );
 
   return (
     <Card>
@@ -91,6 +142,13 @@ export function DailyEvolutionChart({ startDate, endDate, filterUserId, filterCh
         </CardTitle>
       </CardHeader>
       <CardContent>
+        <div className="flex flex-wrap gap-1 mb-4">
+          {PERIOD_OPTIONS.map(o => (
+            <Button key={o.key} size="sm" variant={period === o.key ? "default" : "outline"} onClick={() => setPeriod(o.key)} className="text-xs h-7">
+              {o.label}
+            </Button>
+          ))}
+        </div>
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
