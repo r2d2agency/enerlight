@@ -67,6 +67,9 @@ export function LicitacaoAIConfigDialog({ open, onOpenChange }: Props) {
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [importText, setImportText] = useState("");
   const [showImport, setShowImport] = useState(false);
+  const [parsedFileProducts, setParsedFileProducts] = useState<any[] | null>(null);
+  const [fileImportName, setFileImportName] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (config) {
