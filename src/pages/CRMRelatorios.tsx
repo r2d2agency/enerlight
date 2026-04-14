@@ -187,11 +187,10 @@ export default function CRMRelatorios() {
           </div>
 
           {/* Filters */}
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Date Range */}
+          <div className="flex flex-wrap items-center gap-2">
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" className="justify-start text-left font-normal">
+                <Button variant="outline" className="w-full sm:w-auto justify-start text-left font-normal text-sm">
                   <CalendarIcon className="mr-2 h-4 w-4" />
                   {dateRange?.from ? (
                     dateRange.to ? (
@@ -232,9 +231,8 @@ export default function CRMRelatorios() {
               </PopoverContent>
             </Popover>
 
-            {/* Funnel Filter */}
             <Select value={selectedFunnel} onValueChange={setSelectedFunnel}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue placeholder="Todos os funis" />
               </SelectTrigger>
               <SelectContent>
@@ -247,9 +245,8 @@ export default function CRMRelatorios() {
               </SelectContent>
             </Select>
 
-            {/* User Filter */}
             <Select value={filterUserId} onValueChange={setFilterUserId}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue placeholder="Todos usuários" />
               </SelectTrigger>
               <SelectContent>
@@ -260,9 +257,8 @@ export default function CRMRelatorios() {
               </SelectContent>
             </Select>
 
-            {/* Group By */}
             <Select value={groupBy} onValueChange={(v) => setGroupBy(v as typeof groupBy)}>
-              <SelectTrigger className="w-[140px]">
+              <SelectTrigger className="w-full sm:w-[140px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
