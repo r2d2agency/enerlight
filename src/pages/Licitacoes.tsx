@@ -224,6 +224,8 @@ export default function Licitacoes() {
   const deleteNote = useDeleteLicitacaoNote();
   const createDealFromLicitacao = useCreateDealFromLicitacao();
   const parseEdital = useParseEdital();
+  const saveAIAnalysis = useSaveAIAnalysis();
+  const [detailDefaultTab, setDetailDefaultTab] = useState("info");
   const itemsByStage = useMemo(() => {
     const map: Record<string, Licitacao[]> = {};
     stages.forEach(s => { map[s.id] = []; });
