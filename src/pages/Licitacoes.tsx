@@ -616,6 +616,7 @@ export default function Licitacoes() {
             <Tabs defaultValue="info" className="mt-2">
               <TabsList className="w-full flex flex-wrap h-auto gap-1">
                 <TabsTrigger value="info" className="text-xs">Info</TabsTrigger>
+                <TabsTrigger value="ai" className="text-xs"><Sparkles className="h-3 w-3 mr-1" /> IA</TabsTrigger>
                 <TabsTrigger value="tasks" className="text-xs">Tarefas ({tasks.length})</TabsTrigger>
                 <TabsTrigger value="checklist" className="text-xs"><CheckSquare className="h-3 w-3 mr-1" /> Checklist ({checklist.length})</TabsTrigger>
                 <TabsTrigger value="documents" className="text-xs">Docs ({documents.length})</TabsTrigger>
