@@ -36,6 +36,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { LicitacaoKanban } from "@/components/licitacao/LicitacaoKanban";
 import { LicitacaoAIConfigDialog } from "@/components/licitacao/LicitacaoAIConfigDialog";
 import { LicitacaoAIAnalysis as LicitacaoAIAnalysisPanel } from "@/components/licitacao/LicitacaoAIAnalysisPanel";
+import { useParseEdital, type ParsedEditalData } from "@/hooks/use-licitacao-ai";
 
 const MODALITIES = [
   "Pregão Eletrônico", "Pregão Presencial", "Concorrência", "Tomada de Preços",
@@ -149,6 +150,8 @@ export default function Licitacoes() {
   const [showNewStageDialog, setShowNewStageDialog] = useState(false);
   const [showCreateDealDialog, setShowCreateDealDialog] = useState(false);
   const [showAIConfigDialog, setShowAIConfigDialog] = useState(false);
+  const [showCreationChoice, setShowCreationChoice] = useState(false);
+  const [aiParsingData, setAiParsingData] = useState<ParsedEditalData | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: string; id: string; name: string } | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [editMode, setEditMode] = useState(false);
@@ -214,7 +217,7 @@ export default function Licitacoes() {
   const createNote = useCreateLicitacaoNote();
   const deleteNote = useDeleteLicitacaoNote();
   const createDealFromLicitacao = useCreateDealFromLicitacao();
-
+  const parseEdital = useParseEdital();
   const itemsByStage = useMemo(() => {
     const map: Record<string, Licitacao[]> = {};
     stages.forEach(s => { map[s.id] = []; });
@@ -240,16 +243,79 @@ export default function Licitacoes() {
   const handleCreateItem = async () => {
     if (!itemForm.title.trim() || !activeBoardId) return;
     try {
-      await createItem.mutateAsync({
+      const newItem = await createItem.mutateAsync({
         boardId: activeBoardId, ...itemForm,
         assigned_to: itemForm.assigned_to && itemForm.assigned_to !== "__none__" ? itemForm.assigned_to : undefined,
         estimated_value: itemForm.estimated_value ? Number(itemForm.estimated_value) : undefined,
       });
+
+      // If AI parsed data, create checklist items and tasks
+      if (aiParsingData && newItem?.id) {
+        try {
+          if (aiParsingData.checklist_items?.length) {
+            for (const title of aiParsingData.checklist_items) {
+              if (title) await createChecklistItem.mutateAsync({ licitacaoId: newItem.id, title });
+            }
+          }
+          if (aiParsingData.tasks?.length) {
+            for (const task of aiParsingData.tasks) {
+              if (task.title) await createTask.mutateAsync({
+                licitacaoId: newItem.id,
+                title: task.title,
+                description: task.description,
+                priority: task.priority || "medium",
+                due_date: task.due_date || undefined,
+              });
+            }
+          }
+        } catch (aiErr) {
+          console.error("Erro ao criar itens da IA:", aiErr);
+        }
+      }
+
       resetItemForm();
       setShowNewItemDialog(false);
-      toast({ title: "Licitação adicionada!" });
+      setAiParsingData(null);
+      toast({ title: aiParsingData ? "Licitação criada com dados da IA! ✨" : "Licitação adicionada!" });
     } catch (e: any) { toast({ title: "Erro", description: e.message, variant: "destructive" }); }
   };
+  };
+
+  const handleAIParseEdital = async (file: File) => {
+    try {
+      const url = await uploadFile(file);
+      if (!url) throw new Error("Falha no upload");
+      setItemForm(p => ({ ...p, edital_url: url }));
+      toast({ title: "Edital enviado, analisando com IA..." });
+      const parsed = await parseEdital.mutateAsync({ edital_url: url });
+      setAiParsingData(parsed);
+      // Auto-fill the form
+      setItemForm(p => ({
+        ...p,
+        title: parsed.title || p.title,
+        edital_number: parsed.edital_number || p.edital_number,
+        modality: parsed.modality || p.modality,
+        opening_date: parsed.opening_date || p.opening_date,
+        deadline_date: parsed.deadline_date || p.deadline_date,
+        result_date: parsed.result_date || p.result_date,
+        estimated_value: parsed.estimated_value ? String(parsed.estimated_value) : p.estimated_value,
+        entity_name: parsed.entity_name || p.entity_name,
+        entity_cnpj: parsed.entity_cnpj || p.entity_cnpj,
+        entity_contact: parsed.entity_contact || p.entity_contact,
+        entity_phone: parsed.entity_phone || p.entity_phone,
+        entity_email: parsed.entity_email || p.entity_email,
+        description: parsed.description || p.description,
+        notes: parsed.notes || p.notes,
+      }));
+      setShowNewItemDialog(true);
+      toast({ title: "Edital analisado! Confira os campos preenchidos ✨" });
+    } catch (e: any) {
+      toast({ title: "Erro na análise do edital", description: e.message, variant: "destructive" });
+      // Open manual form anyway
+      setShowNewItemDialog(true);
+    }
+  };
+
 
   const handleStartEdit = () => {
     if (!selectedItem) return;
@@ -455,7 +521,7 @@ export default function Licitacoes() {
             </div>
             {activeBoardId && (
               <>
-                <Button size="sm" onClick={() => setShowNewItemDialog(true)}>
+                <Button size="sm" onClick={() => setShowCreationChoice(true)}>
                   <Plus className="h-4 w-4 mr-1" /> Nova Licitação
                 </Button>
                 <Button variant="ghost" size="icon" onClick={() => setShowStageSettings(true)}>
@@ -493,6 +559,61 @@ export default function Licitacoes() {
         )}
       </div>
 
+      {/* Creation Choice Dialog */}
+      <Dialog open={showCreationChoice} onOpenChange={setShowCreationChoice}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Nova Licitação</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">Como deseja criar a licitação?</p>
+          <div className="grid grid-cols-1 gap-3 mt-2">
+            <button
+              className="flex items-start gap-3 p-4 rounded-lg border-2 border-border hover:border-primary/50 hover:bg-muted/30 transition-all text-left group"
+              onClick={() => { setShowCreationChoice(false); resetItemForm(); setAiParsingData(null); setShowNewItemDialog(true); }}
+            >
+              <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center shrink-0 group-hover:bg-primary/10">
+                <Edit className="h-5 w-5 text-muted-foreground group-hover:text-primary" />
+              </div>
+              <div>
+                <p className="font-medium text-sm">Criar Manualmente</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Preencha todos os campos manualmente</p>
+              </div>
+            </button>
+            <button
+              className="flex items-start gap-3 p-4 rounded-lg border-2 border-border hover:border-primary/50 hover:bg-muted/30 transition-all text-left group relative"
+              onClick={() => document.getElementById("ai-edital-upload")?.click()}
+              disabled={parseEdital.isPending || isUploading}
+            >
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                {parseEdital.isPending || isUploading ? (
+                  <Loader2 className="h-5 w-5 text-primary animate-spin" />
+                ) : (
+                  <Sparkles className="h-5 w-5 text-primary" />
+                )}
+              </div>
+              <div>
+                <p className="font-medium text-sm">Criar com IA</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {parseEdital.isPending ? "Analisando edital com IA..." : isUploading ? "Enviando arquivo..." : "Envie o PDF do edital e a IA preenche tudo automaticamente"}
+                </p>
+              </div>
+            </button>
+          </div>
+          <input
+            type="file"
+            id="ai-edital-upload"
+            className="hidden"
+            accept=".pdf,.doc,.docx,.txt"
+            onChange={async (e) => {
+              const f = e.target.files?.[0];
+              if (f) {
+                setShowCreationChoice(false);
+                await handleAIParseEdital(f);
+              }
+              e.target.value = "";
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+
       {/* New Board Dialog */}
       <Dialog open={showNewBoardDialog} onOpenChange={setShowNewBoardDialog}>
         <DialogContent>
@@ -512,11 +633,31 @@ export default function Licitacoes() {
       </Dialog>
 
       {/* New Item Dialog */}
-      <Dialog open={showNewItemDialog} onOpenChange={setShowNewItemDialog}>
+      <Dialog open={showNewItemDialog} onOpenChange={v => { setShowNewItemDialog(v); if (!v) setAiParsingData(null); }}>
         <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
-          <DialogHeader><DialogTitle>Nova Licitação</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{aiParsingData ? "Nova Licitação (preenchida por IA)" : "Nova Licitação"}</DialogTitle></DialogHeader>
           <ScrollArea className="flex-1 overflow-y-auto max-h-[calc(85vh-130px)] pr-2">
             <div className="space-y-4">
+              {aiParsingData && (
+                <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-primary" />
+                    <span className="text-sm font-medium text-primary">Preenchido pela IA</span>
+                    {aiParsingData.compliance_score !== undefined && (
+                      <Badge variant={aiParsingData.compliance_score >= 70 ? "default" : "secondary"} className={cn("text-xs ml-auto", aiParsingData.compliance_score >= 70 && "bg-green-600")}>
+                        {aiParsingData.compliance_score}% compatível
+                      </Badge>
+                    )}
+                  </div>
+                  {aiParsingData.summary && <p className="text-xs text-muted-foreground line-clamp-3">{aiParsingData.summary}</p>}
+                  <div className="flex gap-3 text-xs text-muted-foreground">
+                    {aiParsingData.checklist_items?.length ? <span>✓ {aiParsingData.checklist_items.length} documentos</span> : null}
+                    {aiParsingData.tasks?.length ? <span>📋 {aiParsingData.tasks.length} tarefas</span> : null}
+                    {aiParsingData.edital_items?.length ? <span>📦 {aiParsingData.edital_items.length} itens</span> : null}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">Revise os campos e clique em Adicionar. Checklist e tarefas serão criados automaticamente.</p>
+                </div>
+              )}
               <div>
                 <Label>Título *</Label>
                 <Input value={itemForm.title} onChange={e => setItemForm(p => ({ ...p, title: e.target.value }))} placeholder="Ex: Pregão Eletrônico nº 001/2025" />

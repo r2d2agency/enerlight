@@ -429,6 +429,135 @@ IMPORTANTE: Retorne APENAS o JSON, sem markdown, sem \`\`\`json, sem texto extra
   }
 });
 
+// ===================== PARSE EDITAL PDF =====================
+
+router.post('/parse-edital', requireAuth, async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+
+    const { edital_url, edital_text } = req.body;
+    let textContent = edital_text || '';
+
+    // If URL provided, try to fetch content
+    if (edital_url && !textContent) {
+      try {
+        const response = await fetch(edital_url);
+        if (!response.ok) throw new Error('Falha ao baixar arquivo');
+        const contentType = response.headers.get('content-type') || '';
+        
+        if (contentType.includes('application/pdf')) {
+          // For PDF, get as buffer and extract text
+          const buffer = await response.arrayBuffer();
+          const pdfParse = (await import('pdf-parse')).default;
+          const pdfData = await pdfParse(Buffer.from(buffer));
+          textContent = pdfData.text;
+        } else if (contentType.includes('text') || contentType.includes('html')) {
+          textContent = await response.text();
+        } else {
+          // Try as text anyway
+          textContent = await response.text();
+        }
+      } catch (fetchErr) {
+        logError('licitacao_ai.parse_fetch', fetchErr);
+        return res.status(400).json({ error: `Não foi possível ler o arquivo: ${fetchErr.message}` });
+      }
+    }
+
+    if (!textContent || textContent.trim().length < 30) {
+      return res.status(400).json({ error: 'Não foi possível extrair texto do edital. Tente enviar o texto manualmente.' });
+    }
+
+    // Get AI config
+    const configRes = await query(
+      `SELECT c.*, o.ai_provider as org_ai_provider, o.ai_model as org_ai_model, o.ai_api_key as org_ai_api_key
+       FROM organizations o
+       LEFT JOIN licitacao_ai_config c ON c.organization_id = o.id
+       WHERE o.id = $1`,
+      [org.organization_id]
+    );
+    const configRow = configRes.rows[0];
+    let aiConfig;
+
+    if (configRow?.use_org_ai_config !== false && configRow?.org_ai_api_key) {
+      aiConfig = { provider: configRow.org_ai_provider || 'openai', model: configRow.org_ai_model || 'gpt-4o-mini', apiKey: configRow.org_ai_api_key };
+    } else if (configRow?.ai_api_key) {
+      aiConfig = { provider: configRow.ai_provider || 'openai', model: configRow.ai_model || 'gpt-4o-mini', apiKey: configRow.ai_api_key };
+    } else {
+      return res.status(400).json({ error: 'IA não configurada. Configure a chave de API nas configurações do módulo ou nas configurações gerais da organização.' });
+    }
+
+    // Get products for compliance matching
+    const productsRes = await query(
+      `SELECT content FROM licitacao_ai_product_chunks WHERE organization_id=$1 LIMIT 100`,
+      [org.organization_id]
+    );
+    const productsContext = productsRes.rows.map(r => r.content).join('\n---\n');
+
+    const systemPrompt = `Você é um especialista em licitações públicas brasileiras. Analise o texto do edital e extraia as informações estruturadas em JSON.
+
+Retorne EXATAMENTE este formato JSON:
+{
+  "title": "título descritivo da licitação (ex: Pregão Eletrônico nº 001/2025 - Aquisição de...)",
+  "edital_number": "número do edital (ex: 001/2025)",
+  "modality": "modalidade (deve ser uma destas: Pregão Eletrônico, Pregão Presencial, Concorrência, Tomada de Preços, Convite, Leilão, Concurso, Dispensa, Inexigibilidade, RDC, Outro)",
+  "opening_date": "data de abertura no formato YYYY-MM-DD ou null",
+  "deadline_date": "data limite/prazo no formato YYYY-MM-DD ou null",
+  "result_date": "data do resultado no formato YYYY-MM-DD ou null",
+  "estimated_value": número do valor estimado ou 0,
+  "entity_name": "nome do órgão/entidade/prefeitura",
+  "entity_cnpj": "CNPJ do órgão se disponível ou null",
+  "entity_contact": "nome do contato/pregoeiro se disponível ou null",
+  "entity_phone": "telefone do órgão se disponível ou null",
+  "entity_email": "email do órgão se disponível ou null",
+  "description": "descrição/objeto da licitação",
+  "notes": "informações importantes extraídas (local de entrega, condições, etc)",
+  "checklist_items": ["documento obrigatório 1", "documento obrigatório 2", ...],
+  "tasks": [
+    { "title": "tarefa sugerida", "description": "detalhes", "priority": "high/medium/low", "due_date": "YYYY-MM-DD ou null" }
+  ],
+  "summary": "resumo executivo do edital",
+  "edital_items": [
+    { "item_number": "1", "description": "descrição do item", "quantity": "10", "unit": "UN", "estimated_value": "1000.00" }
+  ]${productsContext ? `,
+  "product_matches": [
+    { "edital_item": "item do edital", "product_name": "produto da empresa", "match_level": "total/parcial/não atende", "notes": "observações" }
+  ],
+  "compliance_score": 0-100,
+  "compliance_analysis": "análise de conformidade detalhada"` : ''}
+}
+
+${productsContext ? `\nPRODUTOS E SERVIÇOS DA EMPRESA:\n${productsContext}` : ''}
+
+IMPORTANTE: Retorne APENAS o JSON, sem markdown, sem \`\`\`json, sem texto extra.`;
+
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: `Analise o seguinte edital:\n\n${textContent.substring(0, 100000)}` },
+    ];
+
+    const result = await callAI(aiConfig, messages, {
+      temperature: 0.2,
+      maxTokens: parseInt(configRow?.max_tokens) || 4000,
+      responseFormat: { type: 'json_object' },
+    });
+
+    let parsed;
+    try {
+      parsed = JSON.parse(result.content);
+    } catch {
+      const jsonMatch = result.content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) parsed = JSON.parse(jsonMatch[0]);
+      else throw new Error('Resposta da IA não é JSON válido');
+    }
+
+    res.json(parsed);
+  } catch (e) {
+    logError('licitacao_ai.parse_edital_error', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ===================== HELPERS =====================
 
 function buildProductChunk(product) {
