@@ -165,6 +165,8 @@ export default function Licitacoes() {
   const [newStageColor, setNewStageColor] = useState("#6366f1");
   const [noteContent, setNoteContent] = useState("");
   const [checklistTitle, setChecklistTitle] = useState("");
+  const [dealForm, setDealForm] = useState({ funnel_id: "", company_id: "", title: "", value: "" });
+  const [companySearch, setCompanySearch] = useState("");
   const taskCreatingRef = useRef(false);
 
   // Data
