@@ -30,7 +30,7 @@ import {
   useLicitacaoHistory, useLicitacaoOrgMembers, useSearchLicitacaoContacts, useCreateDealFromLicitacao,
   Licitacao, LicitacaoStage, LicitacaoContact,
 } from "@/hooks/use-licitacao";
-import { useCRMFunnels, useCRMCompanies } from "@/hooks/use-crm";
+import { useCRMFunnels, useCRMCompanies, useCRMDeal, useCRMFunnel, useCRMDealMutations } from "@/hooks/use-crm";
 import { useUpload } from "@/hooks/use-upload";
 import { useAuth } from "@/contexts/AuthContext";
 import { LicitacaoKanban } from "@/components/licitacao/LicitacaoKanban";
@@ -184,6 +184,12 @@ export default function Licitacoes() {
   const { data: contactResults = [] } = useSearchLicitacaoContacts(contactSearchTerm);
   const { data: crmFunnels = [] } = useCRMFunnels();
   const { data: crmCompanies = [] } = useCRMCompanies(companySearch);
+  const selectedItem = useMemo(() => items.find(i => i.id === selectedItemId), [items, selectedItemId]);
+  const linkedDealId = selectedItem?.linked_deal_id || null;
+  const { data: linkedDeal } = useCRMDeal(linkedDealId);
+  const linkedFunnelId = linkedDeal?.funnel_id || null;
+  const { data: linkedFunnel } = useCRMFunnel(linkedFunnelId);
+  const { moveDeal: moveCrmDeal, updateDeal: updateCrmDeal } = useCRMDealMutations();
   // Mutations
   const createBoard = useCreateLicitacaoBoard();
   const deleteBoard = useDeleteLicitacaoBoard();
@@ -205,7 +211,6 @@ export default function Licitacoes() {
   const createNote = useCreateLicitacaoNote();
   const deleteNote = useDeleteLicitacaoNote();
   const createDealFromLicitacao = useCreateDealFromLicitacao();
-  const selectedItem = useMemo(() => items.find(i => i.id === selectedItemId), [items, selectedItemId]);
 
   const itemsByStage = useMemo(() => {
     const map: Record<string, Licitacao[]> = {};
@@ -733,19 +738,86 @@ export default function Licitacoes() {
                     )}
                     {selectedItem.description && <div><Label className="text-xs text-muted-foreground">Descrição</Label><p className="text-sm whitespace-pre-wrap">{selectedItem.description}</p></div>}
                     {selectedItem.notes && <div><Label className="text-xs text-muted-foreground">Observações</Label><p className="text-sm whitespace-pre-wrap">{selectedItem.notes}</p></div>}
+                    {/* Deal Link Section */}
+                    <div className="border rounded-lg p-3 space-y-3">
+                      <p className="text-sm font-medium flex items-center gap-1.5">
+                        <Link2 className="h-4 w-4" /> Negociação CRM
+                      </p>
+                      {selectedItem.linked_deal_id && linkedDeal ? (
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge variant="outline" className="text-xs">Vinculada</Badge>
+                            {linkedDeal.stage_name && (
+                              <Badge variant="secondary" className="text-xs" style={{ borderColor: linkedDeal.stage_color || undefined }}>
+                                {linkedDeal.stage_name}
+                              </Badge>
+                            )}
+                            <Badge variant={linkedDeal.status === "won" ? "default" : linkedDeal.status === "lost" ? "destructive" : "secondary"} className={cn("text-xs", linkedDeal.status === "won" && "bg-green-600 hover:bg-green-700")}>
+                              {linkedDeal.status === "won" ? "Ganha" : linkedDeal.status === "lost" ? "Perdida" : linkedDeal.status === "paused" ? "Pausada" : "Aberta"}
+                            </Badge>
+                            {Number(linkedDeal.value) > 0 && (
+                              <span className="text-xs font-medium text-foreground ml-auto">
+                                R$ {Number(linkedDeal.value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                              </span>
+                            )}
+                          </div>
+                          {linkedFunnel?.stages && linkedFunnel.stages.length > 0 && linkedDeal.status === "open" && (
+                            <div className="space-y-1.5">
+                              <Label className="text-xs text-muted-foreground">Mover para etapa:</Label>
+                              <div className="flex flex-wrap gap-1.5">
+                                {linkedFunnel.stages
+                                  .sort((a, b) => a.position - b.position)
+                                  .map(s => (
+                                    <Button
+                                      key={s.id}
+                                      size="sm"
+                                      variant={s.id === linkedDeal.stage_id ? "default" : "outline"}
+                                      className="text-xs h-7 px-2"
+                                      disabled={s.id === linkedDeal.stage_id}
+                                      onClick={async () => {
+                                        if (!s.id) return;
+                                        try {
+                                          await moveCrmDeal.mutateAsync({ id: linkedDeal.id, stage_id: s.id });
+                                          toast({ title: `Negociação movida para ${s.name}` });
+                                        } catch (e: any) { toast({ title: "Erro", description: e.message, variant: "destructive" }); }
+                                      }}
+                                    >
+                                      <div className="w-2 h-2 rounded-full mr-1 shrink-0" style={{ backgroundColor: s.color }} />
+                                      {s.name}
+                                    </Button>
+                                  ))}
+                              </div>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2">
+                            <Button size="sm" variant="outline" onClick={() => {
+                              setShowDetailDialog(false);
+                              navigate(`/crm/negociacoes?deal=${selectedItem.linked_deal_id}`);
+                            }}>
+                              <ExternalLink className="h-3.5 w-3.5 mr-1" /> Abrir Negociação
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <Button size="sm" variant="outline" onClick={openCreateDealDialog}>
+                          <Plus className="h-4 w-4 mr-1" /> Criar Negociação
+                        </Button>
+                      )}
+                    </div>
+
                     {/* Status Section */}
                     <div className="border rounded-lg p-3 space-y-3">
                       <p className="text-sm font-medium flex items-center gap-1.5">
                         <Briefcase className="h-4 w-4" /> Status da Licitação
                       </p>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <Badge variant={selectedItem.status === "won" ? "default" : selectedItem.status === "lost" ? "destructive" : "secondary"} className={cn(
                           "text-xs",
                           selectedItem.status === "won" && "bg-green-600 hover:bg-green-700",
                         )}>
                           {selectedItem.status === "won" ? "Ganha" : selectedItem.status === "lost" ? "Perdida" : selectedItem.status === "canceled" ? "Cancelada" : "Aberta"}
                         </Badge>
-                        {selectedItem.status === "open" && (
+                        {selectedItem.status === "open" && selectedItem.linked_deal_id && (
                           <div className="flex gap-1.5 ml-auto">
                             <Button size="sm" variant="outline" className="text-green-600 border-green-600 hover:bg-green-50 dark:hover:bg-green-950" onClick={() => handleChangeStatus("won")}>
                               <Trophy className="h-4 w-4 mr-1" /> Ganhou
@@ -755,34 +827,15 @@ export default function Licitacoes() {
                             </Button>
                           </div>
                         )}
+                        {selectedItem.status === "open" && !selectedItem.linked_deal_id && (
+                          <p className="text-xs text-muted-foreground ml-auto">Crie uma negociação CRM para definir resultado</p>
+                        )}
                         {(selectedItem.status === "won" || selectedItem.status === "lost") && (
                           <Button size="sm" variant="ghost" className="ml-auto text-xs" onClick={() => handleChangeStatus("open")}>
                             Reabrir
                           </Button>
                         )}
                       </div>
-                    </div>
-
-                    {/* Deal Link Section */}
-                    <div className="border rounded-lg p-3 space-y-2">
-                      <p className="text-sm font-medium flex items-center gap-1.5">
-                        <Link2 className="h-4 w-4" /> Negociação CRM
-                      </p>
-                      {selectedItem.linked_deal_id ? (
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-xs">Vinculada</Badge>
-                          <Button size="sm" variant="outline" onClick={() => {
-                            setShowDetailDialog(false);
-                            navigate(`/crm/negociacoes?deal=${selectedItem.linked_deal_id}`);
-                          }}>
-                            <ExternalLink className="h-3.5 w-3.5 mr-1" /> Abrir Negociação
-                          </Button>
-                        </div>
-                      ) : (
-                        <Button size="sm" variant="outline" onClick={openCreateDealDialog}>
-                          <Plus className="h-4 w-4 mr-1" /> Criar Negociação
-                        </Button>
-                      )}
                     </div>
 
                     <div className="flex gap-2 pt-2">
