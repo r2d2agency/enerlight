@@ -950,7 +950,7 @@ export default function Licitacoes() {
       </Dialog>
 
       {/* Detail Dialog */}
-      <Dialog open={showDetailDialog} onOpenChange={v => { setShowDetailDialog(v); if (!v) { setSelectedItemId(null); setEditMode(false); } }}>
+      <Dialog open={showDetailDialog} onOpenChange={v => { setShowDetailDialog(v); if (!v) { setSelectedItemId(null); setEditMode(false); setDetailDefaultTab("info"); } }}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
