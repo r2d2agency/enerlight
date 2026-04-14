@@ -4511,6 +4511,93 @@ CREATE INDEX IF NOT EXISTS idx_ai_expense_contacts_phone ON ai_agent_expense_con
 CREATE UNIQUE INDEX IF NOT EXISTS idx_ai_expense_contacts_agent_phone ON ai_agent_expense_contacts(agent_id, phone);
 `;
 
+const step61LicitacaoAI = `
+-- ===================== LICITACAO AI TABLES =====================
+
+-- Configuração IA por organização para análise de editais
+CREATE TABLE IF NOT EXISTS licitacao_ai_config (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE NOT NULL,
+  is_enabled BOOLEAN DEFAULT false,
+  use_org_ai_config BOOLEAN DEFAULT true,
+  ai_provider VARCHAR(20) DEFAULT 'openai',
+  ai_model VARCHAR(100) DEFAULT 'gpt-4o-mini',
+  ai_api_key TEXT,
+  analysis_prompt TEXT DEFAULT 'Você é um especialista em licitações públicas brasileiras. Analise o edital fornecido e extraia informações detalhadas.',
+  compliance_prompt TEXT DEFAULT 'Compare os produtos/serviços da empresa com os itens do edital e identifique quais itens podem ser atendidos.',
+  max_tokens INTEGER DEFAULT 4000,
+  temperature NUMERIC(2,1) DEFAULT 0.3,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(organization_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_licitacao_ai_config_org ON licitacao_ai_config(organization_id);
+
+-- Base de produtos da empresa para RAG
+CREATE TABLE IF NOT EXISTS licitacao_ai_products (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE NOT NULL,
+  code VARCHAR(100),
+  name VARCHAR(500) NOT NULL,
+  description TEXT,
+  category VARCHAR(255),
+  specifications TEXT,
+  unit VARCHAR(50),
+  unit_price NUMERIC(15,2),
+  brand VARCHAR(255),
+  is_active BOOLEAN DEFAULT true,
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_licitacao_ai_products_org ON licitacao_ai_products(organization_id);
+CREATE INDEX IF NOT EXISTS idx_licitacao_ai_products_name ON licitacao_ai_products(organization_id, name);
+
+-- Chunks de produtos para busca RAG
+CREATE TABLE IF NOT EXISTS licitacao_ai_product_chunks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_id UUID REFERENCES licitacao_ai_products(id) ON DELETE CASCADE NOT NULL,
+  organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE NOT NULL,
+  content TEXT NOT NULL,
+  embedding JSONB,
+  content_hash VARCHAR(64),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_licitacao_ai_product_chunks_org ON licitacao_ai_product_chunks(organization_id);
+CREATE INDEX IF NOT EXISTS idx_licitacao_ai_product_chunks_product ON licitacao_ai_product_chunks(product_id);
+
+-- Análises de editais
+CREATE TABLE IF NOT EXISTS licitacao_ai_analyses (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  licitacao_id UUID REFERENCES licitacoes(id) ON DELETE CASCADE NOT NULL,
+  organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE NOT NULL,
+  status VARCHAR(30) DEFAULT 'pending',
+  edital_text TEXT,
+  summary TEXT,
+  dates_extracted JSONB DEFAULT '[]',
+  required_documents JSONB DEFAULT '[]',
+  edital_items JSONB DEFAULT '[]',
+  product_matches JSONB DEFAULT '[]',
+  compliance_analysis TEXT,
+  compliance_score INTEGER,
+  risk_assessment TEXT,
+  recommendations TEXT,
+  tokens_used INTEGER DEFAULT 0,
+  model_used VARCHAR(100),
+  error_message TEXT,
+  analyzed_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_licitacao_ai_analyses_licitacao ON licitacao_ai_analyses(licitacao_id);
+CREATE INDEX IF NOT EXISTS idx_licitacao_ai_analyses_org ON licitacao_ai_analyses(organization_id);
+`;
+
+
 const migrationSteps = [
   { name: 'Enums', sql: step1Enums, critical: true },
   { name: 'Core Tables (users, plans)', sql: step2CoreTables, critical: true },
