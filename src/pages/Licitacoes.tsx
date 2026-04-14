@@ -959,7 +959,7 @@ export default function Licitacoes() {
             </DialogTitle>
           </DialogHeader>
           {selectedItem && (
-            <Tabs defaultValue="info" className="mt-2">
+            <Tabs defaultValue={detailDefaultTab} key={detailDefaultTab} className="mt-2">
               <TabsList className="w-full flex flex-wrap h-auto gap-1">
                 <TabsTrigger value="info" className="text-xs">Info</TabsTrigger>
                 <TabsTrigger value="ai" className="text-xs"><Sparkles className="h-3 w-3 mr-1" /> IA</TabsTrigger>
