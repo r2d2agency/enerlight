@@ -204,7 +204,7 @@ export default function Licitacoes() {
   const deleteDocument = useDeleteLicitacaoDocument();
   const createNote = useCreateLicitacaoNote();
   const deleteNote = useDeleteLicitacaoNote();
-
+  const createDealFromLicitacao = useCreateDealFromLicitacao();
   const selectedItem = useMemo(() => items.find(i => i.id === selectedItemId), [items, selectedItemId]);
 
   const itemsByStage = useMemo(() => {
