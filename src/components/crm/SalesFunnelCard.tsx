@@ -13,6 +13,9 @@ interface SalesFunnelCardProps {
   billingValue?: number;
   billingCount?: number;
   title?: string;
+  quotesGoal?: number;
+  ordersGoal?: number;
+  billingGoal?: number;
 }
 
 export function SalesFunnelCard({
