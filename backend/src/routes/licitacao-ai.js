@@ -342,15 +342,10 @@ IMPORTANTE: Retorne APENAS o JSON, sem markdown, sem \`\`\`json, sem texto extra
     // Parse result
     let analysis;
     try {
-      analysis = JSON.parse(result.content);
+      analysis = extractJsonFromResponse(result.content);
     } catch (parseErr) {
-      // Try to extract JSON from response
-      const jsonMatch = result.content.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        analysis = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error('Resposta da IA não é um JSON válido');
-      }
+      logError('licitacao_ai.analyze_json_error', { error: parseErr.message, contentPreview: result.content?.substring(0, 500) });
+      throw new Error('Resposta da IA não é um JSON válido. Tente novamente.');
     }
 
     // Update analysis record
