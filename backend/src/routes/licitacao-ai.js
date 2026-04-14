@@ -342,15 +342,10 @@ IMPORTANTE: Retorne APENAS o JSON, sem markdown, sem \`\`\`json, sem texto extra
     // Parse result
     let analysis;
     try {
-      analysis = JSON.parse(result.content);
+      analysis = extractJsonFromResponse(result.content);
     } catch (parseErr) {
-      // Try to extract JSON from response
-      const jsonMatch = result.content.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        analysis = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error('Resposta da IA não é um JSON válido');
-      }
+      logError('licitacao_ai.analyze_json_error', { error: parseErr.message, contentPreview: result.content?.substring(0, 500) });
+      throw new Error('Resposta da IA não é um JSON válido. Tente novamente.');
     }
 
     // Update analysis record
@@ -538,17 +533,16 @@ IMPORTANTE: Retorne APENAS o JSON, sem markdown, sem \`\`\`json, sem texto extra
 
     const result = await callAI(aiConfig, messages, {
       temperature: 0.2,
-      maxTokens: parseInt(configRow?.max_tokens) || 4000,
+      maxTokens: parseInt(configRow?.max_tokens) || 8000,
       responseFormat: { type: 'json_object' },
     });
 
     let parsed;
     try {
-      parsed = JSON.parse(result.content);
-    } catch {
-      const jsonMatch = result.content.match(/\{[\s\S]*\}/);
-      if (jsonMatch) parsed = JSON.parse(jsonMatch[0]);
-      else throw new Error('Resposta da IA não é JSON válido');
+      parsed = extractJsonFromResponse(result.content);
+    } catch (parseErr) {
+      logError('licitacao_ai.parse_json_error', { error: parseErr.message, contentPreview: result.content?.substring(0, 500) });
+      throw new Error('Resposta da IA não é JSON válido. Tente novamente ou reduza o tamanho do edital.');
     }
 
     res.json(parsed);
@@ -559,6 +553,64 @@ IMPORTANTE: Retorne APENAS o JSON, sem markdown, sem \`\`\`json, sem texto extra
 });
 
 // ===================== HELPERS =====================
+
+function extractJsonFromResponse(response) {
+  if (!response || typeof response !== 'string') throw new Error('Empty AI response');
+  
+  // Remove markdown code blocks
+  let cleaned = response
+    .replace(/```json\s*/gi, '')
+    .replace(/```\s*/g, '')
+    .trim();
+
+  // Find JSON boundaries
+  const jsonStart = cleaned.search(/[\{\[]/);
+  if (jsonStart === -1) throw new Error('No JSON found in response');
+  
+  const startChar = cleaned[jsonStart];
+  const endChar = startChar === '[' ? ']' : '}';
+  const jsonEnd = cleaned.lastIndexOf(endChar);
+  if (jsonEnd === -1) throw new Error('No closing JSON bracket found');
+
+  cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
+
+  // Try direct parse first
+  try {
+    return JSON.parse(cleaned);
+  } catch (_) {
+    // Fix common issues
+    cleaned = cleaned
+      .replace(/,\s*}/g, '}')
+      .replace(/,\s*]/g, ']')
+      .replace(/[\x00-\x1F\x7F]/g, ' ')  // control characters
+      .replace(/\n/g, '\\n')  // unescaped newlines in strings
+      .replace(/\r/g, '\\r');
+
+    try {
+      return JSON.parse(cleaned);
+    } catch (_) {
+      // Try to repair truncated JSON by closing open braces/brackets
+      let repaired = cleaned;
+      const openBraces = (repaired.match(/{/g) || []).length;
+      const closeBraces = (repaired.match(/}/g) || []).length;
+      const openBrackets = (repaired.match(/\[/g) || []).length;
+      const closeBrackets = (repaired.match(/]/g) || []).length;
+
+      // Remove trailing comma if present
+      repaired = repaired.replace(/,\s*$/, '');
+
+      // Close unclosed brackets/braces
+      for (let i = 0; i < openBrackets - closeBrackets; i++) repaired += ']';
+      for (let i = 0; i < openBraces - closeBraces; i++) repaired += '}';
+
+      try {
+        return JSON.parse(repaired);
+      } catch (finalErr) {
+        throw new Error(`Failed to parse AI response as JSON: ${finalErr.message}`);
+      }
+    }
+  }
+}
 
 function buildProductChunk(product) {
   const parts = [];
