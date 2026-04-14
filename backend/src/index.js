@@ -50,6 +50,7 @@ import internalChatRoutes from './routes/internal-chat.js';
 import pushNotificationsRoutes from './routes/push-notifications.js';
 import homologationRoutes from './routes/homologation.js';
 import licitacaoRoutes from './routes/licitacao.js';
+import licitacaoAIRoutes from './routes/licitacao-ai.js';
 import logisticsRoutes from './routes/logistics.js';
 import taskBoardsRoutes from './routes/task-boards.js';
 import erpBillingRoutes from './routes/erp-billing.js';
