@@ -4660,6 +4660,7 @@ const migrationSteps = [
   { name: 'CNAE Groups', sql: step58CnaeGroups, critical: false },
   { name: 'Expense Reports', sql: step59Expenses, critical: false },
   { name: 'AI Expense Contacts', sql: step60AIExpenseContacts, critical: false },
+  { name: 'Licitacao AI Module', sql: step61LicitacaoAI, critical: false },
 ];
 
 export async function initDatabase() {
