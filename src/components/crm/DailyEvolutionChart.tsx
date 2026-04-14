@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -78,6 +79,9 @@ interface ChartRow {
 
 export function DailyEvolutionChart({ startDate, endDate, filterUserId, filterChannel, filterGroupId }: Props) {
   const [period, setPeriod] = useState<PeriodKey>("inherited");
+  const [showOrcamento, setShowOrcamento] = useState(true);
+  const [showPedido, setShowPedido] = useState(true);
+  const [showFaturamento, setShowFaturamento] = useState(true);
   const { start: effStart, end: effEnd } = getPeriodDates(period, startDate, endDate);
 
   const { data: dailyData, isLoading } = useQuery<DailyRow[]>({
@@ -216,7 +220,21 @@ export function DailyEvolutionChart({ startDate, endDate, filterUserId, filterCh
       <CardContent>
         {periodButtons}
 
-        {/* Monthly summary cards */}
+        {/* Series toggles */}
+        <div className="flex flex-wrap gap-4 mb-4">
+          <label className="flex items-center gap-2 text-xs cursor-pointer">
+            <Checkbox checked={showOrcamento} onCheckedChange={(v) => setShowOrcamento(!!v)} />
+            <span className="text-blue-500 font-medium">Orçamentos</span>
+          </label>
+          <label className="flex items-center gap-2 text-xs cursor-pointer">
+            <Checkbox checked={showPedido} onCheckedChange={(v) => setShowPedido(!!v)} />
+            <span className="text-green-500 font-medium">Pedidos</span>
+          </label>
+          <label className="flex items-center gap-2 text-xs cursor-pointer">
+            <Checkbox checked={showFaturamento} onCheckedChange={(v) => setShowFaturamento(!!v)} />
+            <span className="text-amber-500 font-medium">Faturamento</span>
+          </label>
+        </div>
         {monthBoundaries.length > 1 && (
           <div className="flex flex-wrap gap-2 mb-4">
             {monthBoundaries.map((mb, i) => (
@@ -253,9 +271,9 @@ export function DailyEvolutionChart({ startDate, endDate, filterUserId, filterCh
                 }}
               />
             ))}
-            <Line type="monotone" dataKey="orcamento" name="Orçamentos" stroke="#3b82f6" strokeWidth={2} dot={false} />
-            <Line type="monotone" dataKey="pedido" name="Pedidos" stroke="#22c55e" strokeWidth={2} dot={false} />
-            <Line type="monotone" dataKey="faturamento" name="Faturamento" stroke="#f59e0b" strokeWidth={2} dot={false} />
+            {showOrcamento && <Line type="monotone" dataKey="orcamento" name="Orçamentos" stroke="#3b82f6" strokeWidth={2} dot={false} />}
+            {showPedido && <Line type="monotone" dataKey="pedido" name="Pedidos" stroke="#22c55e" strokeWidth={2} dot={false} />}
+            {showFaturamento && <Line type="monotone" dataKey="faturamento" name="Faturamento" stroke="#f59e0b" strokeWidth={2} dot={false} />}
           </ComposedChart>
         </ResponsiveContainer>
       </CardContent>
