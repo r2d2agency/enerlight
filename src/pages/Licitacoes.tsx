@@ -855,6 +855,11 @@ export default function Licitacoes() {
                 )}
               </TabsContent>
 
+              {/* AI TAB */}
+              <TabsContent value="ai" className="mt-4">
+                <LicitacaoAIAnalysisPanel licitacaoId={selectedItem.id} editalUrl={selectedItem.edital_url} />
+              </TabsContent>
+
               {/* TASKS TAB */}
               <TabsContent value="tasks" className="space-y-3 mt-4">
                 <Button size="sm" onClick={() => setShowNewTaskDialog(true)}><Plus className="h-4 w-4 mr-1" /> Nova Tarefa</Button>
