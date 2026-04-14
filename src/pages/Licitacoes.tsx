@@ -236,6 +236,16 @@ export default function Licitacoes() {
   }, [items, stages, searchTerm]);
 
   const resetItemForm = () => setItemForm({ title: "", description: "", edital_number: "", edital_url: "", modality: "", opening_date: "", deadline_date: "", result_date: "", estimated_value: "", entity_name: "", entity_cnpj: "", entity_contact: "", entity_phone: "", entity_email: "", assigned_to: "", notes: "", contact_id: "", contact_name: "", contact_phone: "" });
+  const getParsedAnalysisDates = (parsed: ParsedEditalData) => {
+    if (parsed.dates?.length) return parsed.dates;
+
+    return [
+      parsed.opening_date ? { label: "Abertura", date: parsed.opening_date } : null,
+      parsed.deadline_date ? { label: "Prazo", date: parsed.deadline_date } : null,
+      parsed.result_date ? { label: "Resultado", date: parsed.result_date } : null,
+    ].filter(Boolean) as Array<{ label: string; date: string; description?: string }>;
+  };
+  const getParsedRequiredDocuments = (parsed: ParsedEditalData) => parsed.required_documents?.length ? parsed.required_documents : parsed.checklist_items ?? [];
 
   const handleCreateBoard = async () => {
     if (!boardName.trim()) return;
@@ -259,9 +269,12 @@ export default function Licitacoes() {
 
       // If AI parsed data, create checklist items and tasks
       if (aiParsingData && newItem?.id) {
+        const parsedDates = getParsedAnalysisDates(aiParsingData);
+        const requiredDocuments = getParsedRequiredDocuments(aiParsingData);
+
         try {
-          if (aiParsingData.checklist_items?.length) {
-            for (const title of aiParsingData.checklist_items) {
+          if (requiredDocuments.length) {
+            for (const title of requiredDocuments) {
               if (title) await createChecklistItem.mutateAsync({ licitacaoId: newItem.id, title });
             }
           }
@@ -276,6 +289,19 @@ export default function Licitacoes() {
               });
             }
           }
+
+          await saveAIAnalysis.mutateAsync({
+            licitacaoId: newItem.id,
+            summary: aiParsingData.summary || aiParsingData.description || aiParsingData.title,
+            dates_extracted: parsedDates,
+            required_documents: requiredDocuments,
+            edital_items: aiParsingData.edital_items,
+            product_matches: aiParsingData.product_matches,
+            compliance_analysis: aiParsingData.compliance_analysis,
+            compliance_score: aiParsingData.compliance_score,
+            risk_assessment: aiParsingData.risk_assessment,
+            recommendations: aiParsingData.recommendations,
+          });
         } catch (aiErr) {
           console.error("Erro ao criar itens da IA:", aiErr);
         }
@@ -335,6 +361,8 @@ export default function Licitacoes() {
       addLog("⏳ Isso pode levar até 1 minuto dependendo do tamanho do edital");
 
       const parsed = await parseEdital.mutateAsync({ edital_url: url });
+      const parsedDates = getParsedAnalysisDates(parsed);
+      const requiredDocuments = getParsedRequiredDocuments(parsed);
       setAiParsingData(parsed);
       setStep("analyze", "done", "Análise concluída");
       addLog("✅ Análise da IA concluída");
@@ -348,6 +376,7 @@ export default function Licitacoes() {
       if (parsed.estimated_value) addLog(`💰 Valor estimado: R$ ${Number(parsed.estimated_value).toLocaleString("pt-BR")}`);
       if (parsed.opening_date) addLog(`📅 Abertura: ${parsed.opening_date}`);
       if (parsed.deadline_date) addLog(`📅 Prazo: ${parsed.deadline_date}`);
+      if (parsedDates.length) addLog(`📅 ${parsedDates.length} datas críticas identificadas`);
 
       setItemForm(p => ({
         ...p,
@@ -372,7 +401,7 @@ export default function Licitacoes() {
 
       // Step 5: Checklist
       setStep("checklist", "running");
-      const checkCount = parsed.checklist_items?.length || 0;
+      const checkCount = requiredDocuments.length;
       const taskCount = parsed.tasks?.length || 0;
       addLog(`📋 ${checkCount} documentos obrigatórios identificados`);
       addLog(`📋 ${taskCount} tarefas sugeridas pela IA`);
@@ -457,15 +486,15 @@ export default function Licitacoes() {
         try {
           await saveAIAnalysis.mutateAsync({
             licitacaoId: newItem.id,
-            summary: parsed.summary,
-            dates_extracted: parsed.edital_items ? undefined : undefined,
-            required_documents: parsed.checklist_items,
+            summary: parsed.summary || parsed.description || parsed.title,
+            dates_extracted: parsedDates,
+            required_documents: requiredDocuments,
             edital_items: parsed.edital_items,
             product_matches: parsed.product_matches,
             compliance_analysis: parsed.compliance_analysis,
             compliance_score: parsed.compliance_score,
-            risk_assessment: undefined,
-            recommendations: undefined,
+            risk_assessment: parsed.risk_assessment,
+            recommendations: parsed.recommendations,
           });
           addLog("✅ Análise da IA salva no card");
         } catch (saveErr) {

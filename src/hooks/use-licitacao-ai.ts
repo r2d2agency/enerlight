@@ -125,8 +125,8 @@ export function useLicitacaoAIAnalysis(licitacaoId: string | null) {
 export function useAnalyzeEdital() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ licitacaoId, edital_text }: { licitacaoId: string; edital_text?: string }) =>
-      api<LicitacaoAIAnalysis>(`/api/licitacao-ai/analyze/${licitacaoId}`, { method: "POST", body: { edital_text } }),
+    mutationFn: ({ licitacaoId, edital_text, edital_url }: { licitacaoId: string; edital_text?: string; edital_url?: string }) =>
+      api<LicitacaoAIAnalysis>(`/api/licitacao-ai/analyze/${licitacaoId}`, { method: "POST", body: { edital_text, edital_url } }),
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ["licitacao-ai-analysis", vars.licitacaoId] });
       qc.invalidateQueries({ queryKey: ["licitacao-checklist"] });
@@ -150,13 +150,17 @@ export interface ParsedEditalData {
   entity_email?: string;
   description?: string;
   notes?: string;
+  dates?: Array<{ label: string; date: string; description?: string }>;
   checklist_items?: string[];
+  required_documents?: string[];
   tasks?: Array<{ title: string; description?: string; priority?: string; due_date?: string }>;
   summary?: string;
   edital_items?: Array<{ item_number: string; description: string; quantity?: string; unit?: string; estimated_value?: string }>;
   product_matches?: Array<{ edital_item: string; product_name: string; match_level: string; notes?: string }>;
   compliance_score?: number;
   compliance_analysis?: string;
+  risk_assessment?: string;
+  recommendations?: string;
 }
 
 export function useParseEdital() {
