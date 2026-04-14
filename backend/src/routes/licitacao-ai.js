@@ -559,6 +559,64 @@ IMPORTANTE: Retorne APENAS o JSON, sem markdown, sem \`\`\`json, sem texto extra
 
 // ===================== HELPERS =====================
 
+function extractJsonFromResponse(response) {
+  if (!response || typeof response !== 'string') throw new Error('Empty AI response');
+  
+  // Remove markdown code blocks
+  let cleaned = response
+    .replace(/```json\s*/gi, '')
+    .replace(/```\s*/g, '')
+    .trim();
+
+  // Find JSON boundaries
+  const jsonStart = cleaned.search(/[\{\[]/);
+  if (jsonStart === -1) throw new Error('No JSON found in response');
+  
+  const startChar = cleaned[jsonStart];
+  const endChar = startChar === '[' ? ']' : '}';
+  const jsonEnd = cleaned.lastIndexOf(endChar);
+  if (jsonEnd === -1) throw new Error('No closing JSON bracket found');
+
+  cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
+
+  // Try direct parse first
+  try {
+    return JSON.parse(cleaned);
+  } catch (_) {
+    // Fix common issues
+    cleaned = cleaned
+      .replace(/,\s*}/g, '}')
+      .replace(/,\s*]/g, ']')
+      .replace(/[\x00-\x1F\x7F]/g, ' ')  // control characters
+      .replace(/\n/g, '\\n')  // unescaped newlines in strings
+      .replace(/\r/g, '\\r');
+
+    try {
+      return JSON.parse(cleaned);
+    } catch (_) {
+      // Try to repair truncated JSON by closing open braces/brackets
+      let repaired = cleaned;
+      const openBraces = (repaired.match(/{/g) || []).length;
+      const closeBraces = (repaired.match(/}/g) || []).length;
+      const openBrackets = (repaired.match(/\[/g) || []).length;
+      const closeBrackets = (repaired.match(/]/g) || []).length;
+
+      // Remove trailing comma if present
+      repaired = repaired.replace(/,\s*$/, '');
+
+      // Close unclosed brackets/braces
+      for (let i = 0; i < openBrackets - closeBrackets; i++) repaired += ']';
+      for (let i = 0; i < openBraces - closeBraces; i++) repaired += '}';
+
+      try {
+        return JSON.parse(repaired);
+      } catch (finalErr) {
+        throw new Error(`Failed to parse AI response as JSON: ${finalErr.message}`);
+      }
+    }
+  }
+}
+
 function buildProductChunk(product) {
   const parts = [];
   if (product.code) parts.push(`Código: ${product.code}`);
