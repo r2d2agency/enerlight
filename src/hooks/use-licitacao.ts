@@ -350,6 +350,20 @@ export function useLicitacaoOrgMembers() {
   });
 }
 
+// Create CRM deal from licitação
+export function useCreateDealFromLicitacao() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ licitacaoId, ...data }: { licitacaoId: string; funnel_id: string; company_id: string; title?: string; value?: number }) =>
+      api<any>(`/api/licitacao/items/${licitacaoId}/create-deal`, { method: "POST", body: data }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["licitacoes"] });
+      qc.invalidateQueries({ queryKey: ["licitacao-history"] });
+      qc.invalidateQueries({ queryKey: ["crm-deals"] });
+    },
+  });
+}
+
 export interface LicitacaoContact {
   id: string;
   name: string;
