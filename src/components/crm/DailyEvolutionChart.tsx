@@ -79,6 +79,9 @@ interface ChartRow {
 
 export function DailyEvolutionChart({ startDate, endDate, filterUserId, filterChannel, filterGroupId }: Props) {
   const [period, setPeriod] = useState<PeriodKey>("inherited");
+  const [showOrcamento, setShowOrcamento] = useState(true);
+  const [showPedido, setShowPedido] = useState(true);
+  const [showFaturamento, setShowFaturamento] = useState(true);
   const { start: effStart, end: effEnd } = getPeriodDates(period, startDate, endDate);
 
   const { data: dailyData, isLoading } = useQuery<DailyRow[]>({
