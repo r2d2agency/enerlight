@@ -316,14 +316,6 @@ export default function Licitacoes() {
     }
   };
 
-  const handleCreateItemWithAIData = async () => {
-    await handleCreateItem();
-    // After creating, if we have AI data with checklist/tasks, add them
-    if (aiParsingData && selectedItemId) {
-      // We'll handle this post-creation
-    }
-    setAiParsingData(null);
-  };
 
   const handleStartEdit = () => {
     if (!selectedItem) return;
