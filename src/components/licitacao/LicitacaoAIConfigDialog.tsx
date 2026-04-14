@@ -335,16 +335,49 @@ export function LicitacaoAIConfigDialog({ open, onOpenChange }: Props) {
 
             {/* PRODUCTS TAB */}
             <TabsContent value="products" className="space-y-3 m-0 pr-2">
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 <Button size="sm" onClick={() => { setShowProductForm(true); setEditingProductId(null); setProductForm({ code: "", name: "", description: "", category: "", specifications: "", unit: "", unit_price: "", brand: "" }); }}>
                   <Plus className="h-4 w-4 mr-1" /> Novo Produto
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => setShowImport(!showImport)}>
-                  <Upload className="h-4 w-4 mr-1" /> Importar
+                <Button size="sm" variant="outline" onClick={() => fileInputRef.current?.click()}>
+                  <FileSpreadsheet className="h-4 w-4 mr-1" /> Importar Planilha
                 </Button>
+                <Button size="sm" variant="outline" onClick={() => { setShowImport(!showImport); setParsedFileProducts(null); }}>
+                  <Upload className="h-4 w-4 mr-1" /> Colar Texto
+                </Button>
+                <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv,.ods" className="hidden" onChange={handleFileUpload} />
               </div>
 
-              {showImport && (
+              {parsedFileProducts && parsedFileProducts.length > 0 && (
+                <div className="border rounded-lg p-3 space-y-2 bg-muted/30">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium">📋 {fileImportName}</p>
+                    <Badge variant="secondary">{parsedFileProducts.length} produtos</Badge>
+                  </div>
+                  <div className="max-h-32 overflow-auto text-xs border rounded p-2 bg-background space-y-0.5">
+                    {parsedFileProducts.slice(0, 10).map((p: any, i: number) => (
+                      <div key={i} className="flex gap-2">
+                        <span className="text-muted-foreground w-6">{i + 1}.</span>
+                        <span className="font-medium">{p.name}</span>
+                        {p.category && <Badge variant="outline" className="text-[9px] h-4">{p.category}</Badge>}
+                        {p.unit_price && <span className="text-muted-foreground ml-auto">R$ {Number(p.unit_price).toFixed(2)}</span>}
+                      </div>
+                    ))}
+                    {parsedFileProducts.length > 10 && <p className="text-muted-foreground pt-1">... e mais {parsedFileProducts.length - 10} produtos</p>}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={handleImportParsed} disabled={importProducts.isPending}>
+                      {importProducts.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Check className="h-3.5 w-3.5 mr-1" />}
+                      Confirmar Importação ({parsedFileProducts.length})
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => { setParsedFileProducts(null); setFileImportName(""); }}>
+                      <X className="h-3.5 w-3.5 mr-1" /> Cancelar
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {showImport && !parsedFileProducts && (
                 <div className="border rounded-lg p-3 space-y-2">
                   <p className="text-xs text-muted-foreground">
                     Cole os produtos separados por linha. Formato CSV com <code>;</code>: código;nome;descrição;categoria;especificações;unidade;preço;marca
@@ -358,7 +391,7 @@ export function LicitacaoAIConfigDialog({ open, onOpenChange }: Props) {
                     <Button size="sm" variant="ghost" onClick={() => setShowImport(false)}>Cancelar</Button>
                   </div>
                 </div>
-              )}
+              )
 
               {showProductForm && (
                 <div className="border rounded-lg p-3 space-y-3 bg-muted/30">
