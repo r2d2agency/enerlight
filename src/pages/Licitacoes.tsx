@@ -774,6 +774,17 @@ export default function Licitacoes() {
         </DialogContent>
       </Dialog>
 
+      {/* AI Analysis Progress Dialog */}
+      <AIAnalysisProgressDialog
+        open={showAIProgress}
+        onOpenChange={setShowAIProgress}
+        steps={aiSteps}
+        logs={aiLogs}
+        error={aiError}
+        onRetry={handleRetryAI}
+        onCancel={handleCancelAI}
+      />
+
       {/* New Board Dialog */}
       <Dialog open={showNewBoardDialog} onOpenChange={setShowNewBoardDialog}>
         <DialogContent>
