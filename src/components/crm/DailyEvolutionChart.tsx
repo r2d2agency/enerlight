@@ -97,12 +97,13 @@ export function DailyEvolutionChart({ startDate, endDate, filterUserId, filterCh
     },
   });
 
-  const { chartData, monthBoundaries } = useMemo(() => {
-    if (!dailyData) return { chartData: [], monthBoundaries: [] as { index: number; label: string; orc: number; ped: number; fat: number }[] };
+  const { chartData, monthBoundaries, weekBoundaries } = useMemo(() => {
+    const emptyBounds = [] as { index: number; label: string; orc: number; ped: number; fat: number }[];
+    if (!dailyData) return { chartData: [], monthBoundaries: emptyBounds, weekBoundaries: emptyBounds };
     let allDays: Date[];
     try {
       allDays = eachDayOfInterval({ start: parseISO(effStart), end: parseISO(effEnd) });
-    } catch { return { chartData: [], monthBoundaries: [] as { index: number; label: string; orc: number; ped: number; fat: number }[] }; }
+    } catch { return { chartData: [], monthBoundaries: emptyBounds, weekBoundaries: emptyBounds }; }
 
     const map: Record<string, Record<string, number>> = {};
     dailyData.forEach(r => {
@@ -111,61 +112,59 @@ export function DailyEvolutionChart({ startDate, endDate, filterUserId, filterCh
       map[dayKey][r.data_type] = r.total_value;
     });
 
-    // Build daily (non-accumulated) data
     const rows: ChartRow[] = allDays.map((d, i) => {
       const key = format(d, "yyyy-MM-dd");
       const label = format(d, "dd/MM", { locale: ptBR });
-      return {
-        day: label,
-        index: i,
-        orcamento: map[key]?.orcamento || 0,
-        pedido: map[key]?.pedido || 0,
-        faturamento: map[key]?.faturamento || 0,
-      };
+      return { day: label, index: i, orcamento: map[key]?.orcamento || 0, pedido: map[key]?.pedido || 0, faturamento: map[key]?.faturamento || 0 };
     });
 
-    // Find month boundaries and calculate monthly totals
-    const boundaries: { index: number; label: string; orc: number; ped: number; fat: number }[] = [];
-    let currentMonth = -1;
-    let currentYear = -1;
-    let monthStart = 0;
-
+    // Month boundaries
+    const boundaries: typeof emptyBounds = [];
+    let currentMonth = -1, currentYear = -1, monthStart = 0;
     allDays.forEach((d, i) => {
-      const m = getMonth(d);
-      const y = getYear(d);
-      if (currentMonth === -1) {
-        currentMonth = m;
-        currentYear = y;
-        monthStart = i;
-      } else if (m !== currentMonth || y !== currentYear) {
-        // Month changed — mark previous month's last day
+      const m = getMonth(d), y = getYear(d);
+      if (currentMonth === -1) { currentMonth = m; currentYear = y; monthStart = i; }
+      else if (m !== currentMonth || y !== currentYear) {
         let orc = 0, ped = 0, fat = 0;
-        for (let j = monthStart; j < i; j++) {
-          orc += rows[j].orcamento;
-          ped += rows[j].pedido;
-          fat += rows[j].faturamento;
-        }
-        const monthName = format(allDays[monthStart], "MMM/yy", { locale: ptBR });
-        boundaries.push({ index: i - 1, label: monthName, orc, ped, fat });
-        currentMonth = m;
-        currentYear = y;
-        monthStart = i;
+        for (let j = monthStart; j < i; j++) { orc += rows[j].orcamento; ped += rows[j].pedido; fat += rows[j].faturamento; }
+        boundaries.push({ index: i - 1, label: format(allDays[monthStart], "MMM/yy", { locale: ptBR }), orc, ped, fat });
+        currentMonth = m; currentYear = y; monthStart = i;
       }
     });
-
-    // Last month (or only month)
     if (allDays.length > 0) {
       let orc = 0, ped = 0, fat = 0;
-      for (let j = monthStart; j < rows.length; j++) {
-        orc += rows[j].orcamento;
-        ped += rows[j].pedido;
-        fat += rows[j].faturamento;
-      }
-      const monthName = format(allDays[monthStart], "MMM/yy", { locale: ptBR });
-      boundaries.push({ index: rows.length - 1, label: monthName, orc, ped, fat });
+      for (let j = monthStart; j < rows.length; j++) { orc += rows[j].orcamento; ped += rows[j].pedido; fat += rows[j].faturamento; }
+      boundaries.push({ index: rows.length - 1, label: format(allDays[monthStart], "MMM/yy", { locale: ptBR }), orc, ped, fat });
     }
 
-    return { chartData: rows, monthBoundaries: boundaries };
+    // Weekly boundaries — only when viewing a single month (<=31 days)
+    const weeks: typeof emptyBounds = [];
+    const totalDays = differenceInCalendarDays(parseISO(effEnd), parseISO(effStart));
+    if (totalDays <= 31 && allDays.length > 0) {
+      let currentWeekNum = -1, weekStart = 0;
+      allDays.forEach((d, i) => {
+        const wn = getWeek(d, { weekStartsOn: 1, locale: ptBR });
+        if (currentWeekNum === -1) { currentWeekNum = wn; weekStart = i; }
+        else if (wn !== currentWeekNum) {
+          let orc = 0, ped = 0, fat = 0;
+          for (let j = weekStart; j < i; j++) { orc += rows[j].orcamento; ped += rows[j].pedido; fat += rows[j].faturamento; }
+          const wStart = format(allDays[weekStart], "dd/MM");
+          const wEnd = format(allDays[i - 1], "dd/MM");
+          weeks.push({ index: i - 1, label: `Sem ${wStart}-${wEnd}`, orc, ped, fat });
+          currentWeekNum = wn; weekStart = i;
+        }
+      });
+      // Last week
+      if (allDays.length > 0) {
+        let orc = 0, ped = 0, fat = 0;
+        for (let j = weekStart; j < rows.length; j++) { orc += rows[j].orcamento; ped += rows[j].pedido; fat += rows[j].faturamento; }
+        const wStart = format(allDays[weekStart], "dd/MM");
+        const wEnd = format(allDays[rows.length - 1], "dd/MM");
+        weeks.push({ index: rows.length - 1, label: `Sem ${wStart}-${wEnd}`, orc, ped, fat });
+      }
+    }
+
+    return { chartData: rows, monthBoundaries: boundaries, weekBoundaries: weeks };
   }, [dailyData, effStart, effEnd]);
 
   const periodButtons = (
