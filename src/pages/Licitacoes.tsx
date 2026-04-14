@@ -152,7 +152,12 @@ export default function Licitacoes() {
   const [showCreateDealDialog, setShowCreateDealDialog] = useState(false);
   const [showAIConfigDialog, setShowAIConfigDialog] = useState(false);
   const [showCreationChoice, setShowCreationChoice] = useState(false);
+  const [showAIProgress, setShowAIProgress] = useState(false);
+  const [aiSteps, setAiSteps] = useState<AIAnalysisStep[]>([]);
+  const [aiLogs, setAiLogs] = useState<string[]>([]);
+  const [aiError, setAiError] = useState<string | null>(null);
   const [aiParsingData, setAiParsingData] = useState<ParsedEditalData | null>(null);
+  const [aiFile, setAiFile] = useState<File | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: string; id: string; name: string } | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [editMode, setEditMode] = useState(false);
