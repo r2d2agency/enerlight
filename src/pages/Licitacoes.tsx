@@ -36,6 +36,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { LicitacaoKanban } from "@/components/licitacao/LicitacaoKanban";
 import { LicitacaoAIConfigDialog } from "@/components/licitacao/LicitacaoAIConfigDialog";
 import { LicitacaoAIAnalysis as LicitacaoAIAnalysisPanel } from "@/components/licitacao/LicitacaoAIAnalysisPanel";
+import { useParseEdital, type ParsedEditalData } from "@/hooks/use-licitacao-ai";
 
 const MODALITIES = [
   "Pregão Eletrônico", "Pregão Presencial", "Concorrência", "Tomada de Preços",
