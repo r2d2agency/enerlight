@@ -757,22 +757,25 @@ export default function Licitacoes() {
               </div>
             </button>
           </div>
-          <input
-            type="file"
-            id="ai-edital-upload"
-            className="hidden"
-            accept=".pdf,.doc,.docx,.txt"
-            onChange={async (e) => {
-              const f = e.target.files?.[0];
-              if (f) {
-                setShowCreationChoice(false);
-                await handleAIParseEdital(f);
-              }
-              e.target.value = "";
-            }}
-          />
         </DialogContent>
       </Dialog>
+
+      {/* Hidden file input OUTSIDE the dialog so it doesn't unmount */}
+      <input
+        type="file"
+        id="ai-edital-upload"
+        className="hidden"
+        accept=".pdf,.doc,.docx,.txt"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) {
+            setShowCreationChoice(false);
+            // Use setTimeout to ensure dialog closes before starting
+            setTimeout(() => handleAIParseEdital(f), 100);
+          }
+          e.target.value = "";
+        }}
+      />
 
       {/* AI Analysis Progress Dialog */}
       <AIAnalysisProgressDialog
