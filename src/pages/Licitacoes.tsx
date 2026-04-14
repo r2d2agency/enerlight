@@ -997,6 +997,59 @@ export default function Licitacoes() {
         </DialogContent>
       </Dialog>
 
+      {/* Create Deal Dialog */}
+      <Dialog open={showCreateDealDialog} onOpenChange={setShowCreateDealDialog}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Criar Negociação CRM</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Título</Label>
+              <Input value={dealForm.title} onChange={e => setDealForm(p => ({ ...p, title: e.target.value }))} placeholder="Título da negociação" />
+            </div>
+            <div>
+              <Label>Valor</Label>
+              <Input type="number" value={dealForm.value} onChange={e => setDealForm(p => ({ ...p, value: e.target.value }))} placeholder="0,00" />
+            </div>
+            <div>
+              <Label>Funil *</Label>
+              <Select value={dealForm.funnel_id} onValueChange={v => setDealForm(p => ({ ...p, funnel_id: v }))}>
+                <SelectTrigger><SelectValue placeholder="Selecionar funil" /></SelectTrigger>
+                <SelectContent>
+                  {crmFunnels.map(f => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Empresa *</Label>
+              <div className="space-y-2">
+                <Input placeholder="Buscar empresa..." value={companySearch} onChange={e => setCompanySearch(e.target.value)} />
+                {companySearch && (
+                  <div className="border rounded-lg max-h-32 overflow-y-auto">
+                    {crmCompanies.length === 0 ? (
+                      <p className="text-xs text-muted-foreground p-2 text-center">Nenhuma empresa encontrada</p>
+                    ) : (
+                      crmCompanies.slice(0, 10).map(c => (
+                        <button key={c.id} className={cn("w-full text-left p-2 text-sm hover:bg-muted/50", dealForm.company_id === c.id && "bg-primary/10")}
+                          onClick={() => { setDealForm(p => ({ ...p, company_id: c.id })); setCompanySearch(c.name); }}>
+                          {c.name} {c.cnpj && <span className="text-xs text-muted-foreground ml-1">({c.cnpj})</span>}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateDealDialog(false)}>Cancelar</Button>
+            <Button onClick={handleCreateDeal} disabled={createDealFromLicitacao.isPending || !dealForm.funnel_id || !dealForm.company_id}>
+              {createDealFromLicitacao.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Plus className="h-4 w-4 mr-1" />}
+              Criar Negociação
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Delete Confirm */}
       <AlertDialog open={!!deleteConfirm} onOpenChange={v => !v && setDeleteConfirm(null)}>
         <AlertDialogContent>
