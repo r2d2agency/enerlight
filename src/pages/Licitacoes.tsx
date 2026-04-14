@@ -182,7 +182,8 @@ export default function Licitacoes() {
   const { data: orgMembers = [], isLoading: loadingMembers } = useLicitacaoOrgMembers();
   const { uploadFile, isUploading } = useUpload();
   const { data: contactResults = [] } = useSearchLicitacaoContacts(contactSearchTerm);
-
+  const { data: crmFunnels = [] } = useCRMFunnels();
+  const { data: crmCompanies = [] } = useCRMCompanies(companySearch);
   // Mutations
   const createBoard = useCreateLicitacaoBoard();
   const deleteBoard = useDeleteLicitacaoBoard();
