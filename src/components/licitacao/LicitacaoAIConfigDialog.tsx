@@ -123,10 +123,88 @@ export function LicitacaoAIConfigDialog({ open, onOpenChange }: Props) {
     setShowProductForm(true);
   };
 
+  const COLUMN_MAP: Record<string, string> = {
+    "codigo": "code", "código": "code", "code": "code", "sku": "code", "cod": "code",
+    "nome": "name", "name": "name", "produto": "name", "product": "name", "item": "name",
+    "descricao": "description", "descrição": "description", "description": "description", "desc": "description",
+    "categoria": "category", "category": "category", "cat": "category", "grupo": "category",
+    "especificacoes": "specifications", "especificações": "specifications", "specifications": "specifications", "specs": "specifications", "spec": "specifications",
+    "unidade": "unit", "unit": "unit", "un": "unit", "und": "unit",
+    "preco": "unit_price", "preço": "unit_price", "price": "unit_price", "valor": "unit_price", "preco_unitario": "unit_price",
+    "marca": "brand", "brand": "brand",
+  };
+
+  const normalizeCol = (col: string) => {
+    const key = col.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim();
+    return COLUMN_MAP[key] || COLUMN_MAP[col.toLowerCase().trim()] || null;
+  };
+
+  const parseSpreadsheetRows = (rows: Record<string, any>[]) => {
+    if (!rows.length) return [];
+    const headers = Object.keys(rows[0]);
+    const mapping: Record<string, string> = {};
+    headers.forEach(h => {
+      const mapped = normalizeCol(h);
+      if (mapped) mapping[h] = mapped;
+    });
+    // If no "name" mapping found, try first text-like column
+    if (!Object.values(mapping).includes("name") && headers.length > 0) {
+      mapping[headers[0]] = "name";
+    }
+    return rows.map(row => {
+      const p: any = {};
+      Object.entries(mapping).forEach(([orig, field]) => {
+        let val = row[orig];
+        if (val === undefined || val === null || val === "") return;
+        if (field === "unit_price") {
+          val = typeof val === "string" ? Number(val.replace(/[^\d.,\-]/g, "").replace(",", ".")) : Number(val);
+          if (isNaN(val)) val = null;
+        }
+        p[field] = val;
+      });
+      return p;
+    }).filter((p: any) => p.name);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setFileImportName(file.name);
+    try {
+      const data = await file.arrayBuffer();
+      const wb = XLSX.read(data);
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows: Record<string, any>[] = XLSX.utils.sheet_to_json(ws, { defval: "" });
+      const parsed = parseSpreadsheetRows(rows);
+      if (parsed.length === 0) {
+        toast({ title: "Nenhum produto encontrado na planilha", description: "Verifique se há uma coluna 'Nome' ou 'Produto'", variant: "destructive" });
+        return;
+      }
+      setParsedFileProducts(parsed);
+      setShowImport(true);
+      toast({ title: `${parsed.length} produtos encontrados na planilha` });
+    } catch (err: any) {
+      toast({ title: "Erro ao ler planilha", description: err.message, variant: "destructive" });
+    }
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleImportParsed = async () => {
+    if (!parsedFileProducts?.length) return;
+    try {
+      const result = await importProducts.mutateAsync(parsedFileProducts);
+      setParsedFileProducts(null);
+      setFileImportName("");
+      setShowImport(false);
+      toast({ title: `${result.imported} produtos importados!` });
+    } catch (e: any) {
+      toast({ title: "Erro na importação", description: e.message, variant: "destructive" });
+    }
+  };
+
   const handleImportProducts = async () => {
     if (!importText.trim()) return;
     try {
-      // Parse CSV-like text: code;name;description;category;specifications;unit;price;brand
       const lines = importText.trim().split("\n");
       const productsToImport = lines.map(line => {
         const parts = line.split(";").map(s => s.trim());
