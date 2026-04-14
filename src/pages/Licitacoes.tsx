@@ -34,6 +34,8 @@ import { useCRMFunnels, useCRMCompanies, useCRMDeal, useCRMFunnel, useCRMDealMut
 import { useUpload } from "@/hooks/use-upload";
 import { useAuth } from "@/contexts/AuthContext";
 import { LicitacaoKanban } from "@/components/licitacao/LicitacaoKanban";
+import { LicitacaoAIConfigDialog } from "@/components/licitacao/LicitacaoAIConfigDialog";
+import { LicitacaoAIAnalysis as LicitacaoAIAnalysisPanel } from "@/components/licitacao/LicitacaoAIAnalysisPanel";
 
 const MODALITIES = [
   "Pregão Eletrônico", "Pregão Presencial", "Concorrência", "Tomada de Preços",
