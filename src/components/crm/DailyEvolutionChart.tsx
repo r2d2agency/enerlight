@@ -142,6 +142,13 @@ export function DailyEvolutionChart({ startDate, endDate, filterUserId, filterCh
         </CardTitle>
       </CardHeader>
       <CardContent>
+        <div className="flex flex-wrap gap-1 mb-4">
+          {PERIOD_OPTIONS.map(o => (
+            <Button key={o.key} size="sm" variant={period === o.key ? "default" : "outline"} onClick={() => setPeriod(o.key)} className="text-xs h-7">
+              {o.label}
+            </Button>
+          ))}
+        </div>
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
