@@ -153,13 +153,24 @@ router.post('/boards/:boardId/stages/reorder', requireAuth, async (req, res) => 
 
 router.get('/boards/:boardId/items', requireAuth, async (req, res) => {
   try {
+    // Check if crm_deals table exists to avoid errors
+    let hasCrmDeals = false;
+    try {
+      await query(`SELECT 1 FROM crm_deals LIMIT 0`);
+      hasCrmDeals = true;
+    } catch (_) {}
+
+    const dealSubquery = hasCrmDeals
+      ? `(SELECT d.id FROM crm_deals d WHERE d.id = l.deal_id LIMIT 1)`
+      : `NULL`;
+
     const result = await query(
       `SELECT l.*, u.name as assigned_to_name, cu.name as created_by_name,
         (SELECT COUNT(*) FROM licitacao_tasks t WHERE t.licitacao_id = l.id) as task_count,
         (SELECT COUNT(*) FROM licitacao_tasks t WHERE t.licitacao_id = l.id AND t.status = 'completed') as completed_task_count,
         (SELECT COUNT(*) FROM licitacao_checklist c WHERE c.licitacao_id = l.id) as checklist_count,
         (SELECT COUNT(*) FROM licitacao_checklist c WHERE c.licitacao_id = l.id AND c.is_checked = true) as checked_count,
-        (SELECT d.id FROM crm_deals d WHERE d.id = l.deal_id LIMIT 1) as linked_deal_id
+        ${dealSubquery} as linked_deal_id
        FROM licitacoes l
        LEFT JOIN users u ON u.id = l.assigned_to
        LEFT JOIN users cu ON cu.id = l.created_by
@@ -169,6 +180,7 @@ router.get('/boards/:boardId/items', requireAuth, async (req, res) => {
     );
     res.json(result.rows);
   } catch (e) {
+    console.error('List licitacoes error:', e);
     res.status(500).json({ error: e.message });
   }
 });
