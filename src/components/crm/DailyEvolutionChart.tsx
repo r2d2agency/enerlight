@@ -5,9 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  ResponsiveContainer, ComposedChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine,
 } from "recharts";
-import { eachDayOfInterval, parseISO, format, subMonths, startOfMonth, endOfMonth, subDays } from "date-fns";
+import { eachDayOfInterval, parseISO, format, subMonths, startOfMonth, endOfMonth, subDays, getMonth, getYear } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 interface DailyRow {
@@ -63,6 +63,19 @@ function fmtFull(v: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 0 }).format(v);
 }
 
+interface ChartRow {
+  day: string;
+  index: number;
+  orcamento: number;
+  pedido: number;
+  faturamento: number;
+  isMonthEnd?: boolean;
+  monthLabel?: string;
+  monthTotalOrc?: number;
+  monthTotalPed?: number;
+  monthTotalFat?: number;
+}
+
 export function DailyEvolutionChart({ startDate, endDate, filterUserId, filterChannel, filterGroupId }: Props) {
   const [period, setPeriod] = useState<PeriodKey>("inherited");
   const { start: effStart, end: effEnd } = getPeriodDates(period, startDate, endDate);
@@ -80,36 +93,86 @@ export function DailyEvolutionChart({ startDate, endDate, filterUserId, filterCh
     },
   });
 
-  const chartData = useMemo(() => {
-    if (!dailyData) return [];
+  const { chartData, monthBoundaries } = useMemo(() => {
+    if (!dailyData) return { chartData: [], monthBoundaries: [] as { index: number; label: string; orc: number; ped: number; fat: number }[] };
     let allDays: Date[];
     try {
       allDays = eachDayOfInterval({ start: parseISO(effStart), end: parseISO(effEnd) });
-    } catch { return []; }
+    } catch { return { chartData: [], monthBoundaries: [] as { index: number; label: string; orc: number; ped: number; fat: number }[] }; }
 
-    // Build map by day+type
     const map: Record<string, Record<string, number>> = {};
     dailyData.forEach(r => {
-      if (!map[r.day]) map[r.day] = {};
-      map[r.day][r.data_type] = r.total_value;
+      const dayKey = typeof r.day === 'string' ? r.day.split('T')[0] : r.day;
+      if (!map[dayKey]) map[dayKey] = {};
+      map[dayKey][r.data_type] = r.total_value;
     });
 
-    // Accumulate values
-    let accOrc = 0, accPed = 0, accFat = 0;
-    return allDays.map(d => {
+    // Build daily (non-accumulated) data
+    const rows: ChartRow[] = allDays.map((d, i) => {
       const key = format(d, "yyyy-MM-dd");
       const label = format(d, "dd/MM", { locale: ptBR });
-      accOrc += map[key]?.orcamento || 0;
-      accPed += map[key]?.pedido || 0;
-      accFat += map[key]?.faturamento || 0;
       return {
         day: label,
-        orcamento: accOrc,
-        pedido: accPed,
-        faturamento: accFat,
+        index: i,
+        orcamento: map[key]?.orcamento || 0,
+        pedido: map[key]?.pedido || 0,
+        faturamento: map[key]?.faturamento || 0,
       };
     });
+
+    // Find month boundaries and calculate monthly totals
+    const boundaries: { index: number; label: string; orc: number; ped: number; fat: number }[] = [];
+    let currentMonth = -1;
+    let currentYear = -1;
+    let monthStart = 0;
+
+    allDays.forEach((d, i) => {
+      const m = getMonth(d);
+      const y = getYear(d);
+      if (currentMonth === -1) {
+        currentMonth = m;
+        currentYear = y;
+        monthStart = i;
+      } else if (m !== currentMonth || y !== currentYear) {
+        // Month changed — mark previous month's last day
+        let orc = 0, ped = 0, fat = 0;
+        for (let j = monthStart; j < i; j++) {
+          orc += rows[j].orcamento;
+          ped += rows[j].pedido;
+          fat += rows[j].faturamento;
+        }
+        const monthName = format(allDays[monthStart], "MMM/yy", { locale: ptBR });
+        boundaries.push({ index: i - 1, label: monthName, orc, ped, fat });
+        currentMonth = m;
+        currentYear = y;
+        monthStart = i;
+      }
+    });
+
+    // Last month (or only month)
+    if (allDays.length > 0) {
+      let orc = 0, ped = 0, fat = 0;
+      for (let j = monthStart; j < rows.length; j++) {
+        orc += rows[j].orcamento;
+        ped += rows[j].pedido;
+        fat += rows[j].faturamento;
+      }
+      const monthName = format(allDays[monthStart], "MMM/yy", { locale: ptBR });
+      boundaries.push({ index: rows.length - 1, label: monthName, orc, ped, fat });
+    }
+
+    return { chartData: rows, monthBoundaries: boundaries };
   }, [dailyData, effStart, effEnd]);
+
+  const periodButtons = (
+    <div className="flex flex-wrap gap-1 mb-4">
+      {PERIOD_OPTIONS.map(o => (
+        <Button key={o.key} size="sm" variant={period === o.key ? "default" : "outline"} onClick={() => setPeriod(o.key)} className="text-xs h-7">
+          {o.label}
+        </Button>
+      ))}
+    </div>
+  );
 
   if (isLoading) return <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
   if (!chartData.length && !isLoading) return (
@@ -117,49 +180,83 @@ export function DailyEvolutionChart({ startDate, endDate, filterUserId, filterCh
       <CardHeader className="pb-3">
         <CardTitle className="text-sm flex items-center gap-2">
           <TrendingUp className="h-4 w-4" />
-          Evolução Acumulada no Período
+          Evolução Diária no Período
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="flex flex-wrap gap-1 mb-4">
-          {PERIOD_OPTIONS.map(o => (
-            <Button key={o.key} size="sm" variant={period === o.key ? "default" : "outline"} onClick={() => setPeriod(o.key)} className="text-xs h-7">
-              {o.label}
-            </Button>
-          ))}
-        </div>
+        {periodButtons}
         <p className="text-sm text-muted-foreground text-center py-8">Nenhum dado encontrado para o período selecionado.</p>
       </CardContent>
     </Card>
   );
+
+  // Custom tooltip
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (!active || !payload?.length) return null;
+    return (
+      <div className="bg-popover border border-border rounded-lg p-2 shadow-lg text-xs">
+        <p className="font-medium mb-1">{label}</p>
+        {payload.map((p: any) => (
+          <p key={p.dataKey} style={{ color: p.color }}>
+            {p.name}: {fmtFull(p.value)}
+          </p>
+        ))}
+      </div>
+    );
+  };
 
   return (
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-sm flex items-center gap-2">
           <TrendingUp className="h-4 w-4" />
-          Evolução Acumulada no Período
+          Evolução Diária no Período
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="flex flex-wrap gap-1 mb-4">
-          {PERIOD_OPTIONS.map(o => (
-            <Button key={o.key} size="sm" variant={period === o.key ? "default" : "outline"} onClick={() => setPeriod(o.key)} className="text-xs h-7">
-              {o.label}
-            </Button>
-          ))}
-        </div>
+        {periodButtons}
+
+        {/* Monthly summary cards */}
+        {monthBoundaries.length > 1 && (
+          <div className="flex flex-wrap gap-2 mb-4">
+            {monthBoundaries.map((mb, i) => (
+              <div key={i} className="flex-1 min-w-[140px] rounded-lg border border-border p-2 text-xs">
+                <p className="font-semibold text-foreground capitalize mb-1">{mb.label}</p>
+                <p className="text-blue-500">Orç: {fmtFull(mb.orc)}</p>
+                <p className="text-green-500">Ped: {fmtFull(mb.ped)}</p>
+                <p className="text-amber-500">Fat: {fmtFull(mb.fat)}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
         <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={chartData}>
+          <ComposedChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-            <XAxis dataKey="day" fontSize={11} />
+            <XAxis dataKey="day" fontSize={11} interval={Math.max(Math.floor(chartData.length / 15), 0)} />
             <YAxis tickFormatter={fmtShort} fontSize={11} width={55} />
-            <Tooltip formatter={(v: number) => fmtFull(v)} />
+            <Tooltip content={<CustomTooltip />} />
             <Legend />
+            {/* Month boundary reference lines */}
+            {monthBoundaries.slice(0, -1).map((mb, i) => (
+              <ReferenceLine
+                key={i}
+                x={chartData[mb.index]?.day}
+                stroke="hsl(var(--muted-foreground))"
+                strokeDasharray="5 5"
+                strokeWidth={1.5}
+                label={{
+                  value: `${mb.label}: ${fmtShort(mb.orc + mb.ped + mb.fat)}`,
+                  position: "top",
+                  fontSize: 10,
+                  fill: "hsl(var(--muted-foreground))",
+                }}
+              />
+            ))}
             <Line type="monotone" dataKey="orcamento" name="Orçamentos" stroke="#3b82f6" strokeWidth={2} dot={false} />
             <Line type="monotone" dataKey="pedido" name="Pedidos" stroke="#22c55e" strokeWidth={2} dot={false} />
             <Line type="monotone" dataKey="faturamento" name="Faturamento" stroke="#f59e0b" strokeWidth={2} dot={false} />
-          </LineChart>
+          </ComposedChart>
         </ResponsiveContainer>
       </CardContent>
     </Card>
