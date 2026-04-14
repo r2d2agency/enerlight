@@ -279,7 +279,6 @@ export default function Licitacoes() {
       toast({ title: aiParsingData ? "Licitação criada com dados da IA! ✨" : "Licitação adicionada!" });
     } catch (e: any) { toast({ title: "Erro", description: e.message, variant: "destructive" }); }
   };
-  };
 
   const handleAIParseEdital = async (file: File) => {
     try {
