@@ -84,7 +84,7 @@ export function DailyEvolutionChart({ startDate, endDate, filterUserId, filterCh
     if (!dailyData) return [];
     let allDays: Date[];
     try {
-      allDays = eachDayOfInterval({ start: parseISO(startDate), end: parseISO(endDate) });
+      allDays = eachDayOfInterval({ start: parseISO(effStart), end: parseISO(effEnd) });
     } catch { return []; }
 
     // Build map by day+type
