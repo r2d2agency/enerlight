@@ -313,11 +313,11 @@ export default function CRMMetas() {
             ) : (
               <>
                 {/* KPI Summary Cards - ONLY from imported data */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <Card className="border-l-4 border-l-blue-500">
-                    <CardContent className="pt-4">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><FileText className="h-4 w-4" /> Orçamentos</div>
-                      <p className="text-2xl font-bold text-blue-600">{fmt(gd.orcamento.value)}</p>
+                    <CardContent className="pt-4 px-3">
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1"><FileText className="h-3.5 w-3.5 shrink-0" /> Orçamentos</div>
+                      <p className="text-lg sm:text-2xl font-bold text-blue-600 truncate">{fmt(gd.orcamento.value)}</p>
                       <p className="text-xs text-muted-foreground">{gd.orcamento.count} orçamentos</p>
                     </CardContent>
                   </Card>
