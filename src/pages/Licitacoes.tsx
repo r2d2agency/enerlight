@@ -243,15 +243,42 @@ export default function Licitacoes() {
   const handleCreateItem = async () => {
     if (!itemForm.title.trim() || !activeBoardId) return;
     try {
-      await createItem.mutateAsync({
+      const newItem = await createItem.mutateAsync({
         boardId: activeBoardId, ...itemForm,
         assigned_to: itemForm.assigned_to && itemForm.assigned_to !== "__none__" ? itemForm.assigned_to : undefined,
         estimated_value: itemForm.estimated_value ? Number(itemForm.estimated_value) : undefined,
       });
+
+      // If AI parsed data, create checklist items and tasks
+      if (aiParsingData && newItem?.id) {
+        try {
+          if (aiParsingData.checklist_items?.length) {
+            for (const title of aiParsingData.checklist_items) {
+              if (title) await createChecklistItem.mutateAsync({ licitacaoId: newItem.id, title });
+            }
+          }
+          if (aiParsingData.tasks?.length) {
+            for (const task of aiParsingData.tasks) {
+              if (task.title) await createTask.mutateAsync({
+                licitacaoId: newItem.id,
+                title: task.title,
+                description: task.description,
+                priority: task.priority || "medium",
+                due_date: task.due_date || undefined,
+              });
+            }
+          }
+        } catch (aiErr) {
+          console.error("Erro ao criar itens da IA:", aiErr);
+        }
+      }
+
       resetItemForm();
       setShowNewItemDialog(false);
-      toast({ title: "Licitação adicionada!" });
+      setAiParsingData(null);
+      toast({ title: aiParsingData ? "Licitação criada com dados da IA! ✨" : "Licitação adicionada!" });
     } catch (e: any) { toast({ title: "Erro", description: e.message, variant: "destructive" }); }
+  };
   };
 
   const handleAIParseEdital = async (file: File) => {
