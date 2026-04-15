@@ -48,6 +48,7 @@ export function SurveyEditorDialog({ open, onOpenChange, surveyId }: Props) {
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [fields, setFields] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
+  const [displayMode, setDisplayMode] = useState<'typeform' | 'scroll'>('typeform');
 
   useEffect(() => {
     if (existingSurvey && isEditing) {
@@ -60,6 +61,7 @@ export function SurveyEditorDialog({ open, onOpenChange, surveyId }: Props) {
       setRequireEmail(existingSurvey.require_email);
       setThankYouMessage(existingSurvey.thank_you_message || "");
       setFields(existingSurvey.fields || []);
+      setDisplayMode((existingSurvey as any).display_mode || 'typeform');
       setTab("settings");
     } else if (!isEditing) {
       setTitle("");
@@ -72,6 +74,7 @@ export function SurveyEditorDialog({ open, onOpenChange, surveyId }: Props) {
       setThankYouMessage("Obrigado por responder nossa pesquisa!");
       setSelectedTemplate(null);
       setFields([]);
+      setDisplayMode('typeform');
       setTab("template");
     }
   }, [existingSurvey, isEditing, open]);
@@ -132,6 +135,7 @@ export function SurveyEditorDialog({ open, onOpenChange, surveyId }: Props) {
           title, description, introduction, thumbnail_url: thumbnailUrl,
           require_name: requireName, require_whatsapp: requireWhatsapp, require_email: requireEmail,
           thank_you_message: thankYouMessage,
+          display_mode: displayMode,
         });
 
         // Handle field changes — for simplicity, delete removed and add new
@@ -184,6 +188,7 @@ export function SurveyEditorDialog({ open, onOpenChange, surveyId }: Props) {
           template_id: selectedTemplate,
           require_name: requireName, require_whatsapp: requireWhatsapp, require_email: requireEmail,
           thank_you_message: thankYouMessage,
+          display_mode: displayMode,
           fields: fields.map((f, i) => ({
             field_type: f.field_type,
             label: f.label,
@@ -269,6 +274,18 @@ export function SurveyEditorDialog({ open, onOpenChange, surveyId }: Props) {
 
             <div className="border-t pt-4 space-y-3">
               <h4 className="font-medium">Dados do respondente</h4>
+              <div className="space-y-2 mb-4">
+                <Label>Modo de exibição</Label>
+                <Select value={displayMode} onValueChange={(v: 'typeform' | 'scroll') => setDisplayMode(v)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="typeform">Typeform (1 pergunta por vez com animação)</SelectItem>
+                    <SelectItem value="scroll">Formulário com rolagem</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="flex items-center justify-between">
                 <Label>Solicitar Nome</Label>
                 <Switch checked={requireName} onCheckedChange={setRequireName} />
