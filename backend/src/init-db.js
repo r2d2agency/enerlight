@@ -4714,6 +4714,7 @@ const migrationSteps = [
   { name: 'Expense Reports', sql: step59Expenses, critical: false },
   { name: 'AI Expense Contacts', sql: step60AIExpenseContacts, critical: false },
   { name: 'Licitacao AI Module', sql: step61LicitacaoAI, critical: false },
+  { name: 'Surveys Module', sql: step62Surveys, critical: false },
 ];
 
 export async function initDatabase() {
