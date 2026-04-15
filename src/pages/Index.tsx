@@ -112,17 +112,20 @@ const FullDashboard = () => {
       ]);
 
       const currentUserId = user?.id;
+      const userRole = user?.role;
+      // Managers, admins, owners see all data; sellers/agents see only their own
+      const isManagerOrAbove = ['owner', 'admin', 'manager', 'supervisor'].includes(userRole || '');
 
-      // Filter contacts: only lists created by the current user
-      const myLists = currentUserId
+      // Filter contacts: managers see all, sellers see only their lists
+      const myLists = (!isManagerOrAbove && currentUserId)
         ? listsData.filter(list => list.user_id === currentUserId)
         : listsData;
       const totalContacts = myLists.reduce((sum, list) => sum + Number(list.contact_count || 0), 0);
 
       const totalMessages = messagesData.length;
 
-      // Filter campaigns: only those created by the current user
-      const myCampaigns = currentUserId
+      // Filter campaigns: managers see all, sellers see only their own
+      const myCampaigns = (!isManagerOrAbove && currentUserId)
         ? campaignsData.filter(c => c.user_id === currentUserId)
         : campaignsData;
       const activeCampaigns = myCampaigns.filter(c => c.status === 'running').length;

@@ -8,6 +8,7 @@ import { Loader2, Shield, RotateCcw, Users, UserCheck, Briefcase, Crown, Eye } f
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface PermissionsDialogProps {
   open: boolean;
@@ -95,6 +96,12 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
     ],
   },
   {
+    title: 'Assinaturas',
+    items: [
+      { key: 'can_view_document_signatures', label: 'Assinaturas', description: 'Módulo de assinatura de documentos' },
+    ],
+  },
+  {
     title: 'Disparos',
     items: [
       { key: 'can_view_campaigns', label: 'Campanhas', description: 'Listas, mensagens e campanhas' },
@@ -148,6 +155,7 @@ export function PermissionsDialog({ open, onOpenChange, userId, userName, userRo
   const [saving, setSaving] = useState(false);
   const [activeTemplate, setActiveTemplate] = useState<string | null>(null);
   const [templates, setTemplates] = useState<APITemplate[]>([]);
+  const { refreshUser } = useAuth();
 
   useEffect(() => {
     if (open && userId) {
@@ -215,6 +223,8 @@ export function PermissionsDialog({ open, onOpenChange, userId, userName, userRo
         body: { permissions },
       });
       toast.success('Permissões salvas!');
+      // Refresh auth session to update sidebar/permissions globally
+      await refreshUser();
       onOpenChange(false);
     } catch (error) {
       toast.error('Erro ao salvar permissões');
@@ -229,6 +239,8 @@ export function PermissionsDialog({ open, onOpenChange, userId, userName, userRo
       await api(`/api/permissions/${userId}`, { method: 'DELETE' });
       toast.success('Permissões resetadas para o padrão do perfil');
       await loadPermissions();
+      // Refresh auth session
+      await refreshUser();
     } catch (error) {
       toast.error('Erro ao resetar permissões');
     } finally {
