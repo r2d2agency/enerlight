@@ -96,6 +96,12 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
     ],
   },
   {
+    title: 'Assinaturas',
+    items: [
+      { key: 'can_view_document_signatures', label: 'Assinaturas', description: 'Módulo de assinatura de documentos' },
+    ],
+  },
+  {
     title: 'Disparos',
     items: [
       { key: 'can_view_campaigns', label: 'Campanhas', description: 'Listas, mensagens e campanhas' },
