@@ -335,7 +335,7 @@ router.get('/:id([0-9a-fA-F-]{36})/members', async (req, res) => {
 router.post('/:id([0-9a-fA-F-]{36})/members', async (req, res) => {
   try {
     const { id } = req.params;
-    const { email, name, password, role, connection_ids, permission_template_id } = req.body;
+    const { email, name, password, role, connection_ids, department_ids, permission_template_id } = req.body;
 
     // Check if user is admin/owner
     const memberCheck = await query(
@@ -388,11 +388,17 @@ router.post('/:id([0-9a-fA-F-]{36})/members', async (req, res) => {
       }
     }
 
+    try {
+      await query(`ALTER TABLE organization_members ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true`);
+    } catch (e) {
+      // column may already exist
+    }
+
     // Add to organization
     const result = await query(
       `INSERT INTO organization_members (organization_id, user_id, role)
        VALUES ($1, $2, $3)
-       ON CONFLICT (organization_id, user_id) DO UPDATE SET role = $3
+       ON CONFLICT (organization_id, user_id) DO UPDATE SET role = $3, is_active = true
        RETURNING *`,
       [id, userId, role || 'agent']
     );
@@ -416,6 +422,29 @@ router.post('/:id([0-9a-fA-F-]{36})/members', async (req, res) => {
            ON CONFLICT (connection_id, user_id) DO NOTHING`,
           [connId, userId]
         );
+      }
+    }
+
+    if (department_ids && Array.isArray(department_ids) && department_ids.length > 0) {
+      try {
+        await query(
+          `DELETE FROM department_members 
+           WHERE user_id = $1 AND department_id IN (
+             SELECT id FROM departments WHERE organization_id = $2
+           )`,
+          [userId, id]
+        );
+
+        for (const deptId of department_ids) {
+          await query(
+            `INSERT INTO department_members (department_id, user_id, role)
+             VALUES ($1, $2, 'agent')
+             ON CONFLICT (department_id, user_id) DO NOTHING`,
+            [deptId, userId]
+          );
+        }
+      } catch (e) {
+        console.log('department_members table may not exist:', e.message);
       }
     }
 

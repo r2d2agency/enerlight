@@ -98,17 +98,41 @@ const ROLE_DEFAULTS = {
 router.get('/:userId', authenticate, async (req, res) => {
   try {
     const { userId } = req.params;
-    
-    // Get user's org
-    const orgResult = await query(
-      `SELECT om.organization_id, om.role FROM organization_members om WHERE om.user_id = $1 LIMIT 1`,
-      [userId]
+
+    const callerOrg = await query(
+      `SELECT om.organization_id, om.role, u.is_superadmin 
+       FROM organization_members om
+       JOIN users u ON u.id = om.user_id
+       WHERE om.user_id = $1
+       LIMIT 1`,
+      [req.userId]
     );
+
+    if (callerOrg.rows.length === 0) {
+      return res.status(403).json({ error: 'Sem organização' });
+    }
+
+    const isSuperadmin = callerOrg.rows[0].is_superadmin === true;
+    const callerRole = callerOrg.rows[0].role;
+    const organization_id = callerOrg.rows[0].organization_id;
+
+    if (!isSuperadmin && req.userId !== userId && !['owner', 'admin'].includes(callerRole)) {
+      return res.status(403).json({ error: 'Apenas admin/owner podem visualizar permissões de outros usuários' });
+    }
+
+    const orgResult = await query(
+      `SELECT om.organization_id, om.role
+       FROM organization_members om
+       WHERE om.user_id = $1 AND om.organization_id = $2
+       LIMIT 1`,
+      [userId, organization_id]
+    );
+
     if (orgResult.rows.length === 0) {
       return res.status(404).json({ error: 'Usuário não encontrado na organização' });
     }
-    
-    const { organization_id, role } = orgResult.rows[0];
+
+    const { role } = orgResult.rows[0];
     
     // Check if user_permissions table exists
     const tableCheck = await query(
@@ -175,6 +199,15 @@ router.put('/:userId', authenticate, async (req, res) => {
     }
     
     const orgId = callerOrg.rows[0].organization_id;
+
+    const targetMembership = await query(
+      `SELECT 1 FROM organization_members WHERE user_id = $1 AND organization_id = $2 LIMIT 1`,
+      [userId, orgId]
+    );
+
+    if (targetMembership.rows.length === 0) {
+      return res.status(404).json({ error: 'Usuário não encontrado na organização' });
+    }
     
     // Get actual columns from the table to avoid inserting into non-existent columns
     const colCheck = await query(
@@ -229,6 +262,15 @@ router.delete('/:userId', authenticate, async (req, res) => {
       return res.status(403).json({ error: 'Apenas admin/owner podem alterar permissões' });
     }
     
+    const targetMembership = await query(
+      `SELECT 1 FROM organization_members WHERE user_id = $1 AND organization_id = $2 LIMIT 1`,
+      [userId, callerOrg.rows[0].organization_id]
+    );
+
+    if (targetMembership.rows.length === 0) {
+      return res.status(404).json({ error: 'Usuário não encontrado na organização' });
+    }
+
     await query(
       `DELETE FROM user_permissions WHERE user_id = $1 AND organization_id = $2`,
       [userId, callerOrg.rows[0].organization_id]
