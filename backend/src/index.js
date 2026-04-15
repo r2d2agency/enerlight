@@ -233,6 +233,7 @@ app.use('/api/expenses', expensesRoutes);
 app.use('/api/captador', captadorRoutes);
 app.use('/api/document-signatures', documentSignaturesRoutes);
 app.use('/api/meta', metaTemplatesRoutes);
+app.use('/api/surveys', surveysRoutes);
 
 
 app.get('/health', (req, res) => {
