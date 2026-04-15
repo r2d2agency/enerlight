@@ -461,76 +461,126 @@ router.post('/parse-edital', requireAuth, async (req, res) => {
       result_date: null,
       estimated_value: 0,
       entity_name: 'Prefeitura Municipal de Exemplo',
-      entity_cnpj: null,
-      entity_contact: null,
-      entity_phone: null,
-      entity_email: null,
-      description: 'Objeto resumido da licitação',
-      notes: 'Informações importantes extraídas do edital',
+      entity_cnpj: '00.000.000/0000-00',
+      entity_contact: 'Nome do responsável',
+      entity_phone: '(00) 0000-0000',
+      entity_email: 'email@orgao.gov.br',
+      description: 'Objeto completo e detalhado da licitação',
+      notes: 'Informações adicionais relevantes extraídas do edital',
       dates: [
-        {
-          label: 'Sessão pública',
-          date: '2025-01-15',
-          description: 'Data de abertura da disputa',
-        },
+        { label: 'Publicação do Edital', date: '2025-01-01', description: 'Data da publicação oficial' },
+        { label: 'Sessão Pública', date: '2025-01-15', description: 'Data e hora de abertura das propostas' },
+        { label: 'Prazo para Impugnação', date: '2025-01-10', description: 'Último dia para impugnar o edital' },
+        { label: 'Prazo para Esclarecimentos', date: '2025-01-08', description: 'Último dia para pedidos de esclarecimento' },
       ],
-      required_documents: ['Documento obrigatório 1'],
-      checklist_items: ['Documento obrigatório 1'],
+      required_documents: [
+        'Certidão Negativa de Débitos Federais',
+        'Certidão de Regularidade FGTS',
+        'Certidão Negativa de Débitos Trabalhistas (CNDT)',
+        'Balanço Patrimonial do último exercício social',
+        'Contrato Social ou Estatuto atualizado',
+      ],
+      checklist_items: [
+        'Verificar habilitação jurídica (contrato social, procuração)',
+        'Obter Certidão Negativa de Débitos Federais (RFB/PGFN)',
+        'Obter Certidão de Regularidade FGTS (CRF)',
+        'Obter Certidão Negativa de Débitos Trabalhistas (CNDT/TST)',
+        'Obter Certidão Negativa de Débitos Estaduais',
+        'Obter Certidão Negativa de Débitos Municipais',
+        'Verificar regularidade no SICAF',
+        'Preparar Balanço Patrimonial e demonstrações contábeis',
+        'Verificar Índices de Liquidez exigidos',
+        'Preparar atestados de capacidade técnica',
+        'Elaborar proposta comercial conforme modelo do edital',
+        'Verificar exigências de amostras/demonstrações',
+        'Preparar declarações obrigatórias (ME/EPP, menor aprendiz, etc.)',
+        'Verificar necessidade de visita técnica',
+        'Cadastrar no sistema de licitação eletrônica',
+        'Preparar garantia de proposta (se exigida)',
+        'Revisar planilha de formação de preços',
+        'Verificar prazos de entrega/execução exigidos',
+      ],
       tasks: [
-        {
-          title: 'Separar documentação obrigatória',
-          description: 'Reunir os documentos exigidos no edital',
-          priority: 'high',
-          due_date: null,
-        },
+        { title: 'Reunir documentação de habilitação jurídica', description: 'Contrato social, alterações, procurações e declarações legais exigidas no edital', priority: 'high', due_date: '2025-01-10' },
+        { title: 'Obter certidões de regularidade fiscal', description: 'Federal, Estadual, Municipal, FGTS e Trabalhista - verificar validade de todas as certidões', priority: 'high', due_date: '2025-01-12' },
+        { title: 'Elaborar proposta comercial', description: 'Preparar proposta conforme modelo do edital com planilha de preços detalhada', priority: 'high', due_date: '2025-01-13' },
+        { title: 'Preparar documentação técnica', description: 'Atestados de capacidade técnica, certificações e declarações técnicas exigidas', priority: 'high', due_date: '2025-01-12' },
+        { title: 'Revisar qualificação econômico-financeira', description: 'Balanço patrimonial, índices de liquidez e capital social mínimo exigido', priority: 'medium', due_date: '2025-01-10' },
+        { title: 'Verificar necessidade de impugnação do edital', description: 'Analisar cláusulas restritivas e avaliar necessidade de pedido de esclarecimento ou impugnação', priority: 'medium', due_date: '2025-01-08' },
+        { title: 'Cadastrar credenciais no sistema eletrônico', description: 'Garantir acesso e credenciamento no portal de licitações', priority: 'medium', due_date: '2025-01-13' },
       ],
-      summary: 'Resumo executivo do edital',
+      summary: `## Resumo Executivo\nDescrição detalhada do objeto da licitação.\n\n## Órgão Licitante\nNome, endereço e informações do órgão.\n\n## Regras e Condições\n- Condição 1\n- Condição 2\n\n## Pontos de Atenção\n- ⚠️ Ponto crítico 1\n- ⚠️ Ponto crítico 2\n\n## Requisitos de Habilitação\n- Habilitação Jurídica: ...\n- Regularidade Fiscal: ...\n- Qualificação Técnica: ...\n- Qualificação Econômico-Financeira: ...\n\n## Critério de Julgamento\nMenor preço / Técnica e preço / etc.\n\n## Prazos e Vigência\n- Vigência do contrato: ...\n- Prazo de entrega: ...\n\n## Penalidades\n- Multas e sanções previstas`,
       edital_items: [
-        {
-          item_number: '1',
-          description: 'Descrição do item',
-          quantity: '10',
-          unit: 'UN',
-          estimated_value: '1000.00',
-        },
+        { item_number: '1', description: 'Descrição completa do item', quantity: '10', unit: 'UN', estimated_value: '1000.00' },
       ],
-      risk_assessment: 'Principais pontos de atenção e riscos do edital',
-      recommendations: 'Próximos passos recomendados para participação',
+      risk_assessment: '## Riscos Identificados\n- 🔴 **Alto**: ...\n- 🟡 **Médio**: ...\n- 🟢 **Baixo**: ...\n\n## Cláusulas Restritivas\n- ...\n\n## Pontos que Exigem Atenção Imediata\n- ...',
+      recommendations: '## Próximos Passos\n1. ...\n2. ...\n\n## Estratégia Sugerida\n- ...\n\n## Documentos Prioritários\n- ...',
     };
 
     if (productsContext) {
       responseTemplate.product_matches = [
-        {
-          edital_item: 'Item 1',
-          product_name: 'Produto Exemplo',
-          match_level: 'parcial',
-          notes: 'Compatibilidade parcial com o catálogo da empresa',
-        },
+        { edital_item: 'Item 1', product_name: 'Produto Exemplo', match_level: 'parcial', notes: 'Detalhes da compatibilidade' },
       ];
       responseTemplate.compliance_score = 65;
-      responseTemplate.compliance_analysis = 'Análise de conformidade detalhada';
+      responseTemplate.compliance_analysis = '## Análise de Conformidade\n- Itens compatíveis: ...\n- Itens parcialmente compatíveis: ...\n- Itens sem correspondência: ...\n\n## Recomendações de Adequação\n- ...';
     }
 
-    const systemPrompt = `Você é um especialista em licitações públicas brasileiras. Analise o texto do edital e extraia as informações estruturadas em um único objeto JSON válido.
+    const systemPrompt = `Você é um ESPECIALISTA SÊNIOR em licitações públicas brasileiras com 20 anos de experiência. Faça uma ANÁLISE MINUCIOSA e COMPLETA do edital. Não deixe NENHUMA informação relevante de fora.
 
 MODELO JSON VÁLIDO:
 ${JSON.stringify(responseTemplate, null, 2)}
 
-${productsContext ? `PRODUTOS E SERVIÇOS DA EMPRESA:\n${productsContext}\n` : ''}
+${productsContext ? `PRODUTOS E SERVIÇOS DA EMPRESA (CATÁLOGO RAG):\n${productsContext}\n\nIMPORTANTE: Compare TODOS os itens do edital com o catálogo acima e preencha product_matches, compliance_score e compliance_analysis obrigatoriamente.\n` : ''}
+
+INSTRUÇÕES DETALHADAS:
+
+### SUMMARY (campo summary) - OBRIGATÓRIO E DETALHADO
+Gere um resumo COMPLETO e ESTRUTURADO usando Markdown com as seguintes seções:
+- **## Resumo Executivo**: Objeto completo, valor estimado, modalidade, finalidade
+- **## Órgão Licitante**: Nome completo, endereço, CNPJ, setor responsável
+- **## Regras e Condições**: Todas as regras de participação, vedações, condições especiais
+- **## Pontos de Atenção**: Cláusulas críticas, exigências especiais, armadilhas comuns (usar ⚠️)
+- **## Requisitos de Habilitação**: Habilitação Jurídica, Regularidade Fiscal, Qualificação Técnica, Qualificação Econômico-Financeira - DETALHAR CADA UM
+- **## Critério de Julgamento**: Tipo de julgamento e critérios de desempate
+- **## Prazos e Vigência**: Vigência contratual, prazos de entrega, garantias
+- **## Penalidades**: Multas, sanções, advertências previstas
+- **## Condições de Pagamento**: Forma e prazo de pagamento, reajustes
+
+### CHECKLIST_ITEMS - Gere uma lista COMPLETA e ABRANGENTE
+Inclua TODOS os itens necessários para participar, como:
+- Cada certidão e documento de habilitação exigido
+- Cada declaração obrigatória
+- Verificações de sistema (SICAF, portal)
+- Preparação de proposta e planilha
+- Amostras, visita técnica, garantias
+- Qualquer requisito específico do edital
+Mínimo: 12 itens. Máximo: 30 itens.
+
+### TASKS - Gere tarefas ACTIONÁVEIS com prazos
+Cada tarefa deve ter:
+- Título claro e objetivo
+- Descrição detalhada do que precisa ser feito
+- Prioridade (high/medium/low) baseada na urgência
+- due_date calculada a partir das datas do edital (antes da abertura)
+Mínimo: 5 tarefas. Máximo: 15 tarefas. Ordene por prioridade.
+
+### RISK_ASSESSMENT - Análise detalhada com Markdown
+Use ícones e seções: Riscos Altos 🔴, Médios 🟡, Baixos 🟢, Cláusulas Restritivas, Pontos de Atenção Imediata.
+
+### RECOMMENDATIONS - Recomendações estratégicas com Markdown
+Próximos passos numerados, estratégia sugerida, documentos prioritários.
+
 REGRAS OBRIGATÓRIAS:
-- Retorne APENAS um objeto JSON válido.
-- Use sempre aspas duplas em chaves e strings.
-- Use null quando a informação não estiver disponível.
-- Nunca use undefined, comentários, markdown, blocos \`\`\`, ou texto antes/depois do JSON.
-- compliance_score deve ser um único número inteiro entre 0 e 100.
-- estimated_value deve ser número no campo principal e string numérica em edital_items. Nunca use R$, pontos de milhar ou intervalos como 0-100.
-- opening_date, deadline_date e result_date devem estar em YYYY-MM-DD ou null.
-- dates deve ser um array com as principais datas no formato { label, date, description }.
-- required_documents deve listar todos os documentos obrigatórios identificados.
-- priority deve ser exatamente high, medium ou low.
-- match_level deve ser exatamente total, parcial ou não atende.
-- checklist_items, required_documents, tasks, dates e edital_items devem ser arrays; se não houver dados, retorne arrays vazios.
-- Se houver catálogo da empresa, compare os itens com o catálogo e preencha obrigatoriamente product_matches, compliance_score, compliance_analysis, risk_assessment e recommendations.`;
+- Retorne APENAS um objeto JSON válido, sem markdown wrapping.
+- Use aspas duplas. Use null quando não disponível.
+- estimated_value: número. Em edital_items: string numérica. Nunca use R$ ou pontos de milhar.
+- Datas em YYYY-MM-DD ou null.
+- priority: high, medium ou low.
+- match_level: total, parcial ou não atende.
+- Arrays vazios quando sem dados.
+- Extraia o MÁXIMO de informações possível do edital.
+- Preencha TODOS os campos de entidade (entity_*) que encontrar.
+- Gere resumo, risk_assessment e recommendations usando Markdown para formatação rica.`;
 
     const messages = [
       { role: 'system', content: systemPrompt },
@@ -539,7 +589,7 @@ REGRAS OBRIGATÓRIAS:
 
     const result = await callAI(aiConfig, messages, {
       temperature: 0.2,
-      maxTokens: parseInt(configRow?.max_tokens) || 8000,
+      maxTokens: Math.max(parseInt(configRow?.max_tokens) || 12000, 12000),
       responseFormat: { type: 'json_object' },
     });
 
