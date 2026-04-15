@@ -17,6 +17,15 @@ function generateSlug() {
   return crypto.randomBytes(6).toString('hex');
 }
 
+function disableSurveyCaching(res) {
+  res.set({
+    'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+    Pragma: 'no-cache',
+    Expires: '0',
+    'Surrogate-Control': 'no-store',
+  });
+}
+
 // ============================================
 // TEMPLATES
 // ============================================
@@ -312,6 +321,8 @@ router.post('/:id/fields/reorder', authenticate, async (req, res) => {
 // Get survey by slug (public)
 router.get('/public/:slug', async (req, res) => {
   try {
+    disableSurveyCaching(res);
+
     const survey = await query(
       `SELECT s.id, s.title, s.description, s.introduction, s.thumbnail_url, s.status, s.require_name, s.require_whatsapp, s.require_email, s.allow_anonymous, s.thank_you_message
        FROM surveys s WHERE s.share_slug = $1`,
@@ -336,6 +347,8 @@ router.get('/public/:slug', async (req, res) => {
 // Submit response (public)
 router.post('/public/:slug/respond', async (req, res) => {
   try {
+    disableSurveyCaching(res);
+
     const survey = await query(
       `SELECT id, status, require_name, require_whatsapp, require_email FROM surveys WHERE share_slug = $1`,
       [req.params.slug]
