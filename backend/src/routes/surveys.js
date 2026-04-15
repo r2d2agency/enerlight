@@ -132,7 +132,7 @@ router.post('/', authenticate, async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
-    const { title, description, introduction, thumbnail_url, template_id, require_name, require_whatsapp, require_email, allow_anonymous, thank_you_message, fields, display_mode } = req.body;
+    const { title, description, introduction, thumbnail_url, template_id, require_name, require_whatsapp, require_email, allow_anonymous, thank_you_message, fields } = req.body;
 
     const slug = generateSlug();
     
@@ -141,11 +141,6 @@ router.post('/', authenticate, async (req, res) => {
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
       [org.organization_id, title, description || null, introduction || null, thumbnail_url || null, template_id || 'custom', slug, require_name !== false, require_whatsapp || false, require_email || false, allow_anonymous || false, thank_you_message || 'Obrigado por responder nossa pesquisa!', req.userId]
     );
-
-    // Set display_mode (column might not exist yet on older DBs)
-    try {
-      await query(`UPDATE surveys SET display_mode = $1 WHERE id = $2`, [display_mode || 'typeform', result.rows[0].id]);
-    } catch (e) { /* column may not exist */ }
 
     const surveyId = result.rows[0].id;
 
@@ -181,7 +176,7 @@ router.patch('/:id', authenticate, async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
-    const { title, description, introduction, thumbnail_url, status, require_name, require_whatsapp, require_email, allow_anonymous, thank_you_message, display_mode } = req.body;
+    const { title, description, introduction, thumbnail_url, status, require_name, require_whatsapp, require_email, allow_anonymous, thank_you_message } = req.body;
 
     const sets = [];
     const vals = [];
@@ -200,7 +195,6 @@ router.patch('/:id', authenticate, async (req, res) => {
     if (require_email !== undefined) { sets.push(`require_email = $${idx++}`); vals.push(require_email); }
     if (allow_anonymous !== undefined) { sets.push(`allow_anonymous = $${idx++}`); vals.push(allow_anonymous); }
     if (thank_you_message !== undefined) { sets.push(`thank_you_message = $${idx++}`); vals.push(thank_you_message); }
-    if (display_mode !== undefined) { sets.push(`display_mode = $${idx++}`); vals.push(display_mode); }
 
     sets.push(`updated_at = NOW()`);
     vals.push(req.params.id, org.organization_id);
@@ -318,39 +312,21 @@ router.post('/:id/fields/reorder', authenticate, async (req, res) => {
 // Get survey by slug (public)
 router.get('/public/:slug', async (req, res) => {
   try {
-    let surveyRow = null;
-    try {
-      const enhanced = await query(
-        `SELECT s.id, s.title, s.description, s.introduction, s.thumbnail_url, s.status,
-                COALESCE(s.display_mode, 'typeform') as display_mode,
-                s.require_name, s.require_whatsapp, s.require_email, s.allow_anonymous, s.thank_you_message,
-                o.logo_url as organization_logo
-         FROM surveys s
-         LEFT JOIN organizations o ON o.id = s.organization_id
-         WHERE s.share_slug = $1`,
-        [req.params.slug]
-      );
-      surveyRow = enhanced.rows[0];
-    } catch (e) {
-      // display_mode column might not exist yet — fallback
-      const fallback = await query(
-        `SELECT s.id, s.title, s.description, s.introduction, s.thumbnail_url, s.status, s.require_name, s.require_whatsapp, s.require_email, s.allow_anonymous, s.thank_you_message
-         FROM surveys s WHERE s.share_slug = $1`,
-        [req.params.slug]
-      );
-      surveyRow = fallback.rows[0];
-    }
-
-    if (!surveyRow) return res.status(404).json({ error: 'Pesquisa não encontrada' });
-    if (surveyRow.status !== 'active') return res.status(410).json({ error: 'Esta pesquisa não está mais ativa' });
+    const survey = await query(
+      `SELECT s.id, s.title, s.description, s.introduction, s.thumbnail_url, s.status, s.require_name, s.require_whatsapp, s.require_email, s.allow_anonymous, s.thank_you_message
+       FROM surveys s WHERE s.share_slug = $1`,
+      [req.params.slug]
+    );
+    if (!survey.rows[0]) return res.status(404).json({ error: 'Pesquisa não encontrada' });
+    if (survey.rows[0].status !== 'active') return res.status(410).json({ error: 'Esta pesquisa não está mais ativa' });
 
     const fields = await query(
       `SELECT id, field_type, label, description, required, options, min_value, max_value, sort_order
        FROM survey_fields WHERE survey_id = $1 ORDER BY sort_order`,
-      [surveyRow.id]
+      [survey.rows[0].id]
     );
 
-    res.json({ ...surveyRow, fields: fields.rows });
+    res.json({ ...survey.rows[0], fields: fields.rows });
   } catch (err) {
     console.error('Error getting public survey:', err);
     res.status(500).json({ error: err.message });
