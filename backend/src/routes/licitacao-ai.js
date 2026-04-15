@@ -589,7 +589,7 @@ REGRAS OBRIGATÓRIAS:
 
     const result = await callAI(aiConfig, messages, {
       temperature: 0.2,
-      maxTokens: parseInt(configRow?.max_tokens) || 8000,
+      maxTokens: Math.max(parseInt(configRow?.max_tokens) || 12000, 12000),
       responseFormat: { type: 'json_object' },
     });
 
