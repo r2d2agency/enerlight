@@ -23,6 +23,11 @@ CREATE TABLE IF NOT EXISTS surveys (
   closed_at TIMESTAMPTZ
 );
 
+DO $$ BEGIN
+  ALTER TABLE surveys ADD COLUMN IF NOT EXISTS display_mode VARCHAR(20) DEFAULT 'typeform';
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
 CREATE TABLE IF NOT EXISTS survey_fields (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   survey_id UUID NOT NULL REFERENCES surveys(id) ON DELETE CASCADE,
