@@ -113,6 +113,7 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
       { name: "Metas", href: "/crm/metas", icon: Target, permissionKey: 'can_view_crm' },
       { name: "Revenue Intel", href: "/revenue-intelligence", icon: Brain, adminOnly: true, permissionKey: 'can_view_revenue_intel' },
       { name: "Segmentação", href: "/crm/segmentacao", icon: Filter, permissionKey: 'can_view_companies' },
+      { name: "Pesquisas", href: "/crm/pesquisas", icon: ClipboardList, permissionKey: 'can_view_crm' },
       { name: "Fantasma", href: "/modulo-fantasma", icon: Ghost, ownerOnly: true, moduleKey: 'ghost', permissionKey: 'can_view_ghost' },
       { name: "Configurações", href: "/crm/configuracoes", icon: Settings, adminOnly: true, permissionKey: 'can_view_crm_settings' },
     ],
