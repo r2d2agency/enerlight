@@ -116,7 +116,7 @@ export function useSurveyOverview() {
 export function usePublicSurvey(slug: string | null) {
   return useQuery<Survey>({
     queryKey: ['public-survey', slug],
-    queryFn: () => api(`/api/surveys/public/${slug}`, { auth: false }),
+    queryFn: () => api(`/api/surveys/public/${encodeURIComponent(slug ?? '')}?_=${Date.now()}`, { auth: false }),
     enabled: !!slug,
   });
 }
@@ -131,7 +131,10 @@ export function useSurveyMutations() {
 
   const update = useMutation({
     mutationFn: ({ id, ...data }: Record<string, any>) => api(`/api/surveys/${id}`, { method: 'PATCH', body: data }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['surveys'] }); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['surveys'] });
+      qc.invalidateQueries({ queryKey: ['public-survey'] });
+    },
   });
 
   const remove = useMutation({
