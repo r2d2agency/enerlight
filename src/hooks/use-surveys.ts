@@ -23,6 +23,8 @@ interface Survey {
   status: 'draft' | 'active' | 'paused' | 'closed';
   template_type?: string;
   share_slug: string;
+  display_mode?: 'typeform' | 'scroll';
+  organization_logo?: string;
   require_name: boolean;
   require_whatsapp: boolean;
   require_email: boolean;
