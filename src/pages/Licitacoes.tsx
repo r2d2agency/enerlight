@@ -44,6 +44,15 @@ const MODALITIES = [
   "Convite", "Leilão", "Concurso", "Dispensa", "Inexigibilidade", "RDC", "Outro"
 ];
 
+const EMPTY_ITEM_FORM = {
+  title: "", description: "", edital_number: "", edital_url: "", modality: "",
+  opening_date: "", deadline_date: "", result_date: "", estimated_value: "",
+  entity_name: "", entity_cnpj: "", entity_contact: "", entity_phone: "", entity_email: "",
+  assigned_to: "", notes: "", contact_id: "", contact_name: "", contact_phone: ""
+};
+
+type LicitacaoItemFormState = typeof EMPTY_ITEM_FORM;
+
 function ContactSelector({ value, contactName, contactPhone, onSelect, onClear, searchResults, onSearch }: {
   value: string; contactName: string; contactPhone: string;
   onSelect: (c: LicitacaoContact) => void; onClear: () => void;
@@ -164,13 +173,8 @@ export default function Licitacoes() {
 
   // Form states
   const [boardName, setBoardName] = useState("");
-  const [itemForm, setItemForm] = useState({
-    title: "", description: "", edital_number: "", edital_url: "", modality: "",
-    opening_date: "", deadline_date: "", result_date: "", estimated_value: "",
-    entity_name: "", entity_cnpj: "", entity_contact: "", entity_phone: "", entity_email: "",
-    assigned_to: "", notes: "", contact_id: "", contact_name: "", contact_phone: ""
-  });
-  const [editForm, setEditForm] = useState({ ...itemForm });
+  const [itemForm, setItemForm] = useState<LicitacaoItemFormState>(() => ({ ...EMPTY_ITEM_FORM }));
+  const [editForm, setEditForm] = useState<LicitacaoItemFormState>(() => ({ ...EMPTY_ITEM_FORM }));
   const [contactSearchTerm, setContactSearchTerm] = useState("");
   const [taskForm, setTaskForm] = useState({ title: "", description: "", priority: "medium", due_date: "", assigned_to: "" });
   const [newStageName, setNewStageName] = useState("");
@@ -235,7 +239,33 @@ export default function Licitacoes() {
     return map;
   }, [items, stages, searchTerm]);
 
-  const resetItemForm = () => setItemForm({ title: "", description: "", edital_number: "", edital_url: "", modality: "", opening_date: "", deadline_date: "", result_date: "", estimated_value: "", entity_name: "", entity_cnpj: "", entity_contact: "", entity_phone: "", entity_email: "", assigned_to: "", notes: "", contact_id: "", contact_name: "", contact_phone: "" });
+  const resetItemForm = () => setItemForm({ ...EMPTY_ITEM_FORM });
+  const buildItemFormFromParsed = (
+    baseForm: LicitacaoItemFormState,
+    parsed: ParsedEditalData,
+    overrides: Partial<LicitacaoItemFormState> = {},
+  ): LicitacaoItemFormState => ({
+    ...baseForm,
+    title: parsed.title || baseForm.title,
+    description: parsed.description || parsed.summary || baseForm.description,
+    edital_number: parsed.edital_number || baseForm.edital_number,
+    edital_url: overrides.edital_url ?? baseForm.edital_url,
+    modality: parsed.modality || baseForm.modality,
+    opening_date: parsed.opening_date || baseForm.opening_date,
+    deadline_date: parsed.deadline_date || baseForm.deadline_date,
+    result_date: parsed.result_date || baseForm.result_date,
+    estimated_value:
+      parsed.estimated_value !== undefined && parsed.estimated_value !== null
+        ? String(parsed.estimated_value)
+        : baseForm.estimated_value,
+    entity_name: parsed.entity_name || baseForm.entity_name,
+    entity_cnpj: parsed.entity_cnpj || baseForm.entity_cnpj,
+    entity_contact: parsed.entity_contact || baseForm.entity_contact,
+    entity_phone: parsed.entity_phone || baseForm.entity_phone,
+    entity_email: parsed.entity_email || baseForm.entity_email,
+    notes: parsed.notes || baseForm.notes,
+    ...overrides,
+  });
   const getParsedAnalysisDates = (parsed: ParsedEditalData) => {
     if (parsed.dates?.length) return parsed.dates;
 
@@ -261,10 +291,11 @@ export default function Licitacoes() {
   const handleCreateItem = async () => {
     if (!itemForm.title.trim() || !activeBoardId) return;
     try {
+      const resolvedItemForm = aiParsingData ? buildItemFormFromParsed(itemForm, aiParsingData) : itemForm;
       const newItem = await createItem.mutateAsync({
-        boardId: activeBoardId, ...itemForm,
-        assigned_to: itemForm.assigned_to && itemForm.assigned_to !== "__none__" ? itemForm.assigned_to : undefined,
-        estimated_value: itemForm.estimated_value ? Number(itemForm.estimated_value) : undefined,
+        boardId: activeBoardId, ...resolvedItemForm,
+        assigned_to: resolvedItemForm.assigned_to && resolvedItemForm.assigned_to !== "__none__" ? resolvedItemForm.assigned_to : undefined,
+        estimated_value: resolvedItemForm.estimated_value ? Number(resolvedItemForm.estimated_value) : undefined,
       }) as any;
 
       // If AI parsed data, create checklist items and tasks
@@ -363,6 +394,11 @@ export default function Licitacoes() {
       const parsed = await parseEdital.mutateAsync({ edital_url: url });
       const parsedDates = getParsedAnalysisDates(parsed);
       const requiredDocuments = getParsedRequiredDocuments(parsed);
+      const parsedForm = buildItemFormFromParsed(
+        { ...EMPTY_ITEM_FORM, edital_url: url },
+        parsed,
+        { edital_url: url },
+      );
       setAiParsingData(parsed);
       setStep("analyze", "done", "Análise concluída");
       addLog("✅ Análise da IA concluída");
@@ -378,23 +414,7 @@ export default function Licitacoes() {
       if (parsed.deadline_date) addLog(`📅 Prazo: ${parsed.deadline_date}`);
       if (parsedDates.length) addLog(`📅 ${parsedDates.length} datas críticas identificadas`);
 
-      setItemForm(p => ({
-        ...p,
-        title: parsed.title || p.title,
-        edital_number: parsed.edital_number || p.edital_number,
-        modality: parsed.modality || p.modality,
-        opening_date: parsed.opening_date || p.opening_date,
-        deadline_date: parsed.deadline_date || p.deadline_date,
-        result_date: parsed.result_date || p.result_date,
-        estimated_value: parsed.estimated_value ? String(parsed.estimated_value) : p.estimated_value,
-        entity_name: parsed.entity_name || p.entity_name,
-        entity_cnpj: parsed.entity_cnpj || p.entity_cnpj,
-        entity_contact: parsed.entity_contact || p.entity_contact,
-        entity_phone: parsed.entity_phone || p.entity_phone,
-        entity_email: parsed.entity_email || p.entity_email,
-        description: parsed.description || p.description,
-        notes: parsed.notes || p.notes,
-      }));
+      setItemForm(parsedForm);
       await new Promise(r => setTimeout(r, 300));
       setStep("fields", "done", `${Object.values(parsed).filter(Boolean).length} campos preenchidos`);
       addLog("✅ Campos preenchidos automaticamente");
@@ -438,8 +458,8 @@ export default function Licitacoes() {
 
       // Auto-create with parsed data
       const formData = {
-        ...itemForm,
-        title: parsed.title || itemForm.title || "Licitação sem título",
+        ...parsedForm,
+        title: parsedForm.title || "Licitação sem título",
         edital_url: url,
       };
       const newItem = await createItem.mutateAsync({
