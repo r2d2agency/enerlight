@@ -291,11 +291,10 @@ export default function Licitacoes() {
   const handleCreateItem = async () => {
     if (!itemForm.title.trim() || !activeBoardId) return;
     try {
-      const resolvedItemForm = aiParsingData ? buildItemFormFromParsed(itemForm, aiParsingData) : itemForm;
       const newItem = await createItem.mutateAsync({
-        boardId: activeBoardId, ...resolvedItemForm,
-        assigned_to: resolvedItemForm.assigned_to && resolvedItemForm.assigned_to !== "__none__" ? resolvedItemForm.assigned_to : undefined,
-        estimated_value: resolvedItemForm.estimated_value ? Number(resolvedItemForm.estimated_value) : undefined,
+        boardId: activeBoardId, ...itemForm,
+        assigned_to: itemForm.assigned_to && itemForm.assigned_to !== "__none__" ? itemForm.assigned_to : undefined,
+        estimated_value: itemForm.estimated_value ? Number(itemForm.estimated_value) : undefined,
       }) as any;
 
       // If AI parsed data, create checklist items and tasks
