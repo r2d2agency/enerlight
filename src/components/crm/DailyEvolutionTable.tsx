@@ -182,7 +182,7 @@ export function DailyEvolutionTable({ startDate, endDate, filterUserId, filterCh
                     {dayName}
                   </TableCell>
                   <TableCell className="text-right text-sm">
-                    {r.isBizDay && dailyGoal > 0 ? fmt(r.planned) : <span className="text-muted-foreground">—</span>}
+                    {r.isBizDay && r.planned > 0 ? fmt(r.planned) : <span className="text-muted-foreground">—</span>}
                   </TableCell>
                   <TableCell className={`text-right text-sm font-medium ${r.dayValue > 0 ? (r.met ? "text-green-600" : "text-red-600") : ""}`}>
                     {r.dayValue > 0 ? fmt(r.dayValue) : <span className="text-muted-foreground">—</span>}
