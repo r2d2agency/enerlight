@@ -36,7 +36,7 @@ import {
   useProjectAttachments, useProjectNotes, useProjectTasks, useProjectTemplates,
   useProjectTemplateTasks, useProjectNoteMutations, useProjectAttachmentMutations,
   useProjectTaskMutations, useProjectTemplateMutations, useIsDesigner,
-  Project, ProjectStage, ProjectTask, ProjectNote, ProjectTemplate
+  Project, ProjectStage, ProjectTask, ProjectNote, ProjectTemplate, ProjectAttachment
 } from "@/hooks/use-projects";
 
 export default function Projetos() {
@@ -819,6 +819,143 @@ function TaskChecklistItem({ task, projectId, isCompleted, orgMembers, taskMut, 
 }
 
 // ========================
+// Project Attachments Tab
+// ========================
+function getFileCategory(name: string, mimetype?: string): "image" | "video" | "audio" | "pdf" | "doc" | "sheet" | "other" {
+  const ext = name.toLowerCase().split('.').pop() || '';
+  const mt = (mimetype || '').toLowerCase();
+  if (mt.startsWith('image/') || ['jpg','jpeg','png','gif','webp','svg','bmp'].includes(ext)) return 'image';
+  if (mt.startsWith('video/') || ['mp4','mov','avi','mkv','webm'].includes(ext)) return 'video';
+  if (mt.startsWith('audio/') || ['mp3','ogg','wav','m4a','opus'].includes(ext)) return 'audio';
+  if (mt === 'application/pdf' || ext === 'pdf') return 'pdf';
+  if (['doc','docx','txt','rtf'].includes(ext)) return 'doc';
+  if (['xls','xlsx','csv','ods'].includes(ext)) return 'sheet';
+  return 'other';
+}
+
+function ProjectAttachmentsTab({ attachments, canEdit, isUploading, handleUpload, onRemove }: {
+  attachments: ProjectAttachment[];
+  canEdit: boolean;
+  isUploading: boolean;
+  handleUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onRemove: (attId: string) => void;
+}) {
+  const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<string>("date_desc");
+
+  const filtered = useMemo(() => {
+    let list = attachments.filter(att => {
+      const matchSearch = !search || att.name.toLowerCase().includes(search.toLowerCase()) ||
+        (att.uploaded_by_name || '').toLowerCase().includes(search.toLowerCase());
+      const matchType = typeFilter === "all" || getFileCategory(att.name, att.mimetype) === typeFilter;
+      return matchSearch && matchType;
+    });
+    list = [...list].sort((a, b) => {
+      switch (sortBy) {
+        case "date_asc": return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        case "name_asc": return a.name.localeCompare(b.name);
+        case "name_desc": return b.name.localeCompare(a.name);
+        case "size_desc": return (b.size || 0) - (a.size || 0);
+        case "size_asc": return (a.size || 0) - (b.size || 0);
+        default: return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }
+    });
+    return list;
+  }, [attachments, search, typeFilter, sortBy]);
+
+  const formatSize = (bytes: number) => {
+    if (!bytes) return '';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  return (
+    <div className="flex flex-col h-full min-h-0 space-y-3">
+      {canEdit && (
+        <div className="shrink-0">
+          <input type="file" id="proj-file-upload" className="hidden" onChange={handleUpload} />
+          <Button variant="outline" size="sm" onClick={() => document.getElementById("proj-file-upload")?.click()} disabled={isUploading}>
+            {isUploading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Upload className="h-4 w-4 mr-1" />}
+            Anexar Arquivo
+          </Button>
+        </div>
+      )}
+
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-2 shrink-0">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por nome ou autor..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="pl-9 h-9"
+          />
+        </div>
+        <Select value={typeFilter} onValueChange={setTypeFilter}>
+          <SelectTrigger className="h-9 w-full sm:w-[140px]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os tipos</SelectItem>
+            <SelectItem value="image">Imagens</SelectItem>
+            <SelectItem value="video">Vídeos</SelectItem>
+            <SelectItem value="audio">Áudios</SelectItem>
+            <SelectItem value="pdf">PDFs</SelectItem>
+            <SelectItem value="doc">Documentos</SelectItem>
+            <SelectItem value="sheet">Planilhas</SelectItem>
+            <SelectItem value="other">Outros</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={sortBy} onValueChange={setSortBy}>
+          <SelectTrigger className="h-9 w-full sm:w-[160px]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="date_desc">Mais recentes</SelectItem>
+            <SelectItem value="date_asc">Mais antigos</SelectItem>
+            <SelectItem value="name_asc">Nome (A-Z)</SelectItem>
+            <SelectItem value="name_desc">Nome (Z-A)</SelectItem>
+            <SelectItem value="size_desc">Maior tamanho</SelectItem>
+            <SelectItem value="size_asc">Menor tamanho</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="text-xs text-muted-foreground shrink-0">
+        {filtered.length} de {attachments.length} arquivo(s)
+      </div>
+
+      {/* Scrollable list */}
+      <ScrollArea className="flex-1 min-h-0 max-h-[50vh] pr-3 -mr-3">
+        <div className="space-y-2">
+          {filtered.map(att => (
+            <div key={att.id} className="flex items-center gap-3 p-3 rounded-lg border">
+              <FileText className="h-5 w-5 text-primary shrink-0" />
+              <div className="flex-1 min-w-0">
+                <a href={resolveMediaUrl(att.url)} target="_blank" rel="noopener noreferrer" className="text-sm font-medium hover:underline truncate block">{att.name}</a>
+                <p className="text-xs text-muted-foreground truncate">
+                  {att.uploaded_by_name} · {safeFormatDate(att.created_at, "dd/MM HH:mm", { locale: ptBR })}
+                  {att.size ? ` · ${formatSize(att.size)}` : ''}
+                </p>
+              </div>
+              {canEdit && (
+                <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => onRemove(att.id)}>
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
+          ))}
+          {filtered.length === 0 && (
+            <p className="text-sm text-muted-foreground text-center py-6">
+              {attachments.length === 0 ? "Nenhum arquivo anexado" : "Nenhum arquivo encontrado com os filtros aplicados"}
+            </p>
+          )}
+        </div>
+      </ScrollArea>
+    </div>
+  );
+}
+
+// ========================
 // Project Detail Dialog
 // ========================
 function ProjectDetailDialog({ project, open, onOpenChange, stages, canEdit, canDelete, onMove }: {
@@ -1446,35 +1583,14 @@ function ProjectDetailDialog({ project, open, onOpenChange, stages, canEdit, can
             </TabsContent>
 
             {/* Attachments */}
-            <TabsContent value="attachments" className="mt-0 space-y-3">
-              {canEdit && (
-                <div>
-                  <input type="file" id="proj-file-upload" className="hidden" onChange={handleUpload} />
-                  <Button variant="outline" size="sm" onClick={() => document.getElementById("proj-file-upload")?.click()} disabled={isUploading}>
-                    {isUploading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Upload className="h-4 w-4 mr-1" />}
-                    Anexar Arquivo
-                  </Button>
-                </div>
-              )}
-              <div className="space-y-2">
-                {attachments.map(att => (
-                  <div key={att.id} className="flex items-center gap-3 p-3 rounded-lg border">
-                    <FileText className="h-5 w-5 text-primary shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <a href={resolveMediaUrl(att.url)} target="_blank" rel="noopener noreferrer" className="text-sm font-medium hover:underline truncate block">{att.name}</a>
-                      <p className="text-xs text-muted-foreground">{att.uploaded_by_name} · {safeFormatDate(att.created_at, "dd/MM HH:mm", { locale: ptBR })}</p>
-                    </div>
-                    {canEdit && (
-                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => attMut.remove.mutate({ attId: att.id, projectId: project.id })}>
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    )}
-                  </div>
-                ))}
-                {attachments.length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-4">Nenhum arquivo anexado</p>
-                )}
-              </div>
+            <TabsContent value="attachments" className="mt-0">
+              <ProjectAttachmentsTab
+                attachments={attachments}
+                canEdit={canEdit}
+                isUploading={isUploading}
+                handleUpload={handleUpload}
+                onRemove={(attId) => attMut.remove.mutate({ attId, projectId: project.id })}
+              />
             </TabsContent>
           </ScrollArea>
         </Tabs>
