@@ -124,15 +124,13 @@ export function DailyEvolutionTable({ startDate, endDate, filterUserId, filterCh
 
       // MTD: planned for this day = remainingTarget / remaining biz days (including today)
       const remainingBizDays = bizDaysFromIndex[idx];
-      const planned = (isBizDay && remainingBizDays > 0 && monthlyGoal > 0)
+      const planned = (isBizDay && remainingBizDays > 0 && monthlyGoal > 0 && remainingTarget > 0)
         ? remainingTarget / remainingBizDays
         : 0;
 
-      // After this day, reduce remaining target by what was realized
+      // After this day, reduce remaining target by what was realized (surplus abates future days)
       if (isBizDay) {
-        remainingTarget = remainingTarget - dayValue;
-        // Ensure remaining target doesn't go below 0 for display
-        if (remainingTarget < 0) remainingTarget = 0;
+        remainingTarget = Math.max(0, remainingTarget - dayValue);
       }
 
       accValue += dayValue;
