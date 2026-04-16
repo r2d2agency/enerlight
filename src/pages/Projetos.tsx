@@ -1446,35 +1446,14 @@ function ProjectDetailDialog({ project, open, onOpenChange, stages, canEdit, can
             </TabsContent>
 
             {/* Attachments */}
-            <TabsContent value="attachments" className="mt-0 space-y-3">
-              {canEdit && (
-                <div>
-                  <input type="file" id="proj-file-upload" className="hidden" onChange={handleUpload} />
-                  <Button variant="outline" size="sm" onClick={() => document.getElementById("proj-file-upload")?.click()} disabled={isUploading}>
-                    {isUploading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Upload className="h-4 w-4 mr-1" />}
-                    Anexar Arquivo
-                  </Button>
-                </div>
-              )}
-              <div className="space-y-2">
-                {attachments.map(att => (
-                  <div key={att.id} className="flex items-center gap-3 p-3 rounded-lg border">
-                    <FileText className="h-5 w-5 text-primary shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <a href={resolveMediaUrl(att.url)} target="_blank" rel="noopener noreferrer" className="text-sm font-medium hover:underline truncate block">{att.name}</a>
-                      <p className="text-xs text-muted-foreground">{att.uploaded_by_name} · {safeFormatDate(att.created_at, "dd/MM HH:mm", { locale: ptBR })}</p>
-                    </div>
-                    {canEdit && (
-                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => attMut.remove.mutate({ attId: att.id, projectId: project.id })}>
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    )}
-                  </div>
-                ))}
-                {attachments.length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-4">Nenhum arquivo anexado</p>
-                )}
-              </div>
+            <TabsContent value="attachments" className="mt-0">
+              <ProjectAttachmentsTab
+                attachments={attachments}
+                canEdit={canEdit}
+                isUploading={isUploading}
+                handleUpload={handleUpload}
+                onRemove={(attId) => attMut.remove.mutate({ attId, projectId: project.id })}
+              />
             </TabsContent>
           </ScrollArea>
         </Tabs>
