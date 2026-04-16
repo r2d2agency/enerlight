@@ -156,39 +156,53 @@ export function DailyEvolutionTable({ startDate, endDate, filterUserId, filterCh
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map(r => {
-              const weekend = isWeekend(r.date);
-              const dayName = DAY_NAMES[getDay(r.date)];
-              const accMet = r.accPlanned > 0 ? r.accValue >= r.accPlanned : true;
-              return (
-                <TableRow key={r.key} className={weekend ? "bg-muted/30" : !r.isBizDay ? "bg-yellow-50/50 dark:bg-yellow-950/20" : ""}>
-                  <TableCell className="text-sm font-medium">
-                    {format(r.date, "dd/MM", { locale: ptBR })}
-                  </TableCell>
-                  <TableCell className={`text-center text-xs ${weekend ? "text-muted-foreground" : ""}`}>
-                    {dayName}
-                  </TableCell>
-                  <TableCell className="text-right text-sm">
-                    {r.isBizDay && r.planned > 0 ? fmt(r.planned) : <span className="text-muted-foreground">—</span>}
-                  </TableCell>
-                  <TableCell className={`text-right text-sm font-medium ${r.dayValue > 0 ? (r.met ? "text-green-600" : "text-red-600") : ""}`}>
-                    {r.dayValue > 0 ? fmt(r.dayValue) : <span className="text-muted-foreground">—</span>}
-                  </TableCell>
-                  <TableCell className="text-right text-sm">
-                    {r.dayCount > 0 ? r.dayCount : <span className="text-muted-foreground">—</span>}
-                  </TableCell>
-                  <TableCell className="text-right text-sm">
-                    {r.dayCount > 0 ? fmt(r.ticket) : <span className="text-muted-foreground">—</span>}
-                  </TableCell>
-                  <TableCell className="text-right text-xs text-muted-foreground">
-                    {r.accPlanned > 0 ? fmt(r.accPlanned) : "—"}
-                  </TableCell>
-                  <TableCell className={`text-right text-xs font-medium ${accMet ? "text-green-600" : "text-red-600"}`}>
-                    {r.accValue > 0 ? fmt(r.accValue) : "—"}
-                  </TableCell>
-                </TableRow>
-              );
-            })}
+            {(() => {
+              const today = startOfDay(new Date());
+              return rows.map(r => {
+                const weekend = isWeekend(r.date);
+                const dayName = DAY_NAMES[getDay(r.date)];
+                const accMet = r.accPlanned > 0 ? r.accValue >= r.accPlanned : true;
+                const isFuture = isAfter(startOfDay(r.date), today);
+                return (
+                  <TableRow key={r.key} className={`${weekend ? "bg-muted/30" : !r.isBizDay ? "bg-yellow-50/50 dark:bg-yellow-950/20" : ""} ${isFuture ? "opacity-60" : ""}`}>
+                    <TableCell className="text-sm font-medium">
+                      {format(r.date, "dd/MM", { locale: ptBR })}
+                    </TableCell>
+                    <TableCell className={`text-center text-xs ${weekend ? "text-muted-foreground" : ""}`}>
+                      {dayName}
+                    </TableCell>
+                    {isFuture ? (
+                      <>
+                        <TableCell colSpan={6} className="text-center text-xs text-muted-foreground italic">
+                          Aguardando data
+                        </TableCell>
+                      </>
+                    ) : (
+                      <>
+                        <TableCell className="text-right text-sm">
+                          {r.isBizDay && r.planned > 0 ? fmt(r.planned) : <span className="text-muted-foreground">—</span>}
+                        </TableCell>
+                        <TableCell className={`text-right text-sm font-medium ${r.dayValue > 0 ? (r.met ? "text-green-600" : "text-red-600") : ""}`}>
+                          {r.dayValue > 0 ? fmt(r.dayValue) : <span className="text-muted-foreground">—</span>}
+                        </TableCell>
+                        <TableCell className="text-right text-sm">
+                          {r.dayCount > 0 ? r.dayCount : <span className="text-muted-foreground">—</span>}
+                        </TableCell>
+                        <TableCell className="text-right text-sm">
+                          {r.dayCount > 0 ? fmt(r.ticket) : <span className="text-muted-foreground">—</span>}
+                        </TableCell>
+                        <TableCell className="text-right text-xs text-muted-foreground">
+                          {r.accPlanned > 0 ? fmt(r.accPlanned) : "—"}
+                        </TableCell>
+                        <TableCell className={`text-right text-xs font-medium ${accMet ? "text-green-600" : "text-red-600"}`}>
+                          {r.accValue > 0 ? fmt(r.accValue) : "—"}
+                        </TableCell>
+                      </>
+                    )}
+                  </TableRow>
+                );
+              });
+            })()}
             {/* Totals row */}
             {rows.length > 0 && (() => {
               const totalValue = rows[rows.length - 1].accValue;
