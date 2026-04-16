@@ -96,16 +96,14 @@ export function DailyEvolutionTable({ startDate, endDate, filterUserId, filterCh
 
     // Pre-calculate which days are business days and build index
     const bizDayFlags = allDays.map(d => isBusinessDay(d));
-    const totalBizDays = bizDayFlags.filter(Boolean).length;
 
     // MTD rolling calculation:
-    // Day 1 planned = monthlyGoal / totalBizDays
-    // If realized < planned, deficit is spread across remaining biz days
-    // So each day's planned adjusts to absorb prior shortfalls
+    // Each business day target is recalculated from the remaining monthly goal
+    // divided by the remaining business days, while the accumulated planned
+    // never exceeds the monthly goal for the selected month.
     let accValue = 0;
     let accCount = 0;
     let accPlanned = 0;
-    let remainingTarget = monthlyGoal; // what's left to achieve from today onward
 
     // Count remaining biz days from each position
     const bizDaysFromIndex: number[] = [];
@@ -121,21 +119,20 @@ export function DailyEvolutionTable({ startDate, endDate, filterUserId, filterCh
       const dayValue = dayData?.total_value || 0;
       const dayCount = dayData?.count || 0;
       const isBizDay = bizDayFlags[idx];
+      const accValueBeforeDay = accValue;
 
-      // MTD: planned for this day = remainingTarget / remaining biz days (including today)
+      // MTD: planned for this day = remaining goal / remaining biz days (including today)
       const remainingBizDays = bizDaysFromIndex[idx];
-      const planned = (isBizDay && remainingBizDays > 0 && monthlyGoal > 0 && remainingTarget > 0)
-        ? remainingTarget / remainingBizDays
+      const remainingGoalBeforeDay = Math.max(0, monthlyGoal - accValueBeforeDay);
+      const planned = (isBizDay && remainingBizDays > 0 && remainingGoalBeforeDay > 0)
+        ? remainingGoalBeforeDay / remainingBizDays
         : 0;
-
-      // After this day, reduce remaining target by what was realized (surplus abates future days)
-      if (isBizDay) {
-        remainingTarget = Math.max(0, remainingTarget - dayValue);
-      }
 
       accValue += dayValue;
       accCount += dayCount;
-      accPlanned += planned;
+      accPlanned = isBizDay
+        ? Math.min(monthlyGoal, accValueBeforeDay + planned)
+        : accPlanned;
 
       const ticket = dayCount > 0 ? dayValue / dayCount : 0;
       const met = planned > 0 ? dayValue >= planned : dayValue > 0;
