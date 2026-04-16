@@ -94,6 +94,41 @@ const ROLE_DEFAULTS = {
   },
 };
 
+const PERMISSION_COLUMN_REGEX = /^(can_view_|can_edit_|can_delete_)[a-z0-9_]+$/;
+
+let ensurePermissionColumnsPromise = null;
+
+async function ensurePermissionColumns() {
+  if (!ensurePermissionColumnsPromise) {
+    ensurePermissionColumnsPromise = (async () => {
+      const tableCheck = await query(
+        `SELECT 1 FROM information_schema.tables WHERE table_name = 'user_permissions' LIMIT 1`
+      );
+
+      if (tableCheck.rows.length === 0) {
+        return false;
+      }
+
+      for (const column of PERMISSION_COLUMNS) {
+        if (!PERMISSION_COLUMN_REGEX.test(column)) {
+          throw new Error(`Nome de coluna de permissão inválido: ${column}`);
+        }
+
+        await query(
+          `ALTER TABLE user_permissions ADD COLUMN IF NOT EXISTS ${column} BOOLEAN DEFAULT false`
+        );
+      }
+
+      return true;
+    })().catch((error) => {
+      ensurePermissionColumnsPromise = null;
+      throw error;
+    });
+  }
+
+  return ensurePermissionColumnsPromise;
+}
+
 // Get permissions for a user
 router.get('/:userId', authenticate, async (req, res) => {
   try {
@@ -134,12 +169,9 @@ router.get('/:userId', authenticate, async (req, res) => {
 
     const { role } = orgResult.rows[0];
     
-    // Check if user_permissions table exists
-    const tableCheck = await query(
-      `SELECT 1 FROM information_schema.tables WHERE table_name = 'user_permissions' LIMIT 1`
-    );
-    
-    if (tableCheck.rows.length === 0) {
+    const hasPermissionTable = await ensurePermissionColumns();
+
+    if (!hasPermissionTable) {
       // Table doesn't exist yet, return role defaults
       const defaults = ROLE_DEFAULTS[role] || ROLE_DEFAULTS.agent;
       return res.json({ permissions: defaults, is_custom: false, role });
@@ -200,6 +232,12 @@ router.put('/:userId', authenticate, async (req, res) => {
     
     const orgId = callerOrg.rows[0].organization_id;
 
+    const hasPermissionTable = await ensurePermissionColumns();
+
+    if (!hasPermissionTable) {
+      return res.status(500).json({ error: 'Tabela de permissões não encontrada' });
+    }
+
     const targetMembership = await query(
       `SELECT 1 FROM organization_members WHERE user_id = $1 AND organization_id = $2 LIMIT 1`,
       [userId, orgId]
@@ -214,6 +252,21 @@ router.put('/:userId', authenticate, async (req, res) => {
        `SELECT column_name FROM information_schema.columns WHERE table_name = 'user_permissions' AND (column_name LIKE 'can_view_%' OR column_name LIKE 'can_edit_%' OR column_name LIKE 'can_delete_%')`
     );
     const existingCols = new Set(colCheck.rows.map(r => r.column_name));
+
+    const requestedPermissionColumns = Object.keys(permissions).filter(col => PERMISSION_COLUMNS.includes(col));
+    const missingCols = requestedPermissionColumns.filter(col => !existingCols.has(col));
+
+    if (missingCols.length > 0) {
+      console.error('Update permissions error: missing columns in user_permissions', {
+        userId,
+        organization_id: orgId,
+        missingCols,
+      });
+
+      return res.status(500).json({
+        error: `Colunas de permissão ausentes no banco: ${missingCols.join(', ')}`,
+      });
+    }
     
     // Build upsert only with columns that exist in DB AND were sent
     const columns = PERMISSION_COLUMNS.filter(c => permissions[c] !== undefined && existingCols.has(c));
