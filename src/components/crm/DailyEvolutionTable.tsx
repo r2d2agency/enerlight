@@ -239,7 +239,7 @@ export function DailyEvolutionTable({ startDate, endDate, filterUserId, filterCh
       <CardHeader className="pb-3">
         <CardTitle className="text-base">📊 Evolução Diária</CardTitle>
         <p className="text-xs text-muted-foreground">
-          {businessDays} dias úteis no período • Meta mensal dividida por dia útil
+          {businessDays} dias úteis no período • MTD: saldo não atingido redistribuído nos dias úteis restantes
           {(() => {
             const today = startOfDay(new Date());
             const monthEnd = endOfMonth(today);
