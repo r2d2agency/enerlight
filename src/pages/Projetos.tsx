@@ -1054,15 +1054,15 @@ function ProjectDetailDialog({ project, open, onOpenChange, stages, canEdit, can
           </div>
         </DialogHeader>
 
-        <Tabs defaultValue="details" className="flex-1 overflow-hidden flex flex-col">
-          <TabsList className="w-full justify-start overflow-x-auto">
+        <Tabs defaultValue="details" className="flex-1 min-h-0 overflow-hidden flex flex-col">
+          <TabsList className="w-full justify-start overflow-x-auto shrink-0">
             <TabsTrigger value="details" className="text-xs sm:text-sm"><FileText className="h-3.5 w-3.5 sm:mr-1" /> <span className="hidden sm:inline">Detalhes</span></TabsTrigger>
             <TabsTrigger value="notes" className="text-xs sm:text-sm"><MessageSquare className="h-3.5 w-3.5 sm:mr-1" /> <span className="hidden sm:inline">Notas</span> ({notes.length})</TabsTrigger>
             <TabsTrigger value="tasks" className="text-xs sm:text-sm"><CheckSquare className="h-3.5 w-3.5 sm:mr-1" /> <span className="hidden sm:inline">Tarefas</span> ({tasks.length})</TabsTrigger>
             <TabsTrigger value="attachments" className="text-xs sm:text-sm"><Paperclip className="h-3.5 w-3.5 sm:mr-1" /> <span className="hidden sm:inline">Arquivos</span> ({attachments.length})</TabsTrigger>
           </TabsList>
 
-          <ScrollArea className="flex-1 mt-3">
+          <ScrollArea className="flex-1 min-h-0 mt-3 pr-3">
             {/* Details */}
             <TabsContent value="details" className="mt-0 space-y-4">
               {/* Inline edit form */}
