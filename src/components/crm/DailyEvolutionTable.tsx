@@ -83,7 +83,7 @@ export function DailyEvolutionTable({ startDate, endDate, filterUserId, filterCh
     return allMatching.reduce((s, g) => s + g.target_value, 0);
   };
 
-  const monthBizDays = countBusinessDaysInMonth();
+  
 
   const renderTable = (dataType: keyof typeof TYPE_CONFIG) => {
     const cfg = TYPE_CONFIG[dataType];
