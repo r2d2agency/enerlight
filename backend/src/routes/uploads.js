@@ -107,27 +107,51 @@ const fileFilter = (req, file, cb) => {
   // Fallback extension allowlist (some browsers/mobile send generic mimetypes)
   const allowedExts = [
     // images
-    '.jpg', '.jpeg', '.png', '.gif', '.webp',
+    '.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.tiff', '.tif', '.svg', '.heic', '.heif', '.ico',
     // audio
-    '.mp3', '.ogg', '.wav', '.webm', '.aac', '.m4a',
+    '.mp3', '.ogg', '.wav', '.webm', '.aac', '.m4a', '.flac', '.opus', '.amr',
     // video
-    '.mp4', '.webm', '.ogg', '.mov', '.qt',
+    '.mp4', '.webm', '.ogg', '.mov', '.qt', '.avi', '.mkv', '.wmv', '.flv', '.3gp', '.m4v',
     // documents
-    '.pdf', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx', '.txt', '.csv',
+    '.pdf', '.doc', '.docx', '.ppt', '.pptx', '.ppsx', '.xls', '.xlsx', '.xlsm', '.txt', '.csv', '.rtf', '.odt', '.ods', '.odp',
     // archives
-    '.zip', '.rar', '.7z',
+    '.zip', '.rar', '.7z', '.tar', '.gz', '.tgz', '.bz2',
+    // CAD / engenharia
+    '.dwg', '.dxf', '.dwf', '.dwfx', '.rvt', '.rfa', '.skp', '.step', '.stp', '.iges', '.igs', '.stl', '.3ds', '.obj', '.fbx', '.dae', '.ifc', '.nwd', '.nwc', '.sat',
+    // dados / dev / config
+    '.json', '.xml', '.yaml', '.yml', '.md', '.log', '.html', '.htm', '.css', '.js', '.ts', '.sql',
+    // outros comuns
+    '.psd', '.ai', '.eps', '.indd', '.sketch', '.fig', '.kml', '.kmz', '.gpx', '.geojson',
   ];
+
+  // Bloqueio explícito de executáveis perigosos
+  const blockedExts = ['.exe', '.bat', '.cmd', '.com', '.msi', '.scr', '.vbs', '.ps1', '.sh', '.app', '.dmg', '.jar'];
+
+  const ext = path.extname(file.originalname || '').toLowerCase();
+
+  if (ext && blockedExts.includes(ext)) {
+    cb(new Error(`Tipo de arquivo bloqueado por segurança: ${ext}`), false);
+    return;
+  }
 
   if (allowedMimes.includes(file.mimetype)) {
     cb(null, true);
-  } else {
-    const ext = path.extname(file.originalname || '').toLowerCase();
-    if (ext && allowedExts.includes(ext)) {
-      cb(null, true);
-      return;
-    }
-    cb(new Error(`Tipo de arquivo não permitido: ${file.mimetype}`), false);
+    return;
   }
+
+  if (ext && allowedExts.includes(ext)) {
+    cb(null, true);
+    return;
+  }
+
+  // Permitir mimetypes genéricos quando há extensão (mobile/desktop costuma enviar octet-stream)
+  const genericMimes = ['application/octet-stream', 'application/x-binary', 'binary/octet-stream', ''];
+  if (ext && genericMimes.includes(String(file.mimetype || '').toLowerCase())) {
+    cb(null, true);
+    return;
+  }
+
+  cb(new Error(`Tipo de arquivo não permitido: ${file.mimetype || ext || 'desconhecido'}`), false);
 };
 
 const upload = multer({
