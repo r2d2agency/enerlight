@@ -36,7 +36,7 @@ import {
   useProjectAttachments, useProjectNotes, useProjectTasks, useProjectTemplates,
   useProjectTemplateTasks, useProjectNoteMutations, useProjectAttachmentMutations,
   useProjectTaskMutations, useProjectTemplateMutations, useIsDesigner,
-  Project, ProjectStage, ProjectTask, ProjectNote, ProjectTemplate
+  Project, ProjectStage, ProjectTask, ProjectNote, ProjectTemplate, ProjectAttachment
 } from "@/hooks/use-projects";
 
 export default function Projetos() {
