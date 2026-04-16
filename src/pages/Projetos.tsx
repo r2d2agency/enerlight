@@ -872,7 +872,7 @@ function ProjectAttachmentsTab({ attachments, canEdit, isUploading, handleUpload
   };
 
   return (
-    <div className="flex flex-col space-y-3">
+    <div className="flex min-h-0 flex-col gap-3">
       {canEdit && (
         <div className="shrink-0">
           <input type="file" id="proj-file-upload" className="hidden" onChange={handleUpload} />
@@ -884,7 +884,7 @@ function ProjectAttachmentsTab({ attachments, canEdit, isUploading, handleUpload
       )}
 
       {/* Filters - sticky to keep visible while scrolling */}
-      <div className="sticky top-0 z-10 bg-background pb-2 space-y-2">
+      <div className="shrink-0 space-y-2">
         <div className="flex flex-col sm:flex-row gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -926,7 +926,7 @@ function ProjectAttachmentsTab({ attachments, canEdit, isUploading, handleUpload
       </div>
 
       {/* Files list — parent ScrollArea handles scroll */}
-      <div className="space-y-2">
+      <div className="min-h-[220px] max-h-[calc(90vh-18rem)] overflow-y-auto overscroll-contain pr-1 space-y-2">
         {filtered.map(att => (
           <div key={att.id} className="flex items-center gap-3 p-3 rounded-lg border">
             <FileText className="h-5 w-5 text-primary shrink-0" />
@@ -1582,7 +1582,7 @@ function ProjectDetailDialog({ project, open, onOpenChange, stages, canEdit, can
             </TabsContent>
 
             {/* Attachments */}
-            <TabsContent value="attachments" className="mt-0">
+            <TabsContent value="attachments" className="mt-0 min-h-0">
               <ProjectAttachmentsTab
                 attachments={attachments}
                 canEdit={canEdit}
