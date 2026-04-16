@@ -44,14 +44,6 @@ function countBusinessDays(start: string, end: string): number {
   } catch { return 22; }
 }
 
-function countBusinessDaysInMonth(): number {
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const monthEndDate = endOfMonth(now);
-  try {
-    return eachDayOfInterval({ start: monthStart, end: monthEndDate }).filter(d => isBusinessDay(d)).length;
-  } catch { return 22; }
-}
 
 export function DailyEvolutionTable({ startDate, endDate, filterUserId, filterChannel, filterGroupId, goals }: Props) {
   const { data: dailyData, isLoading } = useQuery<DailyRow[]>({
