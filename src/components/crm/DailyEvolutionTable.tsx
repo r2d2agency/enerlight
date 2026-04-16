@@ -44,14 +44,6 @@ function countBusinessDays(start: string, end: string): number {
   } catch { return 22; }
 }
 
-function countBusinessDaysInMonth(): number {
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const monthEndDate = endOfMonth(now);
-  try {
-    return eachDayOfInterval({ start: monthStart, end: monthEndDate }).filter(d => isBusinessDay(d)).length;
-  } catch { return 22; }
-}
 
 export function DailyEvolutionTable({ startDate, endDate, filterUserId, filterChannel, filterGroupId, goals }: Props) {
   const { data: dailyData, isLoading } = useQuery<DailyRow[]>({
@@ -91,7 +83,7 @@ export function DailyEvolutionTable({ startDate, endDate, filterUserId, filterCh
     return allMatching.reduce((s, g) => s + g.target_value, 0);
   };
 
-  const monthBizDays = countBusinessDaysInMonth();
+  
 
   const renderTable = (dataType: keyof typeof TYPE_CONFIG) => {
     const cfg = TYPE_CONFIG[dataType];
@@ -101,19 +93,47 @@ export function DailyEvolutionTable({ startDate, endDate, filterUserId, filterCh
     typeData.forEach(r => { dayMap[r.day?.split("T")[0]] = r; });
 
     const monthlyGoal = getMonthlyGoalValue(dataType);
-    const dailyGoal = monthBizDays > 0 ? monthlyGoal / monthBizDays : 0;
 
+    // Pre-calculate which days are business days and build index
+    const bizDayFlags = allDays.map(d => isBusinessDay(d));
+    const totalBizDays = bizDayFlags.filter(Boolean).length;
+
+    // MTD rolling calculation:
+    // Day 1 planned = monthlyGoal / totalBizDays
+    // If realized < planned, deficit is spread across remaining biz days
+    // So each day's planned adjusts to absorb prior shortfalls
     let accValue = 0;
     let accCount = 0;
     let accPlanned = 0;
+    let remainingTarget = monthlyGoal; // what's left to achieve from today onward
 
-    const rows = allDays.map(d => {
+    // Count remaining biz days from each position
+    const bizDaysFromIndex: number[] = [];
+    let countFromEnd = 0;
+    for (let i = allDays.length - 1; i >= 0; i--) {
+      if (bizDayFlags[i]) countFromEnd++;
+      bizDaysFromIndex[i] = countFromEnd;
+    }
+
+    const rows = allDays.map((d, idx) => {
       const key = format(d, "yyyy-MM-dd");
       const dayData = dayMap[key];
       const dayValue = dayData?.total_value || 0;
       const dayCount = dayData?.count || 0;
-      const isBizDay = isBusinessDay(d);
-      const planned = isBizDay ? dailyGoal : 0;
+      const isBizDay = bizDayFlags[idx];
+
+      // MTD: planned for this day = remainingTarget / remaining biz days (including today)
+      const remainingBizDays = bizDaysFromIndex[idx];
+      const planned = (isBizDay && remainingBizDays > 0 && monthlyGoal > 0)
+        ? remainingTarget / remainingBizDays
+        : 0;
+
+      // After this day, reduce remaining target by what was realized
+      if (isBizDay) {
+        remainingTarget = remainingTarget - dayValue;
+        // Ensure remaining target doesn't go below 0 for display
+        if (remainingTarget < 0) remainingTarget = 0;
+      }
 
       accValue += dayValue;
       accCount += dayCount;
@@ -154,7 +174,7 @@ export function DailyEvolutionTable({ startDate, endDate, filterUserId, filterCh
                     {dayName}
                   </TableCell>
                   <TableCell className="text-right text-sm">
-                    {r.isBizDay && dailyGoal > 0 ? fmt(r.planned) : <span className="text-muted-foreground">—</span>}
+                    {r.isBizDay && r.planned > 0 ? fmt(r.planned) : <span className="text-muted-foreground">—</span>}
                   </TableCell>
                   <TableCell className={`text-right text-sm font-medium ${r.dayValue > 0 ? (r.met ? "text-green-600" : "text-red-600") : ""}`}>
                     {r.dayValue > 0 ? fmt(r.dayValue) : <span className="text-muted-foreground">—</span>}
@@ -219,7 +239,7 @@ export function DailyEvolutionTable({ startDate, endDate, filterUserId, filterCh
       <CardHeader className="pb-3">
         <CardTitle className="text-base">📊 Evolução Diária</CardTitle>
         <p className="text-xs text-muted-foreground">
-          {businessDays} dias úteis no período • Meta mensal dividida por dia útil
+          {businessDays} dias úteis no período • MTD: saldo não atingido redistribuído nos dias úteis restantes
           {(() => {
             const today = startOfDay(new Date());
             const monthEnd = endOfMonth(today);
