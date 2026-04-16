@@ -872,7 +872,7 @@ function ProjectAttachmentsTab({ attachments, canEdit, isUploading, handleUpload
   };
 
   return (
-    <div className="flex flex-col h-full min-h-0 space-y-3">
+    <div className="flex flex-col space-y-3">
       {canEdit && (
         <div className="shrink-0">
           <input type="file" id="proj-file-upload" className="hidden" onChange={handleUpload} />
@@ -883,74 +883,73 @@ function ProjectAttachmentsTab({ attachments, canEdit, isUploading, handleUpload
         </div>
       )}
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-2 shrink-0">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por nome ou autor..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="pl-9 h-9"
-          />
+      {/* Filters - sticky to keep visible while scrolling */}
+      <div className="sticky top-0 z-10 bg-background pb-2 space-y-2">
+        <div className="flex flex-col sm:flex-row gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nome ou autor..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="pl-9 h-9"
+            />
+          </div>
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger className="h-9 w-full sm:w-[140px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os tipos</SelectItem>
+              <SelectItem value="image">Imagens</SelectItem>
+              <SelectItem value="video">Vídeos</SelectItem>
+              <SelectItem value="audio">Áudios</SelectItem>
+              <SelectItem value="pdf">PDFs</SelectItem>
+              <SelectItem value="doc">Documentos</SelectItem>
+              <SelectItem value="sheet">Planilhas</SelectItem>
+              <SelectItem value="other">Outros</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={sortBy} onValueChange={setSortBy}>
+            <SelectTrigger className="h-9 w-full sm:w-[160px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="date_desc">Mais recentes</SelectItem>
+              <SelectItem value="date_asc">Mais antigos</SelectItem>
+              <SelectItem value="name_asc">Nome (A-Z)</SelectItem>
+              <SelectItem value="name_desc">Nome (Z-A)</SelectItem>
+              <SelectItem value="size_desc">Maior tamanho</SelectItem>
+              <SelectItem value="size_asc">Menor tamanho</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-        <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger className="h-9 w-full sm:w-[140px]"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos os tipos</SelectItem>
-            <SelectItem value="image">Imagens</SelectItem>
-            <SelectItem value="video">Vídeos</SelectItem>
-            <SelectItem value="audio">Áudios</SelectItem>
-            <SelectItem value="pdf">PDFs</SelectItem>
-            <SelectItem value="doc">Documentos</SelectItem>
-            <SelectItem value="sheet">Planilhas</SelectItem>
-            <SelectItem value="other">Outros</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={sortBy} onValueChange={setSortBy}>
-          <SelectTrigger className="h-9 w-full sm:w-[160px]"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="date_desc">Mais recentes</SelectItem>
-            <SelectItem value="date_asc">Mais antigos</SelectItem>
-            <SelectItem value="name_asc">Nome (A-Z)</SelectItem>
-            <SelectItem value="name_desc">Nome (Z-A)</SelectItem>
-            <SelectItem value="size_desc">Maior tamanho</SelectItem>
-            <SelectItem value="size_asc">Menor tamanho</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="text-xs text-muted-foreground">
+          {filtered.length} de {attachments.length} arquivo(s)
+        </div>
       </div>
 
-      <div className="text-xs text-muted-foreground shrink-0">
-        {filtered.length} de {attachments.length} arquivo(s)
-      </div>
-
-      {/* Scrollable list */}
-      <ScrollArea className="flex-1 min-h-0 max-h-[50vh] pr-3 -mr-3">
-        <div className="space-y-2">
-          {filtered.map(att => (
-            <div key={att.id} className="flex items-center gap-3 p-3 rounded-lg border">
-              <FileText className="h-5 w-5 text-primary shrink-0" />
-              <div className="flex-1 min-w-0">
-                <a href={resolveMediaUrl(att.url)} target="_blank" rel="noopener noreferrer" className="text-sm font-medium hover:underline truncate block">{att.name}</a>
-                <p className="text-xs text-muted-foreground truncate">
-                  {att.uploaded_by_name} · {safeFormatDate(att.created_at, "dd/MM HH:mm", { locale: ptBR })}
-                  {att.size ? ` · ${formatSize(att.size)}` : ''}
-                </p>
-              </div>
-              {canEdit && (
-                <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => onRemove(att.id)}>
-                  <Trash2 className="h-3 w-3" />
-                </Button>
-              )}
+      {/* Files list — parent ScrollArea handles scroll */}
+      <div className="space-y-2">
+        {filtered.map(att => (
+          <div key={att.id} className="flex items-center gap-3 p-3 rounded-lg border">
+            <FileText className="h-5 w-5 text-primary shrink-0" />
+            <div className="flex-1 min-w-0">
+              <a href={resolveMediaUrl(att.url)} target="_blank" rel="noopener noreferrer" className="text-sm font-medium hover:underline truncate block">{att.name}</a>
+              <p className="text-xs text-muted-foreground truncate">
+                {att.uploaded_by_name} · {safeFormatDate(att.created_at, "dd/MM HH:mm", { locale: ptBR })}
+                {att.size ? ` · ${formatSize(att.size)}` : ''}
+              </p>
             </div>
-          ))}
-          {filtered.length === 0 && (
-            <p className="text-sm text-muted-foreground text-center py-6">
-              {attachments.length === 0 ? "Nenhum arquivo anexado" : "Nenhum arquivo encontrado com os filtros aplicados"}
-            </p>
-          )}
-        </div>
-      </ScrollArea>
+            {canEdit && (
+              <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => onRemove(att.id)}>
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
+        ))}
+        {filtered.length === 0 && (
+          <p className="text-sm text-muted-foreground text-center py-6">
+            {attachments.length === 0 ? "Nenhum arquivo anexado" : "Nenhum arquivo encontrado com os filtros aplicados"}
+          </p>
+        )}
+      </div>
     </div>
   );
 }
