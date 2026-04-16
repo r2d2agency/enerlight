@@ -284,9 +284,28 @@ function SidebarContentComponent({ isExpanded, isSuperadmin, onNavigate }: Sideb
     return (userPermissions as any)[permKey] === true;
   };
 
+  // Map module keys to their corresponding permission keys
+  const modulePermissionMap: Partial<Record<ModuleKey, string>> = {
+    licitacao: 'can_view_licitacao',
+    logistics: 'can_view_logistics',
+    homologation: 'can_view_homologation',
+    captador: 'can_view_captador',
+    projects: 'can_view_projects',
+    internal_chat: 'can_view_internal_chat',
+    ghost: 'can_view_ghost',
+    document_signatures: 'can_view_document_signatures',
+    lead_gleego: 'can_view_lead_gleego',
+  };
+
   const hasModuleAccess = (moduleKey?: ModuleKey): boolean => {
     if (!moduleKey) return true;
     if (isSuperadmin || userIsOwner) return true;
+
+    // If user has explicit permission for this module, grant access regardless of org module toggle
+    const permKey = modulePermissionMap[moduleKey];
+    if (permKey && userPermissions && (userPermissions as any)[permKey] === true) {
+      return true;
+    }
 
     const rawModules = user?.modules_enabled as Partial<Record<ModuleKey, boolean>> | undefined;
     if (rawModules && !(moduleKey in rawModules)) {
