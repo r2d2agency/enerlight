@@ -4720,19 +4720,24 @@ router.get('/representatives', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
-    const { search } = req.query;
+    const { search, type } = req.query;
     let searchFilter = '';
     const params = [org.organization_id];
 
     if (search) {
-      searchFilter = ` AND (r.name ILIKE $2 OR r.email ILIKE $2 OR r.city ILIKE $2)`;
+      searchFilter = ` AND (r.name ILIKE $${params.length + 1} OR r.email ILIKE $${params.length + 1} OR r.city ILIKE $${params.length + 1})`;
       params.push(`%${search}%`);
+    }
+    if (type && type !== 'all') {
+      params.push(type);
+      searchFilter += ` AND r.indicator_type = $${params.length}`;
     }
 
     const result = await query(
       `SELECT r.*, u.name as linked_user_name,
         (SELECT COUNT(*) FROM crm_deals d WHERE d.representative_id = r.id AND d.status = 'open') as open_deals_count,
-        (SELECT COALESCE(SUM(d.value), 0) FROM crm_deals d WHERE d.representative_id = r.id AND d.status = 'open') as open_deals_value
+        (SELECT COALESCE(SUM(d.value), 0) FROM crm_deals d WHERE d.representative_id = r.id AND d.status = 'open') as open_deals_value,
+        (SELECT COUNT(*) FROM crm_indicator_areas a WHERE a.representative_id = r.id) as areas_count
        FROM crm_representatives r
        LEFT JOIN users u ON u.id = r.linked_user_id
        WHERE r.organization_id = $1${searchFilter}
