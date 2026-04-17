@@ -171,10 +171,49 @@ export function WeeklyViewTab({ goals, filterUserId, filterChannel, filterGroupI
     return group.reduce((s, g) => s + g.target_value, 0);
   };
 
-  const weeklyGoal = (metric: string) => {
+  // Base weekly goal proportional to business days (no overflow)
+  const weeklyBaseGoal = (metric: string, weekIdx: number) => {
     const monthly = getMonthlyGoalValue(metric);
-    if (!activeWeek || totalMonthBizDays === 0) return 0;
-    return (monthly / totalMonthBizDays) * activeWeek.bizDays;
+    const w = weeks[weekIdx];
+    if (!w || totalMonthBizDays === 0) return 0;
+    return (monthly / totalMonthBizDays) * w.bizDays;
+  };
+
+  // Realized value per week (from allWeeksData)
+  const weeklyRealized = (metric: string, weekIdx: number) => {
+    const w = allWeeksData?.[weekIdx];
+    if (!w) return 0;
+    if (metric === "quotes_value") return w.quotes_value;
+    if (metric === "orders_value") return w.orders_value;
+    if (metric === "billing_value") return w.billing_value;
+    return 0;
+  };
+
+  // Adjusted weekly goal with overflow (carry-over from previous weeks balance)
+  // adjustedGoal[i] = baseGoal[i] - sum(realized[0..i-1] - baseGoal[0..i-1])
+  const weeklyAdjustedGoal = (metric: string, weekIdx: number) => {
+    const base = weeklyBaseGoal(metric, weekIdx);
+    let carry = 0;
+    for (let j = 0; j < weekIdx; j++) {
+      carry += weeklyRealized(metric, j) - weeklyBaseGoal(metric, j);
+    }
+    // Positive carry => surplus reduces next goal; negative carry => deficit increases next goal
+    return Math.max(0, base - carry);
+  };
+
+  // Backwards compatibility alias for active week
+  const weeklyGoal = (metric: string) => {
+    if (!activeWeek) return 0;
+    return weeklyAdjustedGoal(metric, activeWeekIdx);
+  };
+
+  const weeklyBaseForActive = (metric: string) => weeklyBaseGoal(metric, activeWeekIdx);
+  const weeklyCarryForActive = (metric: string) => {
+    let carry = 0;
+    for (let j = 0; j < activeWeekIdx; j++) {
+      carry += weeklyRealized(metric, j) - weeklyBaseGoal(metric, j);
+    }
+    return carry;
   };
 
   const gd = weekData?.summary || { orcamento: { count: 0, value: 0 }, pedido: { count: 0, value: 0 }, faturamento: { count: 0, value: 0 } };
