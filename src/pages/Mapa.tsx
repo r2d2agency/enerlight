@@ -16,7 +16,13 @@ const TYPE_CONFIG = {
   deal: { label: "Negociações", color: "bg-blue-500", markerColor: "#3b82f6", icon: Briefcase },
   prospect: { label: "Prospects", color: "bg-orange-500", markerColor: "#f97316", icon: Users },
   company: { label: "Empresas", color: "bg-green-500", markerColor: "#22c55e", icon: Building2 },
-  representative: { label: "Representantes", color: "bg-purple-500", markerColor: "#a855f7", icon: Handshake },
+  representative: { label: "Indicadores", color: "bg-purple-500", markerColor: "#a855f7", icon: Handshake },
+};
+
+const INDICATOR_COLORS: Record<string, string> = {
+  parceiro: "#3b82f6",
+  representante: "#a855f7",
+  indicador: "#10b981",
 };
 
 const createIcon = (color: string) =>
@@ -42,7 +48,7 @@ interface LeafletMapProps {
 function LeafletMap({ locations }: LeafletMapProps) {
   const mapRef = useRef<L.Map | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const markersRef = useRef<L.Marker[]>([]);
+  const layersRef = useRef<L.Layer[]>([]);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -60,30 +66,50 @@ function LeafletMap({ locations }: LeafletMapProps) {
 
   useEffect(() => {
     if (!mapRef.current) return;
-    markersRef.current.forEach((marker) => marker.remove());
-    markersRef.current = [];
+    layersRef.current.forEach((layer) => layer.remove());
+    layersRef.current = [];
 
     locations.forEach((location) => {
       const config = TYPE_CONFIG[location.type];
-      const icon = createIcon(config.markerColor);
+      const isIndicator = location.type === "representative";
+      const color = isIndicator && location.indicator_type
+        ? INDICATOR_COLORS[location.indicator_type] || config.markerColor
+        : config.markerColor;
+      const icon = createIcon(color);
       const marker = L.marker([location.lat, location.lng], { icon }).addTo(mapRef.current!);
+      const typeLabel = isIndicator && location.indicator_type
+        ? location.indicator_type.charAt(0).toUpperCase() + location.indicator_type.slice(1)
+        : config.label;
       const popupContent = `
         <div style="min-width: 150px;">
           <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-            <div style="width: 8px; height: 8px; border-radius: 50%; background-color: ${config.markerColor};"></div>
+            <div style="width: 8px; height: 8px; border-radius: 50%; background-color: ${color};"></div>
             <span style="font-size: 12px; font-weight: 500; text-transform: uppercase; color: #666;">
-              ${config.label}
+              ${typeLabel}
             </span>
           </div>
           <p style="font-weight: 600; margin: 0;">${location.name}</p>
           ${location.owner_name ? `<p style="font-size: 13px; color: #8b5cf6; margin: 4px 0;">👤 ${location.owner_name}</p>` : ""}
           ${location.phone ? `<p style="font-size: 14px; color: #666; margin: 4px 0;">${location.phone}</p>` : ""}
           ${location.city || location.state ? `<p style="font-size: 14px; color: #666; margin: 4px 0;">${[location.city, location.state].filter(Boolean).join(", ")}</p>` : ""}
+          ${location.radius_km ? `<p style="font-size: 13px; color: ${color}; margin: 4px 0; font-weight: 500;">📍 Raio: ${location.radius_km} km</p>` : ""}
           ${location.value !== undefined && location.value > 0 ? `<p style="font-size: 14px; font-weight: 500; color: #3b82f6; margin-top: 8px;">R$ ${location.value.toLocaleString("pt-BR")}</p>` : ""}
         </div>
       `;
       marker.bindPopup(popupContent);
-      markersRef.current.push(marker);
+      layersRef.current.push(marker);
+
+      // Desenha círculo de raio para indicadores
+      if (isIndicator && location.radius_km && location.radius_km > 0) {
+        const circle = L.circle([location.lat, location.lng], {
+          radius: location.radius_km * 1000, // km -> m
+          color,
+          fillColor: color,
+          fillOpacity: 0.12,
+          weight: 1.5,
+        }).addTo(mapRef.current!);
+        layersRef.current.push(circle);
+      }
     });
   }, [locations]);
 
