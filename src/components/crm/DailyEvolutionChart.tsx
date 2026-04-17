@@ -181,14 +181,19 @@ export function DailyEvolutionChart({ startDate, endDate, filterUserId, filterCh
   if (!chartData.length && !isLoading) return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-sm flex items-center gap-2">
+        <CardTitle className="text-sm flex items-center gap-2 flex-wrap">
           <TrendingUp className="h-4 w-4" />
           Evolução Diária no Período
+          {filterChannel && filterChannel !== "all" && (
+            <span className="inline-flex items-center rounded-full bg-primary/10 text-primary px-2 py-0.5 text-xs font-medium">
+              Canal: {filterChannel}
+            </span>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent>
         {periodButtons}
-        <p className="text-sm text-muted-foreground text-center py-8">Nenhum dado encontrado para o período selecionado.</p>
+        <p className="text-sm text-muted-foreground text-center py-8">Nenhum dado encontrado para o período/canal selecionado.</p>
       </CardContent>
     </Card>
   );
@@ -211,9 +216,14 @@ export function DailyEvolutionChart({ startDate, endDate, filterUserId, filterCh
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-sm flex items-center gap-2">
+        <CardTitle className="text-sm flex items-center gap-2 flex-wrap">
           <TrendingUp className="h-4 w-4" />
           Evolução Diária no Período
+          {filterChannel && filterChannel !== "all" && (
+            <span className="inline-flex items-center rounded-full bg-primary/10 text-primary px-2 py-0.5 text-xs font-medium">
+              Canal: {filterChannel}
+            </span>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent>
