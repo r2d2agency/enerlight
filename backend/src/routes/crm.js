@@ -3927,29 +3927,73 @@ router.get('/map-data', async (req, res) => {
       }
     }
 
-    // Get representatives with location
+    // Get representatives/indicadores with location and áreas
     try {
       const repsResult = await query(
-        `SELECT r.id, r.name, r.phone, r.city, r.state, r.commission_percent,
+        `SELECT r.id, r.name, r.phone, r.city, r.state, r.commission_percent, r.indicator_type,
           (SELECT COALESCE(SUM(d.value), 0) FROM crm_deals d WHERE d.representative_id = r.id AND d.status = 'open') as open_value
          FROM crm_representatives r
          WHERE r.organization_id = $1 AND r.is_active = true`,
         [org.organization_id]
       );
+
+      // Carrega segmentos da org (id->name) para mostrar no popup
+      let segmentsMap = {};
+      try {
+        const segs = await query(`SELECT id, name FROM crm_indicator_segments WHERE organization_id = $1`, [org.organization_id]);
+        segs.rows.forEach(s => { segmentsMap[s.id] = s.name; });
+      } catch (_) {}
+
       for (const rep of repsResult.rows) {
-        const coords = await getCoords(rep.city, rep.state);
-        if (coords) {
-          locations.push({
-            id: rep.id,
-            type: 'representative',
-            name: rep.name,
-            phone: rep.phone,
-            city: rep.city,
-            state: rep.state,
-            lat: coords.lat,
-            lng: coords.lng,
-            value: Number(rep.open_value) || 0,
-          });
+        // Busca áreas cadastradas
+        let areas = [];
+        try {
+          const a = await query(
+            `SELECT city, state, lat, lng, radius_km FROM crm_indicator_areas WHERE representative_id = $1`,
+            [rep.id]
+          );
+          areas = a.rows;
+        } catch (_) {}
+
+        // Plota cada área (com coords salvas, ou geocodificadas pela cidade)
+        if (areas.length > 0) {
+          for (const area of areas) {
+            let coords = null;
+            if (area.lat && area.lng) coords = { lat: Number(area.lat), lng: Number(area.lng) };
+            else coords = await getCoords(area.city, area.state);
+            if (coords) {
+              locations.push({
+                id: `${rep.id}-${area.city || 'area'}`,
+                type: 'representative',
+                name: rep.name,
+                phone: rep.phone,
+                city: area.city || rep.city,
+                state: area.state || rep.state,
+                lat: coords.lat,
+                lng: coords.lng,
+                value: Number(rep.open_value) || 0,
+                radius_km: Number(area.radius_km) || 100,
+                indicator_type: rep.indicator_type || 'representante',
+              });
+            }
+          }
+        } else {
+          // Fallback: plota pela cidade do indicador
+          const coords = await getCoords(rep.city, rep.state);
+          if (coords) {
+            locations.push({
+              id: rep.id,
+              type: 'representative',
+              name: rep.name,
+              phone: rep.phone,
+              city: rep.city,
+              state: rep.state,
+              lat: coords.lat,
+              lng: coords.lng,
+              value: Number(rep.open_value) || 0,
+              indicator_type: rep.indicator_type || 'representante',
+            });
+          }
         }
       }
     } catch (e) {
