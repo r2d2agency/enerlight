@@ -3290,6 +3290,39 @@ DO $$ BEGIN
 EXCEPTION WHEN others THEN null; END $$;
 
 CREATE INDEX IF NOT EXISTS idx_crm_deals_representative ON crm_deals(representative_id);
+
+-- New: tipo (parceiro/representante/indicador) e segmentos (lista de IDs)
+DO $$ BEGIN
+  ALTER TABLE crm_representatives ADD COLUMN IF NOT EXISTS indicator_type VARCHAR(20) DEFAULT 'representante';
+  ALTER TABLE crm_representatives ADD COLUMN IF NOT EXISTS segment_ids JSONB DEFAULT '[]'::jsonb;
+EXCEPTION WHEN others THEN null; END $$;
+
+UPDATE crm_representatives SET indicator_type = 'representante' WHERE indicator_type IS NULL;
+
+-- Áreas de atuação (N por indicador, com raio em km)
+CREATE TABLE IF NOT EXISTS crm_indicator_areas (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  representative_id UUID NOT NULL REFERENCES crm_representatives(id) ON DELETE CASCADE,
+  city VARCHAR(150),
+  state VARCHAR(2),
+  lat NUMERIC(10,6),
+  lng NUMERIC(10,6),
+  radius_km INTEGER NOT NULL DEFAULT 100,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_crm_indicator_areas_rep ON crm_indicator_areas(representative_id);
+
+-- Segmentos gerenciados pela organização
+CREATE TABLE IF NOT EXISTS crm_indicator_segments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  name VARCHAR(120) NOT NULL,
+  color VARCHAR(20) DEFAULT '#a855f7',
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (organization_id, name)
+);
+CREATE INDEX IF NOT EXISTS idx_crm_indicator_segments_org ON crm_indicator_segments(organization_id);
 `;
 
 // ============================================

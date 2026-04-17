@@ -13,6 +13,8 @@ export interface MapLocation {
   value?: number;
   owner_id?: string;
   owner_name?: string;
+  radius_km?: number;
+  indicator_type?: "parceiro" | "representante" | "indicador";
 }
 
 export interface MapFilters {
