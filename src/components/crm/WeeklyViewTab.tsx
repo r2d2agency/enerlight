@@ -447,6 +447,38 @@ export function WeeklyViewTab({ goals, filterUserId, filterChannel, filterGroupI
           </CardContent>
         </Card>
       )}
+
+      {/* Line Chart — evolução semanal em linha (similar ao mensal) */}
+      {chartData.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5" /> Evolução Semanal — Linha do Tempo
+            </CardTitle>
+            <CardDescription>
+              Visão fluida da evolução de orçamentos, pedidos e faturamento ao longo das semanas do mês
+              {filterChannel !== "all" && ` · Canal: ${filterChannel}`}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={350}>
+              <LineChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 11 }} tickFormatter={v => fmt(v)} />
+                <Tooltip formatter={(v: number) => fmt(v)} />
+                <Legend />
+                <Line type="monotone" dataKey="Orçamentos" stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                <Line type="monotone" dataKey="Pedidos" stroke="#10b981" strokeWidth={2.5} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                <Line type="monotone" dataKey="Faturamento" stroke="#f59e0b" strokeWidth={2.5} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                <Line type="monotone" dataKey="Meta Orçamento" stroke="#3b82f6" strokeDasharray="5 5" strokeWidth={1.5} dot={false} />
+                <Line type="monotone" dataKey="Meta Pedido" stroke="#10b981" strokeDasharray="5 5" strokeWidth={1.5} dot={false} />
+                <Line type="monotone" dataKey="Meta Faturamento" stroke="#f59e0b" strokeDasharray="5 5" strokeWidth={1.5} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
