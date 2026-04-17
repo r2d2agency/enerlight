@@ -38,6 +38,7 @@ import { QuarterlyViewTab } from "@/components/crm/QuarterlyViewTab";
 import { WeeklyViewTab } from "@/components/crm/WeeklyViewTab";
 import { SalesFunnelCard } from "@/components/crm/SalesFunnelCard";
 import { DailyEvolutionChart } from "@/components/crm/DailyEvolutionChart";
+import { MonthProjectionCard } from "@/components/crm/MonthProjectionCard";
 import { format, startOfMonth, startOfWeek, endOfWeek, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { isBusinessDay } from "@/lib/brazilian-holidays";
