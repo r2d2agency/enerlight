@@ -195,15 +195,21 @@ export default function CRMRepresentantes() {
           </div>
 
           {loadingDash ? (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-28" />)}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-28" />)}
             </div>
           ) : dashboard ? (
             <>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                 <Card><CardContent className="pt-4">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><DollarSign className="h-4 w-4" />Comissão Total</div>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><DollarSign className="h-4 w-4" />Comissão Recebida</div>
                   <p className="text-2xl font-bold text-primary">{formatCurrency(dashboard.total_commission)}</p>
+                  <p className="text-xs text-muted-foreground">{dashboard.commission_percent}% sobre ganhas</p>
+                </CardContent></Card>
+                <Card className="border-amber-500/30 bg-amber-500/5"><CardContent className="pt-4">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><Percent className="h-4 w-4 text-amber-600" />Comissão Potencial</div>
+                  <p className="text-2xl font-bold text-amber-600">{formatCurrency(dashboard.potential_commission)}</p>
+                  <p className="text-xs text-muted-foreground">se fechar as abertas</p>
                 </CardContent></Card>
                 <Card><CardContent className="pt-4">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><Briefcase className="h-4 w-4" />Em Aberto</div>
