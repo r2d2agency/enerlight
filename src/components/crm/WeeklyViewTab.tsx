@@ -229,15 +229,18 @@ export function WeeklyViewTab({ goals, filterUserId, filterChannel, filterGroupI
     { label: "Faturamento", metric: "billing_value", realized: gd.faturamento.value, count: gd.faturamento.count, color: "text-amber-600", borderColor: "border-l-amber-500", icon: <Receipt className="h-4 w-4" /> },
   ];
 
-  // Chart
+  // Chart with adjusted goals (carry-over from previous weeks)
   const chartData = allWeeksData?.map((w, i) => ({
     name: w.weekLabel,
     "Orçamentos": w.quotes_value,
     "Pedidos": w.orders_value,
     "Faturamento": w.billing_value,
-    "Meta Orçamento": totalMonthBizDays > 0 ? (getMonthlyGoalValue("quotes_value") / totalMonthBizDays) * weeks[i]?.bizDays : 0,
-    "Meta Pedido": totalMonthBizDays > 0 ? (getMonthlyGoalValue("orders_value") / totalMonthBizDays) * weeks[i]?.bizDays : 0,
-    "Meta Faturamento": totalMonthBizDays > 0 ? (getMonthlyGoalValue("billing_value") / totalMonthBizDays) * weeks[i]?.bizDays : 0,
+    "Meta Orçamento": weeklyAdjustedGoal("quotes_value", i),
+    "Meta Pedido": weeklyAdjustedGoal("orders_value", i),
+    "Meta Faturamento": weeklyAdjustedGoal("billing_value", i),
+    "Meta Base Orç": weeklyBaseGoal("quotes_value", i),
+    "Meta Base Ped": weeklyBaseGoal("orders_value", i),
+    "Meta Base Fat": weeklyBaseGoal("billing_value", i),
   })) || [];
 
   return (
