@@ -406,9 +406,29 @@ export default function CRMMetas() {
                 {(() => {
                   const getGoal = (metric: string) => {
                     if (!goals) return 0;
-                    const g = goals.filter(g => g.metric === metric && g.is_active && g.type === "geral");
-                    if (g.length > 0) return g.reduce((s, x) => s + x.target_value, 0);
-                    const grp = goals.filter(g => g.metric === metric && g.is_active && g.type !== "individual");
+                    const active = goals.filter(g => g.metric === metric && g.is_active);
+                    // Se canal selecionado, priorizar metas específicas daquele canal
+                    if (filterChannel && filterChannel !== "all") {
+                      const byChannel = active.filter(g => (g as any).target_channel === filterChannel);
+                      if (byChannel.length > 0) return byChannel.reduce((s, x) => s + x.target_value, 0);
+                      return 0; // sem meta cadastrada para o canal -> não comparar com geral
+                    }
+                    // Se grupo selecionado, priorizar metas do grupo
+                    if (filterGroupId && filterGroupId !== "all") {
+                      const byGroup = active.filter(g => g.type === "group" && g.target_group_id === filterGroupId);
+                      if (byGroup.length > 0) return byGroup.reduce((s, x) => s + x.target_value, 0);
+                      return 0;
+                    }
+                    // Se usuário selecionado, priorizar metas individuais do usuário
+                    if (filterUserId && filterUserId !== "all") {
+                      const byUser = active.filter(g => g.type === "individual" && g.target_user_id === filterUserId);
+                      if (byUser.length > 0) return byUser.reduce((s, x) => s + x.target_value, 0);
+                      return 0;
+                    }
+                    // Sem filtros: somar metas gerais
+                    const geral = active.filter(g => g.type === "geral");
+                    if (geral.length > 0) return geral.reduce((s, x) => s + x.target_value, 0);
+                    const grp = active.filter(g => g.type !== "individual");
                     return grp.reduce((s, x) => s + x.target_value, 0);
                   };
                   return (
