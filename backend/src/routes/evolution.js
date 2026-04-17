@@ -55,7 +55,18 @@ async function getAccessibleConnection(connectionId, userId) {
     [connectionId, userId, userOrgId]
   );
 
-  return connResult.rows[0] || null;
+  const conn = connResult.rows[0] || null;
+  if (conn && !conn.provider) {
+    // Fallback detection for legacy rows with NULL provider
+    if (conn.instance_id && conn.wapi_token) conn.provider = 'wapi';
+    else if (conn.api_url && conn.api_key && conn.instance_name) conn.provider = 'evolution';
+    // Backfill in DB
+    if (conn.provider) {
+      query('UPDATE connections SET provider = $1 WHERE id = $2 AND provider IS NULL', [conn.provider, conn.id])
+        .catch(err => console.error('[Connection] provider backfill failed:', err?.message));
+    }
+  }
+  return conn;
 }
 
 // Download media from Evolution API and save locally
