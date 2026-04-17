@@ -264,31 +264,53 @@ export default function CRMRepresentantes() {
                     <div className="space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-12" />)}</div>
                   ) : !repDeals?.length ? (
                     <p className="text-sm text-muted-foreground text-center py-4">Nenhuma negociação encontrada</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {repDeals.map(deal => (
-                        <div key={deal.id} className="flex items-center justify-between p-3 rounded-lg border cursor-pointer hover:bg-accent/50 transition-colors"
-                          onClick={() => { setSelectedDeal(deal as any); setDealDetailOpen(true); }}>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-sm truncate">{deal.title}</p>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              {deal.company_name && <span className="text-xs text-muted-foreground">{deal.company_name}</span>}
-                              {deal.stage_name && <Badge variant="outline" className="text-xs px-1.5 py-0">{deal.stage_name}</Badge>}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-3 ml-2">
-                            <div className="text-right">
-                              <p className="text-sm font-medium">{formatCurrency(deal.value)}</p>
-                              <Badge variant={deal.status === 'won' ? 'default' : deal.status === 'lost' ? 'destructive' : 'secondary'} className="text-xs">
-                                {deal.status === 'open' ? 'Aberta' : deal.status === 'won' ? 'Ganha' : 'Perdida'}
-                              </Badge>
-                            </div>
-                            <ExternalLink className="h-4 w-4 text-muted-foreground shrink-0" />
+                  ) : (() => {
+                    const rate = (dashboard?.commission_percent || 0) / 100;
+                    const totalValue = repDeals.reduce((s, d) => s + Number(d.value || 0), 0);
+                    const totalCommission = repDeals.reduce((s, d) => s + Number(d.value || 0) * rate, 0);
+                    return (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-muted/40 border border-dashed text-xs">
+                          <span className="text-muted-foreground">
+                            Total ({repDeals.length} {repDeals.length === 1 ? 'negociação' : 'negociações'})
+                          </span>
+                          <div className="flex items-center gap-4">
+                            <span className="font-medium">{formatCurrency(totalValue)}</span>
+                            <span className="text-amber-600 font-semibold">
+                              Comissão: {formatCurrency(totalCommission)}
+                            </span>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  )}
+                        {repDeals.map(deal => {
+                          const dealCommission = Number(deal.value || 0) * rate;
+                          return (
+                            <div key={deal.id} className="flex items-center justify-between p-3 rounded-lg border cursor-pointer hover:bg-accent/50 transition-colors"
+                              onClick={() => { setSelectedDeal(deal as any); setDealDetailOpen(true); }}>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-sm truncate">{deal.title}</p>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  {deal.company_name && <span className="text-xs text-muted-foreground">{deal.company_name}</span>}
+                                  {deal.stage_name && <Badge variant="outline" className="text-xs px-1.5 py-0">{deal.stage_name}</Badge>}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-3 ml-2">
+                                <div className="text-right">
+                                  <p className="text-sm font-medium">{formatCurrency(deal.value)}</p>
+                                  <p className="text-[11px] text-amber-600 font-medium">
+                                    Comissão: {formatCurrency(dealCommission)}
+                                  </p>
+                                  <Badge variant={deal.status === 'won' ? 'default' : deal.status === 'lost' ? 'destructive' : 'secondary'} className="text-xs mt-0.5">
+                                    {deal.status === 'open' ? 'Aberta' : deal.status === 'won' ? 'Ganha' : 'Perdida'}
+                                  </Badge>
+                                </div>
+                                <ExternalLink className="h-4 w-4 text-muted-foreground shrink-0" />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
                 </CardContent>
               </Card>
             </>
