@@ -284,20 +284,32 @@ export function WeeklyViewTab({ goals, filterUserId, filterChannel, filterGroupI
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {sections.map(s => {
-          const goal = weeklyGoal(s.metric);
+          const baseGoal = weeklyBaseForActive(s.metric);
+          const carry = weeklyCarryForActive(s.metric);
+          const goal = weeklyGoal(s.metric); // adjusted (with carry)
           const pct = goal > 0 ? (s.realized / goal) * 100 : 0;
           const remaining = goal - s.realized;
           const isMet = remaining <= 0 && goal > 0;
+          const hasCarry = activeWeekIdx > 0 && Math.abs(carry) > 0.5;
           return (
             <Card key={s.metric} className={`border-l-4 ${s.borderColor}`}>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2">{s.icon} {s.label} — Semana</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
+                {hasCarry && (
+                  <div className={`text-xs rounded-md px-2 py-1 flex items-center justify-between ${carry >= 0 ? "bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-400" : "bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-400"}`}>
+                    <span className="font-medium">Transbordo semanal:</span>
+                    <span className="font-bold">{carry >= 0 ? "+" : ""}{fmt(carry)}</span>
+                  </div>
+                )}
                 <div className="grid grid-cols-3 gap-2 text-center">
                   <div className="bg-muted/50 rounded-lg p-2">
                     <p className="text-xs text-muted-foreground">Meta Sem.</p>
                     <p className="text-sm font-bold">{goal > 0 ? fmt(goal) : "—"}</p>
+                    {hasCarry && baseGoal > 0 && (
+                      <p className="text-[10px] text-muted-foreground">Base: {fmt(baseGoal)}</p>
+                    )}
                   </div>
                   <div className={`rounded-lg p-2 ${isMet ? "bg-green-50 dark:bg-green-950" : "bg-muted/50"}`}>
                     <p className="text-xs text-muted-foreground">Realizado</p>
