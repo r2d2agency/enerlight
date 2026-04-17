@@ -424,7 +424,9 @@ export function WeeklyViewTab({ goals, filterUserId, filterChannel, filterGroupI
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5" /> Evolução Semanal — Meta vs Realizado
             </CardTitle>
-            <CardDescription>Barras: valor realizado por semana · Linhas tracejadas: meta semanal proporcional</CardDescription>
+            <CardDescription>
+              Barras: realizado por semana · Linhas tracejadas: <strong>meta ajustada com transbordo</strong> (saldo da semana anterior é somado/subtraído da meta da próxima)
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={350}>
