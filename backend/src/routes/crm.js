@@ -4789,7 +4789,7 @@ router.get('/representatives/for-deal', async (req, res) => {
   }
 });
 
-// Get single representative
+// Get single representative (with areas)
 router.get('/representatives/:id', async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
@@ -4803,7 +4803,17 @@ router.get('/representatives/:id', async (req, res) => {
       [req.params.id, org.organization_id]
     );
     if (!result.rows[0]) return res.status(404).json({ error: 'Representative not found' });
-    res.json(result.rows[0]);
+
+    let areas = [];
+    try {
+      const a = await query(
+        `SELECT id, city, state, lat, lng, radius_km FROM crm_indicator_areas WHERE representative_id = $1 ORDER BY created_at`,
+        [req.params.id]
+      );
+      areas = a.rows.map(r => ({ ...r, lat: r.lat ? Number(r.lat) : null, lng: r.lng ? Number(r.lng) : null }));
+    } catch (_) {}
+
+    res.json({ ...result.rows[0], areas });
   } catch (error) {
     console.error('Error fetching representative:', error);
     res.status(500).json({ error: error.message });
