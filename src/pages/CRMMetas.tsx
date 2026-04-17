@@ -402,7 +402,29 @@ export default function CRMMetas() {
                   );
                 })()}
 
+                {/* Projeção do Mês — ritmo atual */}
+                {(() => {
+                  const getGoal = (metric: string) => {
+                    if (!goals) return 0;
+                    const g = goals.filter(g => g.metric === metric && g.is_active && g.type === "geral");
+                    if (g.length > 0) return g.reduce((s, x) => s + x.target_value, 0);
+                    const grp = goals.filter(g => g.metric === metric && g.is_active && g.type !== "individual");
+                    return grp.reduce((s, x) => s + x.target_value, 0);
+                  };
+                  return (
+                    <MonthProjectionCard
+                      filterUserId={filterUserId}
+                      filterChannel={filterChannel}
+                      filterGroupId={filterGroupId}
+                      quotesGoal={getGoal("quotes_value")}
+                      ordersGoal={getGoal("orders_value")}
+                      billingGoal={getGoal("billing_value")}
+                    />
+                  );
+                })()}
+
                 {/* Resumo Planejado vs Realizado vs MTD */}
+
 
 
                 {goals && goals.length > 0 && (() => {
