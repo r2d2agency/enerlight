@@ -264,7 +264,22 @@ EXCEPTION WHEN others THEN null; END $$;
 -- Enforce required fields per provider
 DO $$
 BEGIN
-    -- Normalize provider
+    -- Normalize provider with smart detection (W-API rows have instance_id + wapi_token)
+    UPDATE connections 
+       SET provider = 'wapi' 
+     WHERE provider IS NULL 
+       AND instance_id IS NOT NULL 
+       AND wapi_token IS NOT NULL;
+
+    -- Fix mis-tagged rows: if marked as 'evolution' but only has W-API fields, retag to 'wapi'
+    UPDATE connections
+       SET provider = 'wapi'
+     WHERE provider = 'evolution'
+       AND instance_id IS NOT NULL
+       AND wapi_token IS NOT NULL
+       AND (api_url IS NULL OR api_key IS NULL OR instance_name IS NULL);
+
+    -- Remaining NULLs default to evolution
     UPDATE connections SET provider = 'evolution' WHERE provider IS NULL;
 
     -- Provider value constraint

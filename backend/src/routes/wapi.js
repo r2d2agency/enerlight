@@ -60,7 +60,20 @@ async function getAccessibleConnection(connectionId, userId) {
      LIMIT 1`,
     [connectionId, userId]
   );
-  return result.rows[0] || null;
+  const conn = result.rows[0] || null;
+  if (conn) {
+    // Normalize provider with fallback detection (handles legacy rows with NULL provider)
+    if (!conn.provider) {
+      if (conn.instance_id && conn.wapi_token) conn.provider = 'wapi';
+      else if (conn.api_url && conn.api_key && conn.instance_name) conn.provider = 'evolution';
+    }
+    // Backfill in DB so subsequent reads are consistent
+    if (conn.provider && conn.provider !== result.rows[0]?._original_provider) {
+      query('UPDATE connections SET provider = $1 WHERE id = $2 AND (provider IS NULL OR provider <> $1)', [conn.provider, conn.id])
+        .catch(err => console.error('[W-API] provider backfill failed:', err?.message));
+    }
+  }
+  return conn;
 }
 
 // Ensure uploads directory exists
