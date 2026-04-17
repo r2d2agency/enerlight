@@ -158,11 +158,21 @@ export function DailyEvolutionTable({ startDate, endDate, filterUserId, filterCh
           <TableBody>
             {(() => {
               const today = startOfDay(new Date());
+              // Next business day after today (so we always show tomorrow's planned value,
+              // skipping weekends/holidays to the next valid working day)
+              let nextBizDay: Date | null = null;
+              for (let i = 1; i <= 7; i++) {
+                const candidate = startOfDay(new Date(today.getTime() + i * 86400000));
+                if (isBusinessDay(candidate)) { nextBizDay = candidate; break; }
+              }
+              const nextBizKey = nextBizDay ? format(nextBizDay, "yyyy-MM-dd") : null;
               return rows.map(r => {
                 const weekend = isWeekend(r.date);
                 const dayName = DAY_NAMES[getDay(r.date)];
                 const accMet = r.accPlanned > 0 ? r.accValue >= r.accPlanned : true;
-                const isFuture = isAfter(startOfDay(r.date), today);
+                const isFutureRaw = isAfter(startOfDay(r.date), today);
+                // Keep next business day visible with its planned value
+                const isFuture = isFutureRaw && r.key !== nextBizKey;
                 return (
                   <TableRow key={r.key} className={`${weekend ? "bg-muted/30" : !r.isBizDay ? "bg-yellow-50/50 dark:bg-yellow-950/20" : ""} ${isFuture ? "opacity-60" : ""}`}>
                     <TableCell className="text-sm font-medium">
