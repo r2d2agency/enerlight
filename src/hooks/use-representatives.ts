@@ -2,6 +2,17 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
+export type IndicatorType = "parceiro" | "representante" | "indicador";
+
+export interface IndicatorArea {
+  id?: string;
+  city?: string;
+  state?: string;
+  lat?: number | null;
+  lng?: number | null;
+  radius_km: number;
+}
+
 export interface Representative {
   id: string;
   name: string;
@@ -17,8 +28,11 @@ export interface Representative {
   is_active: boolean;
   linked_user_id?: string;
   linked_user_name?: string;
+  indicator_type?: IndicatorType;
+  segment_ids?: string[];
+  areas?: IndicatorArea[];
+  areas_count?: number;
   created_at: string;
-  // Stats (from list endpoint)
   open_deals_count?: number;
   open_deals_value?: number;
 }
@@ -34,12 +48,22 @@ export interface RepresentativeDashboard {
   loss_reasons: { reason: string; count: number }[];
 }
 
-export function useRepresentatives(search?: string) {
+export interface IndicatorSegment {
+  id: string;
+  name: string;
+  color: string;
+  is_active: boolean;
+}
+
+export function useRepresentatives(search?: string, type?: string) {
   return useQuery({
-    queryKey: ["crm-representatives", search],
+    queryKey: ["crm-representatives", search, type],
     queryFn: async () => {
-      const params = search ? `?search=${encodeURIComponent(search)}` : "";
-      return api<Representative[]>(`/api/crm/representatives${params}`);
+      const params = new URLSearchParams();
+      if (search) params.set("search", search);
+      if (type && type !== "all") params.set("type", type);
+      const qs = params.toString();
+      return api<Representative[]>(`/api/crm/representatives${qs ? `?${qs}` : ""}`);
     },
   });
 }
@@ -101,7 +125,6 @@ export function useRepresentativeDeals(id: string | null, startDate?: string, en
   });
 }
 
-// Representatives filtered by current user's visibility (for deal form)
 export function useRepresentativesForDeal() {
   return useQuery({
     queryKey: ["crm-representatives-for-deal"],
@@ -121,7 +144,8 @@ export function useRepresentativeMutations() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["crm-representatives"] });
-      toast({ title: "Representante criado com sucesso" });
+      queryClient.invalidateQueries({ queryKey: ["crm-map-data"] });
+      toast({ title: "Indicador criado com sucesso" });
     },
   });
 
@@ -129,9 +153,11 @@ export function useRepresentativeMutations() {
     mutationFn: async ({ id, ...data }: Partial<Representative> & { id: string }) => {
       return api<Representative>(`/api/crm/representatives/${id}`, { method: "PUT", body: data });
     },
-    onSuccess: () => {
+    onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ["crm-representatives"] });
-      toast({ title: "Representante atualizado" });
+      queryClient.invalidateQueries({ queryKey: ["crm-representative", vars.id] });
+      queryClient.invalidateQueries({ queryKey: ["crm-map-data"] });
+      toast({ title: "Indicador atualizado" });
     },
   });
 
@@ -141,9 +167,40 @@ export function useRepresentativeMutations() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["crm-representatives"] });
-      toast({ title: "Representante excluído" });
+      queryClient.invalidateQueries({ queryKey: ["crm-map-data"] });
+      toast({ title: "Indicador excluído" });
     },
   });
 
   return { createRepresentative, updateRepresentative, deleteRepresentative };
+}
+
+// ============== SEGMENTS ==============
+export function useIndicatorSegments() {
+  return useQuery({
+    queryKey: ["crm-indicator-segments"],
+    queryFn: () => api<IndicatorSegment[]>("/api/crm/indicator-segments"),
+  });
+}
+
+export function useIndicatorSegmentMutations() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["crm-indicator-segments"] });
+
+  const create = useMutation({
+    mutationFn: (data: { name: string; color?: string }) =>
+      api<IndicatorSegment>("/api/crm/indicator-segments", { method: "POST", body: data }),
+    onSuccess: () => { invalidate(); toast({ title: "Segmento criado" }); },
+  });
+  const update = useMutation({
+    mutationFn: ({ id, ...data }: Partial<IndicatorSegment> & { id: string }) =>
+      api<IndicatorSegment>(`/api/crm/indicator-segments/${id}`, { method: "PUT", body: data }),
+    onSuccess: () => { invalidate(); toast({ title: "Segmento atualizado" }); },
+  });
+  const remove = useMutation({
+    mutationFn: (id: string) => api<void>(`/api/crm/indicator-segments/${id}`, { method: "DELETE" }),
+    onSuccess: () => { invalidate(); toast({ title: "Segmento excluído" }); },
+  });
+  return { create, update, remove };
 }
