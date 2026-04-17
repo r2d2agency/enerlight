@@ -10,7 +10,7 @@ import { api } from "@/lib/api";
 import { Goal } from "@/hooks/use-goals";
 import { SalesFunnelCard } from "@/components/crm/SalesFunnelCard";
 import {
-  ResponsiveContainer, ComposedChart, Line, Bar, XAxis, YAxis,
+  ResponsiveContainer, ComposedChart, LineChart, Line, Bar, XAxis, YAxis,
   CartesianGrid, Tooltip, Legend,
 } from "recharts";
 import {
