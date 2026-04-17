@@ -4920,12 +4920,17 @@ router.get('/representatives/:id/dashboard', async (req, res) => {
     } catch (_) {}
 
     const wonValue = Number(wonResult.rows[0]?.total || 0);
-    const totalCommission = wonValue * (commissionPercent / 100);
+    const openValue = Number(openResult.rows[0]?.total || 0);
+    const rate = commissionPercent / 100;
+    const totalCommission = wonValue * rate;
+    const potentialCommission = openValue * rate;
 
     res.json({
+      commission_percent: Number(commissionPercent),
       total_commission: totalCommission,
+      potential_commission: potentialCommission,
       open_deals: Number(openResult.rows[0]?.count || 0),
-      open_value: Number(openResult.rows[0]?.total || 0),
+      open_value: openValue,
       won_deals: Number(wonResult.rows[0]?.count || 0),
       won_value: wonValue,
       lost_deals: Number(lostResult.rows[0]?.count || 0),
@@ -4934,7 +4939,7 @@ router.get('/representatives/:id/dashboard', async (req, res) => {
     });
   } catch (error) {
     if (isMissingSchemaError(error)) {
-      return res.json({ total_commission: 0, open_deals: 0, open_value: 0, won_deals: 0, won_value: 0, lost_deals: 0, lost_value: 0, loss_reasons: [] });
+      return res.json({ commission_percent: 0, total_commission: 0, potential_commission: 0, open_deals: 0, open_value: 0, won_deals: 0, won_value: 0, lost_deals: 0, lost_value: 0, loss_reasons: [] });
     }
     console.error('Error fetching representative dashboard:', error);
     res.status(500).json({ error: error.message });
