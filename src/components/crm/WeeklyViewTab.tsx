@@ -171,10 +171,49 @@ export function WeeklyViewTab({ goals, filterUserId, filterChannel, filterGroupI
     return group.reduce((s, g) => s + g.target_value, 0);
   };
 
-  const weeklyGoal = (metric: string) => {
+  // Base weekly goal proportional to business days (no overflow)
+  const weeklyBaseGoal = (metric: string, weekIdx: number) => {
     const monthly = getMonthlyGoalValue(metric);
-    if (!activeWeek || totalMonthBizDays === 0) return 0;
-    return (monthly / totalMonthBizDays) * activeWeek.bizDays;
+    const w = weeks[weekIdx];
+    if (!w || totalMonthBizDays === 0) return 0;
+    return (monthly / totalMonthBizDays) * w.bizDays;
+  };
+
+  // Realized value per week (from allWeeksData)
+  const weeklyRealized = (metric: string, weekIdx: number) => {
+    const w = allWeeksData?.[weekIdx];
+    if (!w) return 0;
+    if (metric === "quotes_value") return w.quotes_value;
+    if (metric === "orders_value") return w.orders_value;
+    if (metric === "billing_value") return w.billing_value;
+    return 0;
+  };
+
+  // Adjusted weekly goal with overflow (carry-over from previous weeks balance)
+  // adjustedGoal[i] = baseGoal[i] - sum(realized[0..i-1] - baseGoal[0..i-1])
+  const weeklyAdjustedGoal = (metric: string, weekIdx: number) => {
+    const base = weeklyBaseGoal(metric, weekIdx);
+    let carry = 0;
+    for (let j = 0; j < weekIdx; j++) {
+      carry += weeklyRealized(metric, j) - weeklyBaseGoal(metric, j);
+    }
+    // Positive carry => surplus reduces next goal; negative carry => deficit increases next goal
+    return Math.max(0, base - carry);
+  };
+
+  // Backwards compatibility alias for active week
+  const weeklyGoal = (metric: string) => {
+    if (!activeWeek) return 0;
+    return weeklyAdjustedGoal(metric, activeWeekIdx);
+  };
+
+  const weeklyBaseForActive = (metric: string) => weeklyBaseGoal(metric, activeWeekIdx);
+  const weeklyCarryForActive = (metric: string) => {
+    let carry = 0;
+    for (let j = 0; j < activeWeekIdx; j++) {
+      carry += weeklyRealized(metric, j) - weeklyBaseGoal(metric, j);
+    }
+    return carry;
   };
 
   const gd = weekData?.summary || { orcamento: { count: 0, value: 0 }, pedido: { count: 0, value: 0 }, faturamento: { count: 0, value: 0 } };
@@ -190,15 +229,18 @@ export function WeeklyViewTab({ goals, filterUserId, filterChannel, filterGroupI
     { label: "Faturamento", metric: "billing_value", realized: gd.faturamento.value, count: gd.faturamento.count, color: "text-amber-600", borderColor: "border-l-amber-500", icon: <Receipt className="h-4 w-4" /> },
   ];
 
-  // Chart
+  // Chart with adjusted goals (carry-over from previous weeks)
   const chartData = allWeeksData?.map((w, i) => ({
     name: w.weekLabel,
     "Orçamentos": w.quotes_value,
     "Pedidos": w.orders_value,
     "Faturamento": w.billing_value,
-    "Meta Orçamento": totalMonthBizDays > 0 ? (getMonthlyGoalValue("quotes_value") / totalMonthBizDays) * weeks[i]?.bizDays : 0,
-    "Meta Pedido": totalMonthBizDays > 0 ? (getMonthlyGoalValue("orders_value") / totalMonthBizDays) * weeks[i]?.bizDays : 0,
-    "Meta Faturamento": totalMonthBizDays > 0 ? (getMonthlyGoalValue("billing_value") / totalMonthBizDays) * weeks[i]?.bizDays : 0,
+    "Meta Orçamento": weeklyAdjustedGoal("quotes_value", i),
+    "Meta Pedido": weeklyAdjustedGoal("orders_value", i),
+    "Meta Faturamento": weeklyAdjustedGoal("billing_value", i),
+    "Meta Base Orç": weeklyBaseGoal("quotes_value", i),
+    "Meta Base Ped": weeklyBaseGoal("orders_value", i),
+    "Meta Base Fat": weeklyBaseGoal("billing_value", i),
   })) || [];
 
   return (
@@ -242,20 +284,32 @@ export function WeeklyViewTab({ goals, filterUserId, filterChannel, filterGroupI
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {sections.map(s => {
-          const goal = weeklyGoal(s.metric);
+          const baseGoal = weeklyBaseForActive(s.metric);
+          const carry = weeklyCarryForActive(s.metric);
+          const goal = weeklyGoal(s.metric); // adjusted (with carry)
           const pct = goal > 0 ? (s.realized / goal) * 100 : 0;
           const remaining = goal - s.realized;
           const isMet = remaining <= 0 && goal > 0;
+          const hasCarry = activeWeekIdx > 0 && Math.abs(carry) > 0.5;
           return (
             <Card key={s.metric} className={`border-l-4 ${s.borderColor}`}>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2">{s.icon} {s.label} — Semana</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
+                {hasCarry && (
+                  <div className={`text-xs rounded-md px-2 py-1 flex items-center justify-between ${carry >= 0 ? "bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-400" : "bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-400"}`}>
+                    <span className="font-medium">Transbordo semanal:</span>
+                    <span className="font-bold">{carry >= 0 ? "+" : ""}{fmt(carry)}</span>
+                  </div>
+                )}
                 <div className="grid grid-cols-3 gap-2 text-center">
                   <div className="bg-muted/50 rounded-lg p-2">
                     <p className="text-xs text-muted-foreground">Meta Sem.</p>
                     <p className="text-sm font-bold">{goal > 0 ? fmt(goal) : "—"}</p>
+                    {hasCarry && baseGoal > 0 && (
+                      <p className="text-[10px] text-muted-foreground">Base: {fmt(baseGoal)}</p>
+                    )}
                   </div>
                   <div className={`rounded-lg p-2 ${isMet ? "bg-green-50 dark:bg-green-950" : "bg-muted/50"}`}>
                     <p className="text-xs text-muted-foreground">Realizado</p>
@@ -370,7 +424,9 @@ export function WeeklyViewTab({ goals, filterUserId, filterChannel, filterGroupI
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5" /> Evolução Semanal — Meta vs Realizado
             </CardTitle>
-            <CardDescription>Barras: valor realizado por semana · Linhas tracejadas: meta semanal proporcional</CardDescription>
+            <CardDescription>
+              Barras: realizado por semana · Linhas tracejadas: <strong>meta ajustada com transbordo</strong> (saldo da semana anterior é somado/subtraído da meta da próxima)
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={350}>
