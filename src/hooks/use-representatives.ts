@@ -38,7 +38,9 @@ export interface Representative {
 }
 
 export interface RepresentativeDashboard {
+  commission_percent: number;
   total_commission: number;
+  potential_commission: number;
   open_deals: number;
   open_value: number;
   won_deals: number;
