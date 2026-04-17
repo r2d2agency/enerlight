@@ -4941,19 +4941,35 @@ router.get('/representatives/:id/deals', async (req, res) => {
   }
 });
 
+// Helper: persist areas list (replace all)
+async function saveIndicatorAreas(repId, areas) {
+  if (!Array.isArray(areas)) return;
+  await query(`DELETE FROM crm_indicator_areas WHERE representative_id = $1`, [repId]);
+  for (const a of areas) {
+    if (!a || (!a.city && !a.lat)) continue;
+    await query(
+      `INSERT INTO crm_indicator_areas (representative_id, city, state, lat, lng, radius_km)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [repId, a.city || null, a.state || null, a.lat ?? null, a.lng ?? null, Number(a.radius_km) || 100]
+    );
+  }
+}
+
 // Create representative
 router.post('/representatives', async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
     if (!org || !canManage(org.role)) return res.status(403).json({ error: 'Permission denied' });
 
-    const { name, email, phone, cpf_cnpj, city, state, address, zip_code, commission_percent, notes, linked_user_id } = req.body;
+    const { name, email, phone, cpf_cnpj, city, state, address, zip_code, commission_percent, notes, linked_user_id, indicator_type, segment_ids, areas } = req.body;
     const result = await query(
-      `INSERT INTO crm_representatives (organization_id, name, email, phone, cpf_cnpj, city, state, address, zip_code, commission_percent, notes, linked_user_id, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
-      [org.organization_id, name, email, phone, cpf_cnpj, city, state, address, zip_code, commission_percent || 0, notes, linked_user_id || null, req.userId]
+      `INSERT INTO crm_representatives (organization_id, name, email, phone, cpf_cnpj, city, state, address, zip_code, commission_percent, notes, linked_user_id, indicator_type, segment_ids, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING *`,
+      [org.organization_id, name, email, phone, cpf_cnpj, city, state, address, zip_code, commission_percent || 0, notes, linked_user_id || null, indicator_type || 'representante', JSON.stringify(segment_ids || []), req.userId]
     );
-    res.json(result.rows[0]);
+    const rep = result.rows[0];
+    if (areas) await saveIndicatorAreas(rep.id, areas);
+    res.json(rep);
   } catch (error) {
     console.error('Error creating representative:', error);
     res.status(500).json({ error: error.message });
@@ -4966,13 +4982,15 @@ router.put('/representatives/:id', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org || !canManage(org.role)) return res.status(403).json({ error: 'Permission denied' });
 
-    const { name, email, phone, cpf_cnpj, city, state, address, zip_code, commission_percent, notes, linked_user_id, is_active } = req.body;
+    const { name, email, phone, cpf_cnpj, city, state, address, zip_code, commission_percent, notes, linked_user_id, is_active, indicator_type, segment_ids, areas } = req.body;
     const result = await query(
       `UPDATE crm_representatives SET name=$1, email=$2, phone=$3, cpf_cnpj=$4, city=$5, state=$6, address=$7, zip_code=$8,
-       commission_percent=$9, notes=$10, linked_user_id=$11, is_active=COALESCE($12, is_active), updated_at=NOW()
-       WHERE id=$13 AND organization_id=$14 RETURNING *`,
-      [name, email, phone, cpf_cnpj, city, state, address, zip_code, commission_percent || 0, notes, linked_user_id || null, is_active, req.params.id, org.organization_id]
+       commission_percent=$9, notes=$10, linked_user_id=$11, is_active=COALESCE($12, is_active),
+       indicator_type=COALESCE($13, indicator_type), segment_ids=COALESCE($14::jsonb, segment_ids), updated_at=NOW()
+       WHERE id=$15 AND organization_id=$16 RETURNING *`,
+      [name, email, phone, cpf_cnpj, city, state, address, zip_code, commission_percent || 0, notes, linked_user_id || null, is_active, indicator_type || null, segment_ids ? JSON.stringify(segment_ids) : null, req.params.id, org.organization_id]
     );
+    if (areas !== undefined) await saveIndicatorAreas(req.params.id, areas);
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Error updating representative:', error);
@@ -4996,8 +5014,70 @@ router.delete('/representatives/:id', async (req, res) => {
 });
 
 // ============================================
-// GOALS / METAS
+// INDICATOR SEGMENTS (gerenciados pela org)
 // ============================================
+router.get('/indicator-segments', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+    const r = await query(
+      `SELECT id, name, color, is_active FROM crm_indicator_segments WHERE organization_id = $1 ORDER BY name`,
+      [org.organization_id]
+    );
+    res.json(r.rows);
+  } catch (error) {
+    if (isMissingSchemaError(error)) return res.json([]);
+    console.error('Error fetching segments:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/indicator-segments', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org || !canManage(org.role)) return res.status(403).json({ error: 'Permission denied' });
+    const { name, color } = req.body;
+    if (!name?.trim()) return res.status(400).json({ error: 'Name required' });
+    const r = await query(
+      `INSERT INTO crm_indicator_segments (organization_id, name, color)
+       VALUES ($1, $2, $3) ON CONFLICT (organization_id, name) DO UPDATE SET color = EXCLUDED.color RETURNING *`,
+      [org.organization_id, name.trim(), color || '#a855f7']
+    );
+    res.json(r.rows[0]);
+  } catch (error) {
+    console.error('Error creating segment:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.put('/indicator-segments/:id', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org || !canManage(org.role)) return res.status(403).json({ error: 'Permission denied' });
+    const { name, color, is_active } = req.body;
+    const r = await query(
+      `UPDATE crm_indicator_segments SET name=COALESCE($1, name), color=COALESCE($2, color), is_active=COALESCE($3, is_active)
+       WHERE id=$4 AND organization_id=$5 RETURNING *`,
+      [name, color, is_active, req.params.id, org.organization_id]
+    );
+    res.json(r.rows[0]);
+  } catch (error) {
+    console.error('Error updating segment:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.delete('/indicator-segments/:id', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org || !canManage(org.role)) return res.status(403).json({ error: 'Permission denied' });
+    await query(`DELETE FROM crm_indicator_segments WHERE id = $1 AND organization_id = $2`, [req.params.id, org.organization_id]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting segment:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // Ensure goals table exists
 async function ensureGoalsTable() {
