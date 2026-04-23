@@ -836,7 +836,7 @@ router.get('/companies', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
-    const { search, page, page_size, cnae_group_id, has_open_deals, qualification } = req.query;
+    const { search, page, page_size, cnae_group_id, has_open_deals, qualification, deal_from, deal_to } = req.query;
     const hasPagination = page !== undefined || page_size !== undefined;
 
     const pageNumber = Math.max(parseInt(page || '1', 10) || 1, 1);
@@ -892,6 +892,21 @@ router.get('/companies', async (req, res) => {
       ? `INNER JOIN (SELECT DISTINCT company_id FROM crm_deals WHERE organization_id = $1 AND status = 'open') od ON od.company_id = c.id`
       : '';
 
+    // Filter by deal date range (companies that had a deal created within the range)
+    let dealDateJoin = '';
+    if (deal_from || deal_to) {
+      const dateConds = [`organization_id = $1`];
+      if (deal_from) {
+        params.push(deal_from);
+        dateConds.push(`created_at >= $${params.length}`);
+      }
+      if (deal_to) {
+        params.push(deal_to);
+        dateConds.push(`created_at <= $${params.length}`);
+      }
+      dealDateJoin = `INNER JOIN (SELECT DISTINCT company_id FROM crm_deals WHERE ${dateConds.join(' AND ')}) ddr ON ddr.company_id = c.id`;
+    }
+
     const baseSql = `SELECT c.*, u.name as created_by_name,
       s.name as segment_name, s.color as segment_color,
       COALESCE(dc.deals_count, 0)::int as deals_count,
@@ -926,6 +941,7 @@ router.get('/companies', async (req, res) => {
         GROUP BY company_id
       ) ldd ON ldd.company_id = c.id
       ${openDealJoin}
+      ${dealDateJoin}
       ${whereClause}`;
 
     if (hasPagination) {
