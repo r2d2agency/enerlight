@@ -836,7 +836,7 @@ router.get('/companies', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
-    const { search, page, page_size, cnae_group_id, has_open_deals, qualification, deal_from, deal_to } = req.query;
+    const { search, page, page_size, cnae_group_id, has_open_deals, qualification, deal_from, deal_to, sort, direction } = req.query;
     const hasPagination = page !== undefined || page_size !== undefined;
 
     const pageNumber = Math.max(parseInt(page || '1', 10) || 1, 1);
