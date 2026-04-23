@@ -131,6 +131,8 @@ function LeafletMap({ locations }: LeafletMapProps) {
         layersRef.current.push(circle);
       }
     });
+    // Recalcula tamanho ao receber novos dados (evita tela azul)
+    setTimeout(() => mapRef.current?.invalidateSize(), 0);
   }, [locations]);
 
   return <div ref={containerRef} className="h-full w-full relative z-0" style={{ minHeight: "500px" }} />;
