@@ -74,6 +74,8 @@ export default function CRMEmpresas() {
     group_id: filterGroupId || undefined,
     deal_from: dealFrom || undefined,
     deal_to: dealTo || undefined,
+    sort: sortBy,
+    direction: sortDir,
   });
   const companies = companiesResponse?.items || [];
   const total = companiesResponse?.total || 0;
