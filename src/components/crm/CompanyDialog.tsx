@@ -15,10 +15,11 @@ import { CRMCompany, useCRMCompanyMutations } from "@/hooks/use-crm";
 import { useSalesPositions } from "@/hooks/use-sales-positions";
 import { useCRMSegments } from "@/hooks/use-crm-config";
 import { useContacts, Contact, ContactList } from "@/hooks/use-contacts";
-import { Tag, User, Plus, Trash2, Phone, Search, Check, UserPlus, Loader2, Users } from "lucide-react";
+import { Tag, User, Plus, Trash2, Phone, Search, Check, UserPlus, Loader2, Users, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 interface CNPJData {
   razao_social: string;
@@ -88,6 +89,16 @@ export function CompanyDialog({ company, open, onOpenChange, onCreated }: Compan
   const { data: segments } = useCRMSegments();
   const { data: salesPositions = [] } = useSalesPositions();
   const contactsApi = useContacts();
+  const navigate = useNavigate();
+
+  const handleOpenChat = (phone: string) => {
+    if (!phone) {
+      toast.error("Contato sem telefone");
+      return;
+    }
+    onOpenChange(false);
+    navigate(`/chat?phone=${encodeURIComponent(phone)}`);
+  };
 
   // Load contact lists on mount
   useEffect(() => {
@@ -668,6 +679,15 @@ export function CompanyDialog({ company, open, onOpenChange, onCreated }: Compan
                           </div>
                         </div>
                         <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-primary"
+                            onClick={() => handleOpenChat(contact.phone)}
+                            title="Abrir chat"
+                          >
+                            <MessageCircle className="h-4 w-4" />
+                          </Button>
                           {!contact.is_primary && (
                             <Button
                               variant="ghost"
