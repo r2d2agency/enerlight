@@ -249,7 +249,7 @@ export function CompanyDialog({ company, open, onOpenChange, onCreated }: Compan
       ...formData,
       segment_id: formData.segment_id || undefined,
       sales_position_id: formData.sales_position_id || undefined,
-      contacts: contacts.length > 0 ? contacts : undefined,
+      contacts, // always send (empty array clears links on edit)
     };
     if (company) {
       updateCompany.mutate({ id: company.id, ...data } as any);
