@@ -974,13 +974,43 @@ router.get('/companies/:id', async (req, res) => {
   }
 });
 
+// List contacts linked to a company
+router.get('/companies/:id/contacts', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+    await ensureCompanyContactsSchema();
+
+    // Confirm company belongs to org
+    const owner = await query(
+      `SELECT id FROM crm_companies WHERE id = $1 AND organization_id = $2`,
+      [req.params.id, org.organization_id]
+    );
+    if (!owner.rows[0]) return res.status(404).json({ error: 'Company not found' });
+
+    const result = await query(
+      `SELECT cc.id as link_id, cc.contact_id as id, cc.is_primary, cc.role, cc.email,
+              ct.name, ct.phone
+       FROM crm_company_contacts cc
+       JOIN contacts ct ON ct.id = cc.contact_id
+       WHERE cc.company_id = $1
+       ORDER BY cc.is_primary DESC, cc.created_at ASC`,
+      [req.params.id]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching company contacts:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Create company
 router.post('/companies', async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
-    const { name, cnpj, email, phone, website, address, city, state, zip_code, notes, segment_id, custom_fields, sales_position_id, cnae_principal, qualification } = req.body;
+    const { name, cnpj, email, phone, website, address, city, state, zip_code, notes, segment_id, custom_fields, sales_position_id, cnae_principal, qualification, contacts } = req.body;
     
     const result = await query(
       `INSERT INTO crm_companies (organization_id, name, cnpj, email, phone, website, address, city, state, zip_code, notes, segment_id, custom_fields, sales_position_id, cnae_principal, qualification, created_by)
@@ -988,6 +1018,11 @@ router.post('/companies', async (req, res) => {
       [org.organization_id, name, cnpj, email, phone, website, address, city, state, zip_code, notes, segment_id || null,
        custom_fields ? JSON.stringify(custom_fields) : '{}', sales_position_id || null, cnae_principal || null, qualification || null, req.userId]
     );
+
+    if (Array.isArray(contacts) && contacts.length > 0) {
+      await saveCompanyContacts(result.rows[0].id, org.organization_id, req.userId, contacts);
+    }
+
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Error creating company:', error);
@@ -1001,7 +1036,7 @@ router.put('/companies/:id', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
-    const { name, cnpj, email, phone, website, address, city, state, zip_code, notes, segment_id, custom_fields, sales_position_id, cnae_principal, qualification } = req.body;
+    const { name, cnpj, email, phone, website, address, city, state, zip_code, notes, segment_id, custom_fields, sales_position_id, cnae_principal, qualification, contacts } = req.body;
     
     const result = await query(
       `UPDATE crm_companies SET 
@@ -1012,14 +1047,17 @@ router.put('/companies/:id', async (req, res) => {
       [name, cnpj, email, phone, website, address, city, state, zip_code, notes, segment_id || null,
        custom_fields ? JSON.stringify(custom_fields) : '{}', sales_position_id || null, cnae_principal || null, qualification || null, req.params.id, org.organization_id]
     );
+
+    if (Array.isArray(contacts)) {
+      await saveCompanyContacts(req.params.id, org.organization_id, req.userId, contacts);
+    }
+
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Error updating company:', error);
     res.status(500).json({ error: error.message });
   }
 });
-
-// Delete company
 router.delete('/companies/:id', async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
