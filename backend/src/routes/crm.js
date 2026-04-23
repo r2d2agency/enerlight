@@ -836,7 +836,7 @@ router.get('/companies', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
-    const { search, page, page_size, cnae_group_id, has_open_deals, qualification, deal_from, deal_to } = req.query;
+    const { search, page, page_size, cnae_group_id, has_open_deals, qualification, deal_from, deal_to, sort, direction } = req.query;
     const hasPagination = page !== undefined || page_size !== undefined;
 
     const pageNumber = Math.max(parseInt(page || '1', 10) || 1, 1);
@@ -944,8 +944,25 @@ router.get('/companies', async (req, res) => {
       ${dealDateJoin}
       ${whereClause}`;
 
+    // Sorting
+    const dir = String(direction || '').toLowerCase() === 'desc' ? 'DESC' : 'ASC';
+    let orderBy = 'c.name ASC';
+    switch (String(sort || '')) {
+      case 'last_deal_date':
+        orderBy = `ldd.last_deal_date ${dir} NULLS LAST`;
+        break;
+      case 'created_at':
+        orderBy = `c.created_at ${dir}`;
+        break;
+      case 'name':
+        orderBy = `c.name ${dir}`;
+        break;
+      default:
+        orderBy = 'c.name ASC';
+    }
+
     if (hasPagination) {
-      const listSql = `${baseSql} ORDER BY c.name LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+      const listSql = `${baseSql} ORDER BY ${orderBy} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
       const totalSql = `SELECT COUNT(*)::int as total FROM crm_companies c ${openDealJoin} ${dealDateJoin} ${whereClause}`;
 
       const [result, totalResult] = await Promise.all([
@@ -961,7 +978,7 @@ router.get('/companies', async (req, res) => {
       });
     }
 
-    const result = await query(`${baseSql} ORDER BY c.name`, params);
+    const result = await query(`${baseSql} ORDER BY ${orderBy}`, params);
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching companies:', error);

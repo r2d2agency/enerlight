@@ -16,7 +16,7 @@ import { QualificationImportDialog } from "@/components/crm/QualificationImportD
 import { useCRMCompaniesPaginated, useCRMCompanyMutations, useCRMFunnels, useCRMCnaeGroups, useCRMGroups, CRMCompany, CRMFunnel } from "@/hooks/use-crm";
 import { useAuth } from "@/contexts/AuthContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Search, MoreHorizontal, Building2, Phone, Mail, Trash2, Edit, Loader2, FileSpreadsheet, Briefcase, Database, ChevronLeft, ChevronRight, Settings2, Filter, Award, UsersRound, CalendarIcon, X } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Building2, Phone, Mail, Trash2, Edit, Loader2, FileSpreadsheet, Briefcase, Database, ChevronLeft, ChevronRight, Settings2, Filter, Award, UsersRound, CalendarIcon, X, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
 import { format, parseISO } from "date-fns";
@@ -43,6 +43,24 @@ export default function CRMEmpresas() {
   const [filterGroupId, setFilterGroupId] = useState<string>("");
   const [dealFrom, setDealFrom] = useState<string>("");
   const [dealTo, setDealTo] = useState<string>("");
+  const [sortBy, setSortBy] = useState<'name' | 'last_deal_date' | 'created_at'>('name');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+
+  const toggleSort = (col: 'name' | 'last_deal_date' | 'created_at') => {
+    if (sortBy === col) {
+      setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(col);
+      setSortDir(col === 'last_deal_date' || col === 'created_at' ? 'desc' : 'asc');
+    }
+  };
+
+  const SortIcon = ({ col }: { col: 'name' | 'last_deal_date' | 'created_at' }) => {
+    if (sortBy !== col) return <ArrowUpDown className="h-3 w-3 ml-1 inline opacity-40" />;
+    return sortDir === 'asc'
+      ? <ArrowUp className="h-3 w-3 ml-1 inline" />
+      : <ArrowDown className="h-3 w-3 ml-1 inline" />;
+  };
 
   const { data: crmGroups } = useCRMGroups();
 
@@ -56,6 +74,8 @@ export default function CRMEmpresas() {
     group_id: filterGroupId || undefined,
     deal_from: dealFrom || undefined,
     deal_to: dealTo || undefined,
+    sort: sortBy,
+    direction: sortDir,
   });
   const companies = companiesResponse?.items || [];
   const total = companiesResponse?.total || 0;
@@ -301,7 +321,11 @@ export default function CRMEmpresas() {
               <Table className="table-fixed w-full">
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[18%]">Empresa</TableHead>
+                    <TableHead className="w-[18%]">
+                      <button onClick={() => toggleSort('name')} className="flex items-center hover:text-foreground">
+                        Empresa<SortIcon col="name" />
+                      </button>
+                    </TableHead>
                     <TableHead className="w-[8%]">Qualificação</TableHead>
                     <TableHead className="w-[8%]">Segmento</TableHead>
                     <TableHead className="w-[8%]">Canal</TableHead>
@@ -310,8 +334,16 @@ export default function CRMEmpresas() {
                     <TableHead className="w-[10%]">CNAE</TableHead>
                     <TableHead className="w-[10%]">Contato</TableHead>
                     <TableHead className="w-[5%]">Neg.</TableHead>
-                    <TableHead className="w-[9%]">Últ. Negociação</TableHead>
-                    <TableHead className="w-[8%]">Criado em</TableHead>
+                    <TableHead className="w-[9%]">
+                      <button onClick={() => toggleSort('last_deal_date')} className="flex items-center hover:text-foreground">
+                        Últ. Negociação<SortIcon col="last_deal_date" />
+                      </button>
+                    </TableHead>
+                    <TableHead className="w-[8%]">
+                      <button onClick={() => toggleSort('created_at')} className="flex items-center hover:text-foreground">
+                        Criado em<SortIcon col="created_at" />
+                      </button>
+                    </TableHead>
                     <TableHead className="w-[7%] text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
