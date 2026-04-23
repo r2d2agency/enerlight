@@ -361,9 +361,9 @@ export interface CRMPaginatedCompaniesResponse {
   pageSize: number;
 }
 
-export function useCRMCompaniesPaginated(params: { search?: string; page: number; pageSize: number; cnae_group_id?: string; has_open_deals?: boolean; qualification?: string; group_id?: string }) {
+export function useCRMCompaniesPaginated(params: { search?: string; page: number; pageSize: number; cnae_group_id?: string; has_open_deals?: boolean; qualification?: string; group_id?: string; deal_from?: string; deal_to?: string }) {
   return useQuery({
-    queryKey: ["crm-companies-paginated", params.search, params.page, params.pageSize, params.cnae_group_id, params.has_open_deals, params.qualification, params.group_id],
+    queryKey: ["crm-companies-paginated", params.search, params.page, params.pageSize, params.cnae_group_id, params.has_open_deals, params.qualification, params.group_id, params.deal_from, params.deal_to],
     queryFn: async () => {
       const searchParams = new URLSearchParams();
       if (params.search) searchParams.set("search", params.search);
@@ -373,6 +373,8 @@ export function useCRMCompaniesPaginated(params: { search?: string; page: number
       if (params.has_open_deals) searchParams.set("has_open_deals", "true");
       if (params.qualification) searchParams.set("qualification", params.qualification);
       if (params.group_id) searchParams.set("group_id", params.group_id);
+      if (params.deal_from) searchParams.set("deal_from", params.deal_from);
+      if (params.deal_to) searchParams.set("deal_to", params.deal_to);
 
       return api<CRMPaginatedCompaniesResponse>(`/api/crm/companies?${searchParams.toString()}`);
     },

@@ -946,7 +946,7 @@ router.get('/companies', async (req, res) => {
 
     if (hasPagination) {
       const listSql = `${baseSql} ORDER BY c.name LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
-      const totalSql = `SELECT COUNT(*)::int as total FROM crm_companies c ${whereClause}`;
+      const totalSql = `SELECT COUNT(*)::int as total FROM crm_companies c ${openDealJoin} ${dealDateJoin} ${whereClause}`;
 
       const [result, totalResult] = await Promise.all([
         query(listSql, [...params, pageSize, offset]),
