@@ -89,6 +89,16 @@ export function CompanyDialog({ company, open, onOpenChange, onCreated }: Compan
   const { data: segments } = useCRMSegments();
   const { data: salesPositions = [] } = useSalesPositions();
   const contactsApi = useContacts();
+  const navigate = useNavigate();
+
+  const handleOpenChat = (phone: string) => {
+    if (!phone) {
+      toast.error("Contato sem telefone");
+      return;
+    }
+    onOpenChange(false);
+    navigate(`/chat?phone=${encodeURIComponent(phone)}`);
+  };
 
   // Load contact lists on mount
   useEffect(() => {
