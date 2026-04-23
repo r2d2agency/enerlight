@@ -321,7 +321,11 @@ export default function CRMEmpresas() {
               <Table className="table-fixed w-full">
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[18%]">Empresa</TableHead>
+                    <TableHead className="w-[18%]">
+                      <button onClick={() => toggleSort('name')} className="flex items-center hover:text-foreground">
+                        Empresa<SortIcon col="name" />
+                      </button>
+                    </TableHead>
                     <TableHead className="w-[8%]">Qualificação</TableHead>
                     <TableHead className="w-[8%]">Segmento</TableHead>
                     <TableHead className="w-[8%]">Canal</TableHead>
@@ -330,8 +334,16 @@ export default function CRMEmpresas() {
                     <TableHead className="w-[10%]">CNAE</TableHead>
                     <TableHead className="w-[10%]">Contato</TableHead>
                     <TableHead className="w-[5%]">Neg.</TableHead>
-                    <TableHead className="w-[9%]">Últ. Negociação</TableHead>
-                    <TableHead className="w-[8%]">Criado em</TableHead>
+                    <TableHead className="w-[9%]">
+                      <button onClick={() => toggleSort('last_deal_date')} className="flex items-center hover:text-foreground">
+                        Últ. Negociação<SortIcon col="last_deal_date" />
+                      </button>
+                    </TableHead>
+                    <TableHead className="w-[8%]">
+                      <button onClick={() => toggleSort('created_at')} className="flex items-center hover:text-foreground">
+                        Criado em<SortIcon col="created_at" />
+                      </button>
+                    </TableHead>
                     <TableHead className="w-[7%] text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
