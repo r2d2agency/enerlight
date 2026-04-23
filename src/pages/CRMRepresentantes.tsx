@@ -8,7 +8,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   useRepresentatives, useRepresentative, useRepresentativeDashboard, useRepresentativeMutations,
@@ -151,6 +150,12 @@ export default function CRMRepresentantes() {
   const addArea = () => setForm(f => ({ ...f, areas: [...f.areas, { city: "", state: "", radius_km: 100 }] }));
   const updateArea = (idx: number, patch: Partial<IndicatorArea>) =>
     setForm(f => ({ ...f, areas: f.areas.map((a, i) => i === idx ? { ...a, ...patch } : a) }));
+  const updateAreaRadius = (idx: number, raw: string) => {
+    // Permite digitar livremente; vazio vira 0 temporariamente para não travar o input
+    const num = raw === "" ? 0 : Number(raw);
+    if (Number.isNaN(num)) return;
+    setForm(f => ({ ...f, areas: f.areas.map((a, i) => i === idx ? { ...a, radius_km: num } : a) }));
+  };
   const removeArea = (idx: number) =>
     setForm(f => ({ ...f, areas: f.areas.filter((_, i) => i !== idx) }));
 
@@ -444,7 +449,7 @@ export default function CRMRepresentantes() {
           <DialogHeader>
             <DialogTitle>{editingRepId ? "Editar Indicador" : "Novo Indicador"}</DialogTitle>
           </DialogHeader>
-          <ScrollArea className="flex-1 -mr-6 pr-6">
+          <div className="flex-1 overflow-y-auto -mr-4 pr-4 min-h-0">
             <div className="space-y-4 p-1">
               {/* TIPO */}
               <div className="space-y-2">
@@ -540,7 +545,7 @@ export default function CRMRepresentantes() {
                         </div>
                         <div>
                           <Label className="text-xs">Raio (km)</Label>
-                          <Input className="h-8" type="number" min={1} value={area.radius_km} onChange={e => updateArea(idx, { radius_km: Number(e.target.value) || 100 })} />
+                          <Input className="h-8" type="number" min={1} value={area.radius_km || ""} onChange={e => updateAreaRadius(idx, e.target.value)} onBlur={e => { if (!e.target.value || Number(e.target.value) < 1) updateArea(idx, { radius_km: 100 }); }} />
                         </div>
                         <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removeArea(idx)}>
                           <X className="h-4 w-4" />
@@ -571,7 +576,7 @@ export default function CRMRepresentantes() {
                 <Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={3} />
               </div>
             </div>
-          </ScrollArea>
+          </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setFormOpen(false)}>Cancelar</Button>
             <Button onClick={handleSave} disabled={!form.name.trim() || createRepresentative.isPending || updateRepresentative.isPending}>
