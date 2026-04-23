@@ -16,7 +16,9 @@ import { QualificationImportDialog } from "@/components/crm/QualificationImportD
 import { useCRMCompaniesPaginated, useCRMCompanyMutations, useCRMFunnels, useCRMCnaeGroups, useCRMGroups, CRMCompany, CRMFunnel } from "@/hooks/use-crm";
 import { useAuth } from "@/contexts/AuthContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Search, MoreHorizontal, Building2, Phone, Mail, Trash2, Edit, Loader2, FileSpreadsheet, Briefcase, Database, ChevronLeft, ChevronRight, Settings2, Filter, Award, UsersRound } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Building2, Phone, Mail, Trash2, Edit, Loader2, FileSpreadsheet, Briefcase, Database, ChevronLeft, ChevronRight, Settings2, Filter, Award, UsersRound, CalendarIcon, X } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Label } from "@/components/ui/label";
 import { format, parseISO } from "date-fns";
 import { useDebounce } from "@/hooks/use-debounce";
 
@@ -39,6 +41,8 @@ export default function CRMEmpresas() {
   const [filterOpenDeals, setFilterOpenDeals] = useState(false);
   const [filterQualification, setFilterQualification] = useState<string>("");
   const [filterGroupId, setFilterGroupId] = useState<string>("");
+  const [dealFrom, setDealFrom] = useState<string>("");
+  const [dealTo, setDealTo] = useState<string>("");
 
   const { data: crmGroups } = useCRMGroups();
 
@@ -50,6 +54,8 @@ export default function CRMEmpresas() {
     has_open_deals: filterOpenDeals || undefined,
     qualification: filterQualification || undefined,
     group_id: filterGroupId || undefined,
+    deal_from: dealFrom || undefined,
+    deal_to: dealTo || undefined,
   });
   const companies = companiesResponse?.items || [];
   const total = companiesResponse?.total || 0;
@@ -95,7 +101,7 @@ export default function CRMEmpresas() {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, selectedCnaeGroup, filterOpenDeals, filterQualification, filterGroupId]);
+  }, [debouncedSearch, selectedCnaeGroup, filterOpenDeals, filterQualification, filterGroupId, dealFrom, dealTo]);
 
   return (
     <MainLayout>
@@ -213,6 +219,56 @@ export default function CRMEmpresas() {
             <Briefcase className="h-4 w-4 mr-2" />
             Com negociação aberta
           </Button>
+
+          {/* Deal Date Range Filter */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant={dealFrom || dealTo ? "default" : "outline"} size="sm">
+                <CalendarIcon className="h-4 w-4 mr-2" />
+                {dealFrom || dealTo
+                  ? `Negociações: ${dealFrom ? format(parseISO(dealFrom), "dd/MM/yyyy") : "..."} - ${dealTo ? format(parseISO(dealTo), "dd/MM/yyyy") : "..."}`
+                  : "Data de negociação"}
+                {(dealFrom || dealTo) && (
+                  <X
+                    className="h-3 w-3 ml-2 opacity-70 hover:opacity-100"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDealFrom("");
+                      setDealTo("");
+                    }}
+                  />
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-72 p-4 space-y-3" align="start">
+              <div className="space-y-2">
+                <Label htmlFor="deal-from" className="text-xs">De</Label>
+                <Input
+                  id="deal-from"
+                  type="date"
+                  value={dealFrom}
+                  onChange={(e) => setDealFrom(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="deal-to" className="text-xs">Até</Label>
+                <Input
+                  id="deal-to"
+                  type="date"
+                  value={dealTo}
+                  onChange={(e) => setDealTo(e.target.value)}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Filtra empresas que tiveram negociações criadas no período.
+              </p>
+              {(dealFrom || dealTo) && (
+                <Button variant="ghost" size="sm" className="w-full" onClick={() => { setDealFrom(""); setDealTo(""); }}>
+                  Limpar
+                </Button>
+              )}
+            </PopoverContent>
+          </Popover>
 
           {isFetching && !isLoading && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground ml-auto">
