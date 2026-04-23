@@ -151,6 +151,12 @@ export default function CRMRepresentantes() {
   const addArea = () => setForm(f => ({ ...f, areas: [...f.areas, { city: "", state: "", radius_km: 100 }] }));
   const updateArea = (idx: number, patch: Partial<IndicatorArea>) =>
     setForm(f => ({ ...f, areas: f.areas.map((a, i) => i === idx ? { ...a, ...patch } : a) }));
+  const updateAreaRadius = (idx: number, raw: string) => {
+    // Permite digitar livremente; vazio vira 0 temporariamente para não travar o input
+    const num = raw === "" ? 0 : Number(raw);
+    if (Number.isNaN(num)) return;
+    setForm(f => ({ ...f, areas: f.areas.map((a, i) => i === idx ? { ...a, radius_km: num } : a) }));
+  };
   const removeArea = (idx: number) =>
     setForm(f => ({ ...f, areas: f.areas.filter((_, i) => i !== idx) }));
 
