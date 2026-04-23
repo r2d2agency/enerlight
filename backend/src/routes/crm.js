@@ -48,7 +48,103 @@ async function getUserOrg(userId) {
   return result.rows[0];
 }
 
-// Helper: Deals currently require company_id (DB constraint). When UI treats company as optional,
+// Helper: Ensure crm_company_contacts schema exists (for older DBs)
+async function ensureCompanyContactsSchema() {
+  await query(`
+    CREATE TABLE IF NOT EXISTS crm_company_contacts (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      company_id UUID REFERENCES crm_companies(id) ON DELETE CASCADE NOT NULL,
+      contact_id UUID REFERENCES contacts(id) ON DELETE CASCADE NOT NULL,
+      is_primary BOOLEAN DEFAULT false,
+      role VARCHAR(100),
+      email VARCHAR(255),
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      UNIQUE(company_id, contact_id)
+    )
+  `).catch(() => {});
+  await query(`CREATE INDEX IF NOT EXISTS idx_crm_company_contacts_company ON crm_company_contacts(company_id)`).catch(() => {});
+}
+
+// Helper: ensure 'CRM Contacts' list exists for the organization (uses any user's list)
+async function ensureCrmContactsList(organizationId, userId) {
+  let list = await query(
+    `SELECT cl.id FROM contact_lists cl
+     JOIN organization_members om ON om.user_id = cl.user_id AND om.organization_id = $1
+     WHERE cl.name = 'CRM Contacts'
+     ORDER BY cl.created_at ASC LIMIT 1`,
+    [organizationId]
+  );
+  if (list.rows.length > 0) return list.rows[0].id;
+  const created = await query(
+    `INSERT INTO contact_lists (user_id, name) VALUES ($1, 'CRM Contacts') RETURNING id`,
+    [userId]
+  );
+  return created.rows[0].id;
+}
+
+// Helper: persist contacts list for a company. Replaces existing links.
+// `contacts` items: { id?, name, phone, email?, role?, is_primary? }
+// If id is a UUID matching the contacts table, links it directly. Otherwise creates a new contact in CRM Contacts list.
+async function saveCompanyContacts(companyId, organizationId, userId, contacts) {
+  if (!Array.isArray(contacts)) return;
+  await ensureCompanyContactsSchema();
+  // Wipe existing links (we don't delete the actual contacts)
+  await query(`DELETE FROM crm_company_contacts WHERE company_id = $1`, [companyId]);
+  if (contacts.length === 0) return;
+
+  let crmListId = null;
+  for (const c of contacts) {
+    if (!c || (!c.name && !c.phone)) continue;
+    const phoneNorm = String(c.phone || '').replace(/\D/g, '');
+    let contactId = null;
+
+    // If id is a real UUID, try to match it against contacts table (org scope)
+    if (c.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(c.id)) {
+      const found = await query(
+        `SELECT ct.id FROM contacts ct
+         JOIN contact_lists cl ON cl.id = ct.list_id
+         JOIN organization_members om ON om.user_id = cl.user_id AND om.organization_id = $2
+         WHERE ct.id = $1 LIMIT 1`,
+        [c.id, organizationId]
+      );
+      if (found.rows[0]) contactId = found.rows[0].id;
+    }
+
+    // Try to find by phone within org
+    if (!contactId && phoneNorm) {
+      const byPhone = await query(
+        `SELECT ct.id FROM contacts ct
+         JOIN contact_lists cl ON cl.id = ct.list_id
+         JOIN organization_members om ON om.user_id = cl.user_id AND om.organization_id = $2
+         WHERE ct.phone LIKE $1
+         LIMIT 1`,
+        [`%${phoneNorm.slice(-9)}%`, organizationId]
+      );
+      if (byPhone.rows[0]) contactId = byPhone.rows[0].id;
+    }
+
+    // Create new contact in CRM Contacts list
+    if (!contactId) {
+      if (!crmListId) crmListId = await ensureCrmContactsList(organizationId, userId);
+      const created = await query(
+        `INSERT INTO contacts (list_id, name, phone, email)
+         VALUES ($1, $2, $3, $4) RETURNING id`,
+        [crmListId, c.name || c.phone || 'Contato', phoneNorm || c.phone || '', c.email || null]
+      );
+      contactId = created.rows[0].id;
+    }
+
+    await query(
+      `INSERT INTO crm_company_contacts (company_id, contact_id, is_primary, role, email)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (company_id, contact_id) DO UPDATE
+       SET is_primary = EXCLUDED.is_primary, role = EXCLUDED.role, email = EXCLUDED.email`,
+      [companyId, contactId, !!c.is_primary, c.role || null, c.email || null]
+    );
+  }
+}
+
+
 // we create/reuse a single default company per organization.
 async function ensureDefaultCompanyId(organizationId, createdByUserId) {
   const existing = await query(
