@@ -43,6 +43,24 @@ export default function CRMEmpresas() {
   const [filterGroupId, setFilterGroupId] = useState<string>("");
   const [dealFrom, setDealFrom] = useState<string>("");
   const [dealTo, setDealTo] = useState<string>("");
+  const [sortBy, setSortBy] = useState<'name' | 'last_deal_date' | 'created_at'>('name');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+
+  const toggleSort = (col: 'name' | 'last_deal_date' | 'created_at') => {
+    if (sortBy === col) {
+      setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(col);
+      setSortDir(col === 'last_deal_date' || col === 'created_at' ? 'desc' : 'asc');
+    }
+  };
+
+  const SortIcon = ({ col }: { col: 'name' | 'last_deal_date' | 'created_at' }) => {
+    if (sortBy !== col) return <ArrowUpDown className="h-3 w-3 ml-1 inline opacity-40" />;
+    return sortDir === 'asc'
+      ? <ArrowUp className="h-3 w-3 ml-1 inline" />
+      : <ArrowDown className="h-3 w-3 ml-1 inline" />;
+  };
 
   const { data: crmGroups } = useCRMGroups();
 
