@@ -121,6 +121,23 @@ export function CompanyDialog({ company, open, onOpenChange, onCreated }: Compan
       });
       setContacts([]);
       setCnpjData(null);
+      // Load existing contacts for this company
+      if (open) {
+        api<CompanyContact[]>(`/api/crm/companies/${company.id}/contacts`)
+          .then((rows) =>
+            setContacts(
+              (rows || []).map((r) => ({
+                id: r.id,
+                name: r.name,
+                phone: r.phone,
+                email: r.email || "",
+                role: r.role || "",
+                is_primary: !!r.is_primary,
+              }))
+            )
+          )
+          .catch((err) => console.error("[CompanyDialog] load contacts failed", err));
+      }
     } else {
       setFormData({
         name: "",
@@ -232,7 +249,7 @@ export function CompanyDialog({ company, open, onOpenChange, onCreated }: Compan
       ...formData,
       segment_id: formData.segment_id || undefined,
       sales_position_id: formData.sales_position_id || undefined,
-      contacts: contacts.length > 0 ? contacts : undefined,
+      contacts, // always send (empty array clears links on edit)
     };
     if (company) {
       updateCompany.mutate({ id: company.id, ...data } as any);
