@@ -15,10 +15,11 @@ import { CRMCompany, useCRMCompanyMutations } from "@/hooks/use-crm";
 import { useSalesPositions } from "@/hooks/use-sales-positions";
 import { useCRMSegments } from "@/hooks/use-crm-config";
 import { useContacts, Contact, ContactList } from "@/hooks/use-contacts";
-import { Tag, User, Plus, Trash2, Phone, Search, Check, UserPlus, Loader2, Users } from "lucide-react";
+import { Tag, User, Plus, Trash2, Phone, Search, Check, UserPlus, Loader2, Users, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 interface CNPJData {
   razao_social: string;
