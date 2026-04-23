@@ -220,6 +220,56 @@ export default function CRMEmpresas() {
             Com negociação aberta
           </Button>
 
+          {/* Deal Date Range Filter */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant={dealFrom || dealTo ? "default" : "outline"} size="sm">
+                <CalendarIcon className="h-4 w-4 mr-2" />
+                {dealFrom || dealTo
+                  ? `Negociações: ${dealFrom ? format(parseISO(dealFrom), "dd/MM/yyyy") : "..."} - ${dealTo ? format(parseISO(dealTo), "dd/MM/yyyy") : "..."}`
+                  : "Data de negociação"}
+                {(dealFrom || dealTo) && (
+                  <X
+                    className="h-3 w-3 ml-2 opacity-70 hover:opacity-100"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDealFrom("");
+                      setDealTo("");
+                    }}
+                  />
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-72 p-4 space-y-3" align="start">
+              <div className="space-y-2">
+                <Label htmlFor="deal-from" className="text-xs">De</Label>
+                <Input
+                  id="deal-from"
+                  type="date"
+                  value={dealFrom}
+                  onChange={(e) => setDealFrom(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="deal-to" className="text-xs">Até</Label>
+                <Input
+                  id="deal-to"
+                  type="date"
+                  value={dealTo}
+                  onChange={(e) => setDealTo(e.target.value)}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Filtra empresas que tiveram negociações criadas no período.
+              </p>
+              {(dealFrom || dealTo) && (
+                <Button variant="ghost" size="sm" className="w-full" onClick={() => { setDealFrom(""); setDealTo(""); }}>
+                  Limpar
+                </Button>
+              )}
+            </PopoverContent>
+          </Popover>
+
           {isFetching && !isLoading && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground ml-auto">
               <Loader2 className="h-4 w-4 animate-spin" />
