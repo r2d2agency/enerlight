@@ -52,11 +52,31 @@ function LeafletMap({ locations }: LeafletMapProps) {
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
-    mapRef.current = L.map(containerRef.current).setView([-14.235, -51.9253], 4);
+    const map = L.map(containerRef.current).setView([-14.235, -51.9253], 4);
+    mapRef.current = map;
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-    }).addTo(mapRef.current);
+    }).addTo(map);
+
+    // Garante que o mapa calcule o tamanho correto após o layout estabilizar
+    const invalidate = () => map.invalidateSize();
+    const t1 = setTimeout(invalidate, 50);
+    const t2 = setTimeout(invalidate, 250);
+    const t3 = setTimeout(invalidate, 600);
+
+    let resizeObs: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined" && containerRef.current) {
+      resizeObs = new ResizeObserver(() => {
+        map.invalidateSize();
+      });
+      resizeObs.observe(containerRef.current);
+    }
+    window.addEventListener("resize", invalidate);
+
     return () => {
+      clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
+      window.removeEventListener("resize", invalidate);
+      if (resizeObs) resizeObs.disconnect();
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
