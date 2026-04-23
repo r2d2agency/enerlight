@@ -450,7 +450,7 @@ export default function CRMRepresentantes() {
           <DialogHeader>
             <DialogTitle>{editingRepId ? "Editar Indicador" : "Novo Indicador"}</DialogTitle>
           </DialogHeader>
-          <ScrollArea className="flex-1 -mr-6 pr-6">
+          <div className="flex-1 overflow-y-auto -mr-4 pr-4 min-h-0">
             <div className="space-y-4 p-1">
               {/* TIPO */}
               <div className="space-y-2">
