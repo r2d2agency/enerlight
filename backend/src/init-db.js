@@ -1497,6 +1497,19 @@ CREATE TABLE IF NOT EXISTS crm_deal_contacts (
     UNIQUE(deal_id, contact_id)
 );
 
+CREATE TABLE IF NOT EXISTS crm_company_contacts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    company_id UUID REFERENCES crm_companies(id) ON DELETE CASCADE NOT NULL,
+    contact_id UUID REFERENCES contacts(id) ON DELETE CASCADE NOT NULL,
+    is_primary BOOLEAN DEFAULT false,
+    role VARCHAR(100),
+    email VARCHAR(255),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(company_id, contact_id)
+);
+CREATE INDEX IF NOT EXISTS idx_crm_company_contacts_company ON crm_company_contacts(company_id);
+CREATE INDEX IF NOT EXISTS idx_crm_company_contacts_contact ON crm_company_contacts(contact_id);
+
 CREATE TABLE IF NOT EXISTS crm_deal_history (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     deal_id UUID REFERENCES crm_deals(id) ON DELETE CASCADE NOT NULL,
