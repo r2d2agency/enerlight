@@ -546,7 +546,7 @@ export default function CRMRepresentantes() {
                         </div>
                         <div>
                           <Label className="text-xs">Raio (km)</Label>
-                          <Input className="h-8" type="number" min={1} value={area.radius_km} onChange={e => updateArea(idx, { radius_km: Number(e.target.value) || 100 })} />
+                          <Input className="h-8" type="number" min={1} value={area.radius_km || ""} onChange={e => updateAreaRadius(idx, e.target.value)} onBlur={e => { if (!e.target.value || Number(e.target.value) < 1) updateArea(idx, { radius_km: 100 }); }} />
                         </div>
                         <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removeArea(idx)}>
                           <X className="h-4 w-4" />
