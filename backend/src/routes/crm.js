@@ -6985,11 +6985,19 @@ router.get('/goals/data-summary', async (req, res) => {
       params
     );
 
-    // By channel
+    // By channel — fallback to user's group name when channel column is empty
     const byChannel = await query(
-      `SELECT data_type, COALESCE(channel, 'Sem Canal') as channel, COUNT(*) as count, COALESCE(SUM(value),0) as total_value
+      `SELECT data_type,
+         COALESCE(NULLIF(TRIM(channel), ''),
+           (SELECT ug.name FROM crm_user_group_members gm
+              JOIN crm_user_groups ug ON ug.id = gm.group_id
+              WHERE gm.user_id = crm_goals_data.user_id
+                AND ug.organization_id = $1
+              ORDER BY ug.name LIMIT 1),
+           'Sem Canal') as channel,
+         COUNT(*) as count, COALESCE(SUM(value),0) as total_value
        FROM crm_goals_data WHERE ${baseWhere}
-       GROUP BY data_type, channel ORDER BY total_value DESC`,
+       GROUP BY data_type, channel, user_id ORDER BY total_value DESC`,
       params
     );
 
