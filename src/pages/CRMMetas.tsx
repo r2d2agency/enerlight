@@ -32,6 +32,7 @@ import {
   Briefcase, DollarSign, CalendarDays, Loader2, BarChart3,
   Trophy, Medal, Award, FileText, ShoppingCart, Receipt, MessageSquare,
   Search, ChevronLeft, ChevronRight, List, MapPin, Wallet, Truck,
+  ArrowUp, ArrowDown, ArrowUpDown,
 } from "lucide-react";
 import { GoalsMapTab } from "@/components/crm/GoalsMapTab";
 import { QuarterlyViewTab } from "@/components/crm/QuarterlyViewTab";
