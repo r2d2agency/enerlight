@@ -5580,7 +5580,10 @@ router.get('/goals/dashboard', async (req, res) => {
         // Special: pedidos / orcamentos * 100
         const qp = [org.organization_id, sd, ed];
         let qf = '';
-        if (goal.target_channel) { qp.push(goal.target_channel); qf += ` AND channel = $${qp.length}`; }
+        if (goal.target_channel) {
+          qp.push(goal.target_channel);
+          qf += ` AND (channel = $${qp.length} OR user_id IN (SELECT gm.user_id FROM crm_user_group_members gm JOIN crm_user_groups ug ON ug.id = gm.group_id WHERE ug.organization_id = $1 AND LOWER(TRIM(ug.name)) = LOWER(TRIM($${qp.length}))))`;
+        }
         if (goal.type === 'individual' && goal.target_user_id) { qp.push(goal.target_user_id); qf += ` AND user_id = $${qp.length}`; }
         const orcR = await query(`SELECT COUNT(*) as cnt FROM crm_goals_data WHERE organization_id=$1 AND ${dateExpr} >= $2::date AND ${dateExpr} <= $3::date AND data_type='orcamento'${qf}`, qp);
         const pedR = await query(`SELECT COUNT(*) as cnt FROM crm_goals_data WHERE organization_id=$1 AND ${dateExpr} >= $2::date AND ${dateExpr} <= $3::date AND data_type='pedido'${qf}`, qp);
@@ -5596,9 +5599,10 @@ router.get('/goals/dashboard', async (req, res) => {
       }
 
       // Filter by channel if goal has target_channel
+      // Match either exact channel name OR user belongs to a group with that name
       if (goal.target_channel) {
         params.push(goal.target_channel);
-        extraFilters += ` AND channel = $${params.length}`;
+        extraFilters += ` AND (channel = $${params.length} OR user_id IN (SELECT gm.user_id FROM crm_user_group_members gm JOIN crm_user_groups ug ON ug.id = gm.group_id WHERE ug.organization_id = $1 AND LOWER(TRIM(ug.name)) = LOWER(TRIM($${params.length}))))`;
       }
 
       // Filter by user for individual goals
@@ -6981,11 +6985,19 @@ router.get('/goals/data-summary', async (req, res) => {
       params
     );
 
-    // By channel
+    // By channel — fallback to user's group name when channel column is empty
     const byChannel = await query(
-      `SELECT data_type, COALESCE(channel, 'Sem Canal') as channel, COUNT(*) as count, COALESCE(SUM(value),0) as total_value
+      `SELECT data_type,
+         COALESCE(NULLIF(TRIM(channel), ''),
+           (SELECT ug.name FROM crm_user_group_members gm
+              JOIN crm_user_groups ug ON ug.id = gm.group_id
+              WHERE gm.user_id = crm_goals_data.user_id
+                AND ug.organization_id = $1
+              ORDER BY ug.name LIMIT 1),
+           'Sem Canal') as channel,
+         COUNT(*) as count, COALESCE(SUM(value),0) as total_value
        FROM crm_goals_data WHERE ${baseWhere}
-       GROUP BY data_type, channel ORDER BY total_value DESC`,
+       GROUP BY data_type, channel, user_id ORDER BY total_value DESC`,
       params
     );
 
