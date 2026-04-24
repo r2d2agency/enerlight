@@ -82,6 +82,33 @@ export default function CRMMetas() {
   const [filterChannel, setFilterChannel] = useState("all");
   const [filterPeriod, setFilterPeriod] = useState("monthly");
   const [rankingGroupId, setRankingGroupId] = useState("all");
+  const [channelSortBy, setChannelSortBy] = useState<string>("billing_value");
+  const [channelSortDir, setChannelSortDir] = useState<"asc" | "desc">("desc");
+  const [sellerSortBy, setSellerSortBy] = useState<string>("billing_value");
+  const [sellerSortDir, setSellerSortDir] = useState<"asc" | "desc">("desc");
+
+  const toggleChannelSort = (field: string) => {
+    if (channelSortBy === field) {
+      setChannelSortDir(channelSortDir === "asc" ? "desc" : "asc");
+    } else {
+      setChannelSortBy(field);
+      setChannelSortDir("desc");
+    }
+  };
+
+  const toggleSellerSort = (field: string) => {
+    if (sellerSortBy === field) {
+      setSellerSortDir(sellerSortDir === "asc" ? "desc" : "asc");
+    } else {
+      setSellerSortBy(field);
+      setSellerSortDir("desc");
+    }
+  };
+
+  const SortIcon = ({ field, currentField, direction }: { field: string, currentField: string, direction: "asc" | "desc" }) => {
+    if (field !== currentField) return <ArrowUpDown className="ml-1 h-3 w-3" />;
+    return direction === "asc" ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />;
+  };
 
   const handlePeriodChange = (period: string) => {
     setFilterPeriod(period);
