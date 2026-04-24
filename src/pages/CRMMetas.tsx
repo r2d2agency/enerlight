@@ -1025,6 +1025,10 @@ export default function CRMMetas() {
                     if (!channelMap[ch]) channelMap[ch] = [];
                     channelMap[ch].push(g);
                   });
+                  // Sort channel goals by name within each channel
+                  Object.values(channelMap).forEach(list => list.sort((a, b) => a.name.localeCompare(b.name)));
+                  
+                  const sortedChannelNames = Object.keys(channelMap).sort((a, b) => a.localeCompare(b));
                   const renderGoalCard = (g: Goal) => (
                     <Card key={g.id} className={`border-l-4 ${cat.borderClass} ${!g.is_active ? "opacity-60" : ""}`}>
                       <CardContent className="py-4">
