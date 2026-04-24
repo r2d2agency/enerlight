@@ -793,7 +793,14 @@ export default function CRMMetas() {
                 if (row.data_type === 'faturamento') { channelMap[key].billing_value += row.total_value; }
               }
               const channels = Object.values(channelMap).filter(c => c.quotes > 0 || c.orders > 0 || c.billing_value > 0);
-              channels.sort((a, b) => b.billing_value - a.billing_value);
+              channels.sort((a: any, b: any) => {
+                const valA = a[channelSortBy];
+                const valB = b[channelSortBy];
+                if (typeof valA === "string") {
+                  return channelSortDir === "asc" ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                }
+                return channelSortDir === "asc" ? (valA - valB) : (valB - valA);
+              });
 
               return channels.length > 0 ? (
                 <>
