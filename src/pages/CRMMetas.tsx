@@ -814,12 +814,24 @@ export default function CRMMetas() {
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead>Canal</TableHead>
-                              <TableHead className="text-center">Orçamentos</TableHead>
-                              <TableHead className="text-right">Valor Orç.</TableHead>
-                              <TableHead className="text-center">Pedidos</TableHead>
-                              <TableHead className="text-right">Valor Ped.</TableHead>
-                              <TableHead className="text-right">Faturamento</TableHead>
+                              <TableHead className="cursor-pointer select-none" onClick={() => toggleChannelSort("channel")}>
+                                <div className="flex items-center">Canal <SortIcon field="channel" currentField={channelSortBy} direction={channelSortDir} /></div>
+                              </TableHead>
+                              <TableHead className="text-center cursor-pointer select-none" onClick={() => toggleChannelSort("quotes")}>
+                                <div className="flex items-center justify-center">Orçamentos <SortIcon field="quotes" currentField={channelSortBy} direction={channelSortDir} /></div>
+                              </TableHead>
+                              <TableHead className="text-right cursor-pointer select-none" onClick={() => toggleChannelSort("quotes_value")}>
+                                <div className="flex items-center justify-end">Valor Orç. <SortIcon field="quotes_value" currentField={channelSortBy} direction={channelSortDir} /></div>
+                              </TableHead>
+                              <TableHead className="text-center cursor-pointer select-none" onClick={() => toggleChannelSort("orders")}>
+                                <div className="flex items-center justify-center">Pedidos <SortIcon field="orders" currentField={channelSortBy} direction={channelSortDir} /></div>
+                              </TableHead>
+                              <TableHead className="text-right cursor-pointer select-none" onClick={() => toggleChannelSort("orders_value")}>
+                                <div className="flex items-center justify-end">Valor Ped. <SortIcon field="orders_value" currentField={channelSortBy} direction={channelSortDir} /></div>
+                              </TableHead>
+                              <TableHead className="text-right cursor-pointer select-none" onClick={() => toggleChannelSort("billing_value")}>
+                                <div className="flex items-center justify-end">Faturamento <SortIcon field="billing_value" currentField={channelSortBy} direction={channelSortDir} /></div>
+                              </TableHead>
                               <TableHead className="text-center">Conversão</TableHead>
                             </TableRow>
                           </TableHeader>
