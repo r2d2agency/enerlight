@@ -1081,12 +1081,15 @@ export default function CRMMetas() {
                         <div className="space-y-3 mt-2">
                           <p className="text-sm font-medium text-muted-foreground flex items-center gap-1">📡 Por Canal</p>
                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {Object.entries(channelMap).map(([ch, chGoals]) => (
-                              <div key={ch} className="space-y-2 p-3 rounded-lg border bg-muted/30">
-                                <p className="text-sm font-semibold">{ch}</p>
-                                {chGoals.map(renderGoalCard)}
-                              </div>
-                            ))}
+                            {sortedChannelNames.map(ch => {
+                              const chGoals = channelMap[ch];
+                              return (
+                                <div key={ch} className="space-y-2 p-3 rounded-lg border bg-muted/30">
+                                  <p className="text-sm font-semibold">{ch}</p>
+                                  {chGoals.map(renderGoalCard)}
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
                       )}
