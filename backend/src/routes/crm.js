@@ -5599,9 +5599,10 @@ router.get('/goals/dashboard', async (req, res) => {
       }
 
       // Filter by channel if goal has target_channel
+      // Match either exact channel name OR user belongs to a group with that name
       if (goal.target_channel) {
         params.push(goal.target_channel);
-        extraFilters += ` AND channel = $${params.length}`;
+        extraFilters += ` AND (channel = $${params.length} OR user_id IN (SELECT gm.user_id FROM crm_user_group_members gm JOIN crm_user_groups ug ON ug.id = gm.group_id WHERE ug.organization_id = $1 AND LOWER(TRIM(ug.name)) = LOWER(TRIM($${params.length}))))`;
       }
 
       // Filter by user for individual goals
