@@ -5580,7 +5580,10 @@ router.get('/goals/dashboard', async (req, res) => {
         // Special: pedidos / orcamentos * 100
         const qp = [org.organization_id, sd, ed];
         let qf = '';
-        if (goal.target_channel) { qp.push(goal.target_channel); qf += ` AND channel = $${qp.length}`; }
+        if (goal.target_channel) {
+          qp.push(goal.target_channel);
+          qf += ` AND (channel = $${qp.length} OR user_id IN (SELECT gm.user_id FROM crm_user_group_members gm JOIN crm_user_groups ug ON ug.id = gm.group_id WHERE ug.organization_id = $1 AND LOWER(TRIM(ug.name)) = LOWER(TRIM($${qp.length}))))`;
+        }
         if (goal.type === 'individual' && goal.target_user_id) { qp.push(goal.target_user_id); qf += ` AND user_id = $${qp.length}`; }
         const orcR = await query(`SELECT COUNT(*) as cnt FROM crm_goals_data WHERE organization_id=$1 AND ${dateExpr} >= $2::date AND ${dateExpr} <= $3::date AND data_type='orcamento'${qf}`, qp);
         const pedR = await query(`SELECT COUNT(*) as cnt FROM crm_goals_data WHERE organization_id=$1 AND ${dateExpr} >= $2::date AND ${dateExpr} <= $3::date AND data_type='pedido'${qf}`, qp);
