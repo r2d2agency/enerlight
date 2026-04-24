@@ -905,7 +905,14 @@ export default function CRMMetas() {
                 if (row.data_type === 'faturamento') { sellerMap[key].billing_value += row.total_value; }
               }
               const sellers = Object.values(sellerMap).filter(s => s.quotes > 0 || s.orders > 0 || s.billing_value > 0);
-              sellers.sort((a, b) => b.billing_value - a.billing_value);
+              sellers.sort((a: any, b: any) => {
+                const valA = a[sellerSortBy];
+                const valB = b[sellerSortBy];
+                if (typeof valA === "string") {
+                  return sellerSortDir === "asc" ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                }
+                return sellerSortDir === "asc" ? (valA - valB) : (valB - valA);
+              });
 
               return sellers.length > 0 ? (
                 <Card>
