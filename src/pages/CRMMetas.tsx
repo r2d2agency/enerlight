@@ -32,6 +32,7 @@ import {
   Briefcase, DollarSign, CalendarDays, Loader2, BarChart3,
   Trophy, Medal, Award, FileText, ShoppingCart, Receipt, MessageSquare,
   Search, ChevronLeft, ChevronRight, List, MapPin, Wallet, Truck,
+  ArrowUp, ArrowDown, ArrowUpDown,
 } from "lucide-react";
 import { GoalsMapTab } from "@/components/crm/GoalsMapTab";
 import { QuarterlyViewTab } from "@/components/crm/QuarterlyViewTab";
@@ -81,6 +82,33 @@ export default function CRMMetas() {
   const [filterChannel, setFilterChannel] = useState("all");
   const [filterPeriod, setFilterPeriod] = useState("monthly");
   const [rankingGroupId, setRankingGroupId] = useState("all");
+  const [channelSortBy, setChannelSortBy] = useState<string>("billing_value");
+  const [channelSortDir, setChannelSortDir] = useState<"asc" | "desc">("desc");
+  const [sellerSortBy, setSellerSortBy] = useState<string>("billing_value");
+  const [sellerSortDir, setSellerSortDir] = useState<"asc" | "desc">("desc");
+
+  const toggleChannelSort = (field: string) => {
+    if (channelSortBy === field) {
+      setChannelSortDir(channelSortDir === "asc" ? "desc" : "asc");
+    } else {
+      setChannelSortBy(field);
+      setChannelSortDir("desc");
+    }
+  };
+
+  const toggleSellerSort = (field: string) => {
+    if (sellerSortBy === field) {
+      setSellerSortDir(sellerSortDir === "asc" ? "desc" : "asc");
+    } else {
+      setSellerSortBy(field);
+      setSellerSortDir("desc");
+    }
+  };
+
+  const SortIcon = ({ field, currentField, direction }: { field: string, currentField: string, direction: "asc" | "desc" }) => {
+    if (field !== currentField) return <ArrowUpDown className="ml-1 h-3 w-3" />;
+    return direction === "asc" ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />;
+  };
 
   const handlePeriodChange = (period: string) => {
     setFilterPeriod(period);
@@ -639,6 +667,9 @@ export default function CRMMetas() {
                         if (!channelMap[ch]) channelMap[ch] = [];
                         channelMap[ch].push(p);
                       });
+                      // Sort goals within each channel
+                      Object.values(channelMap).forEach(list => list.sort((a, b) => a.goal_name.localeCompare(b.goal_name)));
+                      const sortedChannelNames = Object.keys(channelMap).sort((a, b) => a.localeCompare(b));
                       const renderProgressCard = (p: any) => {
                         const remaining = p.target_value - p.current_value;
                         const isMet = remaining <= 0;
@@ -700,12 +731,15 @@ export default function CRMMetas() {
                             <div className="space-y-3 mt-2">
                               <p className="text-sm font-medium text-muted-foreground">📡 Por Canal</p>
                               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {Object.entries(channelMap).map(([ch, chProgress]) => (
-                                  <div key={ch} className="space-y-2 p-3 rounded-lg border bg-muted/30">
-                                    <p className="text-sm font-semibold">{ch}</p>
-                                    {chProgress.map(renderProgressCard)}
-                                  </div>
-                                ))}
+                                {sortedChannelNames.map(ch => {
+                                  const chProgress = channelMap[ch];
+                                  return (
+                                    <div key={ch} className="space-y-2 p-3 rounded-lg border bg-muted/30">
+                                      <p className="text-sm font-semibold">{ch}</p>
+                                      {chProgress.map(renderProgressCard)}
+                                    </div>
+                                  );
+                                })}
                               </div>
                             </div>
                           )}
@@ -765,7 +799,14 @@ export default function CRMMetas() {
                 if (row.data_type === 'faturamento') { channelMap[key].billing_value += row.total_value; }
               }
               const channels = Object.values(channelMap).filter(c => c.quotes > 0 || c.orders > 0 || c.billing_value > 0);
-              channels.sort((a, b) => b.billing_value - a.billing_value);
+              channels.sort((a: any, b: any) => {
+                const valA = a[channelSortBy];
+                const valB = b[channelSortBy];
+                if (typeof valA === "string") {
+                  return channelSortDir === "asc" ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                }
+                return channelSortDir === "asc" ? (valA - valB) : (valB - valA);
+              });
 
               return channels.length > 0 ? (
                 <>
@@ -779,12 +820,24 @@ export default function CRMMetas() {
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead>Canal</TableHead>
-                              <TableHead className="text-center">Orçamentos</TableHead>
-                              <TableHead className="text-right">Valor Orç.</TableHead>
-                              <TableHead className="text-center">Pedidos</TableHead>
-                              <TableHead className="text-right">Valor Ped.</TableHead>
-                              <TableHead className="text-right">Faturamento</TableHead>
+                              <TableHead className="cursor-pointer select-none" onClick={() => toggleChannelSort("channel")}>
+                                <div className="flex items-center">Canal <SortIcon field="channel" currentField={channelSortBy} direction={channelSortDir} /></div>
+                              </TableHead>
+                              <TableHead className="text-center cursor-pointer select-none" onClick={() => toggleChannelSort("quotes")}>
+                                <div className="flex items-center justify-center">Orçamentos <SortIcon field="quotes" currentField={channelSortBy} direction={channelSortDir} /></div>
+                              </TableHead>
+                              <TableHead className="text-right cursor-pointer select-none" onClick={() => toggleChannelSort("quotes_value")}>
+                                <div className="flex items-center justify-end">Valor Orç. <SortIcon field="quotes_value" currentField={channelSortBy} direction={channelSortDir} /></div>
+                              </TableHead>
+                              <TableHead className="text-center cursor-pointer select-none" onClick={() => toggleChannelSort("orders")}>
+                                <div className="flex items-center justify-center">Pedidos <SortIcon field="orders" currentField={channelSortBy} direction={channelSortDir} /></div>
+                              </TableHead>
+                              <TableHead className="text-right cursor-pointer select-none" onClick={() => toggleChannelSort("orders_value")}>
+                                <div className="flex items-center justify-end">Valor Ped. <SortIcon field="orders_value" currentField={channelSortBy} direction={channelSortDir} /></div>
+                              </TableHead>
+                              <TableHead className="text-right cursor-pointer select-none" onClick={() => toggleChannelSort("billing_value")}>
+                                <div className="flex items-center justify-end">Faturamento <SortIcon field="billing_value" currentField={channelSortBy} direction={channelSortDir} /></div>
+                              </TableHead>
                               <TableHead className="text-center">Conversão</TableHead>
                             </TableRow>
                           </TableHeader>
@@ -858,7 +911,14 @@ export default function CRMMetas() {
                 if (row.data_type === 'faturamento') { sellerMap[key].billing_value += row.total_value; }
               }
               const sellers = Object.values(sellerMap).filter(s => s.quotes > 0 || s.orders > 0 || s.billing_value > 0);
-              sellers.sort((a, b) => b.billing_value - a.billing_value);
+              sellers.sort((a: any, b: any) => {
+                const valA = a[sellerSortBy];
+                const valB = b[sellerSortBy];
+                if (typeof valA === "string") {
+                  return sellerSortDir === "asc" ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                }
+                return sellerSortDir === "asc" ? (valA - valB) : (valB - valA);
+              });
 
               return sellers.length > 0 ? (
                 <Card>
@@ -872,12 +932,24 @@ export default function CRMMetas() {
                         <TableHeader>
                           <TableRow>
                             <TableHead className="w-10">#</TableHead>
-                            <TableHead>Vendedor</TableHead>
-                            <TableHead className="text-center">Orçamentos</TableHead>
-                            <TableHead className="text-right">Valor Orç.</TableHead>
-                            <TableHead className="text-center">Pedidos</TableHead>
-                            <TableHead className="text-right">Valor Ped.</TableHead>
-                            <TableHead className="text-right">Faturamento</TableHead>
+                            <TableHead className="cursor-pointer select-none" onClick={() => toggleSellerSort("seller")}>
+                              <div className="flex items-center">Vendedor <SortIcon field="seller" currentField={sellerSortBy} direction={sellerSortDir} /></div>
+                            </TableHead>
+                            <TableHead className="text-center cursor-pointer select-none" onClick={() => toggleSellerSort("quotes")}>
+                              <div className="flex items-center justify-center">Orçamentos <SortIcon field="quotes" currentField={sellerSortBy} direction={sellerSortDir} /></div>
+                            </TableHead>
+                            <TableHead className="text-right cursor-pointer select-none" onClick={() => toggleSellerSort("quotes_value")}>
+                              <div className="flex items-center justify-end">Valor Orç. <SortIcon field="quotes_value" currentField={sellerSortBy} direction={sellerSortDir} /></div>
+                            </TableHead>
+                            <TableHead className="text-center cursor-pointer select-none" onClick={() => toggleSellerSort("orders")}>
+                              <div className="flex items-center justify-center">Pedidos <SortIcon field="orders" currentField={sellerSortBy} direction={sellerSortDir} /></div>
+                            </TableHead>
+                            <TableHead className="text-right cursor-pointer select-none" onClick={() => toggleSellerSort("orders_value")}>
+                              <div className="flex items-center justify-end">Valor Ped. <SortIcon field="orders_value" currentField={sellerSortBy} direction={sellerSortDir} /></div>
+                            </TableHead>
+                            <TableHead className="text-right cursor-pointer select-none" onClick={() => toggleSellerSort("billing_value")}>
+                              <div className="flex items-center justify-end">Faturamento <SortIcon field="billing_value" currentField={sellerSortBy} direction={sellerSortDir} /></div>
+                            </TableHead>
                             <TableHead className="text-center">Conversão</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -959,6 +1031,10 @@ export default function CRMMetas() {
                     if (!channelMap[ch]) channelMap[ch] = [];
                     channelMap[ch].push(g);
                   });
+                  // Sort channel goals by name within each channel
+                  Object.values(channelMap).forEach(list => list.sort((a, b) => a.name.localeCompare(b.name)));
+                  
+                  const sortedChannelNames = Object.keys(channelMap).sort((a, b) => a.localeCompare(b));
                   const renderGoalCard = (g: Goal) => (
                     <Card key={g.id} className={`border-l-4 ${cat.borderClass} ${!g.is_active ? "opacity-60" : ""}`}>
                       <CardContent className="py-4">
@@ -1011,12 +1087,15 @@ export default function CRMMetas() {
                         <div className="space-y-3 mt-2">
                           <p className="text-sm font-medium text-muted-foreground flex items-center gap-1">📡 Por Canal</p>
                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {Object.entries(channelMap).map(([ch, chGoals]) => (
-                              <div key={ch} className="space-y-2 p-3 rounded-lg border bg-muted/30">
-                                <p className="text-sm font-semibold">{ch}</p>
-                                {chGoals.map(renderGoalCard)}
-                              </div>
-                            ))}
+                            {sortedChannelNames.map(ch => {
+                              const chGoals = channelMap[ch];
+                              return (
+                                <div key={ch} className="space-y-2 p-3 rounded-lg border bg-muted/30">
+                                  <p className="text-sm font-semibold">{ch}</p>
+                                  {chGoals.map(renderGoalCard)}
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
                       )}
