@@ -926,12 +926,24 @@ export default function CRMMetas() {
                         <TableHeader>
                           <TableRow>
                             <TableHead className="w-10">#</TableHead>
-                            <TableHead>Vendedor</TableHead>
-                            <TableHead className="text-center">Orçamentos</TableHead>
-                            <TableHead className="text-right">Valor Orç.</TableHead>
-                            <TableHead className="text-center">Pedidos</TableHead>
-                            <TableHead className="text-right">Valor Ped.</TableHead>
-                            <TableHead className="text-right">Faturamento</TableHead>
+                            <TableHead className="cursor-pointer select-none" onClick={() => toggleSellerSort("seller")}>
+                              <div className="flex items-center">Vendedor <SortIcon field="seller" currentField={sellerSortBy} direction={sellerSortDir} /></div>
+                            </TableHead>
+                            <TableHead className="text-center cursor-pointer select-none" onClick={() => toggleSellerSort("quotes")}>
+                              <div className="flex items-center justify-center">Orçamentos <SortIcon field="quotes" currentField={sellerSortBy} direction={sellerSortDir} /></div>
+                            </TableHead>
+                            <TableHead className="text-right cursor-pointer select-none" onClick={() => toggleSellerSort("quotes_value")}>
+                              <div className="flex items-center justify-end">Valor Orç. <SortIcon field="quotes_value" currentField={sellerSortBy} direction={sellerSortDir} /></div>
+                            </TableHead>
+                            <TableHead className="text-center cursor-pointer select-none" onClick={() => toggleSellerSort("orders")}>
+                              <div className="flex items-center justify-center">Pedidos <SortIcon field="orders" currentField={sellerSortBy} direction={sellerSortDir} /></div>
+                            </TableHead>
+                            <TableHead className="text-right cursor-pointer select-none" onClick={() => toggleSellerSort("orders_value")}>
+                              <div className="flex items-center justify-end">Valor Ped. <SortIcon field="orders_value" currentField={sellerSortBy} direction={sellerSortDir} /></div>
+                            </TableHead>
+                            <TableHead className="text-right cursor-pointer select-none" onClick={() => toggleSellerSort("billing_value")}>
+                              <div className="flex items-center justify-end">Faturamento <SortIcon field="billing_value" currentField={sellerSortBy} direction={sellerSortDir} /></div>
+                            </TableHead>
                             <TableHead className="text-center">Conversão</TableHead>
                           </TableRow>
                         </TableHeader>
