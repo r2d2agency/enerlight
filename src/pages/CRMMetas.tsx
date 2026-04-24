@@ -667,6 +667,9 @@ export default function CRMMetas() {
                         if (!channelMap[ch]) channelMap[ch] = [];
                         channelMap[ch].push(p);
                       });
+                      // Sort goals within each channel
+                      Object.values(channelMap).forEach(list => list.sort((a, b) => a.goal_name.localeCompare(b.goal_name)));
+                      const sortedChannelNames = Object.keys(channelMap).sort((a, b) => a.localeCompare(b));
                       const renderProgressCard = (p: any) => {
                         const remaining = p.target_value - p.current_value;
                         const isMet = remaining <= 0;
