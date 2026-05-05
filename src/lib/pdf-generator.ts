@@ -25,8 +25,8 @@ export const generateQuotePDF = async (quote: any, organization: any) => {
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
 
-  // 1. Cover Page (Folha de Rosto)
-  const coverUrl = quote.template_cover || quote.cover_image_url;
+  // 1. Cover Page (Folha de Rosto) - Full Page
+  const coverUrl = quote.template?.cover_url || quote.template_cover || quote.cover_image_url;
   if (coverUrl) {
     try {
       const imgData = await loadRemoteImage(coverUrl);
@@ -147,28 +147,59 @@ export const generateQuotePDF = async (quote: any, organization: any) => {
 
   // 6. Footer & Notes
   const finalY = (doc as any).lastAutoTable.finalY + 15;
-  if (quote.notes || quote.template_header) {
+  const notesText = quote.notes || quote.template?.header_text || '';
+  if (notesText) {
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(40, 40, 40);
-    doc.text("Informações Adicionais:", 14, finalY);
+    doc.text("Informações Adicionais / Observações:", 14, finalY);
     
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
     doc.setTextColor(80, 80, 80);
     
-    const combinedText = [quote.template_header, quote.notes].filter(Boolean).join('\n\n');
-    const cleanText = combinedText.replace(/<[^>]*>/g, '');
+    const cleanText = notesText.replace(/<[^>]*>/g, '');
     const splitNotes = doc.splitTextToSize(cleanText, pageWidth - 28);
     doc.text(splitNotes, 14, finalY + 7);
   }
 
-  // Global Footer (from Template or Quote)
-  const footerText = quote.template_footer || quote.footer_text;
-  if (footerText) {
+  // 7. Global 3-Column Footer
+  const footerConfig = quote.template?.footer_config || quote.footer_config;
+  if (footerConfig) {
+    const config = typeof footerConfig === 'string' ? JSON.parse(footerConfig) : footerConfig;
+    const colWidth = (pageWidth - 28) / 3;
+    const footerY = pageHeight - 15;
+    
+    doc.setFontSize(7);
+    doc.setTextColor(100, 100, 100);
+    
+    const cols = ['left', 'center', 'right'];
+    for (let i = 0; i < cols.length; i++) {
+      const col = cols[i];
+      const x = 14 + (i * colWidth) + (colWidth / 2);
+      const conf = config[col];
+      
+      if (conf?.type === 'text' && conf.content) {
+        doc.text(conf.content, x, footerY, { align: "center" });
+      } else if (conf?.type === 'logo' && conf.content) {
+        try {
+          const logoData = await loadRemoteImage(conf.content);
+          doc.addImage(logoData, 'JPEG', x - 10, footerY - 8, 20, 10);
+        } catch(e) {}
+      } else if (conf?.type === 'social' && config.social) {
+        const social = config.social;
+        const lines = [];
+        if (social.website) lines.push(social.website);
+        if (social.instagram) lines.push(`IG: ${social.instagram}`);
+        if (social.phone) lines.push(`Tel: ${social.phone}`);
+        
+        doc.text(lines.join(' | '), x, footerY, { align: "center" });
+      }
+    }
+  } else if (quote.template_footer || quote.footer_text) {
+    const footerText = quote.template_footer || quote.footer_text;
     doc.setFontSize(8);
     doc.setTextColor(150, 150, 150);
-    // Remove HTML tags for PDF text positioning
     const cleanFooter = footerText.replace(/<[^>]*>/g, '');
     const splitFooter = doc.splitTextToSize(cleanFooter, pageWidth - 28);
     doc.text(splitFooter, pageWidth / 2, pageHeight - 15, { align: "center" });
