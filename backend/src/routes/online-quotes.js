@@ -33,7 +33,7 @@ async function getUserContext(userId) {
 // Get accessible templates (Cover Pages)
 router.get('/templates', async (req, res) => {
   try {
-    const ctx = await getUserContext(req.user.id);
+    const ctx = await getUserContext(req.userId);
     if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
 
     const result = await query(
@@ -46,6 +46,7 @@ router.get('/templates', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch templates' });
   }
 });
+
 
 // Create/Update template
 router.post('/templates', async (req, res) => {
