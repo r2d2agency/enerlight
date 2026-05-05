@@ -6968,16 +6968,16 @@ router.get('/goals/channels', async (req, res) => {
     if (!org) return res.status(403).json({ error: 'No organization' });
 
     const result = await query(
-      `SELECT DISTINCT channel FROM (
+      `SELECT DISTINCT UPPER(channel) as channel FROM (
         SELECT COALESCE(NULLIF(TRIM(channel), ''), 'Sem Canal') as channel FROM crm_goals_data WHERE organization_id = $1
         UNION
-        SELECT 'Canal 1'
+        SELECT 'CANAL 1'
         UNION
-        SELECT 'Canal 2'
+        SELECT 'CANAL 2'
         UNION
-        SELECT 'Canal 3'
+        SELECT 'CANAL 3'
         UNION
-        SELECT 'Canal 4'
+        SELECT 'CANAL 4'
       ) ch WHERE channel IS NOT NULL AND channel != '' ORDER BY channel`,
       [org.organization_id]
     );
