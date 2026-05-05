@@ -51,12 +51,13 @@ router.get('/templates', async (req, res) => {
 // Create/Update template
 router.post('/templates', async (req, res) => {
   try {
-    const ctx = await getUserContext(req.user.id);
+    const ctx = await getUserContext(req.userId);
     if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
     if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner') {
       return res.status(403).json({ error: 'Unauthorized' });
     }
     const { id, name, description, cover_url, header_text, footer_text, footer_config, is_default } = req.body;
+
     
     if (is_default) {
       await query(`UPDATE online_quote_templates SET is_default = false WHERE organization_id = $1`, [ctx.organizationId]);
