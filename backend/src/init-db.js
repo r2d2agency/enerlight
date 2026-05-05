@@ -4938,3 +4938,4 @@ const migrationSteps = [
   { name: 'Surveys Module', sql: step62Surveys, critical: false },
   { name: 'Online Quotes Module', sql: step63OnlineQuotes, critical: false },
 ];
+// Padding
