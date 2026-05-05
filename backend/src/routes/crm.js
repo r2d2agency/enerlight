@@ -6872,7 +6872,7 @@ router.post('/goals/import', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
-    const { rows, sellerMapping, dataType } = req.body;
+    const { rows, sellerMapping, channelMapping, dataType } = req.body;
     const batchId = crypto.randomUUID();
     let imported = 0, skipped = 0;
 
