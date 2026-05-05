@@ -96,7 +96,7 @@ export function GoalsImportDialog({ open, onOpenChange, dataType, onSuccess }: P
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ imported: number; skipped: number } | null>(null);
 
-  const reset = () => { setStep("upload"); setRows([]); setSellers([]); setSellerMapping({}); setResult(null); };
+  const reset = () => { setStep("upload"); setRows([]); setSellers([]); setRawChannels([]); setSellerMapping({}); setChannelMapping({}); setResult(null); };
 
   const handleFile = useCallback(async (file: File) => {
     setLoading(true);
