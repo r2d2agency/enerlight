@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, FileText, List, Settings, ShieldCheck, Loader2, Eye, Download, LayoutTemplate, Pencil } from "lucide-react";
+import { Plus, FileText, List, Settings, ShieldCheck, Loader2, Eye, Download, LayoutTemplate, Pencil, Image as ImageIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePriceLists, useOnlineQuoteMutations, useOnlineQuotes, useOnlineQuoteTemplates } from "@/hooks/use-online-quotes";
 import { OnlineQuoteFormDialog } from "@/components/crm/OnlineQuoteFormDialog";
@@ -339,29 +339,51 @@ export default function OnlineQuotes() {
               <DialogTitle>{editingTemplate ? "Editar Modelo" : "Novo Modelo de Capa"}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSaveTemplate} className="space-y-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Nome do Modelo</Label>
-                  <Input name="name" defaultValue={editingTemplate?.name} required />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Nome do Modelo</Label>
+                    <Input name="name" defaultValue={editingTemplate?.name} required placeholder="Ex: Modelo Corporativo" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>URL da Imagem de Capa</Label>
+                    <Input name="cover_url" defaultValue={editingTemplate?.cover_url} placeholder="https://..." onChange={(e) => setEditingTemplate({...editingTemplate, cover_url: e.target.value})} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Descrição</Label>
+                    <Input name="description" defaultValue={editingTemplate?.description} placeholder="Breve descrição do modelo" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Texto de Cabeçalho (HTML)</Label>
+                    <Textarea name="header_text" defaultValue={editingTemplate?.header_text} placeholder="Opcional..." className="font-mono text-xs h-24" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Texto de Rodapé (HTML)</Label>
+                    <Textarea name="footer_text" defaultValue={editingTemplate?.footer_text} placeholder="Opcional..." className="font-mono text-xs h-24" />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label>URL da Imagem de Capa</Label>
-                  <Input name="cover_url" defaultValue={editingTemplate?.cover_url} placeholder="https://..." />
+
+                <div className="space-y-4">
+                  <Label>Preview da Capa</Label>
+                  <div className="aspect-[3/4] border rounded-lg overflow-hidden bg-muted flex items-center justify-center relative shadow-inner">
+                    {editingTemplate?.cover_url ? (
+                      <img src={editingTemplate.cover_url} alt="Preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="text-center p-4">
+                        <ImageIcon className="h-12 w-12 text-muted-foreground/20 mx-auto mb-2" />
+                        <p className="text-xs text-muted-foreground">Insira uma URL para visualizar a capa</p>
+                      </div>
+                    )}
+                    <div className="absolute top-0 left-0 w-full p-2 bg-white/80 backdrop-blur-sm border-b text-[8px] truncate">
+                      {editingTemplate?.header_text || "Cabeçalho do Modelo"}
+                    </div>
+                    <div className="absolute bottom-0 left-0 w-full p-2 bg-white/80 backdrop-blur-sm border-t text-[8px] truncate">
+                      {editingTemplate?.footer_text || "Rodapé do Modelo"}
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label>Descrição</Label>
-                <Input name="description" defaultValue={editingTemplate?.description} />
-              </div>
-              <div className="space-y-2">
-                <Label>Texto de Cabeçalho (Padrão)</Label>
-                <Textarea name="header_text" defaultValue={editingTemplate?.header_text} placeholder="Opcional..." />
-              </div>
-              <div className="space-y-2">
-                <Label>Texto de Rodapé (Padrão)</Label>
-                <Textarea name="footer_text" defaultValue={editingTemplate?.footer_text} placeholder="Opcional..." />
-              </div>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2 pt-4 border-t">
                 <Switch name="is_default" id="is_default" defaultChecked={editingTemplate?.is_default} />
                 <Label htmlFor="is_default">Tornar modelo padrão para novos orçamentos</Label>
               </div>

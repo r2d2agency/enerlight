@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Loader2, Image as ImageIcon, Upload, X } from "lucide-react";
+import { Search, Loader2, Image as ImageIcon, Upload, X, FileUp } from "lucide-react";
 import { usePriceListItems } from "@/hooks/use-online-quotes";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
@@ -41,20 +41,71 @@ export function PriceListItemsDialog({ priceList, onOpenChange }: PriceListItems
       setUpdatingId(null);
     }
   };
+  const handleBulkImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !priceList) return;
 
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const text = event.target?.result as string;
+        // Basic CSV parsing (code,name,price,image_url)
+        const lines = text.split('\n');
+        const items = lines.slice(1).filter(l => l.trim()).map(line => {
+          const [product_code, product_name, sale_price, image_url] = line.split(',');
+          return {
+            product_code: product_code?.trim(),
+            product_name: product_name?.trim(),
+            sale_price: parseFloat(sale_price?.trim() || "0"),
+            image_url: image_url?.trim()
+          };
+        }).filter(item => item.product_code && item.product_name);
+
+        if (items.length === 0) {
+          toast.error("Nenhum item válido encontrado no arquivo");
+          return;
+        }
+
+        await api(`/api/online-quotes/price-lists/${priceList.id}/items/bulk`, {
+          method: 'POST',
+          body: { items }
+        });
+
+        toast.success(`${items.length} itens importados com sucesso!`);
+        queryClient.invalidateQueries({ queryKey: ['price-list-items', priceList.id] });
+      } catch (err) {
+        toast.error("Erro ao importar arquivo");
+      }
+    };
+    reader.readAsText(file);
+  };
   return (
     <Dialog open={!!priceList} onOpenChange={(open) => !open && onOpenChange(false)}>
       <DialogContent className="max-w-5xl max-h-[85vh] flex flex-col p-0">
         <DialogHeader className="p-6 pb-2">
           <DialogTitle>Itens da Tabela: {priceList?.name}</DialogTitle>
-          <div className="flex items-center gap-2 mt-4">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Buscar por código ou nome..." 
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="max-w-sm"
-            />
+          <div className="flex items-center justify-between mt-4">
+            <div className="flex items-center gap-2 flex-1">
+              <Search className="h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="Buscar por código ou nome..." 
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="max-w-sm"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" className="relative">
+                <FileUp className="h-4 w-4 mr-2" />
+                Importar CSV
+                <input 
+                  type="file" 
+                  accept=".csv" 
+                  className="absolute inset-0 opacity-0 cursor-pointer" 
+                  onChange={handleBulkImport}
+                />
+              </Button>
+            </div>
           </div>
         </DialogHeader>
 
