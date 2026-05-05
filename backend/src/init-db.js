@@ -4712,7 +4712,7 @@ CREATE INDEX IF NOT EXISTS idx_survey_responses_survey ON survey_responses(surve
 `;
 
 const step63OnlineQuotes = `
--- Modulo de Orcamentos Online
+-- Módulo de Orçamentos Online
 
 -- Tabelas de Preços (Price Lists)
 CREATE TABLE IF NOT EXISTS price_lists (
