@@ -145,17 +145,18 @@ router.post('/quotes', async (req, res) => {
     const ctx = await getUserContext(req.user.id);
     const { 
       client_name, client_document, client_email, client_phone, 
-      price_list_id, items, cover_image_url, footer_text, valid_until, notes 
+      price_list_id, items, cover_image_url, footer_text, valid_until, notes,
+      include_images
     } = req.body;
 
     const result = await query(
       `INSERT INTO online_quotes 
        (organization_id, user_id, client_name, client_document, client_email, client_phone, 
-        price_list_id, cover_image_url, footer_text, valid_until, notes)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        price_list_id, cover_image_url, footer_text, valid_until, notes, include_images)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        RETURNING id`,
       [ctx.organizationId, req.user.id, client_name, client_document, client_email, client_phone, 
-       price_list_id, cover_image_url, footer_text, valid_until, notes]
+       price_list_id, cover_image_url, footer_text, valid_until, notes, include_images ?? true]
     );
     
     const quoteId = result.rows[0].id;
@@ -163,19 +164,20 @@ router.post('/quotes', async (req, res) => {
     let totalCost = 0;
 
     for (const item of items) {
-      // Get current cost from price list item for snapshots
+      // Get current cost and image from price list item for snapshots
       const plItem = await query(
-        `SELECT cost_price FROM price_list_items WHERE price_list_id = $1 AND product_code = $2`,
+        `SELECT cost_price, image_url FROM price_list_items WHERE price_list_id = $1 AND product_code = $2`,
         [price_list_id, item.product_code]
       );
       const cost = plItem.rows[0]?.cost_price || 0;
+      const imageUrl = plItem.rows[0]?.image_url || null;
       const subtotal = item.quantity * item.unit_price;
       
       await query(
         `INSERT INTO online_quote_items 
-         (quote_id, product_code, product_name, quantity, unit_price, cost_price, total_price)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [quoteId, item.product_code, item.product_name, item.quantity, item.unit_price, cost, subtotal]
+         (quote_id, product_code, product_name, quantity, unit_price, cost_price, total_price, image_url)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [quoteId, item.product_code, item.product_name, item.quantity, item.unit_price, cost, subtotal, imageUrl]
       );
       
       totalValue += subtotal;
