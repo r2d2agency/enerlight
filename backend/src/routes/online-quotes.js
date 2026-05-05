@@ -92,7 +92,7 @@ router.post('/templates', async (req, res) => {
 // Get accessible price lists
 router.get('/price-lists', async (req, res) => {
   try {
-    const ctx = await getUserContext(req.user.id);
+    const ctx = await getUserContext(req.userId);
     if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
 
     // Admins and Managers see all. Sellers see lists assigned to them or their groups.
@@ -107,8 +107,9 @@ router.get('/price-lists', async (req, res) => {
     
     if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner') {
       sql += ` AND (pla.user_id = $2 OR pla.group_id = ANY($3::uuid[]))`;
-      params.push(req.user.id, ctx.groupIds);
+      params.push(req.userId, ctx.groupIds);
     }
+
 
     const result = await query(sql, params);
     res.json(result.rows);
