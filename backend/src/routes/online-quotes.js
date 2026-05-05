@@ -33,7 +33,7 @@ async function getUserContext(userId) {
 // Get accessible templates (Cover Pages)
 router.get('/templates', async (req, res) => {
   try {
-    const ctx = await getUserContext(req.user.id);
+    const ctx = await getUserContext(req.userId);
     if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
 
     const result = await query(
@@ -47,37 +47,42 @@ router.get('/templates', async (req, res) => {
   }
 });
 
+
 // Create/Update template
 router.post('/templates', async (req, res) => {
   try {
-    const ctx = await getUserContext(req.user.id);
+    const ctx = await getUserContext(req.userId);
     if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
     if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner') {
       return res.status(403).json({ error: 'Unauthorized' });
     }
-    const { id, name, description, cover_url, header_text, footer_text, is_default } = req.body;
+    const { id, name, description, cover_url, header_text, footer_text, footer_config, is_default } = req.body;
+
     
     if (is_default) {
       await query(`UPDATE online_quote_templates SET is_default = false WHERE organization_id = $1`, [ctx.organizationId]);
     }
 
+    const fConfig = typeof footer_config === 'object' ? JSON.stringify(footer_config) : footer_config;
+
     if (id) {
       const result = await query(
         `UPDATE online_quote_templates 
-         SET name = $1, description = $2, cover_url = $3, header_text = $4, footer_text = $5, is_default = $6, updated_at = NOW()
-         WHERE id = $7 AND organization_id = $8 RETURNING *`,
-        [name, description, cover_url, header_text, footer_text, is_default, id, ctx.organizationId]
+         SET name = $1, description = $2, cover_url = $3, header_text = $4, footer_text = $5, footer_config = $6, is_default = $7, updated_at = NOW()
+         WHERE id = $8 AND organization_id = $9 RETURNING *`,
+        [name, description, cover_url, header_text, footer_text, fConfig, is_default, id, ctx.organizationId]
       );
       res.json(result.rows[0]);
     } else {
       const result = await query(
         `INSERT INTO online_quote_templates 
-         (organization_id, name, description, cover_url, header_text, footer_text, is_default)
-         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-        [ctx.organizationId, name, description, cover_url, header_text, footer_text, is_default]
+         (organization_id, name, description, cover_url, header_text, footer_text, footer_config, is_default)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+        [ctx.organizationId, name, description, cover_url, header_text, footer_text, fConfig, is_default]
       );
       res.json(result.rows[0]);
     }
+
   } catch (err) {
     logError('online-quotes.templates.post', err);
     res.status(500).json({ error: 'Failed to save template' });
@@ -87,7 +92,7 @@ router.post('/templates', async (req, res) => {
 // Get accessible price lists
 router.get('/price-lists', async (req, res) => {
   try {
-    const ctx = await getUserContext(req.user.id);
+    const ctx = await getUserContext(req.userId);
     if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
 
     // Admins and Managers see all. Sellers see lists assigned to them or their groups.
@@ -102,8 +107,9 @@ router.get('/price-lists', async (req, res) => {
     
     if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner') {
       sql += ` AND (pla.user_id = $2 OR pla.group_id = ANY($3::uuid[]))`;
-      params.push(req.user.id, ctx.groupIds);
+      params.push(req.userId, ctx.groupIds);
     }
+
 
     const result = await query(sql, params);
     res.json(result.rows);
@@ -116,7 +122,8 @@ router.get('/price-lists', async (req, res) => {
 // Create/Update a price list
 router.post('/price-lists', async (req, res) => {
   try {
-    const ctx = await getUserContext(req.user.id);
+    const ctx = await getUserContext(req.userId);
+
     if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner') {
       return res.status(403).json({ error: 'Unauthorized' });
     }
@@ -145,7 +152,8 @@ router.post('/price-lists', async (req, res) => {
 // Get items for a price list
 router.get('/price-lists/:id/items', async (req, res) => {
   try {
-    const ctx = await getUserContext(req.user.id);
+    const ctx = await getUserContext(req.userId);
+
     if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
     // Security check: verify access to this price list
     const accessCheck = await query(
@@ -177,7 +185,8 @@ router.get('/price-lists/:id/items', async (req, res) => {
 // Update a single price list item (e.g. upload image)
 router.patch('/price-lists/:id/items/:productCode', async (req, res) => {
   try {
-    const ctx = await getUserContext(req.user.id);
+    const ctx = await getUserContext(req.userId);
+
     if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
     const { image_url } = req.body;
     
@@ -196,7 +205,8 @@ router.patch('/price-lists/:id/items/:productCode', async (req, res) => {
 // Bulk upsert price list items (from XLSX)
 router.post('/price-lists/:id/items/bulk', async (req, res) => {
   try {
-    const ctx = await getUserContext(req.user.id);
+    const ctx = await getUserContext(req.userId);
+
     if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
     const { items } = req.body; // items: { product_code, product_name, description, sale_price, cost_price, unit, image_url }
     
@@ -227,23 +237,28 @@ router.post('/price-lists/:id/items/bulk', async (req, res) => {
 // Create a new quote
 router.post('/quotes', async (req, res) => {
   try {
-    const ctx = await getUserContext(req.user.id);
+    const ctx = await getUserContext(req.userId);
+
     if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
     const { 
       client_name, client_document, client_email, client_phone, 
-      price_list_id, template_id, items, cover_image_url, footer_text, valid_until, notes,
+      price_list_id, template_id, items, cover_image_url, footer_text, footer_config, valid_until, notes,
       include_images
     } = req.body;
+
+    const fConfig = typeof footer_config === 'object' ? JSON.stringify(footer_config) : footer_config;
 
     const result = await query(
       `INSERT INTO online_quotes 
        (organization_id, user_id, client_name, client_document, client_email, client_phone, 
-        price_list_id, template_id, cover_image_url, footer_text, valid_until, notes, include_images)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        price_list_id, template_id, cover_image_url, footer_text, footer_config, valid_until, notes, include_images)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
        RETURNING id`,
-      [ctx.organizationId, req.user.id, client_name, client_document, client_email, client_phone, 
-       price_list_id, template_id || null, cover_image_url, footer_text, valid_until, notes, include_images ?? true]
+      [ctx.organizationId, req.userId, client_name, client_document, client_email, client_phone, 
+
+       price_list_id, template_id || null, cover_image_url, footer_text, fConfig, valid_until, notes, include_images ?? true]
     );
+
     
     const quoteId = result.rows[0].id;
     let totalValue = 0;
@@ -287,7 +302,8 @@ router.post('/quotes', async (req, res) => {
 // Get all quotes for the organization
 router.get('/quotes', async (req, res) => {
   try {
-    const ctx = await getUserContext(req.user.id);
+    const ctx = await getUserContext(req.userId);
+
     if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
     
     let sql = `SELECT * FROM online_quotes WHERE organization_id = $1`;
@@ -295,8 +311,9 @@ router.get('/quotes', async (req, res) => {
     
     if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner') {
       sql += ` AND user_id = $2`;
-      params.push(req.user.id);
+      params.push(req.userId);
     }
+
     
     sql += ` ORDER BY created_at DESC`;
     
@@ -311,15 +328,17 @@ router.get('/quotes', async (req, res) => {
 // Get a single quote with items
 router.get('/quotes/:id', async (req, res) => {
   try {
-    const ctx = await getUserContext(req.user.id);
+    const ctx = await getUserContext(req.userId);
+
     if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
     const quote = await query(
-      `SELECT q.*, t.cover_url as template_cover, t.header_text as template_header, t.footer_text as template_footer
+      `SELECT q.*, t.cover_url as template_cover, t.header_text as template_header, t.footer_text as template_footer, t.footer_config as template_footer_config
        FROM online_quotes q
        LEFT JOIN online_quote_templates t ON q.template_id = t.id
        WHERE q.id = $1 AND q.organization_id = $2`,
       [req.params.id, ctx.organizationId]
     );
+
     
     if (quote.rows.length === 0) return res.status(404).json({ error: 'Quote not found' });
     
@@ -338,7 +357,8 @@ router.get('/quotes/:id', async (req, res) => {
 // Create organization company from quote data
 router.post('/companies/create-from-quote', async (req, res) => {
   try {
-    const ctx = await getUserContext(req.user.id);
+    const ctx = await getUserContext(req.userId);
+
     if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
 
     const { name, document, email, phone } = req.body;
