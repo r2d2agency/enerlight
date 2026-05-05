@@ -6898,7 +6898,8 @@ router.post('/goals/import', async (req, res) => {
     for (const row of rows) {
       try {
         const userId = sellerMapping?.[row.seller_name] || null;
-        const channel = channelMapping?.[row.channel] || row.channel || null;
+        const rawChannel = channelMapping?.[row.channel] || row.channel || null;
+        const channel = rawChannel ? rawChannel.trim().toUpperCase() : null;
         await query(
           `INSERT INTO crm_goals_data 
            (organization_id, data_type, number, status, client_name, value, seller_name, user_id, channel, client_group, state, city, emission_date, delivery_date, billing_date, margin, observation, order_number, batch_id)
