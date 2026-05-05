@@ -6898,7 +6898,8 @@ router.post('/goals/import', async (req, res) => {
     for (const row of rows) {
       try {
         const userId = sellerMapping?.[row.seller_name] || null;
-        const channel = channelMapping?.[row.channel] || row.channel || null;
+        const rawChannel = channelMapping?.[row.channel] || row.channel || null;
+        const channel = rawChannel ? rawChannel.trim().toUpperCase() : null;
         await query(
           `INSERT INTO crm_goals_data 
            (organization_id, data_type, number, status, client_name, value, seller_name, user_id, channel, client_group, state, city, emission_date, delivery_date, billing_date, margin, observation, order_number, batch_id)
@@ -6968,16 +6969,16 @@ router.get('/goals/channels', async (req, res) => {
     if (!org) return res.status(403).json({ error: 'No organization' });
 
     const result = await query(
-      `SELECT DISTINCT channel FROM (
+      `SELECT DISTINCT UPPER(channel) as channel FROM (
         SELECT COALESCE(NULLIF(TRIM(channel), ''), 'Sem Canal') as channel FROM crm_goals_data WHERE organization_id = $1
         UNION
-        SELECT 'Canal 1'
+        SELECT 'CANAL 1'
         UNION
-        SELECT 'Canal 2'
+        SELECT 'CANAL 2'
         UNION
-        SELECT 'Canal 3'
+        SELECT 'CANAL 3'
         UNION
-        SELECT 'Canal 4'
+        SELECT 'CANAL 4'
       ) ch WHERE channel IS NOT NULL AND channel != '' ORDER BY channel`,
       [org.organization_id]
     );
@@ -7027,13 +7028,13 @@ router.get('/goals/data-summary', async (req, res) => {
     // By channel — fallback to user's group name when channel column is empty
     const byChannel = await query(
       `SELECT data_type,
-         COALESCE(NULLIF(TRIM(channel), ''),
+         UPPER(COALESCE(NULLIF(TRIM(channel), ''),
            (SELECT ug.name FROM crm_user_group_members gm
               JOIN crm_user_groups ug ON ug.id = gm.group_id
               WHERE gm.user_id = crm_goals_data.user_id
                 AND ug.organization_id = $1
               ORDER BY ug.name LIMIT 1),
-           'Sem Canal') as channel,
+           'SEM CANAL')) as channel,
          COUNT(*) as count, COALESCE(SUM(value),0) as total_value
        FROM crm_goals_data WHERE ${baseWhere}
        GROUP BY data_type, channel, user_id ORDER BY total_value DESC`,
