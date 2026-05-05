@@ -361,7 +361,7 @@ export default function OnlineQuotes() {
                 <Label>Texto de Rodapé (Padrão)</Label>
                 <Textarea name="footer_text" defaultValue={editingTemplate?.footer_text} placeholder="Opcional..." />
               </div>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2 pt-4 border-t">
                 <Switch name="is_default" id="is_default" defaultChecked={editingTemplate?.is_default} />
                 <Label htmlFor="is_default">Tornar modelo padrão para novos orçamentos</Label>
               </div>

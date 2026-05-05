@@ -172,6 +172,15 @@ export function OnlineQuoteFormDialog({ open, onOpenChange }: OnlineQuoteFormDia
                       }}
                       placeholder="Pesquisar..."
                     />
+                    <Button 
+                      size="icon" 
+                      variant="outline" 
+                      title="Buscar dados por CNPJ"
+                      onClick={handleLookupCNPJ}
+                      disabled={isSearchingCNPJ || clientInfo.document.replace(/\D/g, "").length !== 14}
+                    >
+                      {isSearchingCNPJ ? <Loader2 className="h-4 w-4 animate-spin" /> : <Building2 className="h-4 w-4" />}
+                    </Button>
                   </div>
                   {showCompanyResults && existingCompanies && existingCompanies.length > 0 && (
                     <div className="absolute z-10 w-full mt-1 bg-background border rounded-md shadow-lg max-h-[200px] overflow-y-auto">
@@ -209,15 +218,6 @@ export function OnlineQuoteFormDialog({ open, onOpenChange }: OnlineQuoteFormDia
                         onChange={e => setClientInfo({...clientInfo, document: e.target.value})}
                         placeholder="00.000.000/0000-00"
                       />
-                      <Button 
-                        size="icon" 
-                        variant="outline" 
-                        title="Buscar dados por CNPJ"
-                        onClick={handleLookupCNPJ}
-                        disabled={isSearchingCNPJ || clientInfo.document.replace(/\D/g, "").length !== 14}
-                      >
-                        {isSearchingCNPJ ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                      </Button>
                     </div>
                   </div>
                   <div className="space-y-2">
