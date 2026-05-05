@@ -1120,6 +1120,10 @@ export default function Admin() {
                           <Crown className="h-4 w-4 text-muted-foreground" />
                           <span>{plan.max_supervisors} supervisores</span>
                         </div>
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-muted-foreground" />
+                          <span>Orçamentos {plan.has_online_quotes ? 'SIM' : 'NÃO'}</span>
+                        </div>
                       </div>
                       <div className="flex flex-wrap gap-1">
                         {plan.has_chat && (
