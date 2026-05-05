@@ -6762,6 +6762,14 @@ async function ensureGoalsSellerMapping() {
       user_id UUID NOT NULL REFERENCES users(id),
       UNIQUE(organization_id, seller_name)
     )`);
+    // Add channel_mapping table
+    await query(`CREATE TABLE IF NOT EXISTS crm_goals_channel_mapping (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      source_channel VARCHAR(255) NOT NULL,
+      target_channel VARCHAR(255) NOT NULL,
+      UNIQUE(organization_id, source_channel)
+    )`);
   } catch (_) {}
 }
 
