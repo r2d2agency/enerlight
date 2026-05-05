@@ -72,8 +72,8 @@ export default function OnlineQuotes() {
 
     const data = {
       id: editingTemplate?.id,
-      name: formData.get('name'),
-      description: formData.get('description'),
+      name: formData.get('name') || editingTemplate?.name,
+      description: formData.get('description') || editingTemplate?.description,
       cover_url: editingTemplate?.cover_url,
       header_text: editingTemplate?.header_text,
       footer_text: editingTemplate?.footer_text,
@@ -81,11 +81,17 @@ export default function OnlineQuotes() {
       is_default: formData.get('is_default') === 'on'
     };
 
+    if (!data.name) {
+      toast.error("O nome do modelo é obrigatório");
+      return;
+    }
+
     try {
       await saveTemplate.mutateAsync(data);
       setIsTemplateDialogOpen(false);
-    } catch (err) {
-      toast.error("Erro ao salvar modelo");
+    } catch (err: any) {
+      console.error("Erro detalhado ao salvar template:", err);
+      toast.error(err?.message || "Erro ao salvar modelo");
     }
   };
 
