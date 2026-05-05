@@ -4805,7 +4805,7 @@ CREATE INDEX IF NOT EXISTS idx_price_list_access_user ON price_list_access(user_
 CREATE INDEX IF NOT EXISTS idx_price_list_access_group ON price_list_access(group_id);
 CREATE INDEX IF NOT EXISTS idx_online_quotes_org ON online_quotes(organization_id);
 CREATE INDEX IF NOT EXISTS idx_online_quotes_user ON online_quotes(user_id);
-`;
+\`;
 
 
 const migrationSteps = [
