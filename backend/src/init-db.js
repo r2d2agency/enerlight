@@ -4915,7 +4915,9 @@ const migrationSteps = [
   { name: 'Surveys Module', sql: step62Surveys, critical: false },
   { name: 'Online Quotes Module', sql: step63OnlineQuotes, critical: false },
   { name: 'Online Quotes Images', sql: step64OnlineQuotesImages, critical: false },
+  { name: 'Online Quote Templates', sql: step65OnlineQuoteTemplates, critical: false },
 ];
+
 
 export async function initDatabase() {
   console.log('Initializing database in steps...');
