@@ -87,11 +87,20 @@ export default function OnlineQuotes() {
     }
 
     try {
+      console.log("Saving template data:", data);
       await saveTemplate.mutateAsync(data);
       setIsTemplateDialogOpen(false);
+      toast.success("Modelo salvo com sucesso!");
     } catch (err: any) {
       console.error("Erro detalhado ao salvar template:", err);
-      toast.error(err?.message || "Erro ao salvar modelo");
+      // More descriptive error for common issues
+      if (err?.message?.includes("502") || err?.status === 502) {
+        toast.error("O servidor demorou muito para responder. Tente novamente em instantes.");
+      } else if (err?.message?.includes("500") || err?.status === 500) {
+        toast.error("Erro interno no servidor ao salvar. Verifique se os campos estão corretos.");
+      } else {
+        toast.error(err?.message || "Erro ao salvar modelo");
+      }
     }
   };
 
