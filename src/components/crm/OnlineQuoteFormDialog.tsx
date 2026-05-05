@@ -4,11 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Trash2, Search, Loader2, Save } from "lucide-react";
+import { Plus, Trash2, Search, Loader2, Save, Image as ImageIcon, Eye } from "lucide-react";
 import { usePriceLists, usePriceListItems, useOnlineQuoteMutations } from "@/hooks/use-online-quotes";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 interface Props {
   open: boolean;
