@@ -87,13 +87,16 @@ export function GoalsImportDialog({ open, onOpenChange, dataType, onSuccess }: P
   const [step, setStep] = useState<"upload" | "mapping" | "done">("upload");
   const [rows, setRows] = useState<ParsedRow[]>([]);
   const [sellers, setSellers] = useState<string[]>([]);
+  const [rawChannels, setRawChannels] = useState<string[]>([]);
+  const [availableChannels, setAvailableChannels] = useState<string[]>([]);
   const [orgUsers, setOrgUsers] = useState<{ id: string; name: string }[]>([]);
   const [existingMappings, setExistingMappings] = useState<{ seller_name: string; user_id: string }[]>([]);
   const [sellerMapping, setSellerMapping] = useState<Record<string, string>>({});
+  const [channelMapping, setChannelMapping] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ imported: number; skipped: number } | null>(null);
 
-  const reset = () => { setStep("upload"); setRows([]); setSellers([]); setSellerMapping({}); setResult(null); };
+  const reset = () => { setStep("upload"); setRows([]); setSellers([]); setRawChannels([]); setSellerMapping({}); setChannelMapping({}); setResult(null); };
 
   const handleFile = useCallback(async (file: File) => {
     setLoading(true);
@@ -160,13 +163,22 @@ export function GoalsImportDialog({ open, onOpenChange, dataType, onSuccess }: P
       });
 
       setSellers(preview.sellers || []);
+      setRawChannels(preview.rawChannels || []);
       setOrgUsers(preview.orgUsers || []);
       setExistingMappings(preview.existingMappings || []);
 
+      // Get available channels for mapping
+      const channels = await api<string[]>("/api/crm/goals/channels");
+      setAvailableChannels(channels || []);
+
       // Auto-fill mappings from existing
-      const autoMap: Record<string, string> = {};
-      (preview.existingMappings || []).forEach((m: any) => { autoMap[m.seller_name] = m.user_id; });
-      setSellerMapping(autoMap);
+      const autoSellerMap: Record<string, string> = {};
+      (preview.existingMappings || []).forEach((m: any) => { autoSellerMap[m.seller_name] = m.user_id; });
+      setSellerMapping(autoSellerMap);
+
+      const autoChannelMap: Record<string, string> = {};
+      (preview.existingChannelMappings || []).forEach((m: any) => { autoChannelMap[m.source_channel] = m.target_channel; });
+      setChannelMapping(autoChannelMap);
 
       setStep("mapping");
     } catch (err: any) {
@@ -181,7 +193,7 @@ export function GoalsImportDialog({ open, onOpenChange, dataType, onSuccess }: P
     try {
       const res = await api<{ imported: number; skipped: number }>("/api/crm/goals/import", {
         method: "POST",
-        body: { rows, sellerMapping, dataType },
+        body: { rows, sellerMapping, channelMapping, dataType },
       });
       setResult(res);
       setStep("done");
@@ -282,6 +294,35 @@ export function GoalsImportDialog({ open, onOpenChange, dataType, onSuccess }: P
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* Channel mapping */}
+            {rawChannels.length > 0 && (
+              <div className="space-y-2 pt-2 border-t">
+                <Label className="text-sm font-medium">Vincular Canais da Planilha</Label>
+                <div className="max-h-48 overflow-y-auto space-y-2">
+                  {rawChannels.map(source => (
+                    <div key={source} className="flex items-center gap-2">
+                      <span className="text-sm min-w-[180px] truncate">{source}</span>
+                      <Select 
+                        value={channelMapping[source] || "keep"} 
+                        onValueChange={v => setChannelMapping(m => ({ ...m, [source]: v === "keep" ? "" : v }))}
+                      >
+                        <SelectTrigger className="flex-1">
+                          <SelectValue placeholder="Manter original..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="keep">— Manter original —</SelectItem>
+                          {availableChannels.map(ch => (
+                            <SelectItem key={ch} value={ch}>{ch}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-[10px] text-muted-foreground">Isso garante que canais diferentes na planilha sejam unificados no sistema.</p>
               </div>
             )}
 

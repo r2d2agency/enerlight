@@ -143,7 +143,15 @@ async function saveCompanyContacts(companyId, organizationId, userId, contacts) 
     );
   }
 }
-
+    // Save channel mappings
+    for (const [source, target] of Object.entries(channelMapping || {})) {
+      if (!target) continue;
+      await query(
+        `INSERT INTO crm_goals_channel_mapping (organization_id, source_channel, target_channel)
+         VALUES ($1, $2, $3) ON CONFLICT (organization_id, source_channel) DO UPDATE SET target_channel = $3`,
+        [org.organization_id, source, target]
+      );
+    }
 
 // we create/reuse a single default company per organization.
 async function ensureDefaultCompanyId(organizationId, createdByUserId) {
@@ -6762,6 +6770,14 @@ async function ensureGoalsSellerMapping() {
       user_id UUID NOT NULL REFERENCES users(id),
       UNIQUE(organization_id, seller_name)
     )`);
+    // Add channel_mapping table
+    await query(`CREATE TABLE IF NOT EXISTS crm_goals_channel_mapping (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      source_channel VARCHAR(255) NOT NULL,
+      target_channel VARCHAR(255) NOT NULL,
+      UNIQUE(organization_id, source_channel)
+    )`);
   } catch (_) {}
 }
 
@@ -6831,14 +6847,23 @@ router.post('/goals/import/preview', async (req, res) => {
        WHERE om.organization_id = $1 ORDER BY u.name`, [org.organization_id]
     );
 
-    // Extract unique sellers
+    // Extract unique sellers and channels
     const sellers = [...new Set(rawRows.map(r => r.seller_name).filter(Boolean))];
+    const rawChannels = [...new Set(rawRows.map(r => r.channel).filter(Boolean))];
+
+    // Get existing channel mappings
+    const channelMappings = await query(
+      `SELECT source_channel, target_channel FROM crm_goals_channel_mapping WHERE organization_id = $1`,
+      [org.organization_id]
+    );
 
     res.json({
       rowCount: rawRows.length,
       totalValue: rawRows.reduce((s, r) => s + (r.value || 0), 0),
       sellers,
+      rawChannels,
       existingMappings: mappingsResult.rows,
+      existingChannelMappings: channelMappings.rows,
       orgUsers: usersResult.rows,
       dataType,
     });
@@ -6855,7 +6880,7 @@ router.post('/goals/import', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
-    const { rows, sellerMapping, dataType } = req.body;
+    const { rows, sellerMapping, channelMapping, dataType } = req.body;
     const batchId = crypto.randomUUID();
     let imported = 0, skipped = 0;
 
@@ -6869,15 +6894,26 @@ router.post('/goals/import', async (req, res) => {
       );
     }
 
+    // Save channel mappings
+    for (const [source, target] of Object.entries(channelMapping || {})) {
+      if (!target) continue;
+      await query(
+        `INSERT INTO crm_goals_channel_mapping (organization_id, source_channel, target_channel)
+         VALUES ($1, $2, $3) ON CONFLICT (organization_id, source_channel) DO UPDATE SET target_channel = $3`,
+        [org.organization_id, source, target]
+      );
+    }
+
     for (const row of rows) {
       try {
         const userId = sellerMapping?.[row.seller_name] || null;
+        const channel = channelMapping?.[row.channel] || row.channel || null;
         await query(
           `INSERT INTO crm_goals_data 
            (organization_id, data_type, number, status, client_name, value, seller_name, user_id, channel, client_group, state, city, emission_date, delivery_date, billing_date, margin, observation, order_number, batch_id)
            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
           [org.organization_id, dataType, row.number, row.status, row.client_name, row.value || 0,
-           row.seller_name, userId, row.channel, row.client_group, row.state, row.city,
+           row.seller_name, userId, channel, row.client_group, row.state, row.city,
            row.emission_date, row.delivery_date, row.billing_date, row.margin, row.observation, row.order_number, batchId]
         );
         imported++;
