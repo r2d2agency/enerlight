@@ -205,7 +205,8 @@ router.patch('/price-lists/:id/items/:productCode', async (req, res) => {
 // Bulk upsert price list items (from XLSX)
 router.post('/price-lists/:id/items/bulk', async (req, res) => {
   try {
-    const ctx = await getUserContext(req.user.id);
+    const ctx = await getUserContext(req.userId);
+
     if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
     const { items } = req.body; // items: { product_code, product_name, description, sale_price, cost_price, unit, image_url }
     
