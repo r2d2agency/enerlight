@@ -1188,6 +1188,9 @@ export default function Admin() {
                         {plan.has_document_signatures && (
                           <Badge variant="secondary" className="text-xs">Assinaturas</Badge>
                         )}
+                        {plan.has_online_quotes && (
+                          <Badge variant="secondary" className="text-xs">Orçamentos</Badge>
+                        )}
                       </div>
                       <div className="flex items-center justify-between pt-2 border-t">
                         <span className="text-sm text-muted-foreground">
