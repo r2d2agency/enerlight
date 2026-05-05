@@ -245,6 +245,11 @@ export default function OnlineQuotes() {
           open={isNewQuoteOpen} 
           onOpenChange={setIsNewQuoteOpen} 
         />
+
+        <PriceListItemsDialog 
+          priceList={selectedPriceList} 
+          onOpenChange={(open) => !open && setSelectedPriceList(null)} 
+        />
       </div>
     </MainLayout>
   );
