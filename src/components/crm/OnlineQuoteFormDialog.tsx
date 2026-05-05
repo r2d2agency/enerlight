@@ -173,14 +173,25 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, onSuccess }: Props) 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-[400px]">
                 {/* Seleção de Produtos */}
                 <div className="border rounded-lg flex flex-col overflow-hidden">
-                  <div className="p-2 bg-muted flex items-center gap-2">
-                    <Search className="h-4 w-4 text-muted-foreground" />
-                    <Input 
-                      placeholder="Buscar produto..." 
-                      className="h-8 bg-background"
-                      value={productSearch}
-                      onChange={e => setProductSearch(e.target.value)}
-                    />
+                  <div className="p-2 bg-muted flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 flex-1">
+                      <Search className="h-4 w-4 text-muted-foreground" />
+                      <Input 
+                        placeholder="Buscar produto..." 
+                        className="h-8 bg-background"
+                        value={productSearch}
+                        onChange={e => setProductSearch(e.target.value)}
+                      />
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className={cn("h-8 w-8 p-0", showThumbnails && "text-primary bg-primary/10")}
+                      onClick={() => setShowThumbnails(!showThumbnails)}
+                      title="Mostrar fotos"
+                    >
+                      <ImageIcon className="h-4 w-4" />
+                    </Button>
                   </div>
                   <div className="flex-1 overflow-y-auto">
                     {loadingItems ? (
@@ -192,9 +203,31 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, onSuccess }: Props) 
                         {filteredProducts?.map(product => (
                           <div 
                             key={product.id}
-                            className="flex items-center justify-between p-2 rounded hover:bg-muted cursor-pointer group"
+                            className="flex items-center gap-3 p-2 rounded hover:bg-muted cursor-pointer group"
                             onClick={() => handleAddItem(product)}
                           >
+                            {showThumbnails && (
+                              <div 
+                                className="h-12 w-12 rounded border bg-white flex-shrink-0 overflow-hidden relative group/thumb"
+                                onClick={(e) => {
+                                  if (product.image_url) {
+                                    e.stopPropagation();
+                                    setPreviewImage(product.image_url);
+                                  }
+                                }}
+                              >
+                                {product.image_url ? (
+                                  <>
+                                    <img src={product.image_url} alt={product.product_name} className="h-full w-full object-cover" />
+                                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/thumb:opacity-100 transition-opacity">
+                                      <Eye className="h-4 w-4 text-white" />
+                                    </div>
+                                  </>
+                                ) : (
+                                  <ImageIcon className="h-6 w-6 text-muted-foreground/30 m-auto" />
+                                )}
+                              </div>
+                            )}
                             <div className="min-w-0 flex-1">
                               <p className="text-sm font-medium truncate">{product.product_name}</p>
                               <p className="text-[10px] text-muted-foreground">{product.product_code} • {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.sale_price)}</p>
