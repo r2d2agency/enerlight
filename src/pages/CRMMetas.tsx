@@ -1010,7 +1010,7 @@ export default function CRMMetas() {
                 <p className="text-sm mt-1">Crie metas de Orçamentos, Pedidos e Faturamento para a equipe.</p>
               </CardContent></Card>
             ) : (
-              <>
+              <div className="space-y-8">
                 {[
                   { key: "orcamento", label: "Metas de Orçamento", icon: <FileText className="h-5 w-5 text-blue-500" />, borderClass: "border-l-blue-500" },
                   { key: "pedido", label: "Metas de Pedido", icon: <ShoppingCart className="h-5 w-5 text-green-500" />, borderClass: "border-l-green-500" },
@@ -1022,8 +1022,13 @@ export default function CRMMetas() {
                     return m ? m.group === cat.key : cat.key === "outros";
                   });
                   if (catGoals.length === 0) return null;
+                  
                   const geralGoals = catGoals.filter(g => !(g as any).target_channel);
                   const channelGoals = catGoals.filter(g => !!(g as any).target_channel);
+                  
+                  // Sort general goals alphabetically
+                  geralGoals.sort((a, b) => a.name.localeCompare(b.name));
+
                   // Group channel goals by channel name
                   const channelMap: Record<string, Goal[]> = {};
                   channelGoals.forEach(g => {
