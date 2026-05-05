@@ -4939,3 +4939,64 @@ const migrationSteps = [
   { name: 'Online Quotes Module', sql: step63OnlineQuotes, critical: false },
 ];
 // Padding
+
+export async function initDatabase() {
+  console.log('Initializing database in steps...');
+  let successCount = 0;
+  let failedSteps = [];
+  let criticalFailure = false;
+  for (const step of migrationSteps) {
+    try {
+      console.log('  -- Step: ' + step.name + '...');
+      await pool.query(step.sql);
+      console.log('  OK ' + step.name + ' - OK');
+      successCount++;
+    } catch (error) {
+      console.error('  ERR ' + step.name + ' - FAILED: ' + error.message);
+      failedSteps.push({ name: step.name, error: error.message });
+      if (step.critical) {
+        criticalFailure = true;
+        console.error('  Critical step failed, stopping initialization');
+        break;
+      }
+    }
+  }
+  console.log('');
+  console.log('Database initialization summary:');
+  console.log('   - Steps completed: ' + successCount + '/' + migrationSteps.length);
+  if (failedSteps.length > 0) {
+    console.log('   - Failed steps: ' + failedSteps.map(s => s.name).join(', '));
+  }
+  if (criticalFailure) {
+    console.error('Database initialization failed (critical step error)');
+    return false;
+  }
+  if (failedSteps.length === 0) {
+    console.log('Database initialized successfully!');
+  } else {
+    console.log('Database initialized with warnings');
+  }
+  try {
+    const orphans = await pool.query(
+      "SELECT u.id, u.name, u.email FROM users u WHERE NOT EXISTS (SELECT 1 FROM organization_members om WHERE om.user_id = u.id)"
+    );
+    for (const user of orphans.rows) {
+      const slug = (user.name || 'org').toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+        + '-' + Date.now().toString(36);
+      const orgRes = await pool.query(
+        "INSERT INTO organizations (name, slug, modules_enabled) VALUES ($1, $2, '{\"campaigns\":true,\"billing\":true,\"groups\":true,\"scheduled_messages\":true,\"chatbots\":true,\"chat\":true,\"crm\":true}'::jsonb) RETURNING id",
+        [user.name || 'Organização', slug]
+      );
+      await pool.query(
+        "INSERT INTO organization_members (organization_id, user_id, role) VALUES ($1, $2, 'owner')",
+        [orgRes.rows[0].id, user.id]
+      );
+      console.log('  Created organization for orphaned user: ' + user.email);
+    }
+  } catch (e) {
+    console.error('  Failed to fix orphaned users: ' + e.message);
+  }
+  return true;
+}
