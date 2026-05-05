@@ -5314,10 +5314,12 @@ async function ensureGoalsTable() {
       is_active BOOLEAN DEFAULT true,
       created_by UUID REFERENCES users(id),
       created_at TIMESTAMPTZ DEFAULT NOW(),
-      updated_at TIMESTAMPTZ DEFAULT NOW()
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      sort_order INTEGER DEFAULT 0
     )`);
-    // Add target_channel column if missing
+    // Add columns if missing
     try { await query(`ALTER TABLE crm_goals ADD COLUMN IF NOT EXISTS target_channel VARCHAR(255)`); } catch(_){}
+    try { await query(`ALTER TABLE crm_goals ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0`); } catch(_){}
   } catch (e) {
     // table likely already exists
   }
@@ -5352,7 +5354,7 @@ router.get('/goals', async (req, res) => {
       )`;
     }
 
-    sql += ` ORDER BY g.created_at DESC`;
+    sql += ` ORDER BY g.sort_order ASC, g.created_at DESC`;
     const result = await query(sql, params);
     res.json(result.rows);
   } catch (error) {
@@ -5368,11 +5370,11 @@ router.post('/goals', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org || !['owner', 'admin'].includes(org.role)) return res.status(403).json({ error: 'Permission denied' });
 
-    const { name, type, target_user_id, target_group_id, target_channel, metric, target_value, period, start_date, end_date } = req.body;
+    const { name, type, target_user_id, target_group_id, target_channel, metric, target_value, period, start_date, end_date, sort_order } = req.body;
     const result = await query(
-      `INSERT INTO crm_goals (organization_id, name, type, target_user_id, target_group_id, target_channel, metric, target_value, period, start_date, end_date, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
-      [org.organization_id, name, type || 'individual', target_user_id || null, target_group_id || null, target_channel || null, metric, target_value, period || 'monthly', start_date || new Date(), end_date || null, req.userId]
+      `INSERT INTO crm_goals (organization_id, name, type, target_user_id, target_group_id, target_channel, metric, target_value, period, start_date, end_date, created_by, sort_order)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
+      [org.organization_id, name, type || 'individual', target_user_id || null, target_group_id || null, target_channel || null, metric, target_value, period || 'monthly', start_date || new Date(), end_date || null, req.userId, sort_order || 0]
     );
     res.json(result.rows[0]);
   } catch (error) {
@@ -5387,11 +5389,11 @@ router.put('/goals/:id', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org || !['owner', 'admin'].includes(org.role)) return res.status(403).json({ error: 'Permission denied' });
 
-    const { name, type, target_user_id, target_group_id, target_channel, metric, target_value, period, start_date, end_date, is_active } = req.body;
+    const { name, type, target_user_id, target_group_id, target_channel, metric, target_value, period, start_date, end_date, is_active, sort_order } = req.body;
     const result = await query(
-      `UPDATE crm_goals SET name=$1, type=$2, target_user_id=$3, target_group_id=$4, target_channel=$5, metric=$6, target_value=$7, period=$8, start_date=$9, end_date=$10, is_active=$11, updated_at=NOW()
-       WHERE id=$12 AND organization_id=$13 RETURNING *`,
-      [name, type, target_user_id || null, target_group_id || null, target_channel || null, metric, target_value, period, start_date, end_date || null, is_active !== false, req.params.id, org.organization_id]
+      `UPDATE crm_goals SET name=$1, type=$2, target_user_id=$3, target_group_id=$4, target_channel=$5, metric=$6, target_value=$7, period=$8, start_date=$9, end_date=$10, is_active=$11, sort_order=$12, updated_at=NOW()
+       WHERE id=$13 AND organization_id=$14 RETURNING *`,
+      [name, type, target_user_id || null, target_group_id || null, target_channel || null, metric, target_value, period, start_date, end_date || null, is_active !== false, sort_order || 0, req.params.id, org.organization_id]
     );
     res.json(result.rows[0]);
   } catch (error) {
@@ -6939,7 +6941,17 @@ router.get('/goals/channels', async (req, res) => {
     if (!org) return res.status(403).json({ error: 'No organization' });
 
     const result = await query(
-      `SELECT DISTINCT COALESCE(channel, 'Sem Canal') as channel FROM crm_goals_data WHERE organization_id = $1 AND channel IS NOT NULL AND channel != '' ORDER BY channel`,
+      `SELECT DISTINCT channel FROM (
+        SELECT COALESCE(NULLIF(TRIM(channel), ''), 'Sem Canal') as channel FROM crm_goals_data WHERE organization_id = $1
+        UNION
+        SELECT 'Canal 1'
+        UNION
+        SELECT 'Canal 2'
+        UNION
+        SELECT 'Canal 3'
+        UNION
+        SELECT 'Canal 4'
+      ) ch WHERE channel IS NOT NULL AND channel != '' ORDER BY channel`,
       [org.organization_id]
     );
     res.json(result.rows.map(r => r.channel));
