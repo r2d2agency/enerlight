@@ -4807,6 +4807,13 @@ CREATE INDEX IF NOT EXISTS idx_online_quotes_org ON online_quotes(organization_i
 CREATE INDEX IF NOT EXISTS idx_online_quotes_user ON online_quotes(user_id);
 `;
 
+const step64OnlineQuotesImages = `
+-- Suporte a imagens no modulo de orcamentos
+ALTER TABLE price_list_items ADD COLUMN IF NOT EXISTS image_url TEXT;
+ALTER TABLE online_quotes ADD COLUMN IF NOT EXISTS include_images BOOLEAN DEFAULT true;
+ALTER TABLE online_quote_items ADD COLUMN IF NOT EXISTS image_url TEXT;
+`;
+
 
 
 
@@ -4878,6 +4885,7 @@ const migrationSteps = [
   { name: 'Licitacao AI Module', sql: step61LicitacaoAI, critical: false },
   { name: 'Surveys Module', sql: step62Surveys, critical: false },
   { name: 'Online Quotes Module', sql: step63OnlineQuotes, critical: false },
+  { name: 'Online Quotes Images', sql: step64OnlineQuotesImages, critical: false },
 ];
 
 export async function initDatabase() {

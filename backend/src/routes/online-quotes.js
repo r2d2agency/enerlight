@@ -95,8 +95,8 @@ router.get('/price-lists/:id/items', async (req, res) => {
     // Cost price is only returned for admins/managers
     const showCost = ctx.role === 'admin' || ctx.role === 'manager';
     const fields = showCost 
-      ? 'id, product_code, product_name, description, sale_price, min_price, cost_price, unit'
-      : 'id, product_code, product_name, description, sale_price, min_price, unit';
+      ? 'id, product_code, product_name, description, sale_price, min_price, cost_price, unit, image_url'
+      : 'id, product_code, product_name, description, sale_price, min_price, unit, image_url';
 
     const result = await query(
       `SELECT ${fields} FROM price_list_items WHERE price_list_id = $1 ORDER BY product_name ASC`,
@@ -109,17 +109,35 @@ router.get('/price-lists/:id/items', async (req, res) => {
   }
 });
 
+// Update a single price list item (e.g. upload image)
+router.patch('/price-lists/:id/items/:productCode', async (req, res) => {
+  try {
+    const ctx = await getUserContext(req.user.id);
+    const { image_url } = req.body;
+    
+    await query(
+      `UPDATE price_list_items SET image_url = $1, updated_at = NOW() 
+       WHERE price_list_id = $2 AND product_code = $3`,
+      [image_url, req.params.id, req.params.productCode]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    logError('online-quotes.price-list-items.patch', err);
+    res.status(500).json({ error: 'Failed to update item' });
+  }
+});
+
 // Bulk upsert price list items (from XLSX)
 router.post('/price-lists/:id/items/bulk', async (req, res) => {
   try {
     const ctx = await getUserContext(req.user.id);
-    const { items } = req.body; // items: { product_code, product_name, description, sale_price, cost_price, unit }
+    const { items } = req.body; // items: { product_code, product_name, description, sale_price, cost_price, unit, image_url }
     
     for (const item of items) {
       await query(
         `INSERT INTO price_list_items 
-         (price_list_id, product_code, product_name, description, sale_price, cost_price, unit, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+         (price_list_id, product_code, product_name, description, sale_price, cost_price, unit, image_url, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
          ON CONFLICT (price_list_id, product_code) 
          DO UPDATE SET 
            product_name = EXCLUDED.product_name,
@@ -127,8 +145,9 @@ router.post('/price-lists/:id/items/bulk', async (req, res) => {
            sale_price = EXCLUDED.sale_price,
            cost_price = EXCLUDED.cost_price,
            unit = EXCLUDED.unit,
+           image_url = EXCLUDED.image_url,
            updated_at = NOW()`,
-        [req.params.id, item.product_code, item.product_name, item.description, item.sale_price, item.cost_price || 0, item.unit || 'un']
+        [req.params.id, item.product_code, item.product_name, item.description, item.sale_price, item.cost_price || 0, item.unit || 'un', item.image_url || null]
       );
     }
     res.json({ success: true, count: items.length });
@@ -144,17 +163,18 @@ router.post('/quotes', async (req, res) => {
     const ctx = await getUserContext(req.user.id);
     const { 
       client_name, client_document, client_email, client_phone, 
-      price_list_id, items, cover_image_url, footer_text, valid_until, notes 
+      price_list_id, items, cover_image_url, footer_text, valid_until, notes,
+      include_images
     } = req.body;
 
     const result = await query(
       `INSERT INTO online_quotes 
        (organization_id, user_id, client_name, client_document, client_email, client_phone, 
-        price_list_id, cover_image_url, footer_text, valid_until, notes)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        price_list_id, cover_image_url, footer_text, valid_until, notes, include_images)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        RETURNING id`,
       [ctx.organizationId, req.user.id, client_name, client_document, client_email, client_phone, 
-       price_list_id, cover_image_url, footer_text, valid_until, notes]
+       price_list_id, cover_image_url, footer_text, valid_until, notes, include_images ?? true]
     );
     
     const quoteId = result.rows[0].id;
@@ -162,19 +182,20 @@ router.post('/quotes', async (req, res) => {
     let totalCost = 0;
 
     for (const item of items) {
-      // Get current cost from price list item for snapshots
+      // Get current cost and image from price list item for snapshots
       const plItem = await query(
-        `SELECT cost_price FROM price_list_items WHERE price_list_id = $1 AND product_code = $2`,
+        `SELECT cost_price, image_url FROM price_list_items WHERE price_list_id = $1 AND product_code = $2`,
         [price_list_id, item.product_code]
       );
       const cost = plItem.rows[0]?.cost_price || 0;
+      const imageUrl = plItem.rows[0]?.image_url || null;
       const subtotal = item.quantity * item.unit_price;
       
       await query(
         `INSERT INTO online_quote_items 
-         (quote_id, product_code, product_name, quantity, unit_price, cost_price, total_price)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [quoteId, item.product_code, item.product_name, item.quantity, item.unit_price, cost, subtotal]
+         (quote_id, product_code, product_name, quantity, unit_price, cost_price, total_price, image_url)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [quoteId, item.product_code, item.product_name, item.quantity, item.unit_price, cost, subtotal, imageUrl]
       );
       
       totalValue += subtotal;

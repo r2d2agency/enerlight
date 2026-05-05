@@ -46,21 +46,54 @@ export const generateQuotePDF = async (quote: any, organization: any) => {
   if (quote.client_phone) doc.text(`WhatsApp: ${quote.client_phone}`, 14, 80);
 
   // 5. Items Table
-  const tableData = quote.items.map((item: any) => [
-    item.product_name,
-    item.quantity,
-    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.unit_price),
-    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.total_price)
-  ]);
+  const includeImages = quote.include_images !== false;
+  
+  const headers = includeImages 
+    ? [['Foto', 'Produto', 'Qtd', 'Unitário', 'Total']]
+    : [['Produto', 'Qtd', 'Unitário', 'Total']];
+
+  const tableData = quote.items.map((item: any) => {
+    const row = [
+      item.product_name,
+      item.quantity,
+      new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.unit_price),
+      new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.total_price)
+    ];
+    
+    if (includeImages) {
+      // Return a dummy value for the first column, we'll draw the image in didDrawCell
+      return ['', ...row];
+    }
+    return row;
+  });
 
   autoTable(doc, {
     startY: 90,
-    head: [['Produto', 'Qtd', 'Unitário', 'Total']],
+    head: headers,
     body: tableData,
     theme: 'striped',
     headStyles: { fillColor: [60, 60, 60] },
+    columnStyles: includeImages ? {
+      0: { cellWidth: 25, minCellHeight: 25 }, // Column for image
+    } : {},
+    didDrawCell: (data) => {
+      if (includeImages && data.section === 'body' && data.column.index === 0) {
+        const item = quote.items[data.row.index];
+        if (item.image_url) {
+          try {
+            // Draw image in the cell
+            const dim = 18; // image dimension
+            const x = data.cell.x + (data.cell.width - dim) / 2;
+            const y = data.cell.y + (data.cell.height - dim) / 2;
+            doc.addImage(item.image_url, 'JPEG', x, y, dim, dim);
+          } catch (e) {
+            console.error("Error adding image to PDF table", e);
+          }
+        }
+      }
+    },
     foot: [[
-      { content: 'TOTAL GERAL', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold' } },
+      { content: 'TOTAL GERAL', colSpan: includeImages ? 4 : 3, styles: { halign: 'right', fontStyle: 'bold' } },
       { content: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(quote.total_value), styles: { fontStyle: 'bold' } }
     ]]
   });

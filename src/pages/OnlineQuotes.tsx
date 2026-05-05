@@ -8,6 +8,7 @@ import { Plus, FileText, List, Settings, ShieldCheck, Loader2, Eye, Download } f
 import { useAuth } from "@/contexts/AuthContext";
 import { usePriceLists, useOnlineQuoteMutations, useOnlineQuotes } from "@/hooks/use-online-quotes";
 import { OnlineQuoteFormDialog } from "@/components/crm/OnlineQuoteFormDialog";
+import { PriceListItemsDialog } from "@/components/crm/PriceListItemsDialog";
 import { Badge } from "@/components/ui/badge";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -18,6 +19,7 @@ import { toast } from "sonner";
 export default function OnlineQuotes() {
   const { user } = useAuth();
   const [isNewQuoteOpen, setIsNewQuoteOpen] = useState(false);
+  const [selectedPriceList, setSelectedPriceList] = useState<{id: string, name: string} | null>(null);
   const isAdmin = ['owner', 'admin', 'manager'].includes(user?.role || '');
 
   const { data: priceLists, isLoading: loadingPriceLists } = usePriceLists();
@@ -169,7 +171,11 @@ export default function OnlineQuotes() {
                 ) : (
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {priceLists?.map(pl => (
-                      <Card key={pl.id} className="hover:border-primary/50 transition-colors cursor-pointer">
+                      <Card 
+                        key={pl.id} 
+                        className="hover:border-primary/50 transition-colors cursor-pointer"
+                        onClick={() => setSelectedPriceList(pl)}
+                      >
                         <CardHeader className="pb-2">
                           <CardTitle className="text-base">{pl.name}</CardTitle>
                         </CardHeader>
@@ -238,6 +244,11 @@ export default function OnlineQuotes() {
         <OnlineQuoteFormDialog 
           open={isNewQuoteOpen} 
           onOpenChange={setIsNewQuoteOpen} 
+        />
+
+        <PriceListItemsDialog 
+          priceList={selectedPriceList} 
+          onOpenChange={(open) => !open && setSelectedPriceList(null)} 
         />
       </div>
     </MainLayout>
