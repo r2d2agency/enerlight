@@ -17,6 +17,7 @@ export interface Goal {
   end_date?: string;
   is_active: boolean;
   created_at: string;
+  sort_order?: number;
 }
 
 export interface GoalProgress {
