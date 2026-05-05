@@ -417,8 +417,7 @@ export function RichEmailEditor({ value, onChange, placeholder, className }: Ric
               textAlign: "left",
               whiteSpace: "normal",
               wordBreak: "break-word",
-              direction: "ltr",
-              unicodeBidi: "isolate"
+              direction: "ltr"
             }}
           />
         </TabsContent>
