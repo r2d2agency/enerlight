@@ -72,12 +72,12 @@ export default function OnlineQuotes() {
 
     const data = {
       id: editingTemplate?.id,
-      name: formData.get('name') || editingTemplate?.name,
-      description: formData.get('description') || editingTemplate?.description,
-      cover_url: editingTemplate?.cover_url,
-      header_text: editingTemplate?.header_text,
-      footer_text: editingTemplate?.footer_text,
-      footer_config: footerConfig,
+      name: (formData.get('name') as string) || editingTemplate?.name,
+      description: (formData.get('description') as string) || editingTemplate?.description,
+      cover_url: editingTemplate?.cover_url || '',
+      header_text: editingTemplate?.header_text || '',
+      footer_text: editingTemplate?.footer_text || '',
+      footer_config: JSON.stringify(footerConfig),
       is_default: formData.get('is_default') === 'on'
     };
 
