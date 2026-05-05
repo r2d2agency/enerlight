@@ -113,13 +113,13 @@ router.get('/price-lists/:id/items', async (req, res) => {
 router.post('/price-lists/:id/items/bulk', async (req, res) => {
   try {
     const ctx = await getUserContext(req.user.id);
-    const { items } = req.body; // items: { product_code, product_name, description, sale_price, cost_price, unit }
+    const { items } = req.body; // items: { product_code, product_name, description, sale_price, cost_price, unit, image_url }
     
     for (const item of items) {
       await query(
         `INSERT INTO price_list_items 
-         (price_list_id, product_code, product_name, description, sale_price, cost_price, unit, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+         (price_list_id, product_code, product_name, description, sale_price, cost_price, unit, image_url, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
          ON CONFLICT (price_list_id, product_code) 
          DO UPDATE SET 
            product_name = EXCLUDED.product_name,
@@ -127,8 +127,9 @@ router.post('/price-lists/:id/items/bulk', async (req, res) => {
            sale_price = EXCLUDED.sale_price,
            cost_price = EXCLUDED.cost_price,
            unit = EXCLUDED.unit,
+           image_url = EXCLUDED.image_url,
            updated_at = NOW()`,
-        [req.params.id, item.product_code, item.product_name, item.description, item.sale_price, item.cost_price || 0, item.unit || 'un']
+        [req.params.id, item.product_code, item.product_name, item.description, item.sale_price, item.cost_price || 0, item.unit || 'un', item.image_url || null]
       );
     }
     res.json({ success: true, count: items.length });
