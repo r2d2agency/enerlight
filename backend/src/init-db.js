@@ -4709,8 +4709,9 @@ CREATE INDEX IF NOT EXISTS idx_surveys_org ON surveys(organization_id);
 CREATE INDEX IF NOT EXISTS idx_surveys_slug ON surveys(share_slug);
 CREATE INDEX IF NOT EXISTS idx_survey_fields_survey ON survey_fields(survey_id, sort_order);
 CREATE INDEX IF NOT EXISTS idx_survey_responses_survey ON survey_responses(survey_id, submitted_at DESC);
+\`;
 
-const step63OnlineQuotes = `
+const step63OnlineQuotes = \`
 -- Modulo de Orcamentos Online
 
 -- Tabelas de Preços (Price Lists)
