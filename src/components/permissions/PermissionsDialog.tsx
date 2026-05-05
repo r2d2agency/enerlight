@@ -51,6 +51,7 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
       { key: 'can_view_revenue_intel', label: 'Revenue Intel', description: 'Inteligência de receita' },
       { key: 'can_view_ghost', label: 'Modo Fantasma', description: 'Auditoria e análise' },
       { key: 'can_view_crm_settings', label: 'Config. CRM', description: 'Configurações do CRM' },
+      { key: 'can_view_online_quotes', label: 'Orçamentos Online', description: 'Módulo de orçamentos online' },
     ],
   },
   {
