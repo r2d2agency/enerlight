@@ -19,6 +19,7 @@ export interface PriceListItem {
   min_price?: number;
   cost_price?: number; // Restricted to admins/managers
   unit: string;
+  image_url?: string;
 }
 
 export interface OnlineQuote {
@@ -26,6 +27,7 @@ export interface OnlineQuote {
   client_name: string;
   total_value: number;
   status: 'draft' | 'sent' | 'approved' | 'rejected';
+  include_images?: boolean;
   created_at: string;
 }
 
