@@ -422,12 +422,14 @@ export default function OnlineQuotes() {
                         <p className="text-xs text-muted-foreground">Insira uma URL para visualizar a capa</p>
                       </div>
                     )}
-                    <div className="absolute top-0 left-0 w-full p-2 bg-white/80 backdrop-blur-sm border-b text-[8px] truncate">
-                      {editingTemplate?.header_text || "Cabeçalho do Modelo"}
-                    </div>
-                    <div className="absolute bottom-0 left-0 w-full p-2 bg-white/80 backdrop-blur-sm border-t text-[8px] truncate">
-                      {editingTemplate?.footer_text || "Rodapé do Modelo"}
-                    </div>
+                    <div 
+                      className="absolute top-0 left-0 w-full p-2 bg-white/80 backdrop-blur-sm border-b text-[8px] overflow-hidden max-h-[20%] text-left"
+                      dangerouslySetInnerHTML={{ __html: editingTemplate?.header_text || "Cabeçalho do Modelo" }}
+                    />
+                    <div 
+                      className="absolute bottom-0 left-0 w-full p-2 bg-white/80 backdrop-blur-sm border-t text-[8px] overflow-hidden max-h-[20%] text-left"
+                      dangerouslySetInnerHTML={{ __html: editingTemplate?.footer_text || "Rodapé do Modelo" }}
+                    />
                   </div>
                 </div>
               </div>
