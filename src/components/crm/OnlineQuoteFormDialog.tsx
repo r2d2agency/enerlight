@@ -30,6 +30,9 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, onSuccess }: Props) 
   const [selectedPriceListId, setSelectedPriceListId] = useState<string>("");
   const [quoteItems, setQuoteItems] = useState<any[]>([]);
   const [productSearch, setProductSearch] = useState("");
+  const [showThumbnails, setShowThumbnails] = useState(true);
+  const [includeImagesInQuote, setIncludeImagesInQuote] = useState(true);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   const { data: priceLists } = usePriceLists();
   const { data: availableItems, isLoading: loadingItems } = usePriceListItems(selectedPriceListId);
