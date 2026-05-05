@@ -287,9 +287,24 @@ export default function OnlineQuotes() {
                     Gerencie os modelos de folha de rosto disponíveis para os vendedores.
                   </CardDescription>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => { setEditingTemplate(null); setIsTemplateDialogOpen(true); }}>
+                <Button variant="outline" size="sm" onClick={() => { 
+                  setEditingTemplate({
+                    name: "",
+                    description: "",
+                    cover_url: "",
+                    header_text: "",
+                    footer_config: {
+                      left: { type: 'text', content: '' },
+                      center: { type: 'logo', content: '' },
+                      right: { type: 'social', content: '' },
+                      social: { website: '', instagram: '', linkedin: '', phone: '', email: '' }
+                    }
+                  }); 
+                  setIsTemplateDialogOpen(true); 
+                }}>
                   <Plus className="mr-2 h-4 w-4" /> Novo Modelo
                 </Button>
+
               </CardHeader>
               <CardContent>
                 {loadingTemplates ? (
