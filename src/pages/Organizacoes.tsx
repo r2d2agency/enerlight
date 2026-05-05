@@ -262,6 +262,7 @@ export default function Organizacoes() {
         licitacao: modules.licitacao ?? false,
         logistics: modules.logistics ?? false,
         online_quotes: modules.online_quotes ?? true,
+        campaigns: modules.campaigns ?? true,
       });
     } catch (error) {
       console.error('Error loading modules:', error);
