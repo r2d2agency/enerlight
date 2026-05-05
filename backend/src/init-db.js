@@ -4711,7 +4711,7 @@ CREATE INDEX IF NOT EXISTS idx_survey_fields_survey ON survey_fields(survey_id, 
 CREATE INDEX IF NOT EXISTS idx_survey_responses_survey ON survey_responses(survey_id, submitted_at DESC);
 
 const step63OnlineQuotes = `
--- Módulo de Orçamentos Online
+-- Modulo de Orcamentos Online
 
 -- Tabelas de Preços (Price Lists)
 CREATE TABLE IF NOT EXISTS price_lists (
