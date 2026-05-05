@@ -328,7 +328,8 @@ router.get('/quotes', async (req, res) => {
 // Get a single quote with items
 router.get('/quotes/:id', async (req, res) => {
   try {
-    const ctx = await getUserContext(req.user.id);
+    const ctx = await getUserContext(req.userId);
+
     if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
     const quote = await query(
       `SELECT q.*, t.cover_url as template_cover, t.header_text as template_header, t.footer_text as template_footer, t.footer_config as template_footer_config
