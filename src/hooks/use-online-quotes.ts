@@ -44,6 +44,13 @@ export function usePriceListItems(priceListId: string | null) {
   });
 }
 
+export function useOnlineQuotes() {
+  return useQuery({
+    queryKey: ["online-quotes"],
+    queryFn: () => api<OnlineQuote[]>("/api/online-quotes/quotes"),
+  });
+}
+
 export function useOnlineQuoteMutations() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
