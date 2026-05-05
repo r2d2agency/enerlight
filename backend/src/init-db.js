@@ -4808,6 +4808,11 @@ CREATE INDEX IF NOT EXISTS idx_online_quotes_user ON online_quotes(user_id);
 \`;
 
 
+
+
+
+
+
 const migrationSteps = [
   { name: 'Enums', sql: step1Enums, critical: true },
   { name: 'Core Tables (users, plans)', sql: step2CoreTables, critical: true },
@@ -4876,57 +4881,44 @@ const migrationSteps = [
 ];
 
 export async function initDatabase() {
-  console.log('🔄 Initializing database in steps...');
-  
+  console.log('Initializing database in steps...');
   let successCount = 0;
   let failedSteps = [];
   let criticalFailure = false;
-
   for (const step of migrationSteps) {
     try {
-      console.log(`  → Step: ${step.name}...`);
+      console.log('  -- Step: ' + step.name + '...');
       await pool.query(step.sql);
-      console.log(`  ✅ ${step.name} - OK`);
+      console.log('  OK ' + step.name + ' - OK');
       successCount++;
     } catch (error) {
-      console.error(`  ❌ ${step.name} - FAILED: ${error.message}`);
+      console.error('  ERR ' + step.name + ' - FAILED: ' + error.message);
       failedSteps.push({ name: step.name, error: error.message });
-      
       if (step.critical) {
         criticalFailure = true;
-        console.error(`  🛑 Critical step failed, stopping initialization`);
+        console.error('  Critical step failed, stopping initialization');
         break;
       }
-      // Non-critical steps: continue to next step
     }
   }
-
   console.log('');
-  console.log('📊 Database initialization summary:');
-  console.log(`   - Steps completed: ${successCount}/${migrationSteps.length}`);
-  
+  console.log('Database initialization summary:');
+  console.log('   - Steps completed: ' + successCount + '/' + migrationSteps.length);
   if (failedSteps.length > 0) {
-    console.log(`   - Failed steps: ${failedSteps.map(s => s.name).join(', ')}`);
+    console.log('   - Failed steps: ' + failedSteps.map(s => s.name).join(', '));
   }
-  
   if (criticalFailure) {
-    console.error('❌ Database initialization failed (critical step error)');
+    console.error('Database initialization failed (critical step error)');
     return false;
   }
-  
   if (failedSteps.length === 0) {
-    console.log('✅ Database initialized successfully!');
+    console.log('Database initialized successfully!');
   } else {
-    console.log('⚠️ Database initialized with warnings (some non-critical steps failed)');
+    console.log('Database initialized with warnings');
   }
-
-  // Ensure all users have an organization (fix orphaned users)
   try {
     const orphans = await pool.query(
-      `SELECT u.id, u.name, u.email FROM users u
-       WHERE NOT EXISTS (
-         SELECT 1 FROM organization_members om WHERE om.user_id = u.id
-       )`
+      "SELECT u.id, u.name, u.email FROM users u WHERE NOT EXISTS (SELECT 1 FROM organization_members om WHERE om.user_id = u.id)"
     );
     for (const user of orphans.rows) {
       const slug = (user.name || 'org').toLowerCase()
@@ -4934,20 +4926,17 @@ export async function initDatabase() {
         .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
         + '-' + Date.now().toString(36);
       const orgRes = await pool.query(
-        `INSERT INTO organizations (name, slug, modules_enabled)
-         VALUES ($1, $2, '{"campaigns":true,"billing":true,"groups":true,"scheduled_messages":true,"chatbots":true,"chat":true,"crm":true}'::jsonb)
-         RETURNING id`,
+        "INSERT INTO organizations (name, slug, modules_enabled) VALUES ($1, $2, '{\"campaigns\":true,\"billing\":true,\"groups\":true,\"scheduled_messages\":true,\"chatbots\":true,\"chat\":true,\"crm\":true}'::jsonb) RETURNING id",
         [user.name || 'Organização', slug]
       );
       await pool.query(
-        `INSERT INTO organization_members (organization_id, user_id, role) VALUES ($1, $2, 'owner')`,
+        "INSERT INTO organization_members (organization_id, user_id, role) VALUES ($1, $2, 'owner')",
         [orgRes.rows[0].id, user.id]
       );
-      console.log(`  🏢 Created organization for orphaned user: ${user.email}`);
+      console.log('  Created organization for orphaned user: ' + user.email);
     }
   } catch (e) {
-    console.error('  ⚠️ Failed to fix orphaned users:', e.message);
+    console.error('  Failed to fix orphaned users: ' + e.message);
   }
-  
   return true;
 }
