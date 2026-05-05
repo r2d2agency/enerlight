@@ -254,7 +254,8 @@ router.post('/quotes', async (req, res) => {
         price_list_id, template_id, cover_image_url, footer_text, footer_config, valid_until, notes, include_images)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
        RETURNING id`,
-      [ctx.organizationId, req.user.id, client_name, client_document, client_email, client_phone, 
+      [ctx.organizationId, req.userId, client_name, client_document, client_email, client_phone, 
+
        price_list_id, template_id || null, cover_image_url, footer_text, fConfig, valid_until, notes, include_images ?? true]
     );
 
