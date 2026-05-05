@@ -237,7 +237,8 @@ router.post('/price-lists/:id/items/bulk', async (req, res) => {
 // Create a new quote
 router.post('/quotes', async (req, res) => {
   try {
-    const ctx = await getUserContext(req.user.id);
+    const ctx = await getUserContext(req.userId);
+
     if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
     const { 
       client_name, client_document, client_email, client_phone, 
