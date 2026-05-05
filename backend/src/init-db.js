@@ -4885,6 +4885,7 @@ const migrationSteps = [
   { name: 'Licitacao AI Module', sql: step61LicitacaoAI, critical: false },
   { name: 'Surveys Module', sql: step62Surveys, critical: false },
   { name: 'Online Quotes Module', sql: step63OnlineQuotes, critical: false },
+  { name: 'Online Quotes Images', sql: step64OnlineQuotesImages, critical: false },
 ];
 
 export async function initDatabase() {
