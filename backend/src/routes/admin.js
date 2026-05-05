@@ -5,10 +5,11 @@ import bcrypt from 'bcryptjs';
 
 const router = Router();
 
-// Ensure has_projects column exists on plans table
+// Ensure columns exist on plans table
 (async () => {
   try {
     await query(`ALTER TABLE plans ADD COLUMN IF NOT EXISTS has_projects BOOLEAN DEFAULT false`);
+    await query(`ALTER TABLE plans ADD COLUMN IF NOT EXISTS has_online_quotes BOOLEAN DEFAULT true`);
   } catch (_) {}
 })();
 
@@ -337,6 +338,7 @@ router.post('/plans', requireSuperadmin, async (req, res) => {
       has_licitacao: [req.body.has_licitacao || false, null],
       has_logistics: [req.body.has_logistics || false, null],
       has_document_signatures: [req.body.has_document_signatures || false, null],
+      has_online_quotes: [req.body.has_online_quotes !== false, null],
       price: [req.body.price || 0, null],
       billing_period: [req.body.billing_period || 'monthly', null],
       visible_on_signup: [req.body.visible_on_signup || false, null],
@@ -388,7 +390,7 @@ router.patch('/plans/:id', requireSuperadmin, async (req, res) => {
       'has_crm', 'has_ai_agents', 'has_departments', 'has_lead_scoring',
       'has_ai_summary', 'has_group_secretary', 'has_ghost', 'has_projects',
       'has_internal_chat', 'has_homologation', 'has_tasks', 'has_lead_gleego',
-      'has_captador', 'has_licitacao', 'has_logistics', 'has_document_signatures', 'price', 'billing_period', 'is_active',
+      'has_captador', 'has_licitacao', 'has_logistics', 'has_document_signatures', 'has_online_quotes', 'price', 'billing_period', 'is_active',
       'visible_on_signup', 'trial_days'
     ];
 
@@ -459,6 +461,7 @@ router.post('/plans/sync-all', requireSuperadmin, async (req, res) => {
         licitacao: plan.has_licitacao ?? false,
         logistics: plan.has_logistics ?? false,
         document_signatures: plan.has_document_signatures ?? false,
+        online_quotes: plan.has_online_quotes ?? true,
       };
 
       console.log(`[sync-all] Plan "${plan.name}" (${plan.id}) modules:`, modulesEnabled);

@@ -18,7 +18,7 @@ import { useSuperadmin } from '@/hooks/use-superadmin';
 import { useCRMGroups, useCRMGroupMembers, useCRMGroupMutations, useCRMFunnels, useCRMGroupFunnels, useCRMGroupFunnelMutations } from '@/hooks/use-crm';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
-import { Building2, Plus, Users, Trash2, UserPlus, Crown, Shield, User, Briefcase, Loader2, Pencil, Link2, Settings, KeyRound, Megaphone, Receipt, UsersRound, CalendarClock, Bot, Layers, MessagesSquare, Upload, Image, ShieldCheck, GitBranch, Edit, ClipboardList, UserX, UserCheck, Gavel } from 'lucide-react';
+import { Building2, Plus, Users, Trash2, UserPlus, Crown, Shield, User, Briefcase, Loader2, Pencil, Link2, Settings, KeyRound, Megaphone, Receipt, UsersRound, CalendarClock, Bot, Layers, MessagesSquare, Upload, Image, ShieldCheck, GitBranch, Edit, ClipboardList, UserX, UserCheck, Gavel, FileText } from 'lucide-react';
 import { PermissionsDialog } from '@/components/permissions/PermissionsDialog';
 import { PermissionTemplatesTab } from '@/components/admin/PermissionTemplatesTab';
 import { useUpload } from '@/hooks/use-upload';
@@ -151,6 +151,7 @@ export default function Organizacoes() {
     captador: false,
     licitacao: false,
     logistics: false,
+    online_quotes: true,
   });
   const [savingModules, setSavingModules] = useState(false);
 
@@ -260,6 +261,7 @@ export default function Organizacoes() {
         captador: modules.captador ?? false,
         licitacao: modules.licitacao ?? false,
         logistics: modules.logistics ?? false,
+        online_quotes: modules.online_quotes ?? true,
       });
     } catch (error) {
       console.error('Error loading modules:', error);
@@ -1394,6 +1396,26 @@ export default function Organizacoes() {
                           <Switch
                             checked={modulesEnabled.projects}
                             onCheckedChange={(checked) => setModulesEnabled(prev => ({ ...prev, projects: checked }))}
+                            disabled={!canManageOrg}
+                          />
+                        </div>
+
+                        {/* Online Quotes Module */}
+                        <div className="flex items-center justify-between rounded-lg border p-4">
+                          <div className="flex items-center gap-4">
+                            <div className="h-10 w-10 rounded-lg bg-pink-500/10 flex items-center justify-center">
+                              <FileText className="h-5 w-5 text-pink-500" />
+                            </div>
+                            <div>
+                              <p className="font-medium">Orçamentos Online</p>
+                              <p className="text-sm text-muted-foreground">
+                                Gestão de tabelas de preços e geração de orçamentos em PDF
+                              </p>
+                            </div>
+                          </div>
+                          <Switch
+                            checked={modulesEnabled.online_quotes}
+                            onCheckedChange={(checked) => setModulesEnabled(prev => ({ ...prev, online_quotes: checked }))}
                             disabled={!canManageOrg}
                           />
                         </div>

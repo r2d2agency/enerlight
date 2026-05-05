@@ -22,7 +22,7 @@ import { BrandingTab } from '@/components/admin/BrandingTab';
 import { PermissionTemplatesTab } from '@/components/admin/PermissionTemplatesTab';
 import { IntegrationsTab } from '@/components/admin/IntegrationsTab';
 import { toast } from 'sonner';
-import { Shield, Building2, Users, Plus, Trash2, Loader2, Pencil, Crown, Image, Package, CalendarIcon, UserPlus, Eye, MessageSquare, Receipt, Wifi, Upload, Palette, Bot, Clock, Briefcase, Search, AlertTriangle, Mail, Sparkles } from 'lucide-react';
+import { Shield, Building2, Users, Plus, Trash2, Loader2, Pencil, Crown, Image, Package, CalendarIcon, UserPlus, Eye, MessageSquare, Receipt, Wifi, Upload, Palette, Bot, Clock, Briefcase, Search, AlertTriangle, Mail, Sparkles, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -74,6 +74,7 @@ interface Plan {
   has_licitacao: boolean;
   has_logistics: boolean;
   has_document_signatures: boolean;
+  has_online_quotes: boolean;
   price: number;
   billing_period: string;
   is_active: boolean;
@@ -170,6 +171,7 @@ export default function Admin() {
   const [newPlanLeadGleego, setNewPlanLeadGleego] = useState(false);
   const [newPlanCaptador, setNewPlanCaptador] = useState(false);
   const [newPlanDocSignatures, setNewPlanDocSignatures] = useState(false);
+  const [newPlanOnlineQuotes, setNewPlanOnlineQuotes] = useState(true);
   const [newPlanPeriod, setNewPlanPeriod] = useState('monthly');
   const [newPlanVisibleOnSignup, setNewPlanVisibleOnSignup] = useState(false);
   const [newPlanTrialDays, setNewPlanTrialDays] = useState('3');
@@ -337,6 +339,7 @@ export default function Admin() {
       has_licitacao: false,
       has_logistics: false,
       has_document_signatures: newPlanDocSignatures,
+      has_online_quotes: newPlanOnlineQuotes,
       price: parseFloat(newPlanPrice) || 0,
       billing_period: newPlanPeriod,
       visible_on_signup: newPlanVisibleOnSignup,
@@ -1010,6 +1013,16 @@ export default function Admin() {
                           onCheckedChange={setNewPlanLeadGleego}
                         />
                       </div>
+                      <div className="flex items-center justify-between rounded-lg border p-3">
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="online-quotes-switch">Orçamentos Online</Label>
+                        </div>
+                        <Switch
+                          id="online-quotes-switch"
+                          checked={newPlanOnlineQuotes}
+                          onCheckedChange={setNewPlanOnlineQuotes}
+                        />
+                      </div>
                     </div>
                     <div className="border-t pt-4 space-y-4">
                       <div className="flex items-center justify-between rounded-lg border border-primary/30 bg-primary/5 p-3">
@@ -1107,6 +1120,10 @@ export default function Admin() {
                           <Crown className="h-4 w-4 text-muted-foreground" />
                           <span>{plan.max_supervisors} supervisores</span>
                         </div>
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-muted-foreground" />
+                          <span>Orçamentos {plan.has_online_quotes ? 'SIM' : 'NÃO'}</span>
+                        </div>
                       </div>
                       <div className="flex flex-wrap gap-1">
                         {plan.has_chat && (
@@ -1174,6 +1191,9 @@ export default function Admin() {
                         )}
                         {plan.has_document_signatures && (
                           <Badge variant="secondary" className="text-xs">Assinaturas</Badge>
+                        )}
+                        {plan.has_online_quotes && (
+                          <Badge variant="secondary" className="text-xs">Orçamentos</Badge>
                         )}
                       </div>
                       <div className="flex items-center justify-between pt-2 border-t">
@@ -2087,6 +2107,14 @@ export default function Admin() {
                     id="edit-doc-signatures"
                     checked={editingPlan?.has_document_signatures || false}
                     onCheckedChange={(v) => setEditingPlan({ ...editingPlan!, has_document_signatures: v })}
+                  />
+                </div>
+                <div className="flex items-center justify-between rounded-lg border p-3">
+                  <Label htmlFor="edit-online-quotes">Orçamentos Online</Label>
+                  <Switch
+                    id="edit-online-quotes"
+                    checked={editingPlan?.has_online_quotes || false}
+                    onCheckedChange={(v) => setEditingPlan({ ...editingPlan!, has_online_quotes: v })}
                   />
                 </div>
                 <div className="flex items-center justify-between rounded-lg border p-3">
