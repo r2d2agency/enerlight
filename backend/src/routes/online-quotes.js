@@ -357,7 +357,8 @@ router.get('/quotes/:id', async (req, res) => {
 // Create organization company from quote data
 router.post('/companies/create-from-quote', async (req, res) => {
   try {
-    const ctx = await getUserContext(req.user.id);
+    const ctx = await getUserContext(req.userId);
+
     if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
 
     const { name, document, email, phone } = req.body;
