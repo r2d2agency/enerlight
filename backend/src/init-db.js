@@ -4818,7 +4818,7 @@ export async function initDatabase() {
 
   for (const step of migrationSteps) {
     try {
-      console.log(`  -> Step: ${step.name}...`);
+      console.log('  -- Step: ' + step.name + '...' );
       await pool.query(step.sql);
       console.log(`  OK ${step.name} - OK`);
       successCount++;
@@ -4961,7 +4961,7 @@ export async function initDatabase() {
 
   for (const step of migrationSteps) {
     try {
-      console.log(`  -> Step: ${step.name}...`);
+      console.log('  -- Step: ' + step.name + '...' );
       await pool.query(step.sql);
       console.log(`  OK ${step.name} - OK`);
       successCount++;
