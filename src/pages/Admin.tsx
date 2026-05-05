@@ -339,6 +339,7 @@ export default function Admin() {
       has_licitacao: false,
       has_logistics: false,
       has_document_signatures: newPlanDocSignatures,
+      has_online_quotes: newPlanOnlineQuotes,
       price: parseFloat(newPlanPrice) || 0,
       billing_period: newPlanPeriod,
       visible_on_signup: newPlanVisibleOnSignup,
