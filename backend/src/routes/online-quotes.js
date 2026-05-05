@@ -147,4 +147,27 @@ router.post('/quotes', async (req, res) => {
   }
 });
 
+// Get all quotes for the organization
+router.get('/quotes', async (req, res) => {
+  try {
+    const ctx = await getUserContext(req.user.id);
+    
+    let sql = `SELECT * FROM online_quotes WHERE organization_id = $1`;
+    const params = [ctx.organizationId];
+    
+    if (ctx.role !== 'admin' && ctx.role !== 'manager') {
+      sql += ` AND user_id = $2`;
+      params.push(req.user.id);
+    }
+    
+    sql += ` ORDER BY created_at DESC`;
+    
+    const result = await query(sql, params);
+    res.json(result.rows);
+  } catch (err) {
+    logError('online-quotes.quotes.get', err);
+    res.status(500).json({ error: 'Failed to fetch quotes' });
+  }
+});
+
 export default router;
