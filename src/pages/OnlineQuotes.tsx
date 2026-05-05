@@ -171,7 +171,11 @@ export default function OnlineQuotes() {
                 ) : (
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {priceLists?.map(pl => (
-                      <Card key={pl.id} className="hover:border-primary/50 transition-colors cursor-pointer">
+                      <Card 
+                        key={pl.id} 
+                        className="hover:border-primary/50 transition-colors cursor-pointer"
+                        onClick={() => setSelectedPriceList(pl)}
+                      >
                         <CardHeader className="pb-2">
                           <CardTitle className="text-base">{pl.name}</CardTitle>
                         </CardHeader>
