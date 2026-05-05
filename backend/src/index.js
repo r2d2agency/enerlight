@@ -59,6 +59,7 @@ import documentSignaturesRoutes from './routes/document-signatures.js';
 import expensesRoutes from './routes/expenses.js';
 import metaTemplatesRoutes from './routes/meta-templates.js';
 import surveysRoutes from './routes/surveys.js';
+import onlineQuotesRoutes from './routes/online-quotes.js';
 import { initDatabase } from './init-db.js';
 import { executeNotifications } from './scheduler.js';
 import { executeCampaignMessages } from './campaign-scheduler.js';
@@ -234,6 +235,7 @@ app.use('/api/captador', captadorRoutes);
 app.use('/api/document-signatures', documentSignaturesRoutes);
 app.use('/api/meta', metaTemplatesRoutes);
 app.use('/api/surveys', surveysRoutes);
+app.use('/api/online-quotes', onlineQuotesRoutes);
 
 
 app.get('/health', (req, res) => {

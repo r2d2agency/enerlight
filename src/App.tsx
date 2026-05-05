@@ -81,6 +81,7 @@ const PrestacaoContas = lazyRetry(() => import("./pages/PrestacaoContas"));
 const Segmentacao = lazyRetry(() => import("./pages/Segmentacao"));
 const Pesquisas = lazyRetry(() => import("./pages/Pesquisas"));
 const PublicSurveyPage = lazyRetry(() => import("./pages/PublicSurveyPage"));
+const OnlineQuotes = lazyRetry(() => import("./pages/OnlineQuotes"));
 const NotFound = lazyRetry(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
@@ -180,6 +181,7 @@ const App = () => (
               <Route path="/assinar/:token" element={<AssinaturasDoc />} />
               <Route path="/f/:slug" element={<PublicFormPage />} />
               <Route path="/pesquisa/:slug" element={<PublicSurveyPage />} />
+              <Route path="/crm/orcamentos" element={<ProtectedRoute><OnlineQuotes /></ProtectedRoute>} />
               <Route path="/politica-privacidade" element={<PoliticaPrivacidade />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
