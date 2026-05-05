@@ -31,7 +31,7 @@ export function PriceListItemsDialog({ priceList, onOpenChange }: PriceListItems
     try {
       await api(`/api/online-quotes/price-lists/${priceList.id}/items/${productCode}`, {
         method: 'PATCH',
-        body: JSON.stringify({ image_url: imageUrl })
+        body: { image_url: imageUrl }
       });
       toast.success("Imagem atualizada!");
       queryClient.invalidateQueries({ queryKey: ['price-list-items', priceList.id] });
