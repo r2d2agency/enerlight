@@ -83,7 +83,8 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, onSuccess }: Props) 
         client_phone: clientInfo.phone,
         notes: clientInfo.notes,
         price_list_id: selectedPriceListId,
-        items: quoteItems
+        items: quoteItems,
+        include_images: includeImagesInQuote
       });
       onOpenChange(false);
       onSuccess?.();
