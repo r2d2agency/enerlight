@@ -8,6 +8,7 @@ import { Plus, FileText, List, Settings, ShieldCheck, Loader2, Eye, Download } f
 import { useAuth } from "@/contexts/AuthContext";
 import { usePriceLists, useOnlineQuoteMutations, useOnlineQuotes } from "@/hooks/use-online-quotes";
 import { OnlineQuoteFormDialog } from "@/components/crm/OnlineQuoteFormDialog";
+import { PriceListItemsDialog } from "@/components/crm/PriceListItemsDialog";
 import { Badge } from "@/components/ui/badge";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
