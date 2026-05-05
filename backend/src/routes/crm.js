@@ -143,7 +143,15 @@ async function saveCompanyContacts(companyId, organizationId, userId, contacts) 
     );
   }
 }
-
+    // Save channel mappings
+    for (const [source, target] of Object.entries(channelMapping || {})) {
+      if (!target) continue;
+      await query(
+        `INSERT INTO crm_goals_channel_mapping (organization_id, source_channel, target_channel)
+         VALUES ($1, $2, $3) ON CONFLICT (organization_id, source_channel) DO UPDATE SET target_channel = $3`,
+        [org.organization_id, source, target]
+      );
+    }
 
 // we create/reuse a single default company per organization.
 async function ensureDefaultCompanyId(organizationId, createdByUserId) {
