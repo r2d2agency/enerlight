@@ -320,12 +320,13 @@ router.get('/quotes/:id', async (req, res) => {
     const ctx = await getUserContext(req.user.id);
     if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
     const quote = await query(
-      `SELECT q.*, t.cover_url as template_cover, t.header_text as template_header, t.footer_text as template_footer
+      `SELECT q.*, t.cover_url as template_cover, t.header_text as template_header, t.footer_text as template_footer, t.footer_config as template_footer_config
        FROM online_quotes q
        LEFT JOIN online_quote_templates t ON q.template_id = t.id
        WHERE q.id = $1 AND q.organization_id = $2`,
       [req.params.id, ctx.organizationId]
     );
+
     
     if (quote.rows.length === 0) return res.status(404).json({ error: 'Quote not found' });
     
