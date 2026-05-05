@@ -415,10 +415,10 @@ export function RichEmailEditor({ value, onChange, placeholder, className }: Ric
             style={{ 
               minHeight: "300px",
               textAlign: "left",
-              whiteSpace: "pre-wrap",
+              whiteSpace: "normal",
               wordBreak: "break-word",
               direction: "ltr",
-              unicodeBidi: "plaintext"
+              unicodeBidi: "isolate"
             }}
           />
         </TabsContent>
