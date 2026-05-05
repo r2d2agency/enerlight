@@ -42,7 +42,18 @@ interface RichEmailEditorProps {
   className?: string;
 }
 
-const FONT_SIZES = ["12px", "14px", "16px", "18px", "20px", "24px", "28px", "32px", "36px", "48px"];
+const FONT_SIZES = ["10px", "12px", "14px", "16px", "18px", "20px", "24px", "28px", "32px", "36px", "48px"];
+
+const FONT_FAMILIES = [
+  { label: "Sans Serif", value: "sans-serif" },
+  { label: "Serif", value: "serif" },
+  { label: "Monospace", value: "monospace" },
+  { label: "Arial", value: "Arial, sans-serif" },
+  { label: "Times New Roman", value: "'Times New Roman', serif" },
+  { label: "Courier New", value: "'Courier New', monospace" },
+  { label: "Georgia", value: "Georgia, serif" },
+  { label: "Verdana", value: "Verdana, sans-serif" },
+];
 
 const COLORS = [
   "#000000", "#333333", "#555555", "#777777", "#999999", "#BBBBBB", "#DDDDDD", "#FFFFFF",
@@ -55,6 +66,7 @@ const BG_COLORS = [
   "#FFEBEE", "#FCE4EC", "#F3E5F5", "#EDE7F9", "#E8EAF6", "#E3F2FD", "#E1F5FE", "#E0F7FA",
   "#E0F2F1", "#E8F5E9", "#F1F8E9", "#F9FBE7", "#FFFDE7", "#FFF8E1", "#FFF3E0", "#FBE9E7",
 ];
+
 
 export function RichEmailEditor({ value, onChange, placeholder, className }: RichEmailEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
