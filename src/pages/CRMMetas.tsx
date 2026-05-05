@@ -211,11 +211,12 @@ export default function CRMMetas() {
     target_user_id: "", target_group_id: "", target_channel: "",
     metric: "quotes_count", target_value: "",
     period: "monthly", start_date: format(new Date(), "yyyy-MM-dd"), end_date: "",
+    sort_order: 0,
   });
 
   const openCreate = () => {
     setEditingGoal(null);
-    setForm({ name: "", type: "geral", target_user_id: "", target_group_id: "", target_channel: "", metric: "quotes_value", target_value: "", period: "monthly", start_date: format(new Date(), "yyyy-MM-dd"), end_date: "" });
+    setForm({ name: "", type: "geral", target_user_id: "", target_group_id: "", target_channel: "", metric: "quotes_value", target_value: "", period: "monthly", start_date: format(new Date(), "yyyy-MM-dd"), end_date: "", sort_order: 0 });
     setFormOpen(true);
   };
 
@@ -227,6 +228,7 @@ export default function CRMMetas() {
       metric: g.metric,
       target_value: String(g.target_value), period: g.period,
       start_date: g.start_date?.split("T")[0] || "", end_date: g.end_date?.split("T")[0] || "",
+      sort_order: g.sort_order || 0,
     });
     setFormOpen(true);
   };
@@ -1026,8 +1028,8 @@ export default function CRMMetas() {
                   const geralGoals = catGoals.filter(g => !(g as any).target_channel);
                   const channelGoals = catGoals.filter(g => !!(g as any).target_channel);
                   
-                  // Sort general goals alphabetically
-                  geralGoals.sort((a, b) => a.name.localeCompare(b.name));
+                  // Sort general goals by sort_order, then name
+                  geralGoals.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0) || a.name.localeCompare(b.name));
 
                   // Group channel goals by channel name
                   const channelMap: Record<string, Goal[]> = {};
@@ -1036,8 +1038,8 @@ export default function CRMMetas() {
                     if (!channelMap[ch]) channelMap[ch] = [];
                     channelMap[ch].push(g);
                   });
-                  // Sort channel goals by name within each channel
-                  Object.values(channelMap).forEach(list => list.sort((a, b) => a.name.localeCompare(b.name)));
+                  // Sort channel goals by sort_order, then name within each channel
+                  Object.values(channelMap).forEach(list => list.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0) || a.name.localeCompare(b.name)));
                   
                   const sortedChannelNames = Object.keys(channelMap).sort((a, b) => a.localeCompare(b));
                   const renderGoalCard = (g: Goal) => (
@@ -1485,6 +1487,17 @@ export default function CRMMetas() {
                 </Select>
               </div>
             </div>
+            <div className="space-y-2">
+              <Label>Ordem de Exibição (Opcional)</Label>
+              <Input 
+                type="number" 
+                value={form.sort_order} 
+                onChange={e => setForm(f => ({ ...f, sort_order: parseInt(e.target.value) || 0 }))} 
+                placeholder="Ex: 1" 
+              />
+              <p className="text-[10px] text-muted-foreground">Menores números aparecem primeiro.</p>
+            </div>
+          </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setFormOpen(false)}>Cancelar</Button>
