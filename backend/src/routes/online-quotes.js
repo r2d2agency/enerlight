@@ -152,7 +152,8 @@ router.post('/price-lists', async (req, res) => {
 // Get items for a price list
 router.get('/price-lists/:id/items', async (req, res) => {
   try {
-    const ctx = await getUserContext(req.user.id);
+    const ctx = await getUserContext(req.userId);
+
     if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
     // Security check: verify access to this price list
     const accessCheck = await query(
