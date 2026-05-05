@@ -11,6 +11,13 @@ import { OnlineQuoteFormDialog } from "@/components/crm/OnlineQuoteFormDialog";
 import { Badge } from "@/components/ui/badge";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { generateQuotePDF } from "@/lib/pdf-generator";
+import { api } from "@/lib/api";
+import { toast } from "sonner";
+import { OnlineQuoteFormDialog } from "@/components/crm/OnlineQuoteFormDialog";
+import { Badge } from "@/components/ui/badge";
+import { format, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 export default function OnlineQuotes() {
   const { user } = useAuth();
@@ -24,6 +31,16 @@ export default function OnlineQuotes() {
       style: "currency",
       currency: "BRL",
     }).format(value);
+  };
+
+  const handleDownloadPDF = async (quote: any) => {
+    try {
+      const fullQuote = await api<any>(`/api/online-quotes/quotes/${quote.id}`);
+      const org = await api<any>(`/api/organizations/${user?.organization_id}`);
+      await generateQuotePDF(fullQuote, org);
+    } catch (err) {
+      toast.error("Erro ao gerar PDF");
+    }
   };
 
   return (
@@ -111,7 +128,7 @@ export default function OnlineQuotes() {
                               <Button variant="ghost" size="sm" title="Visualizar">
                                 <Eye className="h-4 w-4" />
                               </Button>
-                              <Button variant="ghost" size="sm" title="Baixar PDF">
+                              <Button variant="ghost" size="sm" title="Baixar PDF" onClick={() => handleDownloadPDF(quote)}>
                                 <Download className="h-4 w-4" />
                               </Button>
                             </div>
