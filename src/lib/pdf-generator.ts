@@ -160,7 +160,7 @@ export const generateQuotePDF = async (quote: any, organization: any) => {
     
     const cleanText = notesText.replace(/<[^>]*>/g, '');
     const splitNotes = doc.splitTextToSize(cleanText, pageWidth - 28);
-    doc.text(splitNotes, 14, finalY + 7);
+    doc.text(splitNotes, 14, finalY + 7, { align: "left" });
   }
 
   // 7. Global 3-Column Footer
