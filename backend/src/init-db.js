@@ -4830,7 +4830,7 @@ CREATE TABLE IF NOT EXISTS online_quote_templates (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-
+ 
 -- Adicionar coluna de segmento/canal nas tabelas de preços
 DO $$ BEGIN
     ALTER TABLE price_lists ADD COLUMN IF NOT EXISTS segment TEXT;
@@ -4839,8 +4839,11 @@ EXCEPTION WHEN others THEN null; END $$;
 -- Adicionar coluna de template no orçamento
 DO $$ BEGIN
     ALTER TABLE online_quotes ADD COLUMN IF NOT EXISTS template_id UUID REFERENCES online_quote_templates(id);
+    ALTER TABLE online_quotes ADD COLUMN IF NOT EXISTS footer_config JSONB;
+    ALTER TABLE online_quote_templates ADD COLUMN IF NOT EXISTS footer_config JSONB;
 EXCEPTION WHEN others THEN null; END $$;
 `;
+
 
 
 
