@@ -61,13 +61,23 @@ export default function OnlineQuotes() {
   const handleSaveTemplate = async (e: React.FormEvent) => {
     e.preventDefault();
     const formData = new FormData(e.target as HTMLFormElement);
+    
+    // Build footer config from current state
+    const footerConfig = editingTemplate?.footer_config || {
+      left: { type: 'text', content: '' },
+      center: { type: 'logo', content: '' },
+      right: { type: 'social', content: '' },
+      social: { website: '', instagram: '', linkedin: '', phone: '', email: '' }
+    };
+
     const data = {
       id: editingTemplate?.id,
       name: formData.get('name'),
       description: formData.get('description'),
-      cover_url: formData.get('cover_url'),
-      header_text: formData.get('header_text'),
-      footer_text: formData.get('footer_text'),
+      cover_url: editingTemplate?.cover_url,
+      header_text: editingTemplate?.header_text,
+      footer_text: editingTemplate?.footer_text,
+      footer_config: footerConfig,
       is_default: formData.get('is_default') === 'on'
     };
 
@@ -75,9 +85,10 @@ export default function OnlineQuotes() {
       await saveTemplate.mutateAsync(data);
       setIsTemplateDialogOpen(false);
     } catch (err) {
-      toast.error("Erro ao salvar template");
+      toast.error("Erro ao salvar modelo");
     }
   };
+
 
   const handleSavePriceList = async (e: React.FormEvent) => {
     e.preventDefault();
