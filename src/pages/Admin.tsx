@@ -1013,6 +1013,16 @@ export default function Admin() {
                           onCheckedChange={setNewPlanLeadGleego}
                         />
                       </div>
+                      <div className="flex items-center justify-between rounded-lg border p-3">
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="online-quotes-switch">Orçamentos Online</Label>
+                        </div>
+                        <Switch
+                          id="online-quotes-switch"
+                          checked={newPlanOnlineQuotes}
+                          onCheckedChange={setNewPlanOnlineQuotes}
+                        />
+                      </div>
                     </div>
                     <div className="border-t pt-4 space-y-4">
                       <div className="flex items-center justify-between rounded-lg border border-primary/30 bg-primary/5 p-3">
