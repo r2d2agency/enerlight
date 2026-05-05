@@ -1498,7 +1498,6 @@ export default function CRMMetas() {
               <p className="text-[10px] text-muted-foreground">Menores números aparecem primeiro.</p>
             </div>
           </div>
-          </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setFormOpen(false)}>Cancelar</Button>
             <Button onClick={handleSave} disabled={createGoal.isPending || updateGoal.isPending}>
