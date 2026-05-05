@@ -6839,14 +6839,23 @@ router.post('/goals/import/preview', async (req, res) => {
        WHERE om.organization_id = $1 ORDER BY u.name`, [org.organization_id]
     );
 
-    // Extract unique sellers
+    // Extract unique sellers and channels
     const sellers = [...new Set(rawRows.map(r => r.seller_name).filter(Boolean))];
+    const rawChannels = [...new Set(rawRows.map(r => r.channel).filter(Boolean))];
+
+    // Get existing channel mappings
+    const channelMappings = await query(
+      `SELECT source_channel, target_channel FROM crm_goals_channel_mapping WHERE organization_id = $1`,
+      [org.organization_id]
+    );
 
     res.json({
       rowCount: rawRows.length,
       totalValue: rawRows.reduce((s, r) => s + (r.value || 0), 0),
       sellers,
+      rawChannels,
       existingMappings: mappingsResult.rows,
+      existingChannelMappings: channelMappings.rows,
       orgUsers: usersResult.rows,
       dataType,
     });
