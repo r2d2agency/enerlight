@@ -30,6 +30,57 @@ async function getUserContext(userId) {
   };
 }
 
+// Get accessible templates (Cover Pages)
+router.get('/templates', async (req, res) => {
+  try {
+    const ctx = await getUserContext(req.user.id);
+    const result = await query(
+      `SELECT * FROM online_quote_templates WHERE organization_id = $1 ORDER BY is_default DESC, name ASC`,
+      [ctx.organizationId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    logError('online-quotes.templates.get', err);
+    res.status(500).json({ error: 'Failed to fetch templates' });
+  }
+});
+
+// Create/Update template
+router.post('/templates', async (req, res) => {
+  try {
+    const ctx = await getUserContext(req.user.id);
+    if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner') {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+    const { id, name, description, cover_url, header_text, footer_text, is_default } = req.body;
+    
+    if (is_default) {
+      await query(`UPDATE online_quote_templates SET is_default = false WHERE organization_id = $1`, [ctx.organizationId]);
+    }
+
+    if (id) {
+      const result = await query(
+        `UPDATE online_quote_templates 
+         SET name = $1, description = $2, cover_url = $3, header_text = $4, footer_text = $5, is_default = $6, updated_at = NOW()
+         WHERE id = $7 AND organization_id = $8 RETURNING *`,
+        [name, description, cover_url, header_text, footer_text, is_default, id, ctx.organizationId]
+      );
+      res.json(result.rows[0]);
+    } else {
+      const result = await query(
+        `INSERT INTO online_quote_templates 
+         (organization_id, name, description, cover_url, header_text, footer_text, is_default)
+         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+        [ctx.organizationId, name, description, cover_url, header_text, footer_text, is_default]
+      );
+      res.json(result.rows[0]);
+    }
+  } catch (err) {
+    logError('online-quotes.templates.post', err);
+    res.status(500).json({ error: 'Failed to save template' });
+  }
+});
+
 // Get accessible price lists
 router.get('/price-lists', async (req, res) => {
   try {
@@ -46,7 +97,7 @@ router.get('/price-lists', async (req, res) => {
     
     const params = [ctx.organizationId];
     
-    if (ctx.role !== 'admin' && ctx.role !== 'manager') {
+    if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner') {
       sql += ` AND (pla.user_id = $2 OR pla.group_id = ANY($3::uuid[]))`;
       params.push(req.user.id, ctx.groupIds);
     }
@@ -59,22 +110,32 @@ router.get('/price-lists', async (req, res) => {
   }
 });
 
-// Create a price list
+// Create/Update a price list
 router.post('/price-lists', async (req, res) => {
   try {
     const ctx = await getUserContext(req.user.id);
     if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner') {
       return res.status(403).json({ error: 'Unauthorized' });
     }
-    const { name, description } = req.body;
-    const result = await query(
-      `INSERT INTO price_lists (organization_id, name, description) VALUES ($1, $2, $3) RETURNING id`,
-      [ctx.organizationId, name, description]
-    );
-    res.json(result.rows[0]);
+    const { id, name, description, segment, is_active } = req.body;
+    
+    if (id) {
+      const result = await query(
+        `UPDATE price_lists SET name = $1, description = $2, segment = $3, is_active = $4, updated_at = NOW()
+         WHERE id = $5 AND organization_id = $6 RETURNING *`,
+        [name, description, segment, is_active !== false, id, ctx.organizationId]
+      );
+      res.json(result.rows[0]);
+    } else {
+      const result = await query(
+        `INSERT INTO price_lists (organization_id, name, description, segment) VALUES ($1, $2, $3, $4) RETURNING *`,
+        [ctx.organizationId, name, description, segment]
+      );
+      res.json(result.rows[0]);
+    }
   } catch (err) {
-    logError('online-quotes.price-lists.create', err);
-    res.status(500).json({ error: 'Failed to create price list' });
+    logError('online-quotes.price-lists.post', err);
+    res.status(500).json({ error: 'Failed to save price list' });
   }
 });
 
@@ -93,7 +154,7 @@ router.get('/price-lists/:id/items', async (req, res) => {
     }
 
     // Cost price is only returned for admins/managers
-    const showCost = ctx.role === 'admin' || ctx.role === 'manager';
+    const showCost = ctx.role === 'admin' || ctx.role === 'manager' || ctx.role === 'owner';
     const fields = showCost 
       ? 'id, product_code, product_name, description, sale_price, min_price, cost_price, unit, image_url'
       : 'id, product_code, product_name, description, sale_price, min_price, unit, image_url';
@@ -163,18 +224,18 @@ router.post('/quotes', async (req, res) => {
     const ctx = await getUserContext(req.user.id);
     const { 
       client_name, client_document, client_email, client_phone, 
-      price_list_id, items, cover_image_url, footer_text, valid_until, notes,
+      price_list_id, template_id, items, cover_image_url, footer_text, valid_until, notes,
       include_images
     } = req.body;
 
     const result = await query(
       `INSERT INTO online_quotes 
        (organization_id, user_id, client_name, client_document, client_email, client_phone, 
-        price_list_id, cover_image_url, footer_text, valid_until, notes, include_images)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        price_list_id, template_id, cover_image_url, footer_text, valid_until, notes, include_images)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
        RETURNING id`,
       [ctx.organizationId, req.user.id, client_name, client_document, client_email, client_phone, 
-       price_list_id, cover_image_url, footer_text, valid_until, notes, include_images ?? true]
+       price_list_id, template_id || null, cover_image_url, footer_text, valid_until, notes, include_images ?? true]
     );
     
     const quoteId = result.rows[0].id;
@@ -224,7 +285,7 @@ router.get('/quotes', async (req, res) => {
     let sql = `SELECT * FROM online_quotes WHERE organization_id = $1`;
     const params = [ctx.organizationId];
     
-    if (ctx.role !== 'admin' && ctx.role !== 'manager') {
+    if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner') {
       sql += ` AND user_id = $2`;
       params.push(req.user.id);
     }
@@ -244,7 +305,10 @@ router.get('/quotes/:id', async (req, res) => {
   try {
     const ctx = await getUserContext(req.user.id);
     const quote = await query(
-      `SELECT * FROM online_quotes WHERE id = $1 AND organization_id = $2`,
+      `SELECT q.*, t.cover_url as template_cover, t.header_text as template_header, t.footer_text as template_footer
+       FROM online_quotes q
+       LEFT JOIN online_quote_templates t ON q.template_id = t.id
+       WHERE q.id = $1 AND q.organization_id = $2`,
       [req.params.id, ctx.organizationId]
     );
     

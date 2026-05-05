@@ -4712,7 +4712,7 @@ CREATE INDEX IF NOT EXISTS idx_survey_responses_survey ON survey_responses(surve
 `;
 
 const step63OnlineQuotes = `
--- Modulo de Orcamentos Online
+-- Módulo de Orçamentos Online
 
 -- Tabelas de Preços (Price Lists)
 CREATE TABLE IF NOT EXISTS price_lists (
@@ -4808,11 +4808,40 @@ CREATE INDEX IF NOT EXISTS idx_online_quotes_user ON online_quotes(user_id);
 `;
 
 const step64OnlineQuotesImages = `
--- Suporte a imagens no modulo de orcamentos
-ALTER TABLE price_list_items ADD COLUMN IF NOT EXISTS image_url TEXT;
-ALTER TABLE online_quotes ADD COLUMN IF NOT EXISTS include_images BOOLEAN DEFAULT true;
-ALTER TABLE online_quote_items ADD COLUMN IF NOT EXISTS image_url TEXT;
+-- Suporte a imagens no modulo de orçamentos
+DO $$ BEGIN
+    ALTER TABLE price_list_items ADD COLUMN IF NOT EXISTS image_url TEXT;
+    ALTER TABLE online_quotes ADD COLUMN IF NOT EXISTS include_images BOOLEAN DEFAULT true;
+    ALTER TABLE online_quote_items ADD COLUMN IF NOT EXISTS image_url TEXT;
+EXCEPTION WHEN others THEN null; END $$;
 `;
+
+const step65OnlineQuoteTemplates = `
+-- Tabela de Modelos de Capa (Folha de Rosto)
+CREATE TABLE IF NOT EXISTS online_quote_templates (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    cover_url TEXT,
+    header_text TEXT,
+    footer_text TEXT,
+    is_default BOOLEAN DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Adicionar coluna de segmento/canal nas tabelas de preços
+DO $$ BEGIN
+    ALTER TABLE price_lists ADD COLUMN IF NOT EXISTS segment TEXT;
+EXCEPTION WHEN others THEN null; END $$;
+
+-- Adicionar coluna de template no orçamento
+DO $$ BEGIN
+    ALTER TABLE online_quotes ADD COLUMN IF NOT EXISTS template_id UUID REFERENCES online_quote_templates(id);
+EXCEPTION WHEN others THEN null; END $$;
+`;
+
 
 
 
@@ -4886,7 +4915,9 @@ const migrationSteps = [
   { name: 'Surveys Module', sql: step62Surveys, critical: false },
   { name: 'Online Quotes Module', sql: step63OnlineQuotes, critical: false },
   { name: 'Online Quotes Images', sql: step64OnlineQuotesImages, critical: false },
+  { name: 'Online Quote Templates', sql: step65OnlineQuoteTemplates, critical: false },
 ];
+
 
 export async function initDatabase() {
   console.log('Initializing database in steps...');
@@ -4895,7 +4926,7 @@ export async function initDatabase() {
   let criticalFailure = false;
   for (const step of migrationSteps) {
     try {
-      console.log('  -- Step: ' + step.name + '...');
+      console.log('  -> Step: ' + step.name + '...');
       await pool.query(step.sql);
       console.log('  OK ' + step.name + ' - OK');
       successCount++;

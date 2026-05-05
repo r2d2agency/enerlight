@@ -6,6 +6,7 @@ export interface PriceList {
   id: string;
   name: string;
   description?: string;
+  segment?: string;
   is_active: boolean;
   created_at: string;
 }
@@ -20,6 +21,16 @@ export interface PriceListItem {
   cost_price?: number; // Restricted to admins/managers
   unit: string;
   image_url?: string;
+}
+
+export interface OnlineQuoteTemplate {
+  id: string;
+  name: string;
+  description?: string;
+  cover_url?: string;
+  header_text?: string;
+  footer_text?: string;
+  is_default: boolean;
 }
 
 export interface OnlineQuote {
@@ -53,6 +64,13 @@ export function useOnlineQuotes() {
   });
 }
 
+export function useOnlineQuoteTemplates() {
+  return useQuery({
+    queryKey: ["online-quote-templates"],
+    queryFn: () => api<OnlineQuoteTemplate[]>("/api/online-quotes/templates"),
+  });
+}
+
 export function useOnlineQuoteMutations() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -65,5 +83,21 @@ export function useOnlineQuoteMutations() {
     },
   });
 
-  return { createQuote };
+  const saveTemplate = useMutation({
+    mutationFn: (data: any) => api("/api/online-quotes/templates", { method: "POST", body: data }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["online-quote-templates"] });
+      toast({ title: "Template salvo com sucesso" });
+    },
+  });
+
+  const savePriceList = useMutation({
+    mutationFn: (data: any) => api("/api/online-quotes/price-lists", { method: "POST", body: data }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["price-lists"] });
+      toast({ title: "Tabela de preços salva com sucesso" });
+    },
+  });
+
+  return { createQuote, saveTemplate, savePriceList };
 }
