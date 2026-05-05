@@ -19,6 +19,7 @@ import { toast } from "sonner";
 export default function OnlineQuotes() {
   const { user } = useAuth();
   const [isNewQuoteOpen, setIsNewQuoteOpen] = useState(false);
+  const [selectedPriceList, setSelectedPriceList] = useState<{id: string, name: string} | null>(null);
   const isAdmin = ['owner', 'admin', 'manager'].includes(user?.role || '');
 
   const { data: priceLists, isLoading: loadingPriceLists } = usePriceLists();
