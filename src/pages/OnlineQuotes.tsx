@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, FileText, List, Settings, ShieldCheck, Loader2, Eye, Download, LayoutTemplate, Pencil, Image as ImageIcon, Upload } from "lucide-react";
+import { Plus, FileText, List, Settings, ShieldCheck, Loader2, Eye, Download, LayoutTemplate, Pencil, Image as ImageIcon, Upload, Globe, Instagram, Linkedin, Phone, Mail as MailIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePriceLists, useOnlineQuoteMutations, useOnlineQuotes, useOnlineQuoteTemplates } from "@/hooks/use-online-quotes";
 import { OnlineQuoteFormDialog } from "@/components/crm/OnlineQuoteFormDialog";
@@ -20,6 +20,9 @@ import { ptBR } from "date-fns/locale";
 import { generateQuotePDF } from "@/lib/pdf-generator";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { RichEmailEditor } from "@/components/email/RichEmailEditor";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function OnlineQuotes() {
   const { user } = useAuth();
@@ -27,6 +30,7 @@ export default function OnlineQuotes() {
   const [selectedPriceList, setSelectedPriceList] = useState<{id: string, name: string} | null>(null);
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<any>(null);
+
   const [isPriceListDialogOpen, setIsPriceListDialogOpen] = useState(false);
   const [editingPriceList, setEditingPriceList] = useState<any>(null);
 
@@ -57,13 +61,23 @@ export default function OnlineQuotes() {
   const handleSaveTemplate = async (e: React.FormEvent) => {
     e.preventDefault();
     const formData = new FormData(e.target as HTMLFormElement);
+    
+    // Build footer config from current state
+    const footerConfig = editingTemplate?.footer_config || {
+      left: { type: 'text', content: '' },
+      center: { type: 'logo', content: '' },
+      right: { type: 'social', content: '' },
+      social: { website: '', instagram: '', linkedin: '', phone: '', email: '' }
+    };
+
     const data = {
       id: editingTemplate?.id,
       name: formData.get('name'),
       description: formData.get('description'),
-      cover_url: formData.get('cover_url'),
-      header_text: formData.get('header_text'),
-      footer_text: formData.get('footer_text'),
+      cover_url: editingTemplate?.cover_url,
+      header_text: editingTemplate?.header_text,
+      footer_text: editingTemplate?.footer_text,
+      footer_config: footerConfig,
       is_default: formData.get('is_default') === 'on'
     };
 
@@ -71,9 +85,10 @@ export default function OnlineQuotes() {
       await saveTemplate.mutateAsync(data);
       setIsTemplateDialogOpen(false);
     } catch (err) {
-      toast.error("Erro ao salvar template");
+      toast.error("Erro ao salvar modelo");
     }
   };
+
 
   const handleSavePriceList = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -272,9 +287,24 @@ export default function OnlineQuotes() {
                     Gerencie os modelos de folha de rosto disponíveis para os vendedores.
                   </CardDescription>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => { setEditingTemplate(null); setIsTemplateDialogOpen(true); }}>
+                <Button variant="outline" size="sm" onClick={() => { 
+                  setEditingTemplate({
+                    name: "",
+                    description: "",
+                    cover_url: "",
+                    header_text: "",
+                    footer_config: {
+                      left: { type: 'text', content: '' },
+                      center: { type: 'logo', content: '' },
+                      right: { type: 'social', content: '' },
+                      social: { website: '', instagram: '', linkedin: '', phone: '', email: '' }
+                    }
+                  }); 
+                  setIsTemplateDialogOpen(true); 
+                }}>
                   <Plus className="mr-2 h-4 w-4" /> Novo Modelo
                 </Button>
+
               </CardHeader>
               <CardContent>
                 {loadingTemplates ? (
@@ -334,110 +364,327 @@ export default function OnlineQuotes() {
 
         {/* Template Dialog */}
         <Dialog open={isTemplateDialogOpen} onOpenChange={setIsTemplateDialogOpen}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
+          <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0">
+            <DialogHeader className="p-6 pb-0">
               <DialogTitle>{editingTemplate ? "Editar Modelo" : "Novo Modelo de Capa"}</DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSaveTemplate} className="space-y-4 py-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Nome do Modelo</Label>
-                    <Input name="name" defaultValue={editingTemplate?.name} required placeholder="Ex: Modelo Corporativo" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Imagem de Capa</Label>
-                    <div className="flex gap-2">
-                      <Input name="cover_url" defaultValue={editingTemplate?.cover_url} placeholder="https://..." className="flex-1" onChange={(e) => setEditingTemplate({...editingTemplate, cover_url: e.target.value})} />
-                      <Button type="button" variant="outline" size="icon" className="relative shrink-0" title="Subir imagem do computador">
-                        <Upload className="h-4 w-4" />
-                        <input 
-                          type="file" 
-                          accept="image/*" 
-                          className="absolute inset-0 opacity-0 cursor-pointer" 
-                          onChange={async (e) => {
-                            const file = e.target.files?.[0];
-                            if (!file) return;
-                            const formData = new FormData();
-                            formData.append('file', file);
-                            try {
-                              const res = await api<any>('/api/uploads', {
-                                method: 'POST',
-                                body: formData,
-                                isFormData: true
-                              });
-                              if (res.file?.url) {
-                                setEditingTemplate({...editingTemplate, cover_url: res.file.url});
-                                // Update form field manually since it's an uncontrolled input in a native form
-                                const input = document.querySelector('input[name="cover_url"]') as HTMLInputElement;
-                                if (input) input.value = res.file.url;
-                                toast.success("Imagem enviada!");
-                              }
-                            } catch (err) {
-                              toast.error("Erro ao subir imagem");
-                            }
-                          }}
-                        />
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Descrição</Label>
-                    <Input name="description" defaultValue={editingTemplate?.description} placeholder="Breve descrição do modelo" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Texto de Cabeçalho (HTML)</Label>
-                    <div className="border rounded-md focus-within:ring-1 focus-within:ring-ring">
-                      <Textarea 
-                        name="header_text" 
-                        defaultValue={editingTemplate?.header_text} 
-                        placeholder="Clique para editar HTML..." 
-                        className="font-mono text-xs h-24 border-0 focus-visible:ring-0" 
-                        onChange={(e) => setEditingTemplate({...editingTemplate, header_text: e.target.value})}
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Texto de Rodapé (HTML)</Label>
-                    <div className="border rounded-md focus-within:ring-1 focus-within:ring-ring">
-                      <Textarea 
-                        name="footer_text" 
-                        defaultValue={editingTemplate?.footer_text} 
-                        placeholder="Clique para editar HTML..." 
-                        className="font-mono text-xs h-24 border-0 focus-visible:ring-0" 
-                        onChange={(e) => setEditingTemplate({...editingTemplate, footer_text: e.target.value})}
-                      />
-                    </div>
-                  </div>
+            
+            <form onSubmit={handleSaveTemplate} className="flex-1 overflow-hidden flex flex-col">
+              <Tabs defaultValue="general" className="flex-1 flex flex-col overflow-hidden">
+                <div className="px-6 border-b">
+                  <TabsList className="bg-transparent h-12 w-full justify-start gap-4">
+                    <TabsTrigger value="general" className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none">Geral</TabsTrigger>
+                    <TabsTrigger value="content" className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none">Conteúdo</TabsTrigger>
+                    <TabsTrigger value="footer" className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none">Rodapé</TabsTrigger>
+                    <TabsTrigger value="preview" className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none">Visualização</TabsTrigger>
+                  </TabsList>
                 </div>
 
-                <div className="space-y-4">
-                  <Label>Preview da Capa</Label>
-                  <div className="aspect-[3/4] border rounded-lg overflow-hidden bg-muted flex items-center justify-center relative shadow-inner">
-                    {editingTemplate?.cover_url ? (
-                      <img src={editingTemplate.cover_url} alt="Preview" className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="text-center p-4">
-                        <ImageIcon className="h-12 w-12 text-muted-foreground/20 mx-auto mb-2" />
-                        <p className="text-xs text-muted-foreground">Insira uma URL para visualizar a capa</p>
+                <div className="flex-1 overflow-y-auto p-6">
+                  <TabsContent value="general" className="mt-0 space-y-4">
+                    <div className="grid grid-cols-2 gap-6">
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label>Nome do Modelo</Label>
+                          <Input name="name" defaultValue={editingTemplate?.name} required placeholder="Ex: Modelo Corporativo" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Descrição</Label>
+                          <Input name="description" defaultValue={editingTemplate?.description} placeholder="Breve descrição do modelo" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Imagem de Capa (Página 1)</Label>
+                          <div className="flex gap-2">
+                            <Input 
+                              name="cover_url" 
+                              value={editingTemplate?.cover_url || ''} 
+                              placeholder="https://..." 
+                              className="flex-1" 
+                              onChange={(e) => setEditingTemplate({...editingTemplate, cover_url: e.target.value})} 
+                            />
+                            <Button type="button" variant="outline" size="icon" className="relative shrink-0" title="Subir imagem do computador">
+                              <Upload className="h-4 w-4" />
+                              <input 
+                                type="file" 
+                                accept="image/*" 
+                                className="absolute inset-0 opacity-0 cursor-pointer" 
+                                onChange={async (e) => {
+                                  const file = e.target.files?.[0];
+                                  if (!file) return;
+                                  const formData = new FormData();
+                                  formData.append('file', file);
+                                  try {
+                                    const res = await api<any>('/api/uploads', {
+                                      method: 'POST',
+                                      body: formData,
+                                      isFormData: true
+                                    });
+                                    if (res.file?.url) {
+                                      setEditingTemplate({...editingTemplate, cover_url: res.file.url});
+                                      toast.success("Capa enviada!");
+                                    }
+                                  } catch (err) {
+                                    toast.error("Erro ao subir imagem");
+                                  }
+                                }}
+                              />
+                            </Button>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground italic">Esta imagem será a primeira página inteira do PDF.</p>
+                        </div>
+                        <div className="flex items-center space-x-2 pt-4">
+                          <Switch name="is_default" id="is_default" defaultChecked={editingTemplate?.is_default} />
+                          <Label htmlFor="is_default">Modelo padrão</Label>
+                        </div>
                       </div>
-                    )}
-                    <div 
-                      className="absolute top-0 left-0 w-full p-2 bg-white/80 backdrop-blur-sm border-b text-[8px] overflow-hidden max-h-[20%] text-left"
-                      dangerouslySetInnerHTML={{ __html: editingTemplate?.header_text || "Cabeçalho do Modelo" }}
-                    />
-                    <div 
-                      className="absolute bottom-0 left-0 w-full p-2 bg-white/80 backdrop-blur-sm border-t text-[8px] overflow-hidden max-h-[20%] text-left"
-                      dangerouslySetInnerHTML={{ __html: editingTemplate?.footer_text || "Rodapé do Modelo" }}
-                    />
-                  </div>
+                      <div className="border rounded-lg bg-muted/30 p-2 flex items-center justify-center aspect-[3/4] overflow-hidden relative shadow-sm">
+                        {editingTemplate?.cover_url ? (
+                          <img src={editingTemplate.cover_url} alt="Preview" className="w-full h-full object-contain" />
+                        ) : (
+                          <div className="text-center text-muted-foreground/30">
+                            <ImageIcon className="h-12 w-12 mx-auto mb-2" />
+                            <p className="text-xs">Preview da Capa</p>
+                          </div>
+                        )}
+                        <Badge className="absolute top-2 left-2 pointer-events-none" variant="secondary">PÁGINA 1</Badge>
+                      </div>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="content" className="mt-0 space-y-6">
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label>Texto de Cabeçalho / Informações Adicionais</Label>
+                        <RichEmailEditor 
+                          value={editingTemplate?.header_text || ''} 
+                          onChange={(html) => setEditingTemplate({...editingTemplate, header_text: html})}
+                          className="min-h-[400px]"
+                        />
+                        <p className="text-xs text-muted-foreground">Este texto aparecerá logo após a capa ou junto aos termos do orçamento.</p>
+                      </div>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="footer" className="mt-0 space-y-6">
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-3 gap-4">
+                        {['left', 'center', 'right'].map((col) => (
+                          <div key={col} className="space-y-3 p-4 border rounded-lg bg-muted/10">
+                            <Label className="capitalize font-bold flex items-center gap-2">
+                              Coluna {col === 'left' ? 'Esquerda' : col === 'center' ? 'Central' : 'Direita'}
+                            </Label>
+                            <Select 
+                              value={editingTemplate?.footer_config?.[col]?.type || 'text'}
+                              onValueChange={(val) => {
+                                const config = editingTemplate?.footer_config || { left:{}, center:{}, right:{}, social:{} };
+                                setEditingTemplate({
+                                  ...editingTemplate,
+                                  footer_config: {
+                                    ...config,
+                                    [col]: { ...config[col], type: val }
+                                  }
+                                });
+                              }}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="text">Texto Rico</SelectItem>
+                                <SelectItem value="logo">Logotipo</SelectItem>
+                                <SelectItem value="social">Ícones Sociais</SelectItem>
+                              </SelectContent>
+                            </Select>
+
+                            {editingTemplate?.footer_config?.[col]?.type === 'text' && (
+                              <Textarea 
+                                className="text-xs min-h-[100px]"
+                                placeholder="Texto..."
+                                value={editingTemplate?.footer_config?.[col]?.content || ''}
+                                onChange={(e) => {
+                                  const config = editingTemplate?.footer_config || { left:{}, center:{}, right:{}, social:{} };
+                                  setEditingTemplate({
+                                    ...editingTemplate,
+                                    footer_config: {
+                                      ...config,
+                                      [col]: { ...config[col], content: e.target.value }
+                                    }
+                                  });
+                                }}
+                              />
+                            )}
+
+                            {editingTemplate?.footer_config?.[col]?.type === 'logo' && (
+                              <div className="space-y-2">
+                                <div className="aspect-square border rounded bg-white flex items-center justify-center p-2 relative overflow-hidden">
+                                  {editingTemplate?.footer_config?.[col]?.content ? (
+                                    <img src={editingTemplate?.footer_config?.[col]?.content} className="max-w-full max-h-full object-contain" />
+                                  ) : <ImageIcon className="h-8 w-8 text-muted-foreground/20" />}
+                                </div>
+                                <div className="flex gap-1">
+                                  <Input 
+                                    className="text-[10px] h-8" 
+                                    placeholder="URL da logo..."
+                                    value={editingTemplate?.footer_config?.[col]?.content || ''}
+                                    onChange={(e) => {
+                                      const config = editingTemplate?.footer_config || { left:{}, center:{}, right:{}, social:{} };
+                                      setEditingTemplate({
+                                        ...editingTemplate,
+                                        footer_config: {
+                                          ...config,
+                                          [col]: { ...config[col], content: e.target.value }
+                                        }
+                                      });
+                                    }}
+                                  />
+                                  <Button type="button" variant="outline" size="icon" className="h-8 w-8 relative">
+                                    <Upload className="h-3 w-3" />
+                                    <input 
+                                      type="file" 
+                                      className="absolute inset-0 opacity-0 cursor-pointer" 
+                                      onChange={async (e) => {
+                                        const file = e.target.files?.[0];
+                                        if (!file) return;
+                                        const formData = new FormData();
+                                        formData.append('file', file);
+                                        try {
+                                          const res = await api<any>('/api/uploads', { method: 'POST', body: formData, isFormData: true });
+                                          if (res.file?.url) {
+                                            const config = editingTemplate?.footer_config || { left:{}, center:{}, right:{}, social:{} };
+                                            setEditingTemplate({
+                                              ...editingTemplate,
+                                              footer_config: { ...config, [col]: { ...config[col], content: res.file.url } }
+                                            });
+                                          }
+                                        } catch(e) {}
+                                      }}
+                                    />
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
+
+                            {editingTemplate?.footer_config?.[col]?.type === 'social' && (
+                              <div className="flex flex-col items-center justify-center py-6 text-muted-foreground">
+                                <Globe className="h-8 w-8 mb-2 opacity-20" />
+                                <p className="text-[10px] text-center">Configurado na seção abaixo</p>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="space-y-4 p-4 border rounded-lg">
+                        <Label className="font-bold flex items-center gap-2">
+                          <Settings className="h-4 w-4" /> Links e Redes Sociais
+                        </Label>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label className="text-xs flex items-center gap-2"><Globe className="h-3 w-3" /> Website</Label>
+                            <Input 
+                              className="h-8 text-xs" 
+                              placeholder="https://..." 
+                              value={editingTemplate?.footer_config?.social?.website || ''}
+                              onChange={(e) => {
+                                const config = editingTemplate?.footer_config || { left:{}, center:{}, right:{}, social:{} };
+                                setEditingTemplate({
+                                  ...editingTemplate,
+                                  footer_config: { ...config, social: { ...config.social, website: e.target.value } }
+                                });
+                              }}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs flex items-center gap-2"><Instagram className="h-3 w-3" /> Instagram</Label>
+                            <Input 
+                              className="h-8 text-xs" 
+                              placeholder="@usuario" 
+                              value={editingTemplate?.footer_config?.social?.instagram || ''}
+                              onChange={(e) => {
+                                const config = editingTemplate?.footer_config || { left:{}, center:{}, right:{}, social:{} };
+                                setEditingTemplate({
+                                  ...editingTemplate,
+                                  footer_config: { ...config, social: { ...config.social, instagram: e.target.value } }
+                                });
+                              }}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs flex items-center gap-2"><Linkedin className="h-3 w-3" /> LinkedIn</Label>
+                            <Input 
+                              className="h-8 text-xs" 
+                              placeholder="URL ou Nome" 
+                              value={editingTemplate?.footer_config?.social?.linkedin || ''}
+                              onChange={(e) => {
+                                const config = editingTemplate?.footer_config || { left:{}, center:{}, right:{}, social:{} };
+                                setEditingTemplate({
+                                  ...editingTemplate,
+                                  footer_config: { ...config, social: { ...config.social, linkedin: e.target.value } }
+                                });
+                              }}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs flex items-center gap-2"><Phone className="h-3 w-3" /> WhatsApp / Tel</Label>
+                            <Input 
+                              className="h-8 text-xs" 
+                              placeholder="(00) 00000-0000" 
+                              value={editingTemplate?.footer_config?.social?.phone || ''}
+                              onChange={(e) => {
+                                const config = editingTemplate?.footer_config || { left:{}, center:{}, right:{}, social:{} };
+                                setEditingTemplate({
+                                  ...editingTemplate,
+                                  footer_config: { ...config, social: { ...config.social, phone: e.target.value } }
+                                });
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="preview" className="mt-0 h-full">
+                    <div className="grid grid-cols-2 gap-6 h-full min-h-[500px]">
+                      <div className="space-y-4">
+                        <Label>Página 1 (Capa Inteira)</Label>
+                        <div className="aspect-[3/4] border rounded shadow-md bg-white flex items-center justify-center overflow-hidden">
+                          {editingTemplate?.cover_url ? (
+                            <img src={editingTemplate.cover_url} className="w-full h-full object-cover" />
+                          ) : <ImageIcon className="h-12 w-12 text-muted-foreground/10" />}
+                        </div>
+                      </div>
+                      <div className="space-y-4">
+                        <Label>Páginas de Dados (Header/Footer)</Label>
+                        <div className="aspect-[3/4] border rounded shadow-md bg-white flex flex-col p-4 relative overflow-hidden text-[6px]">
+                          <div className="border-b pb-2 mb-4 opacity-50" dangerouslySetInnerHTML={{ __html: editingTemplate?.header_text || "Cabeçalho..." }} />
+                          <div className="flex-1 bg-muted/20 rounded flex items-center justify-center text-muted-foreground/30">CONTEÚDO DO ORÇAMENTO</div>
+                          <div className="mt-4 border-t pt-2 grid grid-cols-3 gap-2">
+                             {['left', 'center', 'right'].map(col => {
+                               const conf = editingTemplate?.footer_config?.[col];
+                               return (
+                                 <div key={col} className="text-center flex flex-col items-center justify-center">
+                                   {conf?.type === 'logo' && conf.content && <img src={conf.content} className="h-4 object-contain" />}
+                                   {conf?.type === 'text' && <span>{conf.content}</span>}
+                                   {conf?.type === 'social' && (
+                                     <div className="flex gap-1">
+                                       {editingTemplate?.footer_config?.social?.instagram && <Instagram className="h-2 w-2" />}
+                                       {editingTemplate?.footer_config?.social?.linkedin && <Linkedin className="h-2 w-2" />}
+                                       {editingTemplate?.footer_config?.social?.website && <Globe className="h-2 w-2" />}
+                                     </div>
+                                   )}
+                                 </div>
+                               );
+                             })}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </TabsContent>
                 </div>
-              </div>
-              <div className="flex items-center space-x-2 pt-4 border-t">
-                <Switch name="is_default" id="is_default" defaultChecked={editingTemplate?.is_default} />
-                <Label htmlFor="is_default">Tornar modelo padrão para novos orçamentos</Label>
-              </div>
-              <DialogFooter>
+              </Tabs>
+
+              <DialogFooter className="p-6 border-t bg-muted/20">
                 <Button type="button" variant="outline" onClick={() => setIsTemplateDialogOpen(false)}>Cancelar</Button>
                 <Button type="submit" disabled={saveTemplate.isPending}>
                   {saveTemplate.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -447,6 +694,7 @@ export default function OnlineQuotes() {
             </form>
           </DialogContent>
         </Dialog>
+
 
         {/* Price List Dialog */}
         <Dialog open={isPriceListDialogOpen} onOpenChange={setIsPriceListDialogOpen}>
