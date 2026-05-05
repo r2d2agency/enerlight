@@ -234,19 +234,22 @@ router.post('/quotes', async (req, res) => {
     if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
     const { 
       client_name, client_document, client_email, client_phone, 
-      price_list_id, template_id, items, cover_image_url, footer_text, valid_until, notes,
+      price_list_id, template_id, items, cover_image_url, footer_text, footer_config, valid_until, notes,
       include_images
     } = req.body;
+
+    const fConfig = typeof footer_config === 'object' ? JSON.stringify(footer_config) : footer_config;
 
     const result = await query(
       `INSERT INTO online_quotes 
        (organization_id, user_id, client_name, client_document, client_email, client_phone, 
-        price_list_id, template_id, cover_image_url, footer_text, valid_until, notes, include_images)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        price_list_id, template_id, cover_image_url, footer_text, footer_config, valid_until, notes, include_images)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
        RETURNING id`,
       [ctx.organizationId, req.user.id, client_name, client_document, client_email, client_phone, 
-       price_list_id, template_id || null, cover_image_url, footer_text, valid_until, notes, include_images ?? true]
+       price_list_id, template_id || null, cover_image_url, footer_text, fConfig, valid_until, notes, include_images ?? true]
     );
+
     
     const quoteId = result.rows[0].id;
     let totalValue = 0;
