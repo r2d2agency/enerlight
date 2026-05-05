@@ -4807,6 +4807,13 @@ CREATE INDEX IF NOT EXISTS idx_online_quotes_org ON online_quotes(organization_i
 CREATE INDEX IF NOT EXISTS idx_online_quotes_user ON online_quotes(user_id);
 `;
 
+const step64OnlineQuotesImages = `
+-- Suporte a imagens no modulo de orcamentos
+ALTER TABLE price_list_items ADD COLUMN IF NOT EXISTS image_url TEXT;
+ALTER TABLE online_quotes ADD COLUMN IF NOT EXISTS include_images BOOLEAN DEFAULT true;
+ALTER TABLE online_quote_items ADD COLUMN IF NOT EXISTS image_url TEXT;
+`;
+
 
 
 
