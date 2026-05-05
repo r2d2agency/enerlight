@@ -55,29 +55,32 @@ router.post('/templates', async (req, res) => {
     if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner') {
       return res.status(403).json({ error: 'Unauthorized' });
     }
-    const { id, name, description, cover_url, header_text, footer_text, is_default } = req.body;
+    const { id, name, description, cover_url, header_text, footer_text, footer_config, is_default } = req.body;
     
     if (is_default) {
       await query(`UPDATE online_quote_templates SET is_default = false WHERE organization_id = $1`, [ctx.organizationId]);
     }
 
+    const fConfig = typeof footer_config === 'object' ? JSON.stringify(footer_config) : footer_config;
+
     if (id) {
       const result = await query(
         `UPDATE online_quote_templates 
-         SET name = $1, description = $2, cover_url = $3, header_text = $4, footer_text = $5, is_default = $6, updated_at = NOW()
-         WHERE id = $7 AND organization_id = $8 RETURNING *`,
-        [name, description, cover_url, header_text, footer_text, is_default, id, ctx.organizationId]
+         SET name = $1, description = $2, cover_url = $3, header_text = $4, footer_text = $5, footer_config = $6, is_default = $7, updated_at = NOW()
+         WHERE id = $8 AND organization_id = $9 RETURNING *`,
+        [name, description, cover_url, header_text, footer_text, fConfig, is_default, id, ctx.organizationId]
       );
       res.json(result.rows[0]);
     } else {
       const result = await query(
         `INSERT INTO online_quote_templates 
-         (organization_id, name, description, cover_url, header_text, footer_text, is_default)
-         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-        [ctx.organizationId, name, description, cover_url, header_text, footer_text, is_default]
+         (organization_id, name, description, cover_url, header_text, footer_text, footer_config, is_default)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+        [ctx.organizationId, name, description, cover_url, header_text, footer_text, fConfig, is_default]
       );
       res.json(result.rows[0]);
     }
+
   } catch (err) {
     logError('online-quotes.templates.post', err);
     res.status(500).json({ error: 'Failed to save template' });
