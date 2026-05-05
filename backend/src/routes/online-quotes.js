@@ -122,7 +122,8 @@ router.get('/price-lists', async (req, res) => {
 // Create/Update a price list
 router.post('/price-lists', async (req, res) => {
   try {
-    const ctx = await getUserContext(req.user.id);
+    const ctx = await getUserContext(req.userId);
+
     if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner') {
       return res.status(403).json({ error: 'Unauthorized' });
     }
