@@ -302,7 +302,8 @@ router.post('/quotes', async (req, res) => {
 // Get all quotes for the organization
 router.get('/quotes', async (req, res) => {
   try {
-    const ctx = await getUserContext(req.user.id);
+    const ctx = await getUserContext(req.userId);
+
     if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
     
     let sql = `SELECT * FROM online_quotes WHERE organization_id = $1`;
