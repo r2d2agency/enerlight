@@ -199,6 +199,7 @@ export default function Admin() {
   const [newUserName, setNewUserName] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('');
   const [newUserRole, setNewUserRole] = useState('agent');
+  const [newPlanOnlineQuotes, setNewPlanOnlineQuotes] = useState(true);
 
   const { 
     loading: actionLoading,
