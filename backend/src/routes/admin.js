@@ -5,10 +5,11 @@ import bcrypt from 'bcryptjs';
 
 const router = Router();
 
-// Ensure has_projects column exists on plans table
+// Ensure columns exist on plans table
 (async () => {
   try {
     await query(`ALTER TABLE plans ADD COLUMN IF NOT EXISTS has_projects BOOLEAN DEFAULT false`);
+    await query(`ALTER TABLE plans ADD COLUMN IF NOT EXISTS has_online_quotes BOOLEAN DEFAULT true`);
   } catch (_) {}
 })();
 
