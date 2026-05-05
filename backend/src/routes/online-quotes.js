@@ -59,6 +59,25 @@ router.get('/price-lists', async (req, res) => {
   }
 });
 
+// Create a price list
+router.post('/price-lists', async (req, res) => {
+  try {
+    const ctx = await getUserContext(req.user.id);
+    if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner') {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+    const { name, description } = req.body;
+    const result = await query(
+      `INSERT INTO price_lists (organization_id, name, description) VALUES ($1, $2, $3) RETURNING id`,
+      [ctx.organizationId, name, description]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    logError('online-quotes.price-lists.create', err);
+    res.status(500).json({ error: 'Failed to create price list' });
+  }
+});
+
 // Get items for a price list
 router.get('/price-lists/:id/items', async (req, res) => {
   try {
@@ -87,6 +106,35 @@ router.get('/price-lists/:id/items', async (req, res) => {
   } catch (err) {
     logError('online-quotes.price-list-items.get', err);
     res.status(500).json({ error: 'Failed to fetch items' });
+  }
+});
+
+// Bulk upsert price list items (from XLSX)
+router.post('/price-lists/:id/items/bulk', async (req, res) => {
+  try {
+    const ctx = await getUserContext(req.user.id);
+    const { items } = req.body; // items: { product_code, product_name, description, sale_price, cost_price, unit }
+    
+    for (const item of items) {
+      await query(
+        `INSERT INTO price_list_items 
+         (price_list_id, product_code, product_name, description, sale_price, cost_price, unit, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+         ON CONFLICT (price_list_id, product_code) 
+         DO UPDATE SET 
+           product_name = EXCLUDED.product_name,
+           description = EXCLUDED.description,
+           sale_price = EXCLUDED.sale_price,
+           cost_price = EXCLUDED.cost_price,
+           unit = EXCLUDED.unit,
+           updated_at = NOW()`,
+        [req.params.id, item.product_code, item.product_name, item.description, item.sale_price, item.cost_price || 0, item.unit || 'un']
+      );
+    }
+    res.json({ success: true, count: items.length });
+  } catch (err) {
+    logError('online-quotes.price-list-items.bulk', err);
+    res.status(500).json({ error: 'Failed to bulk import items' });
   }
 });
 
