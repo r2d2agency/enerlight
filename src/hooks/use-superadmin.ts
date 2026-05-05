@@ -143,6 +143,7 @@ export function useSuperadmin() {
     has_licitacao?: boolean;
     has_logistics?: boolean;
     has_document_signatures?: boolean;
+    has_online_quotes?: boolean;
     price: number;
     billing_period: string;
     visible_on_signup?: boolean;
