@@ -185,7 +185,8 @@ router.get('/price-lists/:id/items', async (req, res) => {
 // Update a single price list item (e.g. upload image)
 router.patch('/price-lists/:id/items/:productCode', async (req, res) => {
   try {
-    const ctx = await getUserContext(req.user.id);
+    const ctx = await getUserContext(req.userId);
+
     if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
     const { image_url } = req.body;
     
