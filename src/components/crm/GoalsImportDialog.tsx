@@ -163,13 +163,22 @@ export function GoalsImportDialog({ open, onOpenChange, dataType, onSuccess }: P
       });
 
       setSellers(preview.sellers || []);
+      setRawChannels(preview.rawChannels || []);
       setOrgUsers(preview.orgUsers || []);
       setExistingMappings(preview.existingMappings || []);
 
+      // Get available channels for mapping
+      const channels = await api<string[]>("/api/crm/goals/channels");
+      setAvailableChannels(channels || []);
+
       // Auto-fill mappings from existing
-      const autoMap: Record<string, string> = {};
-      (preview.existingMappings || []).forEach((m: any) => { autoMap[m.seller_name] = m.user_id; });
-      setSellerMapping(autoMap);
+      const autoSellerMap: Record<string, string> = {};
+      (preview.existingMappings || []).forEach((m: any) => { autoSellerMap[m.seller_name] = m.user_id; });
+      setSellerMapping(autoSellerMap);
+
+      const autoChannelMap: Record<string, string> = {};
+      (preview.existingChannelMappings || []).forEach((m: any) => { autoChannelMap[m.source_channel] = m.target_channel; });
+      setChannelMapping(autoChannelMap);
 
       setStep("mapping");
     } catch (err: any) {
