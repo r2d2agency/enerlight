@@ -297,6 +297,35 @@ export function GoalsImportDialog({ open, onOpenChange, dataType, onSuccess }: P
               </div>
             )}
 
+            {/* Channel mapping */}
+            {rawChannels.length > 0 && (
+              <div className="space-y-2 pt-2 border-t">
+                <Label className="text-sm font-medium">Vincular Canais da Planilha</Label>
+                <div className="max-h-48 overflow-y-auto space-y-2">
+                  {rawChannels.map(source => (
+                    <div key={source} className="flex items-center gap-2">
+                      <span className="text-sm min-w-[180px] truncate">{source}</span>
+                      <Select 
+                        value={channelMapping[source] || "keep"} 
+                        onValueChange={v => setChannelMapping(m => ({ ...m, [source]: v === "keep" ? "" : v }))}
+                      >
+                        <SelectTrigger className="flex-1">
+                          <SelectValue placeholder="Manter original..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="keep">— Manter original —</SelectItem>
+                          {availableChannels.map(ch => (
+                            <SelectItem key={ch} value={ch}>{ch}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-[10px] text-muted-foreground">Isso garante que canais diferentes na planilha sejam unificados no sistema.</p>
+              </div>
+            )}
+
             <DialogFooter>
               <Button variant="outline" onClick={() => { reset(); }}>Cancelar</Button>
               <Button onClick={handleImport} disabled={loading}>
