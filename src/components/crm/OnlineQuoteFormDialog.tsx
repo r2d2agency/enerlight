@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,10 +7,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Trash2, Search, Loader2, Save, Image as ImageIcon, Eye, X } from "lucide-react";
-import { usePriceLists, usePriceListItems, useOnlineQuoteMutations } from "@/hooks/use-online-quotes";
+import { Plus, Trash2, Search, Loader2, Save, Image as ImageIcon, Eye, X, Building2 } from "lucide-react";
+import { usePriceLists, usePriceListItems, useOnlineQuoteMutations, useOnlineQuoteTemplates } from "@/hooks/use-online-quotes";
+import { useCRMCompanies } from "@/hooks/use-crm";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { api } from "@/lib/api";
 
 interface OnlineQuoteFormDialogProps {
   open: boolean;
@@ -27,15 +29,64 @@ export function OnlineQuoteFormDialog({ open, onOpenChange }: OnlineQuoteFormDia
     notes: ""
   });
   const [selectedPriceListId, setSelectedPriceListId] = useState<string>("");
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const [quoteItems, setQuoteItems] = useState<any[]>([]);
   const [productSearch, setProductSearch] = useState("");
   const [showThumbnails, setShowThumbnails] = useState(true);
   const [includeImagesInQuote, setIncludeImagesInQuote] = useState(true);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [isSearchingCNPJ, setIsSearchingCNPJ] = useState(false);
+  const [companySearch, setCompanySearch] = useState("");
+  const [showCompanyResults, setShowCompanyResults] = useState(false);
 
   const { data: priceLists } = usePriceLists();
+  const { data: templates } = useOnlineQuoteTemplates();
   const { data: priceListItems, isLoading: loadingItems } = usePriceListItems(selectedPriceListId);
   const { createQuote } = useOnlineQuoteMutations();
+  const { data: existingCompanies } = useCRMCompanies(companySearch);
+
+  useEffect(() => {
+    if (templates?.length && !selectedTemplateId) {
+      const defaultTemplate = templates.find(t => t.is_default);
+      if (defaultTemplate) setSelectedTemplateId(defaultTemplate.id);
+    }
+  }, [templates]);
+
+  const handleLookupCNPJ = async () => {
+    const cnpj = clientInfo.document.replace(/\D/g, "");
+    if (cnpj.length !== 14) {
+      toast.error("CNPJ inválido");
+      return;
+    }
+
+    setIsSearchingCNPJ(true);
+    try {
+      const data = await api<any>(`/api/cnpj/lookup/${cnpj}`);
+      setClientInfo({
+        ...clientInfo,
+        name: data.razao_social || data.nome_fantasia || clientInfo.name,
+        email: data.email || clientInfo.email,
+        phone: data.telefone || clientInfo.phone
+      });
+      toast.success("Dados preenchidos via CNPJ");
+    } catch (err) {
+      toast.error("CNPJ não encontrado");
+    } finally {
+      setIsSearchingCNPJ(false);
+    }
+  };
+
+  const selectCompany = (company: any) => {
+    setClientInfo({
+      name: company.name,
+      document: company.cnpj || "",
+      email: company.email || "",
+      phone: company.phone || "",
+      notes: clientInfo.notes
+    });
+    setCompanySearch("");
+    setShowCompanyResults(false);
+  };
 
   const handleAddItem = (product: any) => {
     const existing = quoteItems.find(item => item.product_code === product.product_code);
@@ -79,6 +130,7 @@ export function OnlineQuoteFormDialog({ open, onOpenChange }: OnlineQuoteFormDia
         client_phone: clientInfo.phone,
         notes: clientInfo.notes,
         price_list_id: selectedPriceListId,
+        template_id: selectedTemplateId,
         items: quoteItems,
         include_images: includeImagesInQuote
       });
@@ -109,9 +161,40 @@ export function OnlineQuoteFormDialog({ open, onOpenChange }: OnlineQuoteFormDia
           <div className="flex-1 overflow-y-auto p-6 pt-2">
             {step === "client" ? (
               <div className="space-y-4">
+                <div className="relative">
+                  <Label>Buscar Empresa Existente (Nome ou CNPJ)</Label>
+                  <div className="flex gap-2">
+                    <Input 
+                      value={companySearch}
+                      onChange={e => {
+                        setCompanySearch(e.target.value);
+                        setShowCompanyResults(true);
+                      }}
+                      placeholder="Pesquisar..."
+                    />
+                  </div>
+                  {showCompanyResults && existingCompanies && existingCompanies.length > 0 && (
+                    <div className="absolute z-10 w-full mt-1 bg-background border rounded-md shadow-lg max-h-[200px] overflow-y-auto">
+                      {existingCompanies.map((company) => (
+                        <div 
+                          key={company.id}
+                          className="flex items-center gap-3 p-2 hover:bg-muted cursor-pointer text-sm"
+                          onClick={() => selectCompany(company)}
+                        >
+                          <Building2 className="h-4 w-4 text-muted-foreground" />
+                          <div className="flex-1">
+                            <p className="font-medium">{company.name}</p>
+                            <p className="text-[10px] text-muted-foreground">{company.cnpj || "Sem CNPJ"}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Nome do Cliente *</Label>
+                    <Label>Nome do Cliente / Razão Social *</Label>
                     <Input 
                       value={clientInfo.name} 
                       onChange={e => setClientInfo({...clientInfo, name: e.target.value})}
@@ -120,11 +203,22 @@ export function OnlineQuoteFormDialog({ open, onOpenChange }: OnlineQuoteFormDia
                   </div>
                   <div className="space-y-2">
                     <Label>CPF/CNPJ</Label>
-                    <Input 
-                      value={clientInfo.document} 
-                      onChange={e => setClientInfo({...clientInfo, document: e.target.value})}
-                      placeholder="000.000.000-00"
-                    />
+                    <div className="flex gap-2">
+                      <Input 
+                        value={clientInfo.document} 
+                        onChange={e => setClientInfo({...clientInfo, document: e.target.value})}
+                        placeholder="00.000.000/0000-00"
+                      />
+                      <Button 
+                        size="icon" 
+                        variant="outline" 
+                        title="Buscar dados por CNPJ"
+                        onClick={handleLookupCNPJ}
+                        disabled={isSearchingCNPJ || clientInfo.document.replace(/\D/g, "").length !== 14}
+                      >
+                        {isSearchingCNPJ ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                      </Button>
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <Label>E-mail</Label>
@@ -144,19 +238,38 @@ export function OnlineQuoteFormDialog({ open, onOpenChange }: OnlineQuoteFormDia
                     />
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <Label>Tabela de Preços *</Label>
-                  <Select value={selectedPriceListId} onValueChange={setSelectedPriceListId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione uma tabela..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {priceLists?.map(pl => (
-                        <SelectItem key={pl.id} value={pl.id}>{pl.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Folha de Rosto (Template) *</Label>
+                    <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione um modelo de capa..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {templates?.map(t => (
+                          <SelectItem key={t.id} value={t.id}>{t.name} {t.is_default && "(Padrão)"}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Tabela de Preços *</Label>
+                    <Select value={selectedPriceListId} onValueChange={setSelectedPriceListId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione uma tabela..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {priceLists?.map(pl => (
+                          <SelectItem key={pl.id} value={pl.id}>
+                            {pl.name} {pl.segment ? `[${pl.segment}]` : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
+
                 <div className="space-y-2">
                   <Label>Observações Internas</Label>
                   <Textarea 
@@ -319,7 +432,7 @@ export function OnlineQuoteFormDialog({ open, onOpenChange }: OnlineQuoteFormDia
                 <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
                 <Button 
                   onClick={() => setStep("items")} 
-                  disabled={!clientInfo.name || !selectedPriceListId}
+                  disabled={!clientInfo.name || !selectedPriceListId || !selectedTemplateId}
                 >
                   Próximo: Adicionar Itens
                 </Button>
