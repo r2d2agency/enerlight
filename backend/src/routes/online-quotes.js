@@ -311,8 +311,9 @@ router.get('/quotes', async (req, res) => {
     
     if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner') {
       sql += ` AND user_id = $2`;
-      params.push(req.user.id);
+      params.push(req.userId);
     }
+
     
     sql += ` ORDER BY created_at DESC`;
     
