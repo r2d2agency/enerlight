@@ -87,9 +87,12 @@ export function GoalsImportDialog({ open, onOpenChange, dataType, onSuccess }: P
   const [step, setStep] = useState<"upload" | "mapping" | "done">("upload");
   const [rows, setRows] = useState<ParsedRow[]>([]);
   const [sellers, setSellers] = useState<string[]>([]);
+  const [rawChannels, setRawChannels] = useState<string[]>([]);
+  const [availableChannels, setAvailableChannels] = useState<string[]>([]);
   const [orgUsers, setOrgUsers] = useState<{ id: string; name: string }[]>([]);
   const [existingMappings, setExistingMappings] = useState<{ seller_name: string; user_id: string }[]>([]);
   const [sellerMapping, setSellerMapping] = useState<Record<string, string>>({});
+  const [channelMapping, setChannelMapping] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ imported: number; skipped: number } | null>(null);
 
