@@ -34,6 +34,8 @@ async function getUserContext(userId) {
 router.get('/templates', async (req, res) => {
   try {
     const ctx = await getUserContext(req.user.id);
+    if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
+
     const result = await query(
       `SELECT * FROM online_quote_templates WHERE organization_id = $1 ORDER BY is_default DESC, name ASC`,
       [ctx.organizationId]
@@ -49,6 +51,7 @@ router.get('/templates', async (req, res) => {
 router.post('/templates', async (req, res) => {
   try {
     const ctx = await getUserContext(req.user.id);
+    if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
     if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner') {
       return res.status(403).json({ error: 'Unauthorized' });
     }
@@ -143,6 +146,7 @@ router.post('/price-lists', async (req, res) => {
 router.get('/price-lists/:id/items', async (req, res) => {
   try {
     const ctx = await getUserContext(req.user.id);
+    if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
     // Security check: verify access to this price list
     const accessCheck = await query(
       `SELECT organization_id FROM price_lists WHERE id = $1`,
@@ -174,6 +178,7 @@ router.get('/price-lists/:id/items', async (req, res) => {
 router.patch('/price-lists/:id/items/:productCode', async (req, res) => {
   try {
     const ctx = await getUserContext(req.user.id);
+    if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
     const { image_url } = req.body;
     
     await query(
@@ -192,6 +197,7 @@ router.patch('/price-lists/:id/items/:productCode', async (req, res) => {
 router.post('/price-lists/:id/items/bulk', async (req, res) => {
   try {
     const ctx = await getUserContext(req.user.id);
+    if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
     const { items } = req.body; // items: { product_code, product_name, description, sale_price, cost_price, unit, image_url }
     
     for (const item of items) {
@@ -222,6 +228,7 @@ router.post('/price-lists/:id/items/bulk', async (req, res) => {
 router.post('/quotes', async (req, res) => {
   try {
     const ctx = await getUserContext(req.user.id);
+    if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
     const { 
       client_name, client_document, client_email, client_phone, 
       price_list_id, template_id, items, cover_image_url, footer_text, valid_until, notes,
@@ -281,6 +288,7 @@ router.post('/quotes', async (req, res) => {
 router.get('/quotes', async (req, res) => {
   try {
     const ctx = await getUserContext(req.user.id);
+    if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
     
     let sql = `SELECT * FROM online_quotes WHERE organization_id = $1`;
     const params = [ctx.organizationId];
@@ -304,6 +312,7 @@ router.get('/quotes', async (req, res) => {
 router.get('/quotes/:id', async (req, res) => {
   try {
     const ctx = await getUserContext(req.user.id);
+    if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
     const quote = await query(
       `SELECT q.*, t.cover_url as template_cover, t.header_text as template_header, t.footer_text as template_footer
        FROM online_quotes q
