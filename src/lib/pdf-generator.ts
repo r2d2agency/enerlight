@@ -158,7 +158,8 @@ export const generateQuotePDF = async (quote: any, organization: any) => {
     doc.setTextColor(80, 80, 80);
     
     const combinedText = [quote.template_header, quote.notes].filter(Boolean).join('\n\n');
-    const splitNotes = doc.splitTextToSize(combinedText, pageWidth - 28);
+    const cleanText = combinedText.replace(/<[^>]*>/g, '');
+    const splitNotes = doc.splitTextToSize(cleanText, pageWidth - 28);
     doc.text(splitNotes, 14, finalY + 7);
   }
 
@@ -167,7 +168,9 @@ export const generateQuotePDF = async (quote: any, organization: any) => {
   if (footerText) {
     doc.setFontSize(8);
     doc.setTextColor(150, 150, 150);
-    const splitFooter = doc.splitTextToSize(footerText, pageWidth - 28);
+    // Remove HTML tags for PDF text positioning
+    const cleanFooter = footerText.replace(/<[^>]*>/g, '');
+    const splitFooter = doc.splitTextToSize(cleanFooter, pageWidth - 28);
     doc.text(splitFooter, pageWidth / 2, pageHeight - 15, { align: "center" });
   }
 

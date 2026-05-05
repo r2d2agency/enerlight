@@ -4,14 +4,16 @@ interface ApiOptions {
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE' | 'PUT';
   body?: unknown;
   auth?: boolean;
+  isFormData?: boolean;
 }
 
 export const api = async <T>(endpoint: string, options: ApiOptions = {}): Promise<T> => {
-  const { method = 'GET', body, auth = true } = options;
+  const { method = 'GET', body, auth = true, isFormData = false } = options;
+  const headers: Record<string, string> = {};
 
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
+  if (!isFormData) {
+    headers['Content-Type'] = 'application/json';
+  }
 
   if (auth) {
     const token = localStorage.getItem('auth_token');
@@ -23,7 +25,7 @@ export const api = async <T>(endpoint: string, options: ApiOptions = {}): Promis
   const response = await fetch(`${API_URL}${endpoint}`, {
     method,
     headers,
-    body: body ? JSON.stringify(body) : undefined,
+    body: isFormData ? (body as FormData) : (body ? JSON.stringify(body) : undefined),
   });
 
   const contentType = response.headers.get('content-type') || '';
