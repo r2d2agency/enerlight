@@ -109,6 +109,24 @@ router.get('/price-lists/:id/items', async (req, res) => {
   }
 });
 
+// Update a single price list item (e.g. upload image)
+router.patch('/price-lists/:id/items/:productCode', async (req, res) => {
+  try {
+    const ctx = await getUserContext(req.user.id);
+    const { image_url } = req.body;
+    
+    await query(
+      `UPDATE price_list_items SET image_url = $1, updated_at = NOW() 
+       WHERE price_list_id = $2 AND product_code = $3`,
+      [image_url, req.params.id, req.params.productCode]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    logError('online-quotes.price-list-items.patch', err);
+    res.status(500).json({ error: 'Failed to update item' });
+  }
+});
+
 // Bulk upsert price list items (from XLSX)
 router.post('/price-lists/:id/items/bulk', async (req, res) => {
   try {
