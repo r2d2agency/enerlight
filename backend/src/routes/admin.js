@@ -338,6 +338,7 @@ router.post('/plans', requireSuperadmin, async (req, res) => {
       has_licitacao: [req.body.has_licitacao || false, null],
       has_logistics: [req.body.has_logistics || false, null],
       has_document_signatures: [req.body.has_document_signatures || false, null],
+      has_online_quotes: [req.body.has_online_quotes !== false, null],
       price: [req.body.price || 0, null],
       billing_period: [req.body.billing_period || 'monthly', null],
       visible_on_signup: [req.body.visible_on_signup || false, null],
