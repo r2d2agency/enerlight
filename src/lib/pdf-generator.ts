@@ -58,7 +58,7 @@ export const generateQuotePDF = async (quote: any, organization: any) => {
     head: [['Produto', 'Qtd', 'Unitário', 'Total']],
     body: tableData,
     theme: 'striped',
-    headStyles: { fillStyle: 'dark', fillColor: [60, 60, 60] },
+    headStyles: { fillColor: [60, 60, 60] },
     foot: [[
       { content: 'TOTAL GERAL', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold' } },
       { content: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(quote.total_value), styles: { fontStyle: 'bold' } }
