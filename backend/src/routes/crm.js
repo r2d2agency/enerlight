@@ -6894,6 +6894,16 @@ router.post('/goals/import', async (req, res) => {
       );
     }
 
+    // Save channel mappings
+    for (const [source, target] of Object.entries(channelMapping || {})) {
+      if (!target) continue;
+      await query(
+        `INSERT INTO crm_goals_channel_mapping (organization_id, source_channel, target_channel)
+         VALUES ($1, $2, $3) ON CONFLICT (organization_id, source_channel) DO UPDATE SET target_channel = $3`,
+        [org.organization_id, source, target]
+      );
+    }
+
     for (const row of rows) {
       try {
         const userId = sellerMapping?.[row.seller_name] || null;
