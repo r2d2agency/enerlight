@@ -335,4 +335,35 @@ router.get('/quotes/:id', async (req, res) => {
   }
 });
 
+// Create organization company from quote data
+router.post('/companies/create-from-quote', async (req, res) => {
+  try {
+    const ctx = await getUserContext(req.user.id);
+    if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
+
+    const { name, document, email, phone } = req.body;
+    
+    // Check if company already exists
+    const existing = await query(
+      `SELECT id FROM crm_companies WHERE organization_id = $1 AND (cnpj = $2 OR name = $3)`,
+      [ctx.organizationId, document, name]
+    );
+
+    if (existing.rows.length > 0) {
+      return res.json({ id: existing.rows[0].id, alreadyExists: true });
+    }
+
+    const result = await query(
+      `INSERT INTO crm_companies (organization_id, name, cnpj, email, phone, created_at)
+       VALUES ($1, $2, $3, $4, $5, NOW()) RETURNING id`,
+      [ctx.organizationId, name, document, email, phone]
+    );
+
+    res.json({ id: result.rows[0].id });
+  } catch (err) {
+    logError('online-quotes.companies.create', err);
+    res.status(500).json({ error: 'Failed to create company' });
+  }
+});
+
 export default router;

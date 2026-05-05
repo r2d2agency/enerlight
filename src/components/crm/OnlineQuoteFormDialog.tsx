@@ -123,6 +123,23 @@ export function OnlineQuoteFormDialog({ open, onOpenChange }: OnlineQuoteFormDia
 
   const handleSubmit = async () => {
     try {
+      // First, create the company in CRM if it doesn't exist
+      if (clientInfo.name) {
+        try {
+          await api("/api/online-quotes/companies/create-from-quote", {
+            method: "POST",
+            body: {
+              name: clientInfo.name,
+              document: clientInfo.document,
+              email: clientInfo.email,
+              phone: clientInfo.phone
+            }
+          });
+        } catch (e) {
+          console.error("Failed to sync company to CRM", e);
+        }
+      }
+
       await createQuote.mutateAsync({
         client_name: clientInfo.name,
         client_document: clientInfo.document,
