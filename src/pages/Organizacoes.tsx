@@ -151,6 +151,7 @@ export default function Organizacoes() {
     captador: false,
     licitacao: false,
     logistics: false,
+    online_quotes: true,
   });
   const [savingModules, setSavingModules] = useState(false);
 
