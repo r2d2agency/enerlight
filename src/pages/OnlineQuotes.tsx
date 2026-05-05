@@ -3,12 +3,30 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Plus, FileText, List, Settings, ShieldCheck } from "lucide-react";
+import { Plus, FileText, List, Settings, ShieldCheck, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePriceLists, useOnlineQuoteMutations } from "@/hooks/use-online-quotes";
+import { OnlineQuoteFormDialog } from "@/components/crm/OnlineQuoteFormDialog";
+import { Badge } from "@/components/ui/badge";
+import { format, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 export default function OnlineQuotes() {
   const { user } = useAuth();
+  const [isNewQuoteOpen, setIsNewQuoteOpen] = useState(false);
   const isAdmin = ['owner', 'admin', 'manager'].includes(user?.role || '');
+
+  const { data: priceLists, isLoading: loadingPriceLists } = usePriceLists();
+  
+  // Fake or fetch quotes (to be implemented in hook)
+  const quotes: any[] = []; 
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }).format(value);
+  };
 
   return (
     <MainLayout>
@@ -21,7 +39,7 @@ export default function OnlineQuotes() {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button>
+            <Button onClick={() => setIsNewQuoteOpen(true)}>
               <Plus className="mr-2 h-4 w-4" /> Novo Orçamento
             </Button>
           </div>
@@ -83,17 +101,35 @@ export default function OnlineQuotes() {
                 )}
               </CardHeader>
               <CardContent>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                   {/* Placeholder for price lists */}
-                   <Card className="hover:border-primary/50 transition-colors cursor-pointer border-dashed">
-                     <CardHeader className="pb-2">
-                        <CardTitle className="text-base text-muted-foreground">Tabela Matriz</CardTitle>
-                     </CardHeader>
-                     <CardContent>
-                        <p className="text-xs text-muted-foreground">Preços oficiais da organização.</p>
-                     </CardContent>
-                   </Card>
-                </div>
+                {loadingPriceLists ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>
+                ) : (
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {priceLists?.map(pl => (
+                      <Card key={pl.id} className="hover:border-primary/50 transition-colors cursor-pointer">
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-base">{pl.name}</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <p className="text-xs text-muted-foreground">{pl.description || "Sem descrição"}</p>
+                          <div className="mt-2 flex items-center justify-between">
+                            <Badge variant={pl.is_active ? "default" : "secondary"}>
+                              {pl.is_active ? "Ativa" : "Inativa"}
+                            </Badge>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                    {priceLists?.length === 0 && (
+                      <div className="col-span-full py-12 text-center border-2 border-dashed rounded-lg">
+                        <List className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
+                        <h3 className="text-lg font-medium">Nenhuma tabela de preços</h3>
+                      </div>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -137,6 +173,11 @@ export default function OnlineQuotes() {
             </>
           )}
         </Tabs>
+
+        <OnlineQuoteFormDialog 
+          open={isNewQuoteOpen} 
+          onOpenChange={setIsNewQuoteOpen} 
+        />
       </div>
     </MainLayout>
   );
