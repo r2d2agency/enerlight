@@ -193,7 +193,7 @@ export function GoalsImportDialog({ open, onOpenChange, dataType, onSuccess }: P
     try {
       const res = await api<{ imported: number; skipped: number }>("/api/crm/goals/import", {
         method: "POST",
-        body: { rows, sellerMapping, dataType },
+        body: { rows, sellerMapping, channelMapping, dataType },
       });
       setResult(res);
       setStep("done");
