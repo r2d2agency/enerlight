@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, FileText, List, Settings, ShieldCheck, Loader2, Eye, Download, LayoutTemplate, Pencil, Image as ImageIcon } from "lucide-react";
+import { Plus, FileText, List, Settings, ShieldCheck, Loader2, Eye, Download, LayoutTemplate, Pencil, Image as ImageIcon, Upload } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePriceLists, useOnlineQuoteMutations, useOnlineQuotes, useOnlineQuoteTemplates } from "@/hooks/use-online-quotes";
 import { OnlineQuoteFormDialog } from "@/components/crm/OnlineQuoteFormDialog";
@@ -346,8 +346,40 @@ export default function OnlineQuotes() {
                     <Input name="name" defaultValue={editingTemplate?.name} required placeholder="Ex: Modelo Corporativo" />
                   </div>
                   <div className="space-y-2">
-                    <Label>URL da Imagem de Capa</Label>
-                    <Input name="cover_url" defaultValue={editingTemplate?.cover_url} placeholder="https://..." onChange={(e) => setEditingTemplate({...editingTemplate, cover_url: e.target.value})} />
+                    <Label>Imagem de Capa</Label>
+                    <div className="flex gap-2">
+                      <Input name="cover_url" defaultValue={editingTemplate?.cover_url} placeholder="https://..." className="flex-1" onChange={(e) => setEditingTemplate({...editingTemplate, cover_url: e.target.value})} />
+                      <Button type="button" variant="outline" size="icon" className="relative shrink-0" title="Subir imagem do computador">
+                        <Upload className="h-4 w-4" />
+                        <input 
+                          type="file" 
+                          accept="image/*" 
+                          className="absolute inset-0 opacity-0 cursor-pointer" 
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            const formData = new FormData();
+                            formData.append('file', file);
+                            try {
+                              const res = await api<any>('/api/uploads', {
+                                method: 'POST',
+                                body: formData,
+                                isFormData: true
+                              });
+                              if (res.file?.url) {
+                                setEditingTemplate({...editingTemplate, cover_url: res.file.url});
+                                // Update form field manually since it's an uncontrolled input in a native form
+                                const input = document.querySelector('input[name="cover_url"]') as HTMLInputElement;
+                                if (input) input.value = res.file.url;
+                                toast.success("Imagem enviada!");
+                              }
+                            } catch (err) {
+                              toast.error("Erro ao subir imagem");
+                            }
+                          }}
+                        />
+                      </Button>
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <Label>Descrição</Label>
@@ -355,11 +387,27 @@ export default function OnlineQuotes() {
                   </div>
                   <div className="space-y-2">
                     <Label>Texto de Cabeçalho (HTML)</Label>
-                    <Textarea name="header_text" defaultValue={editingTemplate?.header_text} placeholder="Opcional..." className="font-mono text-xs h-24" />
+                    <div className="border rounded-md focus-within:ring-1 focus-within:ring-ring">
+                      <Textarea 
+                        name="header_text" 
+                        defaultValue={editingTemplate?.header_text} 
+                        placeholder="Clique para editar HTML..." 
+                        className="font-mono text-xs h-24 border-0 focus-visible:ring-0" 
+                        onChange={(e) => setEditingTemplate({...editingTemplate, header_text: e.target.value})}
+                      />
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <Label>Texto de Rodapé (HTML)</Label>
-                    <Textarea name="footer_text" defaultValue={editingTemplate?.footer_text} placeholder="Opcional..." className="font-mono text-xs h-24" />
+                    <div className="border rounded-md focus-within:ring-1 focus-within:ring-ring">
+                      <Textarea 
+                        name="footer_text" 
+                        defaultValue={editingTemplate?.footer_text} 
+                        placeholder="Clique para editar HTML..." 
+                        className="font-mono text-xs h-24 border-0 focus-visible:ring-0" 
+                        onChange={(e) => setEditingTemplate({...editingTemplate, footer_text: e.target.value})}
+                      />
+                    </div>
                   </div>
                 </div>
 
