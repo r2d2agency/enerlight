@@ -403,17 +403,19 @@ export function RichEmailEditor({ value, onChange, placeholder, className }: Ric
       
       {/* Editor / Preview */}
       <Tabs value={showPreview ? "preview" : "edit"} className="w-full">
-        <TabsContent value="edit" className="m-0">
+        <TabsContent value="edit" className="m-0 relative">
           <div
             ref={editorRef}
             contentEditable
-            className="min-h-[300px] max-h-[500px] overflow-y-auto p-4 focus:outline-none prose prose-sm max-w-none"
+            className="min-h-[300px] max-h-[500px] overflow-y-auto p-4 focus:outline-none prose prose-sm max-w-none text-left"
             onInput={handleInput}
             onBlur={syncContent}
             dangerouslySetInnerHTML={{ __html: value }}
             data-placeholder={placeholder}
             style={{ 
               minHeight: "300px",
+              textAlign: "left",
+              whiteSpace: "pre-wrap",
               wordBreak: "break-word",
             }}
           />

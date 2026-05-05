@@ -657,7 +657,7 @@ export default function OnlineQuotes() {
                       <div className="space-y-4">
                         <Label>Páginas de Dados (Header/Footer)</Label>
                         <div className="aspect-[3/4] border rounded shadow-md bg-white flex flex-col p-4 relative overflow-hidden text-[6px]">
-                          <div className="border-b pb-2 mb-4 opacity-50" dangerouslySetInnerHTML={{ __html: editingTemplate?.header_text || "Cabeçalho..." }} />
+                          <div className="border-b pb-2 mb-4 opacity-50 text-left" style={{ textAlign: 'left' }} dangerouslySetInnerHTML={{ __html: editingTemplate?.header_text || "Cabeçalho..." }} />
                           <div className="flex-1 bg-muted/20 rounded flex items-center justify-center text-muted-foreground/30">CONTEÚDO DO ORÇAMENTO</div>
                           <div className="mt-4 border-t pt-2 grid grid-cols-3 gap-2">
                              {['left', 'center', 'right'].map(col => {
