@@ -95,8 +95,8 @@ router.get('/price-lists/:id/items', async (req, res) => {
     // Cost price is only returned for admins/managers
     const showCost = ctx.role === 'admin' || ctx.role === 'manager';
     const fields = showCost 
-      ? 'id, product_code, product_name, description, sale_price, min_price, cost_price, unit'
-      : 'id, product_code, product_name, description, sale_price, min_price, unit';
+      ? 'id, product_code, product_name, description, sale_price, min_price, cost_price, unit, image_url'
+      : 'id, product_code, product_name, description, sale_price, min_price, unit, image_url';
 
     const result = await query(
       `SELECT ${fields} FROM price_list_items WHERE price_list_id = $1 ORDER BY product_name ASC`,
