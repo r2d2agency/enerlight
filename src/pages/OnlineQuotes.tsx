@@ -3,9 +3,9 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Plus, FileText, List, Settings, ShieldCheck, Loader2 } from "lucide-react";
+import { Plus, FileText, List, Settings, ShieldCheck, Loader2, Eye, Download } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { usePriceLists, useOnlineQuoteMutations } from "@/hooks/use-online-quotes";
+import { usePriceLists, useOnlineQuoteMutations, useOnlineQuotes } from "@/hooks/use-online-quotes";
 import { OnlineQuoteFormDialog } from "@/components/crm/OnlineQuoteFormDialog";
 import { Badge } from "@/components/ui/badge";
 import { format, parseISO } from "date-fns";
@@ -17,10 +17,7 @@ export default function OnlineQuotes() {
   const isAdmin = ['owner', 'admin', 'manager'].includes(user?.role || '');
 
   const { data: priceLists, isLoading: loadingPriceLists } = usePriceLists();
-  
-  // Fake or fetch quotes (to be implemented in hook)
-  const quotes: any[] = []; 
-
+  const { data: quotes, isLoading: loadingQuotes } = useOnlineQuotes();
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
       style: "currency",
@@ -74,13 +71,63 @@ export default function OnlineQuotes() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed rounded-lg">
-                  <FileText className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                  <h3 className="text-lg font-medium">Nenhum orçamento encontrado</h3>
-                  <p className="text-sm text-muted-foreground mt-1 max-w-xs">
-                    Comece criando seu primeiro orçamento clicando no botão acima.
-                  </p>
-                </div>
+                {loadingQuotes ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>
+                ) : quotes && quotes.length > 0 ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Data</TableHead>
+                        <TableHead>Cliente</TableHead>
+                        <TableHead>Valor</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {quotes.map((quote) => (
+                        <TableRow key={quote.id}>
+                          <TableCell className="text-sm">
+                            {format(parseISO(quote.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                          </TableCell>
+                          <TableCell className="font-medium">{quote.client_name}</TableCell>
+                          <TableCell>{formatCurrency(quote.total_value)}</TableCell>
+                          <TableCell>
+                            <Badge variant={
+                              quote.status === 'approved' ? 'default' :
+                              quote.status === 'rejected' ? 'destructive' :
+                              'secondary'
+                            }>
+                              {quote.status === 'draft' ? 'Rascunho' :
+                               quote.status === 'sent' ? 'Enviado' :
+                               quote.status === 'approved' ? 'Aprovado' : 'Rejeitado'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button variant="ghost" size="sm" title="Visualizar">
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="sm" title="Baixar PDF">
+                                <Download className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed rounded-lg">
+                    <FileText className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                    <h3 className="text-lg font-medium">Nenhum orçamento encontrado</h3>
+                    <p className="text-sm text-muted-foreground mt-1 max-w-xs">
+                      Comece criando seu primeiro orçamento clicando no botão acima.
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
