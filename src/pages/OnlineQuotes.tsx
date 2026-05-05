@@ -14,10 +14,6 @@ import { ptBR } from "date-fns/locale";
 import { generateQuotePDF } from "@/lib/pdf-generator";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
-import { OnlineQuoteFormDialog } from "@/components/crm/OnlineQuoteFormDialog";
-import { Badge } from "@/components/ui/badge";
-import { format, parseISO } from "date-fns";
-import { ptBR } from "date-fns/locale";
 
 export default function OnlineQuotes() {
   const { user } = useAuth();

@@ -170,4 +170,27 @@ router.get('/quotes', async (req, res) => {
   }
 });
 
+// Get a single quote with items
+router.get('/quotes/:id', async (req, res) => {
+  try {
+    const ctx = await getUserContext(req.user.id);
+    const quote = await query(
+      `SELECT * FROM online_quotes WHERE id = $1 AND organization_id = $2`,
+      [req.params.id, ctx.organizationId]
+    );
+    
+    if (quote.rows.length === 0) return res.status(404).json({ error: 'Quote not found' });
+    
+    const items = await query(
+      `SELECT * FROM online_quote_items WHERE quote_id = $1`,
+      [req.params.id]
+    );
+    
+    res.json({ ...quote.rows[0], items: items.rows });
+  } catch (err) {
+    logError('online-quotes.quote.get', err);
+    res.status(500).json({ error: 'Failed to fetch quote' });
+  }
+});
+
 export default router;
