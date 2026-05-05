@@ -407,7 +407,7 @@ export function RichEmailEditor({ value, onChange, placeholder, className }: Ric
           <div
             ref={editorRef}
             contentEditable
-            className="min-h-[300px] max-h-[500px] overflow-y-auto p-4 focus:outline-none prose prose-sm max-w-none text-left"
+            className="min-h-[300px] max-h-[500px] overflow-y-auto p-4 focus:outline-none prose prose-sm max-w-none"
             onInput={handleInput}
             onBlur={syncContent}
             dangerouslySetInnerHTML={{ __html: value }}
@@ -417,6 +417,8 @@ export function RichEmailEditor({ value, onChange, placeholder, className }: Ric
               textAlign: "left",
               whiteSpace: "pre-wrap",
               wordBreak: "break-word",
+              direction: "ltr",
+              unicodeBidi: "plaintext"
             }}
           />
         </TabsContent>
