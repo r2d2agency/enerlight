@@ -4818,12 +4818,12 @@ export async function initDatabase() {
 
   for (const step of migrationSteps) {
     try {
-      console.log(`  → Step: ${step.name}...`);
+      console.log(`  -> Step: ${step.name}...`);
       await pool.query(step.sql);
-      console.log(`  ✅ ${step.name} - OK`);
+      console.log(`  OK ${step.name} - OK`);
       successCount++;
     } catch (error) {
-      console.error(`  ❌ ${step.name} - FAILED: ${error.message}`);
+      console.error(`  ERR ${step.name} - FAILED: ${error.message}`);
       failedSteps.push({ name: step.name, error: error.message });
       
       if (step.critical) {
@@ -4844,12 +4844,12 @@ export async function initDatabase() {
   }
   
   if (criticalFailure) {
-    console.error('❌ Database initialization failed (critical step error)');
+    console.error('ERR Database initialization failed (critical step error)');
     return false;
   }
   
   if (failedSteps.length === 0) {
-    console.log('✅ Database initialized successfully!');
+    console.log('OK Database initialized successfully!');
   } else {
     console.log('⚠️ Database initialized with warnings (some non-critical steps failed)');
   }
@@ -4961,12 +4961,12 @@ export async function initDatabase() {
 
   for (const step of migrationSteps) {
     try {
-      console.log(`  → Step: ${step.name}...`);
+      console.log(`  -> Step: ${step.name}...`);
       await pool.query(step.sql);
-      console.log(`  ✅ ${step.name} - OK`);
+      console.log(`  OK ${step.name} - OK`);
       successCount++;
     } catch (error) {
-      console.error(`  ❌ ${step.name} - FAILED: ${error.message}`);
+      console.error(`  ERR ${step.name} - FAILED: ${error.message}`);
       failedSteps.push({ name: step.name, error: error.message });
       
       if (step.critical) {
@@ -4986,12 +4986,12 @@ export async function initDatabase() {
   }
   
   if (criticalFailure) {
-    console.error('❌ Database initialization failed (critical step error)');
+    console.error('ERR Database initialization failed (critical step error)');
     return false;
   }
   
   if (failedSteps.length === 0) {
-    console.log('✅ Database initialized successfully!');
+    console.log('OK Database initialized successfully!');
   } else {
     console.log('⚠️ Database initialized with warnings (some non-critical steps failed)');
   }
