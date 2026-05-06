@@ -16,7 +16,7 @@ interface PriceListItemsDialogProps {
   canEdit?: boolean;
 }
 
-export function PriceListItemsDialog({ priceList, onOpenChange }: PriceListItemsDialogProps) {
+export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }: PriceListItemsDialogProps) {
   const [search, setSearch] = useState("");
   const { data: items, isLoading } = usePriceListItems(priceList?.id || "");
   const queryClient = useQueryClient();
