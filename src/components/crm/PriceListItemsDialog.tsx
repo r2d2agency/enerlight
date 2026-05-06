@@ -26,6 +26,33 @@ export function PriceListItemsDialog({ priceList, onOpenChange }: PriceListItems
     item.product_code.toLowerCase().includes(search.toLowerCase())
   );
 
+  const handleFileUpload = async (productCode: string, file: File) => {
+    if (!priceList) return;
+    setUpdatingId(productCode);
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const { url } = await api<{url: string}>(`/api/storage/upload`, {
+        method: 'POST',
+        body: formData
+      });
+
+      await api(`/api/online-quotes/price-lists/${priceList.id}/items/${productCode}`, {
+        method: 'PATCH',
+        body: { image_url: url }
+      });
+
+      toast.success("Imagem enviada com sucesso!");
+      queryClient.invalidateQueries({ queryKey: ['price-list-items', priceList.id] });
+    } catch (err) {
+      toast.error("Erro ao enviar imagem");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
   const handleUpdateImage = async (productCode: string, imageUrl: string) => {
     if (!priceList) return;
     setUpdatingId(productCode);
@@ -216,7 +243,7 @@ export function PriceListItemsDialog({ priceList, onOpenChange }: PriceListItems
                   <TableHead>Código</TableHead>
                   <TableHead>Produto</TableHead>
                   <TableHead>Preço Venda</TableHead>
-                  <TableHead className="w-[300px]">URL da Imagem</TableHead>
+                   <TableHead className="w-[120px]">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -238,10 +265,33 @@ export function PriceListItemsDialog({ priceList, onOpenChange }: PriceListItems
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="relative h-8 w-8 p-0"
+                          disabled={updatingId === item.product_code}
+                          title="Fazer upload de foto"
+                        >
+                          {updatingId === item.product_code ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Upload className="h-4 w-4" />
+                          )}
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            className="absolute inset-0 opacity-0 cursor-pointer" 
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handleFileUpload(item.product_code, file);
+                            }}
+                            disabled={updatingId === item.product_code}
+                          />
+                        </Button>
                         <Input 
-                          placeholder="URL da imagem..."
+                          placeholder="Ou cole o link..."
                           defaultValue={item.image_url || ""}
-                          className="h-8 text-xs"
+                          className="h-8 text-xs flex-1"
                           onBlur={(e) => {
                             if (e.target.value !== (item.image_url || "")) {
                               handleUpdateImage(item.product_code, e.target.value);
@@ -249,7 +299,6 @@ export function PriceListItemsDialog({ priceList, onOpenChange }: PriceListItems
                           }}
                           disabled={updatingId === item.product_code}
                         />
-                        {updatingId === item.product_code && <Loader2 className="h-4 w-4 animate-spin" />}
                       </div>
                     </TableCell>
                   </TableRow>
