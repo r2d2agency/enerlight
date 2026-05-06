@@ -254,7 +254,7 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
                   <TableHead>Código</TableHead>
                   <TableHead>Produto</TableHead>
                   <TableHead>Preço Venda</TableHead>
-                   <TableHead className="w-[120px]">Ações</TableHead>
+                   {canEdit && <TableHead className="w-[120px]">Ações</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
