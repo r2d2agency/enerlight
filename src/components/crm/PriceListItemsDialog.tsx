@@ -103,11 +103,21 @@ export function PriceListItemsDialog({ priceList, onOpenChange }: PriceListItems
         // Map and validate items
         // Expected columns: code/codigo, name/nome, price/preco/valor, image/imagem (optional)
         const items = jsonData.map((row: any) => {
-          const product_code = (row.code || row.codigo || row['Código'] || row['CÓDIGO'] || '').toString().trim();
-          const product_name = (row.name || row.nome || row['Nome'] || row['NOME'] || row['Produto'] || '').toString().trim();
-          const priceValue = row.price || row.preco || row.valor || row['Preço'] || row['Valor'] || 0;
-          const sale_price = typeof priceValue === 'number' ? priceValue : parseFloat(priceValue.toString().replace(',', '.'));
-          const image_url = (row.image || row.imagem || row['Imagem'] || row['URL Imagem'] || '').toString().trim();
+          // Normaliza as chaves para facilitar a busca
+          const keys = Object.keys(row);
+          const findKey = (possibilities: string[]) => 
+            keys.find(k => possibilities.some(p => k.toLowerCase().trim() === p.toLowerCase()));
+
+          const codeKey = findKey(['code', 'codigo', 'código', 'cod', 'sku', 'referencia', 'referência']);
+          const nameKey = findKey(['name', 'nome', 'produto', 'descrição', 'descricao', 'item']);
+          const priceKey = findKey(['price', 'preco', 'preço', 'valor', 'venda', 'vlr']);
+          const imageKey = findKey(['image', 'imagem', 'url', 'foto', 'link']);
+
+          const product_code = (row[codeKey || ''] || '').toString().trim();
+          const product_name = (row[nameKey || ''] || '').toString().trim();
+          const priceValue = row[priceKey || ''] || 0;
+          const sale_price = typeof priceValue === 'number' ? priceValue : parseFloat(priceValue.toString().replace('R$', '').replace(/\./g, '').replace(',', '.').trim() || "0");
+          const image_url = (row[imageKey || ''] || '').toString().trim();
 
           return {
             product_code,
