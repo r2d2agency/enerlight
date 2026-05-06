@@ -35,6 +35,7 @@ export default function OnlineQuotes() {
   const [editingPriceList, setEditingPriceList] = useState<any>(null);
 
   const isAdmin = ['owner', 'admin', 'manager'].includes(user?.role || '');
+  const canEditPriceLists = isAdmin || user?.user_permissions?.can_edit_price_lists;
 
   const { data: priceLists, isLoading: loadingPriceLists } = usePriceLists();
   const { data: quotes, isLoading: loadingQuotes } = useOnlineQuotes();
