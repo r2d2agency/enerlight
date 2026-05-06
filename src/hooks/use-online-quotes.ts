@@ -8,6 +8,8 @@ export interface PriceList {
   description?: string;
   segment?: string;
   is_active: boolean;
+  markup_percentage?: number;
+  discount_limit_percentage?: number;
   created_at: string;
 }
 

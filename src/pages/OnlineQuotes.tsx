@@ -113,6 +113,8 @@ export default function OnlineQuotes() {
       name: formData.get('name'),
       description: formData.get('description'),
       segment: formData.get('segment'),
+      markup_percentage: parseFloat(formData.get('markup_percentage') as string || '0'),
+      discount_limit_percentage: parseFloat(formData.get('discount_limit_percentage') as string || '0'),
       is_active: formData.get('is_active') === 'on'
     };
 
@@ -730,6 +732,33 @@ export default function OnlineQuotes() {
                 <Label>Descrição</Label>
                 <Textarea name="description" defaultValue={editingPriceList?.description} />
               </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="markup_percentage">Markup / Acréscimo (%)</Label>
+                  <Input 
+                    id="markup_percentage" 
+                    name="markup_percentage" 
+                    type="number" 
+                    step="0.01" 
+                    defaultValue={editingPriceList?.markup_percentage || 0} 
+                    placeholder="Ex: 20" 
+                  />
+                  <p className="text-[10px] text-muted-foreground">Aumenta o preço original em %</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="discount_limit_percentage">Limite de Desconto (%)</Label>
+                  <Input 
+                    id="discount_limit_percentage" 
+                    name="discount_limit_percentage" 
+                    type="number" 
+                    step="0.01" 
+                    defaultValue={editingPriceList?.discount_limit_percentage || 0} 
+                    placeholder="Ex: 10" 
+                  />
+                  <p className="text-[10px] text-muted-foreground">Máximo de desconto permitido</p>
+                </div>
+              </div>
+
               <div className="flex items-center space-x-2">
                 <Switch name="is_active" id="is_active" defaultChecked={editingPriceList?.is_active !== false} />
                 <Label htmlFor="is_active">Tabela Ativa</Label>
