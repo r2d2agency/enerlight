@@ -139,6 +139,7 @@ export function PriceListItemsDialog({ priceList, onOpenChange }: PriceListItems
           const priceKey = findKey(['price', 'preco', 'preço', 'valor', 'venda', 'vlr']);
           const imageKey = findKey(['image', 'imagem', 'url', 'foto', 'link']);
 
+          const product_code = (row[codeKey || ''] || '').toString().trim();
           const product_name = (row[nameKey || ''] || '').toString().trim();
           const priceValue = row[priceKey || ''] || 0;
           let sale_price = typeof priceValue === 'number' ? priceValue : parseFloat(priceValue.toString().replace('R$', '').replace(/\./g, '').replace(',', '.').trim() || "0");
