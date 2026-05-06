@@ -26,6 +26,34 @@ export function PriceListItemsDialog({ priceList, onOpenChange }: PriceListItems
     item.product_code.toLowerCase().includes(search.toLowerCase())
   );
 
+  const handleFileUpload = async (productCode: string, file: File) => {
+    if (!priceList) return;
+    setUpdatingId(productCode);
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const { url } = await api<{url: string}>(`/api/storage/upload`, {
+        method: 'POST',
+        body: formData,
+        headers: {} // Let browser set content-type for FormData
+      });
+
+      await api(`/api/online-quotes/price-lists/${priceList.id}/items/${productCode}`, {
+        method: 'PATCH',
+        body: { image_url: url }
+      });
+
+      toast.success("Imagem enviada com sucesso!");
+      queryClient.invalidateQueries({ queryKey: ['price-list-items', priceList.id] });
+    } catch (err) {
+      toast.error("Erro ao enviar imagem");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
   const handleUpdateImage = async (productCode: string, imageUrl: string) => {
     if (!priceList) return;
     setUpdatingId(productCode);
