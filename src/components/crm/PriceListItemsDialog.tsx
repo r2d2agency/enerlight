@@ -36,8 +36,7 @@ export function PriceListItemsDialog({ priceList, onOpenChange }: PriceListItems
       
       const { url } = await api<{url: string}>(`/api/storage/upload`, {
         method: 'POST',
-        body: formData,
-        headers: {} // Let browser set content-type for FormData
+        body: formData
       });
 
       await api(`/api/online-quotes/price-lists/${priceList.id}/items/${productCode}`, {
