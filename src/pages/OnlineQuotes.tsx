@@ -35,6 +35,7 @@ export default function OnlineQuotes() {
   const [editingPriceList, setEditingPriceList] = useState<any>(null);
 
   const isAdmin = ['owner', 'admin', 'manager'].includes(user?.role || '');
+  const canEditPriceLists = isAdmin || user?.user_permissions?.can_edit_price_lists;
 
   const { data: priceLists, isLoading: loadingPriceLists } = usePriceLists();
   const { data: quotes, isLoading: loadingQuotes } = useOnlineQuotes();
@@ -151,7 +152,7 @@ export default function OnlineQuotes() {
             <TabsTrigger value="price-lists" className="flex items-center gap-2">
               <List className="h-4 w-4" /> Tabelas
             </TabsTrigger>
-            {isAdmin && (
+            {canEditPriceLists && (
               <>
                 <TabsTrigger value="templates" className="flex items-center gap-2">
                   <LayoutTemplate className="h-4 w-4" /> Modelos
@@ -242,7 +243,7 @@ export default function OnlineQuotes() {
                     Tabelas disponíveis por segmento ou canal.
                   </CardDescription>
                 </div>
-                {isAdmin && (
+                {canEditPriceLists && (
                   <Button variant="outline" size="sm" onClick={() => { setEditingPriceList(null); setIsPriceListDialogOpen(true); }}>
                     <Plus className="mr-2 h-4 w-4" /> Nova Tabela
                   </Button>
@@ -262,7 +263,7 @@ export default function OnlineQuotes() {
                       >
                         <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
                           <CardTitle className="text-base" onClick={() => setSelectedPriceList(pl)}>{pl.name}</CardTitle>
-                          {isAdmin && (
+                          {canEditPriceLists && (
                             <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100" onClick={(e) => { e.stopPropagation(); setEditingPriceList(pl); setIsPriceListDialogOpen(true); }}>
                               <Pencil className="h-3.5 w-3.5" />
                             </Button>
@@ -782,6 +783,7 @@ export default function OnlineQuotes() {
         <PriceListItemsDialog 
           priceList={selectedPriceList} 
           onOpenChange={(open) => !open && setSelectedPriceList(null)} 
+          canEdit={canEditPriceLists}
         />
       </div>
     </MainLayout>

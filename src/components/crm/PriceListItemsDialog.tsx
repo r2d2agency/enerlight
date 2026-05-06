@@ -13,9 +13,10 @@ import * as XLSX from "xlsx";
 interface PriceListItemsDialogProps {
   priceList: { id: string; name: string; markup_percentage?: number } | null;
   onOpenChange: (open: boolean) => void;
+  canEdit?: boolean;
 }
 
-export function PriceListItemsDialog({ priceList, onOpenChange }: PriceListItemsDialogProps) {
+export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }: PriceListItemsDialogProps) {
   const [search, setSearch] = useState("");
   const { data: items, isLoading } = usePriceListItems(priceList?.id || "");
   const queryClient = useQueryClient();
@@ -212,26 +213,30 @@ export function PriceListItemsDialog({ priceList, onOpenChange }: PriceListItems
               />
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" className="relative">
-                <FileSpreadsheet className="h-4 w-4 mr-2" />
-                Importar Excel (XLSX)
-                <input 
-                  type="file" 
-                  accept=".xlsx, .xls" 
-                  className="absolute inset-0 opacity-0 cursor-pointer" 
-                  onChange={handleXlsxImport}
-                />
-              </Button>
-              <Button variant="ghost" size="sm" className="relative">
-                <FileUp className="h-4 w-4 mr-2" />
-                CSV
-                <input 
-                  type="file" 
-                  accept=".csv" 
-                  className="absolute inset-0 opacity-0 cursor-pointer" 
-                  onChange={handleBulkImport}
-                />
-              </Button>
+              {canEdit && (
+                <>
+                  <Button variant="outline" size="sm" className="relative">
+                    <FileSpreadsheet className="h-4 w-4 mr-2" />
+                    Importar Excel (XLSX)
+                    <input 
+                      type="file" 
+                      accept=".xlsx, .xls" 
+                      className="absolute inset-0 opacity-0 cursor-pointer" 
+                      onChange={handleXlsxImport}
+                    />
+                  </Button>
+                  <Button variant="ghost" size="sm" className="relative">
+                    <FileUp className="h-4 w-4 mr-2" />
+                    CSV
+                    <input 
+                      type="file" 
+                      accept=".csv" 
+                      className="absolute inset-0 opacity-0 cursor-pointer" 
+                      onChange={handleBulkImport}
+                    />
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </DialogHeader>
@@ -249,7 +254,7 @@ export function PriceListItemsDialog({ priceList, onOpenChange }: PriceListItems
                   <TableHead>Código</TableHead>
                   <TableHead>Produto</TableHead>
                   <TableHead>Preço Venda</TableHead>
-                   <TableHead className="w-[120px]">Ações</TableHead>
+                   {canEdit && <TableHead className="w-[120px]">Ações</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -274,44 +279,46 @@ export function PriceListItemsDialog({ priceList, onOpenChange }: PriceListItems
                         ) : null}
                       </div>
                     </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="relative h-8 w-8 p-0"
-                          disabled={updatingId === item.product_code}
-                          title="Fazer upload de foto"
-                        >
-                          {updatingId === item.product_code ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Upload className="h-4 w-4" />
-                          )}
-                          <input 
-                            type="file" 
-                            accept="image/*" 
-                            className="absolute inset-0 opacity-0 cursor-pointer" 
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) handleFileUpload(item.product_code, file);
+                    {canEdit && (
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="relative h-8 w-8 p-0"
+                            disabled={updatingId === item.product_code}
+                            title="Fazer upload de foto"
+                          >
+                            {updatingId === item.product_code ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Upload className="h-4 w-4" />
+                            )}
+                            <input 
+                              type="file" 
+                              accept="image/*" 
+                              className="absolute inset-0 opacity-0 cursor-pointer" 
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleFileUpload(item.product_code, file);
+                              }}
+                              disabled={updatingId === item.product_code}
+                            />
+                          </Button>
+                          <Input 
+                            placeholder="Ou cole o link..."
+                            defaultValue={item.image_url || ""}
+                            className="h-8 text-xs flex-1"
+                            onBlur={(e) => {
+                              if (e.target.value !== (item.image_url || "")) {
+                                handleUpdateImage(item.product_code, e.target.value);
+                              }
                             }}
                             disabled={updatingId === item.product_code}
                           />
-                        </Button>
-                        <Input 
-                          placeholder="Ou cole o link..."
-                          defaultValue={item.image_url || ""}
-                          className="h-8 text-xs flex-1"
-                          onBlur={(e) => {
-                            if (e.target.value !== (item.image_url || "")) {
-                              handleUpdateImage(item.product_code, e.target.value);
-                            }
-                          }}
-                          disabled={updatingId === item.product_code}
-                        />
-                      </div>
-                    </TableCell>
+                        </div>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>

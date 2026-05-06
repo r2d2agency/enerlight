@@ -70,6 +70,7 @@ export interface UserPermissions {
   can_delete_logistics: boolean;
   can_view_document_signatures: boolean;
   can_view_online_quotes: boolean;
+  can_edit_price_lists: boolean;
 }
 
 interface User {
