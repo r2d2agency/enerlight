@@ -3,11 +3,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Loader2, Image as ImageIcon, Upload, X, FileUp } from "lucide-react";
+import { Search, Loader2, Image as ImageIcon, Upload, X, FileUp, FileSpreadsheet } from "lucide-react";
 import { usePriceListItems } from "@/hooks/use-online-quotes";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
+import * as XLSX from "xlsx";
 
 interface PriceListItemsDialogProps {
   priceList: { id: string; name: string } | null;
@@ -79,6 +80,63 @@ export function PriceListItemsDialog({ priceList, onOpenChange }: PriceListItems
     };
     reader.readAsText(file);
   };
+  const handleXlsxImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !priceList) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const data = new Uint8Array(event.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        
+        // Convert to JSON
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        
+        if (jsonData.length === 0) {
+          toast.error("Nenhum dado encontrado no arquivo");
+          return;
+        }
+
+        // Map and validate items
+        // Expected columns: code/codigo, name/nome, price/preco/valor, image/imagem (optional)
+        const items = jsonData.map((row: any) => {
+          const product_code = (row.code || row.codigo || row['Código'] || row['CÓDIGO'] || '').toString().trim();
+          const product_name = (row.name || row.nome || row['Nome'] || row['NOME'] || row['Produto'] || '').toString().trim();
+          const priceValue = row.price || row.preco || row.valor || row['Preço'] || row['Valor'] || 0;
+          const sale_price = typeof priceValue === 'number' ? priceValue : parseFloat(priceValue.toString().replace(',', '.'));
+          const image_url = (row.image || row.imagem || row['Imagem'] || row['URL Imagem'] || '').toString().trim();
+
+          return {
+            product_code,
+            product_name,
+            sale_price,
+            image_url
+          };
+        }).filter(item => item.product_code && item.product_name);
+
+        if (items.length === 0) {
+          toast.error("Nenhum item válido encontrado. Certifique-se de que as colunas 'Código' e 'Nome' existem.");
+          return;
+        }
+
+        await api(`/api/online-quotes/price-lists/${priceList.id}/items/bulk`, {
+          method: 'POST',
+          body: { items }
+        });
+
+        toast.success(`${items.length} itens importados com sucesso!`);
+        queryClient.invalidateQueries({ queryKey: ['price-list-items', priceList.id] });
+      } catch (err) {
+        console.error("Erro na importação XLSX:", err);
+        toast.error("Erro ao processar o arquivo Excel");
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
   return (
     <Dialog open={!!priceList} onOpenChange={(open) => !open && onOpenChange(false)}>
       <DialogContent className="max-w-5xl max-h-[85vh] flex flex-col p-0">
@@ -96,8 +154,18 @@ export function PriceListItemsDialog({ priceList, onOpenChange }: PriceListItems
             </div>
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" className="relative">
+                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                Importar Excel (XLSX)
+                <input 
+                  type="file" 
+                  accept=".xlsx, .xls" 
+                  className="absolute inset-0 opacity-0 cursor-pointer" 
+                  onChange={handleXlsxImport}
+                />
+              </Button>
+              <Button variant="ghost" size="sm" className="relative">
                 <FileUp className="h-4 w-4 mr-2" />
-                Importar CSV
+                CSV
                 <input 
                   type="file" 
                   accept=".csv" 
