@@ -101,8 +101,7 @@ export function PriceListItemsDialog({ priceList, onOpenChange }: PriceListItems
         }
 
         // Map and validate items
-        // Expected columns: code/codigo, name/nome, price/preco/valor, image/imagem (optional)
-        const items = jsonData.map((row: any) => {
+        const items = await Promise.all(jsonData.map(async (row: any) => {
           // Normaliza as chaves para facilitar a busca
           const keys = Object.keys(row);
           const findKey = (possibilities: string[]) => 
@@ -117,7 +116,22 @@ export function PriceListItemsDialog({ priceList, onOpenChange }: PriceListItems
           const product_name = (row[nameKey || ''] || '').toString().trim();
           const priceValue = row[priceKey || ''] || 0;
           const sale_price = typeof priceValue === 'number' ? priceValue : parseFloat(priceValue.toString().replace('R$', '').replace(/\./g, '').replace(',', '.').trim() || "0");
-          const image_url = (row[imageKey || ''] || '').toString().trim();
+          let image_url = (row[imageKey || ''] || '').toString().trim();
+
+          // Se não tiver imagem na planilha, tenta buscar de outras tabelas pelo código
+          if (!image_url && product_code) {
+            try {
+              const response = await api<any[]>(`/api/online-quotes/items/search-by-code?code=${encodeURIComponent(product_code)}`);
+              if (response && response.length > 0) {
+                const itemWithImage = response.find(i => i.image_url);
+                if (itemWithImage) {
+                  image_url = itemWithImage.image_url;
+                }
+              }
+            } catch (err) {
+              console.warn(`Erro ao buscar imagem para o código ${product_code}:`, err);
+            }
+          }
 
           return {
             product_code,
@@ -125,7 +139,9 @@ export function PriceListItemsDialog({ priceList, onOpenChange }: PriceListItems
             sale_price,
             image_url
           };
-        }).filter(item => item.product_code && item.product_name);
+        }));
+        
+        const filteredItems = items.filter(item => item.product_code && item.product_name);
 
         if (items.length === 0) {
           toast.error("Nenhum item válido encontrado. Certifique-se de que as colunas 'Código' e 'Nome' existem.");
