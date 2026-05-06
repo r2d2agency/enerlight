@@ -243,7 +243,7 @@ export default function OnlineQuotes() {
                     Tabelas disponíveis por segmento ou canal.
                   </CardDescription>
                 </div>
-                {isAdmin && (
+                {canEditPriceLists && (
                   <Button variant="outline" size="sm" onClick={() => { setEditingPriceList(null); setIsPriceListDialogOpen(true); }}>
                     <Plus className="mr-2 h-4 w-4" /> Nova Tabela
                   </Button>
