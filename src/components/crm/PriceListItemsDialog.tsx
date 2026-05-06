@@ -11,7 +11,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 
 interface PriceListItemsDialogProps {
-  priceList: { id: string; name: string } | null;
+  priceList: { id: string; name: string; markup_percentage?: number } | null;
   onOpenChange: (open: boolean) => void;
 }
 
@@ -139,10 +139,15 @@ export function PriceListItemsDialog({ priceList, onOpenChange }: PriceListItems
           const priceKey = findKey(['price', 'preco', 'preço', 'valor', 'venda', 'vlr']);
           const imageKey = findKey(['image', 'imagem', 'url', 'foto', 'link']);
 
-          const product_code = (row[codeKey || ''] || '').toString().trim();
           const product_name = (row[nameKey || ''] || '').toString().trim();
           const priceValue = row[priceKey || ''] || 0;
-          const sale_price = typeof priceValue === 'number' ? priceValue : parseFloat(priceValue.toString().replace('R$', '').replace(/\./g, '').replace(',', '.').trim() || "0");
+          let sale_price = typeof priceValue === 'number' ? priceValue : parseFloat(priceValue.toString().replace('R$', '').replace(/\./g, '').replace(',', '.').trim() || "0");
+          
+          // Aplica markup da tabela se houver
+          if (priceList?.markup_percentage && priceList.markup_percentage > 0) {
+            sale_price = sale_price * (1 + (priceList.markup_percentage / 100));
+          }
+
           let image_url = (row[imageKey || ''] || '').toString().trim();
 
           // Se não tiver imagem na planilha, tenta buscar de outras tabelas pelo código
@@ -261,7 +266,12 @@ export function PriceListItemsDialog({ priceList, onOpenChange }: PriceListItems
                     <TableCell className="font-mono text-xs">{item.product_code}</TableCell>
                     <TableCell className="font-medium">{item.product_name}</TableCell>
                     <TableCell>
-                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.sale_price)}
+                      <div className="flex flex-col">
+                        <span>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.sale_price)}</span>
+                        {priceList?.markup_percentage ? (
+                          <span className="text-[10px] text-muted-foreground">Inclui {priceList.markup_percentage}% de markup</span>
+                        ) : null}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
