@@ -213,26 +213,30 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
               />
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" className="relative">
-                <FileSpreadsheet className="h-4 w-4 mr-2" />
-                Importar Excel (XLSX)
-                <input 
-                  type="file" 
-                  accept=".xlsx, .xls" 
-                  className="absolute inset-0 opacity-0 cursor-pointer" 
-                  onChange={handleXlsxImport}
-                />
-              </Button>
-              <Button variant="ghost" size="sm" className="relative">
-                <FileUp className="h-4 w-4 mr-2" />
-                CSV
-                <input 
-                  type="file" 
-                  accept=".csv" 
-                  className="absolute inset-0 opacity-0 cursor-pointer" 
-                  onChange={handleBulkImport}
-                />
-              </Button>
+              {canEdit && (
+                <>
+                  <Button variant="outline" size="sm" className="relative">
+                    <FileSpreadsheet className="h-4 w-4 mr-2" />
+                    Importar Excel (XLSX)
+                    <input 
+                      type="file" 
+                      accept=".xlsx, .xls" 
+                      className="absolute inset-0 opacity-0 cursor-pointer" 
+                      onChange={handleXlsxImport}
+                    />
+                  </Button>
+                  <Button variant="ghost" size="sm" className="relative">
+                    <FileUp className="h-4 w-4 mr-2" />
+                    CSV
+                    <input 
+                      type="file" 
+                      accept=".csv" 
+                      className="absolute inset-0 opacity-0 cursor-pointer" 
+                      onChange={handleBulkImport}
+                    />
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </DialogHeader>
