@@ -783,6 +783,7 @@ export default function OnlineQuotes() {
         <PriceListItemsDialog 
           priceList={selectedPriceList} 
           onOpenChange={(open) => !open && setSelectedPriceList(null)} 
+          canEdit={canEditPriceLists}
         />
       </div>
     </MainLayout>
