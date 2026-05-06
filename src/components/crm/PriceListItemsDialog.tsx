@@ -13,6 +13,7 @@ import * as XLSX from "xlsx";
 interface PriceListItemsDialogProps {
   priceList: { id: string; name: string; markup_percentage?: number } | null;
   onOpenChange: (open: boolean) => void;
+  canEdit?: boolean;
 }
 
 export function PriceListItemsDialog({ priceList, onOpenChange }: PriceListItemsDialogProps) {
