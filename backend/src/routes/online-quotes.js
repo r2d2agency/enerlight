@@ -275,7 +275,16 @@ router.post('/quotes', async (req, res) => {
       );
       const cost = plItem.rows[0]?.cost_price || 0;
       const imageUrl = plItem.rows[0]?.image_url || null;
-      const subtotal = item.quantity * item.unit_price;
+      const unitPrice = Number(item.unit_price) || 0;
+      const discount = Number(item.discount) || 0;
+      const discountType = item.discount_type || 'fixed';
+      
+      const discountValue = discountType === 'percentage' 
+        ? (unitPrice * discount / 100)
+        : discount;
+      
+      const finalPrice = Math.max(0, unitPrice - discountValue);
+      const subtotal = (Number(item.quantity) || 0) * finalPrice;
       
       await query(
         `INSERT INTO online_quote_items 
