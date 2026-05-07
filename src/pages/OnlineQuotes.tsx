@@ -128,6 +128,7 @@ export default function OnlineQuotes() {
       markup_percentage: parseFloat(formData.get('markup_percentage') as string || '0'),
       discount_limit_percentage: parseFloat(formData.get('discount_limit_percentage') as string || '0'),
       is_master: formData.get('is_master') === 'on',
+      allowed_templates: selectedTemplates,
       is_active: formData.get('is_active') === 'on'
     };
 
