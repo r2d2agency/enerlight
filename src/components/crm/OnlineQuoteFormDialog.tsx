@@ -190,41 +190,6 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
     }));
   };
 
-  const handleUpdateDiscount = (code: string, discount: number, type?: 'fixed' | 'percentage') => {
-    const priceList = priceLists?.find(pl => pl.id === selectedPriceListId);
-    const maxDiscountPercent = priceList?.discount_limit_percentage || 0;
-    
-    setQuoteItems(quoteItems.map(item => {
-      if (item.product_code !== code) return item;
-      
-      const newType = type || item.discount_type || 'fixed';
-      const unitPrice = item.unit_price;
-      
-      let discountPercent = 0;
-      let discountValue = 0;
-
-      if (newType === 'percentage') {
-        discountPercent = discount;
-        discountValue = (unitPrice * discount / 100);
-      } else {
-        discountValue = discount;
-        discountPercent = (discount / unitPrice) * 100;
-      }
-      
-      if (discountPercent > maxDiscountPercent) {
-        toast.error(`Desconto máximo permitido: ${maxDiscountPercent}%`);
-        return item;
-      }
-      
-      return { 
-        ...item, 
-        discount: discount,
-        discount_type: newType,
-        total_price: item.quantity * (unitPrice - discountValue) 
-      };
-    }));
-  };
-
   const handleRemoveItem = (code: string) => {
     setQuoteItems(quoteItems.filter(item => item.product_code !== code));
   };
@@ -232,7 +197,7 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
   const handleSubmit = async () => {
     try {
       // First, create the company in CRM if it doesn't exist
-      if (clientInfo.name) {
+      if (clientInfo.name && !initialData) {
         try {
           await api("/api/online-quotes/companies/create-from-quote", {
             method: "POST",
@@ -248,7 +213,7 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
         }
       }
 
-      await createQuote.mutateAsync({
+      const quoteData = {
         client_name: clientInfo.name,
         client_document: clientInfo.document,
         client_email: clientInfo.email,
@@ -258,17 +223,30 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
         notes: clientInfo.notes,
         price_list_id: selectedPriceListId,
         template_id: selectedTemplateId,
-        items: quoteItems,
+        items: quoteItems.map(item => ({
+          ...item,
+          unit_price: Number(item.unit_price) || 0,
+          total_price: Number(item.total_price) || 0,
+          discount: Number(item.discount) || 0
+        })),
         include_images: includeImagesInQuote
-      });
-      toast.success("Orçamento criado com sucesso!");
+      };
+
+      if (initialData?.id) {
+        await updateQuote.mutateAsync({ id: initialData.id, data: quoteData });
+        toast.success("Orçamento atualizado com sucesso!");
+      } else {
+        await createQuote.mutateAsync(quoteData);
+        toast.success("Orçamento criado com sucesso!");
+      }
+
       onOpenChange(false);
       // Reset
       setStep("client");
       setQuoteItems([]);
-      setClientInfo({ name: "", document: "", email: "", phone: "", notes: "", payment_terms: "", payment_method: "" });
+      setClientInfo({ name: "", document: "", email: "", phone: "", notes: "", payment_terms: "avista", payment_method: "pix" });
     } catch (err) {
-      toast.error("Erro ao criar orçamento");
+      toast.error(initialData ? "Erro ao atualizar orçamento" : "Erro ao criar orçamento");
     }
   };
 
