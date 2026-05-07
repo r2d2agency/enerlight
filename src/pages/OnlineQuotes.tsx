@@ -780,6 +780,31 @@ export default function OnlineQuotes() {
                 </div>
               </div>
 
+              <div className="space-y-3">
+                <Label>Grupos com Acesso</Label>
+                <div className="border rounded-lg p-3 bg-muted/5 max-h-[150px] overflow-y-auto space-y-2">
+                  {permissionTemplates?.map(tpl => (
+                    <div key={tpl.id} className="flex items-center space-x-2">
+                      <Switch 
+                        id={`tpl-${tpl.id}`}
+                        checked={selectedTemplates.includes(tpl.id)}
+                        onCheckedChange={(checked) => {
+                          if (checked) setSelectedTemplates([...selectedTemplates, tpl.id]);
+                          else setSelectedTemplates(selectedTemplates.filter(id => id !== tpl.id));
+                        }}
+                      />
+                      <Label htmlFor={`tpl-${tpl.id}`} className="text-sm font-normal cursor-pointer">
+                        {tpl.name}
+                      </Label>
+                    </div>
+                  ))}
+                  {(!permissionTemplates || permissionTemplates.length === 0) && (
+                    <p className="text-xs text-muted-foreground">Nenhum grupo de acesso configurado</p>
+                  )}
+                </div>
+                <p className="text-[10px] text-muted-foreground">Se nenhum grupo for selecionado, todos terão acesso.</p>
+              </div>
+
               <div className="flex flex-col gap-4 pt-2">
                 <div className="flex items-center justify-between space-x-2 border p-3 rounded-lg">
                   <div className="space-y-0.5">
