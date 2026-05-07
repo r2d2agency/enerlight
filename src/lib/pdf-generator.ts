@@ -57,9 +57,10 @@ export const generateQuotePDF = async (quote: any, organization: any) => {
   // 3. Organization info (Sender)
   if (organization?.logo_url) {
      try {
-       const logo = await loadRemoteImage(organization.logo_url);
-       doc.addImage(logo, 'PNG', pageWidth - 44, 15, 30, 30);
-     } catch(e) {}
+        const logo = await loadRemoteImage(organization.logo_url);
+        // Usar proporção da imagem ou valores fixos para evitar caixa preta/distorção
+        doc.addImage(logo, 'PNG', pageWidth - 44, 10, 30, 30, undefined, 'FAST');
+      } catch(e) {}
   }
   
   doc.setFontSize(12);
