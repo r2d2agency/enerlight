@@ -237,11 +237,6 @@ export default function OnlineQuotes() {
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                   </div>
                 ) : quotes && quotes.length > 0 ? (
-                {loadingQuotes ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  </div>
-                ) : quotes && quotes.length > 0 ? (
                   <div className="grid gap-3">
                     {quotes.map((quote) => (
                       <div 
@@ -314,7 +309,6 @@ export default function OnlineQuotes() {
                       </div>
                     ))}
                   </div>
-                ) : (
                 ) : (
                   <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed rounded-lg">
                     <FileText className="h-12 w-12 text-muted-foreground/50 mb-4" />
