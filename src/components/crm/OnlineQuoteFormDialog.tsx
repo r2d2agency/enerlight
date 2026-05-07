@@ -484,66 +484,71 @@ export function OnlineQuoteFormDialog({ open, onOpenChange }: OnlineQuoteFormDia
                       </p>
                     </div>
                     <div className="flex-1 overflow-x-auto overflow-y-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow className="bg-muted/50 hover:bg-muted/50">
-                            <TableHead className="text-xs font-bold uppercase tracking-wider">Produto</TableHead>
-                            <TableHead className="text-xs font-bold uppercase tracking-wider w-[100px]">Qtd</TableHead>
-                            <TableHead className="text-xs font-bold uppercase tracking-wider w-[180px]">Desconto</TableHead>
-                            <TableHead className="text-xs font-bold uppercase tracking-wider text-right">Total</TableHead>
-                            <TableHead className="w-[50px]"></TableHead>
+                      <Table className="text-sm">
+                        <TableHeader className="bg-muted/50">
+                          <TableRow className="hover:bg-muted/50 border-b">
+                            <TableHead className="font-bold py-3">Produto</TableHead>
+                            <TableHead className="font-bold w-[90px] text-center">Qtd</TableHead>
+                            <TableHead className="font-bold w-[160px] text-center">Desconto</TableHead>
+                            <TableHead className="font-bold text-right pr-4">Total</TableHead>
+                            <TableHead className="w-[40px]"></TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {quoteItems.length === 0 ? (
                             <TableRow>
-                              <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
-                                <div className="flex flex-col items-center gap-2">
-                                  <Plus className="h-8 w-8 opacity-20" />
-                                  <p>Selecione produtos ao lado para adicionar</p>
+                              <TableCell colSpan={5} className="h-40 text-center text-muted-foreground">
+                                <div className="flex flex-col items-center gap-3 opacity-60">
+                                  <div className="bg-muted p-4 rounded-full">
+                                    <Plus className="h-10 w-10" />
+                                  </div>
+                                  <p className="text-base font-medium">Selecione produtos ao lado para adicionar</p>
                                 </div>
                               </TableCell>
                             </TableRow>
                           ) : (
                             quoteItems.map(item => (
-                              <TableRow key={item.product_code} className="group hover:bg-muted/30">
-                                <TableCell className="text-sm py-4">
-                                  <p className="font-medium">{item.product_name}</p>
-                                  <p className="text-[10px] text-muted-foreground">{item.product_code}</p>
+                              <TableRow key={item.product_code} className="group hover:bg-muted/30 border-b">
+                                <TableCell className="py-4">
+                                  <p className="font-bold text-base text-foreground mb-0.5">{item.product_name}</p>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[11px] bg-muted px-1.5 py-0.5 rounded text-muted-foreground font-medium uppercase tracking-wider">{item.product_code}</span>
+                                    <span className="text-[11px] font-bold text-primary/70">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.unit_price)} / un</span>
+                                  </div>
                                 </TableCell>
                                 <TableCell className="py-4">
                                   <Input 
                                     type="number" 
                                     value={item.quantity}
                                     onChange={e => handleUpdateQty(item.product_code, Number(e.target.value))}
-                                    className="h-10 text-base font-medium px-2 w-full min-w-[70px]"
+                                    className="h-12 text-lg font-black text-center border-2 border-primary/20 focus:border-primary px-1"
                                     min="1"
                                   />
                                 </TableCell>
                                 <TableCell className="py-4">
-                                  <div className="flex items-center gap-1">
+                                  <div className="flex items-center gap-1.5">
                                     <Input 
                                       type="number" 
                                       value={item.discount || 0}
                                       onChange={e => handleUpdateDiscount(item.product_code, Number(e.target.value))}
-                                      className="h-10 text-base font-medium px-2 w-full border-amber-200 focus:border-amber-400"
+                                      className="h-12 text-lg font-bold border-2 border-amber-200 focus:border-amber-500 text-center px-1 flex-1"
                                       min="0"
                                     />
                                     <Select 
                                       value={item.discount_type || 'fixed'} 
                                       onValueChange={(val: 'fixed' | 'percentage') => handleUpdateDiscount(item.product_code, item.discount || 0, val)}
                                     >
-                                      <SelectTrigger className="h-10 w-16 px-1">
+                                      <SelectTrigger className="h-12 w-[65px] border-2 font-black text-primary bg-primary/5">
                                         <SelectValue />
                                       </SelectTrigger>
                                       <SelectContent>
-                                        <SelectItem value="fixed">R$</SelectItem>
-                                        <SelectItem value="percentage">%</SelectItem>
+                                        <SelectItem value="fixed" className="font-bold">R$</SelectItem>
+                                        <SelectItem value="percentage" className="font-bold">%</SelectItem>
                                       </SelectContent>
                                     </Select>
                                   </div>
                                 </TableCell>
-                                <TableCell className="text-sm font-bold text-right py-4">
+                                <TableCell className="text-lg font-black text-right py-4 pr-4 text-primary">
                                   {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.total_price)}
                                 </TableCell>
                                 <TableCell className="py-4">

@@ -296,7 +296,9 @@ export function useUnreadMentionCount() {
   return useQuery({
     queryKey: ["internal-mentions-count"],
     queryFn: () => api<{ count: number }>("/api/internal-chat/mentions/unread-count"),
-    refetchInterval: 30000,
+    refetchInterval: 60000,
+    retry: 1,
+    staleTime: 30000,
   });
 }
 
