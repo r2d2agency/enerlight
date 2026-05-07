@@ -280,7 +280,7 @@ export default function OnlineQuotes() {
                   </div>
                 ) : (
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {priceLists?.map(pl => (
+                    {filteredPriceLists?.map(pl => (
                       <Card 
                         key={pl.id} 
                         className="hover:border-primary/50 transition-colors cursor-pointer group"
