@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Trash2, Search, Loader2, Save, Image as ImageIcon, Eye, X, Building2 } from "lucide-react";
+import { Plus, Trash2, Search, Loader2, Save, Image as ImageIcon, Eye, X, Building2, List } from "lucide-react";
 import { usePriceLists, usePriceListItems, useOnlineQuoteMutations, useOnlineQuoteTemplates } from "@/hooks/use-online-quotes";
 import { useCRMCompanies } from "@/hooks/use-crm";
 import { useAuth } from "@/contexts/AuthContext";
