@@ -182,7 +182,10 @@ export default function OnlineQuotes() {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button onClick={() => setIsNewQuoteOpen(true)}>
+            <Button onClick={() => {
+              setSelectedPriceList(null); // Reset items view
+              setIsNewQuoteOpen(true);
+            }}>
               <Plus className="mr-2 h-4 w-4" /> Novo Orçamento
             </Button>
           </div>
@@ -315,9 +318,10 @@ export default function OnlineQuotes() {
                       <Card 
                         key={pl.id} 
                         className="hover:border-primary/50 transition-colors cursor-pointer group"
+                        onClick={() => setSelectedPriceList(pl)}
                       >
                         <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
-                          <CardTitle className="text-base" onClick={() => setSelectedPriceList(pl)}>{pl.name}</CardTitle>
+                          <CardTitle className="text-base">{pl.name}</CardTitle>
                           {canEditPriceLists && (
                             <div className="flex gap-1">
                               <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100" onClick={(e) => { e.stopPropagation(); setEditingPriceList(pl); setIsPriceListDialogOpen(true); }}>
@@ -329,7 +333,7 @@ export default function OnlineQuotes() {
                             </div>
                           )}
                         </CardHeader>
-                        <CardContent onClick={() => setSelectedPriceList(pl)}>
+                        <CardContent>
                           <p className="text-xs text-muted-foreground line-clamp-2 min-h-[2.5rem]">{pl.description || "Sem descrição"}</p>
                           <div className="mt-4 flex flex-wrap gap-2 items-center justify-between">
                             <div className="flex gap-1">
