@@ -935,13 +935,13 @@ export default function OnlineQuotes() {
                 </div>
               </div>
             </DialogHeader>
-            <div className="flex-1 overflow-y-auto p-0 bg-muted/30">
+            <div className="flex-1 overflow-y-auto p-0 bg-slate-100">
               {selectedQuoteForPreview && (
-                <div className="max-w-[1100px] mx-auto my-8 bg-white shadow-2xl rounded-sm p-12 min-h-[800px] flex flex-col font-sans border text-slate-900">
+                <div className="max-w-[1100px] mx-auto my-8 bg-white shadow-2xl rounded-sm p-12 min-h-[800px] flex flex-col font-sans border text-slate-900 !text-black">
                   {/* Fake PDF Preview Header */}
                   <div className="flex justify-between items-start mb-10 border-b pb-8 border-slate-200">
                     <div className="space-y-1">
-                      <h2 className="text-3xl font-black tracking-tighter text-slate-900">ORÇAMENTO</h2>
+                      <h2 className="text-3xl font-black tracking-tighter text-black">ORÇAMENTO</h2>
                       <p className="text-sm font-bold text-slate-500 uppercase">#{selectedQuoteForPreview.id.split('-')[0].toUpperCase()}</p>
                       <p className="text-sm text-slate-500">{format(parseISO(selectedQuoteForPreview.created_at), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}</p>
                     </div>
@@ -955,25 +955,25 @@ export default function OnlineQuotes() {
                           </div>
                         )}
                       </div>
-                      <p className="text-lg font-black uppercase text-slate-900">{selectedQuoteForPreview.organization?.name || (user as any)?.organization_name || "Empresa"}</p>
+                      <p className="text-lg font-black uppercase text-black">{selectedQuoteForPreview.organization?.name || (user as any)?.organization_name || "Empresa"}</p>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-8 mb-12 bg-slate-50/50 p-8 rounded-xl border border-slate-100">
                     <div>
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Destinatário</p>
-                      <p className="font-bold text-lg leading-tight text-slate-900">{selectedQuoteForPreview.client_name}</p>
+                      <p className="font-bold text-lg leading-tight text-black">{selectedQuoteForPreview.client_name}</p>
                       <div className="mt-4 space-y-2 text-sm text-slate-600">
-                        {selectedQuoteForPreview.client_document && <p><span className="font-semibold text-slate-900">CNPJ/CPF:</span> {selectedQuoteForPreview.client_document}</p>}
-                        {selectedQuoteForPreview.client_email && <p><span className="font-semibold text-slate-900">Email:</span> {selectedQuoteForPreview.client_email}</p>}
-                        {selectedQuoteForPreview.client_phone && <p><span className="font-semibold text-slate-900">WhatsApp:</span> {selectedQuoteForPreview.client_phone}</p>}
+                        {selectedQuoteForPreview.client_document && <p><span className="font-semibold text-black">CNPJ/CPF:</span> {selectedQuoteForPreview.client_document}</p>}
+                        {selectedQuoteForPreview.client_email && <p><span className="font-semibold text-black">Email:</span> {selectedQuoteForPreview.client_email}</p>}
+                        {selectedQuoteForPreview.client_phone && <p><span className="font-semibold text-black">WhatsApp:</span> {selectedQuoteForPreview.client_phone}</p>}
                       </div>
                     </div>
                     <div className="text-right">
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Condições</p>
                       <div className="mt-4 space-y-2 text-sm text-slate-600">
-                        <p><span className="font-semibold text-slate-900">Forma de Pagamento:</span> {selectedQuoteForPreview.payment_method?.toUpperCase() || 'N/A'}</p>
-                        <p><span className="font-semibold text-slate-900">Prazo de Pagamento:</span> {selectedQuoteForPreview.payment_terms?.toUpperCase() || 'N/A'}</p>
+                        <p><span className="font-semibold text-black">Forma de Pagamento:</span> {selectedQuoteForPreview.payment_method?.toUpperCase() || 'N/A'}</p>
+                        <p><span className="font-semibold text-black">Prazo de Pagamento:</span> {selectedQuoteForPreview.payment_terms?.toUpperCase() || 'N/A'}</p>
                       </div>
                     </div>
                   </div>
@@ -985,6 +985,7 @@ export default function OnlineQuotes() {
                           <th className="text-left py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Descrição do Produto</th>
                           <th className="text-center py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 w-24">Qtd</th>
                           <th className="text-right py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 w-36">Unitário</th>
+                          <th className="text-right py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 w-24">Desc.</th>
                           <th className="text-right py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 w-36">Subtotal</th>
                         </tr>
                       </thead>
@@ -999,23 +1000,28 @@ export default function OnlineQuotes() {
                                   </div>
                                 )}
                                 <div>
-                                  <p className="text-base font-bold text-slate-900 mb-1">{item.product_name}</p>
+                                  <p className="text-base font-bold text-slate-900 !text-black mb-1">{item.product_name}</p>
                                   <p className="text-[10px] text-slate-400 tracking-tight font-medium uppercase">{item.product_code}</p>
                                 </div>
                               </div>
                             </td>
-                            <td className="py-6 text-center text-sm font-bold text-slate-900">{item.quantity}</td>
-                            <td className="py-6 text-right text-sm font-bold text-slate-900">{formatCurrency(item.unit_price)}</td>
-                            <td className="py-6 text-right text-base font-black text-slate-900">{formatCurrency(item.total_price)}</td>
+                            <td className="py-6 text-center text-sm font-bold text-slate-900 !text-black">{item.quantity}</td>
+                            <td className="py-6 text-right text-sm font-bold text-slate-900 !text-black">{formatCurrency(item.unit_price)}</td>
+                            <td className="py-6 text-right text-sm font-bold text-slate-900 !text-black">
+                              {item.discount_type === 'percentage' 
+                                ? `${item.discount_value || item.discount || 0}%` 
+                                : formatCurrency(item.discount_value || item.discount || 0)}
+                            </td>
+                            <td className="py-6 text-right text-base font-black text-slate-900 !text-black">{formatCurrency(item.total_price)}</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
 
-                  <div className="mt-12 pt-8 border-t-4 border-slate-900">
+                  <div className="mt-12 pt-8 border-t-4 border-black">
                     <div className="flex justify-end mb-12">
-                      <div className="bg-slate-900 text-white p-8 rounded-2xl min-w-[300px] shadow-xl">
+                      <div className="bg-black text-white p-8 rounded-2xl min-w-[300px] shadow-xl">
                         <div className="flex justify-between items-center gap-12">
                           <span className="text-xs font-black uppercase tracking-[0.2em] opacity-70">Total do Orçamento</span>
                           <span className="text-3xl font-black">
@@ -1029,7 +1035,7 @@ export default function OnlineQuotes() {
                       <div className="space-y-4 p-8 bg-slate-50 rounded-2xl border border-slate-100">
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Observações Adicionais</p>
                         <div 
-                          className="text-sm text-slate-600 leading-relaxed font-medium" 
+                          className="text-sm text-black leading-relaxed font-medium" 
                           dangerouslySetInnerHTML={{ __html: selectedQuoteForPreview.notes }} 
                         />
                       </div>

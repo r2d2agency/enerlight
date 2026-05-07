@@ -89,20 +89,40 @@ export const generateQuotePDF = async (quote: any, organization: any) => {
   }
   if (quote.client_phone) {
     doc.text(`WhatsApp: ${quote.client_phone}`, 14, clientY);
+    clientY += 6;
   }
+
+  // 4.1 Payment Info
+  doc.setFontSize(10);
+  doc.setTextColor(40, 40, 40);
+  doc.setFont("helvetica", "bold");
+  doc.text("FORMA DE PAGAMENTO:", pageWidth / 2, 65);
+  doc.setFont("helvetica", "normal");
+  doc.text(quote.payment_method?.toUpperCase() || "N/A", pageWidth / 2, 72);
+  
+  doc.setFont("helvetica", "bold");
+  doc.text("PRAZO DE PAGAMENTO:", pageWidth / 2, 78);
+  doc.setFont("helvetica", "normal");
+  doc.text(quote.payment_terms?.toUpperCase() || "N/A", pageWidth / 2, 85);
+
 
   // 5. Items Table
   const includeImages = quote.include_images !== false;
   
   const headers = includeImages 
-    ? [['Foto', 'Produto', 'Qtd', 'Unitário', 'Total']]
-    : [['Produto', 'Qtd', 'Unitário', 'Total']];
+    ? [['Foto', 'Produto', 'Qtd', 'Unitário', 'Desc.', 'Total']]
+    : [['Produto', 'Qtd', 'Unitário', 'Desc.', 'Total']];
 
   const tableData = quote.items.map((item: any) => {
+    const discountStr = item.discount_type === 'percentage' 
+      ? `${item.discount_value || item.discount || 0}%`
+      : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.discount_value || item.discount || 0);
+
     const row = [
       item.product_name,
       item.quantity,
       new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.unit_price),
+      discountStr,
       new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.total_price)
     ];
     
@@ -123,10 +143,12 @@ export const generateQuotePDF = async (quote: any, organization: any) => {
       2: { halign: 'center' },
       3: { halign: 'right' },
       4: { halign: 'right' },
+      5: { halign: 'right' },
     } : {
       1: { halign: 'center' },
       2: { halign: 'right' },
       3: { halign: 'right' },
+      4: { halign: 'right' },
     },
     didDrawCell: (data) => {
       if (includeImages && data.section === 'body' && data.column.index === 0) {

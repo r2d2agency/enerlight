@@ -4842,6 +4842,18 @@ DO $$ BEGIN
     ALTER TABLE online_quotes ADD COLUMN IF NOT EXISTS footer_config JSONB;
     ALTER TABLE online_quote_templates ADD COLUMN IF NOT EXISTS footer_config JSONB;
 EXCEPTION WHEN others THEN null; END $$;
+
+const step66OnlineQuoteItemsDiscount = `
+-- Adicionar colunas de desconto nos itens do orçamento e campos de pagamento no orçamento
+DO $$ BEGIN
+    ALTER TABLE online_quote_items ADD COLUMN IF NOT EXISTS discount_type VARCHAR(20) DEFAULT 'fixed';
+    ALTER TABLE online_quote_items ADD COLUMN IF NOT EXISTS discount_value DECIMAL(15, 2) DEFAULT 0;
+    ALTER TABLE online_quotes ADD COLUMN IF NOT EXISTS payment_terms VARCHAR(100);
+    ALTER TABLE online_quotes ADD COLUMN IF NOT EXISTS payment_method VARCHAR(100);
+EXCEPTION WHEN others THEN null; END $$;
+`;
+
+
 `;
 
 
@@ -4919,6 +4931,7 @@ const migrationSteps = [
   { name: 'Online Quotes Module', sql: step63OnlineQuotes, critical: false },
   { name: 'Online Quotes Images', sql: step64OnlineQuotesImages, critical: false },
   { name: 'Online Quote Templates', sql: step65OnlineQuoteTemplates, critical: false },
+  { name: 'Online Quote Items Discount', sql: step66OnlineQuoteItemsDiscount, critical: false },
 ];
 
 

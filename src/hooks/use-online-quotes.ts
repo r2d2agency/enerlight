@@ -127,7 +127,7 @@ export function useOnlineQuoteMutations() {
   });
 
   const deleteQuote = useMutation({
-    mutationFn: (id: string) => api(`/api/online-quotes/quotes/${id}`, { method: "DELETE" }),
+    mutationFn: (id: string) => api(`/api/online-quotes/quotes/delete/${id}`, { method: "POST" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["online-quotes"] });
       toast({ title: "Orçamento excluído com sucesso" });

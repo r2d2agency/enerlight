@@ -243,7 +243,7 @@ router.post('/quotes', async (req, res) => {
     const { 
       client_name, client_document, client_email, client_phone, 
       price_list_id, template_id, items, cover_image_url, footer_text, footer_config, valid_until, notes,
-      include_images
+      include_images, payment_terms, payment_method
     } = req.body;
 
     const fConfig = typeof footer_config === 'object' ? JSON.stringify(footer_config) : footer_config;
@@ -251,12 +251,15 @@ router.post('/quotes', async (req, res) => {
     const result = await query(
       `INSERT INTO online_quotes 
        (organization_id, user_id, client_name, client_document, client_email, client_phone, 
-        price_list_id, template_id, cover_image_url, footer_text, footer_config, valid_until, notes, include_images)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        price_list_id, template_id, cover_image_url, footer_text, footer_config, valid_until, notes, 
+        include_images, payment_terms, payment_method)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
        RETURNING id`,
-      [ctx.organizationId, req.userId, client_name, client_document, client_email, client_phone, 
-
-       price_list_id, template_id || null, cover_image_url, footer_text, fConfig, valid_until, notes, include_images ?? true]
+      [
+        ctx.organizationId, req.userId, client_name, client_document, client_email, client_phone, 
+        price_list_id, template_id || null, cover_image_url, footer_text, fConfig, valid_until, notes, 
+        include_images ?? true, payment_terms, payment_method
+      ]
     );
 
     
@@ -276,9 +279,9 @@ router.post('/quotes', async (req, res) => {
       
       await query(
         `INSERT INTO online_quote_items 
-         (quote_id, product_code, product_name, quantity, unit_price, cost_price, total_price, image_url)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [quoteId, item.product_code, item.product_name, item.quantity, item.unit_price, cost, subtotal, imageUrl]
+         (quote_id, product_code, product_name, quantity, unit_price, cost_price, total_price, image_url, discount_type, discount_value)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        [quoteId, item.product_code, item.product_name, item.quantity, item.unit_price, cost, subtotal, imageUrl, item.discount_type || 'fixed', item.discount || 0]
       );
       
       totalValue += subtotal;
@@ -386,8 +389,27 @@ router.post('/companies/create-from-quote', async (req, res) => {
   }
 });
 
-// Delete a quote
-router.delete('/quotes/:id', async (req, res) => {
+// Delete a price list
+router.post('/price-lists/delete/:id', async (req, res) => {
+  try {
+    const ctx = await getUserContext(req.userId);
+    if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
+    if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner') {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    await query(`DELETE FROM price_list_items WHERE price_list_id = $1`, [req.params.id]);
+    await query(`DELETE FROM price_lists WHERE id = $1 AND organization_id = $2`, [req.params.id, ctx.organizationId]);
+
+    res.json({ success: true });
+  } catch (err) {
+    logError('online-quotes.price-lists.delete', err);
+    res.status(500).json({ error: 'Failed to delete price list' });
+  }
+});
+
+// Delete a quote (Support both DELETE and POST /delete/:id)
+const deleteQuoteHandler = async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
     if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
@@ -404,7 +426,7 @@ router.delete('/quotes/:id', async (req, res) => {
     const result = await query(sql, params);
     
     // online_quote_items should be deleted automatically via ON DELETE CASCADE in DB
-    // but if not, we can delete them here too just in case
+    // but we ensure it here
     await query(`DELETE FROM online_quote_items WHERE quote_id = $1`, [req.params.id]);
 
     res.json({ success: true });
@@ -412,6 +434,9 @@ router.delete('/quotes/:id', async (req, res) => {
     logError('online-quotes.quotes.delete', err);
     res.status(500).json({ error: 'Failed to delete quote' });
   }
-});
+};
+
+router.delete('/quotes/:id', deleteQuoteHandler);
+router.post('/quotes/delete/:id', deleteQuoteHandler);
 
 export default router;
