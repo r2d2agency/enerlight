@@ -423,7 +423,7 @@ export function RichEmailEditor({ value, onChange, placeholder, className }: Ric
         </TabsContent>
         <TabsContent value="preview" className="m-0">
           <div 
-            className="min-h-[300px] max-h-[500px] overflow-y-auto p-4 bg-white"
+            className="min-h-[300px] max-h-[500px] overflow-y-auto p-4 bg-white text-black"
             dangerouslySetInnerHTML={{ __html: value }}
           />
         </TabsContent>
