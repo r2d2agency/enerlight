@@ -110,5 +110,20 @@ export function useOnlineQuoteMutations() {
     },
   });
 
-  return { createQuote, saveTemplate, savePriceList };
+  const deletePriceList = useMutation({
+    mutationFn: (id: string) => api(`/api/online-quotes/price-lists/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["price-lists"] });
+      toast({ title: "Tabela de preços excluída com sucesso" });
+    },
+    onError: (err: any) => {
+      toast({ 
+        title: "Erro ao excluir tabela", 
+        description: err.message || "Tente novamente mais tarde.",
+        variant: "destructive" 
+      });
+    }
+  });
+
+  return { createQuote, saveTemplate, savePriceList, deletePriceList };
 }
