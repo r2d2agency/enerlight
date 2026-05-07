@@ -1029,9 +1029,9 @@ export default function OnlineQuotes() {
               {selectedQuoteForPreview && (
                 <div className="max-w-[1100px] mx-auto my-8 bg-white shadow-2xl rounded-sm p-12 min-h-[800px] flex flex-col font-sans border text-slate-900 !text-black">
                   {/* Fake PDF Preview Header */}
-                  <div className="flex justify-between items-start mb-10 border-b pb-8 border-slate-200">
+                  <div className="flex justify-between items-start mb-10 border-b pb-8 border-primary/20">
                     <div className="space-y-1">
-                      <h2 className="text-3xl font-black tracking-tighter text-black">ORÇAMENTO</h2>
+                      <h2 className="text-3xl font-black tracking-tighter text-primary">ORÇAMENTO</h2>
                       <p className="text-sm font-bold text-slate-500 uppercase">#{selectedQuoteForPreview.id.split('-')[0].toUpperCase()}</p>
                       <p className="text-sm text-slate-500">{format(parseISO(selectedQuoteForPreview.created_at), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}</p>
                     </div>
