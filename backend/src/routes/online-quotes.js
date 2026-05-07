@@ -386,8 +386,27 @@ router.post('/companies/create-from-quote', async (req, res) => {
   }
 });
 
-// Delete a quote
-router.delete('/quotes/:id', async (req, res) => {
+// Delete a price list
+router.post('/price-lists/delete/:id', async (req, res) => {
+  try {
+    const ctx = await getUserContext(req.userId);
+    if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
+    if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner') {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    await query(`DELETE FROM price_list_items WHERE price_list_id = $1`, [req.params.id]);
+    await query(`DELETE FROM price_lists WHERE id = $1 AND organization_id = $2`, [req.params.id, ctx.organizationId]);
+
+    res.json({ success: true });
+  } catch (err) {
+    logError('online-quotes.price-lists.delete', err);
+    res.status(500).json({ error: 'Failed to delete price list' });
+  }
+});
+
+// Delete a quote (Support both DELETE and POST /delete/:id)
+const deleteQuoteHandler = async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
     if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
@@ -404,7 +423,7 @@ router.delete('/quotes/:id', async (req, res) => {
     const result = await query(sql, params);
     
     // online_quote_items should be deleted automatically via ON DELETE CASCADE in DB
-    // but if not, we can delete them here too just in case
+    // but we ensure it here
     await query(`DELETE FROM online_quote_items WHERE quote_id = $1`, [req.params.id]);
 
     res.json({ success: true });
@@ -412,6 +431,9 @@ router.delete('/quotes/:id', async (req, res) => {
     logError('online-quotes.quotes.delete', err);
     res.status(500).json({ error: 'Failed to delete quote' });
   }
-});
+};
+
+router.delete('/quotes/:id', deleteQuoteHandler);
+router.post('/quotes/delete/:id', deleteQuoteHandler);
 
 export default router;
