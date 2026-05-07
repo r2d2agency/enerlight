@@ -315,7 +315,7 @@ export default function OnlineQuotes() {
                         </CardContent>
                       </Card>
                     ))}
-                    {priceLists?.length === 0 && (
+                    {filteredPriceLists?.length === 0 && (
                       <div className="col-span-full py-12 text-center border-2 border-dashed rounded-lg">
                         <List className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
                         <h3 className="text-lg font-medium">Nenhuma tabela de preços</h3>
