@@ -128,10 +128,12 @@ export const generateQuotePDF = async (quote: any, organization: any) => {
       2: { halign: 'center' },
       3: { halign: 'right' },
       4: { halign: 'right' },
+      5: { halign: 'right' },
     } : {
       1: { halign: 'center' },
       2: { halign: 'right' },
       3: { halign: 'right' },
+      4: { halign: 'right' },
     },
     didDrawCell: (data) => {
       if (includeImages && data.section === 'body' && data.column.index === 0) {
