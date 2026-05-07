@@ -89,7 +89,22 @@ export const generateQuotePDF = async (quote: any, organization: any) => {
   }
   if (quote.client_phone) {
     doc.text(`WhatsApp: ${quote.client_phone}`, 14, clientY);
+    clientY += 6;
   }
+
+  // 4.1 Payment Info
+  doc.setFontSize(10);
+  doc.setTextColor(40, 40, 40);
+  doc.setFont("helvetica", "bold");
+  doc.text("FORMA DE PAGAMENTO:", pageWidth / 2, 65);
+  doc.setFont("helvetica", "normal");
+  doc.text(quote.payment_method?.toUpperCase() || "N/A", pageWidth / 2, 72);
+  
+  doc.setFont("helvetica", "bold");
+  doc.text("PRAZO DE PAGAMENTO:", pageWidth / 2, 78);
+  doc.setFont("helvetica", "normal");
+  doc.text(quote.payment_terms?.toUpperCase() || "N/A", pageWidth / 2, 85);
+
 
   // 5. Items Table
   const includeImages = quote.include_images !== false;
