@@ -276,20 +276,44 @@ export default function OnlineQuotes() {
 
           <TabsContent value="quotes" className="mt-6">
             <Card>
-              <CardHeader>
-                <CardTitle>Meus Orçamentos</CardTitle>
-                <CardDescription>
-                  Visualize e gerencie seus orçamentos gerados.
-                </CardDescription>
+              <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                  <CardTitle>Meus Orçamentos</CardTitle>
+                  <CardDescription>
+                    Visualize e gerencie seus orçamentos gerados.
+                  </CardDescription>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                  <div className="relative w-full sm:w-64">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar por cliente..."
+                      className="pl-8"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                  </div>
+                  <Select value={dateFilter} onValueChange={setDateFilter}>
+                    <SelectTrigger className="w-full sm:w-40">
+                      <SelectValue placeholder="Data" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todo período</SelectItem>
+                      <SelectItem value="today">Hoje</SelectItem>
+                      <SelectItem value="week">Últimos 7 dias</SelectItem>
+                      <SelectItem value="month">Últimos 30 dias</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </CardHeader>
               <CardContent>
                 {loadingQuotes ? (
                   <div className="flex items-center justify-center py-12">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                   </div>
-                ) : quotes && quotes.length > 0 ? (
+                ) : filteredQuotes && filteredQuotes.length > 0 ? (
                   <div className="grid gap-3">
-                    {quotes.map((quote) => (
+                    {filteredQuotes.map((quote) => (
                       <div 
                         key={quote.id} 
                         className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl border bg-card hover:border-primary/50 transition-all shadow-sm group relative overflow-hidden"
@@ -301,19 +325,27 @@ export default function OnlineQuotes() {
                           <div className="min-w-0">
                             <div className="flex items-center gap-2 mb-1">
                               <h4 className="font-bold text-base truncate max-w-[200px] sm:max-w-md">{quote.client_name}</h4>
-                              <Badge variant={
-                                quote.status === 'approved' ? 'default' :
-                                quote.status === 'rejected' ? 'destructive' :
-                                'secondary'
-                              } className="text-[10px] h-5 px-1.5 uppercase font-bold tracking-wider">
-                                {quote.status === 'draft' ? 'Rascunho' :
-                                 quote.status === 'sent' ? 'Enviado' :
-                                 quote.status === 'approved' ? 'Aprovado' : 'Rejeitado'}
-                              </Badge>
+                              <div className="flex gap-1">
+                                <Badge variant={
+                                  quote.status === 'approved' ? 'default' :
+                                  quote.status === 'rejected' ? 'destructive' :
+                                  'secondary'
+                                } className="text-[10px] h-5 px-1.5 uppercase font-bold tracking-wider cursor-pointer"
+                                onClick={() => {
+                                  const nextStatus = quote.status === 'draft' ? 'sent' : 
+                                                    quote.status === 'sent' ? 'approved' : 
+                                                    quote.status === 'approved' ? 'rejected' : 'draft';
+                                  handleChangeStatus(quote.id, nextStatus);
+                                }}>
+                                  {quote.status === 'draft' ? 'Rascunho' :
+                                   quote.status === 'sent' ? 'Enviado' :
+                                   quote.status === 'approved' ? 'Aprovado' : 'Rejeitado'}
+                                </Badge>
+                              </div>
                             </div>
                             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                               <span className="flex items-center gap-1.5">
-                                <Plus className="h-3 w-3 rotate-45" /> {format(parseISO(quote.created_at), "dd/MM/yyyy", { locale: ptBR })}
+                                <CalendarDays className="h-3 w-3" /> {format(parseISO(quote.created_at), "dd/MM/yyyy", { locale: ptBR })}
                               </span>
                               <span className="font-bold text-foreground">
                                 {formatCurrency(quote.total_value)}
