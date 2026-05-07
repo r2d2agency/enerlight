@@ -187,10 +187,27 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
             }
           }
 
+          const costValue = row[costKey || ''];
+          let cost_price = 0;
+          if (costValue !== undefined && costValue !== null) {
+            if (typeof costValue === 'number') {
+              cost_price = costValue;
+            } else {
+              let cleanCost = costValue.toString().replace(/R\$\s?/, '').trim();
+              if (cleanCost.includes(',') && cleanCost.includes('.')) {
+                cleanCost = cleanCost.replace(/\./g, '').replace(',', '.');
+              } else if (cleanCost.includes(',')) {
+                cleanCost = cleanCost.replace(',', '.');
+              }
+              cost_price = parseFloat(cleanCost) || 0;
+            }
+          }
+
           return {
             product_code,
             product_name,
             sale_price,
+            cost_price,
             image_url
           };
         }));
