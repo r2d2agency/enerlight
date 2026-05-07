@@ -186,6 +186,16 @@ export default function OnlineQuotes() {
       is_master: formData.get('is_master') === 'on',
       allowed_templates: selectedTemplates,
       is_active: formData.get('is_active') === 'on'
+    };
+
+    try {
+      await savePriceList.mutateAsync(data);
+      setIsPriceListDialogOpen(false);
+    } catch (err) {
+      toast.error("Erro ao salvar tabela");
+    }
+  };
+
   const handleEditQuote = async (quote: any) => {
     try {
       const fullQuote = await api<any>(`/api/online-quotes/quotes/${quote.id}`);
@@ -201,14 +211,6 @@ export default function OnlineQuotes() {
       await updateQuoteStatus.mutateAsync({ id, status });
     } catch (err) {
       // Handled by mutation
-    }
-  };
-
-    try {
-      await savePriceList.mutateAsync(data);
-      setIsPriceListDialogOpen(false);
-    } catch (err) {
-      toast.error("Erro ao salvar tabela");
     }
   };
 
