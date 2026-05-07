@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, FileText, List, Settings, ShieldCheck, Loader2, Eye, Download, LayoutTemplate, Pencil, Image as ImageIcon, Upload, Globe, Instagram, Linkedin, Phone, Mail as MailIcon } from "lucide-react";
+import { Plus, FileText, List, Settings, ShieldCheck, Loader2, Eye, Download, LayoutTemplate, Pencil, Image as ImageIcon, Upload, Globe, Instagram, Linkedin, Phone, Mail as MailIcon, Trash2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePriceLists, useOnlineQuoteMutations, useOnlineQuotes, useOnlineQuoteTemplates, usePermissionTemplates } from "@/hooks/use-online-quotes";
 import { OnlineQuoteFormDialog } from "@/components/crm/OnlineQuoteFormDialog";
@@ -52,7 +52,7 @@ export default function OnlineQuotes() {
   const { data: quotes, isLoading: loadingQuotes } = useOnlineQuotes();
   const { data: templates, isLoading: loadingTemplates } = useOnlineQuoteTemplates();
   const { data: permissionTemplates } = usePermissionTemplates();
-  const { saveTemplate, savePriceList } = useOnlineQuoteMutations();
+  const { saveTemplate, savePriceList, deletePriceList } = useOnlineQuoteMutations();
   
   const [selectedTemplates, setSelectedTemplates] = useState<string[]>([]);
 
@@ -148,6 +148,16 @@ export default function OnlineQuotes() {
       setIsPriceListDialogOpen(false);
     } catch (err) {
       toast.error("Erro ao salvar tabela");
+    }
+  };
+
+  const handleDeletePriceList = async (id: string, name: string) => {
+    if (window.confirm(`Tem certeza que deseja excluir a tabela "${name}"? Esta ação não pode ser desfeita.`)) {
+      try {
+        await deletePriceList.mutateAsync(id);
+      } catch (err) {
+        // Error handled by mutation toast
+      }
     }
   };
 
@@ -288,9 +298,14 @@ export default function OnlineQuotes() {
                         <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
                           <CardTitle className="text-base" onClick={() => setSelectedPriceList(pl)}>{pl.name}</CardTitle>
                           {canEditPriceLists && (
-                            <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100" onClick={(e) => { e.stopPropagation(); setEditingPriceList(pl); setIsPriceListDialogOpen(true); }}>
-                              <Pencil className="h-3.5 w-3.5" />
-                            </Button>
+                            <div className="flex gap-1">
+                              <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100" onClick={(e) => { e.stopPropagation(); setEditingPriceList(pl); setIsPriceListDialogOpen(true); }}>
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={(e) => { e.stopPropagation(); handleDeletePriceList(pl.id, pl.name); }}>
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
                           )}
                         </CardHeader>
                         <CardContent onClick={() => setSelectedPriceList(pl)}>
