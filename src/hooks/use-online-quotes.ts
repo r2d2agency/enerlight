@@ -111,7 +111,7 @@ export function useOnlineQuoteMutations() {
   });
 
   const deletePriceList = useMutation({
-    mutationFn: (id: string) => api(`/api/online-quotes/price-lists/${id}`, { method: "DELETE" }),
+    mutationFn: (id: string) => api(`/api/online-quotes/price-lists/delete/${id}`, { method: "POST" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["price-lists"] });
       toast({ title: "Tabela de preços excluída com sucesso" });
