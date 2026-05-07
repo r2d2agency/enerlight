@@ -260,7 +260,7 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-[95vw] lg:max-w-6xl w-full h-[95vh] lg:h-[90vh] flex flex-col p-0 overflow-hidden">
           <DialogHeader className="p-6 pb-2">
-            <DialogTitle>Novo Orçamento Online</DialogTitle>
+            <DialogTitle>{initialData?.id ? "Editar Orçamento" : "Novo Orçamento Online"}</DialogTitle>
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto p-6 pt-2">
