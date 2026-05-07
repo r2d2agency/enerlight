@@ -4844,12 +4844,15 @@ DO $$ BEGIN
 EXCEPTION WHEN others THEN null; END $$;
 
 const step66OnlineQuoteItemsDiscount = `
--- Adicionar colunas de desconto nos itens do orçamento
+-- Adicionar colunas de desconto nos itens do orçamento e campos de pagamento no orçamento
 DO $$ BEGIN
     ALTER TABLE online_quote_items ADD COLUMN IF NOT EXISTS discount_type VARCHAR(20) DEFAULT 'fixed';
     ALTER TABLE online_quote_items ADD COLUMN IF NOT EXISTS discount_value DECIMAL(15, 2) DEFAULT 0;
+    ALTER TABLE online_quotes ADD COLUMN IF NOT EXISTS payment_terms VARCHAR(100);
+    ALTER TABLE online_quotes ADD COLUMN IF NOT EXISTS payment_method VARCHAR(100);
 EXCEPTION WHEN others THEN null; END $$;
 `;
+
 
 `;
 
