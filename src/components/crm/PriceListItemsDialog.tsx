@@ -272,6 +272,7 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
                   <TableHead className="w-[80px]">Imagem</TableHead>
                   <TableHead>Código</TableHead>
                   <TableHead>Produto</TableHead>
+                  {priceList?.is_master && <TableHead>Custo</TableHead>}
                   <TableHead>Preço Venda</TableHead>
                    {canEdit && <TableHead className="w-[120px]">Ações</TableHead>}
                 </TableRow>
