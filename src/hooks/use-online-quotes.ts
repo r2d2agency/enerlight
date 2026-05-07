@@ -11,6 +11,7 @@ export interface PriceList {
   markup_percentage?: number;
   discount_limit_percentage?: number;
   is_master?: boolean;
+  allowed_templates?: string[]; // IDs of Permission Templates that can see this table
   created_at: string;
 }
 
