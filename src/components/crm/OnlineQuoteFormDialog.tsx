@@ -21,7 +21,7 @@ interface OnlineQuoteFormDialogProps {
   initialData?: any;
 }
 
-export function OnlineQuoteFormDialog({ open, onOpenChange }: OnlineQuoteFormDialogProps) {
+export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: OnlineQuoteFormDialogProps) {
   const { user } = useAuth();
   const isRepresentative = user?.role === 'representative';
   const [step, setStep] = useState<"client" | "payment" | "items">("client");
@@ -48,15 +48,32 @@ export function OnlineQuoteFormDialog({ open, onOpenChange }: OnlineQuoteFormDia
   const { data: priceLists } = usePriceLists();
   const { data: templates } = useOnlineQuoteTemplates();
   const { data: priceListItems, isLoading: loadingItems } = usePriceListItems(selectedPriceListId);
-  const { createQuote } = useOnlineQuoteMutations();
+  const { createQuote, updateQuote } = useOnlineQuoteMutations();
   const { data: existingCompanies } = useCRMCompanies(companySearch);
 
   useEffect(() => {
-    if (templates?.length && !selectedTemplateId) {
-      const defaultTemplate = templates.find(t => t.is_default);
-      if (defaultTemplate) setSelectedTemplateId(defaultTemplate.id);
+    if (initialData && open) {
+      setClientInfo({
+        name: initialData.client_name || "",
+        document: initialData.client_document || "",
+        email: initialData.client_email || "",
+        phone: initialData.client_phone || "",
+        notes: initialData.notes || "",
+        payment_terms: initialData.payment_terms || "avista",
+        payment_method: initialData.payment_method || "pix"
+      });
+      setSelectedPriceListId(initialData.price_list_id || "");
+      setSelectedTemplateId(initialData.template_id || "");
+      setQuoteItems(initialData.items || []);
+      setIncludeImagesInQuote(initialData.include_images !== false);
+      setStep("client");
+    } else if (!initialData && open) {
+      // Reset only when opening for a new quote
+      setStep("client");
+      setQuoteItems([]);
+      setClientInfo({ name: "", document: "", email: "", phone: "", notes: "", payment_terms: "avista", payment_method: "pix" });
     }
-  }, [templates]);
+  }, [initialData, open]);
 
   const handleLookupCNPJ = async () => {
     const cnpj = clientInfo.document.replace(/\D/g, "");
