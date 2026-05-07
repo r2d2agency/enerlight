@@ -165,7 +165,9 @@ export function MessageNotifications() {
       previousUnreadRef.current = newTotal;
       setTotalUnread(newTotal);
     } catch (error) {
-      console.error("Error fetching unread conversations:", error);
+      // Avoid spamming error toast for background polling issues (like 502)
+      // but log to console for debugging
+      console.warn("Error fetching unread conversations (polling):", error);
     }
   }, [soundEnabled, settings.soundEnabled, playSound, playNewConversationSound]);
 
