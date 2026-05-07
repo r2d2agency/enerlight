@@ -182,18 +182,18 @@ export const generateQuotePDF = async (quote: any, organization: any) => {
     },
     foot: [
       [
-        { content: 'SUBTOTAL ITENS', colSpan: includeImages ? 5 : 4, styles: { halign: 'right', fontStyle: 'bold', fillColor: [245, 245, 245], textColor: [40, 40, 40] } },
-        { content: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(quote.items.reduce((acc: number, item: any) => acc + (item.total_price || 0), 0)), styles: { fontStyle: 'bold', fillColor: [245, 245, 245], halign: 'right', textColor: [40, 40, 40] } }
+        { content: 'SUBTOTAL ITENS', colSpan: includeImages ? 5 : 4, styles: { halign: 'right', fontStyle: 'bold' as const, fillColor: [245, 245, 245], textColor: [40, 40, 40] } },
+        { content: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(quote.items.reduce((acc: number, item: any) => acc + (item.total_price || 0), 0)), styles: { fontStyle: 'bold' as const, fillColor: [245, 245, 245], halign: 'right', textColor: [40, 40, 40] } }
       ],
-      quote.shipping_value > 0 ? [
-        { content: `FRETE (${quote.shipping_type?.toUpperCase() || 'CIF'})`, colSpan: includeImages ? 5 : 4, styles: { halign: 'right', fontStyle: 'bold', fillColor: [245, 245, 245], textColor: [40, 40, 40] } },
-        { content: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(quote.shipping_value), styles: { fontStyle: 'bold', fillColor: [245, 245, 245], halign: 'right', textColor: [40, 40, 40] } }
-      ] : [],
+      ...(quote.shipping_value > 0 ? [[
+        { content: `FRETE (${quote.shipping_type?.toUpperCase() || 'CIF'})`, colSpan: includeImages ? 5 : 4, styles: { halign: 'right', fontStyle: 'bold' as const, fillColor: [245, 245, 245], textColor: [40, 40, 40] } },
+        { content: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(quote.shipping_value), styles: { fontStyle: 'bold' as const, fillColor: [245, 245, 245], halign: 'right', textColor: [40, 40, 40] } }
+      ]] : []),
       [
-        { content: 'VALOR TOTAL', colSpan: includeImages ? 5 : 4, styles: { halign: 'right', fontStyle: 'bold', fillColor: [40, 40, 40], textColor: [255, 255, 255] } },
-        { content: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(quote.total_value), styles: { fontStyle: 'bold', fillColor: [40, 40, 40], halign: 'right', textColor: [255, 255, 255] } }
+        { content: 'VALOR TOTAL', colSpan: includeImages ? 5 : 4, styles: { halign: 'right', fontStyle: 'bold' as const, fillColor: [40, 40, 40], textColor: [255, 255, 255] } },
+        { content: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(quote.total_value), styles: { fontStyle: 'bold' as const, fillColor: [40, 40, 40], halign: 'right', textColor: [255, 255, 255] } }
       ]
-    ].filter(row => row.length > 0)
+    ] as any,
   });
 
   // 6. Footer & Notes
