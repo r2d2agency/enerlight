@@ -141,5 +141,29 @@ export function useOnlineQuoteMutations() {
     }
   });
 
-  return { createQuote, saveTemplate, savePriceList, deletePriceList, deleteQuote };
+  const updateQuote = useMutation({
+    mutationFn: ({ id, data }: { id: string, data: any }) => api(`/api/online-quotes/quotes/${id}`, { method: "PUT", body: data }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["online-quotes"] });
+      toast({ title: "Orçamento atualizado com sucesso" });
+    },
+    onError: (err: any) => {
+      toast({ 
+        title: "Erro ao atualizar orçamento", 
+        description: err.message || "Tente novamente mais tarde.",
+        variant: "destructive" 
+      });
+    }
+  });
+
+  const updateQuoteStatus = useMutation({
+    mutationFn: ({ id, status }: { id: string, status: string }) => 
+      api(`/api/online-quotes/quotes/${id}/status`, { method: "PATCH", body: { status } }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["online-quotes"] });
+      toast({ title: "Status do orçamento atualizado" });
+    },
+  });
+
+  return { createQuote, saveTemplate, savePriceList, deletePriceList, deleteQuote, updateQuote, updateQuoteStatus };
 }
