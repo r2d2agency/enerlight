@@ -133,19 +133,60 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
   };
 
   const handleUpdateQty = (code: string, qty: number) => {
-    if (qty < 0) return;
-    if (qty === 0) {
+    const validQty = Math.max(0, isNaN(qty) ? 0 : qty);
+    if (validQty === 0) {
       handleRemoveItem(code);
       return;
     }
     setQuoteItems(quoteItems.map(item => {
       if (item.product_code === code) {
+        const unitPrice = Number(item.unit_price) || 0;
         const discountValue = item.discount_type === 'percentage' 
-          ? (item.unit_price * (item.discount || 0) / 100)
-          : (item.discount || 0);
-        return { ...item, quantity: qty, total_price: qty * (item.unit_price - discountValue) };
+          ? (unitPrice * (Number(item.discount) || 0) / 100)
+          : (Number(item.discount) || 0);
+        return { 
+          ...item, 
+          quantity: validQty, 
+          total_price: validQty * Math.max(0, unitPrice - discountValue) 
+        };
       }
       return item;
+    }));
+  };
+
+  const handleUpdateDiscount = (code: string, discount: number, type?: 'fixed' | 'percentage') => {
+    const priceList = priceLists?.find(pl => pl.id === selectedPriceListId);
+    const maxDiscountPercent = priceList?.discount_limit_percentage || 0;
+    const validDiscount = Math.max(0, isNaN(discount) ? 0 : discount);
+    
+    setQuoteItems(quoteItems.map(item => {
+      if (item.product_code !== code) return item;
+      
+      const newType = type || item.discount_type || 'fixed';
+      const unitPrice = Number(item.unit_price) || 0;
+      
+      let discountPercent = 0;
+      let discountValue = 0;
+
+      if (newType === 'percentage') {
+        discountPercent = validDiscount;
+        discountValue = (unitPrice * validDiscount / 100);
+      } else {
+        discountValue = validDiscount;
+        discountPercent = unitPrice > 0 ? (validDiscount / unitPrice) * 100 : 0;
+      }
+      
+      if (maxDiscountPercent > 0 && discountPercent > maxDiscountPercent) {
+        toast.error(`Desconto máximo permitido: ${maxDiscountPercent}%`);
+        return item;
+      }
+      
+      return { 
+        ...item, 
+        discount: validDiscount,
+        discount_type: newType,
+        total_price: Number(item.quantity || 0) * Math.max(0, unitPrice - discountValue) 
+      };
     }));
   };
 
