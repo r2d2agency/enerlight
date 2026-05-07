@@ -38,6 +38,17 @@ export default function OnlineQuotes() {
   const canEditPriceLists = isAdmin || user?.user_permissions?.can_edit_price_lists;
 
   const { data: priceLists, isLoading: loadingPriceLists } = usePriceLists();
+  
+  const filteredPriceLists = priceLists?.filter(pl => {
+    if (isAdmin) return true;
+    if (!pl.is_active) return false;
+    if (!pl.allowed_templates || pl.allowed_templates.length === 0) return true;
+    
+    // @ts-ignore - Assuming user might have permission_template_id
+    const userTemplateId = user?.permission_template_id;
+    return pl.allowed_templates.includes(userTemplateId);
+  });
+
   const { data: quotes, isLoading: loadingQuotes } = useOnlineQuotes();
   const { data: templates, isLoading: loadingTemplates } = useOnlineQuoteTemplates();
   const { data: permissionTemplates } = usePermissionTemplates();
