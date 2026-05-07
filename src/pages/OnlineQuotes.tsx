@@ -1109,9 +1109,9 @@ export default function OnlineQuotes() {
                     </table>
                   </div>
 
-                  <div className="mt-12 pt-8 border-t-4 border-black">
+                  <div className="mt-12 pt-8 border-t-4 border-primary">
                     <div className="flex justify-end mb-12">
-                      <div className="bg-black text-white p-8 rounded-2xl min-w-[300px] shadow-xl">
+                      <div className="bg-primary text-white p-8 rounded-2xl min-w-[300px] shadow-xl">
                         <div className="flex justify-between items-center gap-12">
                           <span className="text-xs font-black uppercase tracking-[0.2em] opacity-70">Total do Orçamento</span>
                           <span className="text-3xl font-black">
