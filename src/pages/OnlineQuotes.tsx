@@ -185,12 +185,14 @@ export default function OnlineQuotes() {
       discount_limit_percentage: parseFloat(formData.get('discount_limit_percentage') as string || '0'),
       is_master: formData.get('is_master') === 'on',
       allowed_templates: selectedTemplates,
-      is_active: formData.get('is_active') === 'on'
+      is_active: formData.get('is_active') === 'on',
+      default_template_id: formData.get('default_template_id')
     };
 
     try {
       await savePriceList.mutateAsync(data);
       setIsPriceListDialogOpen(false);
+      setEditingPriceList(null);
     } catch (err) {
       toast.error("Erro ao salvar tabela");
     }
