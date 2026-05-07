@@ -651,9 +651,9 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
             ) : (
               <>
                 <Button variant="outline" onClick={() => setStep("payment")}>Voltar</Button>
-                <Button onClick={handleSubmit} disabled={createQuote.isPending || quoteItems.length === 0}>
-                  {createQuote.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                  Gerar Orçamento
+                <Button onClick={handleSubmit} disabled={createQuote.isPending || updateQuote.isPending || quoteItems.length === 0}>
+                  {(createQuote.isPending || updateQuote.isPending) ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                  {initialData?.id ? "Salvar Alterações" : "Gerar Orçamento"}
                 </Button>
               </>
             )}
