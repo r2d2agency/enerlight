@@ -262,11 +262,11 @@ export default function OnlineQuotes() {
             <TabsTrigger value="quotes" className="flex items-center gap-2">
               <FileText className="h-4 w-4" /> Orçamentos
             </TabsTrigger>
-            <TabsTrigger value="price-lists" className="flex items-center gap-2">
-              <List className="h-4 w-4" /> Tabelas
-            </TabsTrigger>
-            {canEditPriceLists && (
+            {isAdmin && (
               <>
+                <TabsTrigger value="price-lists" className="flex items-center gap-2">
+                  <List className="h-4 w-4" /> Tabelas
+                </TabsTrigger>
                 <TabsTrigger value="templates" className="flex items-center gap-2">
                   <LayoutTemplate className="h-4 w-4" /> Modelos
                 </TabsTrigger>
