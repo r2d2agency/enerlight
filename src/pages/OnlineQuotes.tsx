@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, FileText, List, Settings, ShieldCheck, Loader2, Eye, Download, LayoutTemplate, Pencil, Image as ImageIcon, Upload, Globe, Instagram, Linkedin, Phone, Mail as MailIcon, Trash2 } from "lucide-react";
+import { Plus, FileText, List, Settings, ShieldCheck, Loader2, Eye, Download, LayoutTemplate, Pencil, Image as ImageIcon, Upload, Globe, Instagram, Linkedin, Phone, Mail as MailIcon, Trash2, Building2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePriceLists, useOnlineQuoteMutations, useOnlineQuotes, useOnlineQuoteTemplates, usePermissionTemplates } from "@/hooks/use-online-quotes";
 import { OnlineQuoteFormDialog } from "@/components/crm/OnlineQuoteFormDialog";
@@ -947,7 +947,7 @@ export default function OnlineQuotes() {
                       <div className="bg-primary/5 h-12 w-32 ml-auto rounded flex items-center justify-center border border-dashed border-primary/20">
                         <Building2 className="h-6 w-6 text-primary/40" />
                       </div>
-                      <p className="text-sm font-bold uppercase">{user?.organization_name || "Empresa"}</p>
+                      <p className="text-sm font-bold uppercase">{(user as any)?.organization_name || "Empresa"}</p>
                     </div>
                   </div>
 
