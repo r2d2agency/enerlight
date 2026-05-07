@@ -86,7 +86,9 @@ export default function OnlineQuotes() {
   const handlePreviewQuote = async (quote: any) => {
     try {
       const fullQuote = await api<any>(`/api/online-quotes/quotes/${quote.id}`);
-      setSelectedQuoteForPreview(fullQuote);
+      // Ensure organization info is available for the preview/PDF logic
+      const org = await api<any>(`/api/organizations/${user?.organization_id}`);
+      setSelectedQuoteForPreview({ ...fullQuote, organization: org });
       setIsPreviewDialogOpen(true);
     } catch (err) {
       toast.error("Erro ao carregar detalhes do orçamento");
