@@ -1020,15 +1020,22 @@ export default function OnlineQuotes() {
                     defaultChecked={editingPriceList?.is_active !== false} 
                   />
                 </div>
-              </div>
-              <DialogFooter className="pt-4">
-                <Button type="button" variant="outline" onClick={() => setIsPriceListDialogOpen(false)}>Cancelar</Button>
-                <Button type="submit" disabled={savePriceList.isPending}>
-                  {savePriceList.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Salvar Tabela
-                </Button>
-              </DialogFooter>
-            </form>
+                </div>
+              </form>
+            </ScrollArea>
+            <DialogFooter className="px-6 py-4 border-t bg-muted/50">
+              <Button type="button" variant="outline" onClick={() => setIsPriceListDialogOpen(false)}>Cancelar</Button>
+              <Button 
+                onClick={(e) => {
+                  const form = (e.target as HTMLElement).closest('div')?.parentElement?.querySelector('form');
+                  if (form) form.requestSubmit();
+                }}
+                disabled={savePriceList.isPending}
+              >
+                {savePriceList.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Salvar Tabela
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
 
