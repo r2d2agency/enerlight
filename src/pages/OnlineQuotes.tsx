@@ -318,9 +318,10 @@ export default function OnlineQuotes() {
                       <Card 
                         key={pl.id} 
                         className="hover:border-primary/50 transition-colors cursor-pointer group"
+                        onClick={() => setSelectedPriceList(pl)}
                       >
                         <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
-                          <CardTitle className="text-base" onClick={() => setSelectedPriceList(pl)}>{pl.name}</CardTitle>
+                          <CardTitle className="text-base">{pl.name}</CardTitle>
                           {canEditPriceLists && (
                             <div className="flex gap-1">
                               <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100" onClick={(e) => { e.stopPropagation(); setEditingPriceList(pl); setIsPriceListDialogOpen(true); }}>
