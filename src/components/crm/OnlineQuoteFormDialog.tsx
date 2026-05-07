@@ -122,32 +122,46 @@ export function OnlineQuoteFormDialog({ open, onOpenChange }: OnlineQuoteFormDia
     }
     setQuoteItems(quoteItems.map(item => {
       if (item.product_code === code) {
-        const discount = item.discount || 0;
-        return { ...item, quantity: qty, total_price: qty * (item.unit_price - discount) };
+        const discountValue = item.discount_type === 'percentage' 
+          ? (item.unit_price * (item.discount || 0) / 100)
+          : (item.discount || 0);
+        return { ...item, quantity: qty, total_price: qty * (item.unit_price - discountValue) };
       }
       return item;
     }));
   };
 
-  const handleUpdateDiscount = (code: string, discount: number) => {
+  const handleUpdateDiscount = (code: string, discount: number, type?: 'fixed' | 'percentage') => {
     const priceList = priceLists?.find(pl => pl.id === selectedPriceListId);
     const maxDiscountPercent = priceList?.discount_limit_percentage || 0;
     
     setQuoteItems(quoteItems.map(item => {
       if (item.product_code !== code) return item;
       
+      const newType = type || item.discount_type || 'fixed';
       const unitPrice = item.unit_price;
-      const currentDiscountPercent = (discount / unitPrice) * 100;
       
-      if (currentDiscountPercent > maxDiscountPercent) {
+      let discountPercent = 0;
+      let discountValue = 0;
+
+      if (newType === 'percentage') {
+        discountPercent = discount;
+        discountValue = (unitPrice * discount / 100);
+      } else {
+        discountValue = discount;
+        discountPercent = (discount / unitPrice) * 100;
+      }
+      
+      if (discountPercent > maxDiscountPercent) {
         toast.error(`Desconto máximo permitido: ${maxDiscountPercent}%`);
         return item;
       }
       
       return { 
         ...item, 
-        discount: discount, 
-        total_price: item.quantity * (unitPrice - discount) 
+        discount: discount,
+        discount_type: newType,
+        total_price: item.quantity * (unitPrice - discountValue) 
       };
     }));
   };
