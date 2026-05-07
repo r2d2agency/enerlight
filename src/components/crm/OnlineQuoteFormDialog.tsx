@@ -521,13 +521,27 @@ export function OnlineQuoteFormDialog({ open, onOpenChange }: OnlineQuoteFormDia
                                   />
                                 </TableCell>
                                 <TableCell className="py-4">
-                                  <Input 
-                                    type="number" 
-                                    value={item.discount || 0}
-                                    onChange={e => handleUpdateDiscount(item.product_code, Number(e.target.value))}
-                                    className="h-10 text-base font-medium px-2 w-full min-w-[90px] border-amber-200 focus:border-amber-400"
-                                    min="0"
-                                  />
+                                  <div className="flex items-center gap-1">
+                                    <Input 
+                                      type="number" 
+                                      value={item.discount || 0}
+                                      onChange={e => handleUpdateDiscount(item.product_code, Number(e.target.value))}
+                                      className="h-10 text-base font-medium px-2 w-full border-amber-200 focus:border-amber-400"
+                                      min="0"
+                                    />
+                                    <Select 
+                                      value={item.discount_type || 'fixed'} 
+                                      onValueChange={(val: 'fixed' | 'percentage') => handleUpdateDiscount(item.product_code, item.discount || 0, val)}
+                                    >
+                                      <SelectTrigger className="h-10 w-16 px-1">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="fixed">R$</SelectItem>
+                                        <SelectItem value="percentage">%</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
                                 </TableCell>
                                 <TableCell className="text-sm font-bold text-right py-4">
                                   {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.total_price)}
