@@ -898,9 +898,15 @@ export default function OnlineQuotes() {
                 </div>
               </Tabs>
 
-              <DialogFooter className="p-6 border-t bg-muted/20">
+              <DialogFooter className="px-6 py-4 border-t bg-muted/20">
                 <Button type="button" variant="outline" onClick={() => setIsTemplateDialogOpen(false)}>Cancelar</Button>
-                <Button type="submit" disabled={saveTemplate.isPending}>
+                <Button 
+                  onClick={(e) => {
+                    const form = (e.target as HTMLElement).closest('div')?.parentElement?.querySelector('form');
+                    if (form) form.requestSubmit();
+                  }}
+                  disabled={saveTemplate.isPending}
+                >
                   {saveTemplate.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Salvar Modelo
                 </Button>
