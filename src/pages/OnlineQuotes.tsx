@@ -941,7 +941,7 @@ export default function OnlineQuotes() {
                   {/* Fake PDF Preview Header */}
                   <div className="flex justify-between items-start mb-10 border-b pb-8 border-slate-200">
                     <div className="space-y-1">
-                      <h2 className="text-3xl font-black tracking-tighter text-slate-900">ORÇAMENTO</h2>
+                      <h2 className="text-3xl font-black tracking-tighter text-black">ORÇAMENTO</h2>
                       <p className="text-sm font-bold text-slate-500 uppercase">#{selectedQuoteForPreview.id.split('-')[0].toUpperCase()}</p>
                       <p className="text-sm text-slate-500">{format(parseISO(selectedQuoteForPreview.created_at), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}</p>
                     </div>
@@ -955,25 +955,25 @@ export default function OnlineQuotes() {
                           </div>
                         )}
                       </div>
-                      <p className="text-lg font-black uppercase text-slate-900">{selectedQuoteForPreview.organization?.name || (user as any)?.organization_name || "Empresa"}</p>
+                      <p className="text-lg font-black uppercase text-black">{selectedQuoteForPreview.organization?.name || (user as any)?.organization_name || "Empresa"}</p>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-8 mb-12 bg-slate-50/50 p-8 rounded-xl border border-slate-100">
                     <div>
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Destinatário</p>
-                      <p className="font-bold text-lg leading-tight text-slate-900">{selectedQuoteForPreview.client_name}</p>
+                      <p className="font-bold text-lg leading-tight text-black">{selectedQuoteForPreview.client_name}</p>
                       <div className="mt-4 space-y-2 text-sm text-slate-600">
-                        {selectedQuoteForPreview.client_document && <p><span className="font-semibold text-slate-900">CNPJ/CPF:</span> {selectedQuoteForPreview.client_document}</p>}
-                        {selectedQuoteForPreview.client_email && <p><span className="font-semibold text-slate-900">Email:</span> {selectedQuoteForPreview.client_email}</p>}
-                        {selectedQuoteForPreview.client_phone && <p><span className="font-semibold text-slate-900">WhatsApp:</span> {selectedQuoteForPreview.client_phone}</p>}
+                        {selectedQuoteForPreview.client_document && <p><span className="font-semibold text-black">CNPJ/CPF:</span> {selectedQuoteForPreview.client_document}</p>}
+                        {selectedQuoteForPreview.client_email && <p><span className="font-semibold text-black">Email:</span> {selectedQuoteForPreview.client_email}</p>}
+                        {selectedQuoteForPreview.client_phone && <p><span className="font-semibold text-black">WhatsApp:</span> {selectedQuoteForPreview.client_phone}</p>}
                       </div>
                     </div>
                     <div className="text-right">
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Condições</p>
                       <div className="mt-4 space-y-2 text-sm text-slate-600">
-                        <p><span className="font-semibold text-slate-900">Forma de Pagamento:</span> {selectedQuoteForPreview.payment_method?.toUpperCase() || 'N/A'}</p>
-                        <p><span className="font-semibold text-slate-900">Prazo de Pagamento:</span> {selectedQuoteForPreview.payment_terms?.toUpperCase() || 'N/A'}</p>
+                        <p><span className="font-semibold text-black">Forma de Pagamento:</span> {selectedQuoteForPreview.payment_method?.toUpperCase() || 'N/A'}</p>
+                        <p><span className="font-semibold text-black">Prazo de Pagamento:</span> {selectedQuoteForPreview.payment_terms?.toUpperCase() || 'N/A'}</p>
                       </div>
                     </div>
                   </div>
