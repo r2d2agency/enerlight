@@ -137,37 +137,33 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
 
           const codeKey = findKey(['code', 'codigo', 'código', 'cod', 'sku', 'referencia', 'referência']);
           const nameKey = findKey(['name', 'nome', 'produto', 'descrição', 'descricao', 'item']);
-          const priceKey = findKey(['price', 'preco', 'preço', 'valor', 'venda', 'vlr']);
-          const costKey = findKey(['cost', 'custo', 'vlr_custo', 'valor_custo', 'compra']);
+          const priceKey = findKey(['price', 'preco', 'preço', 'valor', 'venda', 'vlr', 'preço venda', 'preço de venda']);
+          const costKey = findKey(['cost', 'custo', 'vlr_custo', 'valor_custo', 'compra', 'preço custo', 'preço de custo']);
           const imageKey = findKey(['image', 'imagem', 'url', 'foto', 'link']);
 
           const product_code = (row[codeKey || ''] || '').toString().trim();
           const product_name = (row[nameKey || ''] || '').toString().trim();
-          const priceValue = row[priceKey || ''];
           
-          let sale_price = 0;
-          if (priceValue !== undefined && priceValue !== null) {
-            if (typeof priceValue === 'number') {
-              sale_price = priceValue;
-            } else {
-              // Limpa string de preço: remove R$, remove espaços, troca , por . se necessário
-              let cleanPrice = priceValue.toString().replace(/R\$\s?/, '').trim();
-              
-              // Se tiver vírgula e ponto, assume formato BR (1.000,00)
-              if (cleanPrice.includes(',') && cleanPrice.includes('.')) {
-                cleanPrice = cleanPrice.replace(/\./g, '').replace(',', '.');
-              } else if (cleanPrice.includes(',')) {
-                // Se tiver apenas vírgula, assume que é o separador decimal
-                cleanPrice = cleanPrice.replace(',', '.');
-              }
-              
-              sale_price = parseFloat(cleanPrice) || 0;
+          const parsePrice = (val: any) => {
+            if (val === undefined || val === null) return 0;
+            if (typeof val === 'number') return val;
+            let clean = val.toString().replace(/R\$\s?/, '').replace(/[^\d.,-]/g, '').trim();
+            if (clean.includes(',') && clean.includes('.')) {
+              clean = clean.replace(/\./g, '').replace(',', '.');
+            } else if (clean.includes(',')) {
+              clean = clean.replace(',', '.');
             }
-          }
+            return parseFloat(clean) || 0;
+          };
+
+          const base_sale_price = parsePrice(row[priceKey || '']);
+          const cost_price = parsePrice(row[costKey || '']);
           
-          // Aplica markup da tabela se houver
-          if (priceList?.markup_percentage && priceList.markup_percentage > 0) {
-            sale_price = sale_price * (1 + (priceList.markup_percentage / 100));
+          // Se for a matriz, o preço é o que está no arquivo
+          // Se não for matriz, aplicamos o markup sobre o preço base do arquivo
+          let sale_price = base_sale_price;
+          if (!priceList?.is_master && priceList?.markup_percentage && priceList.markup_percentage > 0) {
+            sale_price = base_sale_price * (1 + (priceList.markup_percentage / 100));
           }
 
           let image_url = (row[imageKey || ''] || '').toString().trim();
@@ -184,22 +180,6 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
               }
             } catch (err) {
               console.warn(`Erro ao buscar imagem para o código ${product_code}:`, err);
-            }
-          }
-
-          const costValue = row[costKey || ''];
-          let cost_price = 0;
-          if (costValue !== undefined && costValue !== null) {
-            if (typeof costValue === 'number') {
-              cost_price = costValue;
-            } else {
-              let cleanCost = costValue.toString().replace(/R\$\s?/, '').trim();
-              if (cleanCost.includes(',') && cleanCost.includes('.')) {
-                cleanCost = cleanCost.replace(/\./g, '').replace(',', '.');
-              } else if (cleanCost.includes(',')) {
-                cleanCost = cleanCost.replace(',', '.');
-              }
-              cost_price = parseFloat(cleanCost) || 0;
             }
           }
 
