@@ -186,7 +186,9 @@ export function useProjectNoteNotifications() {
   return useQuery<ProjectNoteNotification[]>({
     queryKey: ["project-note-notifications"],
     queryFn: () => api("/api/projects/note-notifications/unread", { auth: true }),
-    refetchInterval: 10000,
+    refetchInterval: 60000,
+    retry: 1,
+    staleTime: 30000,
   });
 }
 
