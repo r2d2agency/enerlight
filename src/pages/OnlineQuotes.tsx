@@ -1019,9 +1019,9 @@ export default function OnlineQuotes() {
                     </table>
                   </div>
 
-                  <div className="mt-12 pt-8 border-t-4 border-slate-900">
+                  <div className="mt-12 pt-8 border-t-4 border-black">
                     <div className="flex justify-end mb-12">
-                      <div className="bg-slate-900 text-white p-8 rounded-2xl min-w-[300px] shadow-xl">
+                      <div className="bg-black text-white p-8 rounded-2xl min-w-[300px] shadow-xl">
                         <div className="flex justify-between items-center gap-12">
                           <span className="text-xs font-black uppercase tracking-[0.2em] opacity-70">Total do Orçamento</span>
                           <span className="text-3xl font-black">
@@ -1035,7 +1035,7 @@ export default function OnlineQuotes() {
                       <div className="space-y-4 p-8 bg-slate-50 rounded-2xl border border-slate-100">
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Observações Adicionais</p>
                         <div 
-                          className="text-sm text-slate-600 leading-relaxed font-medium" 
+                          className="text-sm text-black leading-relaxed font-medium" 
                           dangerouslySetInnerHTML={{ __html: selectedQuoteForPreview.notes }} 
                         />
                       </div>
