@@ -159,6 +159,8 @@ export default function OnlineQuotes() {
         // Error handled by mutation toast
       }
     }
+  };
+
   const handleDeleteQuote = async (id: string) => {
     if (window.confirm("Tem certeza que deseja excluir este orçamento?")) {
       try {
