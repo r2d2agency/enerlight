@@ -912,7 +912,7 @@ export default function OnlineQuotes() {
 
         {/* Price List Dialog */}
         <Dialog open={isPriceListDialogOpen} onOpenChange={setIsPriceListDialogOpen}>
-          <DialogContent>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col p-0">
             <DialogHeader>
               <DialogTitle>{editingPriceList ? "Editar Tabela" : "Nova Tabela de Preços"}</DialogTitle>
             </DialogHeader>
