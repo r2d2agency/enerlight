@@ -4836,17 +4836,22 @@ CREATE TABLE IF NOT EXISTS online_quote_templates (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
  
--- Adicionar coluna de segmento/canal nas tabelas de preços
+const step65OnlineQuoteTemplates = `
 DO $$ BEGIN
-    ALTER TABLE price_lists ADD COLUMN IF NOT EXISTS segment TEXT;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'price_lists' AND column_name = 'segment') THEN
+        ALTER TABLE price_lists ADD COLUMN segment TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'online_quotes' AND column_name = 'template_id') THEN
+        ALTER TABLE online_quotes ADD COLUMN template_id UUID REFERENCES online_quote_templates(id);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'online_quotes' AND column_name = 'footer_config') THEN
+        ALTER TABLE online_quotes ADD COLUMN footer_config JSONB;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'online_quote_templates' AND column_name = 'footer_config') THEN
+        ALTER TABLE online_quote_templates ADD COLUMN footer_config JSONB;
+    END IF;
 EXCEPTION WHEN others THEN null; END $$;
-
--- Adicionar coluna de template no orçamento
-DO $$ BEGIN
-    ALTER TABLE online_quotes ADD COLUMN IF NOT EXISTS template_id UUID REFERENCES online_quote_templates(id);
-    ALTER TABLE online_quotes ADD COLUMN IF NOT EXISTS footer_config JSONB;
-    ALTER TABLE online_quote_templates ADD COLUMN IF NOT EXISTS footer_config JSONB;
-EXCEPTION WHEN others THEN null; END $$;
+`;
 
 const step66OnlineQuoteItemsDiscount = `
 DO $$ BEGIN
