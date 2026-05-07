@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Plus, Trash2, Search, Loader2, Save, Image as ImageIcon, Eye, X, Building2 } from "lucide-react";
 import { usePriceLists, usePriceListItems, useOnlineQuoteMutations, useOnlineQuoteTemplates } from "@/hooks/use-online-quotes";
 import { useCRMCompanies } from "@/hooks/use-crm";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
@@ -20,6 +21,8 @@ interface OnlineQuoteFormDialogProps {
 }
 
 export function OnlineQuoteFormDialog({ open, onOpenChange }: OnlineQuoteFormDialogProps) {
+  const { user } = useAuth();
+  const isRepresentative = user?.role === 'representative';
   const [step, setStep] = useState<"client" | "payment" | "items">("client");
   const [clientInfo, setClientInfo] = useState({
     name: "",
@@ -208,8 +211,9 @@ export function OnlineQuoteFormDialog({ open, onOpenChange }: OnlineQuoteFormDia
           <div className="flex-1 overflow-y-auto p-6 pt-2">
             {step === "client" ? (
               <div className="space-y-4">
-                <div className="relative">
-                  <Label>Buscar Empresa Existente (Nome ou CNPJ)</Label>
+                {!isRepresentative && (
+                  <div className="relative">
+                    <Label>Buscar Empresa Existente (Nome ou CNPJ)</Label>
                   <div className="flex gap-2">
                     <Input 
                       value={companySearch}
@@ -245,8 +249,9 @@ export function OnlineQuoteFormDialog({ open, onOpenChange }: OnlineQuoteFormDia
                         </div>
                       ))}
                     </div>
-                  )}
-                </div>
+                    )}
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
