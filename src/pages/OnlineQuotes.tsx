@@ -57,8 +57,36 @@ export default function OnlineQuotes() {
   const { data: quotes, isLoading: loadingQuotes } = useOnlineQuotes();
   const { data: templates, isLoading: loadingTemplates } = useOnlineQuoteTemplates();
   const { data: permissionTemplates } = usePermissionTemplates();
-  const { saveTemplate, savePriceList, deletePriceList, deleteQuote } = useOnlineQuoteMutations();
+  const { saveTemplate, savePriceList, deletePriceList, deleteQuote, updateQuoteStatus } = useOnlineQuoteMutations();
   
+  const filteredQuotes = quotes?.filter(quote => {
+    const matchesSearch = quote.client_name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                         (quote.client_email && quote.client_email.toLowerCase().includes(searchTerm.toLowerCase()));
+    
+    if (!matchesSearch) return false;
+
+    if (dateFilter === "all") return true;
+    
+    const quoteDate = parseISO(quote.created_at);
+    const today = new Date();
+    
+    if (dateFilter === "today") {
+      return format(quoteDate, "yyyy-MM-dd") === format(today, "yyyy-MM-dd");
+    }
+    if (dateFilter === "week") {
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(today.getDate() - 7);
+      return quoteDate >= sevenDaysAgo;
+    }
+    if (dateFilter === "month") {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(today.getDate() - 30);
+      return quoteDate >= thirtyDaysAgo;
+    }
+    
+    return true;
+  });
+
   const [selectedTemplates, setSelectedTemplates] = useState<string[]>([]);
 
   useEffect(() => {
