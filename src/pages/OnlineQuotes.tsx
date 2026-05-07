@@ -955,6 +955,21 @@ export default function OnlineQuotes() {
                   <p className="text-[10px] text-muted-foreground">Máximo de desconto permitido</p>
                 </div>
               </div>
+              <div className="space-y-2">
+                <Label>Modelo de Capa Padrão (Opcional)</Label>
+                <Select name="default_template_id" defaultValue={editingPriceList?.default_template_id}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione uma capa fixa..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Nenhuma (Vendedor escolhe)</SelectItem>
+                    {templates?.map(t => (
+                      <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[10px] text-muted-foreground">Se selecionado, o vendedor não poderá trocar a capa ao usar esta tabela.</p>
+              </div>
 
               <div className="space-y-3">
                 <Label>Grupos com Acesso</Label>
