@@ -18,6 +18,7 @@ import { api } from "@/lib/api";
 interface OnlineQuoteFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  initialData?: any;
 }
 
 export function OnlineQuoteFormDialog({ open, onOpenChange }: OnlineQuoteFormDialogProps) {
