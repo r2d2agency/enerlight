@@ -11,7 +11,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 
 interface PriceListItemsDialogProps {
-  priceList: { id: string; name: string; markup_percentage?: number } | null;
+  priceList: { id: string; name: string; markup_percentage?: number; is_master?: boolean } | null;
   onOpenChange: (open: boolean) => void;
   canEdit?: boolean;
 }
