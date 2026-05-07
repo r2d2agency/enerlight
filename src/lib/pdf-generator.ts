@@ -195,7 +195,6 @@ export const generateQuotePDF = async (quote: any, organization: any) => {
       ]
     ].filter(row => row.length > 0)
   });
-  });
 
   // 6. Footer & Notes
   const finalY = (doc as any).lastAutoTable.finalY + 15;
