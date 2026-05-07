@@ -186,7 +186,23 @@ export default function OnlineQuotes() {
       is_master: formData.get('is_master') === 'on',
       allowed_templates: selectedTemplates,
       is_active: formData.get('is_active') === 'on'
-    };
+  const handleEditQuote = async (quote: any) => {
+    try {
+      const fullQuote = await api<any>(`/api/online-quotes/quotes/${quote.id}`);
+      setEditingQuote(fullQuote);
+      setIsNewQuoteOpen(true);
+    } catch (err) {
+      toast.error("Erro ao carregar detalhes para edição");
+    }
+  };
+
+  const handleChangeStatus = async (id: string, status: string) => {
+    try {
+      await updateQuoteStatus.mutateAsync({ id, status });
+    } catch (err) {
+      // Handled by mutation
+    }
+  };
 
     try {
       await savePriceList.mutateAsync(data);
