@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Trash2, Search, Loader2, Save, Image as ImageIcon, Eye, X, Building2 } from "lucide-react";
+import { Plus, Trash2, Search, Loader2, Save, Image as ImageIcon, Eye, X, Building2, List } from "lucide-react";
 import { usePriceLists, usePriceListItems, useOnlineQuoteMutations, useOnlineQuoteTemplates } from "@/hooks/use-online-quotes";
 import { useCRMCompanies } from "@/hooks/use-crm";
 import { useAuth } from "@/contexts/AuthContext";
@@ -118,11 +118,13 @@ export function OnlineQuoteFormDialog({ open, onOpenChange }: OnlineQuoteFormDia
       handleRemoveItem(code);
       return;
     }
-    setQuoteItems(quoteItems.map(item => 
-      item.product_code === code 
-        ? { ...item, quantity: qty, total_price: qty * (item.unit_price - (item.discount || 0)) }
-        : item
-    ));
+    setQuoteItems(quoteItems.map(item => {
+      if (item.product_code === code) {
+        const discount = item.discount || 0;
+        return { ...item, quantity: qty, total_price: qty * (item.unit_price - discount) };
+      }
+      return item;
+    }));
   };
 
   const handleUpdateDiscount = (code: string, discount: number) => {
@@ -203,7 +205,7 @@ export function OnlineQuoteFormDialog({ open, onOpenChange }: OnlineQuoteFormDia
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0">
+        <DialogContent className="max-w-[95vw] lg:max-w-6xl w-full h-[95vh] lg:h-[90vh] flex flex-col p-0 overflow-hidden">
           <DialogHeader className="p-6 pb-2">
             <DialogTitle>Novo Orçamento Online</DialogTitle>
           </DialogHeader>
@@ -332,15 +334,15 @@ export function OnlineQuoteFormDialog({ open, onOpenChange }: OnlineQuoteFormDia
                 </div>
               </div>
             ) : step === "payment" ? (
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Forma de Pagamento</Label>
+              <div className="space-y-6 max-w-2xl mx-auto py-4">
+                <div className="grid grid-cols-1 gap-6">
+                  <div className="space-y-3">
+                    <Label className="text-base font-semibold">Forma de Pagamento</Label>
                     <Select 
                       value={clientInfo.payment_method} 
                       onValueChange={val => setClientInfo({...clientInfo, payment_method: val})}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="h-12 text-base">
                         <SelectValue placeholder="Selecione a forma..." />
                       </SelectTrigger>
                       <SelectContent>
@@ -352,13 +354,13 @@ export function OnlineQuoteFormDialog({ open, onOpenChange }: OnlineQuoteFormDia
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Prazo de Pagamento</Label>
+                  <div className="space-y-3">
+                    <Label className="text-base font-semibold">Prazo de Pagamento</Label>
                     <Select 
                       value={clientInfo.payment_terms} 
                       onValueChange={val => setClientInfo({...clientInfo, payment_terms: val})}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="h-12 text-base">
                         <SelectValue placeholder="Selecione o prazo..." />
                       </SelectTrigger>
                       <SelectContent>
@@ -372,56 +374,57 @@ export function OnlineQuoteFormDialog({ open, onOpenChange }: OnlineQuoteFormDia
                     </Select>
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <Label>Condições Adicionais</Label>
+                <div className="space-y-3">
+                  <Label className="text-base font-semibold">Condições Adicionais (Observações do Orçamento)</Label>
                   <Textarea 
                     value={clientInfo.notes} 
                     onChange={e => setClientInfo({...clientInfo, notes: e.target.value})}
                     placeholder="Ex: Frete incluso, validade da proposta..."
+                    className="min-h-[150px] text-base"
                   />
                 </div>
               </div>
             ) : (
               <div className="flex flex-col h-full gap-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-[450px]">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full min-h-0">
                   {/* Seleção de Produtos */}
-                  <div className="border rounded-lg flex flex-col overflow-hidden">
-                    <div className="p-2 bg-muted flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 flex-1">
-                        <Search className="h-4 w-4 text-muted-foreground" />
+                  <div className="lg:col-span-5 border rounded-lg flex flex-col overflow-hidden bg-muted/10">
+                    <div className="p-3 bg-muted flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2 flex-1 relative">
+                        <Search className="h-4 w-4 absolute left-3 text-muted-foreground pointer-events-none" />
                         <Input 
                           placeholder="Buscar produto..." 
-                          className="h-8 bg-background"
+                          className="h-10 pl-9 bg-background"
                           value={productSearch}
                           onChange={e => setProductSearch(e.target.value)}
                         />
                       </div>
                       <Button 
                         variant="ghost" 
-                        size="sm" 
-                        className={cn("h-8 w-8 p-0", showThumbnails && "text-primary bg-primary/10")}
+                        size="icon" 
+                        className={cn("h-10 w-10 p-0 shrink-0", showThumbnails && "text-primary bg-primary/10")}
                         onClick={() => setShowThumbnails(!showThumbnails)}
                         title="Mostrar fotos"
                       >
-                        <ImageIcon className="h-4 w-4" />
+                        <ImageIcon className="h-5 w-5" />
                       </Button>
                     </div>
                     <div className="flex-1 overflow-y-auto">
                       {loadingItems ? (
                         <div className="flex items-center justify-center h-full">
-                          <Loader2 className="h-6 w-6 animate-spin" />
+                          <Loader2 className="h-8 w-8 animate-spin text-primary" />
                         </div>
                       ) : (
-                        <div className="p-2 space-y-1">
+                        <div className="p-2 space-y-2">
                           {filteredProducts?.map(product => (
                             <div 
                               key={product.id}
-                              className="flex items-center gap-3 p-2 rounded hover:bg-muted cursor-pointer group"
+                              className="flex items-center gap-3 p-3 rounded-lg border bg-background hover:border-primary/50 transition-colors cursor-pointer group shadow-sm"
                               onClick={() => handleAddItem(product)}
                             >
                               {showThumbnails && (
                                 <div 
-                                  className="h-12 w-12 rounded border bg-white flex-shrink-0 overflow-hidden relative group/thumb"
+                                  className="h-16 w-16 rounded-md border bg-white flex-shrink-0 overflow-hidden relative group/thumb"
                                   onClick={(e) => {
                                     if (product.image_url) {
                                       e.stopPropagation();
@@ -433,20 +436,21 @@ export function OnlineQuoteFormDialog({ open, onOpenChange }: OnlineQuoteFormDia
                                     <>
                                       <img src={product.image_url} alt={product.product_name} className="h-full w-full object-cover" />
                                       <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/thumb:opacity-100 transition-opacity">
-                                        <Eye className="h-4 w-4 text-white" />
+                                        <Eye className="h-5 w-5 text-white" />
                                       </div>
                                     </>
                                   ) : (
-                                    <ImageIcon className="h-6 w-6 text-muted-foreground/30 m-auto" />
+                                    <ImageIcon className="h-8 w-8 text-muted-foreground/20 m-auto" />
                                   )}
                                 </div>
                               )}
                               <div className="min-w-0 flex-1">
-                                <p className="text-sm font-medium truncate">{product.product_name}</p>
-                                <p className="text-[10px] text-muted-foreground">{product.product_code} • {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.sale_price)}</p>
+                                <p className="text-sm font-semibold truncate leading-tight mb-1">{product.product_name}</p>
+                                <p className="text-xs text-muted-foreground mb-1">{product.product_code}</p>
+                                <p className="text-sm font-bold text-primary">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.sale_price)}</p>
                               </div>
-                              <Button size="sm" variant="ghost" className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100">
-                                <Plus className="h-4 w-4" />
+                              <Button size="icon" variant="secondary" className="h-9 w-9 shrink-0 sm:opacity-0 group-hover:opacity-100">
+                                <Plus className="h-5 w-5" />
                               </Button>
                             </div>
                           ))}
@@ -456,75 +460,92 @@ export function OnlineQuoteFormDialog({ open, onOpenChange }: OnlineQuoteFormDia
                   </div>
 
                   {/* Itens Adicionados */}
-                  <div className="border rounded-lg flex flex-col overflow-hidden">
-                    <div className="p-2 bg-muted">
-                      <p className="text-sm font-medium">Itens do Orçamento</p>
+                  <div className="lg:col-span-7 border rounded-lg flex flex-col overflow-hidden shadow-sm">
+                    <div className="p-3 bg-primary/5 border-b">
+                      <p className="font-semibold flex items-center gap-2">
+                        <List className="h-4 w-4" />
+                        Itens do Orçamento ({quoteItems.length})
+                      </p>
                     </div>
-                    <div className="flex-1 overflow-y-auto">
+                    <div className="flex-1 overflow-x-auto overflow-y-auto">
                       <Table>
                         <TableHeader>
-                          <TableRow className="bg-muted/50">
-                            <TableHead className="text-xs">Prod.</TableHead>
-                             <TableHead className="text-xs w-[50px]">Qtd</TableHead>
-                             <TableHead className="text-xs w-[80px]">Desc. R$</TableHead>
-                             <TableHead className="text-xs text-right">Total</TableHead>
-                            <TableHead className="w-[40px]"></TableHead>
+                          <TableRow className="bg-muted/50 hover:bg-muted/50">
+                            <TableHead className="text-xs font-bold uppercase tracking-wider">Produto</TableHead>
+                            <TableHead className="text-xs font-bold uppercase tracking-wider w-[100px]">Qtd</TableHead>
+                            <TableHead className="text-xs font-bold uppercase tracking-wider w-[120px]">Desconto (R$)</TableHead>
+                            <TableHead className="text-xs font-bold uppercase tracking-wider text-right">Total</TableHead>
+                            <TableHead className="w-[50px]"></TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {quoteItems.map(item => (
-                            <TableRow key={item.product_code}>
-                              <TableCell className="text-xs font-medium py-2">
-                                {item.product_name}
-                              </TableCell>
-                              <TableCell className="py-2">
-                                 <Input 
-                                   type="number" 
-                                   value={item.quantity}
-                                   onChange={e => handleUpdateQty(item.product_code, Number(e.target.value))}
-                                   className="h-7 text-xs px-1"
-                                 />
-                               </TableCell>
-                               <TableCell className="py-2">
-                                 <Input 
-                                   type="number" 
-                                   value={item.discount || 0}
-                                   onChange={e => handleUpdateDiscount(item.product_code, Number(e.target.value))}
-                                   className="h-7 text-xs px-1"
-                                 />
-                               </TableCell>
-                              <TableCell className="text-xs text-right py-2">
-                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.total_price)}
-                              </TableCell>
-                              <TableCell className="py-2">
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm" 
-                                  className="h-7 w-7 p-0 text-destructive"
-                                  onClick={() => handleRemoveItem(item.product_code)}
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
+                          {quoteItems.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
+                                <div className="flex flex-col items-center gap-2">
+                                  <Plus className="h-8 w-8 opacity-20" />
+                                  <p>Selecione produtos ao lado para adicionar</p>
+                                </div>
                               </TableCell>
                             </TableRow>
-                          ))}
+                          ) : (
+                            quoteItems.map(item => (
+                              <TableRow key={item.product_code} className="group hover:bg-muted/30">
+                                <TableCell className="text-sm py-4">
+                                  <p className="font-medium">{item.product_name}</p>
+                                  <p className="text-[10px] text-muted-foreground">{item.product_code}</p>
+                                </TableCell>
+                                <TableCell className="py-4">
+                                  <Input 
+                                    type="number" 
+                                    value={item.quantity}
+                                    onChange={e => handleUpdateQty(item.product_code, Number(e.target.value))}
+                                    className="h-10 text-base font-medium px-2 w-full min-w-[70px]"
+                                    min="1"
+                                  />
+                                </TableCell>
+                                <TableCell className="py-4">
+                                  <Input 
+                                    type="number" 
+                                    value={item.discount || 0}
+                                    onChange={e => handleUpdateDiscount(item.product_code, Number(e.target.value))}
+                                    className="h-10 text-base font-medium px-2 w-full min-w-[90px] border-amber-200 focus:border-amber-400"
+                                    min="0"
+                                  />
+                                </TableCell>
+                                <TableCell className="text-sm font-bold text-right py-4">
+                                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.total_price)}
+                                </TableCell>
+                                <TableCell className="py-4">
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-9 w-9 text-destructive hover:bg-destructive/10"
+                                    onClick={() => handleRemoveItem(item.product_code)}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))
+                          )}
                         </TableBody>
                       </Table>
                     </div>
-                    <div className="p-3 bg-muted/30 border-t space-y-3">
+                    <div className="p-4 bg-muted/20 border-t space-y-4">
                       <div className="flex items-center justify-between">
                         <div className="space-y-0.5">
-                          <Label className="text-xs">Incluir fotos no PDF</Label>
-                          <p className="text-[10px] text-muted-foreground">Mostra miniatura de cada produto</p>
+                          <Label className="text-sm font-semibold">Incluir fotos no PDF</Label>
+                          <p className="text-xs text-muted-foreground">Exibir miniaturas no documento final</p>
                         </div>
                         <Switch 
                           checked={includeImagesInQuote}
                           onCheckedChange={setIncludeImagesInQuote}
                         />
                       </div>
-                      <div className="flex justify-between items-center font-bold">
-                        <span>Total:</span>
-                        <span className="text-lg">
+                      <div className="flex justify-between items-center p-4 bg-primary/10 rounded-lg">
+                        <span className="text-sm font-bold uppercase tracking-wider text-primary">Valor Total:</span>
+                        <span className="text-2xl font-black text-primary">
                           {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
                             quoteItems.reduce((acc, item) => acc + item.total_price, 0)
                           )}
