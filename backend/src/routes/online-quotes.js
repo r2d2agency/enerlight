@@ -386,4 +386,32 @@ router.post('/companies/create-from-quote', async (req, res) => {
   }
 });
 
+// Delete a quote
+router.delete('/quotes/:id', async (req, res) => {
+  try {
+    const ctx = await getUserContext(req.userId);
+    if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
+
+    // Admins/Managers can delete any quote in their org. Sellers only their own.
+    let sql = `DELETE FROM online_quotes WHERE id = $1 AND organization_id = $2`;
+    const params = [req.params.id, ctx.organizationId];
+
+    if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner') {
+      sql += ` AND user_id = $3`;
+      params.push(req.userId);
+    }
+
+    const result = await query(sql, params);
+    
+    // online_quote_items should be deleted automatically via ON DELETE CASCADE in DB
+    // but if not, we can delete them here too just in case
+    await query(`DELETE FROM online_quote_items WHERE quote_id = $1`, [req.params.id]);
+
+    res.json({ success: true });
+  } catch (err) {
+    logError('online-quotes.quotes.delete', err);
+    res.status(500).json({ error: 'Failed to delete quote' });
+  }
+});
+
 export default router;

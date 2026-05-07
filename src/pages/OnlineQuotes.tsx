@@ -86,7 +86,9 @@ export default function OnlineQuotes() {
   const handlePreviewQuote = async (quote: any) => {
     try {
       const fullQuote = await api<any>(`/api/online-quotes/quotes/${quote.id}`);
-      setSelectedQuoteForPreview(fullQuote);
+      // Ensure organization info is available for the preview/PDF logic
+      const org = await api<any>(`/api/organizations/${user?.organization_id}`);
+      setSelectedQuoteForPreview({ ...fullQuote, organization: org });
       setIsPreviewDialogOpen(true);
     } catch (err) {
       toast.error("Erro ao carregar detalhes do orçamento");
@@ -944,10 +946,16 @@ export default function OnlineQuotes() {
                       <p className="text-sm text-slate-500">{format(parseISO(selectedQuoteForPreview.created_at), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}</p>
                     </div>
                     <div className="text-right space-y-2">
-                      <div className="bg-slate-50 h-16 w-40 ml-auto rounded flex items-center justify-center border border-dashed border-slate-300">
-                        <Building2 className="h-8 w-8 text-slate-300" />
+                      <div className="h-16 w-40 ml-auto rounded flex items-center justify-end overflow-hidden">
+                        {selectedQuoteForPreview.organization?.logo_url ? (
+                          <img src={selectedQuoteForPreview.organization.logo_url} alt="Logo" className="max-h-full max-w-full object-contain" />
+                        ) : (
+                          <div className="bg-slate-50 h-full w-full rounded flex items-center justify-center border border-dashed border-slate-300">
+                            <Building2 className="h-8 w-8 text-slate-300" />
+                          </div>
+                        )}
                       </div>
-                      <p className="text-lg font-black uppercase text-slate-900">{(user as any)?.organization_name || "Empresa"}</p>
+                      <p className="text-lg font-black uppercase text-slate-900">{selectedQuoteForPreview.organization?.name || (user as any)?.organization_name || "Empresa"}</p>
                     </div>
                   </div>
 
