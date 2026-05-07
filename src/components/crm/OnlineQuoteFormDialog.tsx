@@ -30,8 +30,8 @@ export function OnlineQuoteFormDialog({ open, onOpenChange }: OnlineQuoteFormDia
     email: "",
     phone: "",
     notes: "",
-    payment_terms: "",
-    payment_method: ""
+    payment_terms: "avista",
+    payment_method: "pix"
   });
   const [selectedPriceListId, setSelectedPriceListId] = useState<string>("");
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
