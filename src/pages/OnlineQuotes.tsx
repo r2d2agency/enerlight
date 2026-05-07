@@ -898,9 +898,15 @@ export default function OnlineQuotes() {
                 </div>
               </Tabs>
 
-              <DialogFooter className="p-6 border-t bg-muted/20">
+              <DialogFooter className="px-6 py-4 border-t bg-muted/20">
                 <Button type="button" variant="outline" onClick={() => setIsTemplateDialogOpen(false)}>Cancelar</Button>
-                <Button type="submit" disabled={saveTemplate.isPending}>
+                <Button 
+                  onClick={(e) => {
+                    const form = (e.target as HTMLElement).closest('div')?.parentElement?.querySelector('form');
+                    if (form) form.requestSubmit();
+                  }}
+                  disabled={saveTemplate.isPending}
+                >
                   {saveTemplate.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Salvar Modelo
                 </Button>
@@ -912,23 +918,24 @@ export default function OnlineQuotes() {
 
         {/* Price List Dialog */}
         <Dialog open={isPriceListDialogOpen} onOpenChange={setIsPriceListDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col p-0">
+            <DialogHeader className="px-6 py-4 border-b">
               <DialogTitle>{editingPriceList ? "Editar Tabela" : "Nova Tabela de Preços"}</DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSavePriceList} className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label>Nome da Tabela</Label>
-                <Input name="name" defaultValue={editingPriceList?.name} required />
-              </div>
-              <div className="space-y-2">
-                <Label>Segmento / Canal</Label>
-                <Input name="segment" defaultValue={editingPriceList?.segment} placeholder="Ex: Construção Civil, E-commerce..." />
-              </div>
-              <div className="space-y-2">
-                <Label>Descrição</Label>
-                <Textarea name="description" defaultValue={editingPriceList?.description} />
-              </div>
+            <ScrollArea className="flex-1 px-6">
+              <form onSubmit={handleSavePriceList} className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label>Nome da Tabela</Label>
+                  <Input name="name" defaultValue={editingPriceList?.name} required />
+                </div>
+                <div className="space-y-2">
+                  <Label>Segmento / Canal</Label>
+                  <Input name="segment" defaultValue={editingPriceList?.segment} placeholder="Ex: Construção Civil, E-commerce..." />
+                </div>
+                <div className="space-y-2">
+                  <Label>Descrição</Label>
+                  <Textarea name="description" defaultValue={editingPriceList?.description} />
+                </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="markup_percentage">Markup / Acréscimo (%)</Label>
@@ -1019,15 +1026,22 @@ export default function OnlineQuotes() {
                     defaultChecked={editingPriceList?.is_active !== false} 
                   />
                 </div>
-              </div>
-              <DialogFooter className="pt-4">
-                <Button type="button" variant="outline" onClick={() => setIsPriceListDialogOpen(false)}>Cancelar</Button>
-                <Button type="submit" disabled={savePriceList.isPending}>
-                  {savePriceList.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Salvar Tabela
-                </Button>
-              </DialogFooter>
-            </form>
+                </div>
+              </form>
+            </ScrollArea>
+            <DialogFooter className="px-6 py-4 border-t bg-muted/50">
+              <Button type="button" variant="outline" onClick={() => setIsPriceListDialogOpen(false)}>Cancelar</Button>
+              <Button 
+                onClick={(e) => {
+                  const form = (e.target as HTMLElement).closest('div')?.parentElement?.querySelector('form');
+                  if (form) form.requestSubmit();
+                }}
+                disabled={savePriceList.isPending}
+              >
+                {savePriceList.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Salvar Tabela
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
 
