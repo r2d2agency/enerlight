@@ -272,10 +272,17 @@ export default function OnlineQuotes() {
                         </CardHeader>
                         <CardContent onClick={() => setSelectedPriceList(pl)}>
                           <p className="text-xs text-muted-foreground line-clamp-2 min-h-[2.5rem]">{pl.description || "Sem descrição"}</p>
-                          <div className="mt-4 flex items-center justify-between">
-                            <Badge variant={pl.is_active ? "default" : "secondary"}>
-                              {pl.is_active ? "Ativa" : "Inativa"}
-                            </Badge>
+                          <div className="mt-4 flex flex-wrap gap-2 items-center justify-between">
+                            <div className="flex gap-1">
+                              <Badge variant={pl.is_active ? "default" : "secondary"}>
+                                {pl.is_active ? "Ativa" : "Inativa"}
+                              </Badge>
+                              {pl.is_master && (
+                                <Badge variant="outline" className="border-primary text-primary bg-primary/5">
+                                  Matriz
+                                </Badge>
+                              )}
+                            </div>
                             {pl.segment && (
                               <Badge variant="outline" className="bg-primary/5">
                                 {pl.segment}
