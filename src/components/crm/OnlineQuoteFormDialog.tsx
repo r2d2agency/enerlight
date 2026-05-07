@@ -236,7 +236,7 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
         await updateQuote.mutateAsync({ id: initialData.id, data: quoteData });
         toast.success("Orçamento atualizado com sucesso!");
       } else {
-        await createQuote.mutateAsync(quoteData);
+        await createQuote.mutateAsync({ ...quoteData, status: 'draft' });
         toast.success("Orçamento criado com sucesso!");
       }
 
