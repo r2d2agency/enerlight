@@ -142,8 +142,27 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
 
           const product_code = (row[codeKey || ''] || '').toString().trim();
           const product_name = (row[nameKey || ''] || '').toString().trim();
-          const priceValue = row[priceKey || ''] || 0;
-          let sale_price = typeof priceValue === 'number' ? priceValue : parseFloat(priceValue.toString().replace('R$', '').replace(/\./g, '').replace(',', '.').trim() || "0");
+          const priceValue = row[priceKey || ''];
+          
+          let sale_price = 0;
+          if (priceValue !== undefined && priceValue !== null) {
+            if (typeof priceValue === 'number') {
+              sale_price = priceValue;
+            } else {
+              // Limpa string de preço: remove R$, remove espaços, troca , por . se necessário
+              let cleanPrice = priceValue.toString().replace(/R\$\s?/, '').trim();
+              
+              // Se tiver vírgula e ponto, assume formato BR (1.000,00)
+              if (cleanPrice.includes(',') && cleanPrice.includes('.')) {
+                cleanPrice = cleanPrice.replace(/\./g, '').replace(',', '.');
+              } else if (cleanPrice.includes(',')) {
+                // Se tiver apenas vírgula, assume que é o separador decimal
+                cleanPrice = cleanPrice.replace(',', '.');
+              }
+              
+              sale_price = parseFloat(cleanPrice) || 0;
+            }
+          }
           
           // Aplica markup da tabela se houver
           if (priceList?.markup_percentage && priceList.markup_percentage > 0) {
