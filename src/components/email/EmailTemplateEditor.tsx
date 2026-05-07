@@ -381,7 +381,7 @@ export function EmailTemplateEditor({ template, open, onOpenChange }: EmailTempl
           </DialogHeader>
           <ScrollArea className="max-h-[70vh]">
             <div 
-              className="bg-white rounded-lg"
+              className="bg-white rounded-lg text-black p-4"
               dangerouslySetInnerHTML={{ __html: previewHtml }}
             />
           </ScrollArea>
