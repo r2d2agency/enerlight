@@ -290,7 +290,7 @@ router.post('/quotes', async (req, res) => {
         `INSERT INTO online_quote_items 
          (quote_id, product_code, product_name, quantity, unit_price, cost_price, total_price, image_url, discount_type, discount_value)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-        [quoteId, item.product_code, item.product_name, item.quantity, item.unit_price, cost, subtotal, imageUrl, item.discount_type || 'fixed', item.discount || 0]
+        [quoteId, item.product_code, item.product_name, item.quantity, unitPrice, cost, subtotal, imageUrl, discountType, discount]
       );
       
       totalValue += subtotal;
