@@ -985,6 +985,7 @@ export default function OnlineQuotes() {
                           <th className="text-left py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Descrição do Produto</th>
                           <th className="text-center py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 w-24">Qtd</th>
                           <th className="text-right py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 w-36">Unitário</th>
+                          <th className="text-right py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 w-24">Desc.</th>
                           <th className="text-right py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 w-36">Subtotal</th>
                         </tr>
                       </thead>
@@ -999,14 +1000,19 @@ export default function OnlineQuotes() {
                                   </div>
                                 )}
                                 <div>
-                                  <p className="text-base font-bold text-slate-900 mb-1">{item.product_name}</p>
+                                  <p className="text-base font-bold text-slate-900 !text-black mb-1">{item.product_name}</p>
                                   <p className="text-[10px] text-slate-400 tracking-tight font-medium uppercase">{item.product_code}</p>
                                 </div>
                               </div>
                             </td>
-                            <td className="py-6 text-center text-sm font-bold text-slate-900">{item.quantity}</td>
-                            <td className="py-6 text-right text-sm font-bold text-slate-900">{formatCurrency(item.unit_price)}</td>
-                            <td className="py-6 text-right text-base font-black text-slate-900">{formatCurrency(item.total_price)}</td>
+                            <td className="py-6 text-center text-sm font-bold text-slate-900 !text-black">{item.quantity}</td>
+                            <td className="py-6 text-right text-sm font-bold text-slate-900 !text-black">{formatCurrency(item.unit_price)}</td>
+                            <td className="py-6 text-right text-sm font-bold text-slate-900 !text-black">
+                              {item.discount_type === 'percentage' 
+                                ? `${item.discount_value || item.discount || 0}%` 
+                                : formatCurrency(item.discount_value || item.discount || 0)}
+                            </td>
+                            <td className="py-6 text-right text-base font-black text-slate-900 !text-black">{formatCurrency(item.total_price)}</td>
                           </tr>
                         ))}
                       </tbody>
