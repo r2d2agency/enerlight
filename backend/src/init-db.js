@@ -4808,11 +4808,16 @@ CREATE INDEX IF NOT EXISTS idx_online_quotes_user ON online_quotes(user_id);
 `;
 
 const step64OnlineQuotesImages = `
--- Suporte a imagens no modulo de orçamentos
 DO $$ BEGIN
-    ALTER TABLE price_list_items ADD COLUMN IF NOT EXISTS image_url TEXT;
-    ALTER TABLE online_quotes ADD COLUMN IF NOT EXISTS include_images BOOLEAN DEFAULT true;
-    ALTER TABLE online_quote_items ADD COLUMN IF NOT EXISTS image_url TEXT;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'price_list_items' AND column_name = 'image_url') THEN
+        ALTER TABLE price_list_items ADD COLUMN image_url TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'online_quotes' AND column_name = 'include_images') THEN
+        ALTER TABLE online_quotes ADD COLUMN include_images BOOLEAN DEFAULT true;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'online_quote_items' AND column_name = 'image_url') THEN
+        ALTER TABLE online_quote_items ADD COLUMN image_url TEXT;
+    END IF;
 EXCEPTION WHEN others THEN null; END $$;
 `;
 
@@ -4830,26 +4835,37 @@ CREATE TABLE IF NOT EXISTS online_quote_templates (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
- 
--- Adicionar coluna de segmento/canal nas tabelas de preços
-DO $$ BEGIN
-    ALTER TABLE price_lists ADD COLUMN IF NOT EXISTS segment TEXT;
-EXCEPTION WHEN others THEN null; END $$;
 
--- Adicionar coluna de template no orçamento
 DO $$ BEGIN
-    ALTER TABLE online_quotes ADD COLUMN IF NOT EXISTS template_id UUID REFERENCES online_quote_templates(id);
-    ALTER TABLE online_quotes ADD COLUMN IF NOT EXISTS footer_config JSONB;
-    ALTER TABLE online_quote_templates ADD COLUMN IF NOT EXISTS footer_config JSONB;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'price_lists' AND column_name = 'segment') THEN
+        ALTER TABLE price_lists ADD COLUMN segment TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'online_quotes' AND column_name = 'template_id') THEN
+        ALTER TABLE online_quotes ADD COLUMN template_id UUID REFERENCES online_quote_templates(id);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'online_quotes' AND column_name = 'footer_config') THEN
+        ALTER TABLE online_quotes ADD COLUMN footer_config JSONB;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'online_quote_templates' AND column_name = 'footer_config') THEN
+        ALTER TABLE online_quote_templates ADD COLUMN footer_config JSONB;
+    END IF;
 EXCEPTION WHEN others THEN null; END $$;
+`;
 
 const step66OnlineQuoteItemsDiscount = `
--- Adicionar colunas de desconto nos itens do orçamento e campos de pagamento no orçamento
 DO $$ BEGIN
-    ALTER TABLE online_quote_items ADD COLUMN IF NOT EXISTS discount_type VARCHAR(20) DEFAULT 'fixed';
-    ALTER TABLE online_quote_items ADD COLUMN IF NOT EXISTS discount_value DECIMAL(15, 2) DEFAULT 0;
-    ALTER TABLE online_quotes ADD COLUMN IF NOT EXISTS payment_terms VARCHAR(100);
-    ALTER TABLE online_quotes ADD COLUMN IF NOT EXISTS payment_method VARCHAR(100);
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'online_quote_items' AND column_name = 'discount_type') THEN
+        ALTER TABLE online_quote_items ADD COLUMN discount_type VARCHAR(20) DEFAULT 'fixed';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'online_quote_items' AND column_name = 'discount_value') THEN
+        ALTER TABLE online_quote_items ADD COLUMN discount_value DECIMAL(15, 2) DEFAULT 0;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'online_quotes' AND column_name = 'payment_terms') THEN
+        ALTER TABLE online_quotes ADD COLUMN payment_terms VARCHAR(100);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'online_quotes' AND column_name = 'payment_method') THEN
+        ALTER TABLE online_quotes ADD COLUMN payment_method VARCHAR(100);
+    END IF;
 EXCEPTION WHEN others THEN null; END $$;
 `;
 
