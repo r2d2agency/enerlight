@@ -4835,8 +4835,7 @@ CREATE TABLE IF NOT EXISTS online_quote_templates (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
- 
-const step65OnlineQuoteTemplates = `
+
 DO $$ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'price_lists' AND column_name = 'segment') THEN
         ALTER TABLE price_lists ADD COLUMN segment TEXT;
