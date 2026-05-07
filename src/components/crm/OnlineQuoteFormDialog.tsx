@@ -108,7 +108,9 @@ export function OnlineQuoteFormDialog({ open, onOpenChange }: OnlineQuoteFormDia
       quantity: 1,
       unit_price: product.sale_price,
       total_price: product.sale_price,
-      image_url: product.image_url
+      image_url: product.image_url,
+      discount_type: 'fixed',
+      discount: 0
     }]);
   };
 
