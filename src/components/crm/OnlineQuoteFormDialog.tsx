@@ -24,7 +24,7 @@ interface OnlineQuoteFormDialogProps {
 export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: OnlineQuoteFormDialogProps) {
   const { user } = useAuth();
   const isRepresentative = user?.role === 'representative';
-  const [step, setStep] = useState<"client" | "payment" | "items">("client");
+  const [step, setStep] = useState<"client" | "payment" | "shipping" | "items">("client");
   const [clientInfo, setClientInfo] = useState({
     name: "",
     document: "",
@@ -32,7 +32,9 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
     phone: "",
     notes: "",
     payment_terms: "avista",
-    payment_method: "pix"
+    payment_method: "pix",
+    shipping_type: "cif",
+    shipping_value: 0
   });
   const [selectedPriceListId, setSelectedPriceListId] = useState<string>("");
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
@@ -60,7 +62,9 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
         phone: initialData.client_phone || "",
         notes: initialData.notes || "",
         payment_terms: initialData.payment_terms || "avista",
-        payment_method: initialData.payment_method || "pix"
+        payment_method: initialData.payment_method || "pix",
+        shipping_type: initialData.shipping_type || "cif",
+        shipping_value: initialData.shipping_value || 0
       });
       setSelectedPriceListId(initialData.price_list_id || "");
       setSelectedTemplateId(initialData.template_id || "");
@@ -71,7 +75,7 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
       // Reset only when opening for a new quote
       setStep("client");
       setQuoteItems([]);
-      setClientInfo({ name: "", document: "", email: "", phone: "", notes: "", payment_terms: "avista", payment_method: "pix" });
+      setClientInfo({ name: "", document: "", email: "", phone: "", notes: "", payment_terms: "avista", payment_method: "pix", shipping_type: "cif", shipping_value: 0 });
     }
   }, [initialData, open]);
 
@@ -107,7 +111,9 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
       phone: company.phone || "",
       notes: clientInfo.notes,
       payment_terms: company.payment_terms || "",
-      payment_method: company.payment_method || ""
+      payment_method: company.payment_method || "",
+      shipping_type: clientInfo.shipping_type,
+      shipping_value: clientInfo.shipping_value
     });
     setCompanySearch("");
     setShowCompanyResults(false);
@@ -230,6 +236,8 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
         payment_terms: clientInfo.payment_terms,
         payment_method: clientInfo.payment_method,
         notes: clientInfo.notes,
+        shipping_type: clientInfo.shipping_type,
+        shipping_value: Number(clientInfo.shipping_value) || 0,
         price_list_id: selectedPriceListId,
         template_id: selectedTemplateId,
         items: quoteItems.map(item => ({
@@ -253,7 +261,7 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
       // Reset
       setStep("client");
       setQuoteItems([]);
-      setClientInfo({ name: "", document: "", email: "", phone: "", notes: "", payment_terms: "avista", payment_method: "pix" });
+      setClientInfo({ name: "", document: "", email: "", phone: "", notes: "", payment_terms: "avista", payment_method: "pix", shipping_type: "cif", shipping_value: 0 });
     } catch (err) {
       toast.error(initialData ? "Erro ao atualizar orçamento" : "Erro ao criar orçamento");
     }
@@ -453,6 +461,38 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
                   />
                 </div>
               </div>
+            ) : step === "shipping" ? (
+              <div className="space-y-6 max-w-2xl mx-auto py-4">
+                <div className="grid grid-cols-1 gap-6">
+                  <div className="space-y-3">
+                    <Label className="text-base font-semibold">Tipo de Frete</Label>
+                    <Select 
+                      value={clientInfo.shipping_type} 
+                      onValueChange={val => setClientInfo({...clientInfo, shipping_type: val})}
+                    >
+                      <SelectTrigger className="h-12 text-base">
+                        <SelectValue placeholder="Selecione o tipo..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="cif">CIF (Por conta do Remetente)</SelectItem>
+                        <SelectItem value="fob">FOB (Por conta do Destinatário)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-3">
+                    <Label className="text-base font-semibold">Valor do Frete (R$)</Label>
+                    <Input 
+                      type="number"
+                      step="0.01"
+                      value={clientInfo.shipping_value} 
+                      onChange={e => setClientInfo({...clientInfo, shipping_value: parseFloat(e.target.value) || 0})}
+                      placeholder="0,00"
+                      className="h-12 text-base"
+                    />
+                    <p className="text-xs text-muted-foreground">Este valor será somado ao total do orçamento.</p>
+                  </div>
+                </div>
+              </div>
             ) : (
               <div className="flex flex-col h-full gap-4">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full min-h-0">
@@ -635,7 +675,7 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
                         <span className="text-sm font-bold uppercase tracking-wider text-primary">Valor Total:</span>
                         <span className="text-2xl font-black text-primary">
                           {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-                            quoteItems.reduce((acc, item) => acc + (Number(item.total_price) || 0), 0)
+                            quoteItems.reduce((acc, item) => acc + (Number(item.total_price) || 0), 0) + (Number(clientInfo.shipping_value) || 0)
                           )}
                         </span>
                       </div>
@@ -660,13 +700,20 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
             ) : step === "payment" ? (
               <>
                 <Button variant="outline" onClick={() => setStep("client")}>Voltar</Button>
+                <Button onClick={() => setStep("shipping")}>
+                  Próximo: Frete
+                </Button>
+              </>
+            ) : step === "shipping" ? (
+              <>
+                <Button variant="outline" onClick={() => setStep("payment")}>Voltar</Button>
                 <Button onClick={() => setStep("items")}>
                   Próximo: Adicionar Itens
                 </Button>
               </>
             ) : (
               <>
-                <Button variant="outline" onClick={() => setStep("payment")}>Voltar</Button>
+                <Button variant="outline" onClick={() => setStep("shipping")}>Voltar</Button>
                 <Button onClick={handleSubmit} disabled={createQuote.isPending || updateQuote.isPending || quoteItems.length === 0}>
                   {(createQuote.isPending || updateQuote.isPending) ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                   {initialData?.id ? "Salvar Alterações" : "Gerar Orçamento"}

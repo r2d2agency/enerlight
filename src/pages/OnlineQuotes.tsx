@@ -1082,6 +1082,7 @@ export default function OnlineQuotes() {
                       <div className="mt-4 space-y-2 text-sm text-slate-600">
                         <p><span className="font-semibold text-black">Forma de Pagamento:</span> {selectedQuoteForPreview.payment_method?.toUpperCase() || 'N/A'}</p>
                         <p><span className="font-semibold text-black">Prazo de Pagamento:</span> {selectedQuoteForPreview.payment_terms?.toUpperCase() || 'N/A'}</p>
+                        <p><span className="font-semibold text-black">Frete:</span> {selectedQuoteForPreview.shipping_type?.toUpperCase() || 'CIF'} {selectedQuoteForPreview.shipping_value > 0 ? `(${formatCurrency(selectedQuoteForPreview.shipping_value)})` : '(Incluso)'}</p>
                       </div>
                     </div>
                   </div>
@@ -1128,7 +1129,13 @@ export default function OnlineQuotes() {
                   </div>
 
                   <div className="mt-12 pt-8 border-t-4 border-primary">
-                    <div className="flex justify-end mb-12">
+                    <div className="flex flex-col items-end mb-12 space-y-2">
+                      {selectedQuoteForPreview.shipping_value > 0 && (
+                        <div className="flex justify-between items-center w-[300px] px-8 text-sm text-slate-500 font-bold uppercase tracking-wider">
+                          <span>Frete:</span>
+                          <span>{formatCurrency(selectedQuoteForPreview.shipping_value)}</span>
+                        </div>
+                      )}
                       <div className="bg-primary text-white p-8 rounded-2xl min-w-[300px] shadow-xl">
                         <div className="flex justify-between items-center gap-12">
                           <span className="text-xs font-black uppercase tracking-[0.2em] opacity-70">Total do Orçamento</span>

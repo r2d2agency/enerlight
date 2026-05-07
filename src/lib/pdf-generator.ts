@@ -106,6 +106,20 @@ export const generateQuotePDF = async (quote: any, organization: any) => {
   doc.setFont("helvetica", "normal");
   doc.text(quote.payment_terms?.toUpperCase() || "N/A", pageWidth / 2, 85);
 
+  // 4.2 Shipping Info
+  doc.setFont("helvetica", "bold");
+  doc.text("FRETE:", pageWidth - 14, 65, { align: "right" });
+  doc.setFont("helvetica", "normal");
+  const shippingType = quote.shipping_type === 'cif' ? 'CIF (Remetente)' : quote.shipping_type === 'fob' ? 'FOB (Destinatário)' : 'N/A';
+  doc.text(shippingType, pageWidth - 14, 72, { align: "right" });
+  
+  if (quote.shipping_value > 0) {
+    doc.setFont("helvetica", "bold");
+    doc.text("VALOR DO FRETE:", pageWidth - 14, 78, { align: "right" });
+    doc.setFont("helvetica", "normal");
+    doc.text(new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(quote.shipping_value), pageWidth - 14, 85, { align: "right" });
+  }
+
 
   // 5. Items Table
   const includeImages = quote.include_images !== false;
@@ -166,10 +180,20 @@ export const generateQuotePDF = async (quote: any, organization: any) => {
         }
       }
     },
-    foot: [[
-      { content: 'VALOR TOTAL', colSpan: includeImages ? 5 : 4, styles: { halign: 'right', fontStyle: 'bold', fillColor: [245, 245, 245], textColor: [40, 40, 40] } },
-      { content: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(quote.total_value), styles: { fontStyle: 'bold', fillColor: [245, 245, 245], halign: 'right', textColor: [40, 40, 40] } }
-    ]]
+    foot: [
+      [
+        { content: 'SUBTOTAL ITENS', colSpan: includeImages ? 5 : 4, styles: { halign: 'right', fontStyle: 'bold' as const, fillColor: [245, 245, 245], textColor: [40, 40, 40] } },
+        { content: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(quote.items.reduce((acc: number, item: any) => acc + (item.total_price || 0), 0)), styles: { fontStyle: 'bold' as const, fillColor: [245, 245, 245], halign: 'right', textColor: [40, 40, 40] } }
+      ],
+      ...(quote.shipping_value > 0 ? [[
+        { content: `FRETE (${quote.shipping_type?.toUpperCase() || 'CIF'})`, colSpan: includeImages ? 5 : 4, styles: { halign: 'right', fontStyle: 'bold' as const, fillColor: [245, 245, 245], textColor: [40, 40, 40] } },
+        { content: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(quote.shipping_value), styles: { fontStyle: 'bold' as const, fillColor: [245, 245, 245], halign: 'right', textColor: [40, 40, 40] } }
+      ]] : []),
+      [
+        { content: 'VALOR TOTAL', colSpan: includeImages ? 5 : 4, styles: { halign: 'right', fontStyle: 'bold' as const, fillColor: [40, 40, 40], textColor: [255, 255, 255] } },
+        { content: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(quote.total_value), styles: { fontStyle: 'bold' as const, fillColor: [40, 40, 40], halign: 'right', textColor: [255, 255, 255] } }
+      ]
+    ] as any,
   });
 
   // 6. Footer & Notes
