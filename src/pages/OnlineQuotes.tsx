@@ -1082,6 +1082,7 @@ export default function OnlineQuotes() {
                       <div className="mt-4 space-y-2 text-sm text-slate-600">
                         <p><span className="font-semibold text-black">Forma de Pagamento:</span> {selectedQuoteForPreview.payment_method?.toUpperCase() || 'N/A'}</p>
                         <p><span className="font-semibold text-black">Prazo de Pagamento:</span> {selectedQuoteForPreview.payment_terms?.toUpperCase() || 'N/A'}</p>
+                        <p><span className="font-semibold text-black">Frete:</span> {selectedQuoteForPreview.shipping_type?.toUpperCase() || 'CIF'} {selectedQuoteForPreview.shipping_value > 0 ? `(${formatCurrency(selectedQuoteForPreview.shipping_value)})` : '(Incluso)'}</p>
                       </div>
                     </div>
                   </div>
