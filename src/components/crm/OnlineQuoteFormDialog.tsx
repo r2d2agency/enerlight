@@ -619,7 +619,7 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
                         <span className="text-sm font-bold uppercase tracking-wider text-primary">Valor Total:</span>
                         <span className="text-2xl font-black text-primary">
                           {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-                            quoteItems.reduce((acc, item) => acc + item.total_price, 0)
+                            quoteItems.reduce((acc, item) => acc + (Number(item.total_price) || 0), 0)
                           )}
                         </span>
                       </div>
