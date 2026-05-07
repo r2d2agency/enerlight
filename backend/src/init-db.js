@@ -4808,11 +4808,16 @@ CREATE INDEX IF NOT EXISTS idx_online_quotes_user ON online_quotes(user_id);
 `;
 
 const step64OnlineQuotesImages = `
--- Suporte a imagens no modulo de orçamentos
 DO $$ BEGIN
-    ALTER TABLE price_list_items ADD COLUMN IF NOT EXISTS image_url TEXT;
-    ALTER TABLE online_quotes ADD COLUMN IF NOT EXISTS include_images BOOLEAN DEFAULT true;
-    ALTER TABLE online_quote_items ADD COLUMN IF NOT EXISTS image_url TEXT;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'price_list_items' AND column_name = 'image_url') THEN
+        ALTER TABLE price_list_items ADD COLUMN image_url TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'online_quotes' AND column_name = 'include_images') THEN
+        ALTER TABLE online_quotes ADD COLUMN include_images BOOLEAN DEFAULT true;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'online_quote_items' AND column_name = 'image_url') THEN
+        ALTER TABLE online_quote_items ADD COLUMN image_url TEXT;
+    END IF;
 EXCEPTION WHEN others THEN null; END $$;
 `;
 
