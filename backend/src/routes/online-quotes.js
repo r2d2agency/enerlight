@@ -127,19 +127,21 @@ router.post('/price-lists', async (req, res) => {
     if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner') {
       return res.status(403).json({ error: 'Unauthorized' });
     }
-    const { id, name, description, segment, is_active } = req.body;
+    const { id, name, description, segment, is_active, default_template_id } = req.body;
     
     if (id) {
       const result = await query(
-        `UPDATE price_lists SET name = $1, description = $2, segment = $3, is_active = $4, updated_at = NOW()
-         WHERE id = $5 AND organization_id = $6 RETURNING *`,
-        [name, description, segment, is_active !== false, id, ctx.organizationId]
+        `UPDATE price_lists 
+         SET name = $1, description = $2, segment = $3, is_active = $4, default_template_id = $5, updated_at = NOW()
+         WHERE id = $6 AND organization_id = $7 RETURNING *`,
+        [name, description, segment, is_active !== false, default_template_id || null, id, ctx.organizationId]
       );
       res.json(result.rows[0]);
     } else {
       const result = await query(
-        `INSERT INTO price_lists (organization_id, name, description, segment) VALUES ($1, $2, $3, $4) RETURNING *`,
-        [ctx.organizationId, name, description, segment]
+        `INSERT INTO price_lists (organization_id, name, description, segment, default_template_id) 
+         VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+        [ctx.organizationId, name, description, segment, default_template_id || null]
       );
       res.json(result.rows[0]);
     }
