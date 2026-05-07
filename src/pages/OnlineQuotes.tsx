@@ -1142,7 +1142,11 @@ export default function OnlineQuotes() {
 
         <OnlineQuoteFormDialog 
           open={isNewQuoteOpen} 
-          onOpenChange={setIsNewQuoteOpen} 
+          onOpenChange={(open) => {
+            setIsNewQuoteOpen(open);
+            if (!open) setEditingQuote(null);
+          }} 
+          initialData={editingQuote}
         />
 
         <PriceListItemsDialog 
