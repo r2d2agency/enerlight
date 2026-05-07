@@ -13,7 +13,7 @@ const loadRemoteImage = (url: string): Promise<string> => {
       canvas.height = img.height;
       const ctx = canvas.getContext("2d");
       ctx?.drawImage(img, 0, 0);
-      resolve(canvas.toDataURL("image/jpeg"));
+      resolve(canvas.toDataURL("image/png"));
     };
     img.onerror = reject;
     img.src = url;
@@ -57,9 +57,10 @@ export const generateQuotePDF = async (quote: any, organization: any) => {
   // 3. Organization info (Sender)
   if (organization?.logo_url) {
      try {
-       const logo = await loadRemoteImage(organization.logo_url);
-       doc.addImage(logo, 'PNG', pageWidth - 44, 15, 30, 30);
-     } catch(e) {}
+        const logo = await loadRemoteImage(organization.logo_url);
+        // Usar proporção da imagem ou valores fixos para evitar caixa preta/distorção
+        doc.addImage(logo, 'PNG', pageWidth - 44, 10, 30, 30, undefined, 'FAST');
+      } catch(e) {}
   }
   
   doc.setFontSize(12);
@@ -166,8 +167,8 @@ export const generateQuotePDF = async (quote: any, organization: any) => {
       }
     },
     foot: [[
-      { content: 'VALOR TOTAL', colSpan: includeImages ? 4 : 3, styles: { halign: 'right', fontStyle: 'bold', fillColor: [245, 245, 245] } },
-      { content: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(quote.total_value), styles: { fontStyle: 'bold', fillColor: [245, 245, 245], halign: 'right' } }
+      { content: 'VALOR TOTAL', colSpan: includeImages ? 5 : 4, styles: { halign: 'right', fontStyle: 'bold', fillColor: [245, 245, 245], textColor: [40, 40, 40] } },
+      { content: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(quote.total_value), styles: { fontStyle: 'bold', fillColor: [245, 245, 245], halign: 'right', textColor: [40, 40, 40] } }
     ]]
   });
 
@@ -210,7 +211,7 @@ export const generateQuotePDF = async (quote: any, organization: any) => {
       } else if (conf?.type === 'logo' && conf.content) {
         try {
           const logoData = await loadRemoteImage(conf.content);
-          doc.addImage(logoData, 'JPEG', x - 10, footerY - 8, 20, 10);
+          doc.addImage(logoData, 'PNG', x - 10, footerY - 8, 20, 10, undefined, 'FAST');
         } catch(e) {}
       } else if (conf?.type === 'social' && config.social) {
         const social = config.social;
