@@ -246,7 +246,8 @@ export default function OnlineQuotes() {
           </div>
           <div className="flex gap-2">
             <Button onClick={() => {
-              setSelectedPriceList(null); // Reset items view
+              setEditingQuote(null);
+              setSelectedPriceList(null); 
               setIsNewQuoteOpen(true);
             }}>
               <Plus className="mr-2 h-4 w-4" /> Novo Orçamento

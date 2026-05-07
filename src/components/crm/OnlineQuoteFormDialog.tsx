@@ -236,7 +236,7 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
         await updateQuote.mutateAsync({ id: initialData.id, data: quoteData });
         toast.success("Orçamento atualizado com sucesso!");
       } else {
-        await createQuote.mutateAsync(quoteData);
+        await createQuote.mutateAsync({ ...quoteData, status: 'draft' });
         toast.success("Orçamento criado com sucesso!");
       }
 
@@ -260,7 +260,7 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-[95vw] lg:max-w-6xl w-full h-[95vh] lg:h-[90vh] flex flex-col p-0 overflow-hidden">
           <DialogHeader className="p-6 pb-2">
-            <DialogTitle>Novo Orçamento Online</DialogTitle>
+            <DialogTitle>{initialData?.id ? "Editar Orçamento" : "Novo Orçamento Online"}</DialogTitle>
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto p-6 pt-2">
@@ -619,7 +619,7 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
                         <span className="text-sm font-bold uppercase tracking-wider text-primary">Valor Total:</span>
                         <span className="text-2xl font-black text-primary">
                           {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-                            quoteItems.reduce((acc, item) => acc + item.total_price, 0)
+                            quoteItems.reduce((acc, item) => acc + (Number(item.total_price) || 0), 0)
                           )}
                         </span>
                       </div>
@@ -651,9 +651,9 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
             ) : (
               <>
                 <Button variant="outline" onClick={() => setStep("payment")}>Voltar</Button>
-                <Button onClick={handleSubmit} disabled={createQuote.isPending || quoteItems.length === 0}>
-                  {createQuote.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                  Gerar Orçamento
+                <Button onClick={handleSubmit} disabled={createQuote.isPending || updateQuote.isPending || quoteItems.length === 0}>
+                  {(createQuote.isPending || updateQuote.isPending) ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                  {initialData?.id ? "Salvar Alterações" : "Gerar Orçamento"}
                 </Button>
               </>
             )}

@@ -275,13 +275,22 @@ router.post('/quotes', async (req, res) => {
       );
       const cost = plItem.rows[0]?.cost_price || 0;
       const imageUrl = plItem.rows[0]?.image_url || null;
-      const subtotal = item.quantity * item.unit_price;
+      const unitPrice = Number(item.unit_price) || 0;
+      const discount = Number(item.discount) || 0;
+      const discountType = item.discount_type || 'fixed';
+      
+      const discountValue = discountType === 'percentage' 
+        ? (unitPrice * discount / 100)
+        : discount;
+      
+      const finalPrice = Math.max(0, unitPrice - discountValue);
+      const subtotal = (Number(item.quantity) || 0) * finalPrice;
       
       await query(
         `INSERT INTO online_quote_items 
          (quote_id, product_code, product_name, quantity, unit_price, cost_price, total_price, image_url, discount_type, discount_value)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-        [quoteId, item.product_code, item.product_name, item.quantity, item.unit_price, cost, subtotal, imageUrl, item.discount_type || 'fixed', item.discount || 0]
+        [quoteId, item.product_code, item.product_name, item.quantity, unitPrice, cost, subtotal, imageUrl, discountType, discount]
       );
       
       totalValue += subtotal;
@@ -299,6 +308,100 @@ router.post('/quotes', async (req, res) => {
   } catch (err) {
     logError('online-quotes.create', err);
     res.status(500).json({ error: 'Failed to create quote' });
+  }
+});
+
+// Update an existing quote
+router.put('/quotes/:id', async (req, res) => {
+  try {
+    const ctx = await getUserContext(req.userId);
+    if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
+
+    const { 
+      client_name, client_document, client_email, client_phone, 
+      price_list_id, template_id, items, cover_image_url, footer_text, footer_config, valid_until, notes,
+      include_images, payment_terms, payment_method, status
+    } = req.body;
+
+    const fConfig = typeof footer_config === 'object' ? JSON.stringify(footer_config) : footer_config;
+
+    // Verify ownership/access
+    const existingCheck = await query(
+      `SELECT user_id FROM online_quotes WHERE id = $1 AND organization_id = $2`,
+      [req.params.id, ctx.organizationId]
+    );
+
+    if (existingCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Quote not found' });
+    }
+
+    if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && existingCheck.rows[0].user_id !== req.userId) {
+      return res.status(403).json({ error: 'Unauthorized to update this quote' });
+    }
+
+    // Update main quote record
+    await query(
+      `UPDATE online_quotes 
+       SET client_name = $1, client_document = $2, client_email = $3, client_phone = $4, 
+           price_list_id = $5, template_id = $6, cover_image_url = $7, footer_text = $8, 
+           footer_config = $9, valid_until = $10, notes = $11, include_images = $12, 
+           payment_terms = $13, payment_method = $14, status = COALESCE($15, status), updated_at = NOW()
+       WHERE id = $16`,
+      [
+        client_name, client_document, client_email, client_phone, 
+        price_list_id, template_id || null, cover_image_url, footer_text, 
+        fConfig, valid_until, notes, include_images ?? true, 
+        payment_terms, payment_method, status, req.params.id
+      ]
+    );
+
+    // Refresh items: simpler to delete and re-insert
+    await query(`DELETE FROM online_quote_items WHERE quote_id = $1`, [req.params.id]);
+
+    let totalValue = 0;
+    let totalCost = 0;
+
+    for (const item of items) {
+      const plItem = await query(
+        `SELECT cost_price, image_url FROM price_list_items WHERE price_list_id = $1 AND product_code = $2`,
+        [price_list_id, item.product_code]
+      );
+      const cost = plItem.rows[0]?.cost_price || 0;
+      const imageUrl = plItem.rows[0]?.image_url || item.image_url || null;
+      
+      const unitPrice = Number(item.unit_price) || 0;
+      const discount = Number(item.discount) || 0;
+      const discountType = item.discount_type || 'fixed';
+      
+      const discountValue = discountType === 'percentage' 
+        ? (unitPrice * discount / 100)
+        : discount;
+      
+      const finalPrice = Math.max(0, unitPrice - discountValue);
+      const subtotal = (Number(item.quantity) || 0) * finalPrice;
+      
+      await query(
+        `INSERT INTO online_quote_items 
+         (quote_id, product_code, product_name, quantity, unit_price, cost_price, total_price, image_url, discount_type, discount_value)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        [req.params.id, item.product_code, item.product_name, item.quantity, unitPrice, cost, subtotal, imageUrl, discountType, discount]
+      );
+      
+      totalValue += subtotal;
+      totalCost += ((Number(item.quantity) || 0) * cost);
+    }
+
+    const marginPercent = totalValue > 0 ? ((totalValue - totalCost) / totalValue) * 100 : 0;
+    
+    await query(
+      `UPDATE online_quotes SET total_value = $1, total_cost = $2, margin_percent = $3 WHERE id = $4`,
+      [totalValue, totalCost, marginPercent, req.params.id]
+    );
+
+    res.json({ id: req.params.id, total_value: totalValue });
+  } catch (err) {
+    logError('online-quotes.update', err);
+    res.status(500).json({ error: 'Failed to update quote' });
   }
 });
 
