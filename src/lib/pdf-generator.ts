@@ -21,7 +21,11 @@ const loadRemoteImage = (url: string): Promise<string> => {
 };
 
 export const generateQuotePDF = async (quote: any, organization: any) => {
-  const doc = new jsPDF();
+   const doc = new jsPDF({
+    orientation: "landscape",
+    unit: "mm",
+    format: "a4"
+  });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
 

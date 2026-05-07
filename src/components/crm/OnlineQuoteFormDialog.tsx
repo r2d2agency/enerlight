@@ -108,7 +108,9 @@ export function OnlineQuoteFormDialog({ open, onOpenChange }: OnlineQuoteFormDia
       quantity: 1,
       unit_price: product.sale_price,
       total_price: product.sale_price,
-      image_url: product.image_url
+      image_url: product.image_url,
+      discount_type: 'fixed',
+      discount: 0
     }]);
   };
 
@@ -120,32 +122,46 @@ export function OnlineQuoteFormDialog({ open, onOpenChange }: OnlineQuoteFormDia
     }
     setQuoteItems(quoteItems.map(item => {
       if (item.product_code === code) {
-        const discount = item.discount || 0;
-        return { ...item, quantity: qty, total_price: qty * (item.unit_price - discount) };
+        const discountValue = item.discount_type === 'percentage' 
+          ? (item.unit_price * (item.discount || 0) / 100)
+          : (item.discount || 0);
+        return { ...item, quantity: qty, total_price: qty * (item.unit_price - discountValue) };
       }
       return item;
     }));
   };
 
-  const handleUpdateDiscount = (code: string, discount: number) => {
+  const handleUpdateDiscount = (code: string, discount: number, type?: 'fixed' | 'percentage') => {
     const priceList = priceLists?.find(pl => pl.id === selectedPriceListId);
     const maxDiscountPercent = priceList?.discount_limit_percentage || 0;
     
     setQuoteItems(quoteItems.map(item => {
       if (item.product_code !== code) return item;
       
+      const newType = type || item.discount_type || 'fixed';
       const unitPrice = item.unit_price;
-      const currentDiscountPercent = (discount / unitPrice) * 100;
       
-      if (currentDiscountPercent > maxDiscountPercent) {
+      let discountPercent = 0;
+      let discountValue = 0;
+
+      if (newType === 'percentage') {
+        discountPercent = discount;
+        discountValue = (unitPrice * discount / 100);
+      } else {
+        discountValue = discount;
+        discountPercent = (discount / unitPrice) * 100;
+      }
+      
+      if (discountPercent > maxDiscountPercent) {
         toast.error(`Desconto máximo permitido: ${maxDiscountPercent}%`);
         return item;
       }
       
       return { 
         ...item, 
-        discount: discount, 
-        total_price: item.quantity * (unitPrice - discount) 
+        discount: discount,
+        discount_type: newType,
+        total_price: item.quantity * (unitPrice - discountValue) 
       };
     }));
   };
@@ -473,7 +489,7 @@ export function OnlineQuoteFormDialog({ open, onOpenChange }: OnlineQuoteFormDia
                           <TableRow className="bg-muted/50 hover:bg-muted/50">
                             <TableHead className="text-xs font-bold uppercase tracking-wider">Produto</TableHead>
                             <TableHead className="text-xs font-bold uppercase tracking-wider w-[100px]">Qtd</TableHead>
-                            <TableHead className="text-xs font-bold uppercase tracking-wider w-[120px]">Desconto (R$)</TableHead>
+                            <TableHead className="text-xs font-bold uppercase tracking-wider w-[180px]">Desconto</TableHead>
                             <TableHead className="text-xs font-bold uppercase tracking-wider text-right">Total</TableHead>
                             <TableHead className="w-[50px]"></TableHead>
                           </TableRow>
@@ -505,13 +521,27 @@ export function OnlineQuoteFormDialog({ open, onOpenChange }: OnlineQuoteFormDia
                                   />
                                 </TableCell>
                                 <TableCell className="py-4">
-                                  <Input 
-                                    type="number" 
-                                    value={item.discount || 0}
-                                    onChange={e => handleUpdateDiscount(item.product_code, Number(e.target.value))}
-                                    className="h-10 text-base font-medium px-2 w-full min-w-[90px] border-amber-200 focus:border-amber-400"
-                                    min="0"
-                                  />
+                                  <div className="flex items-center gap-1">
+                                    <Input 
+                                      type="number" 
+                                      value={item.discount || 0}
+                                      onChange={e => handleUpdateDiscount(item.product_code, Number(e.target.value))}
+                                      className="h-10 text-base font-medium px-2 w-full border-amber-200 focus:border-amber-400"
+                                      min="0"
+                                    />
+                                    <Select 
+                                      value={item.discount_type || 'fixed'} 
+                                      onValueChange={(val: 'fixed' | 'percentage') => handleUpdateDiscount(item.product_code, item.discount || 0, val)}
+                                    >
+                                      <SelectTrigger className="h-10 w-16 px-1">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="fixed">R$</SelectItem>
+                                        <SelectItem value="percentage">%</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
                                 </TableCell>
                                 <TableCell className="text-sm font-bold text-right py-4">
                                   {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.total_price)}
