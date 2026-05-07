@@ -4840,6 +4840,9 @@ DO $$ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'price_lists' AND column_name = 'segment') THEN
         ALTER TABLE price_lists ADD COLUMN segment TEXT;
     END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'price_lists' AND column_name = 'default_template_id') THEN
+        ALTER TABLE price_lists ADD COLUMN default_template_id UUID REFERENCES online_quote_templates(id);
+    END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'online_quotes' AND column_name = 'template_id') THEN
         ALTER TABLE online_quotes ADD COLUMN template_id UUID REFERENCES online_quote_templates(id);
     END IF;

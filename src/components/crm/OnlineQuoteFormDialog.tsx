@@ -113,6 +113,15 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
     setShowCompanyResults(false);
   };
 
+  useEffect(() => {
+    if (selectedPriceListId && !initialData) {
+      const priceList = priceLists?.find(pl => pl.id === selectedPriceListId);
+      if (priceList?.default_template_id) {
+        setSelectedTemplateId(priceList.default_template_id);
+      }
+    }
+  }, [selectedPriceListId, priceLists, initialData]);
+
   const handleAddItem = (product: any) => {
     const existing = quoteItems.find(item => item.product_code === product.product_code);
     if (existing) {
@@ -349,7 +358,11 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Folha de Rosto (Template) *</Label>
-                    <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
+                    <Select 
+                      value={selectedTemplateId} 
+                      onValueChange={setSelectedTemplateId}
+                      disabled={!!priceLists?.find(pl => pl.id === selectedPriceListId)?.default_template_id}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione um modelo de capa..." />
                       </SelectTrigger>
@@ -359,6 +372,9 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
                         ))}
                       </SelectContent>
                     </Select>
+                    {priceLists?.find(pl => pl.id === selectedPriceListId)?.default_template_id && (
+                      <p className="text-[10px] text-muted-foreground mt-1">Capa fixa para esta tabela de preços.</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label>Tabela de Preços *</Label>
