@@ -383,7 +383,7 @@ function SidebarContentComponent({ isExpanded, isSuperadmin, onNavigate }: Sideb
           indent && isExpanded && "ml-4",
           isExpanded ? "" : "justify-center",
           isActive
-            ? "bg-accent text-accent-foreground"
+            ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
             : "text-muted-foreground hover:bg-muted hover:text-foreground"
         )}
       >

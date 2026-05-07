@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, FileText, List, Settings, ShieldCheck, Loader2, Eye, Download, LayoutTemplate, Pencil, Image as ImageIcon, Upload, Globe, Instagram, Linkedin, Phone, Mail as MailIcon, Trash2, Building2 } from "lucide-react";
+import { Plus, FileText, List, Settings, ShieldCheck, Loader2, Eye, Download, LayoutTemplate, Pencil, Image as ImageIcon, Upload, Globe, Instagram, Linkedin, Phone, Mail as MailIcon, Trash2, Building2, Search, CalendarDays } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePriceLists, useOnlineQuoteMutations, useOnlineQuotes, useOnlineQuoteTemplates, usePermissionTemplates } from "@/hooks/use-online-quotes";
 import { OnlineQuoteFormDialog } from "@/components/crm/OnlineQuoteFormDialog";
@@ -27,6 +27,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 export default function OnlineQuotes() {
   const { user } = useAuth();
   const [isNewQuoteOpen, setIsNewQuoteOpen] = useState(false);
+  const [editingQuote, setEditingQuote] = useState<any>(null);
   const [selectedPriceList, setSelectedPriceList] = useState<{id: string, name: string} | null>(null);
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<any>(null);
@@ -34,6 +35,8 @@ export default function OnlineQuotes() {
   const [isPriceListDialogOpen, setIsPriceListDialogOpen] = useState(false);
   const [selectedQuoteForPreview, setSelectedQuoteForPreview] = useState<any>(null);
   const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [dateFilter, setDateFilter] = useState<string>("all");
   const [editingPriceList, setEditingPriceList] = useState<any>(null);
 
   const isAdmin = ['owner', 'admin', 'manager'].includes(user?.role || '');
@@ -54,8 +57,36 @@ export default function OnlineQuotes() {
   const { data: quotes, isLoading: loadingQuotes } = useOnlineQuotes();
   const { data: templates, isLoading: loadingTemplates } = useOnlineQuoteTemplates();
   const { data: permissionTemplates } = usePermissionTemplates();
-  const { saveTemplate, savePriceList, deletePriceList, deleteQuote } = useOnlineQuoteMutations();
+  const { saveTemplate, savePriceList, deletePriceList, deleteQuote, updateQuoteStatus } = useOnlineQuoteMutations();
   
+  const filteredQuotes = quotes?.filter(quote => {
+    const matchesSearch = quote.client_name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                         (quote.client_email && quote.client_email.toLowerCase().includes(searchTerm.toLowerCase()));
+    
+    if (!matchesSearch) return false;
+
+    if (dateFilter === "all") return true;
+    
+    const quoteDate = parseISO(quote.created_at);
+    const today = new Date();
+    
+    if (dateFilter === "today") {
+      return format(quoteDate, "yyyy-MM-dd") === format(today, "yyyy-MM-dd");
+    }
+    if (dateFilter === "week") {
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(today.getDate() - 7);
+      return quoteDate >= sevenDaysAgo;
+    }
+    if (dateFilter === "month") {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(today.getDate() - 30);
+      return quoteDate >= thirtyDaysAgo;
+    }
+    
+    return true;
+  });
+
   const [selectedTemplates, setSelectedTemplates] = useState<string[]>([]);
 
   useEffect(() => {
@@ -165,6 +196,24 @@ export default function OnlineQuotes() {
     }
   };
 
+  const handleEditQuote = async (quote: any) => {
+    try {
+      const fullQuote = await api<any>(`/api/online-quotes/quotes/${quote.id}`);
+      setEditingQuote(fullQuote);
+      setIsNewQuoteOpen(true);
+    } catch (err) {
+      toast.error("Erro ao carregar detalhes para edição");
+    }
+  };
+
+  const handleChangeStatus = async (id: string, status: string) => {
+    try {
+      await updateQuoteStatus.mutateAsync({ id, status });
+    } catch (err) {
+      // Handled by mutation
+    }
+  };
+
   const handleDeletePriceList = async (id: string, name: string) => {
     if (window.confirm(`Tem certeza que deseja excluir a tabela "${name}"? Esta ação não pode ser desfeita.`)) {
       try {
@@ -227,20 +276,44 @@ export default function OnlineQuotes() {
 
           <TabsContent value="quotes" className="mt-6">
             <Card>
-              <CardHeader>
-                <CardTitle>Meus Orçamentos</CardTitle>
-                <CardDescription>
-                  Visualize e gerencie seus orçamentos gerados.
-                </CardDescription>
+              <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                  <CardTitle>Meus Orçamentos</CardTitle>
+                  <CardDescription>
+                    Visualize e gerencie seus orçamentos gerados.
+                  </CardDescription>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                  <div className="relative w-full sm:w-64">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar por cliente..."
+                      className="pl-8"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                  </div>
+                  <Select value={dateFilter} onValueChange={setDateFilter}>
+                    <SelectTrigger className="w-full sm:w-40">
+                      <SelectValue placeholder="Data" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todo período</SelectItem>
+                      <SelectItem value="today">Hoje</SelectItem>
+                      <SelectItem value="week">Últimos 7 dias</SelectItem>
+                      <SelectItem value="month">Últimos 30 dias</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </CardHeader>
               <CardContent>
                 {loadingQuotes ? (
                   <div className="flex items-center justify-center py-12">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                   </div>
-                ) : quotes && quotes.length > 0 ? (
+                ) : filteredQuotes && filteredQuotes.length > 0 ? (
                   <div className="grid gap-3">
-                    {quotes.map((quote) => (
+                    {filteredQuotes.map((quote) => (
                       <div 
                         key={quote.id} 
                         className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl border bg-card hover:border-primary/50 transition-all shadow-sm group relative overflow-hidden"
@@ -252,19 +325,27 @@ export default function OnlineQuotes() {
                           <div className="min-w-0">
                             <div className="flex items-center gap-2 mb-1">
                               <h4 className="font-bold text-base truncate max-w-[200px] sm:max-w-md">{quote.client_name}</h4>
-                              <Badge variant={
-                                quote.status === 'approved' ? 'default' :
-                                quote.status === 'rejected' ? 'destructive' :
-                                'secondary'
-                              } className="text-[10px] h-5 px-1.5 uppercase font-bold tracking-wider">
-                                {quote.status === 'draft' ? 'Rascunho' :
-                                 quote.status === 'sent' ? 'Enviado' :
-                                 quote.status === 'approved' ? 'Aprovado' : 'Rejeitado'}
-                              </Badge>
+                              <div className="flex gap-1">
+                                <Badge variant={
+                                  quote.status === 'approved' ? 'default' :
+                                  quote.status === 'rejected' ? 'destructive' :
+                                  'secondary'
+                                } className="text-[10px] h-5 px-1.5 uppercase font-bold tracking-wider cursor-pointer"
+                                onClick={() => {
+                                  const nextStatus = quote.status === 'draft' ? 'sent' : 
+                                                    quote.status === 'sent' ? 'approved' : 
+                                                    quote.status === 'approved' ? 'rejected' : 'draft';
+                                  handleChangeStatus(quote.id, nextStatus);
+                                }}>
+                                  {quote.status === 'draft' ? 'Rascunho' :
+                                   quote.status === 'sent' ? 'Enviado' :
+                                   quote.status === 'approved' ? 'Aprovado' : 'Rejeitado'}
+                                </Badge>
+                              </div>
                             </div>
                             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                               <span className="flex items-center gap-1.5">
-                                <Plus className="h-3 w-3 rotate-45" /> {format(parseISO(quote.created_at), "dd/MM/yyyy", { locale: ptBR })}
+                                <CalendarDays className="h-3 w-3" /> {format(parseISO(quote.created_at), "dd/MM/yyyy", { locale: ptBR })}
                               </span>
                               <span className="font-bold text-foreground">
                                 {formatCurrency(quote.total_value)}
@@ -287,6 +368,15 @@ export default function OnlineQuotes() {
                           >
                             <Eye className="mr-2 h-4 w-4" />
                             <span className="sm:inline hidden">Visualizar</span>
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-9 px-3 hover:bg-primary/10 hover:text-primary transition-colors"
+                            onClick={() => handleEditQuote(quote)}
+                          >
+                            <Pencil className="mr-2 h-4 w-4" />
+                            <span className="sm:inline hidden">Editar</span>
                           </Button>
                           <Button 
                             variant="ghost" 
@@ -939,9 +1029,9 @@ export default function OnlineQuotes() {
               {selectedQuoteForPreview && (
                 <div className="max-w-[1100px] mx-auto my-8 bg-white shadow-2xl rounded-sm p-12 min-h-[800px] flex flex-col font-sans border text-slate-900 !text-black">
                   {/* Fake PDF Preview Header */}
-                  <div className="flex justify-between items-start mb-10 border-b pb-8 border-slate-200">
+                  <div className="flex justify-between items-start mb-10 border-b pb-8 border-primary/20">
                     <div className="space-y-1">
-                      <h2 className="text-3xl font-black tracking-tighter text-black">ORÇAMENTO</h2>
+                      <h2 className="text-3xl font-black tracking-tighter text-primary">ORÇAMENTO</h2>
                       <p className="text-sm font-bold text-slate-500 uppercase">#{selectedQuoteForPreview.id.split('-')[0].toUpperCase()}</p>
                       <p className="text-sm text-slate-500">{format(parseISO(selectedQuoteForPreview.created_at), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}</p>
                     </div>
@@ -1019,9 +1109,9 @@ export default function OnlineQuotes() {
                     </table>
                   </div>
 
-                  <div className="mt-12 pt-8 border-t-4 border-black">
+                  <div className="mt-12 pt-8 border-t-4 border-primary">
                     <div className="flex justify-end mb-12">
-                      <div className="bg-black text-white p-8 rounded-2xl min-w-[300px] shadow-xl">
+                      <div className="bg-primary text-white p-8 rounded-2xl min-w-[300px] shadow-xl">
                         <div className="flex justify-between items-center gap-12">
                           <span className="text-xs font-black uppercase tracking-[0.2em] opacity-70">Total do Orçamento</span>
                           <span className="text-3xl font-black">
@@ -1052,7 +1142,11 @@ export default function OnlineQuotes() {
 
         <OnlineQuoteFormDialog 
           open={isNewQuoteOpen} 
-          onOpenChange={setIsNewQuoteOpen} 
+          onOpenChange={(open) => {
+            setIsNewQuoteOpen(open);
+            if (!open) setEditingQuote(null);
+          }} 
+          initialData={editingQuote}
         />
 
         <PriceListItemsDialog 

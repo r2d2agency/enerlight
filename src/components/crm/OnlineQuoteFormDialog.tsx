@@ -18,9 +18,10 @@ import { api } from "@/lib/api";
 interface OnlineQuoteFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  initialData?: any;
 }
 
-export function OnlineQuoteFormDialog({ open, onOpenChange }: OnlineQuoteFormDialogProps) {
+export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: OnlineQuoteFormDialogProps) {
   const { user } = useAuth();
   const isRepresentative = user?.role === 'representative';
   const [step, setStep] = useState<"client" | "payment" | "items">("client");
@@ -47,15 +48,32 @@ export function OnlineQuoteFormDialog({ open, onOpenChange }: OnlineQuoteFormDia
   const { data: priceLists } = usePriceLists();
   const { data: templates } = useOnlineQuoteTemplates();
   const { data: priceListItems, isLoading: loadingItems } = usePriceListItems(selectedPriceListId);
-  const { createQuote } = useOnlineQuoteMutations();
+  const { createQuote, updateQuote } = useOnlineQuoteMutations();
   const { data: existingCompanies } = useCRMCompanies(companySearch);
 
   useEffect(() => {
-    if (templates?.length && !selectedTemplateId) {
-      const defaultTemplate = templates.find(t => t.is_default);
-      if (defaultTemplate) setSelectedTemplateId(defaultTemplate.id);
+    if (initialData && open) {
+      setClientInfo({
+        name: initialData.client_name || "",
+        document: initialData.client_document || "",
+        email: initialData.client_email || "",
+        phone: initialData.client_phone || "",
+        notes: initialData.notes || "",
+        payment_terms: initialData.payment_terms || "avista",
+        payment_method: initialData.payment_method || "pix"
+      });
+      setSelectedPriceListId(initialData.price_list_id || "");
+      setSelectedTemplateId(initialData.template_id || "");
+      setQuoteItems(initialData.items || []);
+      setIncludeImagesInQuote(initialData.include_images !== false);
+      setStep("client");
+    } else if (!initialData && open) {
+      // Reset only when opening for a new quote
+      setStep("client");
+      setQuoteItems([]);
+      setClientInfo({ name: "", document: "", email: "", phone: "", notes: "", payment_terms: "avista", payment_method: "pix" });
     }
-  }, [templates]);
+  }, [initialData, open]);
 
   const handleLookupCNPJ = async () => {
     const cnpj = clientInfo.document.replace(/\D/g, "");
@@ -115,17 +133,22 @@ export function OnlineQuoteFormDialog({ open, onOpenChange }: OnlineQuoteFormDia
   };
 
   const handleUpdateQty = (code: string, qty: number) => {
-    if (qty < 0) return;
-    if (qty === 0) {
+    const validQty = Math.max(0, isNaN(qty) ? 0 : qty);
+    if (validQty === 0) {
       handleRemoveItem(code);
       return;
     }
     setQuoteItems(quoteItems.map(item => {
       if (item.product_code === code) {
+        const unitPrice = Number(item.unit_price) || 0;
         const discountValue = item.discount_type === 'percentage' 
-          ? (item.unit_price * (item.discount || 0) / 100)
-          : (item.discount || 0);
-        return { ...item, quantity: qty, total_price: qty * (item.unit_price - discountValue) };
+          ? (unitPrice * (Number(item.discount) || 0) / 100)
+          : (Number(item.discount) || 0);
+        return { 
+          ...item, 
+          quantity: validQty, 
+          total_price: validQty * Math.max(0, unitPrice - discountValue) 
+        };
       }
       return item;
     }));
@@ -134,34 +157,35 @@ export function OnlineQuoteFormDialog({ open, onOpenChange }: OnlineQuoteFormDia
   const handleUpdateDiscount = (code: string, discount: number, type?: 'fixed' | 'percentage') => {
     const priceList = priceLists?.find(pl => pl.id === selectedPriceListId);
     const maxDiscountPercent = priceList?.discount_limit_percentage || 0;
+    const validDiscount = Math.max(0, isNaN(discount) ? 0 : discount);
     
     setQuoteItems(quoteItems.map(item => {
       if (item.product_code !== code) return item;
       
       const newType = type || item.discount_type || 'fixed';
-      const unitPrice = item.unit_price;
+      const unitPrice = Number(item.unit_price) || 0;
       
       let discountPercent = 0;
       let discountValue = 0;
 
       if (newType === 'percentage') {
-        discountPercent = discount;
-        discountValue = (unitPrice * discount / 100);
+        discountPercent = validDiscount;
+        discountValue = (unitPrice * validDiscount / 100);
       } else {
-        discountValue = discount;
-        discountPercent = (discount / unitPrice) * 100;
+        discountValue = validDiscount;
+        discountPercent = unitPrice > 0 ? (validDiscount / unitPrice) * 100 : 0;
       }
       
-      if (discountPercent > maxDiscountPercent) {
+      if (maxDiscountPercent > 0 && discountPercent > maxDiscountPercent) {
         toast.error(`Desconto máximo permitido: ${maxDiscountPercent}%`);
         return item;
       }
       
       return { 
         ...item, 
-        discount: discount,
+        discount: validDiscount,
         discount_type: newType,
-        total_price: item.quantity * (unitPrice - discountValue) 
+        total_price: Number(item.quantity || 0) * Math.max(0, unitPrice - discountValue) 
       };
     }));
   };
@@ -173,7 +197,7 @@ export function OnlineQuoteFormDialog({ open, onOpenChange }: OnlineQuoteFormDia
   const handleSubmit = async () => {
     try {
       // First, create the company in CRM if it doesn't exist
-      if (clientInfo.name) {
+      if (clientInfo.name && !initialData) {
         try {
           await api("/api/online-quotes/companies/create-from-quote", {
             method: "POST",
@@ -189,7 +213,7 @@ export function OnlineQuoteFormDialog({ open, onOpenChange }: OnlineQuoteFormDia
         }
       }
 
-      await createQuote.mutateAsync({
+      const quoteData = {
         client_name: clientInfo.name,
         client_document: clientInfo.document,
         client_email: clientInfo.email,
@@ -199,17 +223,30 @@ export function OnlineQuoteFormDialog({ open, onOpenChange }: OnlineQuoteFormDia
         notes: clientInfo.notes,
         price_list_id: selectedPriceListId,
         template_id: selectedTemplateId,
-        items: quoteItems,
+        items: quoteItems.map(item => ({
+          ...item,
+          unit_price: Number(item.unit_price) || 0,
+          total_price: Number(item.total_price) || 0,
+          discount: Number(item.discount) || 0
+        })),
         include_images: includeImagesInQuote
-      });
-      toast.success("Orçamento criado com sucesso!");
+      };
+
+      if (initialData?.id) {
+        await updateQuote.mutateAsync({ id: initialData.id, data: quoteData });
+        toast.success("Orçamento atualizado com sucesso!");
+      } else {
+        await createQuote.mutateAsync(quoteData);
+        toast.success("Orçamento criado com sucesso!");
+      }
+
       onOpenChange(false);
       // Reset
       setStep("client");
       setQuoteItems([]);
-      setClientInfo({ name: "", document: "", email: "", phone: "", notes: "", payment_terms: "", payment_method: "" });
+      setClientInfo({ name: "", document: "", email: "", phone: "", notes: "", payment_terms: "avista", payment_method: "pix" });
     } catch (err) {
-      toast.error("Erro ao criar orçamento");
+      toast.error(initialData ? "Erro ao atualizar orçamento" : "Erro ao criar orçamento");
     }
   };
 
