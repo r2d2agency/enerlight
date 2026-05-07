@@ -768,11 +768,31 @@ export default function OnlineQuotes() {
                 </div>
               </div>
 
-              <div className="flex items-center space-x-2">
-                <Switch name="is_active" id="is_active" defaultChecked={editingPriceList?.is_active !== false} />
-                <Label htmlFor="is_active">Tabela Ativa</Label>
+              <div className="flex flex-col gap-4 pt-2">
+                <div className="flex items-center justify-between space-x-2 border p-3 rounded-lg">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="is_master">Tabela Matriz</Label>
+                    <p className="text-[10px] text-muted-foreground">Usa esta tabela como base para fotos e preços de custo</p>
+                  </div>
+                  <Switch 
+                    id="is_master" 
+                    name="is_master" 
+                    defaultChecked={editingPriceList?.is_master} 
+                  />
+                </div>
+                <div className="flex items-center justify-between space-x-2 border p-3 rounded-lg">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="is_active">Tabela Ativa</Label>
+                    <p className="text-[10px] text-muted-foreground">Habilita o uso desta tabela nos orçamentos</p>
+                  </div>
+                  <Switch 
+                    id="is_active" 
+                    name="is_active" 
+                    defaultChecked={editingPriceList?.is_active !== false} 
+                  />
+                </div>
               </div>
-              <DialogFooter>
+              <DialogFooter className="pt-4">
                 <Button type="button" variant="outline" onClick={() => setIsPriceListDialogOpen(false)}>Cancelar</Button>
                 <Button type="submit" disabled={savePriceList.isPending}>
                   {savePriceList.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
