@@ -935,7 +935,7 @@ export default function OnlineQuotes() {
             </DialogHeader>
             <div className="flex-1 overflow-y-auto p-0 bg-muted/30">
               {selectedQuoteForPreview && (
-                <div className="max-w-[800px] mx-auto my-8 bg-white shadow-2xl rounded-sm p-12 min-h-[1100px] flex flex-col font-sans border text-foreground">
+                <div className="max-w-[1100px] mx-auto my-8 bg-white shadow-2xl rounded-sm p-12 min-h-[800px] flex flex-col font-sans border text-slate-900">
                   {/* Fake PDF Preview Header */}
                   <div className="flex justify-between items-start mb-10 border-b pb-8">
                     <div className="space-y-1">
