@@ -113,6 +113,15 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
     setShowCompanyResults(false);
   };
 
+  useEffect(() => {
+    if (selectedPriceListId && !initialData) {
+      const priceList = priceLists?.find(pl => pl.id === selectedPriceListId);
+      if (priceList?.default_template_id) {
+        setSelectedTemplateId(priceList.default_template_id);
+      }
+    }
+  }, [selectedPriceListId, priceLists, initialData]);
+
   const handleAddItem = (product: any) => {
     const existing = quoteItems.find(item => item.product_code === product.product_code);
     if (existing) {
