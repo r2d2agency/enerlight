@@ -95,14 +95,19 @@ export const generateQuotePDF = async (quote: any, organization: any) => {
   const includeImages = quote.include_images !== false;
   
   const headers = includeImages 
-    ? [['Foto', 'Produto', 'Qtd', 'Unitário', 'Total']]
-    : [['Produto', 'Qtd', 'Unitário', 'Total']];
+    ? [['Foto', 'Produto', 'Qtd', 'Unitário', 'Desc.', 'Total']]
+    : [['Produto', 'Qtd', 'Unitário', 'Desc.', 'Total']];
 
   const tableData = quote.items.map((item: any) => {
+    const discountStr = item.discount_type === 'percentage' 
+      ? `${item.discount_value || item.discount || 0}%`
+      : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.discount_value || item.discount || 0);
+
     const row = [
       item.product_name,
       item.quantity,
       new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.unit_price),
+      discountStr,
       new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.total_price)
     ];
     
