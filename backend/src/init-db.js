@@ -4845,10 +4845,18 @@ EXCEPTION WHEN others THEN null; END $$;
 
 const step66OnlineQuoteItemsDiscount = `
 DO $$ BEGIN
-    ALTER TABLE online_quote_items ADD COLUMN IF NOT EXISTS discount_type VARCHAR(20) DEFAULT 'fixed';
-    ALTER TABLE online_quote_items ADD COLUMN IF NOT EXISTS discount_value DECIMAL(15, 2) DEFAULT 0;
-    ALTER TABLE online_quotes ADD COLUMN IF NOT EXISTS payment_terms VARCHAR(100);
-    ALTER TABLE online_quotes ADD COLUMN IF NOT EXISTS payment_method VARCHAR(100);
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'online_quote_items' AND column_name = 'discount_type') THEN
+        ALTER TABLE online_quote_items ADD COLUMN discount_type VARCHAR(20) DEFAULT 'fixed';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'online_quote_items' AND column_name = 'discount_value') THEN
+        ALTER TABLE online_quote_items ADD COLUMN discount_value DECIMAL(15, 2) DEFAULT 0;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'online_quotes' AND column_name = 'payment_terms') THEN
+        ALTER TABLE online_quotes ADD COLUMN payment_terms VARCHAR(100);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'online_quotes' AND column_name = 'payment_method') THEN
+        ALTER TABLE online_quotes ADD COLUMN payment_method VARCHAR(100);
+    END IF;
 EXCEPTION WHEN others THEN null; END $$;
 `;
 
