@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, FileText, List, Settings, ShieldCheck, Loader2, Eye, Download, LayoutTemplate, Pencil, Image as ImageIcon, Upload, Globe, Instagram, Linkedin, Phone, Mail as MailIcon, Trash2 } from "lucide-react";
+import { Plus, FileText, List, Settings, ShieldCheck, Loader2, Eye, Download, LayoutTemplate, Pencil, Image as ImageIcon, Upload, Globe, Instagram, Linkedin, Phone, Mail as MailIcon, Trash2, Building2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePriceLists, useOnlineQuoteMutations, useOnlineQuotes, useOnlineQuoteTemplates, usePermissionTemplates } from "@/hooks/use-online-quotes";
 import { OnlineQuoteFormDialog } from "@/components/crm/OnlineQuoteFormDialog";
@@ -32,6 +32,8 @@ export default function OnlineQuotes() {
   const [editingTemplate, setEditingTemplate] = useState<any>(null);
 
   const [isPriceListDialogOpen, setIsPriceListDialogOpen] = useState(false);
+  const [selectedQuoteForPreview, setSelectedQuoteForPreview] = useState<any>(null);
+  const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
   const [editingPriceList, setEditingPriceList] = useState<any>(null);
 
   const isAdmin = ['owner', 'admin', 'manager'].includes(user?.role || '');
@@ -78,6 +80,16 @@ export default function OnlineQuotes() {
       await generateQuotePDF(fullQuote, org);
     } catch (err) {
       toast.error("Erro ao gerar PDF");
+    }
+  };
+
+  const handlePreviewQuote = async (quote: any) => {
+    try {
+      const fullQuote = await api<any>(`/api/online-quotes/quotes/${quote.id}`);
+      setSelectedQuoteForPreview(fullQuote);
+      setIsPreviewDialogOpen(true);
+    } catch (err) {
+      toast.error("Erro ao carregar detalhes do orçamento");
     }
   };
 
@@ -225,60 +237,78 @@ export default function OnlineQuotes() {
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                   </div>
                 ) : quotes && quotes.length > 0 ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Data</TableHead>
-                        <TableHead>Cliente</TableHead>
-                        <TableHead>Valor</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Ações</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {quotes.map((quote) => (
-                        <TableRow key={quote.id}>
-                          <TableCell className="text-sm">
-                            {format(parseISO(quote.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
-                          </TableCell>
-                          <TableCell className="font-medium">{quote.client_name}</TableCell>
-                          <TableCell>{formatCurrency(quote.total_value)}</TableCell>
-                          <TableCell>
-                            <Badge variant={
-                              quote.status === 'approved' ? 'default' :
-                              quote.status === 'rejected' ? 'destructive' :
-                              'secondary'
-                            }>
-                              {quote.status === 'draft' ? 'Rascunho' :
-                               quote.status === 'sent' ? 'Enviado' :
-                               quote.status === 'approved' ? 'Aprovado' : 'Rejeitado'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              <Button variant="ghost" size="sm" title="Visualizar">
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                              <Button variant="ghost" size="sm" title="Baixar PDF" onClick={() => handleDownloadPDF(quote)}>
-                                <Download className="h-4 w-4" />
-                              </Button>
-                              {isAdmin && (
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm" 
-                                  title="Excluir" 
-                                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                                  onClick={() => handleDeleteQuote(quote.id)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
+                  <div className="grid gap-3">
+                    {quotes.map((quote) => (
+                      <div 
+                        key={quote.id} 
+                        className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl border bg-card hover:border-primary/50 transition-all shadow-sm group relative overflow-hidden"
+                      >
+                        <div className="flex items-start gap-4">
+                          <div className="bg-primary/10 p-2.5 rounded-lg text-primary shrink-0">
+                            <FileText className="h-5 w-5" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h4 className="font-bold text-base truncate max-w-[200px] sm:max-w-md">{quote.client_name}</h4>
+                              <Badge variant={
+                                quote.status === 'approved' ? 'default' :
+                                quote.status === 'rejected' ? 'destructive' :
+                                'secondary'
+                              } className="text-[10px] h-5 px-1.5 uppercase font-bold tracking-wider">
+                                {quote.status === 'draft' ? 'Rascunho' :
+                                 quote.status === 'sent' ? 'Enviado' :
+                                 quote.status === 'approved' ? 'Aprovado' : 'Rejeitado'}
+                              </Badge>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                              <span className="flex items-center gap-1.5">
+                                <Plus className="h-3 w-3 rotate-45" /> {format(parseISO(quote.created_at), "dd/MM/yyyy", { locale: ptBR })}
+                              </span>
+                              <span className="font-bold text-foreground">
+                                {formatCurrency(quote.total_value)}
+                              </span>
+                              {quote.client_email && (
+                                <span className="hidden md:flex items-center gap-1.5">
+                                  <MailIcon className="h-3 w-3" /> {quote.client_email}
+                                </span>
                               )}
                             </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center justify-end gap-1 mt-4 sm:mt-0 pt-3 sm:pt-0 border-t sm:border-t-0 border-dashed">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-9 px-3 hover:bg-primary/10 hover:text-primary transition-colors"
+                            onClick={() => handlePreviewQuote(quote)}
+                          >
+                            <Eye className="mr-2 h-4 w-4" />
+                            <span className="sm:inline hidden">Visualizar</span>
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-9 px-3 hover:bg-primary/10 hover:text-primary transition-colors"
+                            onClick={() => handleDownloadPDF(quote)}
+                          >
+                            <Download className="mr-2 h-4 w-4" />
+                            <span className="sm:inline hidden">PDF</span>
+                          </Button>
+                          {isAdmin && (
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-9 w-9 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                              onClick={() => handleDeleteQuote(quote.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed rounded-lg">
                     <FileText className="h-12 w-12 text-muted-foreground/50 mb-4" />
@@ -888,6 +918,121 @@ export default function OnlineQuotes() {
                 </Button>
               </DialogFooter>
             </form>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isPreviewDialogOpen} onOpenChange={setIsPreviewDialogOpen}>
+          <DialogContent className="max-w-4xl w-[95vw] h-[90vh] flex flex-col p-0">
+            <DialogHeader className="p-6 border-b shrink-0">
+              <div className="flex items-center justify-between pr-8">
+                <DialogTitle>Visualizar Orçamento</DialogTitle>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => handleDownloadPDF(selectedQuoteForPreview)}>
+                    <Download className="mr-2 h-4 w-4" /> PDF
+                  </Button>
+                </div>
+              </div>
+            </DialogHeader>
+            <div className="flex-1 overflow-y-auto p-0 bg-muted/30">
+              {selectedQuoteForPreview && (
+                <div className="max-w-[800px] mx-auto my-8 bg-white shadow-2xl rounded-sm p-12 min-h-[1100px] flex flex-col font-sans border text-foreground">
+                  {/* Fake PDF Preview Header */}
+                  <div className="flex justify-between items-start mb-10 border-b pb-8">
+                    <div className="space-y-1">
+                      <h2 className="text-2xl font-black tracking-tight text-primary">ORÇAMENTO</h2>
+                      <p className="text-xs font-bold text-muted-foreground">#{selectedQuoteForPreview.id.split('-')[0].toUpperCase()}</p>
+                      <p className="text-xs text-muted-foreground">{format(parseISO(selectedQuoteForPreview.created_at), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}</p>
+                    </div>
+                    <div className="text-right space-y-2">
+                      <div className="bg-primary/5 h-12 w-32 ml-auto rounded flex items-center justify-center border border-dashed border-primary/20">
+                        <Building2 className="h-6 w-6 text-primary/40" />
+                      </div>
+                      <p className="text-sm font-bold uppercase">{(user as any)?.organization_name || "Empresa"}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-8 mb-12 bg-muted/10 p-6 rounded-lg border border-dashed">
+                    <div>
+                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">Destinatário</p>
+                      <p className="font-bold text-base leading-tight">{selectedQuoteForPreview.client_name}</p>
+                      <div className="mt-3 space-y-1 text-xs text-muted-foreground">
+                        {selectedQuoteForPreview.client_document && <p><span className="font-semibold text-foreground/70">CNPJ:</span> {selectedQuoteForPreview.client_document}</p>}
+                        {selectedQuoteForPreview.client_email && <p><span className="font-semibold text-foreground/70">Email:</span> {selectedQuoteForPreview.client_email}</p>}
+                        {selectedQuoteForPreview.client_phone && <p><span className="font-semibold text-foreground/70">WhatsApp:</span> {selectedQuoteForPreview.client_phone}</p>}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">Pagamento</p>
+                      <div className="mt-3 space-y-1 text-xs text-muted-foreground">
+                        <p><span className="font-semibold text-foreground/70">Forma:</span> {selectedQuoteForPreview.payment_method?.toUpperCase() || 'N/A'}</p>
+                        <p><span className="font-semibold text-foreground/70">Prazo:</span> {selectedQuoteForPreview.payment_terms?.toUpperCase() || 'N/A'}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex-1">
+                    <table className="w-full border-collapse">
+                      <thead>
+                        <tr className="border-b-2 border-primary/30">
+                          <th className="text-left py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Item</th>
+                          <th className="text-center py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground w-20">Qtd</th>
+                          <th className="text-right py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground w-32">Unitário</th>
+                          <th className="text-right py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground w-32">Subtotal</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-dashed">
+                        {selectedQuoteForPreview.items?.map((item: any, idx: number) => (
+                          <tr key={idx} className="group">
+                            <td className="py-4 pr-4">
+                              <div className="flex items-center gap-3">
+                                {selectedQuoteForPreview.include_images && item.image_url && (
+                                  <div className="h-10 w-10 border rounded bg-muted/20 shrink-0 overflow-hidden">
+                                    <img src={item.image_url} className="h-full w-full object-cover" />
+                                  </div>
+                                )}
+                                <div>
+                                  <p className="text-sm font-bold leading-none mb-1">{item.product_name}</p>
+                                  <p className="text-[10px] text-muted-foreground tracking-tight uppercase">{item.product_code}</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-4 text-center text-sm font-medium">{item.quantity}</td>
+                            <td className="py-4 text-right text-sm font-medium">{formatCurrency(item.unit_price)}</td>
+                            <td className="py-4 text-right text-sm font-bold">{formatCurrency(item.total_price)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="mt-12 pt-8 border-t-2 border-primary/10">
+                    <div className="flex justify-end mb-12">
+                      <div className="bg-primary/5 p-6 rounded-xl border border-primary/20 min-w-[250px]">
+                        <div className="flex justify-between items-center gap-8">
+                          <span className="text-xs font-black text-primary/70 uppercase tracking-widest">Total Geral</span>
+                          <span className="text-2xl font-black text-primary">
+                            {formatCurrency(selectedQuoteForPreview.total_value)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {selectedQuoteForPreview.notes && (
+                      <div className="space-y-3 p-6 bg-muted/5 rounded-lg border border-dashed">
+                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Observações Importantes</p>
+                        <div 
+                          className="text-xs text-muted-foreground/80 leading-relaxed" 
+                          dangerouslySetInnerHTML={{ __html: selectedQuoteForPreview.notes }} 
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+            <DialogFooter className="p-4 border-t shrink-0">
+              <Button onClick={() => setIsPreviewDialogOpen(false)}>Fechar Visualização</Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
 
