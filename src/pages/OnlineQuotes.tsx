@@ -40,7 +40,18 @@ export default function OnlineQuotes() {
   const { data: priceLists, isLoading: loadingPriceLists } = usePriceLists();
   const { data: quotes, isLoading: loadingQuotes } = useOnlineQuotes();
   const { data: templates, isLoading: loadingTemplates } = useOnlineQuoteTemplates();
+  const { data: permissionTemplates } = usePermissionTemplates();
   const { saveTemplate, savePriceList } = useOnlineQuoteMutations();
+  
+  const [selectedTemplates, setSelectedTemplates] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (editingPriceList) {
+      setSelectedTemplates(editingPriceList.allowed_templates || []);
+    } else {
+      setSelectedTemplates([]);
+    }
+  }, [editingPriceList]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
