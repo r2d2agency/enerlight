@@ -333,7 +333,7 @@ export default function OnlineQuotes() {
                             </div>
                           )}
                         </CardHeader>
-                        <CardContent onClick={() => setSelectedPriceList(pl)}>
+                        <CardContent>
                           <p className="text-xs text-muted-foreground line-clamp-2 min-h-[2.5rem]">{pl.description || "Sem descrição"}</p>
                           <div className="mt-4 flex flex-wrap gap-2 items-center justify-between">
                             <div className="flex gap-1">
