@@ -373,6 +373,15 @@ export default function OnlineQuotes() {
                             variant="ghost" 
                             size="sm" 
                             className="h-9 px-3 hover:bg-primary/10 hover:text-primary transition-colors"
+                            onClick={() => handleEditQuote(quote)}
+                          >
+                            <Pencil className="mr-2 h-4 w-4" />
+                            <span className="sm:inline hidden">Editar</span>
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-9 px-3 hover:bg-primary/10 hover:text-primary transition-colors"
                             onClick={() => handleDownloadPDF(quote)}
                           >
                             <Download className="mr-2 h-4 w-4" />
