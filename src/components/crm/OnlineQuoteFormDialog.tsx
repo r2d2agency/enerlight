@@ -489,7 +489,7 @@ export function OnlineQuoteFormDialog({ open, onOpenChange }: OnlineQuoteFormDia
                           <TableRow className="bg-muted/50 hover:bg-muted/50">
                             <TableHead className="text-xs font-bold uppercase tracking-wider">Produto</TableHead>
                             <TableHead className="text-xs font-bold uppercase tracking-wider w-[100px]">Qtd</TableHead>
-                            <TableHead className="text-xs font-bold uppercase tracking-wider w-[120px]">Desconto (R$)</TableHead>
+                            <TableHead className="text-xs font-bold uppercase tracking-wider w-[180px]">Desconto</TableHead>
                             <TableHead className="text-xs font-bold uppercase tracking-wider text-right">Total</TableHead>
                             <TableHead className="w-[50px]"></TableHead>
                           </TableRow>
