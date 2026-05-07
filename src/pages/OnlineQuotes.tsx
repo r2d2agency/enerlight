@@ -913,22 +913,23 @@ export default function OnlineQuotes() {
         {/* Price List Dialog */}
         <Dialog open={isPriceListDialogOpen} onOpenChange={setIsPriceListDialogOpen}>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col p-0">
-            <DialogHeader>
+            <DialogHeader className="px-6 py-4 border-b">
               <DialogTitle>{editingPriceList ? "Editar Tabela" : "Nova Tabela de Preços"}</DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSavePriceList} className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label>Nome da Tabela</Label>
-                <Input name="name" defaultValue={editingPriceList?.name} required />
-              </div>
-              <div className="space-y-2">
-                <Label>Segmento / Canal</Label>
-                <Input name="segment" defaultValue={editingPriceList?.segment} placeholder="Ex: Construção Civil, E-commerce..." />
-              </div>
-              <div className="space-y-2">
-                <Label>Descrição</Label>
-                <Textarea name="description" defaultValue={editingPriceList?.description} />
-              </div>
+            <ScrollArea className="flex-1 px-6">
+              <form onSubmit={handleSavePriceList} className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label>Nome da Tabela</Label>
+                  <Input name="name" defaultValue={editingPriceList?.name} required />
+                </div>
+                <div className="space-y-2">
+                  <Label>Segmento / Canal</Label>
+                  <Input name="segment" defaultValue={editingPriceList?.segment} placeholder="Ex: Construção Civil, E-commerce..." />
+                </div>
+                <div className="space-y-2">
+                  <Label>Descrição</Label>
+                  <Textarea name="description" defaultValue={editingPriceList?.description} />
+                </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="markup_percentage">Markup / Acréscimo (%)</Label>
