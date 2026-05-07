@@ -27,6 +27,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 export default function OnlineQuotes() {
   const { user } = useAuth();
   const [isNewQuoteOpen, setIsNewQuoteOpen] = useState(false);
+  const [editingQuote, setEditingQuote] = useState<any>(null);
   const [selectedPriceList, setSelectedPriceList] = useState<{id: string, name: string} | null>(null);
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<any>(null);
@@ -34,6 +35,8 @@ export default function OnlineQuotes() {
   const [isPriceListDialogOpen, setIsPriceListDialogOpen] = useState(false);
   const [selectedQuoteForPreview, setSelectedQuoteForPreview] = useState<any>(null);
   const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [dateFilter, setDateFilter] = useState<string>("all");
   const [editingPriceList, setEditingPriceList] = useState<any>(null);
 
   const isAdmin = ['owner', 'admin', 'manager'].includes(user?.role || '');
