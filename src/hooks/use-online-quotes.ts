@@ -10,6 +10,7 @@ export interface PriceList {
   is_active: boolean;
   markup_percentage?: number;
   discount_limit_percentage?: number;
+  is_master?: boolean;
   created_at: string;
 }
 
