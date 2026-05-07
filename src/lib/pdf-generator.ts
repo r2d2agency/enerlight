@@ -211,7 +211,7 @@ export const generateQuotePDF = async (quote: any, organization: any) => {
       } else if (conf?.type === 'logo' && conf.content) {
         try {
           const logoData = await loadRemoteImage(conf.content);
-          doc.addImage(logoData, 'JPEG', x - 10, footerY - 8, 20, 10);
+          doc.addImage(logoData, 'PNG', x - 10, footerY - 8, 20, 10, undefined, 'FAST');
         } catch(e) {}
       } else if (conf?.type === 'social' && config.social) {
         const social = config.social;
