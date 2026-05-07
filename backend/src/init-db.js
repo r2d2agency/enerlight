@@ -4869,17 +4869,6 @@ DO $$ BEGIN
 EXCEPTION WHEN others THEN null; END $$;
 `;
 
-
-`;
-
-
-
-
-
-
-
-
-
 const migrationSteps = [
   { name: 'Enums', sql: step1Enums, critical: true },
   { name: 'Core Tables (users, plans)', sql: step2CoreTables, critical: true },
