@@ -20,13 +20,15 @@ interface OnlineQuoteFormDialogProps {
 }
 
 export function OnlineQuoteFormDialog({ open, onOpenChange }: OnlineQuoteFormDialogProps) {
-  const [step, setStep] = useState<"client" | "items">("client");
+  const [step, setStep] = useState<"client" | "payment" | "items">("client");
   const [clientInfo, setClientInfo] = useState({
     name: "",
     document: "",
     email: "",
     phone: "",
-    notes: ""
+    notes: "",
+    payment_terms: "",
+    payment_method: ""
   });
   const [selectedPriceListId, setSelectedPriceListId] = useState<string>("");
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
@@ -82,7 +84,9 @@ export function OnlineQuoteFormDialog({ open, onOpenChange }: OnlineQuoteFormDia
       document: company.cnpj || "",
       email: company.email || "",
       phone: company.phone || "",
-      notes: clientInfo.notes
+      notes: clientInfo.notes,
+      payment_terms: company.payment_terms || "",
+      payment_method: company.payment_method || ""
     });
     setCompanySearch("");
     setShowCompanyResults(false);
@@ -106,15 +110,39 @@ export function OnlineQuoteFormDialog({ open, onOpenChange }: OnlineQuoteFormDia
   };
 
   const handleUpdateQty = (code: string, qty: number) => {
-    if (qty <= 0) {
+    if (qty < 0) return;
+    if (qty === 0) {
       handleRemoveItem(code);
       return;
     }
     setQuoteItems(quoteItems.map(item => 
       item.product_code === code 
-        ? { ...item, quantity: qty, total_price: qty * item.unit_price }
+        ? { ...item, quantity: qty, total_price: qty * (item.unit_price - (item.discount || 0)) }
         : item
     ));
+  };
+
+  const handleUpdateDiscount = (code: string, discount: number) => {
+    const priceList = priceLists?.find(pl => pl.id === selectedPriceListId);
+    const maxDiscountPercent = priceList?.discount_limit_percentage || 0;
+    
+    setQuoteItems(quoteItems.map(item => {
+      if (item.product_code !== code) return item;
+      
+      const unitPrice = item.unit_price;
+      const currentDiscountPercent = (discount / unitPrice) * 100;
+      
+      if (currentDiscountPercent > maxDiscountPercent) {
+        toast.error(`Desconto máximo permitido: ${maxDiscountPercent}%`);
+        return item;
+      }
+      
+      return { 
+        ...item, 
+        discount: discount, 
+        total_price: item.quantity * (unitPrice - discount) 
+      };
+    }));
   };
 
   const handleRemoveItem = (code: string) => {
@@ -145,6 +173,8 @@ export function OnlineQuoteFormDialog({ open, onOpenChange }: OnlineQuoteFormDia
         client_document: clientInfo.document,
         client_email: clientInfo.email,
         client_phone: clientInfo.phone,
+        payment_terms: clientInfo.payment_terms,
+        payment_method: clientInfo.payment_method,
         notes: clientInfo.notes,
         price_list_id: selectedPriceListId,
         template_id: selectedTemplateId,
@@ -156,7 +186,7 @@ export function OnlineQuoteFormDialog({ open, onOpenChange }: OnlineQuoteFormDia
       // Reset
       setStep("client");
       setQuoteItems([]);
-      setClientInfo({ name: "", document: "", email: "", phone: "", notes: "" });
+      setClientInfo({ name: "", document: "", email: "", phone: "", notes: "", payment_terms: "", payment_method: "" });
     } catch (err) {
       toast.error("Erro ao criar orçamento");
     }
@@ -296,6 +326,56 @@ export function OnlineQuoteFormDialog({ open, onOpenChange }: OnlineQuoteFormDia
                   />
                 </div>
               </div>
+            ) : step === "payment" ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Forma de Pagamento</Label>
+                    <Select 
+                      value={clientInfo.payment_method} 
+                      onValueChange={val => setClientInfo({...clientInfo, payment_method: val})}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione a forma..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="boleto">Boleto Bancário</SelectItem>
+                        <SelectItem value="pix">PIX</SelectItem>
+                        <SelectItem value="cartao_credito">Cartão de Crédito</SelectItem>
+                        <SelectItem value="transferencia">Transferência / TED</SelectItem>
+                        <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Prazo de Pagamento</Label>
+                    <Select 
+                      value={clientInfo.payment_terms} 
+                      onValueChange={val => setClientInfo({...clientInfo, payment_terms: val})}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o prazo..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="avista">À Vista</SelectItem>
+                        <SelectItem value="7_dias">7 dias</SelectItem>
+                        <SelectItem value="15_dias">15 dias</SelectItem>
+                        <SelectItem value="30_dias">30 dias</SelectItem>
+                        <SelectItem value="30_60_dias">30/60 dias</SelectItem>
+                        <SelectItem value="30_60_90_dias">30/60/90 dias</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Condições Adicionais</Label>
+                  <Textarea 
+                    value={clientInfo.notes} 
+                    onChange={e => setClientInfo({...clientInfo, notes: e.target.value})}
+                    placeholder="Ex: Frete incluso, validade da proposta..."
+                  />
+                </div>
+              </div>
             ) : (
               <div className="flex flex-col h-full gap-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-[450px]">
@@ -380,8 +460,9 @@ export function OnlineQuoteFormDialog({ open, onOpenChange }: OnlineQuoteFormDia
                         <TableHeader>
                           <TableRow className="bg-muted/50">
                             <TableHead className="text-xs">Prod.</TableHead>
-                            <TableHead className="text-xs w-[60px]">Qtd</TableHead>
-                            <TableHead className="text-xs text-right">Total</TableHead>
+                             <TableHead className="text-xs w-[50px]">Qtd</TableHead>
+                             <TableHead className="text-xs w-[80px]">Desc. R$</TableHead>
+                             <TableHead className="text-xs text-right">Total</TableHead>
                             <TableHead className="w-[40px]"></TableHead>
                           </TableRow>
                         </TableHeader>
@@ -392,13 +473,21 @@ export function OnlineQuoteFormDialog({ open, onOpenChange }: OnlineQuoteFormDia
                                 {item.product_name}
                               </TableCell>
                               <TableCell className="py-2">
-                                <Input 
-                                  type="number" 
-                                  value={item.quantity}
-                                  onChange={e => handleUpdateQty(item.product_code, Number(e.target.value))}
-                                  className="h-7 text-xs px-1"
-                                />
-                              </TableCell>
+                                 <Input 
+                                   type="number" 
+                                   value={item.quantity}
+                                   onChange={e => handleUpdateQty(item.product_code, Number(e.target.value))}
+                                   className="h-7 text-xs px-1"
+                                 />
+                               </TableCell>
+                               <TableCell className="py-2">
+                                 <Input 
+                                   type="number" 
+                                   value={item.discount || 0}
+                                   onChange={e => handleUpdateDiscount(item.product_code, Number(e.target.value))}
+                                   className="h-7 text-xs px-1"
+                                 />
+                               </TableCell>
                               <TableCell className="text-xs text-right py-2">
                                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.total_price)}
                               </TableCell>
@@ -448,15 +537,22 @@ export function OnlineQuoteFormDialog({ open, onOpenChange }: OnlineQuoteFormDia
               <>
                 <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
                 <Button 
-                  onClick={() => setStep("items")} 
+                  onClick={() => setStep("payment")} 
                   disabled={!clientInfo.name || !selectedPriceListId || !selectedTemplateId}
                 >
+                  Próximo: Pagamento
+                </Button>
+              </>
+            ) : step === "payment" ? (
+              <>
+                <Button variant="outline" onClick={() => setStep("client")}>Voltar</Button>
+                <Button onClick={() => setStep("items")}>
                   Próximo: Adicionar Itens
                 </Button>
               </>
             ) : (
               <>
-                <Button variant="outline" onClick={() => setStep("client")}>Voltar</Button>
+                <Button variant="outline" onClick={() => setStep("payment")}>Voltar</Button>
                 <Button onClick={handleSubmit} disabled={createQuote.isPending || quoteItems.length === 0}>
                   {createQuote.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                   Gerar Orçamento
