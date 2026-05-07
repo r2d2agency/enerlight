@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, FileText, List, Settings, ShieldCheck, Loader2, Eye, Download, LayoutTemplate, Pencil, Image as ImageIcon, Upload, Globe, Instagram, Linkedin, Phone, Mail as MailIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { usePriceLists, useOnlineQuoteMutations, useOnlineQuotes, useOnlineQuoteTemplates } from "@/hooks/use-online-quotes";
+import { usePriceLists, useOnlineQuoteMutations, useOnlineQuotes, useOnlineQuoteTemplates, usePermissionTemplates } from "@/hooks/use-online-quotes";
 import { OnlineQuoteFormDialog } from "@/components/crm/OnlineQuoteFormDialog";
 import { PriceListItemsDialog } from "@/components/crm/PriceListItemsDialog";
 import { Badge } from "@/components/ui/badge";
