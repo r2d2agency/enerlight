@@ -75,6 +75,13 @@ export function useOnlineQuoteTemplates() {
   });
 }
 
+export function usePermissionTemplates() {
+  return useQuery({
+    queryKey: ["permission-templates"],
+    queryFn: () => api<any[]>("/api/permission-templates"),
+  });
+}
+
 export function useOnlineQuoteMutations() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
