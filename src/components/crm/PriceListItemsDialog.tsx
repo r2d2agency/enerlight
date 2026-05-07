@@ -138,6 +138,7 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
           const codeKey = findKey(['code', 'codigo', 'código', 'cod', 'sku', 'referencia', 'referência']);
           const nameKey = findKey(['name', 'nome', 'produto', 'descrição', 'descricao', 'item']);
           const priceKey = findKey(['price', 'preco', 'preço', 'valor', 'venda', 'vlr']);
+          const costKey = findKey(['cost', 'custo', 'vlr_custo', 'valor_custo', 'compra']);
           const imageKey = findKey(['image', 'imagem', 'url', 'foto', 'link']);
 
           const product_code = (row[codeKey || ''] || '').toString().trim();
