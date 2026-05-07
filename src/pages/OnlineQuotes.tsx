@@ -186,7 +186,7 @@ export default function OnlineQuotes() {
       is_master: formData.get('is_master') === 'on',
       allowed_templates: selectedTemplates,
       is_active: formData.get('is_active') === 'on',
-      default_template_id: formData.get('default_template_id')
+      default_template_id: formData.get('default_template_id') === 'none' ? null : formData.get('default_template_id')
     };
 
     try {
@@ -957,12 +957,12 @@ export default function OnlineQuotes() {
               </div>
               <div className="space-y-2">
                 <Label>Modelo de Capa Padrão (Opcional)</Label>
-                <Select name="default_template_id" defaultValue={editingPriceList?.default_template_id}>
+                <Select name="default_template_id" defaultValue={editingPriceList?.default_template_id || "none"}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione uma capa fixa..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nenhuma (Vendedor escolhe)</SelectItem>
+                    <SelectItem value="none">Nenhuma (Vendedor escolhe)</SelectItem>
                     {templates?.map(t => (
                       <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
                     ))}
