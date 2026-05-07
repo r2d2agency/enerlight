@@ -243,7 +243,7 @@ router.post('/quotes', async (req, res) => {
     const { 
       client_name, client_document, client_email, client_phone, 
       price_list_id, template_id, items, cover_image_url, footer_text, footer_config, valid_until, notes,
-      include_images
+      include_images, payment_terms, payment_method
     } = req.body;
 
     const fConfig = typeof footer_config === 'object' ? JSON.stringify(footer_config) : footer_config;
@@ -251,12 +251,15 @@ router.post('/quotes', async (req, res) => {
     const result = await query(
       `INSERT INTO online_quotes 
        (organization_id, user_id, client_name, client_document, client_email, client_phone, 
-        price_list_id, template_id, cover_image_url, footer_text, footer_config, valid_until, notes, include_images)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        price_list_id, template_id, cover_image_url, footer_text, footer_config, valid_until, notes, 
+        include_images, payment_terms, payment_method)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
        RETURNING id`,
-      [ctx.organizationId, req.userId, client_name, client_document, client_email, client_phone, 
-
-       price_list_id, template_id || null, cover_image_url, footer_text, fConfig, valid_until, notes, include_images ?? true]
+      [
+        ctx.organizationId, req.userId, client_name, client_document, client_email, client_phone, 
+        price_list_id, template_id || null, cover_image_url, footer_text, fConfig, valid_until, notes, 
+        include_images ?? true, payment_terms, payment_method
+      ]
     );
 
     
