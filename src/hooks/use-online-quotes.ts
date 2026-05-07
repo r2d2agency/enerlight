@@ -125,5 +125,20 @@ export function useOnlineQuoteMutations() {
     }
   });
 
-  return { createQuote, saveTemplate, savePriceList, deletePriceList };
+  const deleteQuote = useMutation({
+    mutationFn: (id: string) => api(`/api/online-quotes/quotes/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["online-quotes"] });
+      toast({ title: "Orçamento excluído com sucesso" });
+    },
+    onError: (err: any) => {
+      toast({ 
+        title: "Erro ao excluir orçamento", 
+        description: err.message || "Tente novamente mais tarde.",
+        variant: "destructive" 
+      });
+    }
+  });
+
+  return { createQuote, saveTemplate, savePriceList, deletePriceList, deleteQuote };
 }

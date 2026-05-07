@@ -52,7 +52,7 @@ export default function OnlineQuotes() {
   const { data: quotes, isLoading: loadingQuotes } = useOnlineQuotes();
   const { data: templates, isLoading: loadingTemplates } = useOnlineQuoteTemplates();
   const { data: permissionTemplates } = usePermissionTemplates();
-  const { saveTemplate, savePriceList, deletePriceList } = useOnlineQuoteMutations();
+  const { saveTemplate, savePriceList, deletePriceList, deleteQuote } = useOnlineQuoteMutations();
   
   const [selectedTemplates, setSelectedTemplates] = useState<string[]>([]);
 
@@ -159,6 +159,14 @@ export default function OnlineQuotes() {
         // Error handled by mutation toast
       }
     }
+  const handleDeleteQuote = async (id: string) => {
+    if (window.confirm("Tem certeza que deseja excluir este orçamento?")) {
+      try {
+        await deleteQuote.mutateAsync(id);
+      } catch (err) {
+        // Handled by mutation
+      }
+    }
   };
 
   return (
@@ -249,6 +257,17 @@ export default function OnlineQuotes() {
                               <Button variant="ghost" size="sm" title="Baixar PDF" onClick={() => handleDownloadPDF(quote)}>
                                 <Download className="h-4 w-4" />
                               </Button>
+                              {isAdmin && (
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  title="Excluir" 
+                                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  onClick={() => handleDeleteQuote(quote.id)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
                             </div>
                           </TableCell>
                         </TableRow>
