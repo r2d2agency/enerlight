@@ -166,8 +166,8 @@ export const generateQuotePDF = async (quote: any, organization: any) => {
       }
     },
     foot: [[
-      { content: 'VALOR TOTAL', colSpan: includeImages ? 4 : 3, styles: { halign: 'right', fontStyle: 'bold', fillColor: [245, 245, 245] } },
-      { content: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(quote.total_value), styles: { fontStyle: 'bold', fillColor: [245, 245, 245], halign: 'right' } }
+      { content: 'VALOR TOTAL', colSpan: includeImages ? 5 : 4, styles: { halign: 'right', fontStyle: 'bold', fillColor: [245, 245, 245], textColor: [40, 40, 40] } },
+      { content: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(quote.total_value), styles: { fontStyle: 'bold', fillColor: [245, 245, 245], halign: 'right', textColor: [40, 40, 40] } }
     ]]
   });
 
