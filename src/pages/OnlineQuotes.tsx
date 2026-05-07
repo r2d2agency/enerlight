@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, FileText, List, Settings, ShieldCheck, Loader2, Eye, Download, LayoutTemplate, Pencil, Image as ImageIcon, Upload, Globe, Instagram, Linkedin, Phone, Mail as MailIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { usePriceLists, useOnlineQuoteMutations, useOnlineQuotes, useOnlineQuoteTemplates } from "@/hooks/use-online-quotes";
+import { usePriceLists, useOnlineQuoteMutations, useOnlineQuotes, useOnlineQuoteTemplates, usePermissionTemplates } from "@/hooks/use-online-quotes";
 import { OnlineQuoteFormDialog } from "@/components/crm/OnlineQuoteFormDialog";
 import { PriceListItemsDialog } from "@/components/crm/PriceListItemsDialog";
 import { Badge } from "@/components/ui/badge";
@@ -38,9 +38,31 @@ export default function OnlineQuotes() {
   const canEditPriceLists = isAdmin || user?.user_permissions?.can_edit_price_lists;
 
   const { data: priceLists, isLoading: loadingPriceLists } = usePriceLists();
+  
+  const filteredPriceLists = priceLists?.filter(pl => {
+    if (isAdmin) return true;
+    if (!pl.is_active) return false;
+    if (!pl.allowed_templates || pl.allowed_templates.length === 0) return true;
+    
+    // @ts-ignore - Assuming user might have permission_template_id
+    const userTemplateId = user?.permission_template_id;
+    return pl.allowed_templates.includes(userTemplateId);
+  });
+
   const { data: quotes, isLoading: loadingQuotes } = useOnlineQuotes();
   const { data: templates, isLoading: loadingTemplates } = useOnlineQuoteTemplates();
+  const { data: permissionTemplates } = usePermissionTemplates();
   const { saveTemplate, savePriceList } = useOnlineQuoteMutations();
+  
+  const [selectedTemplates, setSelectedTemplates] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (editingPriceList) {
+      setSelectedTemplates(editingPriceList.allowed_templates || []);
+    } else {
+      setSelectedTemplates([]);
+    }
+  }, [editingPriceList]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
@@ -116,6 +138,8 @@ export default function OnlineQuotes() {
       segment: formData.get('segment'),
       markup_percentage: parseFloat(formData.get('markup_percentage') as string || '0'),
       discount_limit_percentage: parseFloat(formData.get('discount_limit_percentage') as string || '0'),
+      is_master: formData.get('is_master') === 'on',
+      allowed_templates: selectedTemplates,
       is_active: formData.get('is_active') === 'on'
     };
 
@@ -256,7 +280,7 @@ export default function OnlineQuotes() {
                   </div>
                 ) : (
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {priceLists?.map(pl => (
+                    {filteredPriceLists?.map(pl => (
                       <Card 
                         key={pl.id} 
                         className="hover:border-primary/50 transition-colors cursor-pointer group"
@@ -271,10 +295,17 @@ export default function OnlineQuotes() {
                         </CardHeader>
                         <CardContent onClick={() => setSelectedPriceList(pl)}>
                           <p className="text-xs text-muted-foreground line-clamp-2 min-h-[2.5rem]">{pl.description || "Sem descrição"}</p>
-                          <div className="mt-4 flex items-center justify-between">
-                            <Badge variant={pl.is_active ? "default" : "secondary"}>
-                              {pl.is_active ? "Ativa" : "Inativa"}
-                            </Badge>
+                          <div className="mt-4 flex flex-wrap gap-2 items-center justify-between">
+                            <div className="flex gap-1">
+                              <Badge variant={pl.is_active ? "default" : "secondary"}>
+                                {pl.is_active ? "Ativa" : "Inativa"}
+                              </Badge>
+                              {pl.is_master && (
+                                <Badge variant="outline" className="border-primary text-primary bg-primary/5">
+                                  Matriz
+                                </Badge>
+                              )}
+                            </div>
                             {pl.segment && (
                               <Badge variant="outline" className="bg-primary/5">
                                 {pl.segment}
@@ -284,7 +315,7 @@ export default function OnlineQuotes() {
                         </CardContent>
                       </Card>
                     ))}
-                    {priceLists?.length === 0 && (
+                    {filteredPriceLists?.length === 0 && (
                       <div className="col-span-full py-12 text-center border-2 border-dashed rounded-lg">
                         <List className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
                         <h3 className="text-lg font-medium">Nenhuma tabela de preços</h3>
@@ -760,11 +791,56 @@ export default function OnlineQuotes() {
                 </div>
               </div>
 
-              <div className="flex items-center space-x-2">
-                <Switch name="is_active" id="is_active" defaultChecked={editingPriceList?.is_active !== false} />
-                <Label htmlFor="is_active">Tabela Ativa</Label>
+              <div className="space-y-3">
+                <Label>Grupos com Acesso</Label>
+                <div className="border rounded-lg p-3 bg-muted/5 max-h-[150px] overflow-y-auto space-y-2">
+                  {permissionTemplates?.map(tpl => (
+                    <div key={tpl.id} className="flex items-center space-x-2">
+                      <Switch 
+                        id={`tpl-${tpl.id}`}
+                        checked={selectedTemplates.includes(tpl.id)}
+                        onCheckedChange={(checked) => {
+                          if (checked) setSelectedTemplates([...selectedTemplates, tpl.id]);
+                          else setSelectedTemplates(selectedTemplates.filter(id => id !== tpl.id));
+                        }}
+                      />
+                      <Label htmlFor={`tpl-${tpl.id}`} className="text-sm font-normal cursor-pointer">
+                        {tpl.name}
+                      </Label>
+                    </div>
+                  ))}
+                  {(!permissionTemplates || permissionTemplates.length === 0) && (
+                    <p className="text-xs text-muted-foreground">Nenhum grupo de acesso configurado</p>
+                  )}
+                </div>
+                <p className="text-[10px] text-muted-foreground">Se nenhum grupo for selecionado, todos terão acesso.</p>
               </div>
-              <DialogFooter>
+
+              <div className="flex flex-col gap-4 pt-2">
+                <div className="flex items-center justify-between space-x-2 border p-3 rounded-lg">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="is_master">Tabela Matriz</Label>
+                    <p className="text-[10px] text-muted-foreground">Usa esta tabela como base para fotos e preços de custo</p>
+                  </div>
+                  <Switch 
+                    id="is_master" 
+                    name="is_master" 
+                    defaultChecked={editingPriceList?.is_master} 
+                  />
+                </div>
+                <div className="flex items-center justify-between space-x-2 border p-3 rounded-lg">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="is_active">Tabela Ativa</Label>
+                    <p className="text-[10px] text-muted-foreground">Habilita o uso desta tabela nos orçamentos</p>
+                  </div>
+                  <Switch 
+                    id="is_active" 
+                    name="is_active" 
+                    defaultChecked={editingPriceList?.is_active !== false} 
+                  />
+                </div>
+              </div>
+              <DialogFooter className="pt-4">
                 <Button type="button" variant="outline" onClick={() => setIsPriceListDialogOpen(false)}>Cancelar</Button>
                 <Button type="submit" disabled={savePriceList.isPending}>
                   {savePriceList.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

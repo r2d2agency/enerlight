@@ -11,7 +11,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 
 interface PriceListItemsDialogProps {
-  priceList: { id: string; name: string; markup_percentage?: number } | null;
+  priceList: { id: string; name: string; markup_percentage?: number; is_master?: boolean } | null;
   onOpenChange: (open: boolean) => void;
   canEdit?: boolean;
 }
@@ -138,12 +138,32 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
           const codeKey = findKey(['code', 'codigo', 'código', 'cod', 'sku', 'referencia', 'referência']);
           const nameKey = findKey(['name', 'nome', 'produto', 'descrição', 'descricao', 'item']);
           const priceKey = findKey(['price', 'preco', 'preço', 'valor', 'venda', 'vlr']);
+          const costKey = findKey(['cost', 'custo', 'vlr_custo', 'valor_custo', 'compra']);
           const imageKey = findKey(['image', 'imagem', 'url', 'foto', 'link']);
 
           const product_code = (row[codeKey || ''] || '').toString().trim();
           const product_name = (row[nameKey || ''] || '').toString().trim();
-          const priceValue = row[priceKey || ''] || 0;
-          let sale_price = typeof priceValue === 'number' ? priceValue : parseFloat(priceValue.toString().replace('R$', '').replace(/\./g, '').replace(',', '.').trim() || "0");
+          const priceValue = row[priceKey || ''];
+          
+          let sale_price = 0;
+          if (priceValue !== undefined && priceValue !== null) {
+            if (typeof priceValue === 'number') {
+              sale_price = priceValue;
+            } else {
+              // Limpa string de preço: remove R$, remove espaços, troca , por . se necessário
+              let cleanPrice = priceValue.toString().replace(/R\$\s?/, '').trim();
+              
+              // Se tiver vírgula e ponto, assume formato BR (1.000,00)
+              if (cleanPrice.includes(',') && cleanPrice.includes('.')) {
+                cleanPrice = cleanPrice.replace(/\./g, '').replace(',', '.');
+              } else if (cleanPrice.includes(',')) {
+                // Se tiver apenas vírgula, assume que é o separador decimal
+                cleanPrice = cleanPrice.replace(',', '.');
+              }
+              
+              sale_price = parseFloat(cleanPrice) || 0;
+            }
+          }
           
           // Aplica markup da tabela se houver
           if (priceList?.markup_percentage && priceList.markup_percentage > 0) {
@@ -167,10 +187,27 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
             }
           }
 
+          const costValue = row[costKey || ''];
+          let cost_price = 0;
+          if (costValue !== undefined && costValue !== null) {
+            if (typeof costValue === 'number') {
+              cost_price = costValue;
+            } else {
+              let cleanCost = costValue.toString().replace(/R\$\s?/, '').trim();
+              if (cleanCost.includes(',') && cleanCost.includes('.')) {
+                cleanCost = cleanCost.replace(/\./g, '').replace(',', '.');
+              } else if (cleanCost.includes(',')) {
+                cleanCost = cleanCost.replace(',', '.');
+              }
+              cost_price = parseFloat(cleanCost) || 0;
+            }
+          }
+
           return {
             product_code,
             product_name,
             sale_price,
+            cost_price,
             image_url
           };
         }));
@@ -253,6 +290,7 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
                   <TableHead className="w-[80px]">Imagem</TableHead>
                   <TableHead>Código</TableHead>
                   <TableHead>Produto</TableHead>
+                  {priceList?.is_master && <TableHead>Custo</TableHead>}
                   <TableHead>Preço Venda</TableHead>
                    {canEdit && <TableHead className="w-[120px]">Ações</TableHead>}
                 </TableRow>
@@ -271,10 +309,17 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
                     </TableCell>
                     <TableCell className="font-mono text-xs">{item.product_code}</TableCell>
                     <TableCell className="font-medium">{item.product_name}</TableCell>
+                    {priceList?.is_master && (
+                      <TableCell>
+                        <span className="text-muted-foreground font-mono">
+                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.cost_price || 0)}
+                        </span>
+                      </TableCell>
+                    )}
                     <TableCell>
                       <div className="flex flex-col">
                         <span>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.sale_price)}</span>
-                        {priceList?.markup_percentage ? (
+                        {priceList?.markup_percentage && !priceList.is_master ? (
                           <span className="text-[10px] text-muted-foreground">Inclui {priceList.markup_percentage}% de markup</span>
                         ) : null}
                       </div>

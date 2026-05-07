@@ -10,6 +10,8 @@ export interface PriceList {
   is_active: boolean;
   markup_percentage?: number;
   discount_limit_percentage?: number;
+  is_master?: boolean;
+  allowed_templates?: string[]; // IDs of Permission Templates that can see this table
   created_at: string;
 }
 
@@ -70,6 +72,13 @@ export function useOnlineQuoteTemplates() {
   return useQuery({
     queryKey: ["online-quote-templates"],
     queryFn: () => api<OnlineQuoteTemplate[]>("/api/online-quotes/templates"),
+  });
+}
+
+export function usePermissionTemplates() {
+  return useQuery({
+    queryKey: ["permission-templates"],
+    queryFn: () => api<any[]>("/api/permission-templates"),
   });
 }
 
