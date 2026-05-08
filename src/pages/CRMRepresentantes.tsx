@@ -27,11 +27,13 @@ const TYPE_LABELS: Record<IndicatorType, string> = {
   parceiro: "Parceiro",
   representante: "Representante",
   indicador: "Indicador",
+  instalador: "Instalador",
 };
 const TYPE_COLORS: Record<IndicatorType, string> = {
   parceiro: "bg-blue-500/10 text-blue-700 border-blue-500/30 dark:text-blue-400",
   representante: "bg-purple-500/10 text-purple-700 border-purple-500/30 dark:text-purple-400",
   indicador: "bg-emerald-500/10 text-emerald-700 border-emerald-500/30 dark:text-emerald-400",
+  instalador: "bg-orange-500/10 text-orange-700 border-orange-500/30 dark:text-orange-400",
 };
 
 interface FormState {
