@@ -107,22 +107,36 @@ export default function OnlineQuotes() {
   const handleDownloadPDF = async (quote: any) => {
     try {
       const fullQuote = await api<any>(`/api/online-quotes/quotes/${quote.id}`);
-      const org = await api<any>(`/api/organizations/${user?.organization_id}`);
+      let org = null;
+      try {
+        if (user?.organization_id) {
+          org = await api<any>(`/api/organizations/${user.organization_id}`);
+        }
+      } catch (e) {
+        console.warn("Could not fetch organization data, proceeding without it", e);
+      }
       await generateQuotePDF(fullQuote, org);
-    } catch (err) {
-      toast.error("Erro ao gerar PDF");
+    } catch (err: any) {
+      console.error("PDF Generation error:", err);
+      toast.error(`Erro ao gerar PDF: ${err.message || 'Erro desconhecido'}`);
     }
   };
 
   const handlePreviewQuote = async (quote: any) => {
     try {
       const fullQuote = await api<any>(`/api/online-quotes/quotes/${quote.id}`);
-      // Ensure organization info is available for the preview/PDF logic
-      const org = await api<any>(`/api/organizations/${user?.organization_id}`);
+      let org = null;
+      try {
+        if (user?.organization_id) {
+          org = await api<any>(`/api/organizations/${user.organization_id}`);
+        }
+      } catch (e) {
+        console.warn("Could not fetch organization data", e);
+      }
       setSelectedQuoteForPreview({ ...fullQuote, organization: org });
       setIsPreviewDialogOpen(true);
-    } catch (err) {
-      toast.error("Erro ao carregar detalhes do orçamento");
+    } catch (err: any) {
+      toast.error(`Erro ao carregar detalhes do orçamento: ${err.message || ''}`);
     }
   };
 
