@@ -21,7 +21,12 @@ const loadRemoteImage = (url: string): Promise<string> => {
 };
 
 export const generateQuotePDF = async (quote: any, organization: any) => {
-   const doc = new jsPDF({
+  if (!quote) {
+    console.error("No quote data provided to generateQuotePDF");
+    return;
+  }
+
+  const doc = new jsPDF({
     orientation: "landscape",
     unit: "mm",
     format: "a4"
@@ -38,6 +43,7 @@ export const generateQuotePDF = async (quote: any, organization: any) => {
       doc.addPage();
     } catch (e) {
       console.error("Failed to add cover image", e);
+      // Don't stop the whole PDF generation if just the cover fails
     }
   }
 
@@ -128,24 +134,24 @@ export const generateQuotePDF = async (quote: any, organization: any) => {
     ? [['Foto', 'Produto', 'Qtd', 'Unitário', 'Desc.', 'Total']]
     : [['Produto', 'Qtd', 'Unitário', 'Desc.', 'Total']];
 
-  const tableData = quote.items.map((item: any) => {
+  const tableData = quote.items?.map((item: any) => {
     const discountStr = item.discount_type === 'percentage' 
       ? `${item.discount_value || item.discount || 0}%`
       : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.discount_value || item.discount || 0);
 
     const row = [
-      item.product_name,
-      item.quantity,
-      new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.unit_price),
+      item.product_name || 'Produto sem nome',
+      item.quantity || 0,
+      new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.unit_price || 0),
       discountStr,
-      new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.total_price)
+      new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.total_price || 0)
     ];
     
     if (includeImages) {
       return ['', ...row];
     }
     return row;
-  });
+  }) || [];
 
   autoTable(doc, {
     startY: 100,
@@ -170,12 +176,15 @@ export const generateQuotePDF = async (quote: any, organization: any) => {
         const item = quote.items[data.row.index];
         if (item.image_url) {
           try {
+            // Since we can't easily await inside didDrawCell, we should have pre-loaded 
+            // but for now, we'll try to use the image if it's already cached or a URL
+            // and wrap in try-catch to prevent PDF generation crash
             const dim = 18;
             const x = data.cell.x + (data.cell.width - dim) / 2;
             const y = data.cell.y + (data.cell.height - dim) / 2;
             doc.addImage(item.image_url, 'JPEG', x, y, dim, dim);
           } catch (e) {
-            console.error("Error adding image to PDF table", e);
+            console.warn("Could not add image to PDF row", e);
           }
         }
       }
@@ -183,7 +192,7 @@ export const generateQuotePDF = async (quote: any, organization: any) => {
     foot: [
       [
         { content: 'SUBTOTAL ITENS', colSpan: includeImages ? 5 : 4, styles: { halign: 'right', fontStyle: 'bold' as const, fillColor: [245, 245, 245], textColor: [40, 40, 40] } },
-        { content: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(quote.items.reduce((acc: number, item: any) => acc + (item.total_price || 0), 0)), styles: { fontStyle: 'bold' as const, fillColor: [245, 245, 245], halign: 'right', textColor: [40, 40, 40] } }
+        { content: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(quote.items?.reduce((acc: number, item: any) => acc + (item.total_price || 0), 0) || 0), styles: { fontStyle: 'bold' as const, fillColor: [245, 245, 245], halign: 'right', textColor: [40, 40, 40] } }
       ],
       ...(quote.shipping_value > 0 ? [[
         { content: `FRETE (${quote.shipping_type?.toUpperCase() || 'CIF'})`, colSpan: includeImages ? 5 : 4, styles: { halign: 'right', fontStyle: 'bold' as const, fillColor: [245, 245, 245], textColor: [40, 40, 40] } },
@@ -191,7 +200,7 @@ export const generateQuotePDF = async (quote: any, organization: any) => {
       ]] : []),
       [
         { content: 'VALOR TOTAL', colSpan: includeImages ? 5 : 4, styles: { halign: 'right', fontStyle: 'bold' as const, fillColor: [40, 40, 40], textColor: [255, 255, 255] } },
-        { content: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(quote.total_value), styles: { fontStyle: 'bold' as const, fillColor: [40, 40, 40], halign: 'right', textColor: [255, 255, 255] } }
+        { content: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(quote.total_value || 0), styles: { fontStyle: 'bold' as const, fillColor: [40, 40, 40], halign: 'right', textColor: [255, 255, 255] } }
       ]
     ] as any,
   });
@@ -256,5 +265,6 @@ export const generateQuotePDF = async (quote: any, organization: any) => {
     doc.text(splitFooter, pageWidth / 2, pageHeight - 15, { align: "center" });
   }
 
-  doc.save(`orcamento-${quote.client_name.replace(/\s+/g, '-').toLowerCase()}.pdf`);
+  const fileName = (quote.client_name || 'orcamento').replace(/\s+/g, '-').toLowerCase();
+  doc.save(`orcamento-${fileName}.pdf`);
 };
