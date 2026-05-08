@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
-export type IndicatorType = "parceiro" | "representante" | "indicador";
+export type IndicatorType = "parceiro" | "representante" | "indicador" | "instalador";
 
 export interface IndicatorArea {
   id?: string;
