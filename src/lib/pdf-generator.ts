@@ -21,7 +21,12 @@ const loadRemoteImage = (url: string): Promise<string> => {
 };
 
 export const generateQuotePDF = async (quote: any, organization: any) => {
-   const doc = new jsPDF({
+  if (!quote) {
+    console.error("No quote data provided to generateQuotePDF");
+    return;
+  }
+
+  const doc = new jsPDF({
     orientation: "landscape",
     unit: "mm",
     format: "a4"
@@ -38,6 +43,7 @@ export const generateQuotePDF = async (quote: any, organization: any) => {
       doc.addPage();
     } catch (e) {
       console.error("Failed to add cover image", e);
+      // Don't stop the whole PDF generation if just the cover fails
     }
   }
 
@@ -128,24 +134,24 @@ export const generateQuotePDF = async (quote: any, organization: any) => {
     ? [['Foto', 'Produto', 'Qtd', 'Unitário', 'Desc.', 'Total']]
     : [['Produto', 'Qtd', 'Unitário', 'Desc.', 'Total']];
 
-  const tableData = quote.items.map((item: any) => {
+  const tableData = quote.items?.map((item: any) => {
     const discountStr = item.discount_type === 'percentage' 
       ? `${item.discount_value || item.discount || 0}%`
       : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.discount_value || item.discount || 0);
 
     const row = [
-      item.product_name,
-      item.quantity,
-      new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.unit_price),
+      item.product_name || 'Produto sem nome',
+      item.quantity || 0,
+      new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.unit_price || 0),
       discountStr,
-      new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.total_price)
+      new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.total_price || 0)
     ];
     
     if (includeImages) {
       return ['', ...row];
     }
     return row;
-  });
+  }) || [];
 
   autoTable(doc, {
     startY: 100,
@@ -170,12 +176,15 @@ export const generateQuotePDF = async (quote: any, organization: any) => {
         const item = quote.items[data.row.index];
         if (item.image_url) {
           try {
+            // Since we can't easily await inside didDrawCell, we should have pre-loaded 
+            // but for now, we'll try to use the image if it's already cached or a URL
+            // and wrap in try-catch to prevent PDF generation crash
             const dim = 18;
             const x = data.cell.x + (data.cell.width - dim) / 2;
             const y = data.cell.y + (data.cell.height - dim) / 2;
             doc.addImage(item.image_url, 'JPEG', x, y, dim, dim);
           } catch (e) {
-            console.error("Error adding image to PDF table", e);
+            console.warn("Could not add image to PDF row", e);
           }
         }
       }
