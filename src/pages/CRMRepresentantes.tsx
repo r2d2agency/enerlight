@@ -171,6 +171,21 @@ export default function CRMRepresentantes() {
   const selectedRep = representatives?.find(r => r.id === selectedRepId);
   const segmentById = (id: string) => allSegments.find(s => s.id === id);
 
+  // ============== DASHBOARD DATA ==============
+  const statsByType = (representatives || []).reduce((acc, rep) => {
+    const type = rep.indicator_type || "representante";
+    acc[type] = (acc[type] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const rankingBySeller = (representatives || []).reduce((acc, rep) => {
+    const seller = rep.linked_user_name || "Sem vendedor";
+    acc[seller] = (acc[seller] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const sortedSellers = Object.entries(rankingBySeller).sort((a, b) => b[1] - a[1]);
+
   // ============== DASHBOARD VIEW ==============
   if (selectedRepId && selectedRep) {
     return (
