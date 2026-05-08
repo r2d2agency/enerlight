@@ -370,6 +370,61 @@ export default function CRMRepresentantes() {
           )}
         </div>
 
+        {/* Dashboard Global */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card>
+            <CardHeader className="py-3 px-4">
+              <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Total por Canal</CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4">
+              <div className="space-y-2">
+                {Object.entries(TYPE_LABELS).map(([type, label]) => (
+                  <div key={type} className="flex justify-between items-center text-sm">
+                    <span className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${TYPE_COLORS[type as IndicatorType].split(' ')[0]}`} />
+                      {label}
+                    </span>
+                    <span className="font-bold">{statsByType[type] || 0}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="md:col-span-2">
+            <CardHeader className="py-3 px-4">
+              <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                <Trophy className="h-3 w-3 text-amber-500" /> Ranking por Vendedor
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4">
+              <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+                {sortedSellers.slice(0, 10).map(([seller, count], idx) => (
+                  <div key={seller} className="flex justify-between items-center text-sm border-b border-dashed pb-1">
+                    <span className="truncate">
+                      <span className="text-muted-foreground mr-1">#{idx + 1}</span> {seller}
+                    </span>
+                    <span className="font-bold text-primary">{count}</span>
+                  </div>
+                ))}
+                {sortedSellers.length === 0 && (
+                  <p className="text-xs text-muted-foreground col-span-2 text-center py-2">Sem dados vinculados</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="py-3 px-4">
+              <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Total Geral</CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4 flex flex-col items-center justify-center h-full">
+              <div className="text-3xl font-bold">{(representatives || []).length}</div>
+              <p className="text-xs text-muted-foreground">indicadores ativos</p>
+            </CardContent>
+          </Card>
+        </div>
+
         <div className="flex flex-wrap gap-2 items-center">
           <div className="relative max-w-sm flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
