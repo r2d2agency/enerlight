@@ -173,8 +173,8 @@ export const generateQuotePDF = async (quote: any, organization: any) => {
     },
     didDrawCell: (data) => {
       if (includeImages && data.section === 'body' && data.column.index === 0) {
-        const item = quote.items[data.row.index];
-        if (item.image_url) {
+        const item = quote.items?.[data.row.index];
+        if (item?.image_url) {
           try {
             // Since we can't easily await inside didDrawCell, we should have pre-loaded 
             // but for now, we'll try to use the image if it's already cached or a URL
@@ -226,34 +226,45 @@ export const generateQuotePDF = async (quote: any, organization: any) => {
   // 7. Global 3-Column Footer
   const footerConfig = quote.template?.footer_config || quote.footer_config;
   if (footerConfig) {
-    const config = typeof footerConfig === 'string' ? JSON.parse(footerConfig) : footerConfig;
-    const colWidth = (pageWidth - 28) / 3;
-    const footerY = pageHeight - 15;
-    
-    doc.setFontSize(7);
-    doc.setTextColor(100, 100, 100);
-    
-    const cols = ['left', 'center', 'right'];
-    for (let i = 0; i < cols.length; i++) {
-      const col = cols[i];
-      const x = 14 + (i * colWidth) + (colWidth / 2);
-      const conf = config[col];
+    let config;
+    try {
+      config = typeof footerConfig === 'string' ? JSON.parse(footerConfig) : footerConfig;
+    } catch (e) {
+      console.error("Failed to parse footer config", e);
+      config = null;
+    }
+
+    if (config) {
+      const colWidth = (pageWidth - 28) / 3;
+      const footerY = pageHeight - 15;
       
-      if (conf?.type === 'text' && conf.content) {
-        doc.text(conf.content, x, footerY, { align: "center" });
-      } else if (conf?.type === 'logo' && conf.content) {
-        try {
-          const logoData = await loadRemoteImage(conf.content);
-          doc.addImage(logoData, 'PNG', x - 10, footerY - 8, 20, 10, undefined, 'FAST');
-        } catch(e) {}
-      } else if (conf?.type === 'social' && config.social) {
-        const social = config.social;
-        const lines = [];
-        if (social.website) lines.push(social.website);
-        if (social.instagram) lines.push(`IG: ${social.instagram}`);
-        if (social.phone) lines.push(`Tel: ${social.phone}`);
+      doc.setFontSize(7);
+      doc.setTextColor(100, 100, 100);
+      
+      const cols = ['left', 'center', 'right'];
+      for (let i = 0; i < cols.length; i++) {
+        const col = cols[i] as 'left' | 'center' | 'right';
+        const x = 14 + (i * colWidth) + (colWidth / 2);
+        const conf = config[col];
         
-        doc.text(lines.join(' | '), x, footerY, { align: "center" });
+        if (conf?.type === 'text' && conf.content) {
+          doc.text(conf.content, x, footerY, { align: "center" });
+        } else if (conf?.type === 'logo' && conf.content) {
+          try {
+            const logoData = await loadRemoteImage(conf.content);
+            doc.addImage(logoData, 'PNG', x - 10, footerY - 8, 20, 10, undefined, 'FAST');
+          } catch(e) {}
+        } else if (conf?.type === 'social' && config.social) {
+          const social = config.social;
+          const lines = [];
+          if (social.website) lines.push(social.website);
+          if (social.instagram) lines.push(`IG: ${social.instagram}`);
+          if (social.phone) lines.push(`Tel: ${social.phone}`);
+          
+          if (lines.length > 0) {
+            doc.text(lines.join(' | '), x, footerY, { align: "center" });
+          }
+        }
       }
     }
   } else if (quote.template_footer || quote.footer_text) {
