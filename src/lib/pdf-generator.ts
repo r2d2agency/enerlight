@@ -173,8 +173,8 @@ export const generateQuotePDF = async (quote: any, organization: any) => {
     },
     didDrawCell: (data) => {
       if (includeImages && data.section === 'body' && data.column.index === 0) {
-        const item = quote.items[data.row.index];
-        if (item.image_url) {
+        const item = quote.items?.[data.row.index];
+        if (item?.image_url) {
           try {
             // Since we can't easily await inside didDrawCell, we should have pre-loaded 
             // but for now, we'll try to use the image if it's already cached or a URL
