@@ -478,6 +478,7 @@ export default function CRMRepresentantes() {
                     <SelectItem value="parceiro">Parceiro</SelectItem>
                     <SelectItem value="representante">Representante</SelectItem>
                     <SelectItem value="indicador">Indicador</SelectItem>
+                    <SelectItem value="instalador">Instalador</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
