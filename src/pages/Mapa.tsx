@@ -23,6 +23,7 @@ const INDICATOR_COLORS: Record<string, string> = {
   parceiro: "#3b82f6",
   representante: "#a855f7",
   indicador: "#10b981",
+  instalador: "#f97316",
 };
 
 const createIcon = (color: string) =>
