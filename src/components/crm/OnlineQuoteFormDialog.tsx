@@ -14,8 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
+import { RichEmailEditor } from "@/components/email/RichEmailEditor";
 
 interface OnlineQuoteFormDialogProps {
   open: boolean;
@@ -474,19 +473,11 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
                     <FileText className="h-5 w-5 text-primary" />
                     Informações Fiscais
                   </Label>
-                  <div className="bg-background border rounded-md">
-                    <ReactQuill 
-                      theme="snow" 
+                  <div className="bg-background border rounded-md min-h-[300px]">
+                    <RichEmailEditor 
                       value={clientInfo.fiscal_info} 
                       onChange={val => setClientInfo({...clientInfo, fiscal_info: val})}
-                      modules={{
-                        toolbar: [
-                          ['bold', 'italic', 'underline'],
-                          [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                          ['clean']
-                        ],
-                      }}
-                      className="h-64 mb-12"
+                      className="border-none"
                       placeholder="Cole aqui as informações fiscais, impostos, NCM, etc..."
                     />
                   </div>
