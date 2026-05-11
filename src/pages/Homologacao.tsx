@@ -48,6 +48,8 @@ export default function Homologacao() {
   const [viewMode, setViewMode] = useState<"kanban" | "dashboard">("kanban");
   const [selectedBoardId, setSelectedBoardId] = useState<string | null>(null);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
+  const [showTasksDialog, setShowTasksDialog] = useState(false);
+
   const [showNewBoardDialog, setShowNewBoardDialog] = useState(false);
   const [showNewCompanyDialog, setShowNewCompanyDialog] = useState(false);
   const [showCompanyDetailDialog, setShowCompanyDetailDialog] = useState(false);
