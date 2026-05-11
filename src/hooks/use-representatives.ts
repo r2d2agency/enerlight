@@ -35,6 +35,7 @@ export interface Representative {
   created_at: string;
   open_deals_count?: number;
   open_deals_value?: number;
+  last_interaction_at?: string;
 }
 
 export interface RepresentativeDashboard {
@@ -175,6 +176,38 @@ export function useRepresentativeMutations() {
   });
 
   return { createRepresentative, updateRepresentative, deleteRepresentative };
+}
+
+// ============== CONTACTS / HISTORY ==============
+export interface IndicatorHistory {
+  id: string;
+  indicator_id: string;
+  user_name: string;
+  content: string;
+  created_at: string;
+}
+
+export function useIndicatorHistory(indicatorId: string | null) {
+  return useQuery({
+    queryKey: ["crm-indicator-history", indicatorId],
+    queryFn: () => {
+      if (!indicatorId) return [];
+      return api<IndicatorHistory[]>(`/api/crm/representatives/${indicatorId}/history`);
+    },
+    enabled: !!indicatorId,
+  });
+}
+
+export function useCreateIndicatorHistory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ indicatorId, content }: { indicatorId: string; content: string }) =>
+      api<IndicatorHistory>(`/api/crm/representatives/${indicatorId}/history`, { method: "POST", body: { content } }),
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ["crm-indicator-history", vars.indicatorId] });
+      qc.invalidateQueries({ queryKey: ["crm-representatives"] });
+    },
+  });
 }
 
 // ============== SEGMENTS ==============
