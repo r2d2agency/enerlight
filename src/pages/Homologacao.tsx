@@ -368,6 +368,27 @@ export default function Homologacao() {
     medium: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
     high: "bg-destructive/10 text-destructive",
   };
+  
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60000); // Atualiza a cada minuto
+    return () => clearInterval(timer);
+  }, []);
+
+  const getTimeSinceLastHistory = (lastDate?: string) => {
+    if (!lastDate) return "Sem histórico";
+    const last = new Date(lastDate);
+    const diffMs = now.getTime() - last.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffDays > 0) return `${diffDays}d atrás`;
+    if (diffHours > 0) return `${diffHours}h atrás`;
+    if (diffMins > 0) return `${diffMins}min atrás`;
+    return "Agora";
+  };
+
 
   return (
     <MainLayout>
