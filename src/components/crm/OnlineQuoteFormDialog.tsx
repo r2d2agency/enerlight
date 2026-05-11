@@ -717,10 +717,6 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
                   </div>
                 </div>
               </div>
-            ) : step === "items" ? (
-              <div className="flex flex-col h-full gap-4">
-                ...
-              </div>
             ) : null}
           </div>
 
