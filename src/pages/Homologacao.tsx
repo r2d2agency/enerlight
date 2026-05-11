@@ -22,7 +22,7 @@ import {
   Calendar, Trash2, Edit, GripVertical, CheckCircle2, Circle,
   Clock, AlertTriangle, ChevronRight, History, Settings, MoreVertical,
   Presentation, Search, MessageSquare, Send, Upload, Paperclip, StickyNote, MapPin, Loader2,
-  BarChart3, LayoutDashboard
+  BarChart3, LayoutDashboard, RefreshCcw
 } from "lucide-react";
 import {
   useHomologationBoards, useCreateBoard, useDeleteBoard,
