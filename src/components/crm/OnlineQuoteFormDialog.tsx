@@ -241,6 +241,7 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
         payment_terms: clientInfo.payment_terms,
         payment_method: clientInfo.payment_method,
         notes: clientInfo.notes,
+        fiscal_info: clientInfo.fiscal_info,
         shipping_type: clientInfo.shipping_type,
         shipping_value: Number(clientInfo.shipping_value) || 0,
         price_list_id: selectedPriceListId,
