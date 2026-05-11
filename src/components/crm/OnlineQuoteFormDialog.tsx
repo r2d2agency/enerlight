@@ -267,7 +267,7 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
       // Reset
       setStep("client");
       setQuoteItems([]);
-      setClientInfo({ name: "", document: "", email: "", phone: "", notes: "", payment_terms: "avista", payment_method: "pix", shipping_type: "cif", shipping_value: 0 });
+      setClientInfo({ name: "", document: "", email: "", phone: "", notes: "", fiscal_info: "", payment_terms: "avista", payment_method: "pix", shipping_type: "cif", shipping_value: 0 });
     } catch (err) {
       toast.error(initialData ? "Erro ao atualizar orçamento" : "Erro ao criar orçamento");
     }
