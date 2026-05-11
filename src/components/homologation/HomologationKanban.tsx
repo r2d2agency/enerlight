@@ -107,11 +107,23 @@ function CompanyCardContent({ company, stage, stages, onCompanyClick, onMoveComp
           </DropdownMenu>
         </div>
         {company.cnpj && <p className="text-xs text-muted-foreground">{company.cnpj}</p>}
-        {company.contact_name && (
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <User className="h-3 w-3" /> {company.contact_name}
-          </div>
-        )}
+        <div className="flex items-center justify-between gap-1.5">
+          {company.contact_name && (
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground truncate">
+              <User className="h-3 w-3" /> {company.contact_name}
+            </div>
+          )}
+          {lastHistoryStr && (
+            <div className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full border ${
+              lastHistoryStr.includes('d') && parseInt(lastHistoryStr) >= 7 
+                ? "bg-red-500/10 text-red-600 border-red-500/20" 
+                : "bg-muted text-muted-foreground"
+            }`} title="Tempo desde a última interação">
+              <Clock className="h-2.5 w-2.5" /> {lastHistoryStr}
+            </div>
+          )}
+        </div>
+
         <div className="flex items-center gap-3 text-xs text-muted-foreground">
           {company.task_count > 0 && (
             <span className="flex items-center gap-1">
