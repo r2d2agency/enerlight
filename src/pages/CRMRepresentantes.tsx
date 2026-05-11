@@ -65,6 +65,7 @@ export default function CRMRepresentantes() {
   const [selectedDeal, setSelectedDeal] = useState<CRMDeal | null>(null);
   const [dealDetailOpen, setDealDetailOpen] = useState(false);
   const [segmentsManagerOpen, setSegmentsManagerOpen] = useState(false);
+  const [historyContent, setHistoryContent] = useState("");
 
   const [startDate, setStartDate] = useState(format(subDays(new Date(), 30), "yyyy-MM-dd"));
   const [endDate, setEndDate] = useState(format(new Date(), "yyyy-MM-dd"));
@@ -76,6 +77,8 @@ export default function CRMRepresentantes() {
   const { data: allSegments = [] } = useIndicatorSegments();
   const { data: editingRep } = useRepresentative(editingRepId);
   const { createRepresentative, updateRepresentative, deleteRepresentative } = useRepresentativeMutations();
+  const { data: history = [] } = useIndicatorHistory(selectedRepId);
+  const createHistory = useCreateIndicatorHistory();
 
   const [form, setForm] = useState<FormState>(emptyForm);
 
