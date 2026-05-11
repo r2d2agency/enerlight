@@ -219,7 +219,14 @@ export const generateQuotePDF = async (quote: any, organization: any) => {
     doc.setFontSize(9);
     doc.setTextColor(80, 80, 80);
     
-    const cleanFiscal = quote.fiscal_info.replace(/<[^>]*>/g, '');
+    // Improved clean function to handle more HTML tags and line breaks
+    const cleanFiscal = quote.fiscal_info
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/p>/gi, '\n')
+      .replace(/<[^>]*>/g, '')
+      .replace(/&nbsp;/g, ' ')
+      .trim();
+      
     const splitFiscal = doc.splitTextToSize(cleanFiscal, pageWidth - 28);
     doc.text(splitFiscal, 14, currentY + 7, { align: "left" });
     

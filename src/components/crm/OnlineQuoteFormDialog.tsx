@@ -14,8 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
+import { RichEmailEditor } from "@/components/email/RichEmailEditor";
 
 interface OnlineQuoteFormDialogProps {
   open: boolean;
