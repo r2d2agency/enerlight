@@ -206,13 +206,38 @@ export const generateQuotePDF = async (quote: any, organization: any) => {
   });
 
   // 6. Footer & Notes
-  const finalY = (doc as any).lastAutoTable.finalY + 15;
+  let currentY = (doc as any).lastAutoTable.finalY + 15;
+
+  // 6.1 Fiscal Information
+  if (quote.fiscal_info) {
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(40, 40, 40);
+    doc.text("Informações Fiscais:", 14, currentY);
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(80, 80, 80);
+    
+    const cleanFiscal = quote.fiscal_info.replace(/<[^>]*>/g, '');
+    const splitFiscal = doc.splitTextToSize(cleanFiscal, pageWidth - 28);
+    doc.text(splitFiscal, 14, currentY + 7, { align: "left" });
+    
+    currentY += (splitFiscal.length * 5) + 12;
+  }
+
+  // Check if we need a new page for notes if they won't fit
+  if (currentY > pageHeight - 30) {
+    doc.addPage();
+    currentY = 20;
+  }
+
   const notesText = quote.notes || quote.template?.header_text || '';
   if (notesText) {
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(40, 40, 40);
-    doc.text("Informações Adicionais / Observações:", 14, finalY);
+    doc.text("Informações Adicionais / Observações:", 14, currentY);
     
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
@@ -220,7 +245,8 @@ export const generateQuotePDF = async (quote: any, organization: any) => {
     
     const cleanText = notesText.replace(/<[^>]*>/g, '');
     const splitNotes = doc.splitTextToSize(cleanText, pageWidth - 28);
-    doc.text(splitNotes, 14, finalY + 7, { align: "left" });
+    doc.text(splitNotes, 14, currentY + 7, { align: "left" });
+    currentY += (splitNotes.length * 5) + 12;
   }
 
   // 7. Global 3-Column Footer
