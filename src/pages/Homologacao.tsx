@@ -1054,7 +1054,74 @@ export default function Homologacao() {
         </DialogContent>
       </Dialog>
 
-      {/* New Stage Dialog */}
+      {/* Global Tasks Dialog */}
+      <Dialog open={showTasksDialog} onOpenChange={setShowTasksDialog}>
+        <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ClipboardList className="h-5 w-5" />
+              Tarefas e Retornos Pendentes
+            </DialogTitle>
+          </DialogHeader>
+          
+          <ScrollArea className="flex-1 mt-4">
+            <div className="space-y-4 pr-4">
+              {companies.some(c => c.task_count > 0) ? (
+                stages.map(stage => {
+                  const stageCompanies = companiesByStage[stage.id] || [];
+                  const companiesWithTasks = stageCompanies.filter(c => c.task_count > c.completed_task_count);
+                  
+                  if (companiesWithTasks.length === 0) return null;
+                  
+                  return (
+                    <div key={stage.id} className="space-y-2">
+                      <div className="flex items-center gap-2 px-2 py-1 bg-muted/50 rounded-md">
+                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: stage.color }} />
+                        <span className="text-xs font-semibold uppercase tracking-wider">{stage.name}</span>
+                      </div>
+                      
+                      {companiesWithTasks.map(company => (
+                        <div 
+                          key={company.id} 
+                          className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent/50 cursor-pointer transition-colors"
+                          onClick={() => {
+                            setSelectedCompanyId(company.id);
+                            setShowCompanyDetailDialog(true);
+                            setShowTasksDialog(false);
+                          }}
+                        >
+                          <div>
+                            <p className="text-sm font-medium">{company.name}</p>
+                            <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                              <span className="flex items-center gap-1">
+                                <ClipboardList className="h-3 w-3" />
+                                {company.task_count - company.completed_task_count} pendentes
+                              </span>
+                              {company.last_history_at && (
+                                <span className="flex items-center gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  Último histórico: {getTimeSinceLastHistory(company.last_history_at)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="text-center py-12 text-muted-foreground">
+                  <ClipboardList className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                  <p>Nenhuma tarefa pendente encontrada.</p>
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={showNewStageDialog} onOpenChange={setShowNewStageDialog}>
         <DialogContent>
           <DialogHeader><DialogTitle>Nova Fase</DialogTitle></DialogHeader>
