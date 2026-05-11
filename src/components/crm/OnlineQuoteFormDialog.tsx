@@ -64,6 +64,7 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
         email: initialData.client_email || "",
         phone: initialData.client_phone || "",
         notes: initialData.notes || "",
+        fiscal_info: initialData.fiscal_info || "",
         payment_terms: initialData.payment_terms || "avista",
         payment_method: initialData.payment_method || "pix",
         shipping_type: initialData.shipping_type || "cif",
@@ -78,7 +79,7 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
       // Reset only when opening for a new quote
       setStep("client");
       setQuoteItems([]);
-      setClientInfo({ name: "", document: "", email: "", phone: "", notes: "", payment_terms: "avista", payment_method: "pix", shipping_type: "cif", shipping_value: 0 });
+      setClientInfo({ name: "", document: "", email: "", phone: "", notes: "", fiscal_info: "", payment_terms: "avista", payment_method: "pix", shipping_type: "cif", shipping_value: 0 });
     }
   }, [initialData, open]);
 
