@@ -284,13 +284,6 @@ export const generateQuotePDF = async (quote: any, organization: any) => {
     doc.text(splitTemplateText, 14, currentY + 7, { align: "left" });
     currentY += (splitTemplateText.length * 5) + 12;
   }
-
-    const cleanText = notesText.replace(/<[^>]*>/g, '');
-    const splitNotes = doc.splitTextToSize(cleanText, pageWidth - 28);
-    doc.text(splitNotes, 14, currentY + 7, { align: "left" });
-    currentY += (splitNotes.length * 5) + 12;
-  }
-
   // 7. Global 3-Column Footer
   const footerConfig = quote.template?.footer_config || quote.footer_config;
   if (footerConfig) {
