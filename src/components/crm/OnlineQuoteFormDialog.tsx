@@ -26,13 +26,14 @@ interface OnlineQuoteFormDialogProps {
 export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: OnlineQuoteFormDialogProps) {
   const { user } = useAuth();
   const isRepresentative = user?.role === 'representative';
-  const [step, setStep] = useState<"client" | "payment" | "shipping" | "items">("client");
+  const [step, setStep] = useState<"client" | "payment" | "items" | "fiscal" | "shipping">("client");
   const [clientInfo, setClientInfo] = useState({
     name: "",
     document: "",
     email: "",
     phone: "",
     notes: "",
+    fiscal_info: "",
     payment_terms: "avista",
     payment_method: "pix",
     shipping_type: "cif",
