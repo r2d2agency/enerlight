@@ -14,6 +14,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { MoreVertical, User, ClipboardList, Presentation, Trash2 } from "lucide-react";
 import { HomologationCompany, HomologationStage } from "@/hooks/use-homologation";
+import { Clock } from "lucide-react";
+
 
 interface Props {
   stages: HomologationStage[];
