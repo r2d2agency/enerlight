@@ -114,6 +114,7 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
       email: company.email || "",
       phone: company.phone || "",
       notes: clientInfo.notes,
+      fiscal_info: clientInfo.fiscal_info,
       payment_terms: company.payment_terms || "",
       payment_method: company.payment_method || "",
       shipping_type: clientInfo.shipping_type,
