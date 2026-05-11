@@ -423,7 +423,16 @@ export default function Homologacao() {
              )}
            </div>
            <div className="flex items-center gap-2">
+             <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setShowTasksDialog(true)}
+                className="hidden sm:flex"
+             >
+               <ClipboardList className="h-4 w-4 mr-1" /> Tarefas
+             </Button>
              <div className="flex items-center border rounded-md overflow-hidden">
+
                <Button
                  variant={viewMode === "kanban" ? "default" : "ghost"}
                  size="sm"
