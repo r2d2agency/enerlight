@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,13 +7,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Trash2, Search, Loader2, Save, Image as ImageIcon, Eye, X, Building2, List } from "lucide-react";
+import { Plus, Trash2, Search, Loader2, Save, Image as ImageIcon, Eye, X, Building2, List, FileText } from "lucide-react";
 import { usePriceLists, usePriceListItems, useOnlineQuoteMutations, useOnlineQuoteTemplates } from "@/hooks/use-online-quotes";
 import { useCRMCompanies } from "@/hooks/use-crm";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 
 interface OnlineQuoteFormDialogProps {
   open: boolean;
@@ -24,13 +26,14 @@ interface OnlineQuoteFormDialogProps {
 export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: OnlineQuoteFormDialogProps) {
   const { user } = useAuth();
   const isRepresentative = user?.role === 'representative';
-  const [step, setStep] = useState<"client" | "payment" | "shipping" | "items">("client");
+  const [step, setStep] = useState<"client" | "payment" | "items" | "fiscal" | "shipping">("client");
   const [clientInfo, setClientInfo] = useState({
     name: "",
     document: "",
     email: "",
     phone: "",
     notes: "",
+    fiscal_info: "",
     payment_terms: "avista",
     payment_method: "pix",
     shipping_type: "cif",
@@ -61,6 +64,7 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
         email: initialData.client_email || "",
         phone: initialData.client_phone || "",
         notes: initialData.notes || "",
+        fiscal_info: initialData.fiscal_info || "",
         payment_terms: initialData.payment_terms || "avista",
         payment_method: initialData.payment_method || "pix",
         shipping_type: initialData.shipping_type || "cif",
@@ -75,7 +79,7 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
       // Reset only when opening for a new quote
       setStep("client");
       setQuoteItems([]);
-      setClientInfo({ name: "", document: "", email: "", phone: "", notes: "", payment_terms: "avista", payment_method: "pix", shipping_type: "cif", shipping_value: 0 });
+      setClientInfo({ name: "", document: "", email: "", phone: "", notes: "", fiscal_info: "", payment_terms: "avista", payment_method: "pix", shipping_type: "cif", shipping_value: 0 });
     }
   }, [initialData, open]);
 
@@ -110,6 +114,7 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
       email: company.email || "",
       phone: company.phone || "",
       notes: clientInfo.notes,
+      fiscal_info: clientInfo.fiscal_info,
       payment_terms: company.payment_terms || "",
       payment_method: company.payment_method || "",
       shipping_type: clientInfo.shipping_type,
@@ -236,6 +241,7 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
         payment_terms: clientInfo.payment_terms,
         payment_method: clientInfo.payment_method,
         notes: clientInfo.notes,
+        fiscal_info: clientInfo.fiscal_info,
         shipping_type: clientInfo.shipping_type,
         shipping_value: Number(clientInfo.shipping_value) || 0,
         price_list_id: selectedPriceListId,
@@ -261,7 +267,7 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
       // Reset
       setStep("client");
       setQuoteItems([]);
-      setClientInfo({ name: "", document: "", email: "", phone: "", notes: "", payment_terms: "avista", payment_method: "pix", shipping_type: "cif", shipping_value: 0 });
+      setClientInfo({ name: "", document: "", email: "", phone: "", notes: "", fiscal_info: "", payment_terms: "avista", payment_method: "pix", shipping_type: "cif", shipping_value: 0 });
     } catch (err) {
       toast.error(initialData ? "Erro ao atualizar orçamento" : "Erro ao criar orçamento");
     }
@@ -461,6 +467,34 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
                   />
                 </div>
               </div>
+            ) : step === "fiscal" ? (
+              <div className="space-y-6 max-w-4xl mx-auto py-4">
+                <div className="space-y-3">
+                  <Label className="text-base font-semibold flex items-center gap-2">
+                    <FileText className="h-5 w-5 text-primary" />
+                    Informações Fiscais
+                  </Label>
+                  <div className="bg-background border rounded-md">
+                    <ReactQuill 
+                      theme="snow" 
+                      value={clientInfo.fiscal_info} 
+                      onChange={val => setClientInfo({...clientInfo, fiscal_info: val})}
+                      modules={{
+                        toolbar: [
+                          ['bold', 'italic', 'underline'],
+                          [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                          ['clean']
+                        ],
+                      }}
+                      className="h-64 mb-12"
+                      placeholder="Cole aqui as informações fiscais, impostos, NCM, etc..."
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Estas informações serão exibidas logo após a lista de produtos na proposta.
+                  </p>
+                </div>
+              </div>
             ) : step === "shipping" ? (
               <div className="space-y-6 max-w-2xl mx-auto py-4">
                 <div className="grid grid-cols-1 gap-6">
@@ -493,7 +527,7 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
                   </div>
                 </div>
               </div>
-            ) : (
+            ) : step === "items" ? (
               <div className="flex flex-col h-full gap-4">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full min-h-0">
                   {/* Seleção de Produtos */}
@@ -683,7 +717,7 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
                   </div>
                 </div>
               </div>
-            )}
+            ) : null}
           </div>
 
           <DialogFooter className="p-6 pt-2 gap-2 sm:gap-0 border-t">
@@ -700,20 +734,27 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
             ) : step === "payment" ? (
               <>
                 <Button variant="outline" onClick={() => setStep("client")}>Voltar</Button>
-                <Button onClick={() => setStep("shipping")}>
-                  Próximo: Frete
-                </Button>
-              </>
-            ) : step === "shipping" ? (
-              <>
-                <Button variant="outline" onClick={() => setStep("payment")}>Voltar</Button>
                 <Button onClick={() => setStep("items")}>
                   Próximo: Adicionar Itens
                 </Button>
               </>
+            ) : step === "items" ? (
+              <>
+                <Button variant="outline" onClick={() => setStep("payment")}>Voltar</Button>
+                <Button onClick={() => setStep("fiscal")}>
+                  Próximo: Informações Fiscais
+                </Button>
+              </>
+            ) : step === "fiscal" ? (
+              <>
+                <Button variant="outline" onClick={() => setStep("items")}>Voltar</Button>
+                <Button onClick={() => setStep("shipping")}>
+                  Próximo: Frete
+                </Button>
+              </>
             ) : (
               <>
-                <Button variant="outline" onClick={() => setStep("shipping")}>Voltar</Button>
+                <Button variant="outline" onClick={() => setStep("fiscal")}>Voltar</Button>
                 <Button onClick={handleSubmit} disabled={createQuote.isPending || updateQuote.isPending || quoteItems.length === 0}>
                   {(createQuote.isPending || updateQuote.isPending) ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                   {initialData?.id ? "Salvar Alterações" : "Gerar Orçamento"}
