@@ -9,9 +9,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   useRepresentatives, useRepresentative, useRepresentativeDashboard, useRepresentativeMutations,
   useRepresentativeDeals, useIndicatorSegments, Representative, IndicatorArea, IndicatorType,
+  useIndicatorHistory, useCreateIndicatorHistory,
 } from "@/hooks/use-representatives";
 import { useCRMMyTeam, CRMDeal } from "@/hooks/use-crm";
 import { DealDetailDialog } from "@/components/crm/DealDetailDialog";
@@ -434,7 +436,7 @@ export default function CRMRepresentantes() {
         </div>
 
         {/* Dashboard Global */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <Card>
             <CardHeader className="py-3 px-4">
               <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Total por Canal</CardTitle>
@@ -472,6 +474,41 @@ export default function CRMRepresentantes() {
                 ))}
                 {sortedSellers.length === 0 && (
                   <p className="text-xs text-muted-foreground col-span-2 text-center py-2">Sem dados vinculados</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="py-3 px-4">
+              <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                <Clock className="h-3 w-3" /> Inatividade
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4">
+              <div className="space-y-2">
+                {(() => {
+                  const now = new Date();
+                  const sortedByInactivity = [...(representatives || [])]
+                    .filter(r => (r as any).last_interaction_at)
+                    .sort((a, b) => new Date((a as any).last_interaction_at!).getTime() - new Date((b as any).last_interaction_at!).getTime());
+                  
+                  return sortedByInactivity.slice(0, 5).map(rep => {
+                    const last = new Date((rep as any).last_interaction_at!);
+                    const diffDays = Math.floor((now.getTime() - last.getTime()) / (1000 * 60 * 60 * 24));
+                    return (
+                      <div key={rep.id} className="flex justify-between items-center text-xs border-b border-dashed pb-1 last:border-0"
+                           onClick={(e) => { e.stopPropagation(); setSelectedRepId(rep.id); }}>
+                        <span className="truncate max-w-[100px]">{rep.name}</span>
+                        <Badge variant={diffDays > 15 ? "destructive" : diffDays > 7 ? "secondary" : "outline"} className="text-[10px] h-4">
+                          {diffDays}d
+                        </Badge>
+                      </div>
+                    );
+                  });
+                })()}
+                {!(representatives || []).some(r => (r as any).last_interaction_at) && (
+                  <p className="text-[10px] text-muted-foreground text-center py-2">Sem histórico</p>
                 )}
               </div>
             </CardContent>
