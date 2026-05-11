@@ -35,6 +35,7 @@ export interface Representative {
   created_at: string;
   open_deals_count?: number;
   open_deals_value?: number;
+  last_interaction_at?: string;
 }
 
 export interface RepresentativeDashboard {
