@@ -717,7 +717,7 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
                   </div>
                 </div>
               </div>
-            )}
+            ) : null}
           </div>
 
           <DialogFooter className="p-6 pt-2 gap-2 sm:gap-0 border-t">
