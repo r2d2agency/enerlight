@@ -14,6 +14,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { MoreVertical, User, ClipboardList, Presentation, Trash2 } from "lucide-react";
 import { HomologationCompany, HomologationStage } from "@/hooks/use-homologation";
+import { Clock } from "lucide-react";
+
 
 interface Props {
   stages: HomologationStage[];
@@ -60,6 +62,22 @@ function CompanyCardContent({ company, stage, stages, onCompanyClick, onMoveComp
   onMoveCompany: (id: string, stageId: string) => void;
   onDeleteCompany: (c: HomologationCompany) => void;
 }) {
+  const getTimeSinceLastHistory = (lastDate?: string) => {
+    if (!lastDate) return null;
+    const last = new Date(lastDate);
+    const diffMs = new Date().getTime() - last.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffDays > 0) return `${diffDays}d`;
+    if (diffHours > 0) return `${diffHours}h`;
+    if (diffMins > 0) return `${diffMins}m`;
+    return "Agora";
+  };
+
+  const lastHistoryStr = getTimeSinceLastHistory(company.last_history_at);
+
   return (
     <Card
       className="cursor-grab hover:shadow-md transition-shadow border-l-4 active:cursor-grabbing"
@@ -89,11 +107,23 @@ function CompanyCardContent({ company, stage, stages, onCompanyClick, onMoveComp
           </DropdownMenu>
         </div>
         {company.cnpj && <p className="text-xs text-muted-foreground">{company.cnpj}</p>}
-        {company.contact_name && (
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <User className="h-3 w-3" /> {company.contact_name}
-          </div>
-        )}
+        <div className="flex items-center justify-between gap-1.5">
+          {company.contact_name && (
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground truncate">
+              <User className="h-3 w-3" /> {company.contact_name}
+            </div>
+          )}
+          {lastHistoryStr && (
+            <div className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full border ${
+              lastHistoryStr.includes('d') && parseInt(lastHistoryStr) >= 7 
+                ? "bg-red-500/10 text-red-600 border-red-500/20" 
+                : "bg-muted text-muted-foreground"
+            }`} title="Tempo desde a última interação">
+              <Clock className="h-2.5 w-2.5" /> {lastHistoryStr}
+            </div>
+          )}
+        </div>
+
         <div className="flex items-center gap-3 text-xs text-muted-foreground">
           {company.task_count > 0 && (
             <span className="flex items-center gap-1">

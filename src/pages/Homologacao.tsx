@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { MainLayout } from "@/components/layout/MainLayout";
@@ -22,7 +22,7 @@ import {
   Calendar, Trash2, Edit, GripVertical, CheckCircle2, Circle,
   Clock, AlertTriangle, ChevronRight, History, Settings, MoreVertical,
   Presentation, Search, MessageSquare, Send, Upload, Paperclip, StickyNote, MapPin, Loader2,
-  BarChart3, LayoutDashboard
+  BarChart3, LayoutDashboard, RefreshCcw
 } from "lucide-react";
 import {
   useHomologationBoards, useCreateBoard, useDeleteBoard,
@@ -48,6 +48,8 @@ export default function Homologacao() {
   const [viewMode, setViewMode] = useState<"kanban" | "dashboard">("kanban");
   const [selectedBoardId, setSelectedBoardId] = useState<string | null>(null);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
+  const [showTasksDialog, setShowTasksDialog] = useState(false);
+
   const [showNewBoardDialog, setShowNewBoardDialog] = useState(false);
   const [showNewCompanyDialog, setShowNewCompanyDialog] = useState(false);
   const [showCompanyDetailDialog, setShowCompanyDetailDialog] = useState(false);
@@ -366,6 +368,27 @@ export default function Homologacao() {
     medium: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
     high: "bg-destructive/10 text-destructive",
   };
+  
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60000); // Atualiza a cada minuto
+    return () => clearInterval(timer);
+  }, []);
+
+  const getTimeSinceLastHistory = (lastDate?: string) => {
+    if (!lastDate) return "Sem histórico";
+    const last = new Date(lastDate);
+    const diffMs = now.getTime() - last.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffDays > 0) return `${diffDays}d atrás`;
+    if (diffHours > 0) return `${diffHours}h atrás`;
+    if (diffMins > 0) return `${diffMins}min atrás`;
+    return "Agora";
+  };
+
 
   return (
     <MainLayout>
@@ -400,7 +423,16 @@ export default function Homologacao() {
              )}
            </div>
            <div className="flex items-center gap-2">
+             <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setShowTasksDialog(true)}
+                className="hidden sm:flex"
+             >
+               <ClipboardList className="h-4 w-4 mr-1" /> Tarefas
+             </Button>
              <div className="flex items-center border rounded-md overflow-hidden">
+
                <Button
                  variant={viewMode === "kanban" ? "default" : "ghost"}
                  size="sm"
@@ -712,9 +744,28 @@ export default function Homologacao() {
               </TabsContent>
 
               <TabsContent value="tasks" className="space-y-3 mt-4">
-                <Button size="sm" onClick={() => setShowNewTaskDialog(true)}>
-                  <Plus className="h-4 w-4 mr-1" /> Nova Tarefa
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button size="sm" onClick={() => setShowNewTaskDialog(true)}>
+                    <Plus className="h-4 w-4 mr-1" /> Nova Tarefa
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => {
+                      setTaskForm({
+                        title: "Retorno/Contato",
+                        description: "Agendar retorno com o cliente",
+                        priority: "medium",
+                        due_date: new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0],
+                        assigned_to: user?.id || ""
+                      });
+                      setShowNewTaskDialog(true);
+                    }}
+                  >
+                    <RefreshCcw className="h-4 w-4 mr-1" /> Agendar Retorno
+                  </Button>
+                </div>
+
                 <div className="space-y-2">
                   {tasks.map(task => (
                     <div key={task.id} className="flex items-center gap-3 p-2.5 rounded-lg border">
@@ -1022,7 +1073,74 @@ export default function Homologacao() {
         </DialogContent>
       </Dialog>
 
-      {/* New Stage Dialog */}
+      {/* Global Tasks Dialog */}
+      <Dialog open={showTasksDialog} onOpenChange={setShowTasksDialog}>
+        <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ClipboardList className="h-5 w-5" />
+              Tarefas e Retornos Pendentes
+            </DialogTitle>
+          </DialogHeader>
+          
+          <ScrollArea className="flex-1 mt-4">
+            <div className="space-y-4 pr-4">
+              {companies.some(c => c.task_count > 0) ? (
+                stages.map(stage => {
+                  const stageCompanies = companiesByStage[stage.id] || [];
+                  const companiesWithTasks = stageCompanies.filter(c => c.task_count > c.completed_task_count);
+                  
+                  if (companiesWithTasks.length === 0) return null;
+                  
+                  return (
+                    <div key={stage.id} className="space-y-2">
+                      <div className="flex items-center gap-2 px-2 py-1 bg-muted/50 rounded-md">
+                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: stage.color }} />
+                        <span className="text-xs font-semibold uppercase tracking-wider">{stage.name}</span>
+                      </div>
+                      
+                      {companiesWithTasks.map(company => (
+                        <div 
+                          key={company.id} 
+                          className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent/50 cursor-pointer transition-colors"
+                          onClick={() => {
+                            setSelectedCompanyId(company.id);
+                            setShowCompanyDetailDialog(true);
+                            setShowTasksDialog(false);
+                          }}
+                        >
+                          <div>
+                            <p className="text-sm font-medium">{company.name}</p>
+                            <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                              <span className="flex items-center gap-1">
+                                <ClipboardList className="h-3 w-3" />
+                                {company.task_count - company.completed_task_count} pendentes
+                              </span>
+                              {company.last_history_at && (
+                                <span className="flex items-center gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  Último histórico: {getTimeSinceLastHistory(company.last_history_at)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="text-center py-12 text-muted-foreground">
+                  <ClipboardList className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                  <p>Nenhuma tarefa pendente encontrada.</p>
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={showNewStageDialog} onOpenChange={setShowNewStageDialog}>
         <DialogContent>
           <DialogHeader><DialogTitle>Nova Fase</DialogTitle></DialogHeader>
