@@ -744,9 +744,28 @@ export default function Homologacao() {
               </TabsContent>
 
               <TabsContent value="tasks" className="space-y-3 mt-4">
-                <Button size="sm" onClick={() => setShowNewTaskDialog(true)}>
-                  <Plus className="h-4 w-4 mr-1" /> Nova Tarefa
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button size="sm" onClick={() => setShowNewTaskDialog(true)}>
+                    <Plus className="h-4 w-4 mr-1" /> Nova Tarefa
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => {
+                      setTaskForm({
+                        title: "Retorno/Contato",
+                        description: "Agendar retorno com o cliente",
+                        priority: "medium",
+                        due_date: new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0],
+                        assigned_to: user?.id || ""
+                      });
+                      setShowNewTaskDialog(true);
+                    }}
+                  >
+                    <RefreshCcw className="h-4 w-4 mr-1" /> Agendar Retorno
+                  </Button>
+                </div>
+
                 <div className="space-y-2">
                   {tasks.map(task => (
                     <div key={task.id} className="flex items-center gap-3 p-2.5 rounded-lg border">
