@@ -239,8 +239,8 @@ export const generateQuotePDF = async (quote: any, organization: any) => {
     currentY = 20;
   }
 
-  const notesText = quote.notes || quote.template?.header_text || '';
-  if (notesText) {
+  // 6.2 Internal Quote Notes
+  if (quote.notes) {
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(40, 40, 40);
@@ -250,6 +250,41 @@ export const generateQuotePDF = async (quote: any, organization: any) => {
     doc.setFontSize(9);
     doc.setTextColor(80, 80, 80);
     
+    const cleanNotes = quote.notes.replace(/<[^>]*>/g, '');
+    const splitNotes = doc.splitTextToSize(cleanNotes, pageWidth - 28);
+    doc.text(splitNotes, 14, currentY + 7, { align: "left" });
+    currentY += (splitNotes.length * 5) + 12;
+  }
+
+  // Check again for template header text (which the user wants below products now)
+  if (currentY > pageHeight - 30) {
+    doc.addPage();
+    currentY = 20;
+  }
+
+  const templateText = quote.template?.header_text || '';
+  if (templateText) {
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(40, 40, 40);
+    doc.text("Termos e Condições do Modelo:", 14, currentY);
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(80, 80, 80);
+    
+    const cleanTemplateText = templateText
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/p>/gi, '\n')
+      .replace(/<[^>]*>/g, '')
+      .replace(/&nbsp;/g, ' ')
+      .trim();
+      
+    const splitTemplateText = doc.splitTextToSize(cleanTemplateText, pageWidth - 28);
+    doc.text(splitTemplateText, 14, currentY + 7, { align: "left" });
+    currentY += (splitTemplateText.length * 5) + 12;
+  }
+
     const cleanText = notesText.replace(/<[^>]*>/g, '');
     const splitNotes = doc.splitTextToSize(cleanText, pageWidth - 28);
     doc.text(splitNotes, 14, currentY + 7, { align: "left" });
