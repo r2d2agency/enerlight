@@ -19,9 +19,10 @@ import { IndicatorSegmentsManager } from "@/components/crm/IndicatorSegmentsMana
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Plus, Search, Users, DollarSign, Briefcase, Edit2, Trash2, ArrowLeft, Calendar,
-  XCircle, Trophy, Percent, ExternalLink, MapPin, Settings, X, Tag,
+  XCircle, Trophy, Percent, ExternalLink, MapPin, Settings, X, Tag, History, Clock,
 } from "lucide-react";
-import { format, subDays } from "date-fns";
+import { format, subDays, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 const TYPE_LABELS: Record<IndicatorType, string> = {
   parceiro: "Parceiro",
@@ -224,121 +225,180 @@ export default function CRMRepresentantes() {
               {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-28" />)}
             </div>
           ) : dashboard ? (
-            <>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                <Card><CardContent className="pt-4">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><DollarSign className="h-4 w-4" />Comissão Recebida</div>
-                  <p className="text-2xl font-bold text-primary">{formatCurrency(dashboard.total_commission)}</p>
-                  <p className="text-xs text-muted-foreground">{dashboard.commission_percent}% sobre ganhas</p>
-                </CardContent></Card>
-                <Card className="border-amber-500/30 bg-amber-500/5"><CardContent className="pt-4">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><Percent className="h-4 w-4 text-amber-600" />Comissão Potencial</div>
-                  <p className="text-2xl font-bold text-amber-600">{formatCurrency(dashboard.potential_commission)}</p>
-                  <p className="text-xs text-muted-foreground">se fechar as abertas</p>
-                </CardContent></Card>
-                <Card><CardContent className="pt-4">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><Briefcase className="h-4 w-4" />Em Aberto</div>
-                  <p className="text-2xl font-bold">{dashboard.open_deals}</p>
-                  <p className="text-xs text-muted-foreground">{formatCurrency(dashboard.open_value)}</p>
-                </CardContent></Card>
-                <Card><CardContent className="pt-4">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><Trophy className="h-4 w-4 text-green-500" />Fechados</div>
-                  <p className="text-2xl font-bold text-green-600">{dashboard.won_deals}</p>
-                  <p className="text-xs text-muted-foreground">{formatCurrency(dashboard.won_value)}</p>
-                </CardContent></Card>
-                <Card><CardContent className="pt-4">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><XCircle className="h-4 w-4 text-red-500" />Perdidos</div>
-                  <p className="text-2xl font-bold text-red-600">{dashboard.lost_deals}</p>
-                  <p className="text-xs text-muted-foreground">{formatCurrency(dashboard.lost_value)}</p>
-                </CardContent></Card>
-              </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2 space-y-6">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                  <Card><CardContent className="pt-4">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><DollarSign className="h-4 w-4" />Comissão Recebida</div>
+                    <p className="text-2xl font-bold text-primary">{formatCurrency(dashboard.total_commission)}</p>
+                    <p className="text-xs text-muted-foreground">{dashboard.commission_percent}% sobre ganhas</p>
+                  </CardContent></Card>
+                  <Card className="border-amber-500/30 bg-amber-500/5"><CardContent className="pt-4">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><Percent className="h-4 w-4 text-amber-600" />Comissão Potencial</div>
+                    <p className="text-2xl font-bold text-amber-600">{formatCurrency(dashboard.potential_commission)}</p>
+                    <p className="text-xs text-muted-foreground">se fechar as abertas</p>
+                  </CardContent></Card>
+                  <Card><CardContent className="pt-4">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><Briefcase className="h-4 w-4" />Em Aberto</div>
+                    <p className="text-2xl font-bold">{dashboard.open_deals}</p>
+                    <p className="text-xs text-muted-foreground">{formatCurrency(dashboard.open_value)}</p>
+                  </CardContent></Card>
+                  <Card><CardContent className="pt-4">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><Trophy className="h-4 w-4 text-green-500" />Fechados</div>
+                    <p className="text-2xl font-bold text-green-600">{dashboard.won_deals}</p>
+                    <p className="text-xs text-muted-foreground">{formatCurrency(dashboard.won_value)}</p>
+                  </CardContent></Card>
+                  <Card><CardContent className="pt-4">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><XCircle className="h-4 w-4 text-red-500" />Perdidos</div>
+                    <p className="text-2xl font-bold text-red-600">{dashboard.lost_deals}</p>
+                    <p className="text-xs text-muted-foreground">{formatCurrency(dashboard.lost_value)}</p>
+                  </CardContent></Card>
+                </div>
 
-              {dashboard.loss_reasons.length > 0 && (
+                {dashboard.loss_reasons.length > 0 && (
+                  <Card>
+                    <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Motivos de Perda</CardTitle></CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        {dashboard.loss_reasons.map((lr, i) => (
+                          <div key={i} className="flex items-center justify-between">
+                            <span className="text-sm">{lr.reason}</span>
+                            <Badge variant="secondary">{lr.count}</Badge>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
                 <Card>
-                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Motivos de Perda</CardTitle></CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      {dashboard.loss_reasons.map((lr, i) => (
-                        <div key={i} className="flex items-center justify-between">
-                          <span className="text-sm">{lr.reason}</span>
-                          <Badge variant="secondary">{lr.count}</Badge>
-                        </div>
-                      ))}
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm font-medium">Negociações</CardTitle>
+                      <Select value={dealStatusFilter} onValueChange={setDealStatusFilter}>
+                        <SelectTrigger className="w-32 h-8 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Todas</SelectItem>
+                          <SelectItem value="open">Abertas</SelectItem>
+                          <SelectItem value="won">Ganhas</SelectItem>
+                          <SelectItem value="lost">Perdidas</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
+                  </CardHeader>
+                  <CardContent>
+                    {loadingDeals ? (
+                      <div className="space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-12" />)}</div>
+                    ) : !repDeals?.length ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">Nenhuma negociação encontrada</p>
+                    ) : (() => {
+                      const rate = (dashboard?.commission_percent || 0) / 100;
+                      const totalValue = repDeals.reduce((s, d) => s + Number(d.value || 0), 0);
+                      const totalCommission = repDeals.reduce((s, d) => s + Number(d.value || 0) * rate, 0);
+                      return (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-muted/40 border border-dashed text-xs">
+                            <span className="text-muted-foreground">
+                              Total ({repDeals.length} {repDeals.length === 1 ? 'negociação' : 'negociações'})
+                            </span>
+                            <div className="flex items-center gap-4">
+                              <span className="font-medium">{formatCurrency(totalValue)}</span>
+                              <span className="text-amber-600 font-semibold">
+                                Comissão: {formatCurrency(totalCommission)}
+                              </span>
+                            </div>
+                          </div>
+                          {repDeals.map(deal => {
+                            const dealCommission = Number(deal.value || 0) * rate;
+                            return (
+                              <div key={deal.id} className="flex items-center justify-between p-3 rounded-lg border cursor-pointer hover:bg-accent/50 transition-colors"
+                                onClick={() => { setSelectedDeal(deal as any); setDealDetailOpen(true); }}>
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium text-sm truncate">{deal.title}</p>
+                                  <div className="flex items-center gap-2 mt-0.5">
+                                    {deal.company_name && <span className="text-xs text-muted-foreground">{deal.company_name}</span>}
+                                    {deal.stage_name && <Badge variant="outline" className="text-xs px-1.5 py-0">{deal.stage_name}</Badge>}
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-3 ml-2">
+                                  <div className="text-right">
+                                    <p className="text-sm font-medium">{formatCurrency(deal.value)}</p>
+                                    <p className="text-[11px] text-amber-600 font-medium">
+                                      Comissão: {formatCurrency(dealCommission)}
+                                    </p>
+                                    <Badge variant={deal.status === 'won' ? 'default' : deal.status === 'lost' ? 'destructive' : 'secondary'} className="text-xs mt-0.5">
+                                      {deal.status === 'open' ? 'Aberta' : deal.status === 'won' ? 'Ganha' : 'Perdida'}
+                                    </Badge>
+                                  </div>
+                                  <ExternalLink className="h-4 w-4 text-muted-foreground shrink-0" />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
                   </CardContent>
                 </Card>
-              )}
+              </div>
 
-              <Card>
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm font-medium">Negociações</CardTitle>
-                    <Select value={dealStatusFilter} onValueChange={setDealStatusFilter}>
-                      <SelectTrigger className="w-32 h-8 text-xs"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Todas</SelectItem>
-                        <SelectItem value="open">Abertas</SelectItem>
-                        <SelectItem value="won">Ganhas</SelectItem>
-                        <SelectItem value="lost">Perdidas</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {loadingDeals ? (
-                    <div className="space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-12" />)}</div>
-                  ) : !repDeals?.length ? (
-                    <p className="text-sm text-muted-foreground text-center py-4">Nenhuma negociação encontrada</p>
-                  ) : (() => {
-                    const rate = (dashboard?.commission_percent || 0) / 100;
-                    const totalValue = repDeals.reduce((s, d) => s + Number(d.value || 0), 0);
-                    const totalCommission = repDeals.reduce((s, d) => s + Number(d.value || 0) * rate, 0);
-                    return (
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-muted/40 border border-dashed text-xs">
-                          <span className="text-muted-foreground">
-                            Total ({repDeals.length} {repDeals.length === 1 ? 'negociação' : 'negociações'})
-                          </span>
-                          <div className="flex items-center gap-4">
-                            <span className="font-medium">{formatCurrency(totalValue)}</span>
-                            <span className="text-amber-600 font-semibold">
-                              Comissão: {formatCurrency(totalCommission)}
-                            </span>
-                          </div>
-                        </div>
-                        {repDeals.map(deal => {
-                          const dealCommission = Number(deal.value || 0) * rate;
-                          return (
-                            <div key={deal.id} className="flex items-center justify-between p-3 rounded-lg border cursor-pointer hover:bg-accent/50 transition-colors"
-                              onClick={() => { setSelectedDeal(deal as any); setDealDetailOpen(true); }}>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium text-sm truncate">{deal.title}</p>
-                                <div className="flex items-center gap-2 mt-0.5">
-                                  {deal.company_name && <span className="text-xs text-muted-foreground">{deal.company_name}</span>}
-                                  {deal.stage_name && <Badge variant="outline" className="text-xs px-1.5 py-0">{deal.stage_name}</Badge>}
-                                </div>
+              {/* COLUNA HISTÓRICO */}
+              <div className="space-y-6">
+                <Card className="h-full flex flex-col">
+                  <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <History className="h-4 w-4" /> Histórico
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex-1 flex flex-col gap-4">
+                    <div className="space-y-2">
+                      <Textarea
+                        placeholder="Novo histórico..."
+                        value={historyContent}
+                        onChange={e => setHistoryContent(e.target.value)}
+                        className="min-h-[80px] text-sm"
+                      />
+                      <Button
+                        size="sm"
+                        className="w-full"
+                        disabled={!historyContent.trim() || createHistory.isPending}
+                        onClick={() => {
+                          createHistory.mutate(
+                            { indicatorId: selectedRepId!, content: historyContent },
+                            { onSuccess: () => setHistoryContent("") }
+                          );
+                        }}
+                      >
+                        Salvar
+                      </Button>
+                    </div>
+
+                    <ScrollArea className="flex-1 -mx-2 px-2">
+                      <div className="space-y-4">
+                        {history.length === 0 ? (
+                          <p className="text-xs text-muted-foreground text-center py-8">Nenhum histórico registrado.</p>
+                        ) : (
+                          history.map((h) => (
+                            <div key={h.id} className="relative pl-4 border-l-2 border-muted pb-4 last:pb-0">
+                              <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-background border-2 border-muted flex items-center justify-center">
+                                <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground" />
                               </div>
-                              <div className="flex items-center gap-3 ml-2">
-                                <div className="text-right">
-                                  <p className="text-sm font-medium">{formatCurrency(deal.value)}</p>
-                                  <p className="text-[11px] text-amber-600 font-medium">
-                                    Comissão: {formatCurrency(dealCommission)}
-                                  </p>
-                                  <Badge variant={deal.status === 'won' ? 'default' : deal.status === 'lost' ? 'destructive' : 'secondary'} className="text-xs mt-0.5">
-                                    {deal.status === 'open' ? 'Aberta' : deal.status === 'won' ? 'Ganha' : 'Perdida'}
-                                  </Badge>
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-xs font-bold">{h.user_name}</span>
+                                  <span className="text-[10px] text-muted-foreground">{format(parseISO(h.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}</span>
                                 </div>
-                                <ExternalLink className="h-4 w-4 text-muted-foreground shrink-0" />
+                                <p className="text-sm whitespace-pre-wrap">{h.content}</p>
                               </div>
                             </div>
-                          );
-                        })}
+                          ))
+                        )}
                       </div>
-                    );
-                  })()}
-                </CardContent>
-              </Card>
-            </>
+                    </ScrollArea>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
           ) : null}
 
           <DealDetailDialog
