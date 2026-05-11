@@ -45,6 +45,7 @@ export interface HomologationCompany {
   task_count: number;
   completed_task_count: number;
   meeting_count: number;
+  last_history_at?: string;
   created_by_name: string;
   created_at: string;
   updated_at: string;
