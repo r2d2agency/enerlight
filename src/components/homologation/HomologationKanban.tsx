@@ -62,6 +62,22 @@ function CompanyCardContent({ company, stage, stages, onCompanyClick, onMoveComp
   onMoveCompany: (id: string, stageId: string) => void;
   onDeleteCompany: (c: HomologationCompany) => void;
 }) {
+  const getTimeSinceLastHistory = (lastDate?: string) => {
+    if (!lastDate) return null;
+    const last = new Date(lastDate);
+    const diffMs = new Date().getTime() - last.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffDays > 0) return `${diffDays}d`;
+    if (diffHours > 0) return `${diffHours}h`;
+    if (diffMins > 0) return `${diffMins}m`;
+    return "Agora";
+  };
+
+  const lastHistoryStr = getTimeSinceLastHistory(company.last_history_at);
+
   return (
     <Card
       className="cursor-grab hover:shadow-md transition-shadow border-l-4 active:cursor-grabbing"
