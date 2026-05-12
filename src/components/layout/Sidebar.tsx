@@ -8,6 +8,7 @@ import {
   Briefcase,
   Building2,
   CalendarDays,
+  Clock,
   ChevronDown,
   ClipboardList,
   FileSignature,
@@ -178,6 +179,13 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
     icon: Wallet,
     items: [
       { name: "Despesas", href: "/prestacao-contas", icon: Wallet },
+    ],
+  },
+  {
+    title: "RH",
+    icon: Clock,
+    items: [
+      { name: "Ponto", href: "/rh", icon: Clock },
     ],
   },
   {
