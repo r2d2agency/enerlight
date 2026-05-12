@@ -1535,6 +1535,26 @@ export default function Organizacoes() {
                             disabled={!canManageOrg}
                           />
                         </div>
+                        {/* RH / Ponto Module */}
+                        <div className="flex items-center justify-between rounded-lg border p-4">
+                          <div className="flex items-center gap-4">
+                            <div className="h-10 w-10 rounded-lg bg-green-500/10 flex items-center justify-center">
+                              <CalendarClock className="h-5 w-5 text-green-500" />
+                            </div>
+                            <div>
+                              <p className="font-medium">RH / Ponto</p>
+                              <p className="text-sm text-muted-foreground">
+                                Registro de ponto com geolocalização e reconhecimento facial local
+                              </p>
+                            </div>
+                          </div>
+                          <Switch
+                            checked={modulesEnabled.rh_module}
+                            onCheckedChange={(checked) => setModulesEnabled(prev => ({ ...prev, rh_module: checked }))}
+                            disabled={!canManageOrg}
+                          />
+                        </div>
+
 
                         {canManageOrg && (
                           <div className="flex justify-end pt-4">
