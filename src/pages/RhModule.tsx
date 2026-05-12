@@ -8,9 +8,15 @@ import {
   AlertTriangle, 
   CheckCircle,
   BarChart3,
-  Calendar
+  Calendar,
+  History,
+  ShieldCheck,
+  Map as MapIcon,
+  Settings as SettingsIcon,
+  Clock8
 } from "lucide-react";
 import MyPoint from "@/components/rh/MyPoint";
+import RhRegisters from "@/components/rh/RhRegisters";
 
 export default function RhModule() {
   const [activeTab, setActiveTab] = useState("my-point");
