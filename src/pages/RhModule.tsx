@@ -14,10 +14,12 @@ import {
   ShieldCheck,
   Map as MapIcon,
   Settings as SettingsIcon,
-  Clock8
+  Clock8,
+  UserPlus
 } from "lucide-react";
 import MyPoint from "@/components/rh/MyPoint";
 import RhRegisters from "@/components/rh/RhRegisters";
+import EmployeeManagement from "@/components/rh/admin/EmployeeManagement";
 
 export default function RhModule() {
   const [activeTab, setActiveTab] = useState("my-point");
