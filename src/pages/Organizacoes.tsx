@@ -152,6 +152,7 @@ export default function Organizacoes() {
     licitacao: false,
     logistics: false,
     online_quotes: true,
+    rh_module: false,
   });
   const [savingModules, setSavingModules] = useState(false);
 
@@ -262,6 +263,7 @@ export default function Organizacoes() {
         licitacao: modules.licitacao ?? false,
         logistics: modules.logistics ?? false,
         online_quotes: modules.online_quotes ?? true,
+        rh_module: modules.rh_module ?? false,
       });
     } catch (error) {
       console.error('Error loading modules:', error);
