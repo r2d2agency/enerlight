@@ -39,6 +39,7 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import FacialValidation from "../FacialValidation";
 
 interface Employee {
