@@ -181,6 +181,13 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
     ],
   },
   {
+    title: "RH",
+    icon: Clock,
+    items: [
+      { name: "Ponto", href: "/rh", icon: Clock },
+    ],
+  },
+  {
     title: "Captador",
     icon: MapPin,
     moduleKey: 'captador',
