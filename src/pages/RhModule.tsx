@@ -40,7 +40,7 @@ export default function RhModule() {
 
       <Tabs defaultValue="my-point" className="w-full" onValueChange={setActiveTab}>
         <div className="overflow-x-auto pb-2 scrollbar-none">
-          <TabsList className="inline-flex min-w-full md:min-w-0 md:grid md:w-full md:grid-cols-5 h-auto p-1 bg-muted/50">
+          <TabsList className="inline-flex min-w-full md:min-w-0 md:grid md:w-full md:grid-cols-6 h-auto p-1 bg-muted/50">
             <TabsTrigger value="my-point" className="gap-2 py-2.5">
               <Clock className="h-4 w-4" />
               <span className="hidden sm:inline">Meu Ponto</span>
@@ -50,6 +50,11 @@ export default function RhModule() {
               <BarChart3 className="h-4 w-4" />
               <span className="hidden sm:inline">Painel RH</span>
               <span className="sm:hidden">RH</span>
+            </TabsTrigger>
+            <TabsTrigger value="employees" className="gap-2 py-2.5">
+              <UserPlus className="h-4 w-4" />
+              <span className="hidden sm:inline">Colaboradores</span>
+              <span className="sm:hidden">Equipe</span>
             </TabsTrigger>
             <TabsTrigger value="registers" className="gap-2 py-2.5">
               <History className="h-4 w-4" />
@@ -124,6 +129,17 @@ export default function RhModule() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="employees" className="mt-6">
+          <Card className="border-none shadow-sm">
+            <CardHeader className="pb-3">
+              <CardTitle>Gestão de Colaboradores</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <EmployeeManagement />
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="registers" className="mt-6">
