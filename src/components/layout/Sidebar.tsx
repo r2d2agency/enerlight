@@ -8,6 +8,7 @@ import {
   Briefcase,
   Building2,
   CalendarDays,
+  Clock,
   ChevronDown,
   ClipboardList,
   FileSignature,
