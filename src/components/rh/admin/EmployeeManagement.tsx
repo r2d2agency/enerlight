@@ -144,12 +144,16 @@ export default function EmployeeManagement() {
       
       // Filter for users that aren't already mapped as employees if we wanted unique pool
       // For now, let's just use all organization members
-      const usersResponse = await api<any[]>(`/api/organizations/${members[0].organization_id}/members`);
-      setAvailableUsers(usersResponse.map(m => ({
-        id: m.user_id,
-        name: m.name,
-        email: m.email
-      })));
+      const orgs = await api<any[]>('/api/organizations');
+      const orgId = orgs[0]?.id;
+      if (orgId) {
+        const usersResponse = await api<any[]>(`/api/organizations/${orgId}/members`);
+        setAvailableUsers(usersResponse.map(m => ({
+          id: m.user_id,
+          name: m.name,
+          email: m.email
+        })));
+      }
     } catch (err) {
       toast.error("Erro ao carregar colaboradores");
     } finally {
