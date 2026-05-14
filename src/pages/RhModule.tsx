@@ -20,6 +20,7 @@ import {
 import MyPoint from "@/components/rh/MyPoint";
 import RhRegisters from "@/components/rh/RhRegisters";
 import EmployeeManagement from "@/components/rh/admin/EmployeeManagement";
+import RhLocations from "@/components/rh/admin/RhLocations";
 
 export default function RhModule() {
   const [activeTab, setActiveTab] = useState("my-point");
@@ -156,15 +157,12 @@ export default function RhModule() {
         </TabsContent>
 
         <TabsContent value="locations" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Locais de Atuação</CardTitle>
+          <Card className="border-none shadow-sm">
+            <CardHeader className="pb-3">
+              <CardTitle>Gestão de Locais de Atuação</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-10 text-muted-foreground">
-                <MapIcon className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                Cadastro de locais será exibido aqui.
-              </div>
+              <RhLocations />
             </CardContent>
           </Card>
         </TabsContent>
