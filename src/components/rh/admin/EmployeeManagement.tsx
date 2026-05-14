@@ -19,6 +19,7 @@ import {
   DialogHeader, 
   DialogTitle 
 } from "@/components/ui/dialog";
+import { Slider } from "@/components/ui/slider";
 import { 
   Select, 
   SelectContent, 
@@ -35,7 +36,8 @@ import {
   Search, 
   User as UserIcon,
   CheckCircle2,
-  XCircle
+  XCircle,
+  Settings2
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
@@ -64,6 +66,7 @@ export default function EmployeeManagement() {
   const [availableUsers, setAvailableUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [sensitivity, setSensitivity] = useState(0.5);
   
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
@@ -217,7 +220,23 @@ export default function EmployeeManagement() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <div className="flex gap-2 w-full md:w-auto">
+        <div className="flex gap-2 w-full md:w-auto items-center">
+          <div className="hidden lg:flex items-center gap-2 mr-4 bg-muted/50 px-3 py-1.5 rounded-lg border border-border">
+            <Settings2 className="h-4 w-4 text-muted-foreground" />
+            <div className="flex flex-col">
+              <Label className="text-[10px] uppercase font-bold text-muted-foreground">Sensibilidade Facial</Label>
+              <div className="flex items-center gap-2 min-w-[120px]">
+                <Slider 
+                  value={[sensitivity * 100]} 
+                  onValueChange={(val) => setSensitivity(val[0] / 100)} 
+                  max={100} 
+                  step={1}
+                  className="w-24"
+                />
+                <span className="text-xs font-mono w-8 text-right">{(sensitivity * 100).toFixed(0)}%</span>
+              </div>
+            </div>
+          </div>
           <Button onClick={() => setIsAddDialogOpen(true)} className="gap-2">
             <Plus className="h-4 w-4" />
             Novo Colaborador

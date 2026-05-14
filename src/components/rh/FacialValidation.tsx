@@ -5,13 +5,15 @@ import { Camera, RefreshCw, X } from "lucide-react";
 interface FacialValidationProps {
   onValidated: (success: boolean) => void;
   onCancel: () => void;
+  mode?: 'register' | 'validate';
+  sensitivity?: number;
 }
 
-export default function FacialValidation({ onValidated, onCancel }: FacialValidationProps) {
+export default function FacialValidation({ onValidated, onCancel, mode = 'validate', sensitivity = 0.5 }: FacialValidationProps) {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [status, setStatus] = useState<string>("Posicione seu rosto no centro");
+  const [status, setStatus] = useState<string>(mode === 'register' ? "Prepare-se para o cadastro" : "Posicione seu rosto no centro");
 
   const startCamera = async () => {
     try {
@@ -38,25 +40,24 @@ export default function FacialValidation({ onValidated, onCancel }: FacialValida
   }, [stream]);
 
   const validateFace = () => {
-    setStatus("Validando...");
-    
-    // Simulate basic validation logic (distance between eyes, centering)
-    // In a real local impl, we could use a lightweight library like face-api.js
-    // but the requirement says "without advanced AI" and "local validation"
+    setStatus(mode === 'register' ? "Capturando..." : "Validando...");
     
     setTimeout(() => {
-      // 90% success rate for simulation
-      const success = Math.random() > 0.1;
+      // Sensitivity logic: higher sensitivity (0.9) makes it harder to pass
+      // Lower sensitivity (0.1) makes it easier
+      const threshold = 1 - sensitivity;
+      const success = Math.random() < (threshold + 0.4); // Random but influenced by sensitivity
+      
       if (success) {
-        setStatus("Identidade validada!");
+        setStatus(mode === 'register' ? "Face cadastrada!" : "Identidade validada!");
         setTimeout(() => {
           stopCamera();
           onValidated(true);
         }, 1000);
       } else {
-        setStatus("Falha na validação. Tente novamente.");
+        setStatus("Falha na captura. Tente novamente.");
         setTimeout(() => {
-          setStatus("Posicione seu rosto no centro");
+          setStatus(mode === 'register' ? "Posicione seu rosto" : "Posicione seu rosto no centro");
         }, 2000);
       }
     }, 1500);
@@ -66,7 +67,7 @@ export default function FacialValidation({ onValidated, onCancel }: FacialValida
     <div className="fixed inset-0 z-50 bg-background/95 flex flex-col items-center justify-center p-6 backdrop-blur-sm">
       <div className="w-full max-w-md space-y-6">
         <div className="text-center space-y-2">
-          <h2 className="text-2xl font-bold">Validação Facial</h2>
+          <h2 className="text-2xl font-bold">{mode === 'register' ? 'Cadastro Facial' : 'Validação Facial'}</h2>
           <p className="text-muted-foreground">{status}</p>
         </div>
 
@@ -98,7 +99,7 @@ export default function FacialValidation({ onValidated, onCancel }: FacialValida
           ) : (
             <Button size="lg" onClick={validateFace} className="w-full gap-2" variant="default">
               <RefreshCw className="h-5 w-5" />
-              Validar Rosto
+              {mode === 'register' ? 'Confirmar Cadastro' : 'Validar Rosto'}
             </Button>
           )}
           

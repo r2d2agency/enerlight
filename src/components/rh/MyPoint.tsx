@@ -150,6 +150,7 @@ export default function MyPoint() {
     <div className="container max-w-lg mx-auto p-4 space-y-6 pb-20">
       {showFacial && (
         <FacialValidation 
+          mode="validate"
           onValidated={onFacialValidated} 
           onCancel={() => setShowFacial(false)} 
         />
