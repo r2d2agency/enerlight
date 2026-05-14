@@ -25,10 +25,10 @@ export default function RhModule() {
   const [activeTab, setActiveTab] = useState("my-point");
 
   const stats = [
-    { title: "Presentes", value: "42", icon: Users, color: "text-blue-500" },
-    { title: "Em Intervalo", value: "8", icon: Clock, color: "text-orange-500" },
-    { title: "Pendentes", value: "3", icon: AlertTriangle, color: "text-red-500" },
-    { title: "Regulares", value: "39", icon: CheckCircle, color: "text-green-500" },
+    { title: "Presentes", value: "0", icon: Users, color: "text-blue-500" },
+    { title: "Em Intervalo", value: "0", icon: Clock, color: "text-orange-500" },
+    { title: "Pendentes", value: "0", icon: AlertTriangle, color: "text-red-500" },
+    { title: "Regulares", value: "0", icon: CheckCircle, color: "text-green-500" },
   ];
 
   return (

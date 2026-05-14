@@ -88,30 +88,37 @@ export default function EmployeeManagement() {
     setLoading(true);
     try {
       // In a real app, these would be API calls
-      // For now, we simulate fetching employees from the org members or a dedicated table
-      const orgId = localStorage.getItem('selected_org_id');
-      if (orgId) {
-        const members = await api<any[]>(`/api/organizations/${orgId}/members`);
-        
-        // Map members to employee format
-        const mappedEmployees: Employee[] = members.map(m => ({
-          id: m.id,
-          user_id: m.user_id,
-          name: m.name,
-          email: m.email,
-          role: m.role,
-          facial_registered: Math.random() > 0.5, // Mocking facial registration status
-          is_active: m.is_active,
-          journey: "08:00 - 12:00 | 13:00 - 17:00"
-        }));
-        
-        setEmployees(mappedEmployees);
-        setAvailableUsers(members.filter(m => !m.employee_id).map(m => ({
-          id: m.user_id,
-          name: m.name,
-          email: m.email
-        })));
-      }
+      // Fetch real organization members
+      const response = await api<{ members: any[] }>(`/api/organizations/members`);
+      const members = response.members || [];
+      
+      // In a real scenario, we might have a dedicated employees table, 
+      // but here we are linking employees to organization members (users).
+      // If there's no dedicated employee table yet, we can't fetch "employees" separately 
+      // from "users" unless we mock the storage or use a metadata field.
+      
+      // Let's assume for now we list organization members and allow marking them as "employees"
+      // or we just display all members as potential employees.
+      
+      const mappedEmployees: Employee[] = members.map(m => ({
+        id: m.id,
+        user_id: m.user_id || m.id, // Ensure user_id is present
+        name: m.name,
+        email: m.email,
+        role: m.role || "Colaborador",
+        facial_registered: m.facial_registered || false,
+        is_active: m.is_active !== false,
+        journey: m.journey || "08:00 - 12:00 | 13:00 - 17:00"
+      }));
+      
+      setEmployees(mappedEmployees);
+      
+      // Available users are those not yet "linked" or just all users for linking
+      setAvailableUsers(members.map(m => ({
+        id: m.user_id || m.id,
+        name: m.name,
+        email: m.email
+      })));
     } catch (err) {
       toast.error("Erro ao carregar colaboradores");
     } finally {
