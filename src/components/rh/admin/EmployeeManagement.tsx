@@ -25,7 +25,9 @@ import {
   SelectContent, 
   SelectItem, 
   SelectTrigger, 
-  SelectValue 
+  SelectValue,
+  SelectGroup,
+  SelectLabel
 } from "@/components/ui/select";
 import { 
   Plus, 
@@ -39,7 +41,8 @@ import {
   XCircle,
   Settings2,
   Pencil,
-  MapPin
+  MapPin,
+  Loader2
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useRh } from "@/hooks/use-rh";
@@ -74,7 +77,7 @@ interface User {
 }
 
 export default function EmployeeManagement() {
-  const { getEmployees, updateMember, createMember, getLocations } = useRh();
+  const { getEmployees, updateMember, createMember, getLocations, createLocation } = useRh();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [availableUsers, setAvailableUsers] = useState<User[]>([]);
   const [locations, setLocations] = useState<any[]>([]);
@@ -84,8 +87,22 @@ export default function EmployeeManagement() {
   const [showManualCoords, setShowManualCoords] = useState(false);
   
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isLocationDialogOpen, setIsLocationDialogOpen] = useState(false);
   const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
   const [isFacialDialogOpen, setIsFacialDialogOpen] = useState(false);
+  
+  // New Location state
+  const [newLocation, setNewLocation] = useState({
+    name: "",
+    cep: "",
+    address: "",
+    number: "",
+    latitude: 0,
+    longitude: 0,
+    radius_meters: 100
+  });
+  const [searchingCep, setSearchingCep] = useState(false);
+  const [searchingCoords, setSearchingCoords] = useState(false);
   
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   
@@ -228,6 +245,94 @@ export default function EmployeeManagement() {
       }
     } catch (err) {
       toast.error(selectedEmployee ? "Erro ao atualizar colaborador" : "Erro ao cadastrar colaborador");
+    }
+  };
+
+  const handleCepSearch = async () => {
+    const cep = newLocation.cep.replace(/\D/g, '');
+    if (cep.length !== 8) {
+      toast.error("CEP inválido");
+      return;
+    }
+
+    setSearchingCep(true);
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+      const data = await response.json();
+      
+      if (data.erro) {
+        toast.error("CEP não encontrado");
+        return;
+      }
+
+      setNewLocation(prev => ({
+        ...prev,
+        address: `${data.logradouro}, ${data.bairro}, ${data.localidade} - ${data.uf}`
+      }));
+    } catch (error) {
+      toast.error("Erro ao buscar CEP");
+    } finally {
+      setSearchingCep(false);
+    }
+  };
+
+  const handleGetCoords = async () => {
+    if (!newLocation.address || !newLocation.number) {
+      toast.error("Preencha o endereço (via CEP) e o número");
+      return;
+    }
+
+    setSearchingCoords(true);
+    try {
+      const addressParts = newLocation.address.split(',');
+      const street = addressParts[0].trim();
+      const cityState = addressParts[2]?.trim() || "";
+      
+      const searchQuery = `${street}, ${newLocation.number}, ${cityState}, Brazil`;
+      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=1`;
+      
+      const response = await fetch(url, {
+        headers: { 'Accept-Language': 'pt-BR' }
+      });
+      const data = await response.json();
+
+      if (data && data.length > 0) {
+        setNewLocation(prev => ({
+          ...prev,
+          latitude: parseFloat(data[0].lat),
+          longitude: parseFloat(data[0].lon)
+        }));
+        toast.success("Coordenadas obtidas!");
+      } else {
+        toast.error("Não foi possível encontrar as coordenadas.");
+      }
+    } catch (error) {
+      toast.error("Erro ao buscar coordenadas");
+    } finally {
+      setSearchingCoords(false);
+    }
+  };
+
+  const handleQuickLocationSave = async () => {
+    if (!newLocation.name || newLocation.latitude === 0 || newLocation.longitude === 0) {
+      toast.error("Nome e coordenadas são obrigatórios");
+      return;
+    }
+
+    const { cep, address, number, ...payload } = newLocation;
+    const success = await createLocation(payload);
+    if (success) {
+      toast.success("Local cadastrado com sucesso!");
+      setIsLocationDialogOpen(false);
+      setNewLocation({
+        name: "", cep: "", address: "", number: "",
+        latitude: 0, longitude: 0, radius_meters: 100
+      });
+      // Refresh locations
+      const locs = await getLocations();
+      setLocations(locs || []);
+    } else {
+      toast.error("Erro ao cadastrar local");
     }
   };
 
@@ -559,7 +664,16 @@ export default function EmployeeManagement() {
               
               <div className="grid gap-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="location-select">Selecione o Local (Obras/Sedes)</Label>
+                  <div className="flex justify-between items-center mb-1">
+                    <Label htmlFor="location-select">Selecione o Local (Obras/Sedes)</Label>
+                    <Button 
+                      variant="link" 
+                      className="h-auto p-0 text-[10px] text-primary"
+                      onClick={() => setIsLocationDialogOpen(true)}
+                    >
+                      + Cadastrar Novo Local
+                    </Button>
+                  </div>
                   <Select 
                     onValueChange={(val) => {
                       const loc = locations.find(l => l.id === val);
@@ -588,7 +702,7 @@ export default function EmployeeManagement() {
                     </SelectContent>
                   </Select>
                   <p className="text-[10px] text-muted-foreground">
-                    Selecione um local pré-cadastrado na aba "Locais" ou preencha manualmente abaixo.
+                    Selecione um local pré-cadastrado ou clique acima para criar um novo.
                   </p>
                 </div>
 
@@ -714,6 +828,116 @@ export default function EmployeeManagement() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsLinkDialogOpen(false)}>Cancelar</Button>
             <Button onClick={handleLinkUser} disabled={!formData.user_id}>Vincular</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Location Dialog */}
+      <Dialog open={isLocationDialogOpen} onOpenChange={setIsLocationDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Cadastrar Novo Local</DialogTitle>
+            <DialogDescription>
+              Busque pelo CEP ou preencha as coordenadas manualmente.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4 max-h-[70vh] overflow-y-auto px-1">
+            <div className="grid gap-2">
+              <Label htmlFor="new-loc-name">Nome do Local</Label>
+              <Input 
+                id="new-loc-name" 
+                value={newLocation.name}
+                onChange={e => setNewLocation({...newLocation, name: e.target.value})}
+                placeholder="Ex: Obra Centro ou Filial Norte"
+              />
+            </div>
+
+            <div className="space-y-3 p-3 border rounded-md bg-muted/30">
+              <Label className="text-xs font-semibold uppercase text-muted-foreground">Buscar por Endereço</Label>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <Input 
+                    placeholder="CEP" 
+                    value={newLocation.cep}
+                    onChange={e => setNewLocation({...newLocation, cep: e.target.value})}
+                    maxLength={9}
+                  />
+                </div>
+                <Button 
+                  variant="secondary" 
+                  size="icon" 
+                  onClick={handleCepSearch}
+                  disabled={searchingCep}
+                >
+                  {searchingCep ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                </Button>
+              </div>
+
+              {newLocation.address && (
+                <div className="grid gap-2">
+                  <div className="text-xs text-muted-foreground italic px-1">
+                    {newLocation.address}
+                  </div>
+                  <div className="flex gap-2">
+                    <Input 
+                      placeholder="Número" 
+                      value={newLocation.number}
+                      onChange={e => setNewLocation({...newLocation, number: e.target.value})}
+                      className="w-24"
+                    />
+                    <Button 
+                      variant="outline" 
+                      className="flex-1 gap-2" 
+                      onClick={handleGetCoords}
+                      disabled={searchingCoords}
+                    >
+                      {searchingCoords ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
+                      Obter Coordenadas
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="new-lat">Latitude</Label>
+                <Input 
+                  id="new-lat" 
+                  type="number" 
+                  step="any"
+                  value={newLocation.latitude || ""} 
+                  onChange={e => setNewLocation({...newLocation, latitude: parseFloat(e.target.value) || 0})} 
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="new-lng">Longitude</Label>
+                <Input 
+                  id="new-lng" 
+                  type="number" 
+                  step="any"
+                  value={newLocation.longitude || ""} 
+                  onChange={e => setNewLocation({...newLocation, longitude: parseFloat(e.target.value) || 0})} 
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-2">
+              <div className="flex justify-between">
+                <Label>Raio de Tolerância: {newLocation.radius_meters}m</Label>
+              </div>
+              <Slider 
+                value={[newLocation.radius_meters]} 
+                onValueChange={(val) => setNewLocation({...newLocation, radius_meters: val[0]})}
+                max={1000}
+                min={10}
+                step={10}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsLocationDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleQuickLocationSave}>Cadastrar Local</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
