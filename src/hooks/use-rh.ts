@@ -19,9 +19,12 @@ export function useRh() {
     setLoading(true);
     setError(null);
     try {
-      // Use the organization members endpoint directly since rh endpoint might be redundant
-      const response = await api<Employee[]>('/api/organizations/members');
-      // The backend returns members as an array directly based on organizations.js
+      // Step 1: Get organization ID
+      const me = await api<{user: {organization_id: string}}>('/api/auth/me');
+      const orgId = me.user.organization_id;
+      
+      // Step 2: Get members for that organization
+      const response = await api<Employee[]>(`/api/organizations/${orgId}/members`);
       return Array.isArray(response) ? response : [];
     } catch (err: any) {
       setError(err.message);
@@ -35,7 +38,6 @@ export function useRh() {
     setLoading(true);
     setError(null);
     try {
-      // Need org ID for organizations endpoint
       const me = await api<{user: {organization_id: string}}>('/api/auth/me');
       const orgId = me.user.organization_id;
       
@@ -63,7 +65,7 @@ export function useRh() {
         method: 'POST',
         body: {
           ...data,
-          password: data.password || '123456' // Default password if not provided
+          password: data.password || '123456'
         },
       });
       return true;
