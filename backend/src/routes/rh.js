@@ -122,83 +122,83 @@ router.patch('/members/:userId', async (req, res) => {
     res.status(500).json({ error: 'Erro ao atualizar membro' });
   }
 });
-125: 
-126: // --- Locations Management ---
-127: 
-128: // Get all authorized locations for an organization
-129: router.get('/locations', async (req, res) => {
-130:   try {
-131:     const orgResult = await query(
-132:       `SELECT organization_id FROM organization_members WHERE user_id = $1 LIMIT 1`,
-133:       [req.userId]
-134:     );
-135:     
-136:     if (orgResult.rows.length === 0) return res.status(403).json({ error: 'Usuário sem organização' });
-137:     const organizationId = orgResult.rows[0].organization_id;
-138: 
-139:     const result = await query(
-140:       `SELECT * FROM rh_authorized_locations WHERE organization_id = $1 ORDER BY name ASC`,
-141:       [organizationId]
-142:     );
-143:     
-144:     res.json(result.rows);
-145:   } catch (error) {
-146:     console.error('List locations error:', error);
-147:     res.status(500).json({ error: 'Erro ao listar locais' });
-148:   }
-149: });
-150: 
-151: // Create a new location
-152: router.post('/locations', async (req, res) => {
-153:   try {
-154:     if (!await isRhManager(req.userId)) return res.status(403).json({ error: 'Acesso negado' });
-155: 
-156:     const { name, latitude, longitude, radius_meters } = req.body;
-157:     if (!name || latitude === undefined || longitude === undefined) {
-158:       return res.status(400).json({ error: 'Dados incompletos' });
-159:     }
-160: 
-161:     const orgResult = await query(
-162:       `SELECT organization_id FROM organization_members WHERE user_id = $1 LIMIT 1`,
-163:       [req.userId]
-164:     );
-165:     const organizationId = orgResult.rows[0].organization_id;
-166: 
-167:     const result = await query(
-168:       `INSERT INTO rh_authorized_locations (organization_id, name, latitude, longitude, radius_meters)
-169:        VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-170:       [organizationId, name, latitude, longitude, radius_meters || 100]
-171:     );
-172: 
-173:     res.status(201).json(result.rows[0]);
-174:   } catch (error) {
-175:     console.error('Create location error:', error);
-176:     res.status(500).json({ error: 'Erro ao criar local' });
-177:   }
-178: });
-179: 
-180: // Delete a location
-181: router.delete('/locations/:id', async (req, res) => {
-182:   try {
-183:     if (!await isRhManager(req.userId)) return res.status(403).json({ error: 'Acesso negado' });
-184:     const { id } = req.params;
-185:     
-186:     const orgResult = await query(
-187:       `SELECT organization_id FROM organization_members WHERE user_id = $1 LIMIT 1`,
-188:       [req.userId]
-189:     );
-190:     const organizationId = orgResult.rows[0].organization_id;
-191: 
-192:     await query(
-193:       `DELETE FROM rh_authorized_locations WHERE id = $1 AND organization_id = $2`,
-194:       [id, organizationId]
-195:     );
-196: 
-197:     res.status(204).send();
-198:   } catch (error) {
-199:     console.error('Delete location error:', error);
-200:     res.status(500).json({ error: 'Erro ao excluir local' });
-201:   }
-202: });
-203: 
-204: export default router;
+
+// --- Locations Management ---
+
+// Get all authorized locations for an organization
+router.get('/locations', async (req, res) => {
+  try {
+    const orgResult = await query(
+      `SELECT organization_id FROM organization_members WHERE user_id = $1 LIMIT 1`,
+      [req.userId]
+    );
+    
+    if (orgResult.rows.length === 0) return res.status(403).json({ error: 'Usuário sem organização' });
+    const organizationId = orgResult.rows[0].organization_id;
+
+    const result = await query(
+      `SELECT * FROM rh_authorized_locations WHERE organization_id = $1 ORDER BY name ASC`,
+      [organizationId]
+    );
+    
+    res.json(result.rows);
+  } catch (error) {
+    console.error('List locations error:', error);
+    res.status(500).json({ error: 'Erro ao listar locais' });
+  }
+});
+
+// Create a new location
+router.post('/locations', async (req, res) => {
+  try {
+    if (!await isRhManager(req.userId)) return res.status(403).json({ error: 'Acesso negado' });
+
+    const { name, latitude, longitude, radius_meters } = req.body;
+    if (!name || latitude === undefined || longitude === undefined) {
+      return res.status(400).json({ error: 'Dados incompletos' });
+    }
+
+    const orgResult = await query(
+      `SELECT organization_id FROM organization_members WHERE user_id = $1 LIMIT 1`,
+      [req.userId]
+    );
+    const organizationId = orgResult.rows[0].organization_id;
+
+    const result = await query(
+      `INSERT INTO rh_authorized_locations (organization_id, name, latitude, longitude, radius_meters)
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [organizationId, name, latitude, longitude, radius_meters || 100]
+    );
+
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Create location error:', error);
+    res.status(500).json({ error: 'Erro ao criar local' });
+  }
+});
+
+// Delete a location
+router.delete('/locations/:id', async (req, res) => {
+  try {
+    if (!await isRhManager(req.userId)) return res.status(403).json({ error: 'Acesso negado' });
+    const { id } = req.params;
+    
+    const orgResult = await query(
+      `SELECT organization_id FROM organization_members WHERE user_id = $1 LIMIT 1`,
+      [req.userId]
+    );
+    const organizationId = orgResult.rows[0].organization_id;
+
+    await query(
+      `DELETE FROM rh_authorized_locations WHERE id = $1 AND organization_id = $2`,
+      [id, organizationId]
+    );
+
+    res.status(204).send();
+  } catch (error) {
+    console.error('Delete location error:', error);
+    res.status(500).json({ error: 'Erro ao excluir local' });
+  }
+});
+
+export default router;
