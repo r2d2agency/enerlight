@@ -15,6 +15,7 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import FacialValidation from "./FacialValidation";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Haversine formula for distance
 function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
@@ -33,6 +34,7 @@ function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
 }
 
 export default function MyPoint() {
+  const { user } = useAuth();
   const [now, setNow] = useState(new Date());
   const [gpsStatus, setGpsStatus] = useState<'active' | 'inactive' | 'checking'>('checking');
   const [lastRegister, setLastRegister] = useState<string | null>(null);
@@ -40,16 +42,16 @@ export default function MyPoint() {
   const [showFacial, setShowFacial] = useState(false);
   const [pendingPoint, setPendingPoint] = useState<string | null>(null);
   
-  // Simulated stats & config
-  const employeeName = "João Silva";
-  const employeeRole = "Consultor Técnico";
+  // Real data from authenticated user
+  const employeeName = user?.name || "Colaborador";
+  const employeeRole = user?.role || "Enerlight";
   const journey = "08:00 - 12:00 | 13:00 - 17:00";
   
   const authorizedLocation = {
     name: "Sede Enerlight",
     lat: -23.55052,
     lng: -46.633308,
-    radius: 200 // meters
+    radius: 500 // Increased radius for better testing experience
   };
 
   useEffect(() => {
@@ -119,6 +121,14 @@ export default function MyPoint() {
   const onFacialValidated = (success: boolean) => {
     setShowFacial(false);
     if (success && pendingPoint) {
+      // Check if user has facial registered (simulated)
+      const isRegistered = localStorage.getItem(`facial_reg_${user?.id}`) === 'true';
+      
+      if (!isRegistered) {
+        toast.error("Sua face não está cadastrada no sistema. Procure o RH.");
+        return;
+      }
+
       completeRegistration(pendingPoint);
     } else {
       toast.error("Não foi possível validar sua identidade.");

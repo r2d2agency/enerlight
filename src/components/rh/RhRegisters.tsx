@@ -21,44 +21,7 @@ import {
   MoreVertical
 } from "lucide-react";
 
-const mockRegisters = [
-  {
-    id: 1,
-    employee: "João Silva",
-    date: "12/05/2026",
-    entry: "08:02",
-    lunch_out: "12:05",
-    lunch_in: "13:02",
-    exit: "17:10",
-    status: "Regular",
-    location: "Sede Enerlight",
-    facial: "OK"
-  },
-  {
-    id: 2,
-    employee: "Maria Souza",
-    date: "12/05/2026",
-    entry: "07:45",
-    lunch_out: "12:00",
-    lunch_in: "13:00",
-    exit: "17:00",
-    status: "Fora do Horário",
-    location: "Sede Enerlight",
-    facial: "OK"
-  },
-  {
-    id: 3,
-    employee: "Pedro Oliveira",
-    date: "12/05/2026",
-    entry: "08:15",
-    lunch_out: "---",
-    lunch_in: "---",
-    exit: "---",
-    status: "Incompleto",
-    location: "Externo - Obra A",
-    facial: "Erro"
-  }
-];
+const mockRegisters: any[] = []; // Iniciar vazio para evitar mocks visualmente poluentes
 
 export default function RhRegisters() {
   const [searchTerm, setSearchTerm] = useState("");
