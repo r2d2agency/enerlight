@@ -23,10 +23,15 @@ export function useRh() {
       const me = await api<{user: {organization_id: string}}>('/api/auth/me');
       const orgId = me.user.organization_id;
       
+      if (!orgId) {
+        throw new Error("Usuário sem organização");
+      }
+
       // Step 2: Get members for that organization
       const response = await api<Employee[]>(`/api/organizations/${orgId}/members`);
       return Array.isArray(response) ? response : [];
     } catch (err: any) {
+      console.error("useRh.getEmployees error:", err);
       setError(err.message);
       return [];
     } finally {
@@ -41,12 +46,15 @@ export function useRh() {
       const me = await api<{user: {organization_id: string}}>('/api/auth/me');
       const orgId = me.user.organization_id;
       
+      if (!orgId) throw new Error("Usuário sem organização");
+
       await api(`/api/organizations/${orgId}/members/${userId}`, {
         method: 'PATCH',
         body: data,
       });
       return true;
     } catch (err: any) {
+      console.error("useRh.updateMember error:", err);
       setError(err.message);
       return false;
     } finally {
@@ -61,6 +69,8 @@ export function useRh() {
       const me = await api<{user: {organization_id: string}}>('/api/auth/me');
       const orgId = me.user.organization_id;
       
+      if (!orgId) throw new Error("Usuário sem organização");
+
       await api(`/api/organizations/${orgId}/members`, {
         method: 'POST',
         body: {
@@ -70,6 +80,7 @@ export function useRh() {
       });
       return true;
     } catch (err: any) {
+      console.error("useRh.createMember error:", err);
       setError(err.message);
       return false;
     } finally {
