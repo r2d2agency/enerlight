@@ -74,12 +74,14 @@ interface User {
 }
 
 export default function EmployeeManagement() {
-  const { getEmployees, updateMember, createMember } = useRh();
+  const { getEmployees, updateMember, createMember, getLocations } = useRh();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [availableUsers, setAvailableUsers] = useState<User[]>([]);
+  const [locations, setLocations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [sensitivity, setSensitivity] = useState(0.5);
+  const [showManualCoords, setShowManualCoords] = useState(false);
   
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
