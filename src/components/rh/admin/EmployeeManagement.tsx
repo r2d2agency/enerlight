@@ -102,13 +102,13 @@ export default function EmployeeManagement() {
         role: m.role || "Colaborador",
         facial_registered: localStorage.getItem(`facial_reg_${m.user_id}`) === 'true',
         is_active: m.is_active !== false,
-        journey: "08:00 - 12:00 | 13:00 - 17:00" // Backend will need a table for this later
+        journey: "08:00 - 12:00 | 13:00 - 17:00" 
       }));
       
       setEmployees(mappedEmployees);
       
-      // For linking, show users that aren't yet employees if needed
-      // Currently getEmployees returns all organization members who ARE the pool
+      // Filter for users that aren't already mapped as employees if we wanted unique pool
+      // For now, let's just use all organization members
       setAvailableUsers(members.map(m => ({
         id: m.user_id,
         name: m.name,
