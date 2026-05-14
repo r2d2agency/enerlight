@@ -95,28 +95,20 @@ export default function EmployeeManagement() {
       const response = await api<{ members: any[] }>(`/api/organizations/members`);
       const members = response.members || [];
       
-      // In a real scenario, we might have a dedicated employees table, 
-      // but here we are linking employees to organization members (users).
-      // If there's no dedicated employee table yet, we can't fetch "employees" separately 
-      // from "users" unless we mock the storage or use a metadata field.
-      
-      // Let's assume for now we list organization members and allow marking them as "employees"
-      // or we just display all members as potential employees.
-      
       const mappedEmployees: Employee[] = members.map(m => ({
         id: m.id,
-        user_id: m.user_id || m.id, // Ensure user_id is present
+        user_id: m.user_id || m.id,
         name: m.name,
         email: m.email,
         role: m.role || "Colaborador",
-        facial_registered: localStorage.getItem(`facial_reg_${m.user_id || m.id}`) === 'true', // Use persisted status
+        facial_registered: localStorage.getItem(`facial_reg_${m.user_id || m.id}`) === 'true',
         is_active: m.is_active !== false,
         journey: m.journey || "08:00 - 12:00 | 13:00 - 17:00"
       }));
       
       setEmployees(mappedEmployees);
       
-      // Available users are those not yet "linked" or just all users for linking
+      // Filter members to show only those who can be linked (optional, here showing all for simplicity)
       setAvailableUsers(members.map(m => ({
         id: m.user_id || m.id,
         name: m.name,
@@ -391,14 +383,18 @@ export default function EmployeeManagement() {
           </DialogHeader>
           <div className="py-4">
             <Label htmlFor="user-select">Selecione o Usuário</Label>
-            <Select onValueChange={(val) => setFormData({...formData, user_id: val})}>
-              <SelectTrigger id="user-select">
+            <Select onValueChange={(val) => setFormData({...formData, user_id: val})} value={formData.user_id}>
+              <SelectTrigger id="user-select" className="w-full">
                 <SelectValue placeholder="Selecione um usuário..." />
               </SelectTrigger>
               <SelectContent>
-                {availableUsers.map(u => (
-                  <SelectItem key={u.id} value={u.id}>{u.name} ({u.email})</SelectItem>
-                ))}
+                {availableUsers.length > 0 ? (
+                  availableUsers.map(u => (
+                    <SelectItem key={u.id} value={u.id}>{u.name} ({u.email})</SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="no-users" disabled>Nenhum usuário disponível</SelectItem>
+                )}
               </SelectContent>
             </Select>
             <p className="text-[10px] text-muted-foreground mt-2">
@@ -407,7 +403,7 @@ export default function EmployeeManagement() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsLinkDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleLinkUser}>Vincular</Button>
+            <Button onClick={handleLinkUser} disabled={!formData.user_id}>Vincular</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
