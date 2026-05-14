@@ -40,6 +40,7 @@ import {
   Settings2
 } from "lucide-react";
 import { api } from "@/lib/api";
+import { useRh } from "@/hooks/use-rh";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import FacialValidation from "../FacialValidation";
