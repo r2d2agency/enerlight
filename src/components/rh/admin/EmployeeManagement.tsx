@@ -47,13 +47,19 @@ import FacialValidation from "../FacialValidation";
 
 interface Employee {
   id: string;
-  user_id: string | null;
+  user_id: string;
   name: string;
   email: string;
   role: string;
   facial_registered: boolean;
   is_active: boolean;
   journey: string;
+  cpf?: string;
+  birth_date?: string;
+  work_start_time?: string;
+  work_end_time?: string;
+  lunch_start_time?: string;
+  lunch_end_time?: string;
 }
 
 interface User {
@@ -82,7 +88,13 @@ export default function EmployeeManagement() {
     email: "",
     role: "",
     journey: "08:00 - 12:00 | 13:00 - 17:00",
-    user_id: ""
+    user_id: "",
+    cpf: "",
+    birth_date: "",
+    work_start_time: "08:00",
+    work_end_time: "18:00",
+    lunch_start_time: "12:00",
+    lunch_end_time: "13:00"
   });
 
   useEffect(() => {
@@ -94,16 +106,28 @@ export default function EmployeeManagement() {
     try {
       const members = await getEmployees();
       
-      const mappedEmployees: Employee[] = members.map(m => ({
-        id: m.id,
-        user_id: m.user_id,
-        name: m.name,
-        email: m.email,
-        role: m.role || "Colaborador",
-        facial_registered: localStorage.getItem(`facial_reg_${m.user_id}`) === 'true',
-        is_active: m.is_active !== false,
-        journey: "08:00 - 12:00 | 13:00 - 17:00" 
-      }));
+      const mappedEmployees: Employee[] = members.map(m => {
+        const journeyStr = m.work_start_time && m.work_end_time 
+          ? `${m.work_start_time.substring(0, 5)} - ${m.work_end_time.substring(0, 5)}`
+          : "08:00 - 18:00";
+          
+        return {
+          id: m.id,
+          user_id: m.user_id,
+          name: m.name,
+          email: m.email,
+          role: m.role || "Colaborador",
+          facial_registered: localStorage.getItem(`facial_reg_${m.user_id}`) === 'true',
+          is_active: m.is_active !== false,
+          journey: journeyStr,
+          cpf: m.cpf,
+          birth_date: m.birth_date,
+          work_start_time: m.work_start_time,
+          work_end_time: m.work_end_time,
+          lunch_start_time: m.lunch_start_time,
+          lunch_end_time: m.lunch_end_time
+        };
+      });
       
       setEmployees(mappedEmployees);
       
@@ -138,7 +162,11 @@ export default function EmployeeManagement() {
       if (success) {
         toast.success("Colaborador cadastrado!");
         setIsAddDialogOpen(false);
-        setFormData({ name: "", email: "", role: "", journey: "08:00 - 12:00 | 13:00 - 17:00", user_id: "" });
+        setFormData({ 
+          name: "", email: "", role: "", journey: "08:00 - 12:00 | 13:00 - 17:00", user_id: "",
+          cpf: "", birth_date: "", work_start_time: "08:00", work_end_time: "18:00", 
+          lunch_start_time: "12:00", lunch_end_time: "13:00"
+        });
         loadData();
       }
     } catch (err) {
@@ -330,24 +358,48 @@ export default function EmployeeManagement() {
               Adicione os dados do novo colaborador da Enerlight.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="name">Nome Completo</Label>
-              <Input 
-                id="name" 
-                value={formData.name} 
-                onChange={e => setFormData({...formData, name: e.target.value})} 
-              />
+          <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto px-1">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="name">Nome Completo</Label>
+                <Input 
+                  id="name" 
+                  value={formData.name} 
+                  onChange={e => setFormData({...formData, name: e.target.value})} 
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="email">Email</Label>
+                <Input 
+                  id="email" 
+                  type="email"
+                  value={formData.email} 
+                  onChange={e => setFormData({...formData, email: e.target.value})} 
+                />
+              </div>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="email">Email</Label>
-              <Input 
-                id="email" 
-                type="email"
-                value={formData.email} 
-                onChange={e => setFormData({...formData, email: e.target.value})} 
-              />
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="cpf">CPF</Label>
+                <Input 
+                  id="cpf" 
+                  placeholder="000.000.000-00"
+                  value={formData.cpf} 
+                  onChange={e => setFormData({...formData, cpf: e.target.value})} 
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="birth_date">Data de Nascimento</Label>
+                <Input 
+                  id="birth_date" 
+                  type="date"
+                  value={formData.birth_date} 
+                  onChange={e => setFormData({...formData, birth_date: e.target.value})} 
+                />
+              </div>
             </div>
+
             <div className="grid gap-2">
               <Label htmlFor="role">Cargo / Função</Label>
               <Input 
@@ -356,13 +408,50 @@ export default function EmployeeManagement() {
                 onChange={e => setFormData({...formData, role: e.target.value})} 
               />
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="journey">Jornada de Trabalho</Label>
-              <Input 
-                id="journey" 
-                value={formData.journey} 
-                onChange={e => setFormData({...formData, journey: e.target.value})} 
-              />
+
+            <div className="border-t pt-4 mt-2">
+              <h4 className="text-sm font-semibold mb-3">Horários de Trabalho</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="work_start">Entrada</Label>
+                  <Input 
+                    id="work_start" 
+                    type="time"
+                    value={formData.work_start_time} 
+                    onChange={e => setFormData({...formData, work_start_time: e.target.value})} 
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="work_end">Saída</Label>
+                  <Input 
+                    id="work_end" 
+                    type="time"
+                    value={formData.work_end_time} 
+                    onChange={e => setFormData({...formData, work_end_time: e.target.value})} 
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4 mt-3">
+                <div className="grid gap-2">
+                  <Label htmlFor="lunch_start">Início Almoço</Label>
+                  <Input 
+                    id="lunch_start" 
+                    type="time"
+                    value={formData.lunch_start_time} 
+                    onChange={e => setFormData({...formData, lunch_start_time: e.target.value})} 
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="lunch_end">Fim Almoço</Label>
+                  <Input 
+                    id="lunch_end" 
+                    type="time"
+                    value={formData.lunch_end_time} 
+                    onChange={e => setFormData({...formData, lunch_end_time: e.target.value})} 
+                  />
+                </div>
+              </div>
             </div>
           </div>
           <DialogFooter>

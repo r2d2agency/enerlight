@@ -103,6 +103,12 @@ DO $$ BEGIN
     ALTER TABLE plans ADD COLUMN IF NOT EXISTS has_ghost BOOLEAN DEFAULT false;
     ALTER TABLE plans ADD COLUMN IF NOT EXISTS has_projects BOOLEAN DEFAULT false;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_phone VARCHAR(50);
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS cpf VARCHAR(14);
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS birth_date DATE;
+    ALTER TABLE organization_members ADD COLUMN IF NOT EXISTS work_start_time TIME;
+    ALTER TABLE organization_members ADD COLUMN IF NOT EXISTS work_end_time TIME;
+    ALTER TABLE organization_members ADD COLUMN IF NOT EXISTS lunch_start_time TIME;
+    ALTER TABLE organization_members ADD COLUMN IF NOT EXISTS lunch_end_time TIME;
 EXCEPTION
     WHEN duplicate_column THEN null;
 END $$;

@@ -9,6 +9,12 @@ export interface Employee {
   role: string;
   is_active: boolean;
   facial_registered?: boolean;
+  cpf?: string;
+  birth_date?: string;
+  work_start_time?: string;
+  work_end_time?: string;
+  lunch_start_time?: string;
+  lunch_end_time?: string;
 }
 
 export function useRh() {
