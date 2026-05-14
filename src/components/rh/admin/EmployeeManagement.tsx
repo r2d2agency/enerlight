@@ -559,69 +559,119 @@ export default function EmployeeManagement() {
               
               <div className="grid gap-4">
                 <div className="grid gap-2">
-                  <div className="flex justify-between items-center">
-                    <Label htmlFor="radius">Raio de Tolerância (metros)</Label>
-                    <span className="text-xs font-mono bg-muted px-2 py-0.5 rounded">{(formData as any).authorized_radius_meters || 100}m</span>
-                  </div>
-                  <Slider 
-                    id="radius"
-                    value={[(formData as any).authorized_radius_meters || 100]} 
-                    onValueChange={(val) => setFormData({...formData, authorized_radius_meters: val[0]} as any)} 
-                    max={500} 
-                    min={10}
-                    step={10}
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="lat">Latitude</Label>
-                    <Input 
-                      id="lat" 
-                      type="number"
-                      step="any"
-                      placeholder="-23.5505"
-                      value={(formData as any).authorized_latitude || ""} 
-                      onChange={e => setFormData({...formData, authorized_latitude: parseFloat(e.target.value) || 0} as any)} 
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="lng">Longitude</Label>
-                    <Input 
-                      id="lng" 
-                      type="number"
-                      step="any"
-                      placeholder="-46.6333"
-                      value={(formData as any).authorized_longitude || ""} 
-                      onChange={e => setFormData({...formData, authorized_longitude: parseFloat(e.target.value) || 0} as any)} 
-                    />
-                  </div>
-                </div>
-                
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="w-full gap-2"
-                  type="button"
-                  onClick={() => {
-                    if ("geolocation" in navigator) {
-                      navigator.geolocation.getCurrentPosition((position) => {
+                  <Label htmlFor="location-select">Selecione o Local (Obras/Sedes)</Label>
+                  <Select 
+                    onValueChange={(val) => {
+                      const loc = locations.find(l => l.id === val);
+                      if (loc) {
                         setFormData({
                           ...formData,
-                          authorized_latitude: position.coords.latitude,
-                          authorized_longitude: position.coords.longitude
+                          authorized_latitude: loc.latitude,
+                          authorized_longitude: loc.longitude,
+                          authorized_radius_meters: loc.radius_meters
                         } as any);
-                        toast.success("Coordenadas atuais obtidas!");
-                      }, (error) => {
-                        toast.error("Erro ao obter localização: " + error.message);
-                      });
-                    } else {
-                      toast.error("Geolocalização não suportada no navegador");
-                    }
-                  }}
-                >
-                  <MapPin className="h-3.5 w-3.5" /> Usar Minha Localização Atual
-                </Button>
+                        toast.success(`Local "${loc.name}" selecionado`);
+                      }
+                    }}
+                  >
+                    <SelectTrigger id="location-select" className="w-full">
+                      <SelectValue placeholder="Escolha um local cadastrado..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {locations.length > 0 ? (
+                        locations.map(loc => (
+                          <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="no-locations" disabled>Nenhum local cadastrado no RH</SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[10px] text-muted-foreground">
+                    Selecione um local pré-cadastrado na aba "Locais" ou preencha manualmente abaixo.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    type="button"
+                    className="text-xs h-7 text-primary"
+                    onClick={() => setShowManualCoords(!showManualCoords)}
+                  >
+                    {showManualCoords ? "Ocultar Coordenadas" : "Preencher Coordenadas Manualmente"}
+                  </Button>
+                </div>
+
+                {showManualCoords && (
+                  <div className="space-y-4 pt-2 border-t border-dashed">
+                    <div className="grid gap-2">
+                      <div className="flex justify-between items-center">
+                        <Label htmlFor="radius">Raio de Tolerância (metros)</Label>
+                        <span className="text-xs font-mono bg-muted px-2 py-0.5 rounded">{(formData as any).authorized_radius_meters || 100}m</span>
+                      </div>
+                      <Slider 
+                        id="radius"
+                        value={[(formData as any).authorized_radius_meters || 100]} 
+                        onValueChange={(val) => setFormData({...formData, authorized_radius_meters: val[0]} as any)} 
+                        max={1000} 
+                        min={10}
+                        step={10}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="lat">Latitude</Label>
+                        <Input 
+                          id="lat" 
+                          type="number"
+                          step="any"
+                          placeholder="-23.5505"
+                          value={(formData as any).authorized_latitude || ""} 
+                          onChange={e => setFormData({...formData, authorized_latitude: parseFloat(e.target.value) || 0} as any)} 
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="lng">Longitude</Label>
+                        <Input 
+                          id="lng" 
+                          type="number"
+                          step="any"
+                          placeholder="-46.6333"
+                          value={(formData as any).authorized_longitude || ""} 
+                          onChange={e => setFormData({...formData, authorized_longitude: parseFloat(e.target.value) || 0} as any)} 
+                        />
+                      </div>
+                    </div>
+                    
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full gap-2"
+                      type="button"
+                      onClick={() => {
+                        if ("geolocation" in navigator) {
+                          navigator.geolocation.getCurrentPosition((position) => {
+                            setFormData({
+                              ...formData,
+                              authorized_latitude: position.coords.latitude,
+                              authorized_longitude: position.coords.longitude
+                            } as any);
+                            toast.success("Coordenadas atuais obtidas!");
+                          }, (error) => {
+                            toast.error("Erro ao obter localização: " + error.message);
+                          });
+                        } else {
+                          toast.error("Geolocalização não suportada no navegador");
+                        }
+                      }}
+                    >
+                      <MapPin className="h-3.5 w-3.5" /> Usar Minha Localização Atual
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
