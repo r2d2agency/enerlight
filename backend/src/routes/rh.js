@@ -34,7 +34,8 @@ router.get('/employees', async (req, res) => {
     const result = await query(
       `SELECT om.id, om.user_id, u.name, u.email, om.role, om.is_active,
               u.cpf, u.birth_date,
-              om.work_start_time, om.work_end_time, om.lunch_start_time, om.lunch_end_time
+              om.work_start_time, om.work_end_time, om.lunch_start_time, om.lunch_end_time,
+              om.authorized_radius_meters, om.authorized_latitude, om.authorized_longitude
        FROM organization_members om
        JOIN users u ON u.id = om.user_id
        WHERE om.organization_id = $1

@@ -109,6 +109,9 @@ DO $$ BEGIN
     ALTER TABLE organization_members ADD COLUMN IF NOT EXISTS work_end_time TIME;
     ALTER TABLE organization_members ADD COLUMN IF NOT EXISTS lunch_start_time TIME;
     ALTER TABLE organization_members ADD COLUMN IF NOT EXISTS lunch_end_time TIME;
+    ALTER TABLE organization_members ADD COLUMN IF NOT EXISTS authorized_radius_meters INTEGER DEFAULT 100;
+    ALTER TABLE organization_members ADD COLUMN IF NOT EXISTS authorized_latitude DECIMAL(10, 8);
+    ALTER TABLE organization_members ADD COLUMN IF NOT EXISTS authorized_longitude DECIMAL(11, 8);
 EXCEPTION
     WHEN duplicate_column THEN null;
 END $$;
