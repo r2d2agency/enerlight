@@ -77,7 +77,7 @@ interface User {
 }
 
 export default function EmployeeManagement() {
-  const { getEmployees, updateMember, createMember, getLocations } = useRh();
+  const { getEmployees, updateMember, createMember, getLocations, createLocation } = useRh();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [availableUsers, setAvailableUsers] = useState<User[]>([]);
   const [locations, setLocations] = useState<any[]>([]);
