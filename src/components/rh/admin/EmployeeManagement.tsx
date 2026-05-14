@@ -144,7 +144,8 @@ export default function EmployeeManagement() {
       
       // Filter for users that aren't already mapped as employees if we wanted unique pool
       // For now, let's just use all organization members
-      setAvailableUsers(members.map(m => ({
+      const usersResponse = await api<any[]>(`/api/organizations/${members[0].organization_id}/members`);
+      setAvailableUsers(usersResponse.map(m => ({
         id: m.user_id,
         name: m.name,
         email: m.email
@@ -340,9 +341,22 @@ export default function EmployeeManagement() {
                 <TableCell>{emp.email}</TableCell>
                 <TableCell>
                   {emp.user_id ? (
-                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 gap-1">
-                      <ShieldCheck className="h-3 w-3" /> Vinculado
-                    </Badge>
+                    <div className="flex flex-col gap-1">
+                      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 gap-1">
+                        <ShieldCheck className="h-3 w-3" /> Vinculado
+                      </Badge>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="text-[10px] h-6 text-muted-foreground hover:text-primary"
+                        onClick={() => {
+                          setSelectedEmployee(emp);
+                          setIsLinkDialogOpen(true);
+                        }}
+                      >
+                        Alterar Vínculo
+                      </Button>
+                    </div>
                   ) : (
                     <Button 
                       variant="ghost" 
