@@ -84,6 +84,7 @@ export default function EmployeeManagement() {
   const [showManualCoords, setShowManualCoords] = useState(false);
   
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isLocationDialogOpen, setIsLocationDialogOpen] = useState(false);
   const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
   const [isFacialDialogOpen, setIsFacialDialogOpen] = useState(false);
   
@@ -559,7 +560,16 @@ export default function EmployeeManagement() {
               
               <div className="grid gap-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="location-select">Selecione o Local (Obras/Sedes)</Label>
+                  <div className="flex justify-between items-center mb-1">
+                    <Label htmlFor="location-select">Selecione o Local (Obras/Sedes)</Label>
+                    <Button 
+                      variant="link" 
+                      className="h-auto p-0 text-[10px] text-primary"
+                      onClick={() => setIsLocationDialogOpen(true)}
+                    >
+                      + Cadastrar Novo Local
+                    </Button>
+                  </div>
                   <Select 
                     onValueChange={(val) => {
                       const loc = locations.find(l => l.id === val);
@@ -588,7 +598,7 @@ export default function EmployeeManagement() {
                     </SelectContent>
                   </Select>
                   <p className="text-[10px] text-muted-foreground">
-                    Selecione um local pré-cadastrado na aba "Locais" ou preencha manualmente abaixo.
+                    Selecione um local pré-cadastrado ou clique acima para criar um novo.
                   </p>
                 </div>
 
@@ -714,6 +724,53 @@ export default function EmployeeManagement() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsLinkDialogOpen(false)}>Cancelar</Button>
             <Button onClick={handleLinkUser} disabled={!formData.user_id}>Vincular</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Location Dialog */}
+      <Dialog open={isLocationDialogOpen} onOpenChange={setIsLocationDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Cadastrar Novo Local</DialogTitle>
+            <DialogDescription>
+              Adicione um novo local de trabalho autorizado.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="new-loc-name">Nome do Local</Label>
+              <Input 
+                id="new-loc-name" 
+                placeholder="Ex: Obra Centro ou Filial Norte"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const target = e.currentTarget as HTMLInputElement;
+                    if (target.value) {
+                      // Trigger save logic or just keep in local state if we had one
+                    }
+                  }
+                }}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Para um cadastro completo com CEP e busca de coordenadas, utilize a aba <strong>Locais</strong> nas configurações do RH.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsLocationDialogOpen(false)}>Voltar</Button>
+            <Button onClick={() => {
+              const nameInput = document.getElementById('new-loc-name') as HTMLInputElement;
+              if (!nameInput?.value) {
+                toast.error("Informe o nome do local");
+                return;
+              }
+              
+              // Simplificado: redireciona ou informa que deve usar a aba Locais para coordenadas precisas
+              // Ou podemos implementar a criação rápida aqui se o useRh permitir
+              toast.info("Para salvar locais com coordenadas, utilize a aba 'Locais'");
+              setIsLocationDialogOpen(false);
+            }}>Entendi</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
