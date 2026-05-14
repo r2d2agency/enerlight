@@ -415,6 +415,8 @@ export default function EmployeeManagement() {
       {/* Facial Registration Dialog */}
       {isFacialDialogOpen && (
         <FacialValidation 
+          mode="register"
+          sensitivity={sensitivity}
           onValidated={handleFacialValidation} 
           onCancel={() => setIsFacialDialogOpen(false)} 
         />
