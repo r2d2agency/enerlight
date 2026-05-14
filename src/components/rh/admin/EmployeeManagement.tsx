@@ -63,7 +63,7 @@ interface User {
 }
 
 export default function EmployeeManagement() {
-  const { getEmployees, updateMember } = useRh();
+  const { getEmployees, updateMember, createMember } = useRh();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [availableUsers, setAvailableUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -128,22 +128,19 @@ export default function EmployeeManagement() {
     }
 
     try {
-      // Simulate API call to create employee
-      const newEmployee: Employee = {
-        id: Math.random().toString(36).substr(2, 9),
-        user_id: formData.user_id || null,
+      const success = await createMember({
         name: formData.name,
         email: formData.email,
-        role: formData.role,
-        facial_registered: false,
-        is_active: true,
-        journey: formData.journey
-      };
+        role: formData.role || "agent",
+        password: "changeme123"
+      });
 
-      setEmployees([...employees, newEmployee]);
-      setIsAddDialogOpen(false);
-      setFormData({ name: "", email: "", role: "", journey: "08:00 - 12:00 | 13:00 - 17:00", user_id: "" });
-      toast.success("Colaborador cadastrado!");
+      if (success) {
+        toast.success("Colaborador cadastrado!");
+        setIsAddDialogOpen(false);
+        setFormData({ name: "", email: "", role: "", journey: "08:00 - 12:00 | 13:00 - 17:00", user_id: "" });
+        loadData();
+      }
     } catch (err) {
       toast.error("Erro ao cadastrar colaborador");
     }
