@@ -82,9 +82,18 @@ router.patch('/members/:userId', async (req, res) => {
       );
     }
 
+    // Check if target is owner (can't change owner's role)
+    const targetCheck = await query(
+      `SELECT role FROM organization_members WHERE organization_id = $1 AND user_id = $2`,
+      [organizationId, userId]
+    );
+    
+    const isOwner = targetCheck.rows[0]?.role === 'owner';
+    const finalRole = isOwner ? 'owner' : (role || targetCheck.rows[0]?.role);
+
     const result = await query(
       `UPDATE organization_members 
-       SET role = COALESCE($1, role),
+       SET role = $1,
            is_active = COALESCE($2, is_active),
            work_start_time = COALESCE($3, work_start_time),
            work_end_time = COALESCE($4, work_end_time),
@@ -97,7 +106,7 @@ router.patch('/members/:userId', async (req, res) => {
        WHERE user_id = $10 AND organization_id = $11
        RETURNING *`,
       [
-        role, is_active, work_start_time, work_end_time, lunch_start_time, lunch_end_time, 
+        finalRole, is_active, work_start_time, work_end_time, lunch_start_time, lunch_end_time, 
         authorized_radius_meters, authorized_latitude, authorized_longitude,
         userId, organizationId
       ]
