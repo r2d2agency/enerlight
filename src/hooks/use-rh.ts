@@ -81,6 +81,9 @@ export function useRh() {
     work_end_time?: string;
     lunch_start_time?: string;
     lunch_end_time?: string;
+    authorized_radius_meters?: number;
+    authorized_latitude?: number;
+    authorized_longitude?: number;
   }) => {
     setLoading(true);
     setError(null);

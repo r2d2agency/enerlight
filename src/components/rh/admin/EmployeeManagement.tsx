@@ -38,7 +38,8 @@ import {
   CheckCircle2,
   XCircle,
   Settings2,
-  Pencil
+  Pencil,
+  MapPin
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useRh } from "@/hooks/use-rh";
