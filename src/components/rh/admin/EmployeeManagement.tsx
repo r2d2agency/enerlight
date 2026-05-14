@@ -37,7 +37,8 @@ import {
   User as UserIcon,
   CheckCircle2,
   XCircle,
-  Settings2
+  Settings2,
+  Pencil
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useRh } from "@/hooks/use-rh";
