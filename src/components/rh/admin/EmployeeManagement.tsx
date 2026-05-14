@@ -63,6 +63,7 @@ interface User {
 }
 
 export default function EmployeeManagement() {
+  const { getEmployees, updateMember } = useRh();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [availableUsers, setAvailableUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -91,27 +92,25 @@ export default function EmployeeManagement() {
   const loadData = async () => {
     setLoading(true);
     try {
-      // In a real app, these would be API calls
-      // Fetch real organization members
-      const response = await api<{ members: any[] }>(`/api/organizations/members`);
-      const members = response.members || [];
+      const members = await getEmployees();
       
       const mappedEmployees: Employee[] = members.map(m => ({
         id: m.id,
-        user_id: m.user_id || m.id,
+        user_id: m.user_id,
         name: m.name,
         email: m.email,
         role: m.role || "Colaborador",
-        facial_registered: localStorage.getItem(`facial_reg_${m.user_id || m.id}`) === 'true',
+        facial_registered: localStorage.getItem(`facial_reg_${m.user_id}`) === 'true',
         is_active: m.is_active !== false,
-        journey: m.journey || "08:00 - 12:00 | 13:00 - 17:00"
+        journey: "08:00 - 12:00 | 13:00 - 17:00" // Backend will need a table for this later
       }));
       
       setEmployees(mappedEmployees);
       
-      // Filter members to show only those who can be linked (optional, here showing all for simplicity)
+      // For linking, show users that aren't yet employees if needed
+      // Currently getEmployees returns all organization members who ARE the pool
       setAvailableUsers(members.map(m => ({
-        id: m.user_id || m.id,
+        id: m.user_id,
         name: m.name,
         email: m.email
       })));
@@ -154,25 +153,28 @@ export default function EmployeeManagement() {
     if (!selectedEmployee || !formData.user_id) return;
 
     try {
-      // Find the user data to update the employee record
-      const selectedUser = availableUsers.find(u => u.id === formData.user_id);
-      
-      const updatedEmployees = employees.map(emp => 
-        emp.id === selectedEmployee.id 
-          ? { 
-              ...emp, 
-              user_id: formData.user_id,
-              name: selectedUser?.name || emp.name,
-              email: selectedUser?.email || emp.email
-            } 
-          : emp
-      );
-      setEmployees(updatedEmployees);
-      setIsLinkDialogOpen(false);
-      toast.success(`Usuário ${selectedUser?.name} vinculado com sucesso!`);
-      
-      // Persist facial registration status if linking to a user that already has it
-      // In a real app, the backend would handle this linkage
+      const success = await updateMember(formData.user_id, { 
+        role: selectedEmployee.role 
+      });
+
+      if (success) {
+        const selectedUser = availableUsers.find(u => u.id === formData.user_id);
+        
+        const updatedEmployees = employees.map(emp => 
+          emp.id === selectedEmployee.id 
+            ? { 
+                ...emp, 
+                user_id: formData.user_id,
+                name: selectedUser?.name || emp.name,
+                email: selectedUser?.email || emp.email
+              } 
+            : emp
+        );
+        setEmployees(updatedEmployees);
+        setIsLinkDialogOpen(false);
+        toast.success(`Usuário vinculado com sucesso!`);
+        loadData();
+      }
     } catch (err) {
       toast.error("Erro ao vincular usuário");
     }
