@@ -109,11 +109,57 @@ export function useRh() {
     }
   }, []);
 
+  const getLocations = useCallback(async () => {
+    setLoading(true);
+    try {
+      return await api<any[]>('/api/rh/locations');
+    } catch (err: any) {
+      console.error("useRh.getLocations error:", err);
+      return [];
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const createLocation = useCallback(async (data: any) => {
+    setLoading(true);
+    try {
+      await api('/api/rh/locations', {
+        method: 'POST',
+        body: data,
+      });
+      return true;
+    } catch (err: any) {
+      console.error("useRh.createLocation error:", err);
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const deleteLocation = useCallback(async (id: string) => {
+    setLoading(true);
+    try {
+      await api(`/api/rh/locations/${id}`, {
+        method: 'DELETE',
+      });
+      return true;
+    } catch (err: any) {
+      console.error("useRh.deleteLocation error:", err);
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   return {
     loading,
     error,
     getEmployees,
     updateMember,
-    createMember
+    createMember,
+    getLocations,
+    createLocation,
+    deleteLocation
   };
 }
