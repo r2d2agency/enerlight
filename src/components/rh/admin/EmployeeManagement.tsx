@@ -41,7 +41,8 @@ import {
   XCircle,
   Settings2,
   Pencil,
-  MapPin
+  MapPin,
+  Loader2
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useRh } from "@/hooks/use-rh";
@@ -312,21 +313,6 @@ export default function EmployeeManagement() {
     }
   };
 
-  const handleCreateQuickLocation = async () => {
-    const { createLocation } = useRh(); // Need to call it properly but we already have it from destructuring at top of component
-    if (!newLocation.name || newLocation.latitude === 0 || newLocation.longitude === 0) {
-      toast.error("Preencha todos os campos do local");
-      return;
-    }
-
-    try {
-      const { cep, address, number, ...payload } = newLocation;
-      const { createLocation } = useRh.getState?.() || {}; // This is a hack, I should use the one from top
-      // Wait, I am inside EmployeeManagement which already has createLocation from useRh()
-    } catch(e) {}
-  };
-  
-  // Actually, I'll just use the variables already available in the component scope
   const handleQuickLocationSave = async () => {
     if (!newLocation.name || newLocation.latitude === 0 || newLocation.longitude === 0) {
       toast.error("Nome e coordenadas são obrigatórios");
