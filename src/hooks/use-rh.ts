@@ -19,13 +19,13 @@ export function useRh() {
     setLoading(true);
     setError(null);
     try {
-      // Step 1: Get organization ID
-      const me = await api<{user: {organization_id: string}}>('/api/auth/me');
-      const orgId = me.user.organization_id;
-      
-      if (!orgId) {
+      // Step 1: Get organizations user belongs to
+      const orgs = await api<any[]>('/api/organizations');
+      if (!orgs || orgs.length === 0) {
         throw new Error("Usuário sem organização");
       }
+      
+      const orgId = orgs[0].id;
 
       // Step 2: Get members for that organization
       const response = await api<Employee[]>(`/api/organizations/${orgId}/members`);
@@ -43,10 +43,9 @@ export function useRh() {
     setLoading(true);
     setError(null);
     try {
-      const me = await api<{user: {organization_id: string}}>('/api/auth/me');
-      const orgId = me.user.organization_id;
-      
-      if (!orgId) throw new Error("Usuário sem organização");
+      const orgs = await api<any[]>('/api/organizations');
+      if (!orgs || orgs.length === 0) throw new Error("Usuário sem organização");
+      const orgId = orgs[0].id;
 
       await api(`/api/organizations/${orgId}/members/${userId}`, {
         method: 'PATCH',
@@ -66,10 +65,9 @@ export function useRh() {
     setLoading(true);
     setError(null);
     try {
-      const me = await api<{user: {organization_id: string}}>('/api/auth/me');
-      const orgId = me.user.organization_id;
-      
-      if (!orgId) throw new Error("Usuário sem organização");
+      const orgs = await api<any[]>('/api/organizations');
+      if (!orgs || orgs.length === 0) throw new Error("Usuário sem organization");
+      const orgId = orgs[0].id;
 
       await api(`/api/organizations/${orgId}/members`, {
         method: 'POST',
