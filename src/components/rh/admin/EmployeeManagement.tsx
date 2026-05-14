@@ -114,7 +114,12 @@ export default function EmployeeManagement() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const members = await getEmployees();
+      const [members, locs] = await Promise.all([
+        getEmployees(),
+        getLocations()
+      ]);
+      
+      setLocations(locs || []);
       
       const mappedEmployees: Employee[] = members.map(m => {
         const journeyStr = m.work_start_time && m.work_end_time 
@@ -144,8 +149,6 @@ export default function EmployeeManagement() {
       
       setEmployees(mappedEmployees);
       
-      // Filter for users that aren't already mapped as employees if we wanted unique pool
-      // For now, let's just use all organization members
       const orgs = await api<any[]>('/api/organizations');
       const orgId = orgs[0]?.id;
       if (orgId) {
@@ -157,7 +160,7 @@ export default function EmployeeManagement() {
         })));
       }
     } catch (err) {
-      toast.error("Erro ao carregar colaboradores");
+      toast.error("Erro ao carregar dados do RH");
     } finally {
       setLoading(false);
     }
