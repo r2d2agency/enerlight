@@ -61,6 +61,9 @@ interface Employee {
   work_end_time?: string;
   lunch_start_time?: string;
   lunch_end_time?: string;
+  authorized_radius_meters?: number;
+  authorized_latitude?: number;
+  authorized_longitude?: number;
 }
 
 interface User {
@@ -164,7 +167,10 @@ export default function EmployeeManagement() {
           work_start_time: formData.work_start_time,
           work_end_time: formData.work_end_time,
           lunch_start_time: formData.lunch_start_time,
-          lunch_end_time: formData.lunch_end_time
+          lunch_end_time: formData.lunch_end_time,
+          authorized_radius_meters: formData.authorized_radius_meters,
+          authorized_latitude: formData.authorized_latitude,
+          authorized_longitude: formData.authorized_longitude
         });
 
         if (success) {
@@ -185,7 +191,10 @@ export default function EmployeeManagement() {
           work_start_time: formData.work_start_time,
           work_end_time: formData.work_end_time,
           lunch_start_time: formData.lunch_start_time,
-          lunch_end_time: formData.lunch_end_time
+          lunch_end_time: formData.lunch_end_time,
+          authorized_radius_meters: formData.authorized_radius_meters,
+          authorized_latitude: formData.authorized_latitude,
+          authorized_longitude: formData.authorized_longitude
         });
 
         if (success) {

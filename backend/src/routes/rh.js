@@ -59,9 +59,10 @@ router.patch('/members/:userId', async (req, res) => {
     const { userId } = req.params;
     const { 
       role, is_active, cpf, birth_date,
-      work_start_time, work_end_time, lunch_start_time, lunch_end_time 
+      work_start_time, work_end_time, lunch_start_time, lunch_end_time,
+      authorized_radius_meters, authorized_latitude, authorized_longitude
     } = req.body;
-    
+
     const orgResult = await query(
       `SELECT organization_id FROM organization_members WHERE user_id = $1 LIMIT 1`,
       [req.userId]
@@ -88,10 +89,17 @@ router.patch('/members/:userId', async (req, res) => {
            work_end_time = COALESCE($4, work_end_time),
            lunch_start_time = COALESCE($5, lunch_start_time),
            lunch_end_time = COALESCE($6, lunch_end_time),
+           authorized_radius_meters = COALESCE($7, authorized_radius_meters),
+           authorized_latitude = COALESCE($8, authorized_latitude),
+           authorized_longitude = COALESCE($9, authorized_longitude),
            updated_at = NOW()
-       WHERE user_id = $7 AND organization_id = $8
+       WHERE user_id = $10 AND organization_id = $11
        RETURNING *`,
-      [role, is_active, work_start_time, work_end_time, lunch_start_time, lunch_end_time, userId, organizationId]
+      [
+        role, is_active, work_start_time, work_end_time, lunch_start_time, lunch_end_time, 
+        authorized_radius_meters, authorized_latitude, authorized_longitude,
+        userId, organizationId
+      ]
     );
 
     if (result.rows.length === 0) {
