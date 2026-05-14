@@ -61,14 +61,80 @@ export default function RhLocations() {
       return;
     }
 
-    const success = await createLocation(formData);
+    const { cep, address, number, ...payload } = formData;
+    const success = await createLocation(payload);
     if (success) {
       toast.success("Local cadastrado com sucesso!");
       setIsDialogOpen(false);
-      setFormData({ name: "", latitude: 0, longitude: 0, radius_meters: 100 });
+      setFormData({ 
+        name: "", 
+        latitude: 0, 
+        longitude: 0, 
+        radius_meters: 100,
+        cep: "",
+        address: "",
+        number: ""
+      });
       loadData();
     } else {
       toast.error("Erro ao cadastrar local");
+    }
+  };
+
+  const handleCepSearch = async () => {
+    const cep = formData.cep.replace(/\D/g, '');
+    if (cep.length !== 8) {
+      toast.error("CEP inválido");
+      return;
+    }
+
+    setSearchingCep(true);
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+      const data = await response.json();
+      
+      if (data.erro) {
+        toast.error("CEP não encontrado");
+        return;
+      }
+
+      setFormData(prev => ({
+        ...prev,
+        address: `${data.logradouro}, ${data.bairro}, ${data.localidade} - ${data.uf}`
+      }));
+    } catch (error) {
+      toast.error("Erro ao buscar CEP");
+    } finally {
+      setSearchingCep(false);
+    }
+  };
+
+  const handleGetCoords = async () => {
+    if (!formData.address || !formData.number) {
+      toast.error("Preencha o endereço (via CEP) e o número");
+      return;
+    }
+
+    setSearchingCoords(true);
+    try {
+      const query = encodeURIComponent(`${formData.address}, ${formData.number}`);
+      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=1`);
+      const data = await response.json();
+
+      if (data && data.length > 0) {
+        setFormData(prev => ({
+          ...prev,
+          latitude: parseFloat(data[0].lat),
+          longitude: parseFloat(data[0].lon)
+        }));
+        toast.success("Coordenadas obtidas!");
+      } else {
+        toast.error("Não foi possível encontrar as coordenadas para este endereço.");
+      }
+    } catch (error) {
+      toast.error("Erro ao buscar coordenadas");
+    } finally {
+      setSearchingCoords(false);
     }
   };
 
@@ -157,25 +223,72 @@ export default function RhLocations() {
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Cadastrar Novo Local</DialogTitle>
             <DialogDescription>
-              Defina um nome e as coordenadas para a área autorizada.
+              Busque pelo CEP ou preencha as coordenadas manualmente.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="name">Nome do Local (ex: Obra Enerlight)</Label>
+              <Label htmlFor="name">Nome do Local</Label>
               <Input 
                 id="name" 
                 value={formData.name} 
                 onChange={e => setFormData({...formData, name: e.target.value})} 
-                placeholder="Ex: Sede Central"
+                placeholder="Ex: Sede Central ou Obra Enerlight"
               />
             </div>
+
+            <div className="space-y-3 p-3 border rounded-md bg-muted/30">
+              <Label className="text-xs font-semibold uppercase text-muted-foreground">Buscar por Endereço</Label>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <Input 
+                    placeholder="CEP" 
+                    value={formData.cep}
+                    onChange={e => setFormData({...formData, cep: e.target.value})}
+                    maxLength={9}
+                  />
+                </div>
+                <Button 
+                  variant="secondary" 
+                  size="icon" 
+                  onClick={handleCepSearch}
+                  disabled={searchingCep}
+                >
+                  {searchingCep ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                </Button>
+              </div>
+
+              {formData.address && (
+                <div className="grid gap-2">
+                  <div className="text-xs text-muted-foreground italic px-1">
+                    {formData.address}
+                  </div>
+                  <div className="flex gap-2">
+                    <Input 
+                      placeholder="Número" 
+                      value={formData.number}
+                      onChange={e => setFormData({...formData, number: e.target.value})}
+                      className="w-24"
+                    />
+                    <Button 
+                      variant="outline" 
+                      className="flex-1 gap-2" 
+                      onClick={handleGetCoords}
+                      disabled={searchingCoords}
+                    >
+                      {searchingCoords ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
+                      Obter Coordenadas
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
             
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4 pt-2">
               <div className="grid gap-2">
                 <Label htmlFor="lat">Latitude</Label>
                 <Input 
@@ -198,8 +311,8 @@ export default function RhLocations() {
               </div>
             </div>
 
-            <Button variant="outline" className="w-full gap-2" onClick={useCurrentLocation}>
-              <MapPin className="h-4 w-4" /> Usar Minha Localização Atual
+            <Button variant="ghost" className="w-full gap-2 text-xs" onClick={useCurrentLocation}>
+              <MapPin className="h-3 w-3" /> Usar Minha Localização Atual
             </Button>
 
             <div className="grid gap-2">
