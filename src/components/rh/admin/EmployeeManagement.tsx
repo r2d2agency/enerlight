@@ -106,7 +106,7 @@ export default function EmployeeManagement() {
         name: m.name,
         email: m.email,
         role: m.role || "Colaborador",
-        facial_registered: m.facial_registered || false,
+        facial_registered: localStorage.getItem(`facial_reg_${m.user_id || m.id}`) === 'true', // Use persisted status
         is_active: m.is_active !== false,
         journey: m.journey || "08:00 - 12:00 | 13:00 - 17:00"
       }));
@@ -158,14 +158,25 @@ export default function EmployeeManagement() {
     if (!selectedEmployee || !formData.user_id) return;
 
     try {
+      // Find the user data to update the employee record
+      const selectedUser = availableUsers.find(u => u.id === formData.user_id);
+      
       const updatedEmployees = employees.map(emp => 
         emp.id === selectedEmployee.id 
-          ? { ...emp, user_id: formData.user_id } 
+          ? { 
+              ...emp, 
+              user_id: formData.user_id,
+              name: selectedUser?.name || emp.name,
+              email: selectedUser?.email || emp.email
+            } 
           : emp
       );
       setEmployees(updatedEmployees);
       setIsLinkDialogOpen(false);
-      toast.success("Usuário vinculado com sucesso!");
+      toast.success(`Usuário ${selectedUser?.name} vinculado com sucesso!`);
+      
+      // Persist facial registration status if linking to a user that already has it
+      // In a real app, the backend would handle this linkage
     } catch (err) {
       toast.error("Erro ao vincular usuário");
     }
@@ -180,7 +191,11 @@ export default function EmployeeManagement() {
           : emp
       );
       setEmployees(updatedEmployees);
-      toast.success(`Face de ${selectedEmployee.name} cadastrada!`);
+      
+      // Save registration state (simulated)
+      localStorage.setItem(`facial_reg_${selectedEmployee.user_id || selectedEmployee.id}`, 'true');
+      
+      toast.success(`Face de ${selectedEmployee.name} cadastrada com sucesso!`);
     }
     setSelectedEmployee(null);
   };

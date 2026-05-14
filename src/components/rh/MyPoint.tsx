@@ -121,6 +121,14 @@ export default function MyPoint() {
   const onFacialValidated = (success: boolean) => {
     setShowFacial(false);
     if (success && pendingPoint) {
+      // Check if user has facial registered (simulated)
+      const isRegistered = localStorage.getItem(`facial_reg_${user?.id}`) === 'true';
+      
+      if (!isRegistered) {
+        toast.error("Sua face não está cadastrada no sistema. Procure o RH.");
+        return;
+      }
+
       completeRegistration(pendingPoint);
     } else {
       toast.error("Não foi possível validar sua identidade.");
