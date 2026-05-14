@@ -117,8 +117,19 @@ export default function RhLocations() {
 
     setSearchingCoords(true);
     try {
-      const query = encodeURIComponent(`${formData.address}, ${formData.number}`);
-      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=1`);
+      // Split the address to extract city and state for a more precise search
+      const addressParts = formData.address.split(',');
+      const street = addressParts[0].trim();
+      const cityState = addressParts[2]?.trim() || "";
+      
+      const searchQuery = `${street}, ${formData.number}, ${cityState}, Brazil`;
+      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=1`;
+      
+      const response = await fetch(url, {
+        headers: {
+          'Accept-Language': 'pt-BR'
+        }
+      });
       const data = await response.json();
 
       if (data && data.length > 0) {
@@ -129,7 +140,22 @@ export default function RhLocations() {
         }));
         toast.success("Coordenadas obtidas!");
       } else {
-        toast.error("Não foi possível encontrar as coordenadas para este endereço.");
+        // Fallback: try search without the number if it failed
+        const fallbackQuery = `${street}, ${cityState}, Brazil`;
+        const fallbackUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fallbackQuery)}&limit=1`;
+        const fallbackResponse = await fetch(fallbackUrl);
+        const fallbackData = await fallbackResponse.json();
+
+        if (fallbackData && fallbackData.length > 0) {
+          setFormData(prev => ({
+            ...prev,
+            latitude: parseFloat(fallbackData[0].lat),
+            longitude: parseFloat(fallbackData[0].lon)
+          }));
+          toast.warning("Coordenadas obtidas para a rua (número não encontrado)");
+        } else {
+          toast.error("Não foi possível encontrar as coordenadas. Verifique o endereço ou preencha manualmente.");
+        }
       }
     } catch (error) {
       toast.error("Erro ao buscar coordenadas");
