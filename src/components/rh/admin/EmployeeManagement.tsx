@@ -40,6 +40,7 @@ import {
   Settings2
 } from "lucide-react";
 import { api } from "@/lib/api";
+import { useRh } from "@/hooks/use-rh";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import FacialValidation from "../FacialValidation";
@@ -62,6 +63,7 @@ interface User {
 }
 
 export default function EmployeeManagement() {
+  const { getEmployees, updateMember, createMember } = useRh();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [availableUsers, setAvailableUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -90,27 +92,25 @@ export default function EmployeeManagement() {
   const loadData = async () => {
     setLoading(true);
     try {
-      // In a real app, these would be API calls
-      // Fetch real organization members
-      const response = await api<{ members: any[] }>(`/api/organizations/members`);
-      const members = response.members || [];
+      const members = await getEmployees();
       
       const mappedEmployees: Employee[] = members.map(m => ({
         id: m.id,
-        user_id: m.user_id || m.id,
+        user_id: m.user_id,
         name: m.name,
         email: m.email,
         role: m.role || "Colaborador",
-        facial_registered: localStorage.getItem(`facial_reg_${m.user_id || m.id}`) === 'true',
+        facial_registered: localStorage.getItem(`facial_reg_${m.user_id}`) === 'true',
         is_active: m.is_active !== false,
-        journey: m.journey || "08:00 - 12:00 | 13:00 - 17:00"
+        journey: "08:00 - 12:00 | 13:00 - 17:00" 
       }));
       
       setEmployees(mappedEmployees);
       
-      // Filter members to show only those who can be linked (optional, here showing all for simplicity)
+      // Filter for users that aren't already mapped as employees if we wanted unique pool
+      // For now, let's just use all organization members
       setAvailableUsers(members.map(m => ({
-        id: m.user_id || m.id,
+        id: m.user_id,
         name: m.name,
         email: m.email
       })));
@@ -128,22 +128,19 @@ export default function EmployeeManagement() {
     }
 
     try {
-      // Simulate API call to create employee
-      const newEmployee: Employee = {
-        id: Math.random().toString(36).substr(2, 9),
-        user_id: formData.user_id || null,
+      const success = await createMember({
         name: formData.name,
         email: formData.email,
-        role: formData.role,
-        facial_registered: false,
-        is_active: true,
-        journey: formData.journey
-      };
+        role: formData.role || "agent",
+        password: "changeme123"
+      });
 
-      setEmployees([...employees, newEmployee]);
-      setIsAddDialogOpen(false);
-      setFormData({ name: "", email: "", role: "", journey: "08:00 - 12:00 | 13:00 - 17:00", user_id: "" });
-      toast.success("Colaborador cadastrado!");
+      if (success) {
+        toast.success("Colaborador cadastrado!");
+        setIsAddDialogOpen(false);
+        setFormData({ name: "", email: "", role: "", journey: "08:00 - 12:00 | 13:00 - 17:00", user_id: "" });
+        loadData();
+      }
     } catch (err) {
       toast.error("Erro ao cadastrar colaborador");
     }
@@ -153,25 +150,28 @@ export default function EmployeeManagement() {
     if (!selectedEmployee || !formData.user_id) return;
 
     try {
-      // Find the user data to update the employee record
-      const selectedUser = availableUsers.find(u => u.id === formData.user_id);
-      
-      const updatedEmployees = employees.map(emp => 
-        emp.id === selectedEmployee.id 
-          ? { 
-              ...emp, 
-              user_id: formData.user_id,
-              name: selectedUser?.name || emp.name,
-              email: selectedUser?.email || emp.email
-            } 
-          : emp
-      );
-      setEmployees(updatedEmployees);
-      setIsLinkDialogOpen(false);
-      toast.success(`Usuário ${selectedUser?.name} vinculado com sucesso!`);
-      
-      // Persist facial registration status if linking to a user that already has it
-      // In a real app, the backend would handle this linkage
+      const success = await updateMember(formData.user_id, { 
+        role: selectedEmployee.role 
+      });
+
+      if (success) {
+        const selectedUser = availableUsers.find(u => u.id === formData.user_id);
+        
+        const updatedEmployees = employees.map(emp => 
+          emp.id === selectedEmployee.id 
+            ? { 
+                ...emp, 
+                user_id: formData.user_id,
+                name: selectedUser?.name || emp.name,
+                email: selectedUser?.email || emp.email
+              } 
+            : emp
+        );
+        setEmployees(updatedEmployees);
+        setIsLinkDialogOpen(false);
+        toast.success(`Usuário vinculado com sucesso!`);
+        loadData();
+      }
     } catch (err) {
       toast.error("Erro ao vincular usuário");
     }
