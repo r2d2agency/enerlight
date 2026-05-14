@@ -179,7 +179,13 @@ export default function EmployeeManagement() {
           name: formData.name,
           email: formData.email,
           role: formData.role || "agent",
-          password: "changeme123"
+          password: "changeme123",
+          cpf: formData.cpf,
+          birth_date: formData.birth_date,
+          work_start_time: formData.work_start_time,
+          work_end_time: formData.work_end_time,
+          lunch_start_time: formData.lunch_start_time,
+          lunch_end_time: formData.lunch_end_time
         });
 
         if (success) {

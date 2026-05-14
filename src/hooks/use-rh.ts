@@ -67,7 +67,18 @@ export function useRh() {
     }
   }, []);
 
-  const createMember = useCallback(async (data: { email: string; name: string; role: string; password?: string }) => {
+  const createMember = useCallback(async (data: { 
+    email: string; 
+    name: string; 
+    role: string; 
+    password?: string;
+    cpf?: string;
+    birth_date?: string;
+    work_start_time?: string;
+    work_end_time?: string;
+    lunch_start_time?: string;
+    lunch_end_time?: string;
+  }) => {
     setLoading(true);
     setError(null);
     try {
