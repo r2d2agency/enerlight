@@ -19,7 +19,7 @@ import {
   DialogHeader, 
   DialogTitle 
 } from "@/components/ui/dialog";
-import { Plus, MapPin, Trash2, Map as MapIcon } from "lucide-react";
+import { Plus, MapPin, Trash2, Map as MapIcon, Search, Loader2 } from "lucide-react";
 import { useRh } from "@/hooks/use-rh";
 import { toast } from "sonner";
 import { Slider } from "@/components/ui/slider";
@@ -29,11 +29,16 @@ export default function RhLocations() {
   const [locations, setLocations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [searchingCep, setSearchingCep] = useState(false);
+  const [searchingCoords, setSearchingCoords] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     latitude: 0,
     longitude: 0,
-    radius_meters: 100
+    radius_meters: 100,
+    cep: "",
+    address: "",
+    number: ""
   });
 
   useEffect(() => {
