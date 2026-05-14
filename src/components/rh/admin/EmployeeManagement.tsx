@@ -38,7 +38,8 @@ import {
   CheckCircle2,
   XCircle,
   Settings2,
-  Pencil
+  Pencil,
+  MapPin
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useRh } from "@/hooks/use-rh";
@@ -61,6 +62,9 @@ interface Employee {
   work_end_time?: string;
   lunch_start_time?: string;
   lunch_end_time?: string;
+  authorized_radius_meters?: number;
+  authorized_latitude?: number;
+  authorized_longitude?: number;
 }
 
 interface User {
@@ -95,7 +99,10 @@ export default function EmployeeManagement() {
     work_start_time: "08:00",
     work_end_time: "18:00",
     lunch_start_time: "12:00",
-    lunch_end_time: "13:00"
+    lunch_end_time: "13:00",
+    authorized_radius_meters: 100,
+    authorized_latitude: 0,
+    authorized_longitude: 0
   });
 
   useEffect(() => {
@@ -126,7 +133,10 @@ export default function EmployeeManagement() {
           work_start_time: m.work_start_time,
           work_end_time: m.work_end_time,
           lunch_start_time: m.lunch_start_time,
-          lunch_end_time: m.lunch_end_time
+          lunch_end_time: m.lunch_end_time,
+          authorized_radius_meters: m.authorized_radius_meters || 100,
+          authorized_latitude: m.authorized_latitude,
+          authorized_longitude: m.authorized_longitude
         };
       });
       
@@ -164,7 +174,10 @@ export default function EmployeeManagement() {
           work_start_time: formData.work_start_time,
           work_end_time: formData.work_end_time,
           lunch_start_time: formData.lunch_start_time,
-          lunch_end_time: formData.lunch_end_time
+          lunch_end_time: formData.lunch_end_time,
+          authorized_radius_meters: formData.authorized_radius_meters,
+          authorized_latitude: formData.authorized_latitude,
+          authorized_longitude: formData.authorized_longitude
         });
 
         if (success) {
@@ -185,7 +198,10 @@ export default function EmployeeManagement() {
           work_start_time: formData.work_start_time,
           work_end_time: formData.work_end_time,
           lunch_start_time: formData.lunch_start_time,
-          lunch_end_time: formData.lunch_end_time
+          lunch_end_time: formData.lunch_end_time,
+          authorized_radius_meters: formData.authorized_radius_meters,
+          authorized_latitude: formData.authorized_latitude,
+          authorized_longitude: formData.authorized_longitude
         });
 
         if (success) {
@@ -194,7 +210,8 @@ export default function EmployeeManagement() {
           setFormData({ 
             name: "", email: "", role: "", journey: "08:00 - 12:00 | 13:00 - 17:00", user_id: "",
             cpf: "", birth_date: "", work_start_time: "08:00", work_end_time: "18:00", 
-            lunch_start_time: "12:00", lunch_end_time: "13:00"
+            lunch_start_time: "12:00", lunch_end_time: "13:00",
+            authorized_radius_meters: 100, authorized_latitude: 0, authorized_longitude: 0
           });
           loadData();
         }
@@ -379,6 +396,9 @@ export default function EmployeeManagement() {
                         work_end_time: emp.work_end_time || "18:00",
                         lunch_start_time: emp.lunch_start_time || "12:00",
                         lunch_end_time: emp.lunch_end_time || "13:00",
+                        authorized_radius_meters: emp.authorized_radius_meters || 100,
+                        authorized_latitude: emp.authorized_latitude || 0,
+                        authorized_longitude: emp.authorized_longitude || 0,
                         journey: emp.journey
                       });
                       setIsAddDialogOpen(true);
@@ -505,6 +525,80 @@ export default function EmployeeManagement() {
                     onChange={e => setFormData({...formData, lunch_end_time: e.target.value})} 
                   />
                 </div>
+              </div>
+            </div>
+
+            <div className="border-t pt-4 mt-2">
+              <div className="flex items-center gap-2 mb-3">
+                <MapPin className="h-4 w-4 text-primary" />
+                <h4 className="text-sm font-semibold">Localização Autorizada</h4>
+              </div>
+              
+              <div className="grid gap-4">
+                <div className="grid gap-2">
+                  <div className="flex justify-between items-center">
+                    <Label htmlFor="radius">Raio de Tolerância (metros)</Label>
+                    <span className="text-xs font-mono bg-muted px-2 py-0.5 rounded">{(formData as any).authorized_radius_meters || 100}m</span>
+                  </div>
+                  <Slider 
+                    id="radius"
+                    value={[(formData as any).authorized_radius_meters || 100]} 
+                    onValueChange={(val) => setFormData({...formData, authorized_radius_meters: val[0]} as any)} 
+                    max={500} 
+                    min={10}
+                    step={10}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="lat">Latitude</Label>
+                    <Input 
+                      id="lat" 
+                      type="number"
+                      step="any"
+                      placeholder="-23.5505"
+                      value={(formData as any).authorized_latitude || ""} 
+                      onChange={e => setFormData({...formData, authorized_latitude: parseFloat(e.target.value) || 0} as any)} 
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="lng">Longitude</Label>
+                    <Input 
+                      id="lng" 
+                      type="number"
+                      step="any"
+                      placeholder="-46.6333"
+                      value={(formData as any).authorized_longitude || ""} 
+                      onChange={e => setFormData({...formData, authorized_longitude: parseFloat(e.target.value) || 0} as any)} 
+                    />
+                  </div>
+                </div>
+                
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full gap-2"
+                  type="button"
+                  onClick={() => {
+                    if ("geolocation" in navigator) {
+                      navigator.geolocation.getCurrentPosition((position) => {
+                        setFormData({
+                          ...formData,
+                          authorized_latitude: position.coords.latitude,
+                          authorized_longitude: position.coords.longitude
+                        } as any);
+                        toast.success("Coordenadas atuais obtidas!");
+                      }, (error) => {
+                        toast.error("Erro ao obter localização: " + error.message);
+                      });
+                    } else {
+                      toast.error("Geolocalização não suportada no navegador");
+                    }
+                  }}
+                >
+                  <MapPin className="h-3.5 w-3.5" /> Usar Minha Localização Atual
+                </Button>
               </div>
             </div>
           </div>
