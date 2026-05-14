@@ -152,25 +152,48 @@ export default function EmployeeManagement() {
     }
 
     try {
-      const success = await createMember({
-        name: formData.name,
-        email: formData.email,
-        role: formData.role || "agent",
-        password: "changeme123"
-      });
-
-      if (success) {
-        toast.success("Colaborador cadastrado!");
-        setIsAddDialogOpen(false);
-        setFormData({ 
-          name: "", email: "", role: "", journey: "08:00 - 12:00 | 13:00 - 17:00", user_id: "",
-          cpf: "", birth_date: "", work_start_time: "08:00", work_end_time: "18:00", 
-          lunch_start_time: "12:00", lunch_end_time: "13:00"
+      if (selectedEmployee) {
+        // Update existing member
+        const success = await updateMember(selectedEmployee.user_id, {
+          name: formData.name,
+          email: formData.email,
+          role: formData.role,
+          cpf: formData.cpf,
+          birth_date: formData.birth_date,
+          work_start_time: formData.work_start_time,
+          work_end_time: formData.work_end_time,
+          lunch_start_time: formData.lunch_start_time,
+          lunch_end_time: formData.lunch_end_time
         });
-        loadData();
+
+        if (success) {
+          toast.success("Colaborador atualizado!");
+          setIsAddDialogOpen(false);
+          setSelectedEmployee(null);
+          loadData();
+        }
+      } else {
+        // Create new member
+        const success = await createMember({
+          name: formData.name,
+          email: formData.email,
+          role: formData.role || "agent",
+          password: "changeme123"
+        });
+
+        if (success) {
+          toast.success("Colaborador cadastrado!");
+          setIsAddDialogOpen(false);
+          setFormData({ 
+            name: "", email: "", role: "", journey: "08:00 - 12:00 | 13:00 - 17:00", user_id: "",
+            cpf: "", birth_date: "", work_start_time: "08:00", work_end_time: "18:00", 
+            lunch_start_time: "12:00", lunch_end_time: "13:00"
+          });
+          loadData();
+        }
       }
     } catch (err) {
-      toast.error("Erro ao cadastrar colaborador");
+      toast.error(selectedEmployee ? "Erro ao atualizar colaborador" : "Erro ao cadastrar colaborador");
     }
   };
 
@@ -331,8 +354,32 @@ export default function EmployeeManagement() {
                     </Button>
                   )}
                 </TableCell>
-                <TableCell className="text-right">
-                  <Button variant="ghost" size="icon" className="text-destructive">
+                 <TableCell className="text-right flex gap-1 justify-end">
+                   <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8"
+                    onClick={() => {
+                      setSelectedEmployee(emp);
+                      setFormData({
+                        name: emp.name,
+                        email: emp.email,
+                        role: emp.role,
+                        user_id: emp.user_id,
+                        cpf: emp.cpf || "",
+                        birth_date: emp.birth_date ? new Date(emp.birth_date).toISOString().split('T')[0] : "",
+                        work_start_time: emp.work_start_time || "08:00",
+                        work_end_time: emp.work_end_time || "18:00",
+                        lunch_start_time: emp.lunch_start_time || "12:00",
+                        lunch_end_time: emp.lunch_end_time || "13:00",
+                        journey: emp.journey
+                      });
+                      setIsAddDialogOpen(true);
+                    }}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="text-destructive h-8 w-8">
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </TableCell>
@@ -353,9 +400,9 @@ export default function EmployeeManagement() {
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Cadastrar Novo Colaborador</DialogTitle>
+            <DialogTitle>{selectedEmployee ? "Editar Colaborador" : "Cadastrar Novo Colaborador"}</DialogTitle>
             <DialogDescription>
-              Adicione os dados do novo colaborador da Enerlight.
+              {selectedEmployee ? "Atualize os dados do colaborador." : "Adicione os dados do novo colaborador da Enerlight."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto px-1">
@@ -456,7 +503,7 @@ export default function EmployeeManagement() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleAddEmployee}>Cadastrar</Button>
+            <Button onClick={handleAddEmployee}>{selectedEmployee ? "Salvar Alterações" : "Cadastrar"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
