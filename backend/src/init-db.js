@@ -112,6 +112,22 @@ DO $$ BEGIN
     ALTER TABLE organization_members ADD COLUMN IF NOT EXISTS authorized_radius_meters INTEGER DEFAULT 100;
     ALTER TABLE organization_members ADD COLUMN IF NOT EXISTS authorized_latitude DECIMAL(10, 8);
     ALTER TABLE organization_members ADD COLUMN IF NOT EXISTS authorized_longitude DECIMAL(11, 8);
+    
+    -- RH Authorized Locations table
+    CREATE TABLE IF NOT EXISTS rh_authorized_locations (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        latitude DECIMAL(10, 8) NOT NULL,
+        longitude DECIMAL(11, 8) NOT NULL,
+        radius_meters INTEGER DEFAULT 100,
+        is_active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
+    -- Allow linking employee to a specific location
+    ALTER TABLE organization_members ADD COLUMN IF NOT EXISTS authorized_location_id UUID REFERENCES rh_authorized_locations(id) ON DELETE SET NULL;
 EXCEPTION
     WHEN duplicate_column THEN null;
 END $$;
