@@ -1101,7 +1101,7 @@ export default function OnlineQuotes() {
                     <div className="space-y-1">
                       <h2 className="text-3xl font-black tracking-tighter text-primary">PROPOSTA</h2>
                       <p className="text-sm font-bold text-slate-500 uppercase">#{selectedQuoteForPreview.id.split('-')[0].toUpperCase()}</p>
-                      <p className="text-sm text-slate-500">{format(parseISO(selectedQuoteForPreview.created_at), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}</p>
+                      <p className="text-sm text-slate-500">{selectedQuoteForPreview.created_at ? format(parseISO(selectedQuoteForPreview.created_at), "dd 'de' MMMM 'de' yyyy", { locale: ptBR }) : 'Data indisponível'}</p>
                     </div>
                     <div className="text-right space-y-2">
                       <div className="h-16 w-40 ml-auto rounded flex items-center justify-end overflow-hidden">
@@ -1120,7 +1120,7 @@ export default function OnlineQuotes() {
                   <div className="grid grid-cols-2 gap-8 mb-12 bg-slate-50/50 p-8 rounded-xl border border-slate-100">
                     <div>
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Destinatário</p>
-                      <p className="font-bold text-lg leading-tight text-black">{selectedQuoteForPreview.client_name}</p>
+                      <p className="font-bold text-lg leading-tight text-black">{selectedQuoteForPreview.client_name || 'Cliente'}</p>
                       <div className="mt-4 space-y-2 text-sm text-slate-600">
                         {selectedQuoteForPreview.client_document && <p><span className="font-semibold text-black">CNPJ/CPF:</span> {selectedQuoteForPreview.client_document}</p>}
                         {selectedQuoteForPreview.client_email && <p><span className="font-semibold text-black">Email:</span> {selectedQuoteForPreview.client_email}</p>}
@@ -1132,7 +1132,7 @@ export default function OnlineQuotes() {
                       <div className="mt-4 space-y-2 text-sm text-slate-600">
                         <p><span className="font-semibold text-black">Forma de Pagamento:</span> {selectedQuoteForPreview.payment_method?.toUpperCase() || 'N/A'}</p>
                         <p><span className="font-semibold text-black">Prazo de Pagamento:</span> {selectedQuoteForPreview.payment_terms?.toUpperCase() || 'N/A'}</p>
-                        <p><span className="font-semibold text-black">Frete:</span> {selectedQuoteForPreview.shipping_type?.toUpperCase() || 'CIF'} {selectedQuoteForPreview.shipping_value > 0 ? `(${formatCurrency(selectedQuoteForPreview.shipping_value)})` : '(Incluso)'}</p>
+                        <p><span className="font-semibold text-black">Frete:</span> {selectedQuoteForPreview.shipping_type?.toUpperCase() || 'CIF'} {Number(selectedQuoteForPreview.shipping_value) > 0 ? `(${formatCurrency(Number(selectedQuoteForPreview.shipping_value))})` : '(Incluso)'}</p>
                       </div>
                     </div>
                   </div>
@@ -1159,19 +1159,19 @@ export default function OnlineQuotes() {
                                   </div>
                                 )}
                                 <div>
-                                  <p className="text-base font-bold text-slate-900 !text-black mb-1">{item.product_name}</p>
-                                  <p className="text-[10px] text-slate-400 tracking-tight font-medium uppercase">{item.product_code}</p>
+                                  <p className="text-base font-bold text-slate-900 !text-black mb-1">{item.product_name || 'Produto sem nome'}</p>
+                                  <p className="text-[10px] text-slate-400 tracking-tight font-medium uppercase">{item.product_code || 'N/A'}</p>
                                 </div>
                               </div>
                             </td>
                             <td className="py-6 text-center text-sm font-bold text-slate-900 !text-black">{new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 3 }).format(Number(item.quantity) || 0)}</td>
-                            <td className="py-6 text-right text-sm font-bold text-slate-900 !text-black">{formatCurrency(item.unit_price)}</td>
+                            <td className="py-6 text-right text-sm font-bold text-slate-900 !text-black">{formatCurrency(Number(item.unit_price) || 0)}</td>
                             <td className="py-6 text-right text-sm font-bold text-slate-900 !text-black">
                               {item.discount_type === 'percentage' 
                                 ? `${item.discount_value || item.discount || 0}%` 
                                 : formatCurrency(item.discount_value || item.discount || 0)}
                             </td>
-                            <td className="py-6 text-right text-base font-black text-slate-900 !text-black">{formatCurrency(item.total_price)}</td>
+                            <td className="py-6 text-right text-base font-black text-slate-900 !text-black">{formatCurrency(Number(item.total_price) || 0)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -1180,17 +1180,17 @@ export default function OnlineQuotes() {
 
                   <div className="mt-12 pt-8 border-t-4 border-primary">
                     <div className="flex flex-col items-end mb-12 space-y-2">
-                      {selectedQuoteForPreview.shipping_value > 0 && (
+                      {Number(selectedQuoteForPreview.shipping_value) > 0 && (
                         <div className="flex justify-between items-center w-[300px] px-8 text-sm text-slate-500 font-bold uppercase tracking-wider">
                           <span>Frete:</span>
-                          <span>{formatCurrency(selectedQuoteForPreview.shipping_value)}</span>
+                          <span>{formatCurrency(Number(selectedQuoteForPreview.shipping_value))}</span>
                         </div>
                       )}
                       <div className="bg-primary text-white p-8 rounded-2xl min-w-[300px] shadow-xl">
                         <div className="flex justify-between items-center gap-12">
                           <span className="text-xs font-black uppercase tracking-[0.2em] opacity-70">Total da Proposta</span>
                           <span className="text-3xl font-black">
-                            {formatCurrency(selectedQuoteForPreview.total_value)}
+                            {formatCurrency(Number(selectedQuoteForPreview.total_value) || 0)}
                           </span>
                         </div>
                       </div>

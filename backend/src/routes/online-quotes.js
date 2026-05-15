@@ -68,17 +68,17 @@ router.post('/templates', async (req, res) => {
     if (id) {
       const result = await query(
         `UPDATE online_quote_templates 
-         SET name = $1, description = $2, cover_url = $3, header_text = $4, footer_text = $5, footer_config = $6, fiscal_info = $7, is_default = $8, updated_at = NOW()
-         WHERE id = $9 AND organization_id = $10 RETURNING *`,
-        [name, description, cover_url, header_text, footer_text, fConfig, fiscal_info || '', is_default, id, ctx.organizationId]
+         SET name = $1, description = $2, cover_url = $3, header_text = $4, footer_text = $5, footer_config = $6, is_default = $7, updated_at = NOW()
+         WHERE id = $8 AND organization_id = $9 RETURNING *`,
+        [name, description, cover_url, header_text, footer_text, fConfig, is_default, id, ctx.organizationId]
       );
       res.json(result.rows[0]);
     } else {
       const result = await query(
         `INSERT INTO online_quote_templates 
-         (organization_id, name, description, cover_url, header_text, footer_text, footer_config, fiscal_info, is_default)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-        [ctx.organizationId, name, description, cover_url, header_text, footer_text, fConfig, fiscal_info || '', is_default]
+         (organization_id, name, description, cover_url, header_text, footer_text, footer_config, is_default)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+        [ctx.organizationId, name, description, cover_url, header_text, footer_text, fConfig, is_default]
       );
       res.json(result.rows[0]);
     }
@@ -253,13 +253,13 @@ router.post('/quotes', async (req, res) => {
     const result = await query(
       `INSERT INTO online_quotes 
        (organization_id, user_id, client_name, client_document, client_email, client_phone, 
-        price_list_id, template_id, cover_image_url, fiscal_info, footer_text, footer_config, valid_until, notes, 
+        price_list_id, template_id, cover_image_url, footer_text, footer_config, valid_until, notes, 
         include_images, payment_terms, payment_method)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
        RETURNING id`,
       [
         ctx.organizationId, req.userId, client_name, client_document, client_email, client_phone, 
-        price_list_id, template_id || null, cover_image_url, fiscal_info || null, footer_text, fConfig, valid_until, notes, 
+        price_list_id, template_id || null, cover_image_url, footer_text, fConfig, valid_until, notes, 
         include_images ?? true, payment_terms, payment_method
       ]
     );
@@ -345,13 +345,13 @@ router.put('/quotes/:id', async (req, res) => {
     await query(
       `UPDATE online_quotes 
        SET client_name = $1, client_document = $2, client_email = $3, client_phone = $4, 
-           price_list_id = $5, template_id = $6, cover_image_url = $7, fiscal_info = $8, footer_text = $9, 
-           footer_config = $10, valid_until = $11, notes = $12, include_images = $13, 
-           payment_terms = $14, payment_method = $15, status = COALESCE($16, status), updated_at = NOW()
-       WHERE id = $17`,
+           price_list_id = $5, template_id = $6, cover_image_url = $7, footer_text = $8, 
+           footer_config = $9, valid_until = $10, notes = $11, include_images = $12, 
+           payment_terms = $13, payment_method = $14, status = COALESCE($15, status), updated_at = NOW()
+       WHERE id = $16`,
       [
         client_name, client_document, client_email, client_phone, 
-        price_list_id, template_id || null, cover_image_url, fiscal_info || null, footer_text, 
+        price_list_id, template_id || null, cover_image_url, footer_text, 
         fConfig, valid_until, notes, include_images ?? true, 
         payment_terms, payment_method, status, req.params.id
       ]
@@ -439,7 +439,7 @@ router.get('/quotes/:id', async (req, res) => {
     const ctx = await getUserContext(req.userId);
 
     const quote = await query(
-      `SELECT q.*, t.cover_url as template_cover, t.header_text as template_header, t.footer_text as template_footer, t.footer_config as template_footer_config, t.fiscal_info as template_fiscal_info
+      `SELECT q.*, t.cover_url as template_cover, t.header_text as template_header, t.footer_text as template_footer, t.footer_config as template_footer_config
        FROM online_quotes q
        LEFT JOIN online_quote_templates t ON q.template_id = t.id
        WHERE q.id = $1 AND q.organization_id = $2`,
