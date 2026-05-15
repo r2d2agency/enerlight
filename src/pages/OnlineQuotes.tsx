@@ -1159,8 +1159,8 @@ export default function OnlineQuotes() {
                                   </div>
                                 )}
                                 <div>
-                                  <p className="text-base font-bold text-slate-900 !text-black mb-1">{item.product_name}</p>
-                                  <p className="text-[10px] text-slate-400 tracking-tight font-medium uppercase">{item.product_code}</p>
+                                  <p className="text-base font-bold text-slate-900 !text-black mb-1">{item.product_name || 'Produto sem nome'}</p>
+                                  <p className="text-[10px] text-slate-400 tracking-tight font-medium uppercase">{item.product_code || 'N/A'}</p>
                                 </div>
                               </div>
                             </td>
