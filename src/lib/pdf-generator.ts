@@ -250,7 +250,7 @@ export const generateQuotePDF = async (quote: any, organization: any) => {
     doc.setFontSize(9);
     doc.setTextColor(80, 80, 80);
     
-    const cleanNotes = quote.notes.replace(/<[^>]*>/g, '');
+    const cleanNotes = String(quote.notes).replace(/<[^>]*>/g, '');
     const splitNotes = doc.splitTextToSize(cleanNotes, pageWidth - 28);
     doc.text(splitNotes, 14, currentY + 7, { align: "left" });
     currentY += (splitNotes.length * 5) + 12;
