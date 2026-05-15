@@ -76,9 +76,9 @@ router.post('/templates', async (req, res) => {
     } else {
       const result = await query(
         `INSERT INTO online_quote_templates 
-         (organization_id, name, description, cover_url, header_text, footer_text, footer_config, fiscal_info, is_default)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-        [ctx.organizationId, name, description, cover_url, header_text, footer_text, fConfig, fiscal_info || '', is_default]
+         (organization_id, name, description, cover_url, header_text, footer_text, footer_config, is_default)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+        [ctx.organizationId, name, description, cover_url, header_text, footer_text, fConfig, is_default]
       );
       res.json(result.rows[0]);
     }
