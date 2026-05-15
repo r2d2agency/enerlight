@@ -21,11 +21,15 @@ import {
 } from "@/components/ui/dialog";
 import { Plus, MapPin, Trash2, Map as MapIcon, Search, Loader2 } from "lucide-react";
 import { useRh } from "@/hooks/use-rh";
+import { useAuth } from "@/contexts/AuthContext";
+
 import { toast } from "sonner";
 import { Slider } from "@/components/ui/slider";
 
 export default function RhLocations() {
+  const { user } = useAuth();
   const { getLocations, createLocation, deleteLocation } = useRh();
+
   const [locations, setLocations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -200,10 +204,12 @@ export default function RhLocations() {
           <MapIcon className="h-5 w-5 text-primary" />
           Locais Autorizados
         </h2>
-        <Button onClick={() => setIsDialogOpen(true)} className="gap-2">
-          <Plus className="h-4 w-4" />
-          Novo Local
-        </Button>
+        {(user?.role === 'admin' || user?.role === 'owner') && (
+          <Button onClick={() => setIsDialogOpen(true)} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Novo Local
+          </Button>
+        )}
       </div>
 
       <div className="border rounded-lg">

@@ -21,9 +21,13 @@ import MyPoint from "@/components/rh/MyPoint";
 import RhRegisters from "@/components/rh/RhRegisters";
 import EmployeeManagement from "@/components/rh/admin/EmployeeManagement";
 import RhLocations from "@/components/rh/admin/RhLocations";
+import { useAuth } from "@/contexts/AuthContext";
+
 
 export default function RhModule() {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("my-point");
+
 
   const stats = [
     { title: "Presentes", value: "0", icon: Users, color: "text-blue-500" },
@@ -115,22 +119,24 @@ export default function RhModule() {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                  <ShieldCheck className="h-5 w-5 text-primary" />
-                  Ações Rápidas
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Button className="w-full justify-start gap-2" variant="outline">
-                  <CheckCircle className="h-4 w-4" /> Aprovar Todas Pendências
-                </Button>
-                <Button className="w-full justify-start gap-2" variant="outline">
-                  <Calendar className="h-4 w-4" /> Exportar Folha Mensal
-                </Button>
-              </CardContent>
-            </Card>
+            {(user?.role === 'admin' || user?.role === 'owner') && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                    <ShieldCheck className="h-5 w-5 text-primary" />
+                    Ações Rápidas
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Button className="w-full justify-start gap-2" variant="outline">
+                    <CheckCircle className="h-4 w-4" /> Aprovar Todas Pendências
+                  </Button>
+                  <Button className="w-full justify-start gap-2" variant="outline">
+                    <Calendar className="h-4 w-4" /> Exportar Folha Mensal
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </TabsContent>
 

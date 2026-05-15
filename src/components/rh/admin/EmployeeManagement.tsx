@@ -46,6 +46,8 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useRh } from "@/hooks/use-rh";
+import { useAuth } from "@/contexts/AuthContext";
+
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import FacialValidation from "../FacialValidation";
@@ -77,7 +79,9 @@ interface User {
 }
 
 export default function EmployeeManagement() {
+  const { user } = useAuth();
   const { getEmployees, updateMember, createMember, getLocations, createLocation } = useRh();
+
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [availableUsers, setAvailableUsers] = useState<User[]>([]);
   const [locations, setLocations] = useState<any[]>([]);
@@ -419,10 +423,12 @@ export default function EmployeeManagement() {
               </div>
             </div>
           </div>
-          <Button onClick={() => setIsAddDialogOpen(true)} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Novo Colaborador
-          </Button>
+          {(user?.role === 'admin' || user?.role === 'owner') && (
+            <Button onClick={() => setIsAddDialogOpen(true)} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Novo Colaborador
+            </Button>
+          )}
         </div>
       </div>
 
@@ -507,36 +513,40 @@ export default function EmployeeManagement() {
                   )}
                 </TableCell>
                  <TableCell className="text-right flex gap-1 justify-end">
-                   <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-8 w-8"
-                    onClick={() => {
-                      setSelectedEmployee(emp);
-                      setFormData({
-                        name: emp.name,
-                        email: emp.email,
-                        role: emp.role,
-                        user_id: emp.user_id,
-                        cpf: emp.cpf || "",
-                        birth_date: emp.birth_date ? new Date(emp.birth_date).toISOString().split('T')[0] : "",
-                        work_start_time: emp.work_start_time || "08:00",
-                        work_end_time: emp.work_end_time || "18:00",
-                        lunch_start_time: emp.lunch_start_time || "12:00",
-                        lunch_end_time: emp.lunch_end_time || "13:00",
-                        authorized_radius_meters: emp.authorized_radius_meters || 100,
-                        authorized_latitude: emp.authorized_latitude || 0,
-                        authorized_longitude: emp.authorized_longitude || 0,
-                        journey: emp.journey
-                      });
-                      setIsAddDialogOpen(true);
-                    }}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="text-destructive h-8 w-8">
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                   {(user?.role === 'admin' || user?.role === 'owner') && (
+                     <>
+                       <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8"
+                        onClick={() => {
+                          setSelectedEmployee(emp);
+                          setFormData({
+                            name: emp.name,
+                            email: emp.email,
+                            role: emp.role,
+                            user_id: emp.user_id,
+                            cpf: emp.cpf || "",
+                            birth_date: emp.birth_date ? new Date(emp.birth_date).toISOString().split('T')[0] : "",
+                            work_start_time: emp.work_start_time || "08:00",
+                            work_end_time: emp.work_end_time || "18:00",
+                            lunch_start_time: emp.lunch_start_time || "12:00",
+                            lunch_end_time: emp.lunch_end_time || "13:00",
+                            authorized_radius_meters: emp.authorized_radius_meters || 100,
+                            authorized_latitude: emp.authorized_latitude || 0,
+                            authorized_longitude: emp.authorized_longitude || 0,
+                            journey: emp.journey
+                          });
+                          setIsAddDialogOpen(true);
+                        }}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="text-destructive h-8 w-8">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </>
+                  )}
                 </TableCell>
               </TableRow>
             ))}
