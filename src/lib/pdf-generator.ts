@@ -337,6 +337,6 @@ export const generateQuotePDF = async (quote: any, organization: any) => {
     doc.text(splitFooter, pageWidth / 2, pageHeight - 15, { align: "center" });
   }
 
-  const fileName = (quote.client_name || 'orcamento').replace(/\s+/g, '-').toLowerCase();
-  doc.save(`orcamento-${fileName}.pdf`);
+  const fileName = (quote.client_name || 'proposta').replace(/\s+/g, '-').toLowerCase();
+  doc.save(`proposta-${fileName}.pdf`);
 };
