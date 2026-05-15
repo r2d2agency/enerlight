@@ -25,7 +25,7 @@ interface OnlineQuoteFormDialogProps {
 export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: OnlineQuoteFormDialogProps) {
   const { user } = useAuth();
   const isRepresentative = user?.role === 'representative';
-  const [step, setStep] = useState<"client" | "payment" | "items" | "fiscal" | "shipping">("client");
+  const [step, setStep] = useState<"client" | "fiscal" | "payment" | "items" | "shipping">("client");
   const [clientInfo, setClientInfo] = useState({
     name: "",
     document: "",
@@ -282,7 +282,7 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-[95vw] lg:max-w-6xl w-full h-[95vh] lg:h-[90vh] flex flex-col p-0 overflow-hidden">
           <DialogHeader className="p-6 pb-2">
-            <DialogTitle>{initialData?.id ? "Editar Orçamento" : "Novo Orçamento Online"}</DialogTitle>
+            <DialogTitle>{initialData?.id ? "Editar Proposta" : "Nova Proposta Online"}</DialogTitle>
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto p-6 pt-2">
@@ -411,7 +411,7 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
                   <Textarea 
                     value={clientInfo.notes} 
                     onChange={e => setClientInfo({...clientInfo, notes: e.target.value})}
-                    placeholder="Anotações sobre este orçamento..."
+                    placeholder="Anotações sobre esta proposta..."
                   />
                 </div>
               </div>
@@ -598,7 +598,7 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
                     <div className="p-3 bg-primary/5 border-b">
                       <p className="font-semibold flex items-center gap-2">
                         <List className="h-4 w-4" />
-                        Itens do Orçamento ({quoteItems.length})
+                        Itens da Proposta ({quoteItems.length})
                       </p>
                     </div>
                     <div className="flex-1 overflow-x-auto overflow-y-auto">
@@ -716,10 +716,10 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
               <>
                 <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
                 <Button 
-                  onClick={() => setStep("payment")} 
+                  onClick={() => setStep("fiscal")} 
                   disabled={!clientInfo.name || !selectedPriceListId || !selectedTemplateId}
                 >
-                  Próximo: Pagamento
+                  Próximo: Informação Fiscal
                 </Button>
               </>
             ) : step === "payment" ? (
