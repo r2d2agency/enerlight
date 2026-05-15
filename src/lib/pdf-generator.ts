@@ -50,7 +50,7 @@ export const generateQuotePDF = async (quote: any, organization: any) => {
   // 2. Header
   doc.setFontSize(22);
   doc.setTextColor(40, 40, 40);
-  doc.text("ORÇAMENTO", 14, 22);
+  doc.text("PROPOSTA", 14, 22);
   
   doc.setFontSize(10);
   doc.setTextColor(100, 100, 100);
