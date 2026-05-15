@@ -36,7 +36,7 @@ interface ParsedRow {
 }
 
 const TYPE_CONFIG = {
-  orcamento: { label: "Orçamentos", icon: FileText, color: "text-blue-600" },
+  orcamento: { label: "Propostas", icon: FileText, color: "text-blue-600" },
   pedido: { label: "Pedidos", icon: ShoppingCart, color: "text-green-600" },
   faturamento: { label: "Faturamento", icon: Receipt, color: "text-amber-600" },
 };

@@ -255,9 +255,9 @@ export default function OnlineQuotes() {
       <div className="flex flex-col gap-6 p-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Orçamentos Online</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Propostas Online</h1>
             <p className="text-muted-foreground">
-              Gerencie tabelas de preços, modelos de capa e gere orçamentos personalizados.
+              Gerencie tabelas de preços, modelos de capa e gere propostas personalizadas.
             </p>
           </div>
           <div className="flex gap-2">
@@ -266,7 +266,7 @@ export default function OnlineQuotes() {
               setSelectedPriceList(null); 
               setIsNewQuoteOpen(true);
             }}>
-              <Plus className="mr-2 h-4 w-4" /> Novo Orçamento
+              <Plus className="mr-2 h-4 w-4" /> Nova Proposta
             </Button>
           </div>
         </div>
@@ -274,7 +274,7 @@ export default function OnlineQuotes() {
         <Tabs defaultValue="quotes" className="w-full">
           <TabsList className="grid w-full grid-cols-4 lg:w-[600px]">
             <TabsTrigger value="quotes" className="flex items-center gap-2">
-              <FileText className="h-4 w-4" /> Orçamentos
+              <FileText className="h-4 w-4" /> Propostas
             </TabsTrigger>
             {isAdmin && (
               <>
@@ -295,9 +295,9 @@ export default function OnlineQuotes() {
             <Card>
               <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
-                  <CardTitle>Meus Orçamentos</CardTitle>
+                  <CardTitle>Minhas Propostas</CardTitle>
                   <CardDescription>
-                    Visualize e gerencie seus orçamentos gerados.
+                    Visualize e gerencie suas propostas geradas.
                   </CardDescription>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
@@ -421,9 +421,9 @@ export default function OnlineQuotes() {
                 ) : (
                   <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed rounded-lg">
                     <FileText className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                    <h3 className="text-lg font-medium">Nenhum orçamento encontrado</h3>
+                    <h3 className="text-lg font-medium">Nenhuma proposta encontrada</h3>
                     <p className="text-sm text-muted-foreground mt-1 max-w-xs">
-                      Comece criando seu primeiro orçamento clicando no botão acima.
+                      Comece criando sua primeira proposta clicando no botão acima.
                     </p>
                   </div>
                 )}

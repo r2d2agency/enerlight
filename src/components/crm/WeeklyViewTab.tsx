@@ -224,7 +224,7 @@ export function WeeklyViewTab({ goals, filterUserId, filterChannel, filterGroupI
   }
 
   const sections = [
-    { label: "Orçamentos", metric: "quotes_value", realized: gd.orcamento.value, count: gd.orcamento.count, color: "text-blue-600", borderColor: "border-l-blue-500", icon: <FileText className="h-4 w-4" /> },
+    { label: "Propostas", metric: "quotes_value", realized: gd.orcamento.value, count: gd.orcamento.count, color: "text-blue-600", borderColor: "border-l-blue-500", icon: <FileText className="h-4 w-4" /> },
     { label: "Pedidos", metric: "orders_value", realized: gd.pedido.value, count: gd.pedido.count, color: "text-green-600", borderColor: "border-l-green-500", icon: <ShoppingCart className="h-4 w-4" /> },
     { label: "Faturamento", metric: "billing_value", realized: gd.faturamento.value, count: gd.faturamento.count, color: "text-amber-600", borderColor: "border-l-amber-500", icon: <Receipt className="h-4 w-4" /> },
   ];
@@ -232,7 +232,7 @@ export function WeeklyViewTab({ goals, filterUserId, filterChannel, filterGroupI
   // Chart with adjusted goals (carry-over from previous weeks)
   const chartData = allWeeksData?.map((w, i) => ({
     name: w.weekLabel,
-    "Orçamentos": w.quotes_value,
+    "Propostas": w.quotes_value,
     "Pedidos": w.orders_value,
     "Faturamento": w.billing_value,
     "Meta Orçamento": weeklyAdjustedGoal("quotes_value", i),
@@ -436,7 +436,7 @@ export function WeeklyViewTab({ goals, filterUserId, filterChannel, filterGroupI
                 <YAxis tick={{ fontSize: 11 }} tickFormatter={v => fmt(v)} />
                 <Tooltip formatter={(v: number) => fmt(v)} />
                 <Legend />
-                <Bar dataKey="Orçamentos" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={20} />
+                <Bar dataKey="Propostas" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={20} />
                 <Bar dataKey="Pedidos" fill="#10b981" radius={[4, 4, 0, 0]} barSize={20} />
                 <Bar dataKey="Faturamento" fill="#f59e0b" radius={[4, 4, 0, 0]} barSize={20} />
                 <Line type="monotone" dataKey="Meta Orçamento" stroke="#3b82f6" strokeDasharray="5 5" strokeWidth={2} dot={false} />
@@ -468,7 +468,7 @@ export function WeeklyViewTab({ goals, filterUserId, filterChannel, filterGroupI
                 <YAxis tick={{ fontSize: 11 }} tickFormatter={v => fmt(v)} />
                 <Tooltip formatter={(v: number) => fmt(v)} />
                 <Legend />
-                <Line type="monotone" dataKey="Orçamentos" stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                <Line type="monotone" dataKey="Propostas" stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 4 }} activeDot={{ r: 6 }} />
                 <Line type="monotone" dataKey="Pedidos" stroke="#10b981" strokeWidth={2.5} dot={{ r: 4 }} activeDot={{ r: 6 }} />
                 <Line type="monotone" dataKey="Faturamento" stroke="#f59e0b" strokeWidth={2.5} dot={{ r: 4 }} activeDot={{ r: 6 }} />
                 <Line type="monotone" dataKey="Meta Orçamento" stroke="#3b82f6" strokeDasharray="5 5" strokeWidth={1.5} dot={false} />

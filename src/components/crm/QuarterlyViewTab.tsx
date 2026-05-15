@@ -183,7 +183,7 @@ export function QuarterlyViewTab({ goals, filterUserId, filterChannel, filterGro
   }
 
   const sections = [
-    { label: "Orçamentos", metricVal: "quotes_value", metricCount: "quotes_count", realized: totals.quotes_value, realizedCount: totals.quotes_count, goalVal: quarterlyGoals.quotes_value, goalCount: quarterlyGoals.quotes_count, color: "text-blue-600", borderColor: "border-l-blue-500", icon: <FileText className="h-4 w-4" /> },
+    { label: "Propostas", metricVal: "quotes_value", metricCount: "quotes_count", realized: totals.quotes_value, realizedCount: totals.quotes_count, goalVal: quarterlyGoals.quotes_value, goalCount: quarterlyGoals.quotes_count, color: "text-blue-600", borderColor: "border-l-blue-500", icon: <FileText className="h-4 w-4" /> },
     { label: "Pedidos", metricVal: "orders_value", metricCount: "orders_count", realized: totals.orders_value, realizedCount: totals.orders_count, goalVal: quarterlyGoals.orders_value, goalCount: quarterlyGoals.orders_count, color: "text-green-600", borderColor: "border-l-green-500", icon: <ShoppingCart className="h-4 w-4" /> },
     { label: "Faturamento", metricVal: "billing_value", metricCount: "billing_count", realized: totals.billing_value, realizedCount: totals.billing_count, goalVal: quarterlyGoals.billing_value, goalCount: quarterlyGoals.billing_count, color: "text-amber-600", borderColor: "border-l-amber-500", icon: <Receipt className="h-4 w-4" /> },
   ];
@@ -191,7 +191,7 @@ export function QuarterlyViewTab({ goals, filterUserId, filterChannel, filterGro
   // Chart data — each month with meta line and realized bars
   const chartData = monthlyData?.map(m => ({
     name: m.monthLabel,
-    "Orçamentos": m.quotes_value,
+    "Propostas": m.quotes_value,
     "Pedidos": m.orders_value,
     "Faturamento": m.billing_value,
     "Meta Orçamento": monthlyGoalValues.quotes_value,
@@ -368,7 +368,7 @@ export function QuarterlyViewTab({ goals, filterUserId, filterChannel, filterGro
                 />
                 <Legend />
                 {/* Bars — realized */}
-                <Bar dataKey="Orçamentos" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={28} />
+                <Bar dataKey="Propostas" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={28} />
                 <Bar dataKey="Pedidos" fill="#22c55e" radius={[4, 4, 0, 0]} barSize={28} />
                 <Bar dataKey="Faturamento" fill="#f59e0b" radius={[4, 4, 0, 0]} barSize={28} />
                 {/* Lines — goals */}
