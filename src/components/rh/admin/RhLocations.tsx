@@ -204,10 +204,12 @@ export default function RhLocations() {
           <MapIcon className="h-5 w-5 text-primary" />
           Locais Autorizados
         </h2>
-        <Button onClick={() => setIsDialogOpen(true)} className="gap-2">
-          <Plus className="h-4 w-4" />
-          Novo Local
-        </Button>
+        {(user?.role === 'admin' || user?.role === 'owner') && (
+          <Button onClick={() => setIsDialogOpen(true)} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Novo Local
+          </Button>
+        )}
       </div>
 
       <div className="border rounded-lg">
