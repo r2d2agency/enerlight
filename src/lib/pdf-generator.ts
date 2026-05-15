@@ -220,7 +220,7 @@ export const generateQuotePDF = async (quote: any, organization: any) => {
     doc.setFontSize(9);
     doc.setTextColor(80, 80, 80);
     
-    const cleanFiscal = fiscalSource
+    const cleanFiscal = String(fiscalSource)
       .replace(/<br\s*\/?>/gi, '\n')
       .replace(/<\/p>/gi, '\n')
       .replace(/<[^>]*>/g, '')
