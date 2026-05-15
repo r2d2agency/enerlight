@@ -423,10 +423,12 @@ export default function EmployeeManagement() {
               </div>
             </div>
           </div>
-          <Button onClick={() => setIsAddDialogOpen(true)} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Novo Colaborador
-          </Button>
+          {(user?.role === 'admin' || user?.role === 'owner') && (
+            <Button onClick={() => setIsAddDialogOpen(true)} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Novo Colaborador
+            </Button>
+          )}
         </div>
       </div>
 
