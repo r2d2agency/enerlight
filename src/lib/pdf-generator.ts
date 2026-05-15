@@ -332,7 +332,7 @@ export const generateQuotePDF = async (quote: any, organization: any) => {
     const footerText = quote.template_footer || quote.footer_text;
     doc.setFontSize(8);
     doc.setTextColor(150, 150, 150);
-    const cleanFooter = footerText.replace(/<[^>]*>/g, '');
+    const cleanFooter = String(footerText).replace(/<[^>]*>/g, '');
     const splitFooter = doc.splitTextToSize(cleanFooter, pageWidth - 28);
     doc.text(splitFooter, pageWidth / 2, pageHeight - 15, { align: "center" });
   }
