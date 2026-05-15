@@ -1120,7 +1120,7 @@ export default function OnlineQuotes() {
                   <div className="grid grid-cols-2 gap-8 mb-12 bg-slate-50/50 p-8 rounded-xl border border-slate-100">
                     <div>
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Destinatário</p>
-                      <p className="font-bold text-lg leading-tight text-black">{selectedQuoteForPreview.client_name}</p>
+                      <p className="font-bold text-lg leading-tight text-black">{selectedQuoteForPreview.client_name || 'Cliente'}</p>
                       <div className="mt-4 space-y-2 text-sm text-slate-600">
                         {selectedQuoteForPreview.client_document && <p><span className="font-semibold text-black">CNPJ/CPF:</span> {selectedQuoteForPreview.client_document}</p>}
                         {selectedQuoteForPreview.client_email && <p><span className="font-semibold text-black">Email:</span> {selectedQuoteForPreview.client_email}</p>}
