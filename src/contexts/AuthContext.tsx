@@ -153,22 +153,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setAuthToken(response.token);
           }
         } catch (err: any) {
-          // Only clear token if the server explicitly says it's invalid (401)
-          // Network errors, 502, timeouts etc should NOT logout the user
+          // If 403 (Forbidden), we might have permission issues but session could still be valid
+          // If 401 (Unauthorized), the token is definitely invalid
           if (err?.status === 401) {
             clearAuthToken();
+            setUser(null);
+          } else if (err?.status === 403) {
+            console.warn('[Auth] Auth check returned 403. This might be a permission issue for the /me endpoint.', err);
+            // We don't necessarily logout on 403, but we should handle it
           } else {
             // Try to decode the token locally to keep user logged in during outages
             try {
               const payload = JSON.parse(atob(token.split('.')[1]));
               if (payload.exp && payload.exp * 1000 > Date.now()) {
-                // Token still valid, keep user info from token
                 setUser({ id: payload.userId, email: payload.email, name: payload.email });
               } else {
                 clearAuthToken();
+                setUser(null);
               }
             } catch {
               clearAuthToken();
+              setUser(null);
             }
           }
         }
