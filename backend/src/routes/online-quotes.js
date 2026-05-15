@@ -438,9 +438,6 @@ router.get('/quotes/:id', async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
 
-    if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
-    
-    // Check if fiscal_info column exists to avoid 500 errors during migration
     const columnCheck = await query(
       `SELECT column_name 
        FROM information_schema.columns 
