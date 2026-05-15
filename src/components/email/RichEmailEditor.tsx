@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -89,6 +89,17 @@ export function RichEmailEditor({ value, onChange, placeholder, className }: Ric
       onChange(editorRef.current.innerHTML);
     }
   }, [onChange]);
+
+  // Sync external value changes (e.g. when switching templates) without
+  // disturbing the caret while the user is typing.
+  useEffect(() => {
+    const el = editorRef.current;
+    if (!el) return;
+    if (document.activeElement === el) return; // user is typing — don't reset
+    if (el.innerHTML !== (value || "")) {
+      el.innerHTML = value || "";
+    }
+  }, [value]);
 
   const handleInput = useCallback(() => {
     syncContent();
@@ -405,12 +416,18 @@ export function RichEmailEditor({ value, onChange, placeholder, className }: Ric
       <Tabs value={showPreview ? "preview" : "edit"} className="w-full">
         <TabsContent value="edit" className="m-0 relative">
           <div
-            ref={editorRef}
+            ref={(el) => {
+              editorRef.current = el;
+              // Initialize content only once when the element mounts
+              if (el && el.innerHTML === "" && value) {
+                el.innerHTML = value;
+              }
+            }}
             contentEditable
+            suppressContentEditableWarning
             className="min-h-[300px] max-h-[500px] overflow-y-auto p-4 focus:outline-none prose prose-sm max-w-none"
             onInput={handleInput}
             onBlur={syncContent}
-            dangerouslySetInnerHTML={{ __html: value }}
             data-placeholder={placeholder}
             style={{ 
               minHeight: "300px",
