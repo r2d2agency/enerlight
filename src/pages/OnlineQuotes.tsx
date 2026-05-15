@@ -1165,7 +1165,7 @@ export default function OnlineQuotes() {
                               </div>
                             </td>
                             <td className="py-6 text-center text-sm font-bold text-slate-900 !text-black">{new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 3 }).format(Number(item.quantity) || 0)}</td>
-                            <td className="py-6 text-right text-sm font-bold text-slate-900 !text-black">{formatCurrency(item.unit_price)}</td>
+                            <td className="py-6 text-right text-sm font-bold text-slate-900 !text-black">{formatCurrency(Number(item.unit_price) || 0)}</td>
                             <td className="py-6 text-right text-sm font-bold text-slate-900 !text-black">
                               {item.discount_type === 'percentage' 
                                 ? `${item.discount_value || item.discount || 0}%` 
