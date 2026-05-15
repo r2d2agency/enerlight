@@ -25,7 +25,7 @@ interface OnlineQuoteFormDialogProps {
 export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: OnlineQuoteFormDialogProps) {
   const { user } = useAuth();
   const isRepresentative = user?.role === 'representative';
-  const [step, setStep] = useState<"client" | "fiscal" | "payment" | "items" | "shipping">("client");
+  const [step, setStep] = useState<"client" | "payment" | "items" | "shipping">("client");
   const [clientInfo, setClientInfo] = useState({
     name: "",
     document: "",
