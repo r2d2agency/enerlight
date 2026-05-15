@@ -1171,7 +1171,7 @@ export default function OnlineQuotes() {
                                 ? `${item.discount_value || item.discount || 0}%` 
                                 : formatCurrency(item.discount_value || item.discount || 0)}
                             </td>
-                            <td className="py-6 text-right text-base font-black text-slate-900 !text-black">{formatCurrency(item.total_price)}</td>
+                            <td className="py-6 text-right text-base font-black text-slate-900 !text-black">{formatCurrency(Number(item.total_price) || 0)}</td>
                           </tr>
                         ))}
                       </tbody>
