@@ -1101,7 +1101,7 @@ export default function OnlineQuotes() {
                     <div className="space-y-1">
                       <h2 className="text-3xl font-black tracking-tighter text-primary">PROPOSTA</h2>
                       <p className="text-sm font-bold text-slate-500 uppercase">#{selectedQuoteForPreview.id.split('-')[0].toUpperCase()}</p>
-                      <p className="text-sm text-slate-500">{format(parseISO(selectedQuoteForPreview.created_at), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}</p>
+                      <p className="text-sm text-slate-500">{selectedQuoteForPreview.created_at ? format(parseISO(selectedQuoteForPreview.created_at), "dd 'de' MMMM 'de' yyyy", { locale: ptBR }) : 'Data indisponível'}</p>
                     </div>
                     <div className="text-right space-y-2">
                       <div className="h-16 w-40 ml-auto rounded flex items-center justify-end overflow-hidden">
