@@ -68,9 +68,9 @@ router.post('/templates', async (req, res) => {
     if (id) {
       const result = await query(
         `UPDATE online_quote_templates 
-         SET name = $1, description = $2, cover_url = $3, header_text = $4, footer_text = $5, footer_config = $6, fiscal_info = $7, is_default = $8, updated_at = NOW()
-         WHERE id = $9 AND organization_id = $10 RETURNING *`,
-        [name, description, cover_url, header_text, footer_text, fConfig, fiscal_info || '', is_default, id, ctx.organizationId]
+         SET name = $1, description = $2, cover_url = $3, header_text = $4, footer_text = $5, footer_config = $6, is_default = $7, updated_at = NOW()
+         WHERE id = $8 AND organization_id = $9 RETURNING *`,
+        [name, description, cover_url, header_text, footer_text, fConfig, is_default, id, ctx.organizationId]
       );
       res.json(result.rows[0]);
     } else {
