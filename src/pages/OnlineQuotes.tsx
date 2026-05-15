@@ -690,7 +690,7 @@ export default function OnlineQuotes() {
                           onChange={(html) => setEditingTemplate({...editingTemplate, header_text: html})}
                           className="min-h-[400px]"
                         />
-                        <p className="text-xs text-muted-foreground">Este texto aparecerá logo após a capa ou junto aos termos do orçamento.</p>
+                        <p className="text-xs text-muted-foreground">Este texto aparecerá logo após a capa ou junto aos termos da proposta.</p>
                       </div>
                     </div>
                   </TabsContent>
