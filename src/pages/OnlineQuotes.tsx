@@ -159,6 +159,7 @@ export default function OnlineQuotes() {
       cover_url: editingTemplate?.cover_url || '',
       header_text: editingTemplate?.header_text || '',
       footer_text: editingTemplate?.footer_text || '',
+      fiscal_info: editingTemplate?.fiscal_info || '',
       footer_config: JSON.stringify(footerConfig),
       is_default: formData.get('is_default') === 'on'
     };
