@@ -690,7 +690,7 @@ export default function OnlineQuotes() {
                           onChange={(html) => setEditingTemplate({...editingTemplate, header_text: html})}
                           className="min-h-[400px]"
                         />
-                        <p className="text-xs text-muted-foreground">Este texto aparecerá logo após a capa ou junto aos termos do orçamento.</p>
+                        <p className="text-xs text-muted-foreground">Este texto aparecerá logo após a capa ou junto aos termos da proposta.</p>
                       </div>
                     </div>
                   </TabsContent>
@@ -1054,7 +1054,7 @@ export default function OnlineQuotes() {
                 <div className="flex items-center justify-between space-x-2 border p-3 rounded-lg">
                   <div className="space-y-0.5">
                     <Label htmlFor="is_active">Tabela Ativa</Label>
-                    <p className="text-[10px] text-muted-foreground">Habilita o uso desta tabela nos orçamentos</p>
+                    <p className="text-[10px] text-muted-foreground">Habilita o uso desta tabela nas propostas</p>
                   </div>
                   <Switch 
                     id="is_active" 
@@ -1099,7 +1099,7 @@ export default function OnlineQuotes() {
                   {/* Fake PDF Preview Header */}
                   <div className="flex justify-between items-start mb-10 border-b pb-8 border-primary/20">
                     <div className="space-y-1">
-                      <h2 className="text-3xl font-black tracking-tighter text-primary">ORÇAMENTO</h2>
+                      <h2 className="text-3xl font-black tracking-tighter text-primary">PROPOSTA</h2>
                       <p className="text-sm font-bold text-slate-500 uppercase">#{selectedQuoteForPreview.id.split('-')[0].toUpperCase()}</p>
                       <p className="text-sm text-slate-500">{format(parseISO(selectedQuoteForPreview.created_at), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}</p>
                     </div>
@@ -1188,7 +1188,7 @@ export default function OnlineQuotes() {
                       )}
                       <div className="bg-primary text-white p-8 rounded-2xl min-w-[300px] shadow-xl">
                         <div className="flex justify-between items-center gap-12">
-                          <span className="text-xs font-black uppercase tracking-[0.2em] opacity-70">Total do Orçamento</span>
+                          <span className="text-xs font-black uppercase tracking-[0.2em] opacity-70">Total da Proposta</span>
                           <span className="text-3xl font-black">
                             {formatCurrency(selectedQuoteForPreview.total_value)}
                           </span>
