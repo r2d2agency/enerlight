@@ -345,13 +345,13 @@ router.put('/quotes/:id', async (req, res) => {
     await query(
       `UPDATE online_quotes 
        SET client_name = $1, client_document = $2, client_email = $3, client_phone = $4, 
-           price_list_id = $5, template_id = $6, cover_image_url = $7, fiscal_info = $8, footer_text = $9, 
-           footer_config = $10, valid_until = $11, notes = $12, include_images = $13, 
-           payment_terms = $14, payment_method = $15, status = COALESCE($16, status), updated_at = NOW()
-       WHERE id = $17`,
+           price_list_id = $5, template_id = $6, cover_image_url = $7, footer_text = $8, 
+           footer_config = $9, valid_until = $10, notes = $11, include_images = $12, 
+           payment_terms = $13, payment_method = $14, status = COALESCE($15, status), updated_at = NOW()
+       WHERE id = $16`,
       [
         client_name, client_document, client_email, client_phone, 
-        price_list_id, template_id || null, cover_image_url, fiscal_info || null, footer_text, 
+        price_list_id, template_id || null, cover_image_url, footer_text, 
         fConfig, valid_until, notes, include_images ?? true, 
         payment_terms, payment_method, status, req.params.id
       ]
