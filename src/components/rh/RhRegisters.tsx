@@ -24,11 +24,15 @@ import {
   Cake
 } from "lucide-react";
 import { useRh } from "@/hooks/use-rh";
+import { useAuth } from "@/contexts/AuthContext";
+
 import { format, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 export default function RhRegisters() {
+  const { user } = useAuth();
   const { getEmployees } = useRh();
+
   const [employees, setEmployees] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);

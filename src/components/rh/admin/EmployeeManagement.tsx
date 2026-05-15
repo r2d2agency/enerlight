@@ -46,6 +46,8 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useRh } from "@/hooks/use-rh";
+import { useAuth } from "@/contexts/AuthContext";
+
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import FacialValidation from "../FacialValidation";
@@ -77,7 +79,9 @@ interface User {
 }
 
 export default function EmployeeManagement() {
+  const { user } = useAuth();
   const { getEmployees, updateMember, createMember, getLocations, createLocation } = useRh();
+
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [availableUsers, setAvailableUsers] = useState<User[]>([]);
   const [locations, setLocations] = useState<any[]>([]);

@@ -21,9 +21,13 @@ import MyPoint from "@/components/rh/MyPoint";
 import RhRegisters from "@/components/rh/RhRegisters";
 import EmployeeManagement from "@/components/rh/admin/EmployeeManagement";
 import RhLocations from "@/components/rh/admin/RhLocations";
+import { useAuth } from "@/contexts/AuthContext";
+
 
 export default function RhModule() {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("my-point");
+
 
   const stats = [
     { title: "Presentes", value: "0", icon: Users, color: "text-blue-500" },

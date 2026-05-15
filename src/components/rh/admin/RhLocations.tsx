@@ -21,11 +21,15 @@ import {
 } from "@/components/ui/dialog";
 import { Plus, MapPin, Trash2, Map as MapIcon, Search, Loader2 } from "lucide-react";
 import { useRh } from "@/hooks/use-rh";
+import { useAuth } from "@/contexts/AuthContext";
+
 import { toast } from "sonner";
 import { Slider } from "@/components/ui/slider";
 
 export default function RhLocations() {
+  const { user } = useAuth();
   const { getLocations, createLocation, deleteLocation } = useRh();
+
   const [locations, setLocations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
