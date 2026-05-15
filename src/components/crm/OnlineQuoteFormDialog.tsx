@@ -25,7 +25,7 @@ interface OnlineQuoteFormDialogProps {
 export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: OnlineQuoteFormDialogProps) {
   const { user } = useAuth();
   const isRepresentative = user?.role === 'representative';
-  const [step, setStep] = useState<"client" | "fiscal" | "payment" | "items" | "shipping">("client");
+  const [step, setStep] = useState<"client" | "payment" | "items" | "shipping">("client");
   const [clientInfo, setClientInfo] = useState({
     name: "",
     document: "",
@@ -466,26 +466,6 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
                   />
                 </div>
               </div>
-            ) : step === "fiscal" ? (
-              <div className="space-y-6 max-w-4xl mx-auto py-4">
-                <div className="space-y-3">
-                  <Label className="text-base font-semibold flex items-center gap-2">
-                    <FileText className="h-5 w-5 text-primary" />
-                    Informações Fiscais
-                  </Label>
-                  <div className="bg-background border rounded-md min-h-[300px]">
-                    <RichEmailEditor 
-                      value={clientInfo.fiscal_info} 
-                      onChange={val => setClientInfo({...clientInfo, fiscal_info: val})}
-                      className="border-none"
-                      placeholder="Cole aqui as informações fiscais, impostos, NCM, etc..."
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Estas informações serão exibidas logo após a lista de produtos na proposta.
-                  </p>
-                </div>
-              </div>
             ) : step === "shipping" ? (
               <div className="space-y-6 max-w-2xl mx-auto py-4">
                 <div className="grid grid-cols-1 gap-6">
@@ -716,22 +696,15 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
               <>
                 <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
                 <Button 
-                  onClick={() => setStep("fiscal")} 
+                  onClick={() => setStep("payment")} 
                   disabled={!clientInfo.name || !selectedPriceListId || !selectedTemplateId}
                 >
-                  Próximo: Informação Fiscal
-                </Button>
-              </>
-            ) : step === "fiscal" ? (
-              <>
-                <Button variant="outline" onClick={() => setStep("client")}>Voltar</Button>
-                <Button onClick={() => setStep("payment")}>
                   Próximo: Pagamento
                 </Button>
               </>
             ) : step === "payment" ? (
               <>
-                <Button variant="outline" onClick={() => setStep("fiscal")}>Voltar</Button>
+                <Button variant="outline" onClick={() => setStep("client")}>Voltar</Button>
                 <Button onClick={() => setStep("items")}>
                   Próximo: Adicionar Itens
                 </Button>

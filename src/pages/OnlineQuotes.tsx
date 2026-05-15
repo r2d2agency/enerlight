@@ -159,6 +159,7 @@ export default function OnlineQuotes() {
       cover_url: editingTemplate?.cover_url || '',
       header_text: editingTemplate?.header_text || '',
       footer_text: editingTemplate?.footer_text || '',
+      fiscal_info: editingTemplate?.fiscal_info || '',
       footer_config: JSON.stringify(footerConfig),
       is_default: formData.get('is_default') === 'on'
     };
@@ -604,6 +605,7 @@ export default function OnlineQuotes() {
                     <TabsTrigger value="general" className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none">Geral</TabsTrigger>
                     <TabsTrigger value="content" className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none">Conteúdo</TabsTrigger>
                     <TabsTrigger value="footer" className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none">Rodapé</TabsTrigger>
+                    <TabsTrigger value="fiscal" className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none">Informação Fiscal</TabsTrigger>
                     <TabsTrigger value="preview" className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none">Visualização</TabsTrigger>
                   </TabsList>
                 </div>
@@ -868,6 +870,26 @@ export default function OnlineQuotes() {
                             />
                           </div>
                         </div>
+                      </div>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="fiscal" className="mt-0 space-y-4">
+                    <div className="space-y-2">
+                      <Label className="text-base font-semibold flex items-center gap-2">
+                        <FileText className="h-5 w-5 text-primary" />
+                        Informações Fiscais
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Este conteúdo será exibido logo após a lista de produtos e antes do rodapé na proposta em PDF.
+                      </p>
+                      <div className="bg-background border rounded-md min-h-[300px]">
+                        <RichEmailEditor
+                          value={editingTemplate?.fiscal_info || ''}
+                          onChange={(html) => setEditingTemplate({ ...editingTemplate, fiscal_info: html })}
+                          className="border-none"
+                          placeholder="Cole aqui as informações fiscais, impostos, NCM, etc..."
+                        />
                       </div>
                     </div>
                   </TabsContent>

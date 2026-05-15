@@ -56,7 +56,7 @@ router.post('/templates', async (req, res) => {
     if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner') {
       return res.status(403).json({ error: 'Unauthorized' });
     }
-    const { id, name, description, cover_url, header_text, footer_text, footer_config, is_default } = req.body;
+    const { id, name, description, cover_url, header_text, footer_text, footer_config, fiscal_info, is_default } = req.body;
 
     
     if (is_default) {
@@ -68,17 +68,17 @@ router.post('/templates', async (req, res) => {
     if (id) {
       const result = await query(
         `UPDATE online_quote_templates 
-         SET name = $1, description = $2, cover_url = $3, header_text = $4, footer_text = $5, footer_config = $6, is_default = $7, updated_at = NOW()
-         WHERE id = $8 AND organization_id = $9 RETURNING *`,
-        [name, description, cover_url, header_text, footer_text, fConfig, is_default, id, ctx.organizationId]
+         SET name = $1, description = $2, cover_url = $3, header_text = $4, footer_text = $5, footer_config = $6, fiscal_info = $7, is_default = $8, updated_at = NOW()
+         WHERE id = $9 AND organization_id = $10 RETURNING *`,
+        [name, description, cover_url, header_text, footer_text, fConfig, fiscal_info || '', is_default, id, ctx.organizationId]
       );
       res.json(result.rows[0]);
     } else {
       const result = await query(
         `INSERT INTO online_quote_templates 
-         (organization_id, name, description, cover_url, header_text, footer_text, footer_config, is_default)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-        [ctx.organizationId, name, description, cover_url, header_text, footer_text, fConfig, is_default]
+         (organization_id, name, description, cover_url, header_text, footer_text, footer_config, fiscal_info, is_default)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+        [ctx.organizationId, name, description, cover_url, header_text, footer_text, fConfig, fiscal_info || '', is_default]
       );
       res.json(result.rows[0]);
     }
@@ -440,7 +440,7 @@ router.get('/quotes/:id', async (req, res) => {
 
     if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
     const quote = await query(
-      `SELECT q.*, t.cover_url as template_cover, t.header_text as template_header, t.footer_text as template_footer, t.footer_config as template_footer_config
+      `SELECT q.*, t.cover_url as template_cover, t.header_text as template_header, t.footer_text as template_footer, t.footer_config as template_footer_config, t.fiscal_info as template_fiscal_info
        FROM online_quotes q
        LEFT JOIN online_quote_templates t ON q.template_id = t.id
        WHERE q.id = $1 AND q.organization_id = $2`,
