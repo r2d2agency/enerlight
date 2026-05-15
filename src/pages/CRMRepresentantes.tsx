@@ -56,7 +56,7 @@ const emptyForm: FormState = {
 
 export default function CRMRepresentantes() {
   const { user } = useAuth();
-  const canManage = user?.role && ['owner', 'admin', 'manager'].includes(user.role);
+  const canManage = true; // Liberado para todos cadastrarem conforme solicitação do usuário
 
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
