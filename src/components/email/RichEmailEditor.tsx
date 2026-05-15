@@ -90,6 +90,17 @@ export function RichEmailEditor({ value, onChange, placeholder, className }: Ric
     }
   }, [onChange]);
 
+  // Sync external value changes (e.g. when switching templates) without
+  // disturbing the caret while the user is typing.
+  useEffect(() => {
+    const el = editorRef.current;
+    if (!el) return;
+    if (document.activeElement === el) return; // user is typing — don't reset
+    if (el.innerHTML !== (value || "")) {
+      el.innerHTML = value || "";
+    }
+  }, [value]);
+
   const handleInput = useCallback(() => {
     syncContent();
   }, [syncContent]);
