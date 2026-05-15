@@ -1054,7 +1054,7 @@ export default function OnlineQuotes() {
                 <div className="flex items-center justify-between space-x-2 border p-3 rounded-lg">
                   <div className="space-y-0.5">
                     <Label htmlFor="is_active">Tabela Ativa</Label>
-                    <p className="text-[10px] text-muted-foreground">Habilita o uso desta tabela nos orçamentos</p>
+                    <p className="text-[10px] text-muted-foreground">Habilita o uso desta tabela nas propostas</p>
                   </div>
                   <Switch 
                     id="is_active" 
