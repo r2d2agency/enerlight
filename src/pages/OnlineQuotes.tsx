@@ -874,6 +874,26 @@ export default function OnlineQuotes() {
                     </div>
                   </TabsContent>
 
+                  <TabsContent value="fiscal" className="mt-0 space-y-4">
+                    <div className="space-y-2">
+                      <Label className="text-base font-semibold flex items-center gap-2">
+                        <FileText className="h-5 w-5 text-primary" />
+                        Informações Fiscais
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Este conteúdo será exibido logo após a lista de produtos e antes do rodapé na proposta em PDF.
+                      </p>
+                      <div className="bg-background border rounded-md min-h-[300px]">
+                        <RichEmailEditor
+                          value={editingTemplate?.fiscal_info || ''}
+                          onChange={(html) => setEditingTemplate({ ...editingTemplate, fiscal_info: html })}
+                          className="border-none"
+                          placeholder="Cole aqui as informações fiscais, impostos, NCM, etc..."
+                        />
+                      </div>
+                    </div>
+                  </TabsContent>
+
                   <TabsContent value="preview" className="mt-0 h-full">
                     <div className="grid grid-cols-2 gap-6 h-full min-h-[500px]">
                       <div className="space-y-4">
