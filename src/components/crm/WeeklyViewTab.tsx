@@ -224,7 +224,7 @@ export function WeeklyViewTab({ goals, filterUserId, filterChannel, filterGroupI
   }
 
   const sections = [
-    { label: "Orçamentos", metric: "quotes_value", realized: gd.orcamento.value, count: gd.orcamento.count, color: "text-blue-600", borderColor: "border-l-blue-500", icon: <FileText className="h-4 w-4" /> },
+    { label: "Propostas", metric: "quotes_value", realized: gd.orcamento.value, count: gd.orcamento.count, color: "text-blue-600", borderColor: "border-l-blue-500", icon: <FileText className="h-4 w-4" /> },
     { label: "Pedidos", metric: "orders_value", realized: gd.pedido.value, count: gd.pedido.count, color: "text-green-600", borderColor: "border-l-green-500", icon: <ShoppingCart className="h-4 w-4" /> },
     { label: "Faturamento", metric: "billing_value", realized: gd.faturamento.value, count: gd.faturamento.count, color: "text-amber-600", borderColor: "border-l-amber-500", icon: <Receipt className="h-4 w-4" /> },
   ];
@@ -232,7 +232,7 @@ export function WeeklyViewTab({ goals, filterUserId, filterChannel, filterGroupI
   // Chart with adjusted goals (carry-over from previous weeks)
   const chartData = allWeeksData?.map((w, i) => ({
     name: w.weekLabel,
-    "Orçamentos": w.quotes_value,
+    "Propostas": w.quotes_value,
     "Pedidos": w.orders_value,
     "Faturamento": w.billing_value,
     "Meta Orçamento": weeklyAdjustedGoal("quotes_value", i),

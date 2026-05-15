@@ -37,7 +37,7 @@ const TYPE_COLORS: Record<string, string> = {
 };
 
 const TYPE_LABELS: Record<string, string> = {
-  orcamento: "Orçamentos",
+  orcamento: "Propostas",
   pedido: "Pedidos",
   faturamento: "Faturamento",
 };
@@ -177,7 +177,7 @@ export function GoalsMapTab({ startDate, endDate, filterUserId, filterChannel, f
         <div className="flex flex-wrap items-center gap-3">
           <Tabs value={mapType} onValueChange={setMapType} className="w-auto">
             <TabsList>
-              <TabsTrigger value="orcamento" className="gap-1"><FileText className="h-3 w-3" /> Orçamentos</TabsTrigger>
+              <TabsTrigger value="orcamento" className="gap-1"><FileText className="h-3 w-3" /> Propostas</TabsTrigger>
               <TabsTrigger value="pedido" className="gap-1"><ShoppingCart className="h-3 w-3" /> Pedidos</TabsTrigger>
               <TabsTrigger value="faturamento" className="gap-1"><Receipt className="h-3 w-3" /> Faturamento</TabsTrigger>
             </TabsList>

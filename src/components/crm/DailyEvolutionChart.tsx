@@ -311,7 +311,7 @@ export function DailyEvolutionChart({ startDate, endDate, filterUserId, filterCh
                 }}
               />
             ))}
-            {showOrcamento && <Line type="monotone" dataKey="orcamento" name="Orçamentos" stroke="#3b82f6" strokeWidth={2} dot={false} />}
+            {showOrcamento && <Line type="monotone" dataKey="orcamento" name="Propostas" stroke="#3b82f6" strokeWidth={2} dot={false} />}
             {showPedido && <Line type="monotone" dataKey="pedido" name="Pedidos" stroke="#22c55e" strokeWidth={2} dot={false} />}
             {showFaturamento && <Line type="monotone" dataKey="faturamento" name="Faturamento" stroke="#f59e0b" strokeWidth={2} dot={false} />}
           </ComposedChart>

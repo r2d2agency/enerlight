@@ -32,7 +32,7 @@ function fmt(v: number) {
 const DAY_NAMES = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
 const TYPE_CONFIG = {
-  orcamento: { label: "Orçamentos", icon: FileText, metricValue: "quotes_value", metricCount: "quotes_count", color: "text-blue-600" },
+  orcamento: { label: "Propostas", icon: FileText, metricValue: "quotes_value", metricCount: "quotes_count", color: "text-blue-600" },
   pedido: { label: "Pedidos", icon: ShoppingCart, metricValue: "orders_value", metricCount: "orders_count", color: "text-green-600" },
   faturamento: { label: "Faturamento", icon: Receipt, metricValue: "billing_value", metricCount: "billing_count", color: "text-amber-600" },
 };
@@ -271,7 +271,7 @@ export function DailyEvolutionTable({ startDate, endDate, filterUserId, filterCh
       <CardContent>
         <Tabs defaultValue="orcamento">
           <TabsList className="mb-3">
-            <TabsTrigger value="orcamento" className="gap-1"><FileText className="h-3.5 w-3.5" /> Orçamentos</TabsTrigger>
+            <TabsTrigger value="orcamento" className="gap-1"><FileText className="h-3.5 w-3.5" /> Propostas</TabsTrigger>
             <TabsTrigger value="pedido" className="gap-1"><ShoppingCart className="h-3.5 w-3.5" /> Pedidos</TabsTrigger>
             <TabsTrigger value="faturamento" className="gap-1"><Receipt className="h-3.5 w-3.5" /> Faturamento</TabsTrigger>
           </TabsList>
