@@ -696,22 +696,15 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
               <>
                 <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
                 <Button 
-                  onClick={() => setStep("fiscal")} 
+                  onClick={() => setStep("payment")} 
                   disabled={!clientInfo.name || !selectedPriceListId || !selectedTemplateId}
                 >
-                  Próximo: Informação Fiscal
-                </Button>
-              </>
-            ) : step === "fiscal" ? (
-              <>
-                <Button variant="outline" onClick={() => setStep("client")}>Voltar</Button>
-                <Button onClick={() => setStep("payment")}>
                   Próximo: Pagamento
                 </Button>
               </>
             ) : step === "payment" ? (
               <>
-                <Button variant="outline" onClick={() => setStep("fiscal")}>Voltar</Button>
+                <Button variant="outline" onClick={() => setStep("client")}>Voltar</Button>
                 <Button onClick={() => setStep("items")}>
                   Próximo: Adicionar Itens
                 </Button>
