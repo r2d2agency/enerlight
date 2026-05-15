@@ -1099,7 +1099,7 @@ export default function OnlineQuotes() {
                   {/* Fake PDF Preview Header */}
                   <div className="flex justify-between items-start mb-10 border-b pb-8 border-primary/20">
                     <div className="space-y-1">
-                      <h2 className="text-3xl font-black tracking-tighter text-primary">ORÇAMENTO</h2>
+                      <h2 className="text-3xl font-black tracking-tighter text-primary">PROPOSTA</h2>
                       <p className="text-sm font-bold text-slate-500 uppercase">#{selectedQuoteForPreview.id.split('-')[0].toUpperCase()}</p>
                       <p className="text-sm text-slate-500">{format(parseISO(selectedQuoteForPreview.created_at), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}</p>
                     </div>
