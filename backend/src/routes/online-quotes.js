@@ -244,7 +244,7 @@ router.post('/quotes', async (req, res) => {
     if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
     const { 
       client_name, client_document, client_email, client_phone, 
-      price_list_id, template_id, items, cover_image_url, footer_text, footer_config, valid_until, notes,
+      price_list_id, template_id, items, cover_image_url, fiscal_info, footer_text, footer_config, valid_until, notes,
       include_images, payment_terms, payment_method
     } = req.body;
 
