@@ -1190,7 +1190,7 @@ export default function OnlineQuotes() {
                         <div className="flex justify-between items-center gap-12">
                           <span className="text-xs font-black uppercase tracking-[0.2em] opacity-70">Total da Proposta</span>
                           <span className="text-3xl font-black">
-                            {formatCurrency(selectedQuoteForPreview.total_value)}
+                            {formatCurrency(Number(selectedQuoteForPreview.total_value) || 0)}
                           </span>
                         </div>
                       </div>
