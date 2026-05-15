@@ -208,8 +208,9 @@ export const generateQuotePDF = async (quote: any, organization: any) => {
   // 6. Footer & Notes
   let currentY = (doc as any).lastAutoTable.finalY + 15;
 
-  // 6.1 Fiscal Information
-  if (quote.fiscal_info) {
+  // 6.1 Fiscal Information (from quote, fallback to template)
+  const fiscalSource = quote.fiscal_info || quote.template_fiscal_info;
+  if (fiscalSource) {
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(40, 40, 40);
@@ -219,8 +220,7 @@ export const generateQuotePDF = async (quote: any, organization: any) => {
     doc.setFontSize(9);
     doc.setTextColor(80, 80, 80);
     
-    // Improved clean function to handle more HTML tags and line breaks
-    const cleanFiscal = quote.fiscal_info
+    const cleanFiscal = fiscalSource
       .replace(/<br\s*\/?>/gi, '\n')
       .replace(/<\/p>/gi, '\n')
       .replace(/<[^>]*>/g, '')
