@@ -605,6 +605,7 @@ export default function OnlineQuotes() {
                     <TabsTrigger value="general" className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none">Geral</TabsTrigger>
                     <TabsTrigger value="content" className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none">Conteúdo</TabsTrigger>
                     <TabsTrigger value="footer" className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none">Rodapé</TabsTrigger>
+                    <TabsTrigger value="fiscal" className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none">Informação Fiscal</TabsTrigger>
                     <TabsTrigger value="preview" className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none">Visualização</TabsTrigger>
                   </TabsList>
                 </div>
