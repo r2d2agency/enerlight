@@ -438,15 +438,6 @@ router.get('/quotes/:id', async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
 
-    const columnCheck = await query(
-      `SELECT column_name 
-       FROM information_schema.columns 
-       WHERE table_name = 'online_quotes' AND column_name = 'fiscal_info'`
-    );
-    
-    const fiscalColumnExists = columnCheck.rows.length > 0;
-    const fiscalSelect = fiscalColumnExists ? ', q.fiscal_info' : '';
-
     const quote = await query(
       `SELECT q.*, t.cover_url as template_cover, t.header_text as template_header, t.footer_text as template_footer, t.footer_config as template_footer_config, t.fiscal_info as template_fiscal_info
        FROM online_quotes q
