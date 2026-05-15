@@ -1180,10 +1180,10 @@ export default function OnlineQuotes() {
 
                   <div className="mt-12 pt-8 border-t-4 border-primary">
                     <div className="flex flex-col items-end mb-12 space-y-2">
-                      {selectedQuoteForPreview.shipping_value > 0 && (
+                      {Number(selectedQuoteForPreview.shipping_value) > 0 && (
                         <div className="flex justify-between items-center w-[300px] px-8 text-sm text-slate-500 font-bold uppercase tracking-wider">
                           <span>Frete:</span>
-                          <span>{formatCurrency(selectedQuoteForPreview.shipping_value)}</span>
+                          <span>{formatCurrency(Number(selectedQuoteForPreview.shipping_value))}</span>
                         </div>
                       )}
                       <div className="bg-primary text-white p-8 rounded-2xl min-w-[300px] shadow-xl">
