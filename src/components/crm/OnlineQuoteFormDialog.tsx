@@ -722,9 +722,16 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
                   Próximo: Informação Fiscal
                 </Button>
               </>
-            ) : step === "payment" ? (
+            ) : step === "fiscal" ? (
               <>
                 <Button variant="outline" onClick={() => setStep("client")}>Voltar</Button>
+                <Button onClick={() => setStep("payment")}>
+                  Próximo: Pagamento
+                </Button>
+              </>
+            ) : step === "payment" ? (
+              <>
+                <Button variant="outline" onClick={() => setStep("fiscal")}>Voltar</Button>
                 <Button onClick={() => setStep("items")}>
                   Próximo: Adicionar Itens
                 </Button>
@@ -732,23 +739,16 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
             ) : step === "items" ? (
               <>
                 <Button variant="outline" onClick={() => setStep("payment")}>Voltar</Button>
-                <Button onClick={() => setStep("fiscal")}>
-                  Próximo: Informações Fiscais
-                </Button>
-              </>
-            ) : step === "fiscal" ? (
-              <>
-                <Button variant="outline" onClick={() => setStep("items")}>Voltar</Button>
                 <Button onClick={() => setStep("shipping")}>
                   Próximo: Frete
                 </Button>
               </>
             ) : (
               <>
-                <Button variant="outline" onClick={() => setStep("fiscal")}>Voltar</Button>
+                <Button variant="outline" onClick={() => setStep("items")}>Voltar</Button>
                 <Button onClick={handleSubmit} disabled={createQuote.isPending || updateQuote.isPending || quoteItems.length === 0}>
                   {(createQuote.isPending || updateQuote.isPending) ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                  {initialData?.id ? "Salvar Alterações" : "Gerar Orçamento"}
+                  {initialData?.id ? "Salvar Alterações" : "Gerar Proposta"}
                 </Button>
               </>
             )}
