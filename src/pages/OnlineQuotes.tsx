@@ -1188,7 +1188,7 @@ export default function OnlineQuotes() {
                       )}
                       <div className="bg-primary text-white p-8 rounded-2xl min-w-[300px] shadow-xl">
                         <div className="flex justify-between items-center gap-12">
-                          <span className="text-xs font-black uppercase tracking-[0.2em] opacity-70">Total do Orçamento</span>
+                          <span className="text-xs font-black uppercase tracking-[0.2em] opacity-70">Total da Proposta</span>
                           <span className="text-3xl font-black">
                             {formatCurrency(selectedQuoteForPreview.total_value)}
                           </span>
