@@ -436,7 +436,7 @@ export function WeeklyViewTab({ goals, filterUserId, filterChannel, filterGroupI
                 <YAxis tick={{ fontSize: 11 }} tickFormatter={v => fmt(v)} />
                 <Tooltip formatter={(v: number) => fmt(v)} />
                 <Legend />
-                <Bar dataKey="Orçamentos" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={20} />
+                <Bar dataKey="Propostas" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={20} />
                 <Bar dataKey="Pedidos" fill="#10b981" radius={[4, 4, 0, 0]} barSize={20} />
                 <Bar dataKey="Faturamento" fill="#f59e0b" radius={[4, 4, 0, 0]} barSize={20} />
                 <Line type="monotone" dataKey="Meta Orçamento" stroke="#3b82f6" strokeDasharray="5 5" strokeWidth={2} dot={false} />
@@ -468,7 +468,7 @@ export function WeeklyViewTab({ goals, filterUserId, filterChannel, filterGroupI
                 <YAxis tick={{ fontSize: 11 }} tickFormatter={v => fmt(v)} />
                 <Tooltip formatter={(v: number) => fmt(v)} />
                 <Legend />
-                <Line type="monotone" dataKey="Orçamentos" stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                <Line type="monotone" dataKey="Propostas" stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 4 }} activeDot={{ r: 6 }} />
                 <Line type="monotone" dataKey="Pedidos" stroke="#10b981" strokeWidth={2.5} dot={{ r: 4 }} activeDot={{ r: 6 }} />
                 <Line type="monotone" dataKey="Faturamento" stroke="#f59e0b" strokeWidth={2.5} dot={{ r: 4 }} activeDot={{ r: 6 }} />
                 <Line type="monotone" dataKey="Meta Orçamento" stroke="#3b82f6" strokeDasharray="5 5" strokeWidth={1.5} dot={false} />
