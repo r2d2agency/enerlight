@@ -20,6 +20,7 @@ import {
 } from "@/hooks/use-representatives";
 
 import { useCRMMyTeam, CRMDeal, useCRMTaskMutations } from "@/hooks/use-crm";
+import { api } from "@/lib/api";
 import { DealDetailDialog } from "@/components/crm/DealDetailDialog";
 import { TaskDialog } from "@/components/crm/TaskDialog";
 
