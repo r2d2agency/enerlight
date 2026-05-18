@@ -351,7 +351,7 @@ export default function CRMMetas() {
             ) : (
               <>
                 {/* KPI Summary Cards - ONLY from imported data */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                   <Card className="border-l-4 border-l-blue-500">
                     <CardContent className="pt-4 px-3">
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1"><FileText className="h-3.5 w-3.5 shrink-0" /> Orçamentos</div>
@@ -371,6 +371,15 @@ export default function CRMMetas() {
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1"><Receipt className="h-3.5 w-3.5 shrink-0" /> Faturamento</div>
                       <p className="text-lg sm:text-2xl font-bold text-amber-600 truncate">{fmt(gd.faturamento.value)}</p>
                       <p className="text-xs text-muted-foreground">{gd.faturamento.count} notas</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-l-4 border-l-emerald-500">
+                    <CardContent className="pt-4 px-3">
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1"><TrendingUp className="h-3.5 w-3.5 shrink-0" /> Margem Média</div>
+                      <p className="text-lg sm:text-2xl font-bold text-emerald-600 truncate">
+                        {gd.faturamento?.avg_margin > 0 ? gd.faturamento.avg_margin.toFixed(1) : (gd.pedido?.avg_margin || 0).toFixed(1)}%
+                      </p>
+                      <p className="text-xs text-muted-foreground">Média do período</p>
                     </CardContent>
                   </Card>
                   <Card className="border-l-4 border-l-purple-500">
