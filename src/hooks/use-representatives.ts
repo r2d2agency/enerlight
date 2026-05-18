@@ -204,9 +204,11 @@ export function useIndicatorHistory(indicatorId: string | null) {
   });
 }
 
-export function useCreateIndicatorHistory() {
+export function useIndicatorHistoryMutations() {
   const qc = useQueryClient();
-  return useMutation({
+  const { toast } = useToast();
+
+  const createHistory = useMutation({
     mutationFn: ({ indicatorId, content }: { indicatorId: string; content: string }) =>
       api<IndicatorHistory>(`/api/crm/representatives/${indicatorId}/history`, { method: "POST", body: { content } }),
     onSuccess: (_, vars) => {
@@ -214,7 +216,19 @@ export function useCreateIndicatorHistory() {
       qc.invalidateQueries({ queryKey: ["crm-representatives"] });
     },
   });
+
+  const deleteHistory = useMutation({
+    mutationFn: ({ indicatorId, historyId }: { indicatorId: string; historyId: string }) =>
+      api<void>(`/api/crm/representatives/${indicatorId}/history/${historyId}`, { method: "DELETE" }),
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ["crm-indicator-history", vars.indicatorId] });
+      toast({ title: "Histórico excluído com sucesso" });
+    },
+  });
+
+  return { createHistory, deleteHistory };
 }
+
 
 export interface ChatContact {
   id: string;

@@ -16,10 +16,13 @@ import { toast } from "sonner";
 import {
   useRepresentatives, useRepresentative, useRepresentativeDashboard, useRepresentativeMutations,
   useRepresentativeDeals, useIndicatorSegments, Representative, IndicatorArea, IndicatorType,
-  useIndicatorHistory, useCreateIndicatorHistory, useCreateScheduledMessage, useScheduledMessagesByPhone
+  useIndicatorHistory, useIndicatorHistoryMutations, useCreateScheduledMessage, useScheduledMessagesByPhone
 } from "@/hooks/use-representatives";
+
 import { useCRMMyTeam, CRMDeal, useCRMTaskMutations } from "@/hooks/use-crm";
 import { DealDetailDialog } from "@/components/crm/DealDetailDialog";
+import { TaskDialog } from "@/components/crm/TaskDialog";
+
 import { IndicatorSegmentsManager } from "@/components/crm/IndicatorSegmentsManager";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -84,6 +87,7 @@ export default function CRMRepresentantes() {
   const [whatsAppTime, setWhatsAppTime] = useState("09:00");
   const [whatsAppContent, setWhatsAppContent] = useState("");
   const [whatsAppCalendarOpen, setWhatsAppCalendarOpen] = useState(false);
+  const [taskDialogOpen, setTaskDialogOpen] = useState(false);
 
   const [startDate, setStartDate] = useState(format(subDays(new Date(), 30), "yyyy-MM-dd"));
   const [endDate, setEndDate] = useState(format(new Date(), "yyyy-MM-dd"));
@@ -97,10 +101,11 @@ export default function CRMRepresentantes() {
   const { data: editingRep } = useRepresentative(editingRepId);
   const { createRepresentative, updateRepresentative, deleteRepresentative } = useRepresentativeMutations();
   const { data: history = [] } = useIndicatorHistory(selectedRepId);
-  const createHistory = useCreateIndicatorHistory();
+  const { createHistory, deleteHistory } = useIndicatorHistoryMutations();
   const { data: scheduledMessages = [] } = useScheduledMessagesByPhone(selectedRep?.phone || "");
   const createScheduledMessage = useCreateScheduledMessage();
   const { createTask } = useCRMTaskMutations();
+
 
   const [form, setForm] = useState<FormState>(emptyForm);
 
@@ -372,6 +377,14 @@ export default function CRMRepresentantes() {
                       <History className="h-4 w-4" /> Histórico e Atividades
                     </CardTitle>
                     <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 text-xs gap-1.5"
+                        onClick={() => setTaskDialogOpen(true)}
+                      >
+                        <CalendarIcon className="h-3.5 w-3.5" /> Agendar Tarefa
+                      </Button>
                       <Button 
                         variant="outline" 
                         size="sm" 
@@ -387,6 +400,7 @@ export default function CRMRepresentantes() {
                         <MessageSquare className="h-3.5 w-3.5" /> Agendar WhatsApp
                       </Button>
                     </div>
+
                   </CardHeader>
                   <CardContent className="flex-1 flex flex-col gap-4">
                     {scheduleWhatsAppOpen && (
@@ -521,20 +535,35 @@ export default function CRMRepresentantes() {
                         {history.length === 0 ? (
                           <p className="text-xs text-muted-foreground text-center py-8">Nenhum histórico registrado ou funcionalidade indisponível no banco de dados.</p>
                         ) : (
-                          history.map((h) => (
-                            <div key={h.id} className="relative pl-4 border-l-2 border-muted pb-4 last:pb-0">
-                              <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-background border-2 border-muted flex items-center justify-center">
-                                <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground" />
-                              </div>
-                              <div className="flex flex-col gap-1">
-                                <div className="flex items-center justify-between gap-2">
-                                  <span className="text-xs font-bold">{h.user_name}</span>
-                                  <span className="text-[10px] text-muted-foreground">{format(parseISO(h.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}</span>
-                                </div>
-                                <p className="text-sm whitespace-pre-wrap">{h.content}</p>
-                              </div>
+                        history.map((h) => (
+                          <div key={h.id} className="relative pl-4 border-l-2 border-muted pb-4 last:pb-0 group/history">
+                            <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-background border-2 border-muted flex items-center justify-center">
+                              <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground" />
                             </div>
-                          ))
+                            <div className="flex flex-col gap-1">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-xs font-bold">{h.user_name}</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[10px] text-muted-foreground">{format(parseISO(h.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}</span>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-5 w-5 opacity-0 group-hover/history:opacity-100 transition-opacity text-destructive"
+                                    onClick={() => {
+                                      if (confirm("Tem certeza que deseja excluir este histórico?")) {
+                                        deleteHistory.mutate({ indicatorId: selectedRepId!, historyId: h.id });
+                                      }
+                                    }}
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              </div>
+                              <p className="text-sm whitespace-pre-wrap">{h.content}</p>
+                            </div>
+                          </div>
+                        ))
+
                         )}
                       </div>
                     </ScrollArea>
@@ -548,6 +577,14 @@ export default function CRMRepresentantes() {
             deal={selectedDeal} open={dealDetailOpen}
             onOpenChange={(open) => { setDealDetailOpen(open); if (!open) setSelectedDeal(null); }}
           />
+
+          <TaskDialog
+            task={null}
+            companyId={selectedRepId || undefined}
+            open={taskDialogOpen}
+            onOpenChange={setTaskDialogOpen}
+          />
+
         </div>
       </MainLayout>
     );
