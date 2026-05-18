@@ -834,8 +834,9 @@ export default function CRMMetas() {
                 if (row.data_type === 'faturamento') { channelMap[key].billing_value += row.total_value; }
                 
                 if (['pedido', 'faturamento'].includes(row.data_type) && row.avg_margin > 0) {
-                  channelMap[key].total_margin += row.avg_margin;
-                  channelMap[key].margin_count += 1;
+                  // Weighting by value to get a more accurate weighted average margin
+                  channelMap[key].total_margin += (row.avg_margin * row.total_value);
+                  channelMap[key].margin_count += row.total_value;
                 }
               }
               const channels = Object.values(channelMap).filter(c => c.quotes > 0 || c.orders > 0 || c.billing_value > 0);
