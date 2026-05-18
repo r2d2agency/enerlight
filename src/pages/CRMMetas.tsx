@@ -288,18 +288,18 @@ export default function CRMMetas() {
           </div>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="flex-wrap">
-            <TabsTrigger value="dashboard" className="gap-2"><BarChart3 className="h-4 w-4" /> Dashboard</TabsTrigger>
-            <TabsTrigger value="by-channel" className="gap-2"><Users className="h-4 w-4" /> Por Canal/Grupo</TabsTrigger>
-            <TabsTrigger value="individual" className="gap-2"><Trophy className="h-4 w-4" /> Individual</TabsTrigger>
-            <TabsTrigger value="goals" className="gap-2"><Target className="h-4 w-4" /> Metas</TabsTrigger>
-            <TabsTrigger value="records" className="gap-2"><List className="h-4 w-4" /> Registros</TabsTrigger>
-            <TabsTrigger value="carteira" className="gap-2"><Wallet className="h-4 w-4" /> Carteira</TabsTrigger>
-            <TabsTrigger value="map" className="gap-2"><MapPin className="h-4 w-4" /> Mapa</TabsTrigger>
-            <TabsTrigger value="semanal" className="gap-2"><CalendarDays className="h-4 w-4" /> Semanal</TabsTrigger>
-            <TabsTrigger value="trimestral" className="gap-2"><CalendarDays className="h-4 w-4" /> Trimestral</TabsTrigger>
-            <TabsTrigger value="imports" className="gap-2"><Upload className="h-4 w-4" /> Importações</TabsTrigger>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="flex flex-wrap h-auto p-1 bg-muted/50 justify-start gap-1">
+            <TabsTrigger value="dashboard" className="gap-2 text-xs sm:text-sm py-1.5 px-3 whitespace-nowrap"><BarChart3 className="h-4 w-4" /> Dashboard</TabsTrigger>
+            <TabsTrigger value="by-channel" className="gap-2 text-xs sm:text-sm py-1.5 px-3 whitespace-nowrap"><Users className="h-4 w-4" /> Por Canal/Grupo</TabsTrigger>
+            <TabsTrigger value="individual" className="gap-2 text-xs sm:text-sm py-1.5 px-3 whitespace-nowrap"><Trophy className="h-4 w-4" /> Individual</TabsTrigger>
+            <TabsTrigger value="goals" className="gap-2 text-xs sm:text-sm py-1.5 px-3 whitespace-nowrap"><Target className="h-4 w-4" /> Metas</TabsTrigger>
+            <TabsTrigger value="records" className="gap-2 text-xs sm:text-sm py-1.5 px-3 whitespace-nowrap"><List className="h-4 w-4" /> Registros</TabsTrigger>
+            <TabsTrigger value="carteira" className="gap-2 text-xs sm:text-sm py-1.5 px-3 whitespace-nowrap"><Wallet className="h-4 w-4" /> Carteira</TabsTrigger>
+            <TabsTrigger value="map" className="gap-2 text-xs sm:text-sm py-1.5 px-3 whitespace-nowrap"><MapPin className="h-4 w-4" /> Mapa</TabsTrigger>
+            <TabsTrigger value="semanal" className="gap-2 text-xs sm:text-sm py-1.5 px-3 whitespace-nowrap"><CalendarDays className="h-4 w-4" /> Semanal</TabsTrigger>
+            <TabsTrigger value="trimestral" className="gap-2 text-xs sm:text-sm py-1.5 px-3 whitespace-nowrap"><CalendarDays className="h-4 w-4" /> Trimestral</TabsTrigger>
+            <TabsTrigger value="imports" className="gap-2 text-xs sm:text-sm py-1.5 px-3 whitespace-nowrap"><Upload className="h-4 w-4" /> Importações</TabsTrigger>
           </TabsList>
 
           {/* Filters - shared */}
