@@ -21,6 +21,8 @@ import {
 
 import { useCRMMyTeam, CRMDeal, useCRMTaskMutations } from "@/hooks/use-crm";
 import { DealDetailDialog } from "@/components/crm/DealDetailDialog";
+import { TaskDialog } from "@/components/crm/TaskDialog";
+
 import { IndicatorSegmentsManager } from "@/components/crm/IndicatorSegmentsManager";
 import { useAuth } from "@/contexts/AuthContext";
 import {
