@@ -389,8 +389,11 @@ export default function CRMMetas() {
                         {(() => {
                           const avgMargin = gd.faturamento?.avg_margin > 0 ? gd.faturamento.avg_margin : (gd.pedido?.avg_margin || 0);
                           if (!avgMargin || avgMargin >= 100 || avgMargin <= 0) return "0%";
-                          const markup = (avgMargin / (100 - avgMargin)) * 100;
-                          return `${markup.toFixed(1)}%`;
+                          // Markup formula based on Margin: Margin / (1 - Margin)
+                          // Here Margin is in percentage (0-100), so: (Margin/100) / (1 - Margin/100) * 100
+                          // Which simplifies to: (Margin / (100 - Margin)) * 100
+                          const markupValue = (avgMargin / (100 - avgMargin)) * 100;
+                          return `${markupValue.toFixed(1)}%`;
                         })()}
                       </p>
                       <p className="text-xs text-muted-foreground">Markup calculado</p>
