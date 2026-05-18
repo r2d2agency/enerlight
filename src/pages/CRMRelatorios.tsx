@@ -1070,74 +1070,7 @@ export default function CRMRelatorios() {
                 </Card>
 
                 {/* Loss Reasons */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <TrendingDown className="h-5 w-5 text-red-500" />
-                      Motivos de Perda
-                    </CardTitle>
-                    <CardDescription>
-                      Análise dos principais motivos de negociações perdidas
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {winLossData?.loss_reasons && winLossData.loss_reasons.length > 0 ? (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <ResponsiveContainer width="100%" height={250}>
-                          <PieChart>
-                            <Pie
-                              data={winLossData.loss_reasons}
-                              cx="50%"
-                              cy="50%"
-                              innerRadius={50}
-                              outerRadius={80}
-                              paddingAngle={2}
-                              dataKey="count"
-                              nameKey="reason"
-                            >
-                              {winLossData.loss_reasons.map((_, index) => (
-                                <Cell
-                                  key={`cell-${index}`}
-                                  fill={`hsl(${(index * 45) % 360}, 70%, 50%)`}
-                                />
-                              ))}
-                            </Pie>
-                            <Tooltip
-                              contentStyle={{
-                                backgroundColor: "hsl(var(--card))",
-                                border: "1px solid hsl(var(--border))",
-                                borderRadius: "8px",
-                              }}
-                            />
-                          </PieChart>
-                        </ResponsiveContainer>
-                        <div className="space-y-3">
-                          {winLossData.loss_reasons.map((reason, index) => (
-                            <div key={reason.reason} className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <div
-                                  className="w-3 h-3 rounded-full"
-                                  style={{ backgroundColor: `hsl(${(index * 45) % 360}, 70%, 50%)` }}
-                                />
-                                <span className="text-sm">{reason.reason || "Não especificado"}</span>
-                              </div>
-                              <div className="text-right">
-                                <span className="font-medium">{reason.count}</span>
-                                <span className="text-xs text-muted-foreground ml-2">
-                                  ({formatCurrency(reason.lost_value)})
-                                </span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-center h-[250px] text-muted-foreground">
-                        Nenhum motivo de perda registrado
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                {/* Removido duplicado - agora está na aba própria com detalhes por vendedor/canal */}
               </TabsContent>
               {/* Billing Tab */}
               <TabsContent value="billing" className="mt-6 space-y-6">
