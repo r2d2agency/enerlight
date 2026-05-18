@@ -389,8 +389,11 @@ export default function CRMMetas() {
                         {(() => {
                           const avgMargin = gd.faturamento?.avg_margin > 0 ? gd.faturamento.avg_margin : (gd.pedido?.avg_margin || 0);
                           if (!avgMargin || avgMargin >= 100 || avgMargin <= 0) return "0%";
-                          const markup = (avgMargin / (100 - avgMargin)) * 100;
-                          return `${markup.toFixed(1)}%`;
+                          // Markup formula based on Margin: Margin / (1 - Margin)
+                          // Here Margin is in percentage (0-100), so: (Margin/100) / (1 - Margin/100) * 100
+                          // Which simplifies to: (Margin / (100 - Margin)) * 100
+                          const markupValue = (avgMargin / (100 - avgMargin)) * 100;
+                          return `${markupValue.toFixed(1)}%`;
                         })()}
                       </p>
                       <p className="text-xs text-muted-foreground">Markup calculado</p>
@@ -831,8 +834,9 @@ export default function CRMMetas() {
                 if (row.data_type === 'faturamento') { channelMap[key].billing_value += row.total_value; }
                 
                 if (['pedido', 'faturamento'].includes(row.data_type) && row.avg_margin > 0) {
-                  channelMap[key].total_margin += row.avg_margin;
-                  channelMap[key].margin_count += 1;
+                  // Weighting by value to get a more accurate weighted average margin
+                  channelMap[key].total_margin += (row.avg_margin * row.total_value);
+                  channelMap[key].margin_count += row.total_value;
                 }
               }
               const channels = Object.values(channelMap).filter(c => c.quotes > 0 || c.orders > 0 || c.billing_value > 0);
