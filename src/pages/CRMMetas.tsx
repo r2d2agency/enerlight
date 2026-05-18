@@ -388,9 +388,9 @@ export default function CRMMetas() {
                       <p className="text-lg sm:text-2xl font-bold text-teal-600 truncate">
                         {(() => {
                           const avgMargin = gd.faturamento?.avg_margin > 0 ? gd.faturamento.avg_margin : (gd.pedido?.avg_margin || 0);
-                          if (avgMargin >= 100) return "—";
+                          if (!avgMargin || avgMargin >= 100 || avgMargin <= 0) return "0%";
                           const markup = (avgMargin / (100 - avgMargin)) * 100;
-                          return markup > 0 ? `${markup.toFixed(1)}%` : "0%";
+                          return `${markup.toFixed(1)}%`;
                         })()}
                       </p>
                       <p className="text-xs text-muted-foreground">Markup calculado</p>
@@ -895,9 +895,9 @@ export default function CRMMetas() {
                                 <TableCell className="text-right font-medium text-teal-600">
                                   {(() => {
                                     const avgMargin = ch.margin_count > 0 ? (ch.total_margin / ch.margin_count) : 0;
-                                    if (avgMargin >= 100) return "—";
+                                    if (!avgMargin || avgMargin >= 100 || avgMargin <= 0) return "0%";
                                     const markup = (avgMargin / (100 - avgMargin)) * 100;
-                                    return markup > 0 ? `${markup.toFixed(1)}%` : "0%";
+                                    return `${markup.toFixed(1)}%`;
                                   })()}
                                 </TableCell>
                                 <TableCell className="text-center">
@@ -924,9 +924,9 @@ export default function CRMMetas() {
                                   const filtered = channels.filter(c => c.margin_count > 0);
                                   if (filtered.length === 0) return "0%";
                                   const avgMargin = filtered.reduce((s, c) => s + (c.total_margin / c.margin_count), 0) / filtered.length;
-                                  if (avgMargin >= 100) return "—";
+                                  if (!avgMargin || avgMargin >= 100 || avgMargin <= 0) return "0%";
                                   const markup = (avgMargin / (100 - avgMargin)) * 100;
-                                  return markup > 0 ? `${markup.toFixed(1)}%` : "0%";
+                                  return `${markup.toFixed(1)}%`;
                                 })()}
                               </TableCell>
                               <TableCell className="text-center">—</TableCell>
