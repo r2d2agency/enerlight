@@ -56,10 +56,13 @@ const emptyForm: FormState = {
 
 export default function CRMRepresentantes() {
   const { user, userPermissions } = useAuth();
-  const canManage = true; // Liberado para todos cadastrarem conforme solicitação do usuário
+  const canManageRep = true; // Liberado para todos cadastrarem conforme solicitação do usuário
+  const isAdminOrManager = user?.role === "owner" || user?.role === "admin" || user?.role === "manager";
 
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [ownerFilter, setOwnerFilter] = useState<string>("all");
+  const [viewMode, setViewMode] = useState<"list" | "pipeline">("list");
   const [selectedRepId, setSelectedRepId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editingRepId, setEditingRepId] = useState<string | null>(null);
@@ -73,7 +76,7 @@ export default function CRMRepresentantes() {
   const [startDate, setStartDate] = useState(format(subDays(new Date(), 30), "yyyy-MM-dd"));
   const [endDate, setEndDate] = useState(format(new Date(), "yyyy-MM-dd"));
 
-  const { data: representatives, isLoading } = useRepresentatives(search || undefined, typeFilter);
+  const { data: representatives, isLoading } = useRepresentatives(search || undefined, typeFilter, ownerFilter);
   const { data: dashboard, isLoading: loadingDash } = useRepresentativeDashboard(selectedRepId, startDate, endDate);
   const { data: repDeals, isLoading: loadingDeals } = useRepresentativeDeals(selectedRepId, startDate, endDate, dealStatusFilter);
   const { data: orgMembers } = useCRMMyTeam();
