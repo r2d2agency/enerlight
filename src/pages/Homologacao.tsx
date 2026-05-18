@@ -142,23 +142,26 @@ export default function Homologacao() {
     companies.find(c => c.id === selectedCompanyId), [companies, selectedCompanyId]
   );
 
+  // Filter companies
+  const filteredCompanies = useMemo(() => {
+    return companies.filter(c => {
+      const matchesSearch = !searchTerm || c.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSeller = selectedSellerId === "all" || c.assigned_to === selectedSellerId;
+      return matchesSearch && matchesSeller;
+    });
+  }, [companies, searchTerm, selectedSellerId]);
+
   // Group companies by stage
   const companiesByStage = useMemo(() => {
     const map: Record<string, HomologationCompany[]> = {};
     stages.forEach(s => { map[s.id] = []; });
-    companies
-      .filter(c => {
-        const matchesSearch = !searchTerm || c.name.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesSeller = selectedSellerId === "all" || c.assigned_to === selectedSellerId;
-        return matchesSearch && matchesSeller;
-      })
-      .forEach(c => {
-        if (c.stage_id && map[c.stage_id]) {
-          map[c.stage_id].push(c);
-        }
-      });
+    filteredCompanies.forEach(c => {
+      if (c.stage_id && map[c.stage_id]) {
+        map[c.stage_id].push(c);
+      }
+    });
     return map;
-  }, [companies, stages, searchTerm, selectedSellerId]);
+  }, [filteredCompanies, stages]);
 
   // Handlers
   const handleCreateBoard = async () => {
