@@ -380,7 +380,7 @@ export default function CRMRelatorios() {
                     {[
                       { label: "Orçamentos", count: gd.orcamento.count, value: gd.orcamento.value, color: "#3b82f6", pct: 100 },
                       { label: "Pedidos", count: gd.pedido.count, value: gd.pedido.value, color: "#22c55e", pct: gd.orcamento.count > 0 ? (gd.pedido.count / gd.orcamento.count) * 100 : 0 },
-                      { label: "Faturamento", count: gd.faturamento.count, value: gd.faturamento.value, color: "#f59e0b", pct: gd.orcamento.count > 0 ? (gd.faturamento.count / gd.orcamento.count) * 100 : 0 },
+                      { label: "Faturamento", count: gd.faturamento.count, value: gd.faturamento.value, color: "#f59e0b", pct: gd.pedido.count > 0 ? (gd.faturamento.count / gd.pedido.count) * 100 : 0 },
                     ].map((step, i) => (
                       <div key={i} className="space-y-1">
                         <div className="flex items-center justify-between text-sm">
