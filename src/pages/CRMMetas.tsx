@@ -375,17 +375,17 @@ export default function CRMMetas() {
                   </Card>
                   <Card className="border-l-4 border-l-emerald-500">
                     <CardContent className="pt-4 px-3">
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1"><TrendingUp className="h-3.5 w-3.5 shrink-0" /> Margem Média</div>
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1"><TrendingUp className="h-3.5 w-3.5 shrink-0" /> Margem Líquida</div>
                       {(() => {
                         const avgMargin = gd.faturamento?.avg_margin > 0 ? gd.faturamento.avg_margin : (gd.pedido?.avg_margin || 0);
-                        const markupX = 1 + (avgMargin / 100);
+                        const markupX = 1 / (1 - (avgMargin / 100));
                         return (
                           <>
                             <p className="text-lg sm:text-2xl font-bold text-emerald-600 truncate">
                               {avgMargin.toFixed(1)}%
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              Markup {markupX.toFixed(2).replace('.', ',')}x
+                              Markup {markupX > 0 && markupX < Infinity ? markupX.toFixed(2).replace('.', ',') : '0,00'}x
                             </p>
                           </>
                         );
