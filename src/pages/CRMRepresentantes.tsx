@@ -767,13 +767,6 @@ export default function CRMRepresentantes() {
             })}
           </div>
         )}
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        )}
       </div>
 
       {/* Create/Edit Dialog */}
