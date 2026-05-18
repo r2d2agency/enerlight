@@ -3644,6 +3644,18 @@ CREATE TABLE IF NOT EXISTS crm_sales_positions (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   UNIQUE(organization_id, name)
 );
+
+-- Indicator History
+CREATE TABLE IF NOT EXISTS crm_indicator_history (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  indicator_id UUID NOT NULL REFERENCES crm_representatives(id) ON DELETE CASCADE,
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  user_name VARCHAR(255),
+  content TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_crm_indicator_history_rep ON crm_indicator_history(indicator_id);
+
 CREATE INDEX IF NOT EXISTS idx_crm_sales_positions_org ON crm_sales_positions(organization_id);
 CREATE INDEX IF NOT EXISTS idx_crm_sales_positions_user ON crm_sales_positions(current_user_id);
 
