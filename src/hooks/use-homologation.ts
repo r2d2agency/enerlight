@@ -29,6 +29,7 @@ export interface HomologationCompany {
   board_id: string;
   stage_id: string | null;
   name: string;
+  value?: number;
   cnpj: string | null;
   contact_name: string | null;
   contact_email: string | null;
