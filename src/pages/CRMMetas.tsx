@@ -934,13 +934,18 @@ export default function CRMMetas() {
           <TabsContent value="individual" className="mt-4 space-y-6">
             {(() => {
               const gdBySeller = goalsData?.bySeller || [];
-              const sellerMap: Record<string, { seller: string; quotes: number; quotes_value: number; orders: number; orders_value: number; billing_value: number }> = {};
+              const sellerMap: Record<string, { seller: string; quotes: number; quotes_value: number; orders: number; orders_value: number; billing_value: number; avg_margin: number; margin_count: number }> = {};
               for (const row of gdBySeller) {
                 const key = row.seller_name;
-                if (!sellerMap[key]) sellerMap[key] = { seller: key, quotes: 0, quotes_value: 0, orders: 0, orders_value: 0, billing_value: 0 };
+                if (!sellerMap[key]) sellerMap[key] = { seller: key, quotes: 0, quotes_value: 0, orders: 0, orders_value: 0, billing_value: 0, avg_margin: 0, margin_count: 0 };
                 if (row.data_type === 'orcamento') { sellerMap[key].quotes += row.count; sellerMap[key].quotes_value += row.total_value; }
                 if (row.data_type === 'pedido') { sellerMap[key].orders += row.count; sellerMap[key].orders_value += row.total_value; }
                 if (row.data_type === 'faturamento') { sellerMap[key].billing_value += row.total_value; }
+                
+                if (['pedido', 'faturamento'].includes(row.data_type) && row.avg_margin > 0) {
+                  sellerMap[key].avg_margin += row.avg_margin;
+                  sellerMap[key].margin_count += 1;
+                }
               }
               const sellers = Object.values(sellerMap).filter(s => s.quotes > 0 || s.orders > 0 || s.billing_value > 0);
               sellers.sort((a: any, b: any) => {
