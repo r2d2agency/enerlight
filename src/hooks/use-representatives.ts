@@ -58,13 +58,14 @@ export interface IndicatorSegment {
   is_active: boolean;
 }
 
-export function useRepresentatives(search?: string, type?: string) {
+export function useRepresentatives(search?: string, type?: string, ownerId?: string) {
   return useQuery({
-    queryKey: ["crm-representatives", search, type],
+    queryKey: ["crm-representatives", search, type, ownerId],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (search) params.set("search", search);
       if (type && type !== "all") params.set("type", type);
+      if (ownerId && ownerId !== "all") params.set("owner_id", ownerId);
       const qs = params.toString();
       return api<Representative[]>(`/api/crm/representatives${qs ? `?${qs}` : ""}`);
     },

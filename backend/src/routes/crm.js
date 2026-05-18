@@ -4930,17 +4930,26 @@ router.get('/representatives', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
-    const { search, type } = req.query;
-    let searchFilter = '';
+    const { search, type, owner_id } = req.query;
+    let filters = '';
     const params = [org.organization_id];
 
     if (search) {
-      searchFilter = ` AND (r.name ILIKE $${params.length + 1} OR r.email ILIKE $${params.length + 1} OR r.city ILIKE $${params.length + 1})`;
+      filters += ` AND (r.name ILIKE $${params.length + 1} OR r.email ILIKE $${params.length + 1} OR r.city ILIKE $${params.length + 1})`;
       params.push(`%${search}%`);
     }
     if (type && type !== 'all') {
+      filters += ` AND r.indicator_type = $${params.length + 1}`;
       params.push(type);
-      searchFilter += ` AND r.indicator_type = $${params.length}`;
+    }
+    if (owner_id && owner_id !== 'all') {
+      if (owner_id === 'mine') {
+        filters += ` AND r.linked_user_id = $${params.length + 1}`;
+        params.push(req.userId);
+      } else {
+        filters += ` AND r.linked_user_id = $${params.length + 1}`;
+        params.push(owner_id);
+      }
     }
 
     const result = await query(
@@ -4950,7 +4959,7 @@ router.get('/representatives', async (req, res) => {
         (SELECT COUNT(*) FROM crm_indicator_areas a WHERE a.representative_id = r.id) as areas_count
        FROM crm_representatives r
        LEFT JOIN users u ON u.id = r.linked_user_id
-       WHERE r.organization_id = $1${searchFilter}
+       WHERE r.organization_id = $1${filters}
        ORDER BY r.name`,
       params
     );
