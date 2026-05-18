@@ -33,6 +33,14 @@ export function PipelineView({ stages, dealsByStage, onDealClick, onStatusChange
     }).format(value);
   };
 
+  const formatInactivityTime = (hours: number) => {
+    if (hours >= 24) {
+      const days = Math.floor(hours / 24);
+      return `${days}d`;
+    }
+    return `${hours}h`;
+  };
+
   const getStatusStyles = (deal: CRMDeal) => {
     if (deal.status === 'won') return "border-l-4 border-l-green-500 bg-green-50/50 dark:bg-green-950/20";
     if (deal.status === 'lost') return "border-l-4 border-l-red-500 bg-red-50/50 dark:bg-red-950/20";
@@ -167,7 +175,7 @@ export function PipelineView({ stages, dealsByStage, onDealClick, onStatusChange
               <div className="col-span-2 flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Clock className="h-3.5 w-3.5" />
                 <span>{deal.last_activity_at ? format(parseISO(deal.last_activity_at), "dd/MM HH:mm", { locale: ptBR }) : "—"}</span>
-                <span className="text-muted-foreground/50">({hoursInactive}h)</span>
+                <span className="text-muted-foreground/50">({formatInactivityTime(hoursInactive)})</span>
               </div>
             </Card>
           );

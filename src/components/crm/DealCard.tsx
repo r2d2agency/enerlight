@@ -18,6 +18,16 @@ export const DealCard = forwardRef<HTMLDivElement, DealCardProps>(
   function DealCard({ deal, isDragging, onClick, isNewWin }, ref) {
     // Calculate inactivity
     const hoursInactive = deal.last_activity_at ? differenceInHours(new Date(), parseISO(deal.last_activity_at)) : 0;
+    
+    // Format inactivity time (show days if >= 24h)
+    const formatInactivityTime = (hours: number) => {
+      if (hours >= 24) {
+        const days = Math.floor(hours / 24);
+        return `${days}d`;
+      }
+      return `${hours}h`;
+    };
+
     const isInactive = deal.inactivity_hours && hoursInactive >= deal.inactivity_hours;
     
     // Convert pending_tasks to number (comes as string from API)
@@ -299,9 +309,9 @@ export const DealCard = forwardRef<HTMLDivElement, DealCardProps>(
             )}
 
             {/* Time indicator */}
-            <div className="flex items-center gap-0.5">
+            <div className="flex items-center gap-0.5" title={`${hoursInactive} horas de inatividade`}>
               <Clock className="h-3 w-3" />
-              <span>{hoursInactive}h</span>
+              <span>{formatInactivityTime(hoursInactive)}</span>
             </div>
           </div>
         </div>
