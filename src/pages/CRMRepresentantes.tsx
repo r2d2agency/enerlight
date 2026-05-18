@@ -415,6 +415,126 @@ export default function CRMRepresentantes() {
     );
   }
 
+  // ============== PIPELINE VIEW ==============
+  if (viewMode === "pipeline") {
+    return (
+      <MainLayout>
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <div className="flex items-center gap-3">
+              <LayoutDashboard className="h-5 w-5 text-primary" />
+              <h1 className="text-xl font-bold">Pipeline de Indicadores</h1>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => setViewMode("list")}>
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Voltar para Lista
+              </Button>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2 items-center bg-muted/30 p-3 rounded-lg border border-dashed">
+            <div className="relative flex-1 min-w-[240px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input placeholder="Buscar por nome, email ou cidade..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9" />
+            </div>
+            
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger className="w-40 h-9"><SelectValue placeholder="Tipo" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os tipos</SelectItem>
+                {Object.entries(TYPE_LABELS).map(([val, label]) => (
+                  <SelectItem key={val} value={val}>{label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {isAdminOrManager && (
+              <Select value={ownerFilter} onValueChange={setOwnerFilter}>
+                <SelectTrigger className="w-44 h-9">
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    <SelectValue placeholder="Vendedor" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos vendedores</SelectItem>
+                  <SelectItem value="mine">Meus vinculados</SelectItem>
+                  {orgMembers?.map(m => (
+                    <SelectItem key={m.user_id} value={m.user_id}>{m.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            <div className="h-9 w-[1px] bg-border mx-1" />
+
+            <ToggleGroup type="single" value={viewMode} onValueChange={(v) => v && setViewMode(v as any)} className="bg-background border rounded-md p-0.5">
+              <ToggleGroupItem value="list" className="h-8 px-3 text-xs gap-1.5">
+                <Users className="h-3.5 w-3.5" /> Lista
+              </ToggleGroupItem>
+              <ToggleGroupItem value="pipeline" className="h-8 px-3 text-xs gap-1.5">
+                <LayoutDashboard className="h-3.5 w-3.5" /> Pipeline
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
+
+          <ScrollArea className="h-[calc(100vh-280px)] border rounded-xl bg-muted/20">
+            <div className="p-4 flex gap-4 min-w-max">
+              {Object.entries(TYPE_LABELS).map(([type, label]) => {
+                const reps = (representatives || []).filter(r => (r.indicator_type || "representante") === type);
+                const totalValue = reps.reduce((sum, r) => sum + (r.open_deals_value || 0), 0);
+                
+                return (
+                  <div key={type} className="w-80 flex flex-col gap-3">
+                    <div className={cn("p-3 rounded-t-lg border-b-2 bg-card shadow-sm flex items-center justify-between", TYPE_COLORS[type as IndicatorType].split(' ')[0].replace('bg-', 'border-b-'))} style={{ borderTopWidth: 4, borderTopColor: 'currentColor' }}>
+                      <div>
+                        <h3 className="font-bold text-sm">{label}</h3>
+                        <p className="text-[10px] text-muted-foreground uppercase">{reps.length} {reps.length === 1 ? 'membro' : 'membros'}</p>
+                      </div>
+                      <Badge variant="outline" className="text-xs">{formatCurrency(totalValue)}</Badge>
+                    </div>
+
+                    <div className="flex-1 space-y-2 pb-10">
+                      {reps.length === 0 ? (
+                        <div className="py-8 text-center text-xs text-muted-foreground border-2 border-dashed rounded-lg">
+                          Vazio
+                        </div>
+                      ) : reps.map(rep => (
+                        <Card key={rep.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setSelectedRepId(rep.id)}>
+                          <CardContent className="p-3 space-y-2">
+                            <div className="flex justify-between items-start gap-2">
+                              <span className="font-semibold text-sm leading-tight">{rep.name}</span>
+                              <Badge variant="outline" className="text-[10px] px-1 h-4">{rep.commission_percent}%</Badge>
+                            </div>
+                            
+                            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                              <Building2 className="h-3 w-3" />
+                              <span className="truncate">{rep.city || 'Sem cidade'}</span>
+                            </div>
+
+                            <div className="flex items-center justify-between pt-1 border-t border-dashed">
+                              <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                                <Briefcase className="h-3 w-3" />
+                                {rep.open_deals_count || 0} negociações
+                              </div>
+                              <span className="text-xs font-bold text-primary">{formatCurrency(rep.open_deals_value || 0)}</span>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
+        </div>
+      </MainLayout>
+    );
+  }
+
   // ============== LIST VIEW ==============
   return (
     <MainLayout>
