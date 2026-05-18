@@ -219,7 +219,7 @@ export function useIndicatorHistoryMutations() {
 
   const deleteHistory = useMutation({
     mutationFn: ({ indicatorId, historyId }: { indicatorId: string; historyId: string }) =>
-      api<void>(`/api/crm/representatives/${indicatorId}/history/${historyId}`, { method: "DELETE" }),
+      api<void>(`/api/crm/history/${historyId}`, { method: "DELETE" }),
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ["crm-indicator-history", vars.indicatorId] });
       toast({ title: "Histórico excluído com sucesso" });
