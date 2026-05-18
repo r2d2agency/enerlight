@@ -20,6 +20,7 @@ import {
 } from "@/hooks/use-representatives";
 
 import { useCRMMyTeam, CRMDeal, useCRMTaskMutations } from "@/hooks/use-crm";
+import { api } from "@/lib/api";
 import { DealDetailDialog } from "@/components/crm/DealDetailDialog";
 import { TaskDialog } from "@/components/crm/TaskDialog";
 
@@ -556,7 +557,22 @@ export default function CRMRepresentantes() {
                                           {
                                             onError: (err: any) => {
                                               if (err.message?.includes('404')) {
-                                                toast.error("Erro na exclusão. Verifique se o recurso existe no servidor.");
+                                                // Tenta a rota alternativa se a principal falhar
+                                                api(`/api/crm/representatives/${selectedRepId}/history/${h.id}`, { method: 'DELETE' })
+                                                  .then(() => {
+                                                    toast.success("Histórico excluído com sucesso");
+                                                    // Invalidate queries manually since the mutation failed but our fallback succeeded
+                                                    const queryClient = (window as any).queryClient;
+                                                    if (queryClient) {
+                                                      queryClient.invalidateQueries({ queryKey: ["crm-indicator-history", selectedRepId] });
+                                                    } else {
+                                                      // Fallback to reload if queryClient is not on window
+                                                      window.location.reload();
+                                                    }
+                                                  })
+                                                  .catch(() => {
+                                                    toast.error("Erro ao excluir histórico. O recurso pode ter sido removido ou não estar disponível.");
+                                                  });
                                               } else {
                                                 toast.error(err.message || "Erro ao excluir histórico.");
                                               }
