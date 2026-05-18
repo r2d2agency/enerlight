@@ -891,6 +891,11 @@ export default function CRMMetas() {
                               <TableCell className="text-center text-green-600">{channels.reduce((s, c) => s + c.orders, 0)}</TableCell>
                               <TableCell className="text-right">{fmt(channels.reduce((s, c) => s + c.orders_value, 0))}</TableCell>
                               <TableCell className="text-right text-amber-600">{fmt(channels.reduce((s, c) => s + c.billing_value, 0))}</TableCell>
+                              <TableCell className="text-right text-emerald-600">
+                                {channels.filter(c => c.margin_count > 0).length > 0 
+                                  ? (channels.reduce((s, c) => s + (c.margin_count > 0 ? c.total_margin / c.margin_count : 0), 0) / channels.filter(c => c.margin_count > 0).length).toFixed(1)
+                                  : "0"}%
+                              </TableCell>
                               <TableCell className="text-center">—</TableCell>
                             </TableRow>
                           </TableBody>
