@@ -214,12 +214,20 @@ export interface WinLossAnalysis {
     lost_count: number;
     won_value: number;
     win_rate: number;
+    loss_reasons?: Array<{
+      reason: string;
+      count: number;
+    }>;
   }>;
   by_segment: Array<{
     segment: string;
     won_count: number;
     lost_count: number;
     won_value: number;
+    loss_reasons?: Array<{
+      reason: string;
+      count: number;
+    }>;
   }>;
   trend: Array<{
     month: string;
