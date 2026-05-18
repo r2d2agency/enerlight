@@ -302,7 +302,7 @@ export default function CRMRelatorios() {
                       <p className="text-xs text-muted-foreground">{gd.pedido.count} pedidos</p>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {gd.orcamento.count > 0
-                          ? `${((gd.pedido.count / gd.orcamento.count) * 100).toFixed(0)}% conversão`
+                          ? `${((gd.pedido.count / gd.orcamento.count) * 100).toFixed(0)}% conversão (Orc. → Ped.)`
                           : "—"}
                       </p>
                     </div>
