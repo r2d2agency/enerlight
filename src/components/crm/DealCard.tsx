@@ -309,9 +309,9 @@ export const DealCard = forwardRef<HTMLDivElement, DealCardProps>(
             )}
 
             {/* Time indicator */}
-            <div className="flex items-center gap-0.5">
+            <div className="flex items-center gap-0.5" title={`${hoursInactive} horas de inatividade`}>
               <Clock className="h-3 w-3" />
-              <span>{hoursInactive}h</span>
+              <span>{formatInactivityTime(hoursInactive)}</span>
             </div>
           </div>
         </div>
