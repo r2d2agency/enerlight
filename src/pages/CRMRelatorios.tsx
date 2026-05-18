@@ -1416,72 +1416,158 @@ export default function CRMRelatorios() {
 
               {/* Loss Reasons Tab */}
               <TabsContent value="lossReasons" className="mt-6 space-y-6">
-                {salesData?.lossReasons && salesData.lossReasons.length > 0 ? (
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Distribuição por Motivo</CardTitle>
-                        <CardDescription>Motivos de perda das negociações no período</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <ResponsiveContainer width="100%" height={300}>
-                          <PieChart>
-                            <Pie
-                              data={salesData.lossReasons.map((lr, i) => ({
-                                name: lr.reason,
-                                value: lr.count,
-                                fill: ['#ef4444', '#f97316', '#eab308', '#8b5cf6', '#06b6d4', '#ec4899', '#64748b', '#84cc16'][i % 8],
-                              }))}
-                              cx="50%"
-                              cy="50%"
-                              outerRadius={100}
-                              dataKey="value"
-                              label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                            >
-                              {salesData.lossReasons.map((_, i) => (
-                                <Cell key={i} fill={['#ef4444', '#f97316', '#eab308', '#8b5cf6', '#06b6d4', '#ec4899', '#64748b', '#84cc16'][i % 8]} />
-                              ))}
-                            </Pie>
-                            <Tooltip formatter={(value: number) => [value, 'Negociações']} />
-                          </PieChart>
-                        </ResponsiveContainer>
-                      </CardContent>
-                    </Card>
+                {winLossData?.loss_reasons && winLossData.loss_reasons.length > 0 ? (
+                  <>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>Distribuição por Motivo</CardTitle>
+                          <CardDescription>Motivos de perda das negociações no período</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <ResponsiveContainer width="100%" height={300}>
+                            <PieChart>
+                              <Pie
+                                data={winLossData.loss_reasons.map((lr, i) => ({
+                                  name: lr.reason,
+                                  value: lr.count,
+                                  fill: ['#ef4444', '#f97316', '#eab308', '#8b5cf6', '#06b6d4', '#ec4899', '#64748b', '#84cc16'][i % 8],
+                                }))}
+                                cx="50%"
+                                cy="50%"
+                                innerRadius={70}
+                                outerRadius={100}
+                                paddingAngle={2}
+                                dataKey="value"
+                                nameKey="name"
+                              >
+                                {winLossData.loss_reasons.map((_, index) => (
+                                  <Cell
+                                    key={`cell-${index}`}
+                                    fill={['#ef4444', '#f97316', '#eab308', '#8b5cf6', '#06b6d4', '#ec4899', '#64748b', '#84cc16'][index % 8]}
+                                  />
+                                ))}
+                              </Pie>
+                              <Tooltip
+                                contentStyle={{
+                                  backgroundColor: "hsl(var(--card))",
+                                  border: "1px solid hsl(var(--border))",
+                                  borderRadius: "8px",
+                                }}
+                              />
+                              <Legend />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </CardContent>
+                      </Card>
 
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Detalhamento</CardTitle>
-                        <CardDescription>Quantidade e valor por motivo de perda</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Motivo</TableHead>
-                              <TableHead className="text-right">Qtd</TableHead>
-                              <TableHead className="text-right">Valor Perdido</TableHead>
-                              <TableHead className="text-right">%</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {salesData.lossReasons.map((lr) => {
-                              const totalLost = salesData.lossReasons.reduce((s, r) => s + r.count, 0);
-                              return (
-                                <TableRow key={lr.reason}>
-                                  <TableCell className="font-medium">{lr.reason}</TableCell>
-                                  <TableCell className="text-right">{lr.count}</TableCell>
-                                  <TableCell className="text-right">{formatCurrency(lr.totalValue)}</TableCell>
-                                  <TableCell className="text-right">
-                                    {totalLost > 0 ? ((lr.count / totalLost) * 100).toFixed(1) : 0}%
-                                  </TableCell>
-                                </TableRow>
-                              );
-                            })}
-                          </TableBody>
-                        </Table>
-                      </CardContent>
-                    </Card>
-                  </div>
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>Detalhamento Geral</CardTitle>
+                          <CardDescription>Quantidade e valor por motivo de perda</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Motivo</TableHead>
+                                <TableHead className="text-right">Qtd</TableHead>
+                                <TableHead className="text-right">Valor Perdido</TableHead>
+                                <TableHead className="text-right">%</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {winLossData.loss_reasons.map((lr) => {
+                                const totalLost = winLossData.loss_reasons.reduce((s, r) => s + r.count, 0);
+                                return (
+                                  <TableRow key={lr.reason}>
+                                    <TableCell className="font-medium">{lr.reason}</TableCell>
+                                    <TableCell className="text-right">{lr.count}</TableCell>
+                                    <TableCell className="text-right text-red-500 font-medium">
+                                      {formatCurrency(lr.lost_value)}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                      {totalLost > 0 ? ((lr.count / totalLost) * 100).toFixed(1) : 0}%
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })}
+                            </TableBody>
+                          </Table>
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      {/* By Salesperson Breakdown */}
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>Motivos por Vendedor</CardTitle>
+                          <CardDescription>Quais motivos cada vendedor mais enfrenta</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-6">
+                            {winLossData.by_owner.filter(o => o.lost_count > 0).map((owner) => (
+                              <div key={owner.user_id} className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <span className="font-bold text-sm">{owner.user_name}</span>
+                                  <Badge variant="secondary">{owner.lost_count} perdas</Badge>
+                                </div>
+                                <div className="space-y-1.5 pl-2 border-l-2 border-red-100">
+                                  {(owner as any).loss_reasons?.map((lr: any, i: number) => {
+                                    const pct = (lr.count / owner.lost_count) * 100;
+                                    return (
+                                      <div key={`${owner.user_id}-${i}`} className="space-y-1">
+                                        <div className="flex justify-between text-xs">
+                                          <span>{lr.reason}</span>
+                                          <span className="font-medium">{lr.count} ({pct.toFixed(0)}%)</span>
+                                        </div>
+                                        <Progress value={pct} className="h-1.5 bg-red-100" />
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      {/* By Channel (Segment) Breakdown */}
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>Motivos por Canal</CardTitle>
+                          <CardDescription>Quais motivos cada canal de venda mais enfrenta</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-6">
+                            {winLossData.by_segment.filter(s => s.lost_count > 0).map((segment) => (
+                              <div key={segment.segment} className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <span className="font-bold text-sm">{segment.segment}</span>
+                                  <Badge variant="secondary">{segment.lost_count} perdas</Badge>
+                                </div>
+                                <div className="space-y-1.5 pl-2 border-l-2 border-blue-100">
+                                  {(segment as any).loss_reasons?.map((lr: any, i: number) => {
+                                    const pct = (lr.count / segment.lost_count) * 100;
+                                    return (
+                                      <div key={`${segment.segment}-${i}`} className="space-y-1">
+                                        <div className="flex justify-between text-xs">
+                                          <span>{lr.reason}</span>
+                                          <span className="font-medium">{lr.count} ({pct.toFixed(0)}%)</span>
+                                        </div>
+                                        <Progress value={pct} className="h-1.5 bg-blue-100" />
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </>
                 ) : (
                   <div className="flex flex-col items-center justify-center py-12 gap-2">
                     <TrendingDown className="h-16 w-16 text-muted-foreground" />
