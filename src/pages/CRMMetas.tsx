@@ -377,7 +377,7 @@ export default function CRMMetas() {
                     <CardContent className="pt-4 px-3">
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1"><Target className="h-3.5 w-3.5 shrink-0" /> Conversão</div>
                       <p className="text-lg sm:text-2xl font-bold text-purple-600">
-                        {gd.orcamento.count > 0 ? ((gd.pedido.count / gd.orcamento.count) * 100).toFixed(0) : 0}%
+                        {gd.orcamento.value > 0 ? ((gd.pedido.value / gd.orcamento.value) * 100).toFixed(1) : 0}%
                       </p>
                       <p className="text-xs text-muted-foreground">Pedidos / Orçamentos</p>
                     </CardContent>
