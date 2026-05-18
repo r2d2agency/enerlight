@@ -607,7 +607,146 @@ export default function CRMRepresentantes() {
 
         {/* Dashboard Global */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-...
+          <Card>
+            <CardHeader className="py-3 px-4">
+              <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Total por Canal</CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4">
+              <div className="space-y-2">
+                {Object.entries(TYPE_LABELS).map(([type, label]) => (
+                  <div key={type} className="flex justify-between items-center text-sm">
+                    <span className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${TYPE_COLORS[type as IndicatorType].split(' ')[0]}`} />
+                      {label}
+                    </span>
+                    <span className="font-bold">{statsByType[type] || 0}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="md:col-span-2">
+            <CardHeader className="py-3 px-4">
+              <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                <Trophy className="h-3 w-3 text-amber-500" /> Ranking por Vendedor
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4">
+              <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+                {sortedSellers.slice(0, 10).map(([seller, count], idx) => (
+                  <div key={seller} className="flex justify-between items-center text-sm border-b border-dashed pb-1">
+                    <span className="truncate">
+                      <span className="text-muted-foreground mr-1">#{idx + 1}</span> {seller}
+                    </span>
+                    <span className="font-bold text-primary">{count}</span>
+                  </div>
+                ))}
+                {sortedSellers.length === 0 && (
+                  <p className="text-xs text-muted-foreground col-span-2 text-center py-2">Sem dados vinculados</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="py-3 px-4">
+              <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                <Clock className="h-3 w-3" /> Inatividade
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4">
+              <div className="space-y-2">
+                {(() => {
+                  const now = new Date();
+                  const sortedByInactivity = [...(representatives || []).filter(r => (r as any).last_interaction_at)].sort((a, b) => new Date((a as any).last_interaction_at!).getTime() - new Date((b as any).last_interaction_at!).getTime());
+                  
+                  return sortedByInactivity.slice(0, 5).map(rep => {
+                    const last = new Date((rep as any).last_interaction_at!);
+                    const diffDays = Math.floor((now.getTime() - last.getTime()) / (1000 * 60 * 60 * 24));
+                    return (
+                      <div key={rep.id} className="flex justify-between items-center text-xs border-b border-dashed pb-1 last:border-0 cursor-pointer"
+                           onClick={(e) => { e.stopPropagation(); setSelectedRepId(rep.id); }}>
+                        <span className="truncate max-w-[100px]">{rep.name}</span>
+                        <Badge variant={diffDays > 15 ? "destructive" : diffDays > 7 ? "secondary" : "outline"} className="text-[10px] h-4">
+                          {diffDays}d
+                        </Badge>
+                      </div>
+                    );
+                  });
+                })()}
+                {!(representatives || []).some(r => (r as any).last_interaction_at) && (
+                  <p className="text-[10px] text-muted-foreground text-center py-2">Sem histórico</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="py-3 px-4">
+              <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Total Geral</CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4 flex flex-col items-center justify-center h-full">
+              <div className="text-3xl font-bold">{(representatives || []).length}</div>
+              <p className="text-xs text-muted-foreground">indicadores ativos</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {isLoading ? (
+          <div className="grid gap-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-20" />)}</div>
+        ) : !representatives?.length ? (
+          <Card>
+            <CardContent className="py-12 text-center text-muted-foreground">
+              <Users className="h-12 w-12 mx-auto mb-4 opacity-30" />
+              <p className="font-medium">Nenhum indicador cadastrado</p>
+              <p className="text-sm mt-1">Cadastre parceiros, representantes ou indicadores para gerenciar áreas e segmentos.</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-3">
+            {representatives.map(rep => {
+              const t = (rep.indicator_type as IndicatorType) || "representante";
+              return (
+                <Card key={rep.id} className="cursor-pointer hover:border-primary/50 transition-colors"
+                  onClick={() => setSelectedRepId(rep.id)}>
+                  <CardContent className="py-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-medium truncate">{rep.name}</p>
+                          <Badge variant="outline" className={TYPE_COLORS[t]}>{TYPE_LABELS[t]}</Badge>
+                          <Badge variant="outline" className="shrink-0">
+                            <Percent className="h-3 w-3 mr-1" />{rep.commission_percent}%
+                          </Badge>
+                          {!!rep.areas_count && (
+                            <Badge variant="secondary" className="shrink-0 text-xs gap-1">
+                              <MapPin className="h-3 w-3" />{rep.areas_count} {rep.areas_count === 1 ? "área" : "áreas"}
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground flex-wrap">
+                          {rep.city && <span>{rep.city}{rep.state ? `/${rep.state}` : ""}</span>}
+                          {rep.phone && <span>{rep.phone}</span>}
+                          {rep.linked_user_name && <span className="text-primary font-medium flex items-center gap-1">
+                            <User className="h-3 w-3" /> {rep.linked_user_name}
+                          </span>}
+                        </div>
+                        {!!rep.segment_ids?.length && (
+                          <div className="flex gap-1 mt-2 flex-wrap">
+                            {rep.segment_ids.map(sid => {
+                              const s = segmentById(sid);
+                              if (!s) return null;
+                              return (
+                                <Badge key={sid} className="border-0 text-xs" style={{ backgroundColor: s.color, color: "white" }}>
+                                  {s.name}
+                                </Badge>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
                         <div className="text-right hidden sm:block">
                           <p className="text-sm font-medium">{rep.open_deals_count || 0} negociações</p>
                           <p className="text-xs text-muted-foreground">{formatCurrency(rep.open_deals_value || 0)}</p>
@@ -621,6 +760,13 @@ export default function CRMRepresentantes() {
                           </div>
                         )}
                       </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
                     </div>
                   </CardContent>
                 </Card>
