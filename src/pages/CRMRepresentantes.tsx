@@ -561,7 +561,14 @@ export default function CRMRepresentantes() {
                                                 api(`/api/crm/representatives/${selectedRepId}/history/${h.id}`, { method: 'DELETE' })
                                                   .then(() => {
                                                     toast.success("Histórico excluído com sucesso");
-                                                    deleteHistory.reset(); // Clear mutation state
+                                                    // Invalidate queries manually since the mutation failed but our fallback succeeded
+                                                    const queryClient = (window as any).queryClient;
+                                                    if (queryClient) {
+                                                      queryClient.invalidateQueries({ queryKey: ["crm-indicator-history", selectedRepId] });
+                                                    } else {
+                                                      // Fallback to reload if queryClient is not on window
+                                                      window.location.reload();
+                                                    }
                                                   })
                                                   .catch(() => {
                                                     toast.error("Erro ao excluir histórico. O recurso pode ter sido removido ou não estar disponível.");
