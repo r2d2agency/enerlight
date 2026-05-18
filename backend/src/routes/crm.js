@@ -5174,7 +5174,7 @@ async function saveIndicatorAreas(repId, areas) {
 router.post('/representatives', async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
-    if (!org || !canManage(org.role)) return res.status(403).json({ error: 'Permission denied' });
+    if (!org) return res.status(403).json({ error: 'No organization' });
 
     const { name, email, phone, cpf_cnpj, city, state, address, zip_code, commission_percent, notes, linked_user_id, indicator_type, segment_ids, areas } = req.body;
     const result = await query(
@@ -5195,7 +5195,7 @@ router.post('/representatives', async (req, res) => {
 router.put('/representatives/:id', async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
-    if (!org || !canManage(org.role)) return res.status(403).json({ error: 'Permission denied' });
+    if (!org) return res.status(403).json({ error: 'No organization' });
 
     const { name, email, phone, cpf_cnpj, city, state, address, zip_code, commission_percent, notes, linked_user_id, is_active, indicator_type, segment_ids, areas } = req.body;
     const result = await query(
@@ -5217,7 +5217,7 @@ router.put('/representatives/:id', async (req, res) => {
 router.delete('/representatives/:id', async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
-    if (!org || !canManage(org.role)) return res.status(403).json({ error: 'Permission denied' });
+    if (!org) return res.status(403).json({ error: 'No organization' });
 
     await query(`UPDATE crm_deals SET representative_id = NULL WHERE representative_id = $1`, [req.params.id]);
     await query(`DELETE FROM crm_representatives WHERE id = $1 AND organization_id = $2`, [req.params.id, org.organization_id]);
