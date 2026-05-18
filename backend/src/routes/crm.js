@@ -7071,7 +7071,8 @@ router.get('/goals/data-summary', async (req, res) => {
                 AND ug.organization_id = $1
               ORDER BY ug.name LIMIT 1),
            'SEM CANAL')) as channel,
-         COUNT(*) as count, COALESCE(SUM(value),0) as total_value
+         COUNT(*) as count, COALESCE(SUM(value),0) as total_value,
+         AVG(CASE WHEN data_type IN ('pedido', 'faturamento') AND margin IS NOT NULL THEN margin ELSE NULL END) as avg_margin
        FROM crm_goals_data WHERE ${baseWhere}
        GROUP BY data_type, channel, user_id ORDER BY total_value DESC`,
       params
@@ -7079,21 +7080,41 @@ router.get('/goals/data-summary', async (req, res) => {
 
     // By seller
     const bySeller = await query(
-      `SELECT data_type, COALESCE(seller_name, 'Sem Vendedor') as seller_name, user_id, COUNT(*) as count, COALESCE(SUM(value),0) as total_value
+      `SELECT data_type, COALESCE(seller_name, 'Sem Vendedor') as seller_name, user_id, 
+              COUNT(*) as count, COALESCE(SUM(value),0) as total_value,
+              AVG(CASE WHEN data_type IN ('pedido', 'faturamento') AND margin IS NOT NULL THEN margin ELSE NULL END) as avg_margin
        FROM crm_goals_data WHERE ${baseWhere}
        GROUP BY data_type, seller_name, user_id ORDER BY total_value DESC`,
       params
     );
 
-    const result = { orcamento: { count: 0, value: 0 }, pedido: { count: 0, value: 0 }, faturamento: { count: 0, value: 0 } };
+    const result = { 
+      orcamento: { count: 0, value: 0 }, 
+      pedido: { count: 0, value: 0, avg_margin: 0 }, 
+      faturamento: { count: 0, value: 0, avg_margin: 0 } 
+    };
     for (const row of summary.rows) {
-      result[row.data_type] = { count: parseInt(row.count), value: parseFloat(row.total_value) };
+      result[row.data_type] = { 
+        count: parseInt(row.count), 
+        value: parseFloat(row.total_value),
+        avg_margin: row.avg_margin ? parseFloat(row.avg_margin) : 0
+      };
     }
 
     res.json({
       summary: result,
-      byChannel: byChannel.rows.map(r => ({ ...r, count: parseInt(r.count), total_value: parseFloat(r.total_value) })),
-      bySeller: bySeller.rows.map(r => ({ ...r, count: parseInt(r.count), total_value: parseFloat(r.total_value) })),
+      byChannel: byChannel.rows.map(r => ({ 
+        ...r, 
+        count: parseInt(r.count), 
+        total_value: parseFloat(r.total_value),
+        avg_margin: r.avg_margin ? parseFloat(r.avg_margin) : 0
+      })),
+      bySeller: bySeller.rows.map(r => ({ 
+        ...r, 
+        count: parseInt(r.count), 
+        total_value: parseFloat(r.total_value),
+        avg_margin: r.avg_margin ? parseFloat(r.avg_margin) : 0
+      })),
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
