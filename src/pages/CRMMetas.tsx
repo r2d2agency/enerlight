@@ -987,6 +987,7 @@ export default function CRMMetas() {
                             <TableHead className="text-right cursor-pointer select-none" onClick={() => toggleSellerSort("billing_value")}>
                               <div className="flex items-center justify-end">Faturamento <SortIcon field="billing_value" currentField={sellerSortBy} direction={sellerSortDir} /></div>
                             </TableHead>
+                            <TableHead className="text-right">Margem Média</TableHead>
                             <TableHead className="text-center">Conversão</TableHead>
                           </TableRow>
                         </TableHeader>
