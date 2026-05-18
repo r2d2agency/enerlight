@@ -1006,6 +1006,9 @@ export default function CRMMetas() {
                               <TableCell className="text-center text-green-600 font-medium">{r.orders}</TableCell>
                               <TableCell className="text-right text-sm">{fmt(r.orders_value)}</TableCell>
                               <TableCell className="text-right text-amber-600 font-medium">{fmt(r.billing_value)}</TableCell>
+                              <TableCell className="text-right font-medium text-emerald-600">
+                                {r.margin_count > 0 ? (r.avg_margin / r.margin_count).toFixed(1) : "0"}%
+                              </TableCell>
                               <TableCell className="text-center">
                                 <Badge variant={r.quotes > 0 && (r.orders / r.quotes) >= 0.3 ? "default" : "secondary"}>
                                   {r.quotes > 0 ? ((r.orders / r.quotes) * 100).toFixed(0) : 0}%
