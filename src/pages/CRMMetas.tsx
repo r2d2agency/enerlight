@@ -808,13 +808,18 @@ export default function CRMMetas() {
           <TabsContent value="by-channel" className="mt-4 space-y-6">
             {(() => {
               const gdByChannel = goalsData?.byChannel || [];
-              const channelMap: Record<string, { channel: string; quotes: number; quotes_value: number; orders: number; orders_value: number; billing_value: number }> = {};
+              const channelMap: Record<string, { channel: string; quotes: number; quotes_value: number; orders: number; orders_value: number; billing_value: number; total_margin: number; margin_count: number }> = {};
               for (const row of gdByChannel) {
                 const key = row.channel;
-                if (!channelMap[key]) channelMap[key] = { channel: key, quotes: 0, quotes_value: 0, orders: 0, orders_value: 0, billing_value: 0 };
+                if (!channelMap[key]) channelMap[key] = { channel: key, quotes: 0, quotes_value: 0, orders: 0, orders_value: 0, billing_value: 0, total_margin: 0, margin_count: 0 };
                 if (row.data_type === 'orcamento') { channelMap[key].quotes += row.count; channelMap[key].quotes_value += row.total_value; }
                 if (row.data_type === 'pedido') { channelMap[key].orders += row.count; channelMap[key].orders_value += row.total_value; }
                 if (row.data_type === 'faturamento') { channelMap[key].billing_value += row.total_value; }
+                
+                if (['pedido', 'faturamento'].includes(row.data_type) && row.avg_margin > 0) {
+                  channelMap[key].total_margin += row.avg_margin;
+                  channelMap[key].margin_count += 1;
+                }
               }
               const channels = Object.values(channelMap).filter(c => c.quotes > 0 || c.orders > 0 || c.billing_value > 0);
               channels.sort((a: any, b: any) => {
