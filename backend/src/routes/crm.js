@@ -4819,7 +4819,18 @@ router.get('/intelligence/win-loss-analysis', async (req, res) => {
         COUNT(*) FILTER (WHERE d.status = 'won') as won_count,
         COUNT(*) FILTER (WHERE d.status = 'lost') as lost_count,
         COALESCE(SUM(d.value) FILTER (WHERE d.status = 'won'), 0) as won_value,
-        ROUND((COUNT(*) FILTER (WHERE d.status = 'won')::decimal / NULLIF(COUNT(*), 0)) * 100, 1) as win_rate
+        ROUND((COUNT(*) FILTER (WHERE d.status = 'won')::decimal / NULLIF(COUNT(*), 0)) * 100, 1) as win_rate,
+        (
+          SELECT json_agg(lr) FROM (
+            SELECT 
+              COALESCE(NULLIF(BTRIM(d2.lost_reason), ''), 'Sem motivo') as reason,
+              COUNT(*) as count
+            FROM crm_deals d2
+            WHERE d2.owner_id = u.id AND d2.status = 'lost' ${dateFilter.replace(/ d\./g, ' d2.')} ${funnelFilter.replace(/ d\./g, ' d2.')}
+            GROUP BY COALESCE(NULLIF(BTRIM(d2.lost_reason), ''), 'Sem motivo')
+            ORDER BY count DESC
+          ) lr
+        ) as loss_reasons
        FROM crm_deals d
        JOIN users u ON u.id = d.owner_id
        WHERE d.organization_id = $1 AND d.status IN ('won', 'lost') ${dateFilter} ${funnelFilter}
