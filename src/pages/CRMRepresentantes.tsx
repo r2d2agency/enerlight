@@ -432,7 +432,7 @@ export default function CRMRepresentantes() {
                                   setWhatsAppContent("");
                                   setWhatsAppDate(undefined);
                                   setScheduleWhatsAppOpen(false);
-                                  toast({ title: "WhatsApp agendado!" });
+                                  toast.success("WhatsApp agendado!");
                                   
                                   // Add to history as well
                                   createHistory.mutate({
