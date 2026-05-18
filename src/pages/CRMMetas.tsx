@@ -892,7 +892,8 @@ export default function CRMMetas() {
                                 <TableCell className="text-right font-medium text-teal-600">
                                   {(() => {
                                     const avgMargin = ch.margin_count > 0 ? (ch.total_margin / ch.margin_count) : 0;
-                                    return `${(1 + avgMargin / 100).toFixed(2).replace('.', ',')}x`;
+                                    const markupX = 1 / (1 - (avgMargin / 100));
+                                    return `${markupX > 0 && markupX < Infinity ? markupX.toFixed(2).replace('.', ',') : '0,00'}x`;
                                   })()}
                                 </TableCell>
                                 <TableCell className="text-center">
@@ -919,7 +920,8 @@ export default function CRMMetas() {
                                   const filtered = channels.filter(c => c.margin_count > 0);
                                   if (filtered.length === 0) return "0,00x";
                                   const avgMargin = filtered.reduce((s, c) => s + (c.total_margin / c.margin_count), 0) / filtered.length;
-                                  return `${(1 + avgMargin / 100).toFixed(2).replace('.', ',')}x`;
+                                  const markupX = 1 / (1 - (avgMargin / 100));
+                                  return `${markupX > 0 && markupX < Infinity ? markupX.toFixed(2).replace('.', ',') : '0,00'}x`;
                                 })()}
                               </TableCell>
                               <TableCell className="text-center">—</TableCell>
