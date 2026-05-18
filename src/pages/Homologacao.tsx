@@ -511,8 +511,8 @@ export default function Homologacao() {
                )}
              </div>
            </div>
-         ) : viewMode === "dashboard" ? (
-           <HomologationDashboard companies={companies} stages={stages} orgMembers={orgMembers} />
+          ) : viewMode === "dashboard" ? (
+            <HomologationDashboard companies={filteredCompanies} stages={stages} orgMembers={orgMembers} />
          ) : (
            <div className="flex-1 overflow-x-auto">
              <HomologationKanban
