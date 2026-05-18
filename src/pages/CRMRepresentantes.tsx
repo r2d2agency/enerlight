@@ -10,12 +10,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { toast } from "sonner";
 import {
   useRepresentatives, useRepresentative, useRepresentativeDashboard, useRepresentativeMutations,
   useRepresentativeDeals, useIndicatorSegments, Representative, IndicatorArea, IndicatorType,
   useIndicatorHistory, useCreateIndicatorHistory, useCreateScheduledMessage, useScheduledMessagesByPhone
 } from "@/hooks/use-representatives";
-import { useCRMMyTeam, CRMDeal } from "@/hooks/use-crm";
+import { useCRMMyTeam, CRMDeal, useCRMTaskMutations } from "@/hooks/use-crm";
 import { DealDetailDialog } from "@/components/crm/DealDetailDialog";
 import { IndicatorSegmentsManager } from "@/components/crm/IndicatorSegmentsManager";
 import { useAuth } from "@/contexts/AuthContext";
@@ -86,6 +89,7 @@ export default function CRMRepresentantes() {
   const [endDate, setEndDate] = useState(format(new Date(), "yyyy-MM-dd"));
 
   const { data: representatives, isLoading } = useRepresentatives(search || undefined, typeFilter, ownerFilter);
+  const selectedRep = representatives?.find(r => r.id === selectedRepId);
   const { data: dashboard, isLoading: loadingDash } = useRepresentativeDashboard(selectedRepId, startDate, endDate);
   const { data: repDeals, isLoading: loadingDeals } = useRepresentativeDeals(selectedRepId, startDate, endDate, dealStatusFilter);
   const { data: orgMembers } = useCRMMyTeam();
@@ -189,7 +193,6 @@ export default function CRMRepresentantes() {
     }));
 
   const formatCurrency = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
-  const selectedRep = representatives?.find(r => r.id === selectedRepId);
   const segmentById = (id: string) => allSegments.find(s => s.id === id);
 
   // ============== DASHBOARD DATA ==============
