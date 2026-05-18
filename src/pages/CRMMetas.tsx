@@ -351,7 +351,7 @@ export default function CRMMetas() {
             ) : (
               <>
                 {/* KPI Summary Cards - ONLY from imported data */}
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
                   <Card className="border-l-4 border-l-blue-500">
                     <CardContent className="pt-4 px-3">
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1"><FileText className="h-3.5 w-3.5 shrink-0" /> Orçamentos</div>
@@ -380,6 +380,20 @@ export default function CRMMetas() {
                         {gd.faturamento?.avg_margin > 0 ? gd.faturamento.avg_margin.toFixed(1) : (gd.pedido?.avg_margin || 0).toFixed(1)}%
                       </p>
                       <p className="text-xs text-muted-foreground">Média do período</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-l-4 border-l-teal-500">
+                    <CardContent className="pt-4 px-3">
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1"><ArrowUp className="h-3.5 w-3.5 shrink-0" /> Markup Médio</div>
+                      <p className="text-lg sm:text-2xl font-bold text-teal-600 truncate">
+                        {(() => {
+                          const avgMargin = gd.faturamento?.avg_margin > 0 ? gd.faturamento.avg_margin : (gd.pedido?.avg_margin || 0);
+                          if (avgMargin >= 100) return "—";
+                          const markup = (avgMargin / (100 - avgMargin)) * 100;
+                          return markup > 0 ? `${markup.toFixed(1)}%` : "0%";
+                        })()}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Markup calculado</p>
                     </CardContent>
                   </Card>
                   <Card className="border-l-4 border-l-purple-500">
@@ -862,6 +876,7 @@ export default function CRMMetas() {
                                 <div className="flex items-center justify-end">Faturamento <SortIcon field="billing_value" currentField={channelSortBy} direction={channelSortDir} /></div>
                               </TableHead>
                               <TableHead className="text-right">Margem Média</TableHead>
+                              <TableHead className="text-right">Markup</TableHead>
                               <TableHead className="text-center">Conversão</TableHead>
                             </TableRow>
                           </TableHeader>
@@ -877,6 +892,14 @@ export default function CRMMetas() {
                                 <TableCell className="text-right font-medium text-emerald-600">
                                   {ch.margin_count > 0 ? (ch.total_margin / ch.margin_count).toFixed(1) : "0"}%
                                 </TableCell>
+                                <TableCell className="text-right font-medium text-teal-600">
+                                  {(() => {
+                                    const avgMargin = ch.margin_count > 0 ? (ch.total_margin / ch.margin_count) : 0;
+                                    if (avgMargin >= 100) return "—";
+                                    const markup = (avgMargin / (100 - avgMargin)) * 100;
+                                    return markup > 0 ? `${markup.toFixed(1)}%` : "0%";
+                                  })()}
+                                </TableCell>
                                 <TableCell className="text-center">
                                   <Badge variant={ch.quotes > 0 && (ch.orders / ch.quotes) >= 0.3 ? "default" : "secondary"}>
                                     {ch.quotes > 0 ? ((ch.orders / ch.quotes) * 100).toFixed(0) : 0}%
@@ -891,10 +914,20 @@ export default function CRMMetas() {
                               <TableCell className="text-center text-green-600">{channels.reduce((s, c) => s + c.orders, 0)}</TableCell>
                               <TableCell className="text-right">{fmt(channels.reduce((s, c) => s + c.orders_value, 0))}</TableCell>
                               <TableCell className="text-right text-amber-600">{fmt(channels.reduce((s, c) => s + c.billing_value, 0))}</TableCell>
-                              <TableCell className="text-right text-emerald-600">
+                               <TableCell className="text-right text-emerald-600">
                                 {channels.filter(c => c.margin_count > 0).length > 0 
                                   ? (channels.reduce((s, c) => s + (c.margin_count > 0 ? c.total_margin / c.margin_count : 0), 0) / channels.filter(c => c.margin_count > 0).length).toFixed(1)
                                   : "0"}%
+                              </TableCell>
+                              <TableCell className="text-right text-teal-600">
+                                {(() => {
+                                  const filtered = channels.filter(c => c.margin_count > 0);
+                                  if (filtered.length === 0) return "0%";
+                                  const avgMargin = filtered.reduce((s, c) => s + (c.total_margin / c.margin_count), 0) / filtered.length;
+                                  if (avgMargin >= 100) return "—";
+                                  const markup = (avgMargin / (100 - avgMargin)) * 100;
+                                  return markup > 0 ? `${markup.toFixed(1)}%` : "0%";
+                                })()}
                               </TableCell>
                               <TableCell className="text-center">—</TableCell>
                             </TableRow>
