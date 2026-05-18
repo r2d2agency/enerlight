@@ -457,15 +457,29 @@ export default function Homologacao() {
              </div>
              {viewMode === "kanban" && (
                <>
-                 <div className="relative">
-                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                   <Input
-                     placeholder="Buscar empresa..."
-                     value={searchTerm}
-                     onChange={e => setSearchTerm(e.target.value)}
-                     className="pl-9 w-[200px]"
-                   />
-                 </div>
+                  <div className="flex items-center gap-2">
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Buscar empresa..."
+                        value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
+                        className="pl-9 w-[180px]"
+                      />
+                    </div>
+                    <Select value={selectedSellerId} onValueChange={setSelectedSellerId}>
+                      <SelectTrigger className="w-[180px]">
+                        <User className="h-4 w-4 mr-2 text-muted-foreground" />
+                        <SelectValue placeholder="Responsável" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos Responsáveis</SelectItem>
+                        {orgMembers.map(m => (
+                          <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                  {activeBoardId && (
                    <>
                      <Button size="sm" onClick={() => setShowNewCompanyDialog(true)}>
