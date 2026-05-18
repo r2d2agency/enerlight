@@ -142,26 +142,25 @@ export const DealCard = forwardRef<HTMLDivElement, DealCardProps>(
         )}
 
         {/* Title & Value */}
-        <div className="mb-1.5 min-w-0">
-          <div className="flex items-start justify-between gap-2">
-            <h4 className={cn(
-              "font-semibold text-sm line-clamp-2",
-              isPaused && "text-muted-foreground"
+        <div className="mb-2 min-w-0">
+          <h4 className={cn(
+            "font-semibold text-sm line-clamp-2 mb-1",
+            isPaused && "text-muted-foreground"
+          )}>
+            {deal.title}
+          </h4>
+          
+          {deal.value > 0 && (
+            <div className={cn(
+              "text-[13px] font-bold inline-flex items-center px-2 py-0.5 rounded-md",
+              isWon && "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+              isLost && "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 line-through",
+              isPaused && "bg-gray-100 text-gray-600 dark:bg-gray-800/30 dark:text-gray-400",
+              !isWon && !isLost && !isPaused && "bg-primary/10 text-primary"
             )}>
-              {deal.title}
-            </h4>
-            {deal.value > 0 && (
-              <span className={cn(
-                "text-[11px] font-medium whitespace-nowrap shrink-0",
-                isWon && "text-green-600",
-                isLost && "text-red-600 line-through",
-                isPaused && "text-muted-foreground",
-                !isWon && !isLost && !isPaused && "text-muted-foreground"
-              )}>
-                {formatCurrency(deal.value)}
-              </span>
-            )}
-          </div>
+              {formatCurrency(deal.value)}
+            </div>
+          )}
         </div>
 
         {/* Company & Contact */}
