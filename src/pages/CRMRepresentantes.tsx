@@ -550,34 +550,16 @@ export default function CRMRepresentantes() {
                                     variant="ghost" 
                                     size="icon" 
                                     className="h-5 w-5 opacity-0 group-hover/history:opacity-100 transition-opacity text-destructive"
-                                    onClick={() => {
+                                    onClick={async () => {
                                       if (window.confirm("Deseja realmente excluir este histórico?")) {
-                                        deleteHistory.mutate(
-                                          { indicatorId: selectedRepId!, historyId: h.id },
-                                          {
-                                            onError: (err: any) => {
-                                              if (err.message?.includes('404')) {
-                                                // Tenta a rota alternativa se a principal falhar
-                                                api(`/api/crm/representatives/${selectedRepId}/history/${h.id}`, { method: 'DELETE' })
-                                                  .then(() => {
-                                                    toast.success("Histórico excluído com sucesso");
-                                                    // Invalidate queries manually since the mutation failed but our fallback succeeded
-                                                    const queryClient = (window as any).queryClient;
-                                                    if (queryClient) {
-                                                      queryClient.invalidateQueries({ queryKey: ["crm-indicator-history", selectedRepId] });
-                                                    } else {
-                                                      // Fallback to reload if queryClient is not on window
-                                                      window.location.reload();
-                                                    }
-                                                  })
-                                                  .catch(() => {
-                                                    toast.error("Erro ao excluir histórico. O recurso pode ter sido removido ou não estar disponível.");
-                                                  });
-                                              } else {
-                                                toast.error(err.message || "Erro ao excluir histórico.");
-                                              }
-                                            }
-                                          }
+                                        try {
+                                          await deleteHistory.mutateAsync({ indicatorId: selectedRepId!, historyId: h.id });
+                                        } catch (err: any) {
+                                          console.error("Erro ao excluir histórico:", err);
+                                          toast.error(err.message || "Erro ao excluir histórico. O servidor pode não suportar esta ação.");
+                                        }
+                                      }
+                                    }}
                                         );
                                       }
                                     }}
