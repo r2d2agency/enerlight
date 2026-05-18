@@ -5269,6 +5269,12 @@ router.get('/representatives/:id/history', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
+    // Check if table exists
+    const checkTable = await query(`SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'crm_indicator_history')`);
+    if (!checkTable.rows[0].exists) {
+      return res.json([]);
+    }
+
     const result = await query(
       `SELECT h.*, u.name as user_name
        FROM crm_indicator_history h
@@ -5305,6 +5311,9 @@ router.post('/representatives/:id/history', async (req, res) => {
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Error creating indicator history:', error);
+    if (isMissingSchemaError(error)) {
+      return res.status(400).json({ error: 'Funcionalidade de histórico ainda não disponível no banco de dados.' });
+    }
     res.status(500).json({ error: error.message });
   }
 });
