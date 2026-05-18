@@ -550,18 +550,20 @@ export default function CRMRepresentantes() {
                                     size="icon" 
                                     className="h-5 w-5 opacity-0 group-hover/history:opacity-100 transition-opacity text-destructive"
                                     onClick={() => {
-                                      deleteHistory.mutate(
-                                        { indicatorId: selectedRepId!, historyId: h.id },
-                                        {
-                                          onError: (err: any) => {
-                                            if (err.message?.includes('404')) {
-                                              toast.error("O backend ainda não suporta a exclusão de histórico para indicadores.");
-                                            } else {
-                                              toast.error(err.message || "Erro ao excluir histórico.");
+                                      if (window.confirm("Deseja realmente excluir este histórico?")) {
+                                        deleteHistory.mutate(
+                                          { indicatorId: selectedRepId!, historyId: h.id },
+                                          {
+                                            onError: (err: any) => {
+                                              if (err.message?.includes('404')) {
+                                                toast.error("Erro na exclusão. Verifique se o recurso existe no servidor.");
+                                              } else {
+                                                toast.error(err.message || "Erro ao excluir histórico.");
+                                              }
                                             }
                                           }
-                                        }
-                                      );
+                                        );
+                                      }
                                     }}
                                   >
                                     <Trash2 className="h-3 w-3" />
