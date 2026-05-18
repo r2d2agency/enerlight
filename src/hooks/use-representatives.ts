@@ -220,22 +220,30 @@ export function useIndicatorHistoryMutations() {
   const deleteHistory = useMutation({
     mutationFn: async ({ indicatorId, historyId }: { indicatorId: string; historyId: string }) => {
       // O backend segue a estrutura /api/crm/representatives/:id/history/:historyId
-      // ou /api/crm/indicators/:id/history/:historyId conforme o tipo
+      // ou /api/crm/indicators/:id/history/:historyId conforme o tipo.
+      // Adicionando caminhos baseados em logs de erro para cobrir todas as possibilidades.
       const paths = [
         `/api/crm/representatives/${indicatorId}/history/${historyId}`,
         `/api/crm/indicators/${indicatorId}/history/${historyId}`,
         `/api/crm/history/${historyId}`,
-        `/api/crm/indicators/history/${historyId}`
+        `/api/crm/indicators/history/${historyId}`,
+        `/api/crm/representatives/history/${historyId}`
       ];
 
       let lastError: any = null;
+      let success = false;
+      
       for (const path of paths) {
         try {
           console.log(`[useIndicatorHistoryMutations] Tentando excluir via: ${path}`);
-          return await api<void>(path, { method: "DELETE" });
+          await api<void>(path, { method: "DELETE" });
+          success = true;
+          console.log(`[useIndicatorHistoryMutations] Sucesso ao excluir via: ${path}`);
+          break;
         } catch (error: any) {
           lastError = error;
-          // Se for 404 ou 405 (Método não permitido), tentamos a próxima rota
+          // Se for 404 (Não encontrado) ou 405 (Método não permitido), tentamos a próxima rota.
+          // O status 502/504 ou erros de rede devem interromper a tentativa.
           if (error.status !== 404 && error.status !== 405) {
             console.error(`[useIndicatorHistoryMutations] Erro fatal (status ${error.status}) em ${path}:`, error);
             break;
@@ -243,7 +251,9 @@ export function useIndicatorHistoryMutations() {
           console.warn(`[useIndicatorHistoryMutations] Rota falhou (${error.status}): ${path}`);
         }
       }
-      throw lastError;
+      
+      if (!success) throw lastError;
+      return;
     },
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ["crm-indicator-history", vars.indicatorId] });
