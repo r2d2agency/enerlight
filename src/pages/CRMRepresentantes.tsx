@@ -577,6 +577,14 @@ export default function CRMRepresentantes() {
             deal={selectedDeal} open={dealDetailOpen}
             onOpenChange={(open) => { setDealDetailOpen(open); if (!open) setSelectedDeal(null); }}
           />
+
+          <TaskDialog
+            task={null}
+            companyId={selectedRepId || undefined}
+            open={taskDialogOpen}
+            onOpenChange={setTaskDialogOpen}
+          />
+
         </div>
       </MainLayout>
     );
