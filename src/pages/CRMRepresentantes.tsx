@@ -535,20 +535,35 @@ export default function CRMRepresentantes() {
                         {history.length === 0 ? (
                           <p className="text-xs text-muted-foreground text-center py-8">Nenhum histórico registrado ou funcionalidade indisponível no banco de dados.</p>
                         ) : (
-                          history.map((h) => (
-                            <div key={h.id} className="relative pl-4 border-l-2 border-muted pb-4 last:pb-0">
-                              <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-background border-2 border-muted flex items-center justify-center">
-                                <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground" />
-                              </div>
-                              <div className="flex flex-col gap-1">
-                                <div className="flex items-center justify-between gap-2">
-                                  <span className="text-xs font-bold">{h.user_name}</span>
-                                  <span className="text-[10px] text-muted-foreground">{format(parseISO(h.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}</span>
-                                </div>
-                                <p className="text-sm whitespace-pre-wrap">{h.content}</p>
-                              </div>
+                        history.map((h) => (
+                          <div key={h.id} className="relative pl-4 border-l-2 border-muted pb-4 last:pb-0 group/history">
+                            <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-background border-2 border-muted flex items-center justify-center">
+                              <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground" />
                             </div>
-                          ))
+                            <div className="flex flex-col gap-1">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-xs font-bold">{h.user_name}</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[10px] text-muted-foreground">{format(parseISO(h.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}</span>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-5 w-5 opacity-0 group-hover/history:opacity-100 transition-opacity text-destructive"
+                                    onClick={() => {
+                                      if (confirm("Tem certeza que deseja excluir este histórico?")) {
+                                        deleteHistory.mutate({ indicatorId: selectedRepId!, historyId: h.id });
+                                      }
+                                    }}
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              </div>
+                              <p className="text-sm whitespace-pre-wrap">{h.content}</p>
+                            </div>
+                          </div>
+                        ))
+
                         )}
                       </div>
                     </ScrollArea>
