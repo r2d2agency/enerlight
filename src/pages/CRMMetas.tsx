@@ -924,9 +924,9 @@ export default function CRMMetas() {
                                   const filtered = channels.filter(c => c.margin_count > 0);
                                   if (filtered.length === 0) return "0%";
                                   const avgMargin = filtered.reduce((s, c) => s + (c.total_margin / c.margin_count), 0) / filtered.length;
-                                  if (avgMargin >= 100) return "—";
+                                  if (!avgMargin || avgMargin >= 100 || avgMargin <= 0) return "0%";
                                   const markup = (avgMargin / (100 - avgMargin)) * 100;
-                                  return markup > 0 ? `${markup.toFixed(1)}%` : "0%";
+                                  return `${markup.toFixed(1)}%`;
                                 })()}
                               </TableCell>
                               <TableCell className="text-center">—</TableCell>
