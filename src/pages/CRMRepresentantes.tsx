@@ -556,7 +556,15 @@ export default function CRMRepresentantes() {
                                           {
                                             onError: (err: any) => {
                                               if (err.message?.includes('404')) {
-                                                toast.error("Erro na exclusão. Verifique se o recurso existe no servidor.");
+                                                // Tenta a rota alternativa se a principal falhar
+                                                api(`/api/crm/representatives/${selectedRepId}/history/${h.id}`, { method: 'DELETE' })
+                                                  .then(() => {
+                                                    toast.success("Histórico excluído com sucesso");
+                                                    deleteHistory.reset(); // Clear mutation state
+                                                  })
+                                                  .catch(() => {
+                                                    toast.error("Erro ao excluir histórico. O recurso pode ter sido removido ou não estar disponível.");
+                                                  });
                                               } else {
                                                 toast.error(err.message || "Erro ao excluir histórico.");
                                               }
