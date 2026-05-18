@@ -218,8 +218,26 @@ export function useIndicatorHistoryMutations() {
   });
 
   const deleteHistory = useMutation({
-    mutationFn: ({ indicatorId, historyId }: { indicatorId: string; historyId: string }) =>
-      api<void>(`/api/crm/history/${historyId}`, { method: "DELETE" }),
+    mutationFn: async ({ indicatorId, historyId }: { indicatorId: string; historyId: string }) => {
+      // Tenta múltiplas rotas possíveis para garantir compatibilidade com o backend
+      const paths = [
+        `/api/crm/history/${historyId}`,
+        `/api/crm/representatives/${indicatorId}/history/${historyId}`,
+        `/api/crm/representatives/history/${historyId}`,
+        `/api/crm/indicators/history/${historyId}`
+      ];
+
+      let lastError: any = null;
+      for (const path of paths) {
+        try {
+          return await api<void>(path, { method: "DELETE" });
+        } catch (error: any) {
+          lastError = error;
+          if (error.status !== 404) break; // Se não for 404, para de tentar e joga o erro
+        }
+      }
+      throw lastError;
+    },
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ["crm-indicator-history", vars.indicatorId] });
       toast({ title: "Histórico excluído com sucesso" });
