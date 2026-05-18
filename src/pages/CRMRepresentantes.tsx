@@ -10,19 +10,22 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { toast } from "sonner";
 import {
   useRepresentatives, useRepresentative, useRepresentativeDashboard, useRepresentativeMutations,
   useRepresentativeDeals, useIndicatorSegments, Representative, IndicatorArea, IndicatorType,
-  useIndicatorHistory, useCreateIndicatorHistory,
+  useIndicatorHistory, useCreateIndicatorHistory, useCreateScheduledMessage, useScheduledMessagesByPhone
 } from "@/hooks/use-representatives";
-import { useCRMMyTeam, CRMDeal } from "@/hooks/use-crm";
+import { useCRMMyTeam, CRMDeal, useCRMTaskMutations } from "@/hooks/use-crm";
 import { DealDetailDialog } from "@/components/crm/DealDetailDialog";
 import { IndicatorSegmentsManager } from "@/components/crm/IndicatorSegmentsManager";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  Plus, Search, Users, DollarSign, Briefcase, Edit2, Trash2, ArrowLeft, Calendar,
+  Plus, Search, Users, DollarSign, Briefcase, Edit2, Trash2, ArrowLeft, Calendar as CalendarIcon,
   XCircle, Trophy, Percent, ExternalLink, MapPin, Settings, X, Tag, History, Clock,
-  LayoutDashboard, User, Building2,
+  LayoutDashboard, User, Building2, MessageSquare, Send
 } from "lucide-react";
 import { format, subDays, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -76,11 +79,17 @@ export default function CRMRepresentantes() {
   const [dealDetailOpen, setDealDetailOpen] = useState(false);
   const [segmentsManagerOpen, setSegmentsManagerOpen] = useState(false);
   const [historyContent, setHistoryContent] = useState("");
+  const [scheduleWhatsAppOpen, setScheduleWhatsAppOpen] = useState(false);
+  const [whatsAppDate, setWhatsAppDate] = useState<Date | undefined>(undefined);
+  const [whatsAppTime, setWhatsAppTime] = useState("09:00");
+  const [whatsAppContent, setWhatsAppContent] = useState("");
+  const [whatsAppCalendarOpen, setWhatsAppCalendarOpen] = useState(false);
 
   const [startDate, setStartDate] = useState(format(subDays(new Date(), 30), "yyyy-MM-dd"));
   const [endDate, setEndDate] = useState(format(new Date(), "yyyy-MM-dd"));
 
   const { data: representatives, isLoading } = useRepresentatives(search || undefined, typeFilter, ownerFilter);
+  const selectedRep = representatives?.find(r => r.id === selectedRepId);
   const { data: dashboard, isLoading: loadingDash } = useRepresentativeDashboard(selectedRepId, startDate, endDate);
   const { data: repDeals, isLoading: loadingDeals } = useRepresentativeDeals(selectedRepId, startDate, endDate, dealStatusFilter);
   const { data: orgMembers } = useCRMMyTeam();
@@ -89,6 +98,9 @@ export default function CRMRepresentantes() {
   const { createRepresentative, updateRepresentative, deleteRepresentative } = useRepresentativeMutations();
   const { data: history = [] } = useIndicatorHistory(selectedRepId);
   const createHistory = useCreateIndicatorHistory();
+  const { data: scheduledMessages = [] } = useScheduledMessagesByPhone(selectedRep?.phone || "");
+  const createScheduledMessage = useCreateScheduledMessage();
+  const { createTask } = useCRMTaskMutations();
 
   const [form, setForm] = useState<FormState>(emptyForm);
 
@@ -181,7 +193,6 @@ export default function CRMRepresentantes() {
     }));
 
   const formatCurrency = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
-  const selectedRep = representatives?.find(r => r.id === selectedRepId);
   const segmentById = (id: string) => allSegments.find(s => s.id === id);
 
   // ============== DASHBOARD DATA ==============
@@ -223,10 +234,10 @@ export default function CRMRepresentantes() {
           </div>
 
           <div className="flex items-center gap-3 flex-wrap">
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-            <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-40" />
+            <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+            <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-40 h-9" />
             <span className="text-sm text-muted-foreground">até</span>
-            <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-40" />
+            <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-40 h-9" />
           </div>
 
           {loadingDash ? (
@@ -320,7 +331,7 @@ export default function CRMRepresentantes() {
                           {repDeals.map(deal => {
                             const dealCommission = Number(deal.value || 0) * rate;
                             return (
-                              <div key={deal.id} className="flex items-center justify-between p-3 rounded-lg border cursor-pointer hover:bg-accent/50 transition-colors"
+                              <div key={deal.id} className="flex items-center justify-between p-3 rounded-lg border cursor-pointer hover:bg-accent/50 transition-colors group"
                                 onClick={() => { setSelectedDeal(deal as any); setDealDetailOpen(true); }}>
                                 <div className="flex-1 min-w-0">
                                   <p className="font-medium text-sm truncate">{deal.title}</p>
@@ -353,13 +364,91 @@ export default function CRMRepresentantes() {
 
               {/* COLUNA HISTÓRICO */}
               <div className="space-y-6">
-                <Card className="h-full flex flex-col">
+                <Card className="flex flex-col">
                   <CardHeader className="pb-2 flex flex-row items-center justify-between">
                     <CardTitle className="text-sm font-medium flex items-center gap-2">
-                      <History className="h-4 w-4" /> Histórico
+                      <History className="h-4 w-4" /> Histórico e Atividades
                     </CardTitle>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => setScheduleWhatsAppOpen(!scheduleWhatsAppOpen)}>
+                        <MessageSquare className="h-3.5 w-3.5" /> Agendar WhatsApp
+                      </Button>
+                    </div>
                   </CardHeader>
                   <CardContent className="flex-1 flex flex-col gap-4">
+                    {scheduleWhatsAppOpen && (
+                      <div className="p-3 border rounded-lg bg-muted/30 space-y-3 mb-2 animate-in fade-in slide-in-from-top-2">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-xs font-bold flex items-center gap-2"><MessageSquare className="h-3 w-3" /> Agendar WhatsApp</h4>
+                          <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => setScheduleWhatsAppOpen(false)}><X className="h-3 w-3" /></Button>
+                        </div>
+                        <div className="space-y-2">
+                          <Textarea
+                            placeholder="Conteúdo da mensagem..."
+                            value={whatsAppContent}
+                            onChange={e => setWhatsAppContent(e.target.value)}
+                            className="min-h-[60px] text-xs"
+                          />
+                          <div className="grid grid-cols-2 gap-2">
+                            <Popover open={whatsAppCalendarOpen} onOpenChange={setWhatsAppCalendarOpen}>
+                              <PopoverTrigger asChild>
+                                <Button variant="outline" size="sm" className={cn("h-8 text-[11px] justify-start text-left font-normal w-full", !whatsAppDate && "text-muted-foreground")}>
+                                  <CalendarIcon className="mr-2 h-3.5 w-3.5" />
+                                  {whatsAppDate ? format(whatsAppDate, "dd/MM/yyyy") : "Selecionar data"}
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                  mode="single"
+                                  selected={whatsAppDate}
+                                  onSelect={(d) => { setWhatsAppDate(d); setWhatsAppCalendarOpen(false); }}
+                                  initialFocus
+                                  locale={ptBR}
+                                />
+                              </PopoverContent>
+                            </Popover>
+                            <Input
+                              type="time"
+                              className="h-8 text-xs"
+                              value={whatsAppTime}
+                              onChange={e => setWhatsAppTime(e.target.value)}
+                            />
+                          </div>
+                          <Button 
+                            size="sm" 
+                            className="w-full h-8 text-xs gap-1.5"
+                            disabled={!whatsAppContent.trim() || !whatsAppDate || createScheduledMessage.isPending}
+                            onClick={() => {
+                              const [h, m] = whatsAppTime.split(":").map(Number);
+                              const date = new Date(whatsAppDate!);
+                              date.setHours(h, m, 0, 0);
+                              
+                              createScheduledMessage.mutate({
+                                phone: selectedRep.phone!,
+                                content: whatsAppContent,
+                                scheduled_at: date.toISOString(),
+                              }, {
+                                onSuccess: () => {
+                                  setWhatsAppContent("");
+                                  setWhatsAppDate(undefined);
+                                  setScheduleWhatsAppOpen(false);
+                                  toast.success("WhatsApp agendado!");
+                                  
+                                  // Add to history as well
+                                  createHistory.mutate({
+                                    indicatorId: selectedRepId!,
+                                    content: `WhatsApp agendado para ${format(date, "dd/MM/yyyy HH:mm")}: ${whatsAppContent.substring(0, 50)}${whatsAppContent.length > 50 ? '...' : ''}`
+                                  });
+                                }
+                              });
+                            }}
+                          >
+                            <Send className="h-3 w-3" /> Agendar Mensagem
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="space-y-2">
                       <Textarea
                         placeholder="Novo histórico..."
@@ -382,7 +471,30 @@ export default function CRMRepresentantes() {
                       </Button>
                     </div>
 
-                    <ScrollArea className="flex-1 -mx-2 px-2">
+                    {scheduledMessages.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                          <Clock className="h-3 w-3" /> Próximos Agendamentos
+                        </p>
+                        <div className="space-y-2">
+                          {scheduledMessages.filter(m => m.status === 'pending').slice(0, 3).map(msg => (
+                            <div key={msg.id} className="p-2 rounded border bg-amber-500/5 border-amber-500/20 text-xs">
+                              <div className="flex justify-between items-start mb-1">
+                                <span className="font-bold text-amber-600 flex items-center gap-1">
+                                  <MessageSquare className="h-3 w-3" /> WhatsApp
+                                </span>
+                                <span className="text-[10px] text-muted-foreground">
+                                  {format(parseISO(msg.scheduled_at), "dd/MM HH:mm")}
+                                </span>
+                              </div>
+                              <p className="line-clamp-2 italic text-muted-foreground">{msg.content}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <ScrollArea className="flex-1 -mx-2 px-2 max-h-[400px]">
                       <div className="space-y-4">
                         {history.length === 0 ? (
                           <p className="text-xs text-muted-foreground text-center py-8">Nenhum histórico registrado.</p>
