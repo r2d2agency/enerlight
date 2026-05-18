@@ -59,6 +59,7 @@ export default function Homologacao() {
   const [showNewMeetingDialog, setShowNewMeetingDialog] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: string; id: string; name: string } | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedSellerId, setSelectedSellerId] = useState<string>("all");
 
   // Form states
   const [boardName, setBoardName] = useState("");
@@ -141,19 +142,26 @@ export default function Homologacao() {
     companies.find(c => c.id === selectedCompanyId), [companies, selectedCompanyId]
   );
 
+  // Filter companies
+  const filteredCompanies = useMemo(() => {
+    return companies.filter(c => {
+      const matchesSearch = !searchTerm || c.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSeller = selectedSellerId === "all" || c.assigned_to === selectedSellerId;
+      return matchesSearch && matchesSeller;
+    });
+  }, [companies, searchTerm, selectedSellerId]);
+
   // Group companies by stage
   const companiesByStage = useMemo(() => {
     const map: Record<string, HomologationCompany[]> = {};
     stages.forEach(s => { map[s.id] = []; });
-    companies
-      .filter(c => !searchTerm || c.name.toLowerCase().includes(searchTerm.toLowerCase()))
-      .forEach(c => {
-        if (c.stage_id && map[c.stage_id]) {
-          map[c.stage_id].push(c);
-        }
-      });
+    filteredCompanies.forEach(c => {
+      if (c.stage_id && map[c.stage_id]) {
+        map[c.stage_id].push(c);
+      }
+    });
     return map;
-  }, [companies, stages, searchTerm]);
+  }, [filteredCompanies, stages]);
 
   // Handlers
   const handleCreateBoard = async () => {
@@ -450,29 +458,40 @@ export default function Homologacao() {
                  <LayoutDashboard className="h-4 w-4 mr-1" /> Dashboard
                </Button>
              </div>
-             {viewMode === "kanban" && (
-               <>
-                 <div className="relative">
-                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                   <Input
-                     placeholder="Buscar empresa..."
-                     value={searchTerm}
-                     onChange={e => setSearchTerm(e.target.value)}
-                     className="pl-9 w-[200px]"
-                   />
-                 </div>
-                 {activeBoardId && (
-                   <>
-                     <Button size="sm" onClick={() => setShowNewCompanyDialog(true)}>
-                       <Plus className="h-4 w-4 mr-1" /> Nova Empresa
-                     </Button>
-                     <Button variant="ghost" size="icon" onClick={() => setShowStageSettings(true)}>
-                       <Settings className="h-4 w-4" />
-                     </Button>
-                   </>
-                 )}
-               </>
-             )}
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar empresa..."
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    className="pl-9 w-[180px]"
+                  />
+                </div>
+                <Select value={selectedSellerId} onValueChange={setSelectedSellerId}>
+                  <SelectTrigger className="w-[180px]">
+                    <User className="h-4 w-4 mr-2 text-muted-foreground" />
+                    <SelectValue placeholder="Responsável" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos Responsáveis</SelectItem>
+                    {orgMembers.map(m => (
+                      <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {viewMode === "kanban" && activeBoardId && (
+                <>
+                  <Button size="sm" onClick={() => setShowNewCompanyDialog(true)}>
+                    <Plus className="h-4 w-4 mr-1" /> Nova Empresa
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => setShowStageSettings(true)}>
+                    <Settings className="h-4 w-4" />
+                  </Button>
+                </>
+              )}
            </div>
          </div>
 
@@ -489,8 +508,8 @@ export default function Homologacao() {
                )}
              </div>
            </div>
-         ) : viewMode === "dashboard" ? (
-           <HomologationDashboard companies={companies} stages={stages} orgMembers={orgMembers} />
+          ) : viewMode === "dashboard" ? (
+            <HomologationDashboard companies={filteredCompanies} stages={stages} orgMembers={orgMembers} />
          ) : (
            <div className="flex-1 overflow-x-auto">
              <HomologationKanban
