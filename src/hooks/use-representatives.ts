@@ -219,21 +219,28 @@ export function useIndicatorHistoryMutations() {
 
   const deleteHistory = useMutation({
     mutationFn: async ({ indicatorId, historyId }: { indicatorId: string; historyId: string }) => {
-      // Tenta múltiplas rotas possíveis para garantir compatibilidade com o backend
+      // O backend segue a estrutura /api/crm/representatives/:id/history/:historyId
+      // ou /api/crm/indicators/:id/history/:historyId conforme o tipo
       const paths = [
-        `/api/crm/history/${historyId}`,
         `/api/crm/representatives/${indicatorId}/history/${historyId}`,
-        `/api/crm/representatives/history/${historyId}`,
+        `/api/crm/indicators/${indicatorId}/history/${historyId}`,
+        `/api/crm/history/${historyId}`,
         `/api/crm/indicators/history/${historyId}`
       ];
 
       let lastError: any = null;
       for (const path of paths) {
         try {
+          console.log(`[useIndicatorHistoryMutations] Tentando excluir via: ${path}`);
           return await api<void>(path, { method: "DELETE" });
         } catch (error: any) {
           lastError = error;
-          if (error.status !== 404) break; // Se não for 404, para de tentar e joga o erro
+          // Se for 404 ou 405 (Método não permitido), tentamos a próxima rota
+          if (error.status !== 404 && error.status !== 405) {
+            console.error(`[useIndicatorHistoryMutations] Erro fatal (status ${error.status}) em ${path}:`, error);
+            break;
+          }
+          console.warn(`[useIndicatorHistoryMutations] Rota falhou (${error.status}): ${path}`);
         }
       }
       throw lastError;
