@@ -175,7 +175,7 @@ export function PipelineView({ stages, dealsByStage, onDealClick, onStatusChange
               <div className="col-span-2 flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Clock className="h-3.5 w-3.5" />
                 <span>{deal.last_activity_at ? format(parseISO(deal.last_activity_at), "dd/MM HH:mm", { locale: ptBR }) : "—"}</span>
-                <span className="text-muted-foreground/50">({hoursInactive}h)</span>
+                <span className="text-muted-foreground/50">({formatInactivityTime(hoursInactive)})</span>
               </div>
             </Card>
           );
