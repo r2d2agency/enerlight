@@ -105,7 +105,8 @@ export default function CRMRepresentantes() {
   const { createHistory, deleteHistory } = useIndicatorHistoryMutations();
   const { data: scheduledMessages = [] } = useScheduledMessagesByPhone(selectedRep?.phone || "");
   const createScheduledMessage = useCreateScheduledMessage();
-  const { createTask } = useCRMTaskMutations();
+  const { createTask, deleteTask: deleteTaskMutation, completeTask } = useCRMTaskMutations();
+  const { data: repTasks = [], isLoading: loadingTasks } = useCRMTasks({ company_id: selectedRepId || undefined, status: 'pending' });
 
 
   const [form, setForm] = useState<FormState>(emptyForm);
