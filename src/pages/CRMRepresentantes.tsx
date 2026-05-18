@@ -424,7 +424,7 @@ export default function CRMRepresentantes() {
             <Users className="h-5 w-5 text-primary" />
             <h1 className="text-xl font-bold">Indicadores</h1>
           </div>
-          {canManage && (
+          {canManageRep && (
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={() => setSegmentsManagerOpen(true)}>
                 <Tag className="h-4 w-4 mr-2" />
@@ -438,170 +438,61 @@ export default function CRMRepresentantes() {
           )}
         </div>
 
-        {/* Dashboard Global */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <Card>
-            <CardHeader className="py-3 px-4">
-              <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Total por Canal</CardTitle>
-            </CardHeader>
-            <CardContent className="px-4 pb-4">
-              <div className="space-y-2">
-                {Object.entries(TYPE_LABELS).map(([type, label]) => (
-                  <div key={type} className="flex justify-between items-center text-sm">
-                    <span className="flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full ${TYPE_COLORS[type as IndicatorType].split(' ')[0]}`} />
-                      {label}
-                    </span>
-                    <span className="font-bold">{statsByType[type] || 0}</span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="md:col-span-2">
-            <CardHeader className="py-3 px-4">
-              <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                <Trophy className="h-3 w-3 text-amber-500" /> Ranking por Vendedor
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-4 pb-4">
-              <div className="grid grid-cols-2 gap-x-6 gap-y-2">
-                {sortedSellers.slice(0, 10).map(([seller, count], idx) => (
-                  <div key={seller} className="flex justify-between items-center text-sm border-b border-dashed pb-1">
-                    <span className="truncate">
-                      <span className="text-muted-foreground mr-1">#{idx + 1}</span> {seller}
-                    </span>
-                    <span className="font-bold text-primary">{count}</span>
-                  </div>
-                ))}
-                {sortedSellers.length === 0 && (
-                  <p className="text-xs text-muted-foreground col-span-2 text-center py-2">Sem dados vinculados</p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="py-3 px-4">
-              <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                <Clock className="h-3 w-3" /> Inatividade
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-4 pb-4">
-              <div className="space-y-2">
-                {(() => {
-                  const now = new Date();
-                  const sortedByInactivity = [...(representatives || [])]
-                    .filter(r => (r as any).last_interaction_at)
-                    .sort((a, b) => new Date((a as any).last_interaction_at!).getTime() - new Date((b as any).last_interaction_at!).getTime());
-                  
-                  return sortedByInactivity.slice(0, 5).map(rep => {
-                    const last = new Date((rep as any).last_interaction_at!);
-                    const diffDays = Math.floor((now.getTime() - last.getTime()) / (1000 * 60 * 60 * 24));
-                    return (
-                      <div key={rep.id} className="flex justify-between items-center text-xs border-b border-dashed pb-1 last:border-0"
-                           onClick={(e) => { e.stopPropagation(); setSelectedRepId(rep.id); }}>
-                        <span className="truncate max-w-[100px]">{rep.name}</span>
-                        <Badge variant={diffDays > 15 ? "destructive" : diffDays > 7 ? "secondary" : "outline"} className="text-[10px] h-4">
-                          {diffDays}d
-                        </Badge>
-                      </div>
-                    );
-                  });
-                })()}
-                {!(representatives || []).some(r => (r as any).last_interaction_at) && (
-                  <p className="text-[10px] text-muted-foreground text-center py-2">Sem histórico</p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="py-3 px-4">
-              <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Total Geral</CardTitle>
-            </CardHeader>
-            <CardContent className="px-4 pb-4 flex flex-col items-center justify-center h-full">
-              <div className="text-3xl font-bold">{(representatives || []).length}</div>
-              <p className="text-xs text-muted-foreground">indicadores ativos</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="flex flex-wrap gap-2 items-center">
-          <div className="relative max-w-sm flex-1">
+        {/* Filters and View Toggle */}
+        <div className="flex flex-wrap gap-2 items-center bg-muted/30 p-3 rounded-lg border border-dashed">
+          <div className="relative flex-1 min-w-[240px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Buscar..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+            <Input placeholder="Buscar por nome, email ou cidade..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9" />
           </div>
+          
           <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-40 h-9"><SelectValue placeholder="Tipo" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos os tipos</SelectItem>
-              <SelectItem value="parceiro">Parceiros</SelectItem>
-              <SelectItem value="representante">Representantes</SelectItem>
-              <SelectItem value="indicador">Indicadores</SelectItem>
-              <SelectItem value="instalador">Instaladores</SelectItem>
+              {Object.entries(TYPE_LABELS).map(([val, label]) => (
+                <SelectItem key={val} value={val}>{label}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
+
+          {isAdminOrManager && (
+            <Select value={ownerFilter} onValueChange={setOwnerFilter}>
+              <SelectTrigger className="w-44 h-9">
+                <div className="flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  <SelectValue placeholder="Vendedor" />
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos vendedores</SelectItem>
+                <SelectItem value="mine">Meus vinculados</SelectItem>
+                {orgMembers?.map(m => (
+                  <SelectItem key={m.user_id} value={m.user_id}>{m.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+
+          <div className="h-9 w-[1px] bg-border mx-1" />
+
+          <ToggleGroup type="single" value={viewMode} onValueChange={(v) => v && setViewMode(v as any)} className="bg-background border rounded-md p-0.5">
+            <ToggleGroupItem value="list" className="h-8 px-3 text-xs gap-1.5">
+              <Users className="h-3.5 w-3.5" /> Lista
+            </ToggleGroupItem>
+            <ToggleGroupItem value="pipeline" className="h-8 px-3 text-xs gap-1.5">
+              <LayoutDashboard className="h-3.5 w-3.5" /> Pipeline
+            </ToggleGroupItem>
+          </ToggleGroup>
         </div>
 
-        {isLoading ? (
-          <div className="grid gap-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-20" />)}</div>
-        ) : !representatives?.length ? (
-          <Card>
-            <CardContent className="py-12 text-center text-muted-foreground">
-              <Users className="h-12 w-12 mx-auto mb-4 opacity-30" />
-              <p className="font-medium">Nenhum indicador cadastrado</p>
-              <p className="text-sm mt-1">Cadastre parceiros, representantes ou indicadores para gerenciar áreas e segmentos.</p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid gap-3">
-            {representatives.map(rep => {
-              const t = (rep.indicator_type as IndicatorType) || "representante";
-              return (
-                <Card key={rep.id} className="cursor-pointer hover:border-primary/50 transition-colors"
-                  onClick={() => setSelectedRepId(rep.id)}>
-                  <CardContent className="py-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="font-medium truncate">{rep.name}</p>
-                          <Badge variant="outline" className={TYPE_COLORS[t]}>{TYPE_LABELS[t]}</Badge>
-                          <Badge variant="outline" className="shrink-0">
-                            <Percent className="h-3 w-3 mr-1" />{rep.commission_percent}%
-                          </Badge>
-                          {!!rep.areas_count && (
-                            <Badge variant="secondary" className="shrink-0 text-xs gap-1">
-                              <MapPin className="h-3 w-3" />{rep.areas_count} {rep.areas_count === 1 ? "área" : "áreas"}
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground flex-wrap">
-                          {rep.city && <span>{rep.city}{rep.state ? `/${rep.state}` : ""}</span>}
-                          {rep.phone && <span>{rep.phone}</span>}
-                          {rep.linked_user_name && <span className="text-primary">{rep.linked_user_name}</span>}
-                        </div>
-                        {!!rep.segment_ids?.length && (
-                          <div className="flex gap-1 mt-2 flex-wrap">
-                            {rep.segment_ids.map(sid => {
-                              const s = segmentById(sid);
-                              if (!s) return null;
-                              return (
-                                <Badge key={sid} className="border-0 text-xs" style={{ backgroundColor: s.color, color: "white" }}>
-                                  {s.name}
-                                </Badge>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-3 shrink-0">
+        {/* Dashboard Global */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+...
                         <div className="text-right hidden sm:block">
                           <p className="text-sm font-medium">{rep.open_deals_count || 0} negociações</p>
                           <p className="text-xs text-muted-foreground">{formatCurrency(rep.open_deals_value || 0)}</p>
                         </div>
-                        {canManage && (
+                        {canManageRep && (
                           <div className="flex gap-1">
                             <Button variant="ghost" size="icon" className="h-8 w-8"
                               onClick={e => { e.stopPropagation(); openEdit(rep); }}><Edit2 className="h-4 w-4" /></Button>
