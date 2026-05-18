@@ -33,6 +33,14 @@ export function PipelineView({ stages, dealsByStage, onDealClick, onStatusChange
     }).format(value);
   };
 
+  const formatInactivityTime = (hours: number) => {
+    if (hours >= 24) {
+      const days = Math.floor(hours / 24);
+      return `${days}d`;
+    }
+    return `${hours}h`;
+  };
+
   const getStatusStyles = (deal: CRMDeal) => {
     if (deal.status === 'won') return "border-l-4 border-l-green-500 bg-green-50/50 dark:bg-green-950/20";
     if (deal.status === 'lost') return "border-l-4 border-l-red-500 bg-red-50/50 dark:bg-red-950/20";
