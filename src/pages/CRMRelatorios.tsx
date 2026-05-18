@@ -320,6 +320,11 @@ export default function CRMRelatorios() {
                       <p className="text-xs sm:text-sm text-muted-foreground">Faturamento</p>
                       <p className="text-lg sm:text-2xl font-bold text-amber-600 truncate">{formatCurrency(gd.faturamento.value)}</p>
                       <p className="text-xs text-muted-foreground">{gd.faturamento.count} notas</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {gd.pedido.count > 0
+                          ? `${((gd.faturamento.count / gd.pedido.count) * 100).toFixed(0)}% conversão (Ped. → Fat.)`
+                          : "—"}
+                      </p>
                     </div>
                     <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0 ml-2">
                       <DollarSign className="h-5 w-5 sm:h-6 sm:w-6 text-amber-600" />
