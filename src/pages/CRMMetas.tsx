@@ -917,11 +917,9 @@ export default function CRMMetas() {
                               <TableCell className="text-right text-teal-600">
                                 {(() => {
                                   const filtered = channels.filter(c => c.margin_count > 0);
-                                  if (filtered.length === 0) return "0%";
+                                  if (filtered.length === 0) return "0,00x";
                                   const avgMargin = filtered.reduce((s, c) => s + (c.total_margin / c.margin_count), 0) / filtered.length;
-                                  if (!avgMargin || avgMargin >= 100 || avgMargin <= 0) return "0%";
-                                  const markup = (avgMargin / (100 - avgMargin)) * 100;
-                                  return `${markup.toFixed(1)}%`;
+                                  return `${(1 + avgMargin / 100).toFixed(2).replace('.', ',')}x`;
                                 })()}
                               </TableCell>
                               <TableCell className="text-center">—</TableCell>
