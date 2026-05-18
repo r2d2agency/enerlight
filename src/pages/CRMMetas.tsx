@@ -895,9 +895,9 @@ export default function CRMMetas() {
                                 <TableCell className="text-right font-medium text-teal-600">
                                   {(() => {
                                     const avgMargin = ch.margin_count > 0 ? (ch.total_margin / ch.margin_count) : 0;
-                                    if (avgMargin >= 100) return "—";
+                                    if (!avgMargin || avgMargin >= 100 || avgMargin <= 0) return "0%";
                                     const markup = (avgMargin / (100 - avgMargin)) * 100;
-                                    return markup > 0 ? `${markup.toFixed(1)}%` : "0%";
+                                    return `${markup.toFixed(1)}%`;
                                   })()}
                                 </TableCell>
                                 <TableCell className="text-center">
