@@ -302,7 +302,7 @@ export default function CRMRelatorios() {
                       <p className="text-xs text-muted-foreground">{gd.pedido.count} pedidos</p>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {gd.orcamento.count > 0
-                          ? `${((gd.pedido.count / gd.orcamento.count) * 100).toFixed(0)}% conversão`
+                          ? `${((gd.pedido.count / gd.orcamento.count) * 100).toFixed(0)}% conversão (Orc. → Ped.)`
                           : "—"}
                       </p>
                     </div>
@@ -320,6 +320,11 @@ export default function CRMRelatorios() {
                       <p className="text-xs sm:text-sm text-muted-foreground">Faturamento</p>
                       <p className="text-lg sm:text-2xl font-bold text-amber-600 truncate">{formatCurrency(gd.faturamento.value)}</p>
                       <p className="text-xs text-muted-foreground">{gd.faturamento.count} notas</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {gd.pedido.count > 0
+                          ? `${((gd.faturamento.count / gd.pedido.count) * 100).toFixed(0)}% conversão (Ped. → Fat.)`
+                          : "—"}
+                      </p>
                     </div>
                     <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0 ml-2">
                       <DollarSign className="h-5 w-5 sm:h-6 sm:w-6 text-amber-600" />
@@ -375,7 +380,7 @@ export default function CRMRelatorios() {
                     {[
                       { label: "Orçamentos", count: gd.orcamento.count, value: gd.orcamento.value, color: "#3b82f6", pct: 100 },
                       { label: "Pedidos", count: gd.pedido.count, value: gd.pedido.value, color: "#22c55e", pct: gd.orcamento.count > 0 ? (gd.pedido.count / gd.orcamento.count) * 100 : 0 },
-                      { label: "Faturamento", count: gd.faturamento.count, value: gd.faturamento.value, color: "#f59e0b", pct: gd.orcamento.count > 0 ? (gd.faturamento.count / gd.orcamento.count) * 100 : 0 },
+                      { label: "Faturamento", count: gd.faturamento.count, value: gd.faturamento.value, color: "#f59e0b", pct: gd.pedido.count > 0 ? (gd.faturamento.count / gd.pedido.count) * 100 : 0 },
                     ].map((step, i) => (
                       <div key={i} className="space-y-1">
                         <div className="flex items-center justify-between text-sm">
@@ -420,6 +425,7 @@ export default function CRMRelatorios() {
                         <TableHead className="text-center">Conversão</TableHead>
                         <TableHead className="text-right">Valor Total</TableHead>
                         <TableHead className="text-right">Valor Vendido</TableHead>
+                        <TableHead className="text-center">Lucratividade Média</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -436,6 +442,9 @@ export default function CRMRelatorios() {
                           </TableCell>
                           <TableCell className="text-right">{formatCurrency(ch.totalValue)}</TableCell>
                           <TableCell className="text-right text-green-600">{formatCurrency(ch.wonValue)}</TableCell>
+                          <TableCell className="text-center font-bold text-blue-600">
+                            {ch.avgProfitability !== undefined ? `${ch.avgProfitability.toFixed(1)}%` : "—"}
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

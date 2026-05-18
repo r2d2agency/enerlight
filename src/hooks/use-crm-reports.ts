@@ -64,6 +64,7 @@ export interface QuotesByChannelData {
   open: number;
   totalValue: number;
   wonValue: number;
+  avgProfitability?: number;
 }
 
 export interface LossReasonData {
