@@ -533,7 +533,7 @@ export default function CRMRepresentantes() {
                     <ScrollArea className="flex-1 -mx-2 px-2 max-h-[400px]">
                       <div className="space-y-4">
                         {history.length === 0 ? (
-                          <p className="text-xs text-muted-foreground text-center py-8">Nenhum histórico registrado ou funcionalidade indisponível no banco de dados.</p>
+                          <p className="text-xs text-muted-foreground text-center py-8">Nenhum histórico registrado.</p>
                         ) : (
                         history.map((h) => (
                           <div key={h.id} className="relative pl-4 border-l-2 border-muted pb-4 last:pb-0 group/history">
@@ -550,9 +550,18 @@ export default function CRMRepresentantes() {
                                     size="icon" 
                                     className="h-5 w-5 opacity-0 group-hover/history:opacity-100 transition-opacity text-destructive"
                                     onClick={() => {
-                                      if (confirm("Tem certeza que deseja excluir este histórico?")) {
-                                        deleteHistory.mutate({ indicatorId: selectedRepId!, historyId: h.id });
-                                      }
+                                      deleteHistory.mutate(
+                                        { indicatorId: selectedRepId!, historyId: h.id },
+                                        {
+                                          onError: (err: any) => {
+                                            if (err.message?.includes('404')) {
+                                              toast.error("O backend ainda não suporta a exclusão de histórico para indicadores.");
+                                            } else {
+                                              toast.error(err.message || "Erro ao excluir histórico.");
+                                            }
+                                          }
+                                        }
+                                      );
                                     }}
                                   >
                                     <Trash2 className="h-3 w-3" />
@@ -563,7 +572,6 @@ export default function CRMRepresentantes() {
                             </div>
                           </div>
                         ))
-
                         )}
                       </div>
                     </ScrollArea>
