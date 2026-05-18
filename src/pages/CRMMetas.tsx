@@ -376,27 +376,20 @@ export default function CRMMetas() {
                   <Card className="border-l-4 border-l-emerald-500">
                     <CardContent className="pt-4 px-3">
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1"><TrendingUp className="h-3.5 w-3.5 shrink-0" /> Margem Média</div>
-                      <p className="text-lg sm:text-2xl font-bold text-emerald-600 truncate">
-                        {gd.faturamento?.avg_margin > 0 ? gd.faturamento.avg_margin.toFixed(1) : (gd.pedido?.avg_margin || 0).toFixed(1)}%
-                      </p>
-                      <p className="text-xs text-muted-foreground">Média do período</p>
-                    </CardContent>
-                  </Card>
-                  <Card className="border-l-4 border-l-teal-500">
-                    <CardContent className="pt-4 px-3">
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1"><ArrowUp className="h-3.5 w-3.5 shrink-0" /> Markup Médio</div>
-                      <p className="text-lg sm:text-2xl font-bold text-teal-600 truncate">
-                        {(() => {
-                          const avgMargin = gd.faturamento?.avg_margin > 0 ? gd.faturamento.avg_margin : (gd.pedido?.avg_margin || 0);
-                          if (!avgMargin || avgMargin >= 100 || avgMargin <= 0) return "0%";
-                          // Markup formula based on Margin: Margin / (1 - Margin)
-                          // Here Margin is in percentage (0-100), so: (Margin/100) / (1 - Margin/100) * 100
-                          // Which simplifies to: (Margin / (100 - Margin)) * 100
-                          const markupValue = (avgMargin / (100 - avgMargin)) * 100;
-                          return `${markupValue.toFixed(1)}%`;
-                        })()}
-                      </p>
-                      <p className="text-xs text-muted-foreground">Markup calculado</p>
+                      {(() => {
+                        const avgMargin = gd.faturamento?.avg_margin > 0 ? gd.faturamento.avg_margin : (gd.pedido?.avg_margin || 0);
+                        const markupX = 1 + (avgMargin / 100);
+                        return (
+                          <>
+                            <p className="text-lg sm:text-2xl font-bold text-emerald-600 truncate">
+                              {avgMargin.toFixed(1)}%
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Markup {markupX.toFixed(2).replace('.', ',')}x
+                            </p>
+                          </>
+                        );
+                      })()}
                     </CardContent>
                   </Card>
                   <Card className="border-l-4 border-l-purple-500">
