@@ -407,6 +407,38 @@ export default function CRMRepresentantes() {
                     )}
                   </CardContent>
                 </Card>
+
+                {selectedRep?.phone && (
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-medium flex items-center gap-2">
+                        <MessageSquare className="h-4 w-4 text-green-500" /> WhatsApp Agendado
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {scheduledMessages.length === 0 ? (
+                        <p className="text-sm text-muted-foreground text-center py-4">Nenhuma mensagem agendada</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {scheduledMessages.map(msg => (
+                            <div key={msg.id} className="p-2 rounded-lg border bg-muted/20 text-xs">
+                              <p className="line-clamp-2 italic mb-1">"{msg.content}"</p>
+                              <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                                <span className="flex items-center gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  {format(parseISO(msg.scheduled_at), "dd/MM HH:mm")}
+                                </span>
+                                <Badge variant="secondary" className="text-[8px] h-3.5 px-1 uppercase">
+                                  {msg.status === 'pending' ? 'Pendente' : msg.status === 'sent' ? 'Enviado' : 'Falhou'}
+                                </Badge>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
               </div>
 
               {/* COLUNA HISTÓRICO */}
