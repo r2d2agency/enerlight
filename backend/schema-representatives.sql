@@ -25,3 +25,15 @@ CREATE INDEX IF NOT EXISTS idx_crm_representatives_user ON crm_representatives(l
 -- Link deals to representatives
 ALTER TABLE crm_deals ADD COLUMN IF NOT EXISTS representative_id UUID REFERENCES crm_representatives(id) ON DELETE SET NULL;
 CREATE INDEX IF NOT EXISTS idx_crm_deals_representative ON crm_deals(representative_id);
+
+-- Indicator History
+CREATE TABLE IF NOT EXISTS crm_indicator_history (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  indicator_id UUID NOT NULL REFERENCES crm_representatives(id) ON DELETE CASCADE,
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  user_name VARCHAR(255), -- Name snapshot
+  content TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_crm_indicator_history_rep ON crm_indicator_history(indicator_id);
