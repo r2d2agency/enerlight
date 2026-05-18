@@ -86,6 +86,7 @@ const RhModule = lazyRetry(() => import("./pages/RhModule"));
 const NotFound = lazyRetry(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
+(window as any).queryClient = queryClient;
 
 function PageLoader() {
   return (
