@@ -22,9 +22,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   Plus, Search, Users, DollarSign, Briefcase, Edit2, Trash2, ArrowLeft, Calendar,
   XCircle, Trophy, Percent, ExternalLink, MapPin, Settings, X, Tag, History, Clock,
+  LayoutDashboard, User, Building2,
 } from "lucide-react";
 import { format, subDays, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { ScrollBar } from "@/components/ui/scroll-area";
+import { cn } from "@/lib/utils";
 
 const TYPE_LABELS: Record<IndicatorType, string> = {
   parceiro: "Parceiro",
