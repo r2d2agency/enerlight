@@ -442,6 +442,9 @@ export default function CRMRelatorios() {
                           </TableCell>
                           <TableCell className="text-right">{formatCurrency(ch.totalValue)}</TableCell>
                           <TableCell className="text-right text-green-600">{formatCurrency(ch.wonValue)}</TableCell>
+                          <TableCell className="text-center font-bold text-blue-600">
+                            {ch.avgProfitability !== undefined ? `${ch.avgProfitability.toFixed(1)}%` : "—"}
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
