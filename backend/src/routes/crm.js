@@ -7054,7 +7054,8 @@ router.get('/goals/data-summary', async (req, res) => {
 
     // Summary by type
     const summary = await query(
-      `SELECT data_type, COUNT(*) as count, COALESCE(SUM(value),0) as total_value
+      `SELECT data_type, COUNT(*) as count, COALESCE(SUM(value),0) as total_value,
+              AVG(CASE WHEN data_type IN ('pedido', 'faturamento') AND margin IS NOT NULL THEN margin ELSE NULL END) as avg_margin
        FROM crm_goals_data WHERE ${baseWhere}
        GROUP BY data_type`,
       params
