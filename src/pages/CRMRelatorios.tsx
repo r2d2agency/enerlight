@@ -425,6 +425,7 @@ export default function CRMRelatorios() {
                         <TableHead className="text-center">Conversão</TableHead>
                         <TableHead className="text-right">Valor Total</TableHead>
                         <TableHead className="text-right">Valor Vendido</TableHead>
+                        <TableHead className="text-center">Lucratividade Média</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
