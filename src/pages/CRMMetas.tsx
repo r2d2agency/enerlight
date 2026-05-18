@@ -255,7 +255,7 @@ export default function CRMMetas() {
   const isMoneyMetric = (m: string) => m.includes("_value") || m.includes("billing");
   const getProgressColor = (pct: number) => pct >= 100 ? "text-green-600" : pct >= 70 ? "text-amber-600" : "text-red-600";
 
-  const gd = goalsData?.summary || { orcamento: { count: 0, value: 0 }, pedido: { count: 0, value: 0 }, faturamento: { count: 0, value: 0 } };
+  const gd = goalsData?.summary || { orcamento: { count: 0, value: 0 }, pedido: { count: 0, value: 0, avg_margin: 0 }, faturamento: { count: 0, value: 0, avg_margin: 0 } };
 
   return (
     <MainLayout>
@@ -351,7 +351,7 @@ export default function CRMMetas() {
             ) : (
               <>
                 {/* KPI Summary Cards - ONLY from imported data */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                   <Card className="border-l-4 border-l-blue-500">
                     <CardContent className="pt-4 px-3">
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1"><FileText className="h-3.5 w-3.5 shrink-0" /> Orçamentos</div>
@@ -371,6 +371,15 @@ export default function CRMMetas() {
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1"><Receipt className="h-3.5 w-3.5 shrink-0" /> Faturamento</div>
                       <p className="text-lg sm:text-2xl font-bold text-amber-600 truncate">{fmt(gd.faturamento.value)}</p>
                       <p className="text-xs text-muted-foreground">{gd.faturamento.count} notas</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-l-4 border-l-emerald-500">
+                    <CardContent className="pt-4 px-3">
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1"><TrendingUp className="h-3.5 w-3.5 shrink-0" /> Margem Média</div>
+                      <p className="text-lg sm:text-2xl font-bold text-emerald-600 truncate">
+                        {gd.faturamento?.avg_margin > 0 ? gd.faturamento.avg_margin.toFixed(1) : (gd.pedido?.avg_margin || 0).toFixed(1)}%
+                      </p>
+                      <p className="text-xs text-muted-foreground">Média do período</p>
                     </CardContent>
                   </Card>
                   <Card className="border-l-4 border-l-purple-500">
@@ -799,13 +808,18 @@ export default function CRMMetas() {
           <TabsContent value="by-channel" className="mt-4 space-y-6">
             {(() => {
               const gdByChannel = goalsData?.byChannel || [];
-              const channelMap: Record<string, { channel: string; quotes: number; quotes_value: number; orders: number; orders_value: number; billing_value: number }> = {};
+              const channelMap: Record<string, { channel: string; quotes: number; quotes_value: number; orders: number; orders_value: number; billing_value: number; total_margin: number; margin_count: number }> = {};
               for (const row of gdByChannel) {
                 const key = row.channel;
-                if (!channelMap[key]) channelMap[key] = { channel: key, quotes: 0, quotes_value: 0, orders: 0, orders_value: 0, billing_value: 0 };
+                if (!channelMap[key]) channelMap[key] = { channel: key, quotes: 0, quotes_value: 0, orders: 0, orders_value: 0, billing_value: 0, total_margin: 0, margin_count: 0 };
                 if (row.data_type === 'orcamento') { channelMap[key].quotes += row.count; channelMap[key].quotes_value += row.total_value; }
                 if (row.data_type === 'pedido') { channelMap[key].orders += row.count; channelMap[key].orders_value += row.total_value; }
                 if (row.data_type === 'faturamento') { channelMap[key].billing_value += row.total_value; }
+                
+                if (['pedido', 'faturamento'].includes(row.data_type) && row.avg_margin > 0) {
+                  channelMap[key].total_margin += row.avg_margin;
+                  channelMap[key].margin_count += 1;
+                }
               }
               const channels = Object.values(channelMap).filter(c => c.quotes > 0 || c.orders > 0 || c.billing_value > 0);
               channels.sort((a: any, b: any) => {
@@ -847,6 +861,7 @@ export default function CRMMetas() {
                               <TableHead className="text-right cursor-pointer select-none" onClick={() => toggleChannelSort("billing_value")}>
                                 <div className="flex items-center justify-end">Faturamento <SortIcon field="billing_value" currentField={channelSortBy} direction={channelSortDir} /></div>
                               </TableHead>
+                              <TableHead className="text-right">Margem Média</TableHead>
                               <TableHead className="text-center">Conversão</TableHead>
                             </TableRow>
                           </TableHeader>
@@ -859,6 +874,9 @@ export default function CRMMetas() {
                                 <TableCell className="text-center text-green-600 font-medium">{ch.orders}</TableCell>
                                 <TableCell className="text-right text-sm">{fmt(ch.orders_value)}</TableCell>
                                 <TableCell className="text-right text-amber-600 font-medium">{fmt(ch.billing_value)}</TableCell>
+                                <TableCell className="text-right font-medium text-emerald-600">
+                                  {ch.margin_count > 0 ? (ch.total_margin / ch.margin_count).toFixed(1) : "0"}%
+                                </TableCell>
                                 <TableCell className="text-center">
                                   <Badge variant={ch.quotes > 0 && (ch.orders / ch.quotes) >= 0.3 ? "default" : "secondary"}>
                                     {ch.quotes > 0 ? ((ch.orders / ch.quotes) * 100).toFixed(0) : 0}%
@@ -873,6 +891,11 @@ export default function CRMMetas() {
                               <TableCell className="text-center text-green-600">{channels.reduce((s, c) => s + c.orders, 0)}</TableCell>
                               <TableCell className="text-right">{fmt(channels.reduce((s, c) => s + c.orders_value, 0))}</TableCell>
                               <TableCell className="text-right text-amber-600">{fmt(channels.reduce((s, c) => s + c.billing_value, 0))}</TableCell>
+                              <TableCell className="text-right text-emerald-600">
+                                {channels.filter(c => c.margin_count > 0).length > 0 
+                                  ? (channels.reduce((s, c) => s + (c.margin_count > 0 ? c.total_margin / c.margin_count : 0), 0) / channels.filter(c => c.margin_count > 0).length).toFixed(1)
+                                  : "0"}%
+                              </TableCell>
                               <TableCell className="text-center">—</TableCell>
                             </TableRow>
                           </TableBody>
@@ -911,13 +934,18 @@ export default function CRMMetas() {
           <TabsContent value="individual" className="mt-4 space-y-6">
             {(() => {
               const gdBySeller = goalsData?.bySeller || [];
-              const sellerMap: Record<string, { seller: string; quotes: number; quotes_value: number; orders: number; orders_value: number; billing_value: number }> = {};
+              const sellerMap: Record<string, { seller: string; quotes: number; quotes_value: number; orders: number; orders_value: number; billing_value: number; avg_margin: number; margin_count: number }> = {};
               for (const row of gdBySeller) {
                 const key = row.seller_name;
-                if (!sellerMap[key]) sellerMap[key] = { seller: key, quotes: 0, quotes_value: 0, orders: 0, orders_value: 0, billing_value: 0 };
+                if (!sellerMap[key]) sellerMap[key] = { seller: key, quotes: 0, quotes_value: 0, orders: 0, orders_value: 0, billing_value: 0, avg_margin: 0, margin_count: 0 };
                 if (row.data_type === 'orcamento') { sellerMap[key].quotes += row.count; sellerMap[key].quotes_value += row.total_value; }
                 if (row.data_type === 'pedido') { sellerMap[key].orders += row.count; sellerMap[key].orders_value += row.total_value; }
                 if (row.data_type === 'faturamento') { sellerMap[key].billing_value += row.total_value; }
+                
+                if (['pedido', 'faturamento'].includes(row.data_type) && row.avg_margin > 0) {
+                  sellerMap[key].avg_margin += row.avg_margin;
+                  sellerMap[key].margin_count += 1;
+                }
               }
               const sellers = Object.values(sellerMap).filter(s => s.quotes > 0 || s.orders > 0 || s.billing_value > 0);
               sellers.sort((a: any, b: any) => {
@@ -959,6 +987,7 @@ export default function CRMMetas() {
                             <TableHead className="text-right cursor-pointer select-none" onClick={() => toggleSellerSort("billing_value")}>
                               <div className="flex items-center justify-end">Faturamento <SortIcon field="billing_value" currentField={sellerSortBy} direction={sellerSortDir} /></div>
                             </TableHead>
+                            <TableHead className="text-right">Margem Média</TableHead>
                             <TableHead className="text-center">Conversão</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -977,6 +1006,9 @@ export default function CRMMetas() {
                               <TableCell className="text-center text-green-600 font-medium">{r.orders}</TableCell>
                               <TableCell className="text-right text-sm">{fmt(r.orders_value)}</TableCell>
                               <TableCell className="text-right text-amber-600 font-medium">{fmt(r.billing_value)}</TableCell>
+                              <TableCell className="text-right font-medium text-emerald-600">
+                                {r.margin_count > 0 ? (r.avg_margin / r.margin_count).toFixed(1) : "0"}%
+                              </TableCell>
                               <TableCell className="text-center">
                                 <Badge variant={r.quotes > 0 && (r.orders / r.quotes) >= 0.3 ? "default" : "secondary"}>
                                   {r.quotes > 0 ? ((r.orders / r.quotes) * 100).toFixed(0) : 0}%
@@ -992,6 +1024,11 @@ export default function CRMMetas() {
                             <TableCell className="text-center text-green-600">{sellers.reduce((s, r) => s + r.orders, 0)}</TableCell>
                             <TableCell className="text-right">{fmt(sellers.reduce((s, r) => s + r.orders_value, 0))}</TableCell>
                             <TableCell className="text-right text-amber-600">{fmt(sellers.reduce((s, r) => s + r.billing_value, 0))}</TableCell>
+                            <TableCell className="text-right text-emerald-600">
+                              {sellers.filter(s => s.margin_count > 0).length > 0 
+                                ? (sellers.reduce((sum, s) => sum + (s.margin_count > 0 ? s.avg_margin / s.margin_count : 0), 0) / sellers.filter(s => s.margin_count > 0).length).toFixed(1)
+                                : "0"}%
+                            </TableCell>
                             <TableCell className="text-center">—</TableCell>
                           </TableRow>
                         </TableBody>
