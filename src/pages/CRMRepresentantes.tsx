@@ -377,6 +377,14 @@ export default function CRMRepresentantes() {
                       <History className="h-4 w-4" /> Histórico e Atividades
                     </CardTitle>
                     <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 text-xs gap-1.5"
+                        onClick={() => setTaskDialogOpen(true)}
+                      >
+                        <CalendarIcon className="h-3.5 w-3.5" /> Agendar Tarefa
+                      </Button>
                       <Button 
                         variant="outline" 
                         size="sm" 
@@ -392,6 +400,7 @@ export default function CRMRepresentantes() {
                         <MessageSquare className="h-3.5 w-3.5" /> Agendar WhatsApp
                       </Button>
                     </div>
+
                   </CardHeader>
                   <CardContent className="flex-1 flex flex-col gap-4">
                     {scheduleWhatsAppOpen && (
