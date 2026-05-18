@@ -147,14 +147,18 @@ export default function Homologacao() {
     const map: Record<string, HomologationCompany[]> = {};
     stages.forEach(s => { map[s.id] = []; });
     companies
-      .filter(c => !searchTerm || c.name.toLowerCase().includes(searchTerm.toLowerCase()))
+      .filter(c => {
+        const matchesSearch = !searchTerm || c.name.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesSeller = selectedSellerId === "all" || c.assigned_to === selectedSellerId;
+        return matchesSearch && matchesSeller;
+      })
       .forEach(c => {
         if (c.stage_id && map[c.stage_id]) {
           map[c.stage_id].push(c);
         }
       });
     return map;
-  }, [companies, stages, searchTerm]);
+  }, [companies, stages, searchTerm, selectedSellerId]);
 
   // Handlers
   const handleCreateBoard = async () => {
