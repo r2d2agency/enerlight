@@ -191,9 +191,14 @@ export interface IndicatorHistory {
 export function useIndicatorHistory(indicatorId: string | null) {
   return useQuery({
     queryKey: ["crm-indicator-history", indicatorId],
-    queryFn: () => {
+    queryFn: async () => {
       if (!indicatorId) return [];
-      return api<IndicatorHistory[]>(`/api/crm/representatives/${indicatorId}/history`);
+      try {
+        return await api<IndicatorHistory[]>(`/api/crm/representatives/${indicatorId}/history`);
+      } catch (error) {
+        console.error("Error fetching indicator history:", error);
+        return [];
+      }
     },
     enabled: !!indicatorId,
   });
@@ -207,6 +212,52 @@ export function useCreateIndicatorHistory() {
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ["crm-indicator-history", vars.indicatorId] });
       qc.invalidateQueries({ queryKey: ["crm-representatives"] });
+    },
+  });
+}
+
+export interface ChatContact {
+  id: string;
+  name: string | null;
+  phone: string | null;
+  jid: string | null;
+  connection_id: string;
+  connection_name: string | null;
+}
+
+export function useIndicatorContacts() {
+  return useQuery({
+    queryKey: ["chat-contacts"],
+    queryFn: () => api<ChatContact[]>("/api/chat/contacts"),
+  });
+}
+
+export interface ScheduledMessage {
+  id: string;
+  phone: string;
+  content: string;
+  scheduled_at: string;
+  status: 'pending' | 'sent' | 'failed' | 'cancelled';
+}
+
+export function useScheduledMessagesByPhone(phone?: string) {
+  return useQuery({
+    queryKey: ["scheduled-messages", phone],
+    queryFn: () => {
+      if (!phone) return [];
+      return api<ScheduledMessage[]>(`/api/chat/scheduled-messages-by-phone?phone=${encodeURIComponent(phone)}`);
+    },
+    enabled: !!phone,
+  });
+}
+
+export function useCreateScheduledMessage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { phone: string; content: string; scheduled_at: string }) =>
+      api<ScheduledMessage>("/api/chat/scheduled-messages", { method: "POST", body: data }),
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ["scheduled-messages", vars.phone] });
     },
   });
 }
