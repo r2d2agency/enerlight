@@ -86,7 +86,18 @@ function CompanyCardContent({ company, stage, stages, onCompanyClick, onMoveComp
     >
       <CardContent className="p-3 space-y-2">
         <div className="flex items-start justify-between">
-          <h4 className="font-medium text-sm leading-tight">{company.name}</h4>
+          <div className="min-w-0 flex-1">
+            <h4 className="font-semibold text-sm leading-tight line-clamp-2 mb-1">{company.name}</h4>
+            {company.value !== undefined && company.value > 0 && (
+              <div className="text-[12px] font-bold inline-flex items-center px-1.5 py-0.5 rounded bg-primary/10 text-primary">
+                {new Intl.NumberFormat("pt-BR", {
+                  style: "currency",
+                  currency: "BRL",
+                  minimumFractionDigits: 0,
+                }).format(company.value)}
+              </div>
+            )}
+          </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>
               <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0">
