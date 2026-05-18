@@ -59,6 +59,7 @@ export default function Homologacao() {
   const [showNewMeetingDialog, setShowNewMeetingDialog] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: string; id: string; name: string } | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedSellerId, setSelectedSellerId] = useState<string>("all");
 
   // Form states
   const [boardName, setBoardName] = useState("");
