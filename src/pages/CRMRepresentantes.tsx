@@ -101,8 +101,9 @@ export default function CRMRepresentantes() {
   const { data: allSegments = [] } = useIndicatorSegments();
   const { data: editingRep } = useRepresentative(editingRepId);
   const { createRepresentative, updateRepresentative, deleteRepresentative } = useRepresentativeMutations();
-  const { data: history = [] } = useIndicatorHistory(selectedRepId);
+  const { data: history = [], refetch: refetchHistory } = useIndicatorHistory(selectedRepId);
   const { createHistory, deleteHistory } = useIndicatorHistoryMutations();
+
   const { data: scheduledMessages = [] } = useScheduledMessagesByPhone(selectedRep?.phone || "");
   const createScheduledMessage = useCreateScheduledMessage();
   const { createTask, deleteTask: deleteTaskMutation, completeTask } = useCRMTaskMutations();
@@ -625,9 +626,12 @@ export default function CRMRepresentantes() {
                                       if (window.confirm("Deseja realmente excluir este histórico?")) {
                                         try {
                                           await deleteHistory.mutateAsync({ indicatorId: selectedRepId!, historyId: h.id });
+                                          refetchHistory();
+
                                         } catch (err: any) {
                                           console.error("Erro ao excluir histórico:", err);
-                                          toast.error(err.message || "Erro ao excluir histórico. O servidor pode não suportar esta ação.");
+                                          toast.error(`Erro ao excluir (Status ${err.status || '?'}). O backend pode não suportar exclusão de históricos neste módulo.`);
+
                                         }
                                       }
                                     }}
