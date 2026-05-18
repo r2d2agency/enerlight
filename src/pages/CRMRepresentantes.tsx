@@ -476,7 +476,16 @@ export default function CRMRepresentantes() {
                         onClick={() => {
                           createHistory.mutate(
                             { indicatorId: selectedRepId!, content: historyContent },
-                            { onSuccess: () => setHistoryContent("") }
+                            { 
+                              onSuccess: () => setHistoryContent(""),
+                              onError: (err: any) => {
+                                if (err.message?.includes('404') || err.message?.includes('HTML')) {
+                                  toast.error("O backend ainda não suporta histórico para indicadores. Contate o administrador.");
+                                } else {
+                                  toast.error(err.message || "Erro ao salvar histórico.");
+                                }
+                              }
+                            }
                           );
                         }}
                       >
@@ -510,7 +519,7 @@ export default function CRMRepresentantes() {
                     <ScrollArea className="flex-1 -mx-2 px-2 max-h-[400px]">
                       <div className="space-y-4">
                         {history.length === 0 ? (
-                          <p className="text-xs text-muted-foreground text-center py-8">Nenhum histórico registrado.</p>
+                          <p className="text-xs text-muted-foreground text-center py-8">Nenhum histórico registrado ou funcionalidade indisponível no banco de dados.</p>
                         ) : (
                           history.map((h) => (
                             <div key={h.id} className="relative pl-4 border-l-2 border-muted pb-4 last:pb-0">
