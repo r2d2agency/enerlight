@@ -85,6 +85,7 @@ export default function CRMRepresentantes() {
   const [whatsAppTime, setWhatsAppTime] = useState("09:00");
   const [whatsAppContent, setWhatsAppContent] = useState("");
   const [whatsAppCalendarOpen, setWhatsAppCalendarOpen] = useState(false);
+  const [taskDialogOpen, setTaskDialogOpen] = useState(false);
 
   const [startDate, setStartDate] = useState(format(subDays(new Date(), 30), "yyyy-MM-dd"));
   const [endDate, setEndDate] = useState(format(new Date(), "yyyy-MM-dd"));
@@ -98,10 +99,11 @@ export default function CRMRepresentantes() {
   const { data: editingRep } = useRepresentative(editingRepId);
   const { createRepresentative, updateRepresentative, deleteRepresentative } = useRepresentativeMutations();
   const { data: history = [] } = useIndicatorHistory(selectedRepId);
-  const createHistory = useCreateIndicatorHistory();
+  const { createHistory, deleteHistory } = useIndicatorHistoryMutations();
   const { data: scheduledMessages = [] } = useScheduledMessagesByPhone(selectedRep?.phone || "");
   const createScheduledMessage = useCreateScheduledMessage();
   const { createTask } = useCRMTaskMutations();
+
 
   const [form, setForm] = useState<FormState>(emptyForm);
 
