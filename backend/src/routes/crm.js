@@ -5263,6 +5263,52 @@ router.delete('/representatives/:id', async (req, res) => {
   }
 });
 
+// Get history for representative
+router.get('/representatives/:id/history', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const result = await query(
+      `SELECT h.*, u.name as user_name
+       FROM crm_indicator_history h
+       LEFT JOIN users u ON u.id = h.created_by
+       WHERE h.indicator_id = $1
+       ORDER BY h.created_at DESC`,
+      [req.params.id]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    if (isMissingSchemaError(error)) return res.json([]);
+    console.error('Error fetching indicator history:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create history for representative
+router.post('/representatives/:id/history', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const { content } = req.body;
+    if (!content?.trim()) return res.status(400).json({ error: 'Content required' });
+
+    // Snapshot user name
+    const userName = await getUserName(req.userId);
+
+    const result = await query(
+      `INSERT INTO crm_indicator_history (indicator_id, created_by, user_name, content)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [req.params.id, req.userId, userName, content.trim()]
+    );
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error creating indicator history:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ============================================
 // INDICATOR SEGMENTS (gerenciados pela org)
 // ============================================
