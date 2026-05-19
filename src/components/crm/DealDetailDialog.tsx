@@ -336,10 +336,22 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
     setIsEditingRepresentative(false);
   };
 
-  const handleSaveQuoteField = (field: 'quote_carrier' | 'quote_value' | 'quote_code', value: any) => {
-    const current = (currentDeal as any)?.[field];
-    if (String(current ?? "") === String(value ?? "")) return;
-    updateDeal.mutate({ id: deal!.id, [field]: value } as any);
+  const handleSaveQuote = async () => {
+    if (!deal?.id) return;
+    setIsSavingQuote(true);
+    try {
+      await updateDeal.mutateAsync({
+        id: deal.id,
+        quote_carrier: quoteCarrier,
+        quote_value: Number(quoteValue) || 0,
+        quote_code: quoteCode
+      } as any);
+      toast.success("Dados de frete salvos!");
+    } catch (error) {
+      toast.error("Erro ao salvar dados de frete");
+    } finally {
+      setIsSavingQuote(false);
+    }
   };
 
   const handleAddNote = async () => {
