@@ -1823,6 +1823,9 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
                         {item.action === 'created' && "criou a negociação"}
                         {item.action === 'stage_changed' && `moveu de "${item.from_value}" para "${item.to_value}"`}
                         {item.action === 'value_changed' && `alterou o valor de ${item.from_value} para ${item.to_value}`}
+                        {item.action === 'note' && (
+                          <span className="block mt-1 whitespace-pre-wrap text-foreground/90">{item.notes}</span>
+                        )}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {format(parseISO(item.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
