@@ -222,36 +222,41 @@ export function useIndicatorHistoryMutations() {
       // O backend segue a estrutura /api/crm/representatives/:id/history/:historyId
       // ou /api/crm/indicators/:id/history/:historyId conforme o tipo.
       // Adicionando caminhos baseados em logs de erro para cobrir todas as possibilidades.
-      const paths = [
-        `/api/crm/representatives/${indicatorId}/history/${historyId}`,
-        `/api/crm/indicators/${indicatorId}/history/${historyId}`,
-        `/api/crm/history/${historyId}`,
-        `/api/crm/indicators/history/${historyId}`,
-        `/api/crm/representatives/history/${historyId}`,
-        `/api/crm/representatives/${indicatorId}/interactions/${historyId}`,
-        `/api/crm/indicators/${indicatorId}/interactions/${historyId}`,
-        `/api/crm/interactions/${historyId}`
+      const attempts = [
+        { path: `/api/crm/representatives/${indicatorId}/history/${historyId}`, method: "DELETE" as const },
+        { path: `/api/crm/indicators/${indicatorId}/history/${historyId}`, method: "DELETE" as const },
+        { path: `/api/crm/history/${historyId}`, method: "DELETE" as const },
+        { path: `/api/crm/indicators/history/${historyId}`, method: "DELETE" as const },
+        { path: `/api/crm/representatives/history/${historyId}`, method: "DELETE" as const },
+        { path: `/api/crm/representatives/${indicatorId}/interactions/${historyId}`, method: "DELETE" as const },
+        { path: `/api/crm/indicators/${indicatorId}/interactions/${historyId}`, method: "DELETE" as const },
+        { path: `/api/crm/interactions/${historyId}`, method: "DELETE" as const },
+        { path: `/api/crm/representatives/${indicatorId}/history/delete/${historyId}`, method: "POST" as const },
+        { path: `/api/crm/indicators/${indicatorId}/history/delete/${historyId}`, method: "POST" as const },
+        { path: `/api/crm/history/delete/${historyId}`, method: "POST" as const },
+        { path: `/api/crm/representatives/${indicatorId}/interactions/delete/${historyId}`, method: "POST" as const },
+        { path: `/api/crm/interactions/delete/${historyId}`, method: "POST" as const },
       ];
 
       let lastError: any = null;
       let success = false;
-      
-      for (const path of paths) {
+
+      for (const attempt of attempts) {
         try {
-          console.log(`[useIndicatorHistoryMutations] Tentando excluir via: ${path}`);
-          await api<void>(path, { method: "DELETE" });
+          console.log(`[useIndicatorHistoryMutations] Tentando excluir via: ${attempt.method} ${attempt.path}`);
+          await api<void>(attempt.path, { method: attempt.method });
           success = true;
-          console.log(`[useIndicatorHistoryMutations] Sucesso ao excluir via: ${path}`);
+          console.log(`[useIndicatorHistoryMutations] Sucesso ao excluir via: ${attempt.method} ${attempt.path}`);
           break;
         } catch (error: any) {
           lastError = error;
           // Se for 404 (Não encontrado) ou 405 (Método não permitido), tentamos a próxima rota.
           // O status 502/504 ou erros de rede devem interromper a tentativa.
           if (error.status !== 404 && error.status !== 405) {
-            console.error(`[useIndicatorHistoryMutations] Erro fatal (status ${error.status}) em ${path}:`, error);
+            console.error(`[useIndicatorHistoryMutations] Erro fatal (status ${error.status}) em ${attempt.method} ${attempt.path}:`, error);
             break;
           }
-          console.warn(`[useIndicatorHistoryMutations] Rota falhou (${error.status}): ${path}`);
+          console.warn(`[useIndicatorHistoryMutations] Rota falhou (${error.status}): ${attempt.method} ${attempt.path}`);
         }
       }
       
