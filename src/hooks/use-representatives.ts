@@ -227,7 +227,10 @@ export function useIndicatorHistoryMutations() {
         `/api/crm/indicators/${indicatorId}/history/${historyId}`,
         `/api/crm/history/${historyId}`,
         `/api/crm/indicators/history/${historyId}`,
-        `/api/crm/representatives/history/${historyId}`
+        `/api/crm/representatives/history/${historyId}`,
+        `/api/crm/representatives/${indicatorId}/interactions/${historyId}`,
+        `/api/crm/indicators/${indicatorId}/interactions/${historyId}`,
+        `/api/crm/interactions/${historyId}`
       ];
 
       let lastError: any = null;
