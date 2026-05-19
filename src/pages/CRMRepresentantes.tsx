@@ -628,11 +628,10 @@ export default function CRMRepresentantes() {
                                           await deleteHistory.mutateAsync({ indicatorId: selectedRepId!, historyId: h.id });
                                           refetchHistory();
 
-                                        } catch (err: any) {
-                                          console.error("Erro ao excluir histórico:", err);
-                                          toast.error(`Erro ao excluir (Status ${err.status || '?'}). O backend pode não suportar exclusão de históricos neste módulo.`);
-
-                                        }
+                                          } catch (err: any) {
+                                            console.error("Erro ao excluir histórico:", err);
+                                            toast.error(`Erro ao excluir: ${err.message || 'Status 404'}. O backend pode não suportar exclusão direta de históricos neste módulo.`);
+                                          }
                                       }
                                     }}
                                   >
