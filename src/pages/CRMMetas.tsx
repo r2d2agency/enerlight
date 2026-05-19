@@ -64,6 +64,17 @@ function fmt(v: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 0 }).format(v);
 }
 
+function getMarkupMultiplierFromMargin(avgMargin: number) {
+  if (!Number.isFinite(avgMargin) || avgMargin <= 0) return 0;
+  if (avgMargin >= 100) return 1 + (avgMargin / 100);
+  return 1 / (1 - (avgMargin / 100));
+}
+
+function formatMarkupFromMargin(avgMargin: number) {
+  const markupX = getMarkupMultiplierFromMargin(avgMargin);
+  return `${markupX > 0 ? markupX.toFixed(2).replace('.', ',') : '0,00'}x`;
+}
+
 export default function CRMMetas() {
   const { user } = useAuth();
   const isAdmin = user?.role && ["owner", "admin", "manager"].includes(user.role);
@@ -378,14 +389,13 @@ export default function CRMMetas() {
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1"><TrendingUp className="h-3.5 w-3.5 shrink-0" /> Margem & Markup</div>
                       {(() => {
                         const avgMargin = gd.faturamento?.avg_margin > 0 ? gd.faturamento.avg_margin : (gd.pedido?.avg_margin || 0);
-                        const markupX = avgMargin < 100 ? 1 / (1 - (avgMargin / 100)) : 0;
                         return (
                           <>
                             <p className="text-lg sm:text-2xl font-bold text-emerald-600 truncate">
                               {avgMargin.toFixed(1)}%
                             </p>
                             <p className="text-xs text-muted-foreground font-medium">
-                              Markup {markupX > 0 && markupX < 100 ? markupX.toFixed(2).replace('.', ',') : '0,00'}x
+                              Markup {formatMarkupFromMargin(avgMargin)}
                             </p>
                           </>
                         );
