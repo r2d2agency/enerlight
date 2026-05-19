@@ -227,8 +227,11 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
       setEditCloseDate(currentDeal.expected_close_date ? currentDeal.expected_close_date.substring(0, 10) : "");
       setDealCustomFields(currentDeal.custom_fields || {});
       setEditProbability(String(currentDeal.probability || 0));
+      setQuoteCarrier((currentDeal as any).quote_carrier || "");
+      setQuoteValue(String((currentDeal as any).quote_value || ""));
+      setQuoteCode((currentDeal as any).quote_code || "");
     }
-  }, [currentDeal]);
+  }, [currentDeal?.id]);
 
   if (!deal) return null;
 
