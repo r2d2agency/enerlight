@@ -413,106 +413,7 @@ export default function CRMMetas() {
                   </Card>
                 </div>
 
-                {/* Ticket Médio */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Card>
-                    <CardContent className="pt-4">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><FileText className="h-4 w-4" /> Ticket Médio Orçamento</div>
-                      <p className="text-xl font-bold text-blue-600">{gd.orcamento.count > 0 ? fmt(gd.orcamento.value / gd.orcamento.count) : "R$ 0"}</p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="pt-4">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><ShoppingCart className="h-4 w-4" /> Ticket Médio Pedido</div>
-                      <p className="text-xl font-bold text-green-600">{gd.pedido.count > 0 ? fmt(gd.pedido.value / gd.pedido.count) : "R$ 0"}</p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="pt-4">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><Receipt className="h-4 w-4" /> Ticket Médio Faturamento</div>
-                      <p className="text-xl font-bold text-amber-600">{gd.faturamento.count > 0 ? fmt(gd.faturamento.value / gd.faturamento.count) : "R$ 0"}</p>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* Gráfico de Evolução Acumulada */}
-                <DailyEvolutionChart
-                  startDate={startDate}
-                  endDate={endDate}
-                  filterUserId={filterUserId}
-                  filterChannel={filterChannel}
-                  filterGroupId={filterGroupId}
-                />
-
-                {/* Funil de Vendas */}
-                {(() => {
-                  const getGoal = (metric: string) => {
-                    if (!goals) return undefined;
-                    const g = goals.filter(g => g.metric === metric && g.is_active && g.type === "geral");
-                    if (g.length > 0) return g.reduce((s, x) => s + x.target_value, 0);
-                    return undefined;
-                  };
-                  return (
-                    <SalesFunnelCard
-                      quotesValue={gd.orcamento.value}
-                      quotesCount={gd.orcamento.count}
-                      ordersValue={gd.pedido.value}
-                      ordersCount={gd.pedido.count}
-                      billingValue={gd.faturamento.value}
-                      billingCount={gd.faturamento.count}
-                      quotesGoal={getGoal("quotes_value")}
-                      ordersGoal={getGoal("orders_value")}
-                      billingGoal={getGoal("billing_value")}
-                      title="Funil de Vendas — Meta vs Realizado"
-                    />
-                  );
-                })()}
-
-                {/* Projeção do Mês — ritmo atual */}
-                {(() => {
-                  const getGoal = (metric: string) => {
-                    if (!goals) return 0;
-                    const active = goals.filter(g => g.metric === metric && g.is_active);
-                    // Se canal selecionado, priorizar metas específicas daquele canal
-                    if (filterChannel && filterChannel !== "all") {
-                      const byChannel = active.filter(g => (g as any).target_channel === filterChannel);
-                      if (byChannel.length > 0) return byChannel.reduce((s, x) => s + x.target_value, 0);
-                      return 0; // sem meta cadastrada para o canal -> não comparar com geral
-                    }
-                    // Se grupo selecionado, priorizar metas do grupo
-                    if (filterGroupId && filterGroupId !== "all") {
-                      const byGroup = active.filter(g => g.type === "group" && g.target_group_id === filterGroupId);
-                      if (byGroup.length > 0) return byGroup.reduce((s, x) => s + x.target_value, 0);
-                      return 0;
-                    }
-                    // Se usuário selecionado, priorizar metas individuais do usuário
-                    if (filterUserId && filterUserId !== "all") {
-                      const byUser = active.filter(g => g.type === "individual" && g.target_user_id === filterUserId);
-                      if (byUser.length > 0) return byUser.reduce((s, x) => s + x.target_value, 0);
-                      return 0;
-                    }
-                    // Sem filtros: somar metas gerais
-                    const geral = active.filter(g => g.type === "geral");
-                    if (geral.length > 0) return geral.reduce((s, x) => s + x.target_value, 0);
-                    const grp = active.filter(g => g.type !== "individual");
-                    return grp.reduce((s, x) => s + x.target_value, 0);
-                  };
-                  return (
-                    <MonthProjectionCard
-                      filterUserId={filterUserId}
-                      filterChannel={filterChannel}
-                      filterGroupId={filterGroupId}
-                      quotesGoal={getGoal("quotes_value")}
-                      ordersGoal={getGoal("orders_value")}
-                      billingGoal={getGoal("billing_value")}
-                    />
-                  );
-                })()}
-
                 {/* Resumo Planejado vs Realizado vs MTD */}
-
-
-
                 {goals && goals.length > 0 && (() => {
                   // Calculate MTD (meta proporcional até hoje)
                   const now = new Date();
@@ -609,7 +510,7 @@ export default function CRMMetas() {
                                 </>
                               )}
                               <div className="mt-2">
-                                <Progress value={Math.min((s.realized / planned) * 100, 100)} className="h-2" />
+                                <progress value={Math.min((s.realized / planned) * 100, 100)} className="h-2 w-full" />
                                 <p className="text-xs text-muted-foreground text-right mt-1">{((s.realized / planned) * 100).toFixed(1)}% da meta</p>
                               </div>
                             </CardContent>
@@ -619,6 +520,37 @@ export default function CRMMetas() {
                     </div>
                   );
                 })()}
+
+                {/* Ticket Médio */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Card>
+                    <CardContent className="pt-4">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><FileText className="h-4 w-4" /> Ticket Médio Orçamento</div>
+                      <p className="text-xl font-bold text-blue-600">{gd.orcamento.count > 0 ? fmt(gd.orcamento.value / gd.orcamento.count) : "R$ 0"}</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-4">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><ShoppingCart className="h-4 w-4" /> Ticket Médio Pedido</div>
+                      <p className="text-xl font-bold text-green-600">{gd.pedido.count > 0 ? fmt(gd.pedido.value / gd.pedido.count) : "R$ 0"}</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-4">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><Receipt className="h-4 w-4" /> Ticket Médio Faturamento</div>
+                      <p className="text-xl font-bold text-amber-600">{gd.faturamento.count > 0 ? fmt(gd.faturamento.value / gd.faturamento.count) : "R$ 0"}</p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Gráfico de Evolução Acumulada */}
+                <DailyEvolutionChart
+                  startDate={startDate}
+                  endDate={endDate}
+                  filterUserId={filterUserId}
+                  filterChannel={filterChannel}
+                  filterGroupId={filterGroupId}
+                />
 
                 {/* Pie Charts by Channel - hidden when a specific channel is selected */}
                 {filterChannel === "all" && goalsData?.byChannel && goalsData.byChannel.length > 0 && (() => {
