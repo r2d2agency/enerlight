@@ -413,6 +413,28 @@ export default function CRMMetas() {
                   </Card>
                 </div>
 
+                {/* Ticket Médio */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Card>
+                    <CardContent className="pt-4">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><FileText className="h-4 w-4" /> Ticket Médio Orçamento</div>
+                      <p className="text-xl font-bold text-blue-600">{gd.orcamento.count > 0 ? fmt(gd.orcamento.value / gd.orcamento.count) : "R$ 0"}</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-4">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><ShoppingCart className="h-4 w-4" /> Ticket Médio Pedido</div>
+                      <p className="text-xl font-bold text-green-600">{gd.pedido.count > 0 ? fmt(gd.pedido.value / gd.pedido.count) : "R$ 0"}</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-4">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><Receipt className="h-4 w-4" /> Ticket Médio Faturamento</div>
+                      <p className="text-xl font-bold text-amber-600">{gd.faturamento.count > 0 ? fmt(gd.faturamento.value / gd.faturamento.count) : "R$ 0"}</p>
+                    </CardContent>
+                  </Card>
+                </div>
+
                 {/* Resumo Planejado vs Realizado vs MTD */}
                 {goals && goals.length > 0 && (() => {
                   // Calculate MTD (meta proporcional até hoje)
@@ -520,28 +542,6 @@ export default function CRMMetas() {
                     </div>
                   );
                 })()}
-
-                {/* Ticket Médio */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Card>
-                    <CardContent className="pt-4">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><FileText className="h-4 w-4" /> Ticket Médio Orçamento</div>
-                      <p className="text-xl font-bold text-blue-600">{gd.orcamento.count > 0 ? fmt(gd.orcamento.value / gd.orcamento.count) : "R$ 0"}</p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="pt-4">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><ShoppingCart className="h-4 w-4" /> Ticket Médio Pedido</div>
-                      <p className="text-xl font-bold text-green-600">{gd.pedido.count > 0 ? fmt(gd.pedido.value / gd.pedido.count) : "R$ 0"}</p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="pt-4">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><Receipt className="h-4 w-4" /> Ticket Médio Faturamento</div>
-                      <p className="text-xl font-bold text-amber-600">{gd.faturamento.count > 0 ? fmt(gd.faturamento.value / gd.faturamento.count) : "R$ 0"}</p>
-                    </CardContent>
-                  </Card>
-                </div>
 
                 {/* Gráfico de Evolução Acumulada */}
                 <DailyEvolutionChart
