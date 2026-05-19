@@ -5318,6 +5318,42 @@ router.post('/representatives/:id/history', async (req, res) => {
   }
 });
 
+// Delete history for representative
+router.delete('/representatives/:id/history/:historyId', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const checkTable = await query(`SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'crm_indicator_history')`);
+    if (!checkTable.rows[0].exists) {
+      return res.status(404).json({ error: 'Histórico não encontrado.' });
+    }
+
+    const result = await query(
+      `DELETE FROM crm_indicator_history h
+       USING crm_representatives r
+       WHERE h.id = $1
+         AND h.indicator_id = $2
+         AND r.id = h.indicator_id
+         AND r.organization_id = $3
+       RETURNING h.id`,
+      [req.params.historyId, req.params.id, org.organization_id]
+    );
+
+    if (!result.rowCount) {
+      return res.status(404).json({ error: 'Histórico não encontrado.' });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    if (isMissingSchemaError(error)) {
+      return res.status(404).json({ error: 'Histórico não encontrado.' });
+    }
+    console.error('Error deleting indicator history:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ============================================
 // INDICATOR SEGMENTS (gerenciados pela org)
 // ============================================
