@@ -147,10 +147,11 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
   const { createTask, completeTask, deleteTask } = useCRMTaskMutations();
   const { uploadFile, isUploading } = useUpload();
 
-  // Quote (Cotação Frete) local state — avoid mutation on every keystroke
+  // Quote (Cotação Frete) local state
   const [quoteCarrier, setQuoteCarrier] = useState("");
   const [quoteValue, setQuoteValue] = useState<string>("");
   const [quoteCode, setQuoteCode] = useState("");
+  const [isSavingQuote, setIsSavingQuote] = useState(false);
 
   // Note (Histórico) local state
   const [newNote, setNewNote] = useState("");
