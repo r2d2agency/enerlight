@@ -335,6 +335,39 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
     setIsEditingRepresentative(false);
   };
 
+  const handleSaveQuoteField = (field: 'quote_carrier' | 'quote_value' | 'quote_code', value: any) => {
+    const current = (currentDeal as any)?.[field];
+    if (String(current ?? "") === String(value ?? "")) return;
+    updateDeal.mutate({ id: deal!.id, [field]: value } as any);
+  };
+
+  const handleAddNote = async () => {
+    if (!newNote.trim() || !deal?.id) return;
+    setIsSavingNote(true);
+    try {
+      await api(`/api/crm/deals/${deal.id}/notes`, { method: 'POST', body: { content: newNote.trim() } });
+      setNewNote("");
+      queryClient.invalidateQueries({ queryKey: ["crm-deal", deal.id] });
+      toast.success("Histórico adicionado!");
+    } catch (e: any) {
+      toast.error(e?.message || "Erro ao adicionar histórico");
+    } finally {
+      setIsSavingNote(false);
+    }
+  };
+
+  const handleDeleteNote = async (noteId: string) => {
+    if (!deal?.id) return;
+    try {
+      await api(`/api/crm/deals/${deal.id}/notes/${noteId}`, { method: 'DELETE' });
+      queryClient.invalidateQueries({ queryKey: ["crm-deal", deal.id] });
+      toast.success("Histórico excluído");
+    } catch (e: any) {
+      toast.error(e?.message || "Erro ao excluir");
+    }
+  };
+
+
   const handleAddTask = () => {
     if (!newTaskTitle.trim()) return;
     
