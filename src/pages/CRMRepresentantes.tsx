@@ -543,26 +543,75 @@ export default function CRMRepresentantes() {
                       </Button>
                     </div>
 
-                    {scheduledMessages.length > 0 && (
-                      <div className="space-y-2">
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                          <Clock className="h-3 w-3" /> Próximos Agendamentos
-                        </p>
-                        <div className="space-y-2">
-                          {scheduledMessages.filter(m => m.status === 'pending').slice(0, 3).map(msg => (
-                            <div key={msg.id} className="p-2 rounded border bg-amber-500/5 border-amber-500/20 text-xs">
-                              <div className="flex justify-between items-start mb-1">
-                                <span className="font-bold text-amber-600 flex items-center gap-1">
-                                  <MessageSquare className="h-3 w-3" /> WhatsApp
-                                </span>
-                                <span className="text-[10px] text-muted-foreground">
-                                  {format(parseISO(msg.scheduled_at), "dd/MM HH:mm")}
-                                </span>
-                              </div>
-                              <p className="line-clamp-2 italic text-muted-foreground">{msg.content}</p>
+                    {(repTasks.length > 0 || scheduledMessages.length > 0) && (
+                      <div className="space-y-4">
+                        {repTasks.length > 0 && (
+                          <div className="space-y-2">
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                              <CalendarIcon className="h-3 w-3" /> Tarefas Pendentes
+                            </p>
+                            <div className="space-y-2">
+                              {repTasks.map(task => (
+                                <div key={task.id} className="p-2 rounded border bg-blue-500/5 border-blue-500/20 text-xs group relative">
+                                  <div className="flex justify-between items-start mb-1">
+                                    <span className="font-bold text-blue-600 flex items-center gap-1 uppercase text-[9px]">
+                                      {task.type || 'Tarefa'}
+                                    </span>
+                                    <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                      <Clock className="h-3 w-3" />
+                                      {task.due_date ? format(parseISO(task.due_date), "dd/MM HH:mm") : 'Sem data'}
+                                    </span>
+                                  </div>
+                                  <p className="font-medium text-foreground">{task.title}</p>
+                                  {task.description && <p className="line-clamp-2 italic text-muted-foreground mt-0.5">{task.description}</p>}
+                                  
+                                  <div className="flex items-center gap-1 mt-2">
+                                    <Button 
+                                      size="sm" 
+                                      variant="outline" 
+                                      className="h-6 px-2 text-[10px] gap-1 text-green-600 border-green-200 bg-green-50 hover:bg-green-100 hover:text-green-700" 
+                                      onClick={() => completeTask.mutate(task.id)}
+                                    >
+                                      <Trophy className="h-3 w-3" /> Concluir
+                                    </Button>
+                                    <Button 
+                                      size="icon" 
+                                      variant="ghost" 
+                                      className="h-6 w-6 text-destructive opacity-0 group-hover:opacity-100 transition-opacity" 
+                                      onClick={() => { if(window.confirm("Excluir tarefa?")) deleteTaskMutation.mutate(task.id) }}
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              ))}
                             </div>
-                          ))}
-                        </div>
+                          </div>
+                        )}
+
+                        {scheduledMessages.length > 0 && (
+                          <div className="space-y-2">
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                              <MessageSquare className="h-3 w-3" /> WhatsApp Agendados
+                            </p>
+                            <div className="space-y-2">
+                              {scheduledMessages.filter(m => m.status === 'pending').map(msg => (
+                                <div key={msg.id} className="p-2 rounded border bg-amber-500/5 border-amber-500/20 text-xs">
+                                  <div className="flex justify-between items-start mb-1">
+                                    <span className="font-bold text-amber-600 flex items-center gap-1 uppercase text-[9px]">
+                                      WhatsApp
+                                    </span>
+                                    <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                      <Clock className="h-3 w-3" />
+                                      {format(parseISO(msg.scheduled_at), "dd/MM HH:mm")}
+                                    </span>
+                                  </div>
+                                  <p className="line-clamp-2 italic text-muted-foreground">"{msg.content}"</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
 
