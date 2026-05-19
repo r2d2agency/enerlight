@@ -532,7 +532,15 @@ export default function CRMMetas() {
                                 </>
                               )}
                               <div className="mt-2">
-                                <progress value={Math.min((s.realized / planned) * 100, 100)} className="h-2 w-full" />
+                                <progress 
+                                  value={Math.min((s.realized / planned) * 100, 100)} 
+                                  max={100}
+                                  className={`h-2 w-full appearance-none [&::-webkit-progress-bar]:bg-muted [&::-webkit-progress-bar]:rounded-full [&::-webkit-progress-value]:rounded-full ${
+                                    (s.realized / planned) * 100 >= 100 
+                                      ? "[&::-webkit-progress-value]:bg-green-600" 
+                                      : "[&::-webkit-progress-value]:bg-amber-500"
+                                  }`}
+                                />
                                 <p className="text-xs text-muted-foreground text-right mt-1">{((s.realized / planned) * 100).toFixed(1)}% da meta</p>
                               </div>
                             </CardContent>
