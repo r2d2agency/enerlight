@@ -803,9 +803,14 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
                               <SelectValue placeholder={currentDeal?.owner_name || "Selecionar"} />
                             </SelectTrigger>
                             <SelectContent>
+                              {user?.id && !teamMembers?.some(m => m.user_id === user.id) && (
+                                <SelectItem value={user.id}>
+                                  {user.name || user.email || "Eu"} (eu)
+                                </SelectItem>
+                              )}
                               {teamMembers?.map((member) => (
                                 <SelectItem key={member.user_id} value={member.user_id}>
-                                  {member.name}
+                                  {member.name}{user?.id === member.user_id ? " (eu)" : ""}
                                 </SelectItem>
                               ))}
                             </SelectContent>
