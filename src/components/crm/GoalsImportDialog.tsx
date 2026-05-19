@@ -9,6 +9,8 @@ import { Loader2, Upload, FileText, ShoppingCart, Receipt, CheckCircle2 } from "
 import { api, API_URL, getAuthToken } from "@/lib/api";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
+import { useCRMChannelMutations } from "@/hooks/use-crm-channels";
+
 
 interface Props {
   open: boolean;
@@ -95,6 +97,8 @@ export function GoalsImportDialog({ open, onOpenChange, dataType, onSuccess }: P
   const [channelMapping, setChannelMapping] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ imported: number; skipped: number } | null>(null);
+  const { upsertMapping } = useCRMChannelMutations();
+
 
   const reset = () => { setStep("upload"); setRows([]); setSellers([]); setRawChannels([]); setSellerMapping({}); setChannelMapping({}); setResult(null); };
 
@@ -306,23 +310,39 @@ export function GoalsImportDialog({ open, onOpenChange, dataType, onSuccess }: P
                     <div key={source} className="flex items-center gap-2">
                       <span className="text-sm min-w-[180px] truncate">{source}</span>
                       <Select 
-                        value={channelMapping[source] || "keep"} 
-                        onValueChange={v => setChannelMapping(m => ({ ...m, [source]: v === "keep" ? "" : v }))}
+                        value={channelMapping[source] || "ask"} 
+                        onValueChange={v => {
+                          if (v === "new") {
+                            const newName = prompt(`Digite o novo nome para o canal "${source}":`);
+                            if (newName) {
+                              setChannelMapping(m => ({ ...m, [source]: newName }));
+                              upsertMapping.mutate({ source_channel: source, target_channel: newName });
+                            }
+                          } else {
+                            setChannelMapping(m => ({ ...m, [source]: v === "ask" ? "" : v }));
+                            if (v !== "ask" && v !== "keep") {
+                              upsertMapping.mutate({ source_channel: source, target_channel: v });
+                            }
+                          }
+                        }}
                       >
                         <SelectTrigger className="flex-1">
-                          <SelectValue placeholder="Manter original..." />
+                          <SelectValue placeholder="Escolher destino..." />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="keep">— Manter original —</SelectItem>
+                          <SelectItem value="ask">— Perguntar / Selecionar —</SelectItem>
+                          <SelectItem value="keep">— Manter original: {source} —</SelectItem>
+                          <SelectItem value="new" className="text-primary font-medium">+ Criar novo canal...</SelectItem>
                           {availableChannels.map(ch => (
                             <SelectItem key={ch} value={ch}>{ch}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
+
                     </div>
                   ))}
                 </div>
-                <p className="text-[10px] text-muted-foreground">Isso garante que canais diferentes na planilha sejam unificados no sistema.</p>
+                <p className="text-[10px] text-muted-foreground">Mapeamentos realizados aqui serão salvos para as próximas importações.</p>
               </div>
             )}
 

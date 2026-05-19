@@ -12,7 +12,9 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { ChannelMappingPanel } from "@/components/crm/ChannelMappingPanel";
 import {
+
   useCRMTaskTypes,
   useCRMTaskTypeMutations,
   useCRMSegments,
@@ -53,7 +55,9 @@ import {
   GitBranch,
   Link2,
   Flame,
+  Share2,
 } from "lucide-react";
+
 
 const ICON_OPTIONS = [
   { value: "check-square", label: "Tarefa", icon: CheckSquare },
@@ -319,7 +323,7 @@ export default function CRMConfiguracoes() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid grid-cols-8 w-full max-w-5xl">
+          <TabsList className="grid grid-cols-9 w-full max-w-[1100px]">
             <TabsTrigger value="funnels" className="flex items-center gap-2">
               <GitBranch className="h-4 w-4" />
               <span className="hidden sm:inline">Funis</span>
@@ -348,11 +352,21 @@ export default function CRMConfiguracoes() {
               <FormInput className="h-4 w-4" />
               <span className="hidden sm:inline">Campos</span>
             </TabsTrigger>
+            <TabsTrigger value="channels" className="flex items-center gap-2">
+              <Share2 className="h-4 w-4" />
+              <span className="hidden sm:inline">Canais</span>
+            </TabsTrigger>
             <TabsTrigger value="integrations" className="flex items-center gap-2">
               <Link2 className="h-4 w-4" />
               <span className="hidden sm:inline">Integrações</span>
             </TabsTrigger>
           </TabsList>
+
+          {/* Channels Mapping Tab */}
+          <TabsContent value="channels" className="mt-6">
+            <ChannelMappingPanel />
+          </TabsContent>
+
 
           {/* Sales Positions Tab */}
           <TabsContent value="sales-positions" className="mt-6">
