@@ -371,43 +371,6 @@ export default function CRMRepresentantes() {
                   </CardContent>
                 </Card>
 
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium flex items-center gap-2">
-                      <Clock className="h-4 w-4 text-amber-500" /> Tarefas Pendentes
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {loadingTasks ? (
-                      <div className="space-y-2">{[1, 2].map(i => <Skeleton key={i} className="h-12" />)}</div>
-                    ) : !repTasks?.length ? (
-                      <p className="text-sm text-muted-foreground text-center py-4">Nenhuma tarefa pendente</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {repTasks.map(task => (
-                          <div key={task.id} className="flex items-center justify-between p-3 rounded-lg border bg-muted/20 group">
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium truncate">{task.title}</p>
-                              <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                                <CalendarIcon className="h-3 w-3" />
-                                {task.due_date ? format(parseISO(task.due_date), "dd/MM HH:mm") : 'Sem data'}
-                                {task.type && <Badge variant="outline" className="text-[8px] h-3.5 px-1 uppercase">{task.type}</Badge>}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Button size="icon" variant="ghost" className="h-7 w-7 text-green-600" onClick={() => completeTask.mutate(task.id)}>
-                                <Trophy className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => { if(window.confirm("Excluir tarefa?")) deleteTaskMutation.mutate(task.id) }}>
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
 
                 {selectedRep?.phone && (
                   <Card>
