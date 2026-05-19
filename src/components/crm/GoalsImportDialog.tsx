@@ -9,6 +9,8 @@ import { Loader2, Upload, FileText, ShoppingCart, Receipt, CheckCircle2 } from "
 import { api, API_URL, getAuthToken } from "@/lib/api";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
+import { useCRMChannelMutations } from "@/hooks/use-crm-channels";
+
 
 interface Props {
   open: boolean;
@@ -95,6 +97,8 @@ export function GoalsImportDialog({ open, onOpenChange, dataType, onSuccess }: P
   const [channelMapping, setChannelMapping] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ imported: number; skipped: number } | null>(null);
+  const { upsertMapping } = useCRMChannelMutations();
+
 
   const reset = () => { setStep("upload"); setRows([]); setSellers([]); setRawChannels([]); setSellerMapping({}); setChannelMapping({}); setResult(null); };
 
