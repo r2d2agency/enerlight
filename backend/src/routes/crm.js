@@ -1741,6 +1741,54 @@ router.post('/deals', async (req, res) => {
   }
 });
 
+// Add a manual note to deal history
+router.post('/deals/:id/notes', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+    const { content } = req.body || {};
+    if (!content || !String(content).trim()) {
+      return res.status(400).json({ error: 'Conteúdo obrigatório' });
+    }
+    const owns = await query(
+      `SELECT id FROM crm_deals WHERE id = $1 AND organization_id = $2`,
+      [req.params.id, org.organization_id]
+    );
+    if (!owns.rows[0]) return res.status(404).json({ error: 'Negociação não encontrada' });
+    const userName = await getUserName(req.userId);
+    const result = await query(
+      `INSERT INTO crm_deal_history (deal_id, user_id, user_name_snapshot, action, notes)
+       VALUES ($1, $2, $3, 'note', $4) RETURNING *`,
+      [req.params.id, req.userId, userName, String(content).trim()]
+    );
+    res.json({ ...result.rows[0], user_name: userName });
+  } catch (error) {
+    console.error('Error adding deal note:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete a manual note from deal history
+router.delete('/deals/:id/notes/:noteId', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+    const result = await query(
+      `DELETE FROM crm_deal_history h
+       USING crm_deals d
+       WHERE h.id = $1 AND h.deal_id = $2 AND d.id = h.deal_id
+         AND d.organization_id = $3 AND h.action = 'note'
+       RETURNING h.id`,
+      [req.params.noteId, req.params.id, org.organization_id]
+    );
+    if (!result.rows[0]) return res.status(404).json({ error: 'Nota não encontrada' });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting deal note:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Update deal
 router.put('/deals/:id', async (req, res) => {
   try {
