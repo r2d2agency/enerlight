@@ -135,6 +135,8 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
   const [isEditingRepresentative, setIsEditingRepresentative] = useState(false);
   const [lossDialogOpen, setLossDialogOpen] = useState(false);
 
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const { data: fullDeal, isLoading } = useCRMDeal(deal?.id || null);
   const { data: funnelData } = useCRMFunnel(deal?.funnel_id || null);
   const { data: allFunnels } = useCRMFunnels();
@@ -144,6 +146,15 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
   const { updateDeal, moveDeal, migrateDealToFunnel, addContact, removeContact } = useCRMDealMutations();
   const { createTask, completeTask, deleteTask } = useCRMTaskMutations();
   const { uploadFile, isUploading } = useUpload();
+
+  // Quote (Cotação Frete) local state — avoid mutation on every keystroke
+  const [quoteCarrier, setQuoteCarrier] = useState("");
+  const [quoteValue, setQuoteValue] = useState<string>("");
+  const [quoteCode, setQuoteCode] = useState("");
+
+  // Note (Histórico) local state
+  const [newNote, setNewNote] = useState("");
+  const [isSavingNote, setIsSavingNote] = useState(false);
   
   // Lead Scoring
   const { data: dealScore, isLoading: loadingScore } = useDealScore(deal?.id);
@@ -216,8 +227,11 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
       setEditCloseDate(currentDeal.expected_close_date ? currentDeal.expected_close_date.substring(0, 10) : "");
       setDealCustomFields(currentDeal.custom_fields || {});
       setEditProbability(String(currentDeal.probability || 0));
+      setQuoteCarrier((currentDeal as any).quote_carrier || "");
+      setQuoteValue(String((currentDeal as any).quote_value || ""));
+      setQuoteCode((currentDeal as any).quote_code || "");
     }
-  }, [currentDeal]);
+  }, [currentDeal?.id]);
 
   if (!deal) return null;
 
@@ -320,6 +334,39 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
     await updateDeal.mutateAsync({ id: deal.id, representative_id: repId } as any);
     setIsEditingRepresentative(false);
   };
+
+  const handleSaveQuoteField = (field: 'quote_carrier' | 'quote_value' | 'quote_code', value: any) => {
+    const current = (currentDeal as any)?.[field];
+    if (String(current ?? "") === String(value ?? "")) return;
+    updateDeal.mutate({ id: deal!.id, [field]: value } as any);
+  };
+
+  const handleAddNote = async () => {
+    if (!newNote.trim() || !deal?.id) return;
+    setIsSavingNote(true);
+    try {
+      await api(`/api/crm/deals/${deal.id}/notes`, { method: 'POST', body: { content: newNote.trim() } });
+      setNewNote("");
+      queryClient.invalidateQueries({ queryKey: ["crm-deal", deal.id] });
+      toast.success("Histórico adicionado!");
+    } catch (e: any) {
+      toast.error(e?.message || "Erro ao adicionar histórico");
+    } finally {
+      setIsSavingNote(false);
+    }
+  };
+
+  const handleDeleteNote = async (noteId: string) => {
+    if (!deal?.id) return;
+    try {
+      await api(`/api/crm/deals/${deal.id}/notes/${noteId}`, { method: 'DELETE' });
+      queryClient.invalidateQueries({ queryKey: ["crm-deal", deal.id] });
+      toast.success("Histórico excluído");
+    } catch (e: any) {
+      toast.error(e?.message || "Erro ao excluir");
+    }
+  };
+
 
   const handleAddTask = () => {
     if (!newTaskTitle.trim()) return;
@@ -756,9 +803,14 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
                               <SelectValue placeholder={currentDeal?.owner_name || "Selecionar"} />
                             </SelectTrigger>
                             <SelectContent>
+                              {user?.id && !teamMembers?.some(m => m.user_id === user.id) && (
+                                <SelectItem value={user.id}>
+                                  {user.name || user.email || "Eu"} (eu)
+                                </SelectItem>
+                              )}
                               {teamMembers?.map((member) => (
                                 <SelectItem key={member.user_id} value={member.user_id}>
-                                  {member.name}
+                                  {member.name}{user?.id === member.user_id ? " (eu)" : ""}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -938,6 +990,76 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
                   )}
                 </Card>
 
+                {/* Histórico (Notas) */}
+                <Card className="p-4 sm:col-span-2">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-medium flex items-center gap-2">
+                      <ClipboardList className="h-4 w-4" /> Histórico
+                    </h4>
+                    <span className="text-xs text-muted-foreground">
+                      {((fullDeal as any)?.history || []).filter((h: any) => h.action === 'note').length} registros
+                    </span>
+                  </div>
+                  <div className="flex gap-2 mb-3">
+                    <Textarea
+                      value={newNote}
+                      onChange={(e) => setNewNote(e.target.value)}
+                      placeholder="Adicionar entrada no histórico (Ctrl+Enter para salvar)..."
+                      rows={2}
+                      className="text-sm"
+                      onKeyDown={(e) => {
+                        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddNote();
+                        }
+                      }}
+                    />
+                    <Button
+                      onClick={handleAddNote}
+                      disabled={!newNote.trim() || isSavingNote}
+                      size="sm"
+                      className="self-start"
+                    >
+                      {isSavingNote ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                  <ScrollArea className="h-56 pr-3 border rounded-md p-2">
+                    {(() => {
+                      const notes = ((fullDeal as any)?.history || []).filter((h: any) => h.action === 'note');
+                      if (notes.length === 0) {
+                        return (
+                          <p className="text-xs text-muted-foreground text-center py-6">
+                            Nenhum histórico ainda. Adicione o primeiro acima.
+                          </p>
+                        );
+                      }
+                      return (
+                        <div className="space-y-2">
+                          {notes.map((item: any) => (
+                            <div key={item.id} className="group flex gap-2 p-2 rounded-md hover:bg-muted/50 transition-colors">
+                              <div className="w-1 self-stretch rounded-full bg-primary/60 shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm whitespace-pre-wrap break-words">{item.notes}</p>
+                                <p className="text-[11px] text-muted-foreground mt-1">
+                                  {item.user_name || "Sistema"} • {format(parseISO(item.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                                </p>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100"
+                                onClick={() => handleDeleteNote(item.id)}
+                              >
+                                <Trash2 className="h-3 w-3 text-destructive" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </ScrollArea>
+                </Card>
+
                 {/* Cotação / Logística */}
                 <Card className="p-4">
                   <h4 className="font-medium flex items-center gap-2 mb-3">
@@ -947,8 +1069,9 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
                     <div>
                       <Label className="text-xs">Transportadora</Label>
                       <Input
-                        value={currentDeal?.quote_carrier || ""}
-                        onChange={(e) => updateDeal.mutate({ id: deal!.id, quote_carrier: e.target.value } as any)}
+                        value={quoteCarrier}
+                        onChange={(e) => setQuoteCarrier(e.target.value)}
+                        onBlur={() => handleSaveQuoteField('quote_carrier', quoteCarrier)}
                         placeholder="Nome"
                         className="h-8 text-xs"
                       />
@@ -958,8 +1081,9 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
                       <Input
                         type="number"
                         step="0.01"
-                        value={currentDeal?.quote_value || 0}
-                        onChange={(e) => updateDeal.mutate({ id: deal!.id, quote_value: Number(e.target.value) } as any)}
+                        value={quoteValue}
+                        onChange={(e) => setQuoteValue(e.target.value)}
+                        onBlur={() => handleSaveQuoteField('quote_value', Number(quoteValue) || 0)}
                         placeholder="R$"
                         className="h-8 text-xs"
                       />
@@ -967,8 +1091,9 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
                     <div>
                       <Label className="text-xs">Código Cotação</Label>
                       <Input
-                        value={currentDeal?.quote_code || ""}
-                        onChange={(e) => updateDeal.mutate({ id: deal!.id, quote_code: e.target.value } as any)}
+                        value={quoteCode}
+                        onChange={(e) => setQuoteCode(e.target.value)}
+                        onBlur={() => handleSaveQuoteField('quote_code', quoteCode)}
                         placeholder="Código"
                         className="h-8 text-xs"
                       />
@@ -980,6 +1105,7 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
                     </p>
                   )}
                 </Card>
+
 
                 {dealScore && dealScore.score > 0 && (
                   <Card className="p-4 sm:col-span-2">
@@ -1697,6 +1823,9 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
                         {item.action === 'created' && "criou a negociação"}
                         {item.action === 'stage_changed' && `moveu de "${item.from_value}" para "${item.to_value}"`}
                         {item.action === 'value_changed' && `alterou o valor de ${item.from_value} para ${item.to_value}`}
+                        {item.action === 'note' && (
+                          <span className="block mt-1 whitespace-pre-wrap text-foreground/90">{item.notes}</span>
+                        )}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {format(parseISO(item.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
