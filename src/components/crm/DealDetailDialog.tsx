@@ -147,10 +147,11 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
   const { createTask, completeTask, deleteTask } = useCRMTaskMutations();
   const { uploadFile, isUploading } = useUpload();
 
-  // Quote (Cotação Frete) local state — avoid mutation on every keystroke
+  // Quote (Cotação Frete) local state
   const [quoteCarrier, setQuoteCarrier] = useState("");
   const [quoteValue, setQuoteValue] = useState<string>("");
   const [quoteCode, setQuoteCode] = useState("");
+  const [isSavingQuote, setIsSavingQuote] = useState(false);
 
   // Note (Histórico) local state
   const [newNote, setNewNote] = useState("");
@@ -335,10 +336,22 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
     setIsEditingRepresentative(false);
   };
 
-  const handleSaveQuoteField = (field: 'quote_carrier' | 'quote_value' | 'quote_code', value: any) => {
-    const current = (currentDeal as any)?.[field];
-    if (String(current ?? "") === String(value ?? "")) return;
-    updateDeal.mutate({ id: deal!.id, [field]: value } as any);
+  const handleSaveQuote = async () => {
+    if (!deal?.id) return;
+    setIsSavingQuote(true);
+    try {
+      await updateDeal.mutateAsync({
+        id: deal.id,
+        quote_carrier: quoteCarrier,
+        quote_value: Number(quoteValue) || 0,
+        quote_code: quoteCode
+      } as any);
+      toast.success("Dados de frete salvos!");
+    } catch (error) {
+      toast.error("Erro ao salvar dados de frete");
+    } finally {
+      setIsSavingQuote(false);
+    }
   };
 
   const handleAddNote = async () => {
@@ -1062,41 +1075,55 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
 
                 {/* Cotação / Logística */}
                 <Card className="p-4">
-                  <h4 className="font-medium flex items-center gap-2 mb-3">
-                    <Truck className="h-4 w-4" /> Cotação Frete
-                  </h4>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-medium flex items-center gap-2">
+                      <Truck className="h-4 w-4" /> Cotação Frete
+                    </h4>
+                    <Button 
+                      size="sm" 
+                      onClick={handleSaveQuote} 
+                      disabled={isSavingQuote || updateDeal.isPending}
+                      className="h-8 gap-1"
+                    >
+                      {isSavingQuote || updateDeal.isPending ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Save className="h-3 w-3" />
+                      )}
+                      Salvar
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-1 gap-3">
                     <div>
                       <Label className="text-xs">Transportadora</Label>
                       <Input
                         value={quoteCarrier}
                         onChange={(e) => setQuoteCarrier(e.target.value)}
-                        onBlur={() => handleSaveQuoteField('quote_carrier', quoteCarrier)}
-                        placeholder="Nome"
+                        placeholder="Nome da transportadora"
                         className="h-8 text-xs"
                       />
                     </div>
-                    <div>
-                      <Label className="text-xs">Valor Cotado</Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={quoteValue}
-                        onChange={(e) => setQuoteValue(e.target.value)}
-                        onBlur={() => handleSaveQuoteField('quote_value', Number(quoteValue) || 0)}
-                        placeholder="R$"
-                        className="h-8 text-xs"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs">Código Cotação</Label>
-                      <Input
-                        value={quoteCode}
-                        onChange={(e) => setQuoteCode(e.target.value)}
-                        onBlur={() => handleSaveQuoteField('quote_code', quoteCode)}
-                        placeholder="Código"
-                        className="h-8 text-xs"
-                      />
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-xs">Valor Cotado</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={quoteValue}
+                          onChange={(e) => setQuoteValue(e.target.value)}
+                          placeholder="R$ 0,00"
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Código Cotação</Label>
+                        <Input
+                          value={quoteCode}
+                          onChange={(e) => setQuoteCode(e.target.value)}
+                          placeholder="Código"
+                          className="h-8 text-xs"
+                        />
+                      </div>
                     </div>
                   </div>
                   {currentDeal?.quote_code && (
