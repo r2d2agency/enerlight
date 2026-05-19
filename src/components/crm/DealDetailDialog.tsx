@@ -135,6 +135,8 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
   const [isEditingRepresentative, setIsEditingRepresentative] = useState(false);
   const [lossDialogOpen, setLossDialogOpen] = useState(false);
 
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const { data: fullDeal, isLoading } = useCRMDeal(deal?.id || null);
   const { data: funnelData } = useCRMFunnel(deal?.funnel_id || null);
   const { data: allFunnels } = useCRMFunnels();
@@ -144,6 +146,15 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
   const { updateDeal, moveDeal, migrateDealToFunnel, addContact, removeContact } = useCRMDealMutations();
   const { createTask, completeTask, deleteTask } = useCRMTaskMutations();
   const { uploadFile, isUploading } = useUpload();
+
+  // Quote (Cotação Frete) local state — avoid mutation on every keystroke
+  const [quoteCarrier, setQuoteCarrier] = useState("");
+  const [quoteValue, setQuoteValue] = useState<string>("");
+  const [quoteCode, setQuoteCode] = useState("");
+
+  // Note (Histórico) local state
+  const [newNote, setNewNote] = useState("");
+  const [isSavingNote, setIsSavingNote] = useState(false);
   
   // Lead Scoring
   const { data: dealScore, isLoading: loadingScore } = useDealScore(deal?.id);
