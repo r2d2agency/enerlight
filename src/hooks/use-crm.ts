@@ -120,6 +120,8 @@ export interface CRMTask {
   id: string;
   deal_id?: string;
   company_id?: string;
+  representative_id?: string;
+
   deal_title?: string;
   company_name?: string;
   assigned_to?: string;
