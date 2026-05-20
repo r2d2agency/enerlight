@@ -708,6 +708,10 @@ export default function CRMRepresentantes() {
               <h1 className="text-xl font-bold">Pipeline de Indicadores</h1>
             </div>
             <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => setMapDialogOpen(true)}>
+                <MapPin className="h-4 w-4 mr-2" />
+                Mapa
+              </Button>
               <Button variant="outline" size="sm" onClick={() => setViewMode("list")}>
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Voltar para Lista
