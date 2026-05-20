@@ -2337,7 +2337,7 @@ router.get('/tasks', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
-    const { period, status, assigned_to, deal_id, start_date, end_date, view_all, type } = req.query;
+    const { period, status, assigned_to, deal_id, company_id, representative_id, start_date, end_date, view_all, type } = req.query;
     
     let sql = `SELECT t.*, 
       d.title as deal_title,
