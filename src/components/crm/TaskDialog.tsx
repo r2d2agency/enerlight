@@ -30,10 +30,12 @@ interface TaskDialogProps {
   task: CRMTask | null;
   dealId?: string;
   companyId?: string;
+  representativeId?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   defaultDate?: Date | null;
 }
+
 
 interface OrgMember {
   user_id: string;
