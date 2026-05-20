@@ -25,6 +25,7 @@ import { useCRMMyTeam, CRMDeal, useCRMTaskMutations, useCRMTasks } from "@/hooks
 import { api } from "@/lib/api";
 import { DealDetailDialog } from "@/components/crm/DealDetailDialog";
 import { TaskDialog } from "@/components/crm/TaskDialog";
+import { IndicatorsMapDialog } from "@/components/crm/IndicatorsMapDialog";
 
 import { IndicatorSegmentsManager } from "@/components/crm/IndicatorSegmentsManager";
 import { useAuth } from "@/contexts/AuthContext";
@@ -95,6 +96,7 @@ export default function CRMRepresentantes() {
   const [whatsAppContent, setWhatsAppContent] = useState("");
   const [whatsAppCalendarOpen, setWhatsAppCalendarOpen] = useState(false);
   const [taskDialogOpen, setTaskDialogOpen] = useState(false);
+  const [mapDialogOpen, setMapDialogOpen] = useState(false);
 
   const [startDate, setStartDate] = useState(format(subDays(new Date(), 30), "yyyy-MM-dd"));
   const [endDate, setEndDate] = useState(format(new Date(), "yyyy-MM-dd"));
@@ -706,6 +708,10 @@ export default function CRMRepresentantes() {
               <h1 className="text-xl font-bold">Pipeline de Indicadores</h1>
             </div>
             <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => setMapDialogOpen(true)}>
+                <MapPin className="h-4 w-4 mr-2" />
+                Mapa
+              </Button>
               <Button variant="outline" size="sm" onClick={() => setViewMode("list")}>
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Voltar para Lista
@@ -822,6 +828,7 @@ export default function CRMRepresentantes() {
             <ScrollBar orientation="horizontal" />
           </ScrollArea>
         </div>
+        <IndicatorsMapDialog open={mapDialogOpen} onOpenChange={setMapDialogOpen} indicators={representatives || []} />
       </MainLayout>
     );
   }
@@ -837,6 +844,10 @@ export default function CRMRepresentantes() {
           </div>
           {canManageRep && (
             <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => setMapDialogOpen(true)}>
+                <MapPin className="h-4 w-4 mr-2" />
+                Mapa
+              </Button>
               <Button variant="outline" size="sm" onClick={() => setSegmentsManagerOpen(true)}>
                 <Tag className="h-4 w-4 mr-2" />
                 Segmentos
@@ -1258,6 +1269,7 @@ export default function CRMRepresentantes() {
       </Dialog>
 
       <IndicatorSegmentsManager open={segmentsManagerOpen} onOpenChange={setSegmentsManagerOpen} />
+      <IndicatorsMapDialog open={mapDialogOpen} onOpenChange={setMapDialogOpen} indicators={representatives || []} />
     </MainLayout>
   );
 }
