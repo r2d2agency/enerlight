@@ -828,6 +828,7 @@ export default function CRMRepresentantes() {
             <ScrollBar orientation="horizontal" />
           </ScrollArea>
         </div>
+        <IndicatorsMapDialog open={mapDialogOpen} onOpenChange={setMapDialogOpen} indicators={representatives || []} />
       </MainLayout>
     );
   }
