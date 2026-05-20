@@ -2398,6 +2398,21 @@ router.get('/tasks', async (req, res) => {
       paramIndex++;
     }
 
+    // Company filter
+    if (company_id) {
+      sql += ` AND t.company_id = $${paramIndex}`;
+      params.push(company_id);
+      paramIndex++;
+    }
+
+    // Representative/indicator filter
+    if (representative_id) {
+      sql += ` AND t.representative_id = $${paramIndex}`;
+      params.push(representative_id);
+      paramIndex++;
+    }
+
+
     // Type filter
     if (type) {
       sql += ` AND t.type = $${paramIndex}`;
