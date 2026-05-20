@@ -352,3 +352,30 @@ export function useIndicatorSegmentMutations() {
   });
   return { create, update, remove };
 }
+
+// ============== INDICATOR SOURCES (origens) ==============
+export interface IndicatorSource { id: string; name: string; }
+
+export function useIndicatorSources() {
+  return useQuery({
+    queryKey: ["crm-indicator-sources"],
+    queryFn: () => api<IndicatorSource[]>("/api/crm/indicator-sources"),
+  });
+}
+
+export function useIndicatorSourceMutations() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const invalidate = () => qc.invalidateQueries({ queryKey: ["crm-indicator-sources"] });
+
+  const create = useMutation({
+    mutationFn: (name: string) =>
+      api<IndicatorSource>("/api/crm/indicator-sources", { method: "POST", body: { name } }),
+    onSuccess: () => { invalidate(); toast({ title: "Origem adicionada" }); },
+  });
+  const remove = useMutation({
+    mutationFn: (id: string) => api<void>(`/api/crm/indicator-sources/${id}`, { method: "DELETE" }),
+    onSuccess: () => { invalidate(); toast({ title: "Origem excluída" }); },
+  });
+  return { create, remove };
+}
