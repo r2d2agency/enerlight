@@ -32,11 +32,13 @@ export interface Representative {
   segment_ids?: string[];
   areas?: IndicatorArea[];
   areas_count?: number;
+  source?: string | null;
   created_at: string;
   open_deals_count?: number;
   open_deals_value?: number;
   last_interaction_at?: string;
 }
+
 
 export interface RepresentativeDashboard {
   commission_percent: number;
