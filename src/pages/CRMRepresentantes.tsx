@@ -684,10 +684,11 @@ export default function CRMRepresentantes() {
 
           <TaskDialog
             task={null}
-            companyId={selectedRepId || undefined}
+            representativeId={selectedRepId || undefined}
             open={taskDialogOpen}
             onOpenChange={setTaskDialogOpen}
           />
+
 
         </div>
       </MainLayout>
