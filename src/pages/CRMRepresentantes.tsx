@@ -16,8 +16,10 @@ import { toast } from "sonner";
 import {
   useRepresentatives, useRepresentative, useRepresentativeDashboard, useRepresentativeMutations,
   useRepresentativeDeals, useIndicatorSegments, Representative, IndicatorArea, IndicatorType,
-  useIndicatorHistory, useIndicatorHistoryMutations, useCreateScheduledMessage, useScheduledMessagesByPhone
+  useIndicatorHistory, useIndicatorHistoryMutations, useCreateScheduledMessage, useScheduledMessagesByPhone,
+  useIndicatorSources, useIndicatorSourceMutations
 } from "@/hooks/use-representatives";
+
 
 import { useCRMMyTeam, CRMDeal, useCRMTaskMutations, useCRMTasks } from "@/hooks/use-crm";
 import { api } from "@/lib/api";
