@@ -625,6 +625,7 @@ export function useCRMTasks(filters?: {
   assigned_to?: string; 
   deal_id?: string;
   company_id?: string;
+  representative_id?: string;
   start_date?: string;
   end_date?: string;
   view_all?: boolean;
@@ -636,10 +637,12 @@ export function useCRMTasks(filters?: {
   if (filters?.assigned_to) params.append("assigned_to", filters.assigned_to);
   if (filters?.deal_id) params.append("deal_id", filters.deal_id);
   if (filters?.company_id) params.append("company_id", filters.company_id);
+  if (filters?.representative_id) params.append("representative_id", filters.representative_id);
   if (filters?.start_date) params.append("start_date", filters.start_date);
   if (filters?.end_date) params.append("end_date", filters.end_date);
   if (filters?.view_all) params.append("view_all", "true");
   if (filters?.type) params.append("type", filters.type);
+
 
   return useQuery({
     queryKey: ["crm-tasks", filters],
