@@ -2337,7 +2337,7 @@ router.get('/tasks', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
-    const { period, status, assigned_to, deal_id, start_date, end_date, view_all, type } = req.query;
+    const { period, status, assigned_to, deal_id, company_id, representative_id, start_date, end_date, view_all, type } = req.query;
     
     let sql = `SELECT t.*, 
       d.title as deal_title,
@@ -2397,6 +2397,21 @@ router.get('/tasks', async (req, res) => {
       params.push(deal_id);
       paramIndex++;
     }
+
+    // Company filter
+    if (company_id) {
+      sql += ` AND t.company_id = $${paramIndex}`;
+      params.push(company_id);
+      paramIndex++;
+    }
+
+    // Representative/indicator filter
+    if (representative_id) {
+      sql += ` AND t.representative_id = $${paramIndex}`;
+      params.push(representative_id);
+      paramIndex++;
+    }
+
 
     // Type filter
     if (type) {
@@ -2544,7 +2559,7 @@ router.post('/tasks', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
-    const { deal_id, company_id, assigned_to, title, description, type, priority, due_date, reminder_at, reminder_minutes, reminder_whatsapp, reminder_popup } = req.body;
+    const { deal_id, company_id, representative_id, assigned_to, title, description, type, priority, due_date, reminder_at, reminder_minutes, reminder_whatsapp, reminder_popup } = req.body;
     
     // Calculate reminder_at from due_date and reminder_minutes if provided
     let calculatedReminderAt = reminder_at;
@@ -2554,13 +2569,16 @@ router.post('/tasks', async (req, res) => {
       calculatedReminderAt = dueDateTime.toISOString();
     }
 
+    if (representative_id) { try { await ensureIndicatorSourcesSchema(); } catch(_){} }
+
     const result = await query(
-      `INSERT INTO crm_tasks (organization_id, deal_id, company_id, assigned_to, created_by, title, description, type, priority, due_date, reminder_at, reminder_minutes, reminder_whatsapp, reminder_popup)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *`,
-      [org.organization_id, deal_id, company_id, assigned_to || req.userId, req.userId, 
+      `INSERT INTO crm_tasks (organization_id, deal_id, company_id, representative_id, assigned_to, created_by, title, description, type, priority, due_date, reminder_at, reminder_minutes, reminder_whatsapp, reminder_popup)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING *`,
+      [org.organization_id, deal_id || null, company_id || null, representative_id || null, assigned_to || req.userId, req.userId, 
        title, description, type || 'task', priority || 'medium', due_date, calculatedReminderAt,
        reminder_minutes || null, reminder_whatsapp ?? false, reminder_popup ?? true]
     );
+
 
     // If linked to deal, update last_activity
     if (deal_id) {
@@ -5003,8 +5021,10 @@ router.get('/representatives', async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
+    try { await ensureIndicatorSourcesSchema(); } catch(_){}
 
-    const { search, type, owner_id } = req.query;
+
+    const { search, type, owner_id, source } = req.query;
     let filters = '';
     const params = [org.organization_id];
 
@@ -5025,6 +5045,11 @@ router.get('/representatives', async (req, res) => {
         params.push(owner_id);
       }
     }
+    if (source && source !== 'all') {
+      filters += ` AND r.source = $${params.length + 1}`;
+      params.push(source);
+    }
+
 
     const result = await query(
       `SELECT r.*, u.name as linked_user_name,
@@ -5259,15 +5284,17 @@ router.post('/representatives', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
-    const { name, email, phone, cpf_cnpj, city, state, address, zip_code, commission_percent, notes, linked_user_id, indicator_type, segment_ids, areas } = req.body;
+    const { name, email, phone, cpf_cnpj, city, state, address, zip_code, commission_percent, notes, linked_user_id, indicator_type, segment_ids, areas, source } = req.body;
+    if (source !== undefined) { try { await ensureIndicatorSourcesSchema(); } catch(_){} }
     const result = await query(
-      `INSERT INTO crm_representatives (organization_id, name, email, phone, cpf_cnpj, city, state, address, zip_code, commission_percent, notes, linked_user_id, indicator_type, segment_ids, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING *`,
-      [org.organization_id, name, email, phone, cpf_cnpj, city, state, address, zip_code, commission_percent || 0, notes, linked_user_id || null, indicator_type || 'representante', JSON.stringify(segment_ids || []), req.userId]
+      `INSERT INTO crm_representatives (organization_id, name, email, phone, cpf_cnpj, city, state, address, zip_code, commission_percent, notes, linked_user_id, indicator_type, segment_ids, source, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING *`,
+      [org.organization_id, name, email, phone, cpf_cnpj, city, state, address, zip_code, commission_percent || 0, notes, linked_user_id || null, indicator_type || 'representante', JSON.stringify(segment_ids || []), source || null, req.userId]
     );
     const rep = result.rows[0];
     if (areas) await saveIndicatorAreas(rep.id, areas);
     res.json(rep);
+
   } catch (error) {
     console.error('Error creating representative:', error);
     res.status(500).json({ error: error.message });
@@ -5280,16 +5307,19 @@ router.put('/representatives/:id', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
-    const { name, email, phone, cpf_cnpj, city, state, address, zip_code, commission_percent, notes, linked_user_id, is_active, indicator_type, segment_ids, areas } = req.body;
+    const { name, email, phone, cpf_cnpj, city, state, address, zip_code, commission_percent, notes, linked_user_id, is_active, indicator_type, segment_ids, areas, source } = req.body;
+    if (source !== undefined) { try { await ensureIndicatorSourcesSchema(); } catch(_){} }
     const result = await query(
       `UPDATE crm_representatives SET name=$1, email=$2, phone=$3, cpf_cnpj=$4, city=$5, state=$6, address=$7, zip_code=$8,
        commission_percent=$9, notes=$10, linked_user_id=$11, is_active=COALESCE($12, is_active),
-       indicator_type=COALESCE($13, indicator_type), segment_ids=COALESCE($14::jsonb, segment_ids), updated_at=NOW()
-       WHERE id=$15 AND organization_id=$16 RETURNING *`,
-      [name, email, phone, cpf_cnpj, city, state, address, zip_code, commission_percent || 0, notes, linked_user_id || null, is_active, indicator_type || null, segment_ids ? JSON.stringify(segment_ids) : null, req.params.id, org.organization_id]
+       indicator_type=COALESCE($13, indicator_type), segment_ids=COALESCE($14::jsonb, segment_ids),
+       source=$15, updated_at=NOW()
+       WHERE id=$16 AND organization_id=$17 RETURNING *`,
+      [name, email, phone, cpf_cnpj, city, state, address, zip_code, commission_percent || 0, notes, linked_user_id || null, is_active, indicator_type || null, segment_ids ? JSON.stringify(segment_ids) : null, source ?? null, req.params.id, org.organization_id]
     );
     if (areas !== undefined) await saveIndicatorAreas(req.params.id, areas);
     res.json(result.rows[0]);
+
   } catch (error) {
     console.error('Error updating representative:', error);
     res.status(500).json({ error: error.message });
@@ -5467,6 +5497,79 @@ router.delete('/indicator-segments/:id', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// ============================================
+// INDICATOR SOURCES (origens dos indicadores)
+// ============================================
+async function ensureIndicatorSourcesSchema() {
+  try {
+    await query(`ALTER TABLE crm_representatives ADD COLUMN IF NOT EXISTS source TEXT`);
+  } catch(_){}
+  try {
+    await query(`CREATE TABLE IF NOT EXISTS crm_indicator_sources (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      name VARCHAR(255) NOT NULL,
+      created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(organization_id, name)
+    )`);
+  } catch(_){}
+  try { await query(`ALTER TABLE crm_tasks ADD COLUMN IF NOT EXISTS representative_id UUID REFERENCES crm_representatives(id) ON DELETE CASCADE`); } catch(_){}
+  try { await query(`CREATE INDEX IF NOT EXISTS idx_crm_tasks_representative ON crm_tasks(representative_id)`); } catch(_){}
+}
+
+router.get('/indicator-sources', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+    await ensureIndicatorSourcesSchema();
+    const r = await query(
+      `SELECT id, name FROM crm_indicator_sources WHERE organization_id = $1 ORDER BY name`,
+      [org.organization_id]
+    );
+    res.json(r.rows);
+  } catch (error) {
+    if (isMissingSchemaError(error)) return res.json([]);
+    console.error('Error fetching indicator sources:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/indicator-sources', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+    await ensureIndicatorSourcesSchema();
+    const { name } = req.body;
+    if (!name?.trim()) return res.status(400).json({ error: 'Name required' });
+    const r = await query(
+      `INSERT INTO crm_indicator_sources (organization_id, name, created_by)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (organization_id, name) DO UPDATE SET name = EXCLUDED.name
+       RETURNING id, name`,
+      [org.organization_id, name.trim(), req.userId]
+    );
+    res.json(r.rows[0]);
+  } catch (error) {
+    console.error('Error creating indicator source:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.delete('/indicator-sources/:id', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org || !canManage(org.role)) return res.status(403).json({ error: 'Permission denied' });
+    await query(`DELETE FROM crm_indicator_sources WHERE id = $1 AND organization_id = $2`, [req.params.id, org.organization_id]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting indicator source:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
 
 // Ensure goals table exists
 async function ensureGoalsTable() {

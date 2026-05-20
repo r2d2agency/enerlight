@@ -16,8 +16,10 @@ import { toast } from "sonner";
 import {
   useRepresentatives, useRepresentative, useRepresentativeDashboard, useRepresentativeMutations,
   useRepresentativeDeals, useIndicatorSegments, Representative, IndicatorArea, IndicatorType,
-  useIndicatorHistory, useIndicatorHistoryMutations, useCreateScheduledMessage, useScheduledMessagesByPhone
+  useIndicatorHistory, useIndicatorHistoryMutations, useCreateScheduledMessage, useScheduledMessagesByPhone,
+  useIndicatorSources, useIndicatorSourceMutations
 } from "@/hooks/use-representatives";
+
 
 import { useCRMMyTeam, CRMDeal, useCRMTaskMutations, useCRMTasks } from "@/hooks/use-crm";
 import { api } from "@/lib/api";
@@ -57,13 +59,15 @@ interface FormState {
   indicator_type: IndicatorType;
   segment_ids: string[];
   areas: IndicatorArea[];
+  source: string;
 }
 
 const emptyForm: FormState = {
   name: "", email: "", phone: "", cpf_cnpj: "", city: "", state: "",
   address: "", zip_code: "", commission_percent: "5", notes: "", linked_user_id: "",
-  indicator_type: "representante", segment_ids: [], areas: [],
+  indicator_type: "representante", segment_ids: [], areas: [], source: "",
 };
+
 
 export default function CRMRepresentantes() {
   const { user, userPermissions } = useAuth();
@@ -73,7 +77,9 @@ export default function CRMRepresentantes() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [ownerFilter, setOwnerFilter] = useState<string>("all");
+  const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [viewMode, setViewMode] = useState<"list" | "pipeline">("list");
+
   const [selectedRepId, setSelectedRepId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editingRepId, setEditingRepId] = useState<string | null>(null);
@@ -93,12 +99,14 @@ export default function CRMRepresentantes() {
   const [startDate, setStartDate] = useState(format(subDays(new Date(), 30), "yyyy-MM-dd"));
   const [endDate, setEndDate] = useState(format(new Date(), "yyyy-MM-dd"));
 
-  const { data: representatives, isLoading } = useRepresentatives(search || undefined, typeFilter, ownerFilter);
+  const { data: representatives, isLoading } = useRepresentatives(search || undefined, typeFilter, ownerFilter, sourceFilter);
   const selectedRep = representatives?.find(r => r.id === selectedRepId);
   const { data: dashboard, isLoading: loadingDash } = useRepresentativeDashboard(selectedRepId, startDate, endDate);
   const { data: repDeals, isLoading: loadingDeals } = useRepresentativeDeals(selectedRepId, startDate, endDate, dealStatusFilter);
   const { data: orgMembers } = useCRMMyTeam();
   const { data: allSegments = [] } = useIndicatorSegments();
+  const { data: allSources = [] } = useIndicatorSources();
+  const { create: createSource } = useIndicatorSourceMutations();
   const { data: editingRep } = useRepresentative(editingRepId);
   const { createRepresentative, updateRepresentative, deleteRepresentative } = useRepresentativeMutations();
   const { data: history = [], refetch: refetchHistory } = useIndicatorHistory(selectedRepId);
@@ -107,7 +115,8 @@ export default function CRMRepresentantes() {
   const { data: scheduledMessages = [] } = useScheduledMessagesByPhone(selectedRep?.phone || "");
   const createScheduledMessage = useCreateScheduledMessage();
   const { createTask, deleteTask: deleteTaskMutation, completeTask } = useCRMTaskMutations();
-  const { data: repTasks = [], isLoading: loadingTasks } = useCRMTasks({ company_id: selectedRepId || undefined, status: 'pending' });
+  const { data: repTasks = [], isLoading: loadingTasks } = useCRMTasks({ representative_id: selectedRepId || undefined, status: 'pending' });
+
 
 
   const [form, setForm] = useState<FormState>(emptyForm);
@@ -130,9 +139,11 @@ export default function CRMRepresentantes() {
         indicator_type: (editingRep.indicator_type as IndicatorType) || "representante",
         segment_ids: editingRep.segment_ids || [],
         areas: editingRep.areas || [],
+        source: editingRep.source || "",
       });
     }
   }, [editingRep]);
+
 
   const openCreate = () => {
     setEditingRepId(null);
@@ -158,6 +169,8 @@ export default function CRMRepresentantes() {
       linked_user_id: rep.linked_user_id || "",
       indicator_type: (rep.indicator_type as IndicatorType) || "representante",
       segment_ids: rep.segment_ids || [],
+      source: rep.source || "",
+
     });
     setFormOpen(true);
   };
@@ -671,10 +684,11 @@ export default function CRMRepresentantes() {
 
           <TaskDialog
             task={null}
-            companyId={selectedRepId || undefined}
+            representativeId={selectedRepId || undefined}
             open={taskDialogOpen}
             onOpenChange={setTaskDialogOpen}
           />
+
 
         </div>
       </MainLayout>
@@ -733,7 +747,18 @@ export default function CRMRepresentantes() {
               </Select>
             )}
 
+            <Select value={sourceFilter} onValueChange={setSourceFilter}>
+              <SelectTrigger className="w-40 h-9"><SelectValue placeholder="Origem" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas origens</SelectItem>
+                {allSources.map(s => (
+                  <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
             <div className="h-9 w-[1px] bg-border mx-1" />
+
 
             <ToggleGroup type="single" value={viewMode} onValueChange={(v) => v && setViewMode(v as any)} className="bg-background border rounded-md p-0.5">
               <ToggleGroupItem value="list" className="h-8 px-3 text-xs gap-1.5">
@@ -859,7 +884,18 @@ export default function CRMRepresentantes() {
             </Select>
           )}
 
+          <Select value={sourceFilter} onValueChange={setSourceFilter}>
+            <SelectTrigger className="w-40 h-9"><SelectValue placeholder="Origem" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas origens</SelectItem>
+              {allSources.map(s => (
+                <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
           <div className="h-9 w-[1px] bg-border mx-1" />
+
 
           <ToggleGroup type="single" value={viewMode} onValueChange={(v) => v && setViewMode(v as any)} className="bg-background border rounded-md p-0.5">
             <ToggleGroupItem value="list" className="h-8 px-3 text-xs gap-1.5">
@@ -1081,6 +1117,36 @@ export default function CRMRepresentantes() {
               </div>
               <div className="space-y-2"><Label>Endereço</Label>
                 <Input value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} /></div>
+
+              {/* ORIGEM */}
+              <div className="space-y-2">
+                <Label>Origem do Indicador</Label>
+                <div className="flex gap-2">
+                  <Select value={form.source || "__none__"} onValueChange={v => setForm(f => ({ ...f, source: v === "__none__" ? "" : v }))}>
+                    <SelectTrigger className="flex-1"><SelectValue placeholder="Selecione a origem" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Sem origem</SelectItem>
+                      {allSources.map(s => (
+                        <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button type="button" variant="outline" size="sm" onClick={() => {
+                    const name = window.prompt("Nova origem (ex: Shell, Petronas, Texaco):");
+                    if (!name?.trim()) return;
+                    createSource.mutate(name.trim(), {
+                      onSuccess: (s) => setForm(f => ({ ...f, source: s.name })),
+                    });
+                  }}>
+                    <Plus className="h-4 w-4 mr-1" /> Nova
+                  </Button>
+                </div>
+                {allSources.length === 0 && (
+                  <p className="text-xs text-muted-foreground">Nenhuma origem cadastrada. Clique em "Nova" para adicionar.</p>
+                )}
+              </div>
+
+
 
               {/* SEGMENTOS */}
               <div className="space-y-2">

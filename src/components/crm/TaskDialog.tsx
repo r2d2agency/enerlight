@@ -30,10 +30,12 @@ interface TaskDialogProps {
   task: CRMTask | null;
   dealId?: string;
   companyId?: string;
+  representativeId?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   defaultDate?: Date | null;
 }
+
 
 interface OrgMember {
   user_id: string;
@@ -82,7 +84,7 @@ function useCreateMeetingWithMeet() {
   });
 }
 
-export function TaskDialog({ task, dealId, companyId, open, onOpenChange, defaultDate }: TaskDialogProps) {
+export function TaskDialog({ task, dealId, companyId, representativeId, open, onOpenChange, defaultDate }: TaskDialogProps) {
   const { user } = useAuth();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -246,6 +248,8 @@ export function TaskDialog({ task, dealId, companyId, open, onOpenChange, defaul
       assigned_to: assignedTo || undefined,
       deal_id: dealId,
       company_id: companyId,
+      representative_id: representativeId,
+
       reminder_minutes: reminderMins,
       reminder_whatsapp: reminderWhatsapp,
       reminder_popup: reminderPopup,

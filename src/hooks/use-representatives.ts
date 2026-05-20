@@ -32,11 +32,13 @@ export interface Representative {
   segment_ids?: string[];
   areas?: IndicatorArea[];
   areas_count?: number;
+  source?: string | null;
   created_at: string;
   open_deals_count?: number;
   open_deals_value?: number;
   last_interaction_at?: string;
 }
+
 
 export interface RepresentativeDashboard {
   commission_percent: number;
@@ -58,19 +60,21 @@ export interface IndicatorSegment {
   is_active: boolean;
 }
 
-export function useRepresentatives(search?: string, type?: string, ownerId?: string) {
+export function useRepresentatives(search?: string, type?: string, ownerId?: string, source?: string) {
   return useQuery({
-    queryKey: ["crm-representatives", search, type, ownerId],
+    queryKey: ["crm-representatives", search, type, ownerId, source],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (search) params.set("search", search);
       if (type && type !== "all") params.set("type", type);
       if (ownerId && ownerId !== "all") params.set("owner_id", ownerId);
+      if (source && source !== "all") params.set("source", source);
       const qs = params.toString();
       return api<Representative[]>(`/api/crm/representatives${qs ? `?${qs}` : ""}`);
     },
   });
 }
+
 
 export function useRepresentative(id: string | null) {
   return useQuery({
@@ -347,4 +351,31 @@ export function useIndicatorSegmentMutations() {
     onSuccess: () => { invalidate(); toast({ title: "Segmento excluído" }); },
   });
   return { create, update, remove };
+}
+
+// ============== INDICATOR SOURCES (origens) ==============
+export interface IndicatorSource { id: string; name: string; }
+
+export function useIndicatorSources() {
+  return useQuery({
+    queryKey: ["crm-indicator-sources"],
+    queryFn: () => api<IndicatorSource[]>("/api/crm/indicator-sources"),
+  });
+}
+
+export function useIndicatorSourceMutations() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const invalidate = () => qc.invalidateQueries({ queryKey: ["crm-indicator-sources"] });
+
+  const create = useMutation({
+    mutationFn: (name: string) =>
+      api<IndicatorSource>("/api/crm/indicator-sources", { method: "POST", body: { name } }),
+    onSuccess: () => { invalidate(); toast({ title: "Origem adicionada" }); },
+  });
+  const remove = useMutation({
+    mutationFn: (id: string) => api<void>(`/api/crm/indicator-sources/${id}`, { method: "DELETE" }),
+    onSuccess: () => { invalidate(); toast({ title: "Origem excluída" }); },
+  });
+  return { create, remove };
 }
