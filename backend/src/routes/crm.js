@@ -5468,6 +5468,79 @@ router.delete('/indicator-segments/:id', async (req, res) => {
   }
 });
 
+// ============================================
+// INDICATOR SOURCES (origens dos indicadores)
+// ============================================
+async function ensureIndicatorSourcesSchema() {
+  try {
+    await query(`ALTER TABLE crm_representatives ADD COLUMN IF NOT EXISTS source TEXT`);
+  } catch(_){}
+  try {
+    await query(`CREATE TABLE IF NOT EXISTS crm_indicator_sources (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      name VARCHAR(255) NOT NULL,
+      created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(organization_id, name)
+    )`);
+  } catch(_){}
+  try { await query(`ALTER TABLE crm_tasks ADD COLUMN IF NOT EXISTS representative_id UUID REFERENCES crm_representatives(id) ON DELETE CASCADE`); } catch(_){}
+  try { await query(`CREATE INDEX IF NOT EXISTS idx_crm_tasks_representative ON crm_tasks(representative_id)`); } catch(_){}
+}
+
+router.get('/indicator-sources', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+    await ensureIndicatorSourcesSchema();
+    const r = await query(
+      `SELECT id, name FROM crm_indicator_sources WHERE organization_id = $1 ORDER BY name`,
+      [org.organization_id]
+    );
+    res.json(r.rows);
+  } catch (error) {
+    if (isMissingSchemaError(error)) return res.json([]);
+    console.error('Error fetching indicator sources:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/indicator-sources', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+    await ensureIndicatorSourcesSchema();
+    const { name } = req.body;
+    if (!name?.trim()) return res.status(400).json({ error: 'Name required' });
+    const r = await query(
+      `INSERT INTO crm_indicator_sources (organization_id, name, created_by)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (organization_id, name) DO UPDATE SET name = EXCLUDED.name
+       RETURNING id, name`,
+      [org.organization_id, name.trim(), req.userId]
+    );
+    res.json(r.rows[0]);
+  } catch (error) {
+    console.error('Error creating indicator source:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.delete('/indicator-sources/:id', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org || !canManage(org.role)) return res.status(403).json({ error: 'Permission denied' });
+    await query(`DELETE FROM crm_indicator_sources WHERE id = $1 AND organization_id = $2`, [req.params.id, org.organization_id]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting indicator source:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
+
 // Ensure goals table exists
 async function ensureGoalsTable() {
   try {
