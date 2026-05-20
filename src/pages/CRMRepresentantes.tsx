@@ -164,6 +164,8 @@ export default function CRMRepresentantes() {
       linked_user_id: rep.linked_user_id || "",
       indicator_type: (rep.indicator_type as IndicatorType) || "representante",
       segment_ids: rep.segment_ids || [],
+      source: rep.source || "",
+
     });
     setFormOpen(true);
   };
