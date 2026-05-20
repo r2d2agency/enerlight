@@ -5311,7 +5311,7 @@ router.put('/representatives/:id', async (req, res) => {
       `UPDATE crm_representatives SET name=$1, email=$2, phone=$3, cpf_cnpj=$4, city=$5, state=$6, address=$7, zip_code=$8,
        commission_percent=$9, notes=$10, linked_user_id=$11, is_active=COALESCE($12, is_active),
        indicator_type=COALESCE($13, indicator_type), segment_ids=COALESCE($14::jsonb, segment_ids),
-       source=COALESCE($15, source), updated_at=NOW()
+       source=$15, updated_at=NOW()
        WHERE id=$16 AND organization_id=$17 RETURNING *`,
       [name, email, phone, cpf_cnpj, city, state, address, zip_code, commission_percent || 0, notes, linked_user_id || null, is_active, indicator_type || null, segment_ids ? JSON.stringify(segment_ids) : null, source ?? null, req.params.id, org.organization_id]
     );
