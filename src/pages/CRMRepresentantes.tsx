@@ -747,7 +747,18 @@ export default function CRMRepresentantes() {
               </Select>
             )}
 
+            <Select value={sourceFilter} onValueChange={setSourceFilter}>
+              <SelectTrigger className="w-40 h-9"><SelectValue placeholder="Origem" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas origens</SelectItem>
+                {allSources.map(s => (
+                  <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
             <div className="h-9 w-[1px] bg-border mx-1" />
+
 
             <ToggleGroup type="single" value={viewMode} onValueChange={(v) => v && setViewMode(v as any)} className="bg-background border rounded-md p-0.5">
               <ToggleGroupItem value="list" className="h-8 px-3 text-xs gap-1.5">
