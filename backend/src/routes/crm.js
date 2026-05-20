@@ -2559,7 +2559,7 @@ router.post('/tasks', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
-    const { deal_id, company_id, assigned_to, title, description, type, priority, due_date, reminder_at, reminder_minutes, reminder_whatsapp, reminder_popup } = req.body;
+    const { deal_id, company_id, representative_id, assigned_to, title, description, type, priority, due_date, reminder_at, reminder_minutes, reminder_whatsapp, reminder_popup } = req.body;
     
     // Calculate reminder_at from due_date and reminder_minutes if provided
     let calculatedReminderAt = reminder_at;
@@ -2569,13 +2569,16 @@ router.post('/tasks', async (req, res) => {
       calculatedReminderAt = dueDateTime.toISOString();
     }
 
+    if (representative_id) { try { await ensureIndicatorSourcesSchema(); } catch(_){} }
+
     const result = await query(
-      `INSERT INTO crm_tasks (organization_id, deal_id, company_id, assigned_to, created_by, title, description, type, priority, due_date, reminder_at, reminder_minutes, reminder_whatsapp, reminder_popup)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *`,
-      [org.organization_id, deal_id, company_id, assigned_to || req.userId, req.userId, 
+      `INSERT INTO crm_tasks (organization_id, deal_id, company_id, representative_id, assigned_to, created_by, title, description, type, priority, due_date, reminder_at, reminder_minutes, reminder_whatsapp, reminder_popup)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING *`,
+      [org.organization_id, deal_id || null, company_id || null, representative_id || null, assigned_to || req.userId, req.userId, 
        title, description, type || 'task', priority || 'medium', due_date, calculatedReminderAt,
        reminder_minutes || null, reminder_whatsapp ?? false, reminder_popup ?? true]
     );
+
 
     // If linked to deal, update last_activity
     if (deal_id) {
