@@ -77,7 +77,9 @@ export default function CRMRepresentantes() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [ownerFilter, setOwnerFilter] = useState<string>("all");
+  const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [viewMode, setViewMode] = useState<"list" | "pipeline">("list");
+
   const [selectedRepId, setSelectedRepId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editingRepId, setEditingRepId] = useState<string | null>(null);
