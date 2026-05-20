@@ -5022,7 +5022,7 @@ router.get('/representatives', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
-    const { search, type, owner_id } = req.query;
+    const { search, type, owner_id, source } = req.query;
     let filters = '';
     const params = [org.organization_id];
 
@@ -5043,6 +5043,11 @@ router.get('/representatives', async (req, res) => {
         params.push(owner_id);
       }
     }
+    if (source && source !== 'all') {
+      filters += ` AND r.source = $${params.length + 1}`;
+      params.push(source);
+    }
+
 
     const result = await query(
       `SELECT r.*, u.name as linked_user_name,
