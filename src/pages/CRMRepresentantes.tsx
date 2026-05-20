@@ -134,9 +134,11 @@ export default function CRMRepresentantes() {
         indicator_type: (editingRep.indicator_type as IndicatorType) || "representante",
         segment_ids: editingRep.segment_ids || [],
         areas: editingRep.areas || [],
+        source: editingRep.source || "",
       });
     }
   }, [editingRep]);
+
 
   const openCreate = () => {
     setEditingRepId(null);
