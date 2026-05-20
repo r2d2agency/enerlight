@@ -248,6 +248,8 @@ export function TaskDialog({ task, dealId, companyId, representativeId, open, on
       assigned_to: assignedTo || undefined,
       deal_id: dealId,
       company_id: companyId,
+      representative_id: representativeId,
+
       reminder_minutes: reminderMins,
       reminder_whatsapp: reminderWhatsapp,
       reminder_popup: reminderPopup,
