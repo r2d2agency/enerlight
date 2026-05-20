@@ -96,6 +96,7 @@ export default function CRMRepresentantes() {
   const [whatsAppContent, setWhatsAppContent] = useState("");
   const [whatsAppCalendarOpen, setWhatsAppCalendarOpen] = useState(false);
   const [taskDialogOpen, setTaskDialogOpen] = useState(false);
+  const [mapDialogOpen, setMapDialogOpen] = useState(false);
 
   const [startDate, setStartDate] = useState(format(subDays(new Date(), 30), "yyyy-MM-dd"));
   const [endDate, setEndDate] = useState(format(new Date(), "yyyy-MM-dd"));
