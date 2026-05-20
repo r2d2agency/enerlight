@@ -1118,6 +1118,36 @@ export default function CRMRepresentantes() {
               <div className="space-y-2"><Label>Endereço</Label>
                 <Input value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} /></div>
 
+              {/* ORIGEM */}
+              <div className="space-y-2">
+                <Label>Origem do Indicador</Label>
+                <div className="flex gap-2">
+                  <Select value={form.source || "__none__"} onValueChange={v => setForm(f => ({ ...f, source: v === "__none__" ? "" : v }))}>
+                    <SelectTrigger className="flex-1"><SelectValue placeholder="Selecione a origem" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Sem origem</SelectItem>
+                      {allSources.map(s => (
+                        <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button type="button" variant="outline" size="sm" onClick={() => {
+                    const name = window.prompt("Nova origem (ex: Shell, Petronas, Texaco):");
+                    if (!name?.trim()) return;
+                    createSource.mutate(name.trim(), {
+                      onSuccess: (s) => setForm(f => ({ ...f, source: s.name })),
+                    });
+                  }}>
+                    <Plus className="h-4 w-4 mr-1" /> Nova
+                  </Button>
+                </div>
+                {allSources.length === 0 && (
+                  <p className="text-xs text-muted-foreground">Nenhuma origem cadastrada. Clique em "Nova" para adicionar.</p>
+                )}
+              </div>
+
+
+
               {/* SEGMENTOS */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
