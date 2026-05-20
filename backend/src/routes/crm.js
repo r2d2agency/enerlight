@@ -5021,6 +5021,8 @@ router.get('/representatives', async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
+    try { await ensureIndicatorSourcesSchema(); } catch(_){}
+
 
     const { search, type, owner_id, source } = req.query;
     let filters = '';
