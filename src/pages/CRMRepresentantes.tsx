@@ -1268,6 +1268,7 @@ export default function CRMRepresentantes() {
       </Dialog>
 
       <IndicatorSegmentsManager open={segmentsManagerOpen} onOpenChange={setSegmentsManagerOpen} />
+      <IndicatorsMapDialog open={mapDialogOpen} onOpenChange={setMapDialogOpen} indicators={representatives || []} />
     </MainLayout>
   );
 }
