@@ -99,12 +99,14 @@ export default function CRMRepresentantes() {
   const [startDate, setStartDate] = useState(format(subDays(new Date(), 30), "yyyy-MM-dd"));
   const [endDate, setEndDate] = useState(format(new Date(), "yyyy-MM-dd"));
 
-  const { data: representatives, isLoading } = useRepresentatives(search || undefined, typeFilter, ownerFilter);
+  const { data: representatives, isLoading } = useRepresentatives(search || undefined, typeFilter, ownerFilter, sourceFilter);
   const selectedRep = representatives?.find(r => r.id === selectedRepId);
   const { data: dashboard, isLoading: loadingDash } = useRepresentativeDashboard(selectedRepId, startDate, endDate);
   const { data: repDeals, isLoading: loadingDeals } = useRepresentativeDeals(selectedRepId, startDate, endDate, dealStatusFilter);
   const { data: orgMembers } = useCRMMyTeam();
   const { data: allSegments = [] } = useIndicatorSegments();
+  const { data: allSources = [] } = useIndicatorSources();
+  const { create: createSource } = useIndicatorSourceMutations();
   const { data: editingRep } = useRepresentative(editingRepId);
   const { createRepresentative, updateRepresentative, deleteRepresentative } = useRepresentativeMutations();
   const { data: history = [], refetch: refetchHistory } = useIndicatorHistory(selectedRepId);
@@ -113,7 +115,8 @@ export default function CRMRepresentantes() {
   const { data: scheduledMessages = [] } = useScheduledMessagesByPhone(selectedRep?.phone || "");
   const createScheduledMessage = useCreateScheduledMessage();
   const { createTask, deleteTask: deleteTaskMutation, completeTask } = useCRMTaskMutations();
-  const { data: repTasks = [], isLoading: loadingTasks } = useCRMTasks({ company_id: selectedRepId || undefined, status: 'pending' });
+  const { data: repTasks = [], isLoading: loadingTasks } = useCRMTasks({ representative_id: selectedRepId || undefined, status: 'pending' });
+
 
 
   const [form, setForm] = useState<FormState>(emptyForm);
