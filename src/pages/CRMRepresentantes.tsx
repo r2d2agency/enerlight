@@ -59,13 +59,15 @@ interface FormState {
   indicator_type: IndicatorType;
   segment_ids: string[];
   areas: IndicatorArea[];
+  source: string;
 }
 
 const emptyForm: FormState = {
   name: "", email: "", phone: "", cpf_cnpj: "", city: "", state: "",
   address: "", zip_code: "", commission_percent: "5", notes: "", linked_user_id: "",
-  indicator_type: "representante", segment_ids: [], areas: [],
+  indicator_type: "representante", segment_ids: [], areas: [], source: "",
 };
+
 
 export default function CRMRepresentantes() {
   const { user, userPermissions } = useAuth();
