@@ -318,6 +318,90 @@ export default function CRMRepresentantes() {
 
                 <Card>
                   <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <User className="h-4 w-4" /> Dados do Indicador
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-4">
+                        <div>
+                          <Label className="text-[10px] text-muted-foreground uppercase font-bold">Localização</Label>
+                          <div className="flex items-start gap-2 mt-1">
+                            <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
+                            <div className="text-sm">
+                              <p className="font-medium">{selectedRep.address || "Endereço não informado"}</p>
+                              <p className="text-muted-foreground">
+                                {selectedRep.city || selectedRep.state 
+                                  ? `${selectedRep.city || ''}${selectedRep.city && selectedRep.state ? ' - ' : ''}${selectedRep.state || ''}`
+                                  : "Cidade/Estado não informado"}
+                                {selectedRep.zip_code && ` • CEP: ${selectedRep.zip_code}`}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <Label className="text-[10px] text-muted-foreground uppercase font-bold">Segmentos</Label>
+                          <div className="flex flex-wrap gap-1.5 mt-1">
+                            {!selectedRep.segment_ids?.length ? (
+                              <span className="text-xs text-muted-foreground">Nenhum segmento vinculado</span>
+                            ) : (
+                              selectedRep.segment_ids.map(id => {
+                                const segment = segmentById(id);
+                                return (
+                                  <Badge 
+                                    key={id} 
+                                    variant="secondary" 
+                                    className="text-[10px] px-1.5 py-0 border"
+                                    style={segment?.color ? { 
+                                      backgroundColor: `${segment.color}15`, 
+                                      color: segment.color, 
+                                      borderColor: `${segment.color}40` 
+                                    } : {}}
+                                  >
+                                    {segment?.name || 'Segmento'}
+                                  </Badge>
+                                );
+                              })
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <Label className="text-[10px] text-muted-foreground uppercase font-bold">Origem</Label>
+                            <p className="text-sm mt-1 font-medium">{selectedRep.source || "Não informada"}</p>
+                          </div>
+                          <div>
+                            <Label className="text-[10px] text-muted-foreground uppercase font-bold">CPF/CNPJ</Label>
+                            <p className="text-sm mt-1 font-medium">{selectedRep.cpf_cnpj || "Não informado"}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div>
+                          <Label className="text-[10px] text-muted-foreground uppercase font-bold">Observações</Label>
+                          <div className="mt-1 p-3 rounded-lg bg-muted/30 border border-dashed min-h-[100px]">
+                            <p className="text-sm whitespace-pre-wrap italic text-muted-foreground">
+                              {selectedRep.notes || "Nenhuma observação cadastrada."}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex justify-end">
+                          <Button variant="outline" size="sm" className="h-7 text-[11px] gap-1" onClick={() => openEdit(selectedRep)}>
+                            <Edit2 className="h-3 w-3" /> Editar Dados
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-sm font-medium">Negociações</CardTitle>
                       <Select value={dealStatusFilter} onValueChange={setDealStatusFilter}>
