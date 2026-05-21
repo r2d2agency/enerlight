@@ -102,8 +102,12 @@ export default function CRMRepresentantes() {
   const [endDate, setEndDate] = useState(format(new Date(), "yyyy-MM-dd"));
 
   const { data: representatives, isLoading } = useRepresentatives(search || undefined, typeFilter, ownerFilter, sourceFilter);
-  const selectedRep = representatives?.find(r => r.id === selectedRepId);
+  const selectedRepFromList = representatives?.find(r => r.id === selectedRepId);
+  const { data: fullSelectedRep } = useRepresentative(selectedRepId);
+  const selectedRep = fullSelectedRep || selectedRepFromList;
+  
   const { data: dashboard, isLoading: loadingDash } = useRepresentativeDashboard(selectedRepId, startDate, endDate);
+
   const { data: repDeals, isLoading: loadingDeals } = useRepresentativeDeals(selectedRepId, startDate, endDate, dealStatusFilter);
   const { data: orgMembers } = useCRMMyTeam();
   const { data: allSegments = [] } = useIndicatorSegments();
