@@ -55,7 +55,7 @@ router.get('/branding', async (req, res) => {
 // NOTE: Must be defined before router.use(authenticate)
 router.post('/public/pre-register', async (req, res) => {
   try {
-    const { name, email, whatsapp } = req.body;
+    const { name, email, whatsapp, source } = req.body;
 
     // Validate inputs
     if (!name || !email || !whatsapp) {
@@ -195,7 +195,7 @@ router.post('/public/pre-register', async (req, res) => {
            updated_at = NOW(),
            description = $2
          WHERE id = $1`,
-        [existingDeal.rows[0].id, `Email: ${sanitizedEmail}\nWhatsApp: ${phone}\n\nAtualizado em: ${new Date().toLocaleString('pt-BR')}`]
+        [existingDeal.rows[0].id, `Email: ${sanitizedEmail}\nWhatsApp: ${phone}\nOrigem: ${source || 'Landing Page'}\n\nAtualizado em: ${new Date().toLocaleString('pt-BR')}`]
       );
       
       return res.json({ success: true, message: 'Lead atualizado' });
@@ -215,7 +215,7 @@ router.post('/public/pre-register', async (req, res) => {
         stageId,
         companyId,
         `Lead: ${sanitizedName}`,
-        `Nome: ${sanitizedName}\nEmail: ${sanitizedEmail}\nWhatsApp: ${phone}\n\nCadastrado via Landing Page em: ${new Date().toLocaleString('pt-BR')}`,
+        `Nome: ${sanitizedName}\nEmail: ${sanitizedEmail}\nWhatsApp: ${phone}\nOrigem: ${source || 'Landing Page'}\n\nCadastrado em: ${new Date().toLocaleString('pt-BR')}`,
         superadmin.id
       ]
     );
