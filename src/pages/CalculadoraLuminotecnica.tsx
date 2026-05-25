@@ -502,12 +502,15 @@ export default function CalculadoraLuminotecnica() {
                     </div>
 
                     <div className="mt-8 flex flex-col gap-3 print:hidden">
-                      <Button className="w-full gap-2" variant="outline">
+                      <Button className="w-full gap-2" variant="outline" onClick={handlePrint}>
                         <FileText className="h-4 w-4" />
-                        Receber Memória de Cálculo
+                        Gerar PDF do Projeto
                       </Button>
-                      <Button className="w-full gap-2">
-                        Solicitar Orçamento de Luminárias
+                      <Button 
+                        className="w-full gap-2"
+                        onClick={() => window.open(`https://wa.me/55${formData.whatsapp.replace(/\D/g, '')}?text=Olá! Fiz uma simulação na calculadora luminotécnica e gostaria de um orçamento para ${results.fixtureCount} luminárias.`, '_blank')}
+                      >
+                        Solicitar Orçamento
                         <ArrowRight className="h-4 w-4" />
                       </Button>
                     </div>
