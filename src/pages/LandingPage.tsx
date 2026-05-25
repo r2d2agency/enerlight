@@ -446,8 +446,8 @@ export default function LandingPage() {
   const handlePreRegister = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.name.trim() || !formData.email.trim() || !formData.whatsapp.trim()) {
-      toast.error("Por favor, preencha todos os campos");
+    if (!formData.name.trim() || !formData.email.trim() || !formData.whatsapp.trim() || !formData.city.trim() || !formData.state) {
+      toast.error("Por favor, preencha todos os campos obrigatórios");
       return;
     }
 
