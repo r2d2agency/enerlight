@@ -174,14 +174,14 @@ router.post('/pre-register', async (req, res) => {
       );
 
       console.log(`Pre-register: Created prospect ${prospectResult.rows[0].id} for ${normalizedPhone}`);
-      res.json({ success: true, message: 'Cadastro recebido com sucesso' });
+      return res.json({ success: true, message: 'Cadastro recebido com sucesso' });
     } catch (insertErr) {
       console.error('Pre-register insert error:', insertErr.message);
       // Check for race condition (unique violation)
       if (insertErr.code === '23505') {
         return res.json({ success: true, message: 'Prospect já cadastrado' });
       }
-      throw insertErr;
+      return res.status(500).json({ error: 'Erro ao criar prospect: ' + insertErr.message });
     }
 
   } catch (error) {
