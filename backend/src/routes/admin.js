@@ -53,7 +53,7 @@ router.get('/branding', async (req, res) => {
 
 // Public endpoint for pre-registration (creates a deal in superadmin's CRM)
 // NOTE: Must be defined before router.use(authenticate)
-router.post('/public/pre-register', async (req, res) => {
+router.post('/pre-register', async (req, res) => {
   try {
     const { name, email, whatsapp, source } = req.body;
 
