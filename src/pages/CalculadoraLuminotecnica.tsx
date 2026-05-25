@@ -81,6 +81,9 @@ export default function CalculadoraLuminotecnica() {
     name: "",
     email: "",
     whatsapp: "",
+    company: "",
+    city: "",
+    state: "",
   });
 
   // Calculator State
