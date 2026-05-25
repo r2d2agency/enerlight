@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { query } from '../db.js';
+import { logError } from '../logger.js';
 
 const router = Router();
 
@@ -80,17 +81,22 @@ router.post('/pre-register', async (req, res) => {
 
       if (superadminResult.rows.length === 0) {
         // Fallback to searching for the first organization if no superadmin is found
-        const anyOrgResult = await query(`SELECT id FROM organizations LIMIT 1`);
-        if (anyOrgResult.rows.length > 0) {
-          organizationId = anyOrgResult.rows[0].id;
-          const ownerResult = await query(
-            `SELECT user_id FROM organization_members WHERE organization_id = $1 AND role = 'owner' LIMIT 1`,
-            [organizationId]
-          );
-          superadminId = ownerResult.rows[0]?.user_id;
-        } else {
-          console.error('Pre-register: No organization found');
-          return res.status(500).json({ error: 'Erro interno do servidor: Nenhuma organização configurada' });
+        try {
+          const anyOrgResult = await query(`SELECT id FROM organizations LIMIT 1`);
+          if (anyOrgResult.rows.length > 0) {
+            organizationId = anyOrgResult.rows[0].id;
+            const ownerResult = await query(
+              `SELECT user_id FROM organization_members WHERE organization_id = $1 AND role = 'owner' LIMIT 1`,
+              [organizationId]
+            );
+            superadminId = ownerResult.rows[0]?.user_id;
+          } else {
+            console.error('Pre-register: No organization found');
+            return res.status(500).json({ error: 'Nenhuma organização configurada no sistema' });
+          }
+        } catch (orgErr) {
+          console.error('Pre-register org search error:', orgErr.message);
+          return res.status(500).json({ error: 'Erro ao buscar organização: ' + orgErr.message });
         }
       } else {
         const superadmin = superadminResult.rows[0];
@@ -99,26 +105,32 @@ router.post('/pre-register', async (req, res) => {
       }
     } else {
       // If org is provided, we still need a fallback for created_by
-      const ownerResult = await query(
-        `SELECT user_id FROM organization_members WHERE organization_id = $1 AND role = 'owner' LIMIT 1`,
-        [organizationId]
-      );
-      superadminId = ownerResult.rows[0]?.user_id;
+      try {
+        const ownerResult = await query(
+          `SELECT user_id FROM organization_members WHERE organization_id = $1 AND (role = 'owner' OR role = 'admin') LIMIT 1`,
+          [organizationId]
+        );
+        superadminId = ownerResult.rows[0]?.user_id;
+      } catch (ownerErr) {
+        console.error('Pre-register owner search error:', ownerErr.message);
+      }
     }
 
     // Check if prospect already exists in this organization
     let existingProspect;
     try {
+      // Use a more robust check that doesn't fail if the table is missing or columns are weird
       const checkResult = await query(
         `SELECT id FROM crm_prospects 
-         WHERE organization_id = $1 AND phone = $2`,
+         WHERE organization_id = $1 AND phone = $2 
+         LIMIT 1`,
         [organizationId, normalizedPhone]
       );
       existingProspect = checkResult.rows[0];
     } catch (err) {
-      // If table doesn't exist yet, it's a first run/init issue
-      console.error('Pre-register check error (checking table existence):', err.message);
-      return res.status(500).json({ error: 'Sistema em manutenção. Tente novamente em instantes.' });
+      console.error('Pre-register check error:', err.message);
+      // If table doesn't exist, we might need to handle it or at least log it better
+      return res.status(500).json({ error: 'Erro ao verificar prospect: ' + err.message });
     }
 
     if (existingProspect) {
@@ -172,19 +184,19 @@ router.post('/pre-register', async (req, res) => {
       );
 
       console.log(`Pre-register: Created prospect ${prospectResult.rows[0].id} for ${normalizedPhone}`);
-      res.json({ success: true, message: 'Cadastro recebido com sucesso' });
+      return res.json({ success: true, message: 'Cadastro recebido com sucesso' });
     } catch (insertErr) {
       console.error('Pre-register insert error:', insertErr.message);
       // Check for race condition (unique violation)
       if (insertErr.code === '23505') {
         return res.json({ success: true, message: 'Prospect já cadastrado' });
       }
-      throw insertErr;
+      return res.status(500).json({ error: 'Erro ao criar prospect: ' + insertErr.message });
     }
 
   } catch (error) {
-    console.error('Pre-register error:', error);
-    res.status(500).json({ error: 'Erro ao processar cadastro' });
+    logError('pre_register_failed', error, { body: req.body });
+    res.status(500).json({ error: 'Erro interno ao processar cadastro: ' + error.message });
   }
 });
 
