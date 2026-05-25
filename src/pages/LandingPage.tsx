@@ -474,6 +474,10 @@ export default function LandingPage() {
               <a href="#depoimentos" className="text-sm text-muted-foreground hover:text-foreground transition">
                 Depoimentos
               </a>
+              <Link to="/calculadora-luminotecnica" className="text-sm font-medium text-primary hover:underline transition flex items-center gap-1">
+                <Calculator className="h-4 w-4" />
+                Calculadora ABNT
+              </Link>
             </div>
 
             {/* Center - Logo */}
