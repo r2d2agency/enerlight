@@ -65,22 +65,35 @@ router.post('/pre-register', async (req, res) => {
     const sanitizedName = name.trim().slice(0, 100);
     const sanitizedEmail = email?.trim().toLowerCase().slice(0, 255) || null;
 
-    // Find superadmin user to get the main organization
-    const superadminResult = await query(
-      `SELECT u.id, om.organization_id 
-       FROM users u 
-       JOIN organization_members om ON om.user_id = u.id 
-       WHERE u.is_superadmin = true 
-       LIMIT 1`
-    );
+    // Use provided organization_id or find superadmin user to get the main organization
+    let organizationId = req.body.organization_id;
+    let superadminId = null;
 
-    if (superadminResult.rows.length === 0) {
-      console.error('Pre-register: No superadmin found');
-      return res.status(500).json({ error: 'Erro interno do servidor' });
+    if (!organizationId) {
+      const superadminResult = await query(
+        `SELECT u.id, om.organization_id 
+         FROM users u 
+         JOIN organization_members om ON om.user_id = u.id 
+         WHERE u.is_superadmin = true 
+         LIMIT 1`
+      );
+
+      if (superadminResult.rows.length === 0) {
+        console.error('Pre-register: No superadmin found');
+        return res.status(500).json({ error: 'Erro interno do servidor' });
+      }
+
+      const superadmin = superadminResult.rows[0];
+      organizationId = superadmin.organization_id;
+      superadminId = superadmin.id;
+    } else {
+      // If org is provided, we still need a fallback for created_by
+      const ownerResult = await query(
+        `SELECT user_id FROM organization_members WHERE organization_id = $1 AND role = 'owner' LIMIT 1`,
+        [organizationId]
+      );
+      superadminId = ownerResult.rows[0]?.user_id;
     }
-
-    const superadmin = superadminResult.rows[0];
-    const organizationId = superadmin.organization_id;
 
     // Check if prospect already exists in this organization
     let existingProspect;
@@ -127,7 +140,7 @@ router.post('/pre-register', async (req, res) => {
         name: sanitizedName,
         phone: normalizedPhone,
         source: source || 'Calculadora Luminotécnica',
-        created_by: superadmin.id
+        created_by: superadminId
       };
       
       // Optional columns that might not exist in all versions of the DB

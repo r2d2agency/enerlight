@@ -172,6 +172,7 @@ export default function CalculadoraLuminotecnica() {
           city: formData.city.trim(),
           state: formData.state,
           source: "Calculadora Luminotécnica",
+          organization_id: "721a719c-0974-4b9e-be89-32da574e4443", // Link to Enerlight tenant
         }),
       });
 
@@ -346,7 +347,7 @@ export default function CalculadoraLuminotecnica() {
                   />
                 </div>
                 <Button className="w-full gap-2" size="lg" disabled={isSubmitting}>
-                  {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Calculator className="h-4 w-4" />}
+                  {isSubmitting ? "Enviando..." : <Calculator className="h-4 w-4" />}
                   Liberar Acesso Grátis
                 </Button>
               </form>
