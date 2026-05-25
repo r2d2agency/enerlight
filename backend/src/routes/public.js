@@ -66,54 +66,60 @@ router.post('/pre-register', async (req, res) => {
     const sanitizedName = name.trim().slice(0, 100);
     const sanitizedEmail = email?.trim().toLowerCase().slice(0, 255) || null;
 
-    // Use provided organization_id or find superadmin user to get the main organization
+    // Use provided organization_id or find the best candidate organization
     let organizationId = req.body.organization_id;
     let superadminId = null;
 
-    if (!organizationId) {
-      const superadminResult = await query(
-        `SELECT u.id, om.organization_id 
-         FROM users u 
-         JOIN organization_members om ON om.user_id = u.id 
-         WHERE u.is_superadmin = true 
-         LIMIT 1`
-      );
+    // Logic to resolve organizationId and a default user to attribute the prospect to
+    const resolveOrgAndUser = async (id) => {
+      let orgId = id;
+      let userId = null;
 
-      if (superadminResult.rows.length === 0) {
-        // Fallback to searching for the first organization if no superadmin is found
-        try {
-          const anyOrgResult = await query(`SELECT id FROM organizations LIMIT 1`);
-          if (anyOrgResult.rows.length > 0) {
-            organizationId = anyOrgResult.rows[0].id;
-            const ownerResult = await query(
-              `SELECT user_id FROM organization_members WHERE organization_id = $1 AND role = 'owner' LIMIT 1`,
-              [organizationId]
-            );
-            superadminId = ownerResult.rows[0]?.user_id;
-          } else {
-            console.error('Pre-register: No organization found');
-            return res.status(500).json({ error: 'Nenhuma organização configurada no sistema' });
-          }
-        } catch (orgErr) {
-          console.error('Pre-register org search error:', orgErr.message);
-          return res.status(500).json({ error: 'Erro ao buscar organização: ' + orgErr.message });
+      if (orgId) {
+        // Verify if this specific org exists
+        const orgCheck = await query('SELECT id FROM organizations WHERE id = $1', [orgId]);
+        if (orgCheck.rows.length === 0) {
+          console.warn(`Pre-register: Provided org_id ${orgId} not found, falling back.`);
+          orgId = null;
         }
-      } else {
-        const superadmin = superadminResult.rows[0];
-        organizationId = superadmin.organization_id;
-        superadminId = superadmin.id;
       }
-    } else {
-      // If org is provided, we still need a fallback for created_by
-      try {
-        const ownerResult = await query(
-          `SELECT user_id FROM organization_members WHERE organization_id = $1 AND (role = 'owner' OR role = 'admin') LIMIT 1`,
-          [organizationId]
-        );
-        superadminId = ownerResult.rows[0]?.user_id;
-      } catch (ownerErr) {
-        console.error('Pre-register owner search error:', ownerErr.message);
+
+      if (!orgId) {
+        // Fallback 1: Try to find Enerlight by name
+        const enerlightOrg = await query("SELECT id FROM organizations WHERE name ILIKE '%enerlight%' LIMIT 1");
+        if (enerlightOrg.rows.length > 0) {
+          orgId = enerlightOrg.rows[0].id;
+        } else {
+          // Fallback 2: Any organization
+          const anyOrg = await query("SELECT id FROM organizations ORDER BY created_at ASC LIMIT 1");
+          if (anyOrg.rows.length > 0) {
+            orgId = anyOrg.rows[0].id;
+          }
+        }
       }
+
+      if (!orgId) return { orgId: null, userId: null };
+
+      // Find a user for this org (prefer owner/admin)
+      const userResult = await query(
+        `SELECT user_id FROM organization_members 
+         WHERE organization_id = $1 
+         ORDER BY (CASE WHEN role = 'owner' THEN 1 WHEN role = 'admin' THEN 2 ELSE 3 END) ASC 
+         LIMIT 1`,
+        [orgId]
+      );
+      userId = userResult.rows[0]?.user_id;
+
+      return { orgId, userId };
+    };
+
+    const resolved = await resolveOrgAndUser(organizationId);
+    organizationId = resolved.orgId;
+    superadminId = resolved.userId;
+
+    if (!organizationId) {
+      console.error('Pre-register: No organization found in the system');
+      return res.status(500).json({ error: 'Nenhuma organização configurada no sistema' });
     }
 
     // Check if prospect already exists in this organization

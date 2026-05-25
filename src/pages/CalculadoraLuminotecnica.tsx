@@ -172,7 +172,7 @@ export default function CalculadoraLuminotecnica() {
           city: formData.city.trim(),
           state: formData.state,
           source: "Calculadora Luminotécnica",
-          organization_id: "721a719c-0974-4b9e-be89-32da574e4443", // Link to Enerlight tenant
+          organization_id: "721a719c-0974-4b9e-be89-32da574e4443", // Enerlight org ID (backend will fallback if this specific ID doesn't exist)
         }),
       });
 
