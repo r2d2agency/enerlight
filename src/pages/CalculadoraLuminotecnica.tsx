@@ -726,12 +726,13 @@ export default function CalculadoraLuminotecnica() {
                       </Button>
                       <Button 
                         className="w-full gap-2"
-                        onClick={() => toast.success("Um especialista entrará em contato com você em breve pelo WhatsApp informado!")}
+                        onClick={() => window.open(`https://wa.me/55?text=Olá, acabei de realizar uma simulação luminotécnica no site da Enerlight e gostaria de um orçamento para ${results.fixtureCount} luminárias.`)}
                       >
-                        Solicitar Orçamento de Luminárias
+                        Falar com Especialista
                         <ArrowRight className="h-4 w-4" />
                       </Button>
                     </div>
+
                   </div>
                 </div>
               </CardContent>
