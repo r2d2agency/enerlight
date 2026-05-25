@@ -1,21 +1,21 @@
-Para que os cadastros da calculadora apareçam no módulo de Prospects do CRM, precisamos ajustar o endpoint de cadastro no backend para que ele crie um registro na tabela `crm_prospects` da organização, em vez de criar uma negociação (deal) para o superadmin. Além disso, vamos implementar o salvamento automático do histórico de simulações realizadas por cada prospect.
+The user wants to add a "thinking" animation (simulated calculation delay) when generating the report, and then automatically save the report to the system before showing the print option.
 
-### Alterações no Backend:
-- **`backend/src/routes/public.js`**:
-    - Ajustar a rota `/pre-register` para:
-        1. Identificar o usuário superadmin e sua organização (como já faz).
-        2. Inserir o novo lead diretamente na tabela `crm_prospects` da organização.
-        3. Adicionar campos como `company`, `city` e `state` que o usuário agora preenche.
-    - Criar uma nova rota pública `/save-project` para salvar o histórico de cálculos luminotécnicos:
-        - Receberá os dados do cálculo e o email/telefone do prospect.
-        - Salvará o projeto vinculado ao prospect (provavelmente em um campo JSONB de histórico ou uma nova tabela de projetos).
+Steps:
+1.  **Add `isGenerating` State**: Introduce a state to track when the calculation is "in progress" (simulated).
+2.  **Add `reportGenerated` State**: Introduce a state to track if the report has already been saved to the system.
+3.  **Implement `handleGenerateReport` Function**:
+    *   This function will set `isGenerating(true)`.
+    *   It will wait for 4 seconds (as requested).
+    *   It will call the existing save logic (moved from `handlePrint` or improved).
+    *   It will set `isGenerating(false)` and `setReportGenerated(true)`.
+4.  **Update UI**:
+    *   If `!reportGenerated` and `!isGenerating`, show a "Gerar Relatório" button.
+    *   If `isGenerating`, show a loading animation with a message like "Processando seu relatório comercial...".
+    *   If `reportGenerated`, show the success message "Cálculo Concluído com Sucesso!" and the "Imprimir" button.
+5.  **Refactor `handlePrint`**: Remove the auto-save logic from `handlePrint` since it will be handled during generation.
 
-### Alterações no Frontend:
-- **`src/pages/CalculadoraLuminotecnica.tsx`**:
-    - Após cada cálculo bem-sucedido (quando o usuário clica para ver o resultado ou imprimir), enviar os dados para o novo endpoint de histórico.
-    - Garantir que o formulário de cadastro capture corretamente `empresa`, `cidade` e `estado`.
-- **`src/pages/CRMLuminotecnicoProspects.tsx`**:
-    - Adicionar uma aba ou botão para visualizar o "Histórico de Projetos" de cada prospect.
-
-### Melhorias no CRM:
-- Exibir a lista de projetos gerados diretamente no detalhe do prospect ou em uma coluna dedicada.
+Technical details:
+*   File: `src/pages/CalculadoraLuminotecnica.tsx`
+*   State variables: `[isGenerating, setIsGenerating]`, `[reportGenerated, setReportGenerated]`.
+*   Timeout: `setTimeout` for 4000ms.
+*   Animation: Use a spinner or a progress bar.

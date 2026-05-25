@@ -107,6 +107,8 @@ export default function CalculadoraLuminotecnica() {
   const { branding } = useBranding();
   const [isRegistered, setIsRegistered] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [reportGenerated, setReportGenerated] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
