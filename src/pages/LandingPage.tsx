@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useBranding } from "@/hooks/use-branding";
 import { API_URL } from "@/lib/api";
 import { toast } from "sonner";
@@ -59,6 +60,36 @@ import {
 import { cn } from "@/lib/utils";
 import heroImage from "@/assets/system-preview-crm-kanban.png";
 import gleegoLogo from "@/assets/gleego-logo.png";
+
+const BRAZILIAN_STATES = [
+  { value: "AC", label: "Acre" },
+  { value: "AL", label: "Alagoas" },
+  { value: "AP", label: "Amapá" },
+  { value: "AM", label: "Amazonas" },
+  { value: "BA", label: "Bahia" },
+  { value: "CE", label: "Ceará" },
+  { value: "DF", label: "Distrito Federal" },
+  { value: "ES", label: "Espírito Santo" },
+  { value: "GO", label: "Goiás" },
+  { value: "MA", label: "Maranhão" },
+  { value: "MT", label: "Mato Grosso" },
+  { value: "MS", label: "Mato Grosso do Sul" },
+  { value: "MG", label: "Minas Gerais" },
+  { value: "PA", label: "Pará" },
+  { value: "PB", label: "Paraíba" },
+  { value: "PR", label: "Paraná" },
+  { value: "PE", label: "Pernambuco" },
+  { value: "PI", label: "Piauí" },
+  { value: "RJ", label: "Rio de Janeiro" },
+  { value: "RN", label: "Rio Grande do Norte" },
+  { value: "RS", label: "Rio Grande do Sul" },
+  { value: "RO", label: "Rondônia" },
+  { value: "RR", label: "Roraima" },
+  { value: "SC", label: "Santa Catarina" },
+  { value: "SP", label: "São Paulo" },
+  { value: "SE", label: "Sergipe" },
+  { value: "TO", label: "Tocantins" },
+];
 
 const featureCategories = [
   {
@@ -407,13 +438,16 @@ export default function LandingPage() {
     name: "",
     email: "",
     whatsapp: "",
+    company: "",
+    city: "",
+    state: "",
   });
 
   const handlePreRegister = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.name.trim() || !formData.email.trim() || !formData.whatsapp.trim()) {
-      toast.error("Por favor, preencha todos os campos");
+    if (!formData.name.trim() || !formData.email.trim() || !formData.whatsapp.trim() || !formData.city.trim() || !formData.state) {
+      toast.error("Por favor, preencha todos os campos obrigatórios");
       return;
     }
 
@@ -438,6 +472,10 @@ export default function LandingPage() {
           name: formData.name.trim(),
           email: formData.email.trim(),
           whatsapp: phone,
+          company: formData.company.trim(),
+          city: formData.city.trim(),
+          state: formData.state,
+          source: "Landing Page",
         }),
       });
 
@@ -448,7 +486,7 @@ export default function LandingPage() {
 
       toast.success("Cadastro recebido! Entraremos em contato em breve.");
       setShowPreRegister(false);
-      setFormData({ name: "", email: "", whatsapp: "" });
+      setFormData({ name: "", email: "", whatsapp: "", company: "", city: "", state: "" });
     } catch (error: any) {
       toast.error(error.message || "Erro ao enviar cadastro");
     } finally {
@@ -1136,6 +1174,43 @@ export default function LandingPage() {
                 onChange={(e) => setFormData(prev => ({ ...prev, whatsapp: e.target.value }))}
                 required
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="company">Empresa</Label>
+              <Input
+                id="company"
+                placeholder="Nome do seu escritório/empresa"
+                value={formData.company}
+                onChange={(e) => setFormData(prev => ({ ...prev, company: e.target.value }))}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="city">Cidade</Label>
+                <Input
+                  id="city"
+                  placeholder="Sua cidade"
+                  value={formData.city}
+                  onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="state">UF</Label>
+                <Select 
+                  value={formData.state} 
+                  onValueChange={(v) => setFormData(prev => ({ ...prev, state: v }))}
+                >
+                  <SelectTrigger id="state">
+                    <SelectValue placeholder="UF" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {BRAZILIAN_STATES.map(s => (
+                      <SelectItem key={s.value} value={s.value}>{s.value}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <DialogFooter className="pt-2">
               <Button type="submit" className="w-full gap-2" disabled={isSubmitting}>

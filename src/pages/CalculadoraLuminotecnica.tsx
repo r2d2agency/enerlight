@@ -58,8 +58,38 @@ const ABNT_STANDARDS = [
   { id: "kitchen", name: "Cozinha/Refeitório", lux: 300 },
   { id: "living", name: "Área de Estar/Lounge", lux: 150 },
   { id: "parking", name: "Estacionamentos", lux: 75 },
-
 ];
+
+const BRAZILIAN_STATES = [
+  { value: "AC", label: "Acre" },
+  { value: "AL", label: "Alagoas" },
+  { value: "AP", label: "Amapá" },
+  { value: "AM", label: "Amazonas" },
+  { value: "BA", label: "Bahia" },
+  { value: "CE", label: "Ceará" },
+  { value: "DF", label: "Distrito Federal" },
+  { value: "ES", label: "Espírito Santo" },
+  { value: "GO", label: "Goiás" },
+  { value: "MA", label: "Maranhão" },
+  { value: "MT", label: "Mato Grosso" },
+  { value: "MS", label: "Mato Grosso do Sul" },
+  { value: "MG", label: "Minas Gerais" },
+  { value: "PA", label: "Pará" },
+  { value: "PB", label: "Paraíba" },
+  { value: "PR", label: "Paraná" },
+  { value: "PE", label: "Pernambuco" },
+  { value: "PI", label: "Piauí" },
+  { value: "RJ", label: "Rio de Janeiro" },
+  { value: "RN", label: "Rio Grande do Norte" },
+  { value: "RS", label: "Rio Grande do Sul" },
+  { value: "RO", label: "Rondônia" },
+  { value: "RR", label: "Roraima" },
+  { value: "SC", label: "Santa Catarina" },
+  { value: "SP", label: "São Paulo" },
+  { value: "SE", label: "Sergipe" },
+  { value: "TO", label: "Tocantins" },
+];
+
 
 const MAINTENANCE_FACTORS = [
   { id: "clean", name: "Limpo (0.80)", value: 0.8 },
@@ -81,6 +111,9 @@ export default function CalculadoraLuminotecnica() {
     name: "",
     email: "",
     whatsapp: "",
+    company: "",
+    city: "",
+    state: "",
   });
 
   // Calculator State
@@ -109,8 +142,8 @@ export default function CalculadoraLuminotecnica() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.name.trim() || !formData.email.trim() || !formData.whatsapp.trim()) {
-      toast.error("Por favor, preencha todos os campos");
+    if (!formData.name.trim() || !formData.email.trim() || !formData.whatsapp.trim() || !formData.city.trim() || !formData.state) {
+      toast.error("Por favor, preencha todos os campos obrigatórios");
       return;
     }
 
@@ -135,6 +168,9 @@ export default function CalculadoraLuminotecnica() {
           name: formData.name.trim(),
           email: formData.email.trim(),
           whatsapp: phone,
+          company: formData.company.trim(),
+          city: formData.city.trim(),
+          state: formData.state,
           source: "Calculadora Luminotécnica",
         }),
       });
@@ -208,7 +244,44 @@ export default function CalculadoraLuminotecnica() {
                 Simule seus projetos de acordo com as normas ABNT de forma rápida e precisa.
               </p>
             </div>
-          </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="company">Empresa</Label>
+                  <Input 
+                    id="company" 
+                    placeholder="Nome da sua empresa" 
+                    value={formData.company}
+                    onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="city">Cidade</Label>
+                    <Input 
+                      id="city" 
+                      placeholder="Sua cidade" 
+                      value={formData.city}
+                      onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="state">UF</Label>
+                    <Select 
+                      value={formData.state} 
+                      onValueChange={(v) => setFormData({ ...formData, state: v })}
+                    >
+                      <SelectTrigger id="state">
+                        <SelectValue placeholder="UF" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {BRAZILIAN_STATES.map(s => (
+                          <SelectItem key={s.value} value={s.value}>{s.value}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
 
           <Card className="border-2 border-primary/20 shadow-xl">
             <CardHeader>
