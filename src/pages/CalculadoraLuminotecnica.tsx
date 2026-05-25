@@ -68,6 +68,15 @@ export default function CalculadoraLuminotecnica() {
   });
 
   // Calculator State
+  const [isWizardMode, setIsWizardMode] = useState(true);
+  const [wizardStep, setWizardStep] = useState(1);
+  const [wizardData, setWizardData] = useState({
+    environmentId: "office",
+    reflectanceId: "standard",
+    maintenanceFactor: 0.8,
+  });
+
+  // Calculator State
   const [calcData, setCalcData] = useState({
     length: 5,
     width: 4,
@@ -79,6 +88,7 @@ export default function CalculadoraLuminotecnica() {
     fixtureWattage: 18,
     reflectanceId: "standard",
   });
+
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
