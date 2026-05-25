@@ -775,11 +775,116 @@ export default function CalculadoraLuminotecnica() {
         </div>
       </main>
 
+      {/* Printable Report Section */}
+      <div className="hidden print:block p-8 bg-white text-black min-h-screen">
+        <div className="flex justify-between items-start border-b-2 border-primary pb-6 mb-8">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <LightbulbIcon className="h-8 w-8 text-primary" />
+              <h1 className="text-3xl font-bold tracking-tighter text-primary">ENERLIGHT</h1>
+            </div>
+            <p className="text-sm text-gray-500 uppercase tracking-widest">Relatório Técnico Luminotécnico</p>
+          </div>
+          <div className="text-right text-sm">
+            <p className="font-bold">{branding.company_name || "Enerlight Iluminação"}</p>
+            <p>Data: {new Date().toLocaleDateString('pt-BR')}</p>
+            <p>Norma: ABNT NBR ISO/CIE 8995-1</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-8 mb-8">
+          <div className="space-y-4">
+            <h2 className="text-xl font-bold border-b pb-2">Dados do Ambiente</h2>
+            <dl className="grid grid-cols-2 gap-y-2 text-sm">
+              <dt className="text-gray-600">Tipo:</dt>
+              <dd className="font-bold">{ABNT_STANDARDS.find(s => s.id === calcData.environmentId)?.name}</dd>
+              <dt className="text-gray-600">Dimensões:</dt>
+              <dd>{calcData.length}m x {calcData.width}m</dd>
+              <dt className="text-gray-600">Área Total:</dt>
+              <dd>{results.area} m²</dd>
+              <dt className="text-gray-600">Pé Direito:</dt>
+              <dd>{calcData.height}m</dd>
+            </dl>
+          </div>
+          <div className="space-y-4">
+            <h2 className="text-xl font-bold border-b pb-2">Especificação Técnica</h2>
+            <dl className="grid grid-cols-2 gap-y-2 text-sm">
+              <dt className="text-gray-600">Luminária:</dt>
+              <dd>LED Profissional</dd>
+              <dt className="text-gray-600">Fluxo Unitário:</dt>
+              <dd>{calcData.fixtureLumens} lm</dd>
+              <dt className="text-gray-600">Potência Unitária:</dt>
+              <dd>{calcData.fixtureWattage} W</dd>
+              <dt className="text-gray-600">Eficiência:</dt>
+              <dd>{Math.round(calcData.fixtureLumens / calcData.fixtureWattage)} lm/W</dd>
+            </dl>
+          </div>
+        </div>
+
+        <div className="bg-primary/5 p-8 rounded-2xl border-2 border-primary/20 mb-10">
+          <h2 className="text-2xl font-bold text-primary mb-6 text-center">Resultado da Simulação</h2>
+          <div className="grid grid-cols-3 gap-4 text-center">
+            <div className="p-4 bg-white rounded-xl shadow-sm border">
+              <p className="text-xs text-gray-500 uppercase mb-1">Quantidade de Pontos</p>
+              <p className="text-4xl font-black text-primary">{results.fixtureCount}</p>
+            </div>
+            <div className="p-4 bg-white rounded-xl shadow-sm border">
+              <p className="text-xs text-gray-500 uppercase mb-1">Iluminância (Lux)</p>
+              <p className="text-4xl font-black text-primary">{results.requiredLux}</p>
+            </div>
+            <div className="p-4 bg-white rounded-xl shadow-sm border">
+              <p className="text-xs text-gray-500 uppercase mb-1">Potência Total</p>
+              <p className="text-4xl font-black text-primary">{results.totalPower}W</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          <h2 className="text-xl font-bold border-b pb-2">Entendendo os Resultados</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+            <div className="space-y-2">
+              <p className="font-bold">O que é LUX?</p>
+              <p className="text-gray-600">
+                É a unidade de medida da iluminância, ou seja, a quantidade de luz que chega em uma superfície (plano de trabalho). 
+                A norma ABNT define o mínimo necessário para cada tipo de atividade para garantir saúde e produtividade.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <p className="font-bold">O que é Lúmen (lm)?</p>
+              <p className="text-gray-600">
+                É a quantidade total de luz emitida por uma fonte. Quanto maior o lúmen, mais luz a luminária emite. 
+                Não confunda com Watt (potência), que é apenas o consumo de energia.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <p className="font-bold">Fator de Manutenção</p>
+              <p className="text-gray-600">
+                Consideramos que ao longo do tempo as luminárias perdem eficiência e acumulam poeira. 
+                Nosso cálculo já prevê essa perda para garantir que o ambiente continue iluminado no futuro.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <p className="font-bold">Densidade de Potência ({results.powerDensity} W/m²)</p>
+              <p className="text-gray-600">
+                Indica o consumo de energia por metro quadrado. Sistemas modernos com LED da Enerlight 
+                buscam a maior iluminação com o menor consumo possível.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-20 pt-10 border-t text-center text-xs text-gray-400">
+          <p>Este relatório é uma simulação preliminar baseada no método dos lúmens.</p>
+          <p>Para projetos executivos e validação oficial, consulte um especialista Enerlight.</p>
+        </div>
+      </div>
+
       <footer className="mt-12 py-8 border-t bg-background print:hidden">
         <div className="max-w-7xl mx-auto px-4 text-center text-sm text-muted-foreground">
-          <p>© 2026 {branding.company_name || "Enerlight"} - Simulador baseado na NBR ISO/CIE 8995-1.</p>
+          <p>© {new Date().getFullYear()} {branding.company_name || "Enerlight"} - Excelência em Iluminação Profissional.</p>
         </div>
       </footer>
+
     </div>
   );
 }
