@@ -83,13 +83,21 @@ router.post('/pre-register', async (req, res) => {
     const organizationId = superadmin.organization_id;
 
     // Check if prospect already exists in this organization
-    const existingProspect = await query(
-      `SELECT id FROM crm_prospects 
-       WHERE organization_id = $1 AND phone = $2`,
-      [organizationId, normalizedPhone]
-    );
+    let existingProspect;
+    try {
+      const checkResult = await query(
+        `SELECT id FROM crm_prospects 
+         WHERE organization_id = $1 AND phone = $2`,
+        [organizationId, normalizedPhone]
+      );
+      existingProspect = checkResult.rows[0];
+    } catch (err) {
+      // If table doesn't exist yet, it's a first run/init issue
+      console.error('Pre-register check error (checking table existence):', err.message);
+      return res.status(500).json({ error: 'Sistema em manutenção. Tente novamente em instantes.' });
+    }
 
-    if (existingProspect.rows.length > 0) {
+    if (existingProspect) {
       // Update existing prospect
       await query(
         `UPDATE crm_prospects SET 
@@ -100,7 +108,7 @@ router.post('/pre-register', async (req, res) => {
            state = COALESCE($7, state),
            updated_at = NOW()
          WHERE id = $1 AND organization_id = $2`,
-        [existingProspect.rows[0].id, organizationId, sanitizedName, sanitizedEmail, company?.trim(), city?.trim(), state?.trim()]
+        [existingProspect.id, organizationId, sanitizedName, sanitizedEmail, company?.trim(), city?.trim(), state?.trim()]
       );
       
       return res.json({ success: true, message: 'Prospect atualizado' });
