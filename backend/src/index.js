@@ -190,6 +190,7 @@ app.use('/api/contacts', contactsRoutes);
 app.use('/api/campaigns', campaignsRoutes);
 app.use('/api/organizations', organizationsRoutes);
 app.use('/api/asaas', asaasRoutes);
+app.use('/api/admin', publicRoutes); // Public endpoints also available under /api/admin
 app.use('/api/admin', adminRoutes);
 // Mount public routes for branding and pre-registration
 app.use('/api/public', publicRoutes);
