@@ -191,8 +191,8 @@ app.use('/api/campaigns', campaignsRoutes);
 app.use('/api/organizations', organizationsRoutes);
 app.use('/api/asaas', asaasRoutes);
 app.use('/api/admin', adminRoutes);
-// Mount admin routes also at /api/public for public endpoints (pre-register, branding)
-app.use('/api/public', adminRoutes);
+// Mount public routes for branding and pre-registration
+app.use('/api/public', publicRoutes);
 app.use('/api/uploads', uploadsRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/evolution', evolutionRoutes);
