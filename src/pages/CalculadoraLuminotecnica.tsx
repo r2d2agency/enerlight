@@ -781,9 +781,16 @@ export default function CalculadoraLuminotecnica() {
         <div className="flex justify-between items-start border-b-2 border-primary pb-6 mb-8">
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <LightbulbIcon className="h-8 w-8 text-primary" />
-              <h1 className="text-3xl font-bold tracking-tighter text-primary">ENERLIGHT</h1>
+              {branding.logo_topbar ? (
+                <img src={branding.logo_topbar} alt="Enerlight" className="h-10 w-auto" />
+              ) : (
+                <>
+                  <LightbulbIcon className="h-8 w-8 text-primary" />
+                  <h1 className="text-3xl font-bold tracking-tighter text-primary">ENERLIGHT</h1>
+                </>
+              )}
             </div>
+
             <p className="text-sm text-gray-500 uppercase tracking-widest">Relatório Técnico Luminotécnico</p>
           </div>
           <div className="text-right text-sm">
