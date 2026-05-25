@@ -267,44 +267,7 @@ export default function CalculadoraLuminotecnica() {
                 Simule seus projetos de acordo com as normas ABNT de forma rápida e precisa.
               </p>
             </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="company">Empresa</Label>
-                  <Input 
-                    id="company" 
-                    placeholder="Nome da sua empresa" 
-                    value={formData.company}
-                    onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="city">Cidade</Label>
-                    <Input 
-                      id="city" 
-                      placeholder="Sua cidade" 
-                      value={formData.city}
-                      onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="state">UF</Label>
-                    <Select 
-                      value={formData.state} 
-                      onValueChange={(v) => setFormData({ ...formData, state: v })}
-                    >
-                      <SelectTrigger id="state">
-                        <SelectValue placeholder="UF" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {BRAZILIAN_STATES.map(s => (
-                          <SelectItem key={s.value} value={s.value}>{s.value}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
+          </div>
 
           <Card className="border-2 border-primary/20 shadow-xl">
             <CardHeader>
@@ -346,7 +309,44 @@ export default function CalculadoraLuminotecnica() {
                     required
                   />
                 </div>
-                <Button className="w-full gap-2" size="lg" disabled={isSubmitting}>
+                <div className="space-y-2">
+                  <Label htmlFor="company">Empresa</Label>
+                  <Input 
+                    id="company" 
+                    placeholder="Nome da sua empresa" 
+                    value={formData.company}
+                    onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="city">Cidade</Label>
+                    <Input 
+                      id="city" 
+                      placeholder="Sua cidade" 
+                      value={formData.city}
+                      onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="state">UF</Label>
+                    <Select 
+                      value={formData.state} 
+                      onValueChange={(v) => setFormData({ ...formData, state: v })}
+                    >
+                      <SelectTrigger id="state">
+                        <SelectValue placeholder="UF" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {BRAZILIAN_STATES.map(s => (
+                          <SelectItem key={s.value} value={s.value}>{s.value}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <Button className="w-full gap-2" size="lg" disabled={isSubmitting} type="submit">
                   {isSubmitting ? "Enviando..." : <Calculator className="h-4 w-4" />}
                   Liberar Acesso Grátis
                 </Button>
