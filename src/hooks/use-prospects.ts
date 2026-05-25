@@ -8,6 +8,7 @@ export interface Prospect {
   phone: string;
   email?: string;
   source?: string;
+  company?: string;
   city?: string;
   state?: string;
   address?: string;
