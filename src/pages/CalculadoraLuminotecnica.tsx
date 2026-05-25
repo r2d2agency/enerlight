@@ -229,8 +229,13 @@ export default function CalculadoraLuminotecnica() {
     };
   }, [calcData]);
 
-  const handlePrint = async () => {
-    // Save project to history before printing
+  const handleGenerateReport = async () => {
+    setIsGenerating(true);
+    
+    // Simulating "thinking" for 4 seconds as requested
+    await new Promise(resolve => setTimeout(resolve, 4000));
+
+    // Save project to history
     if (formData.whatsapp) {
       try {
         await fetch(`${API_URL}/api/public/save-project`, {
@@ -252,6 +257,13 @@ export default function CalculadoraLuminotecnica() {
         console.error("Erro ao salvar histórico do projeto", err);
       }
     }
+
+    setIsGenerating(false);
+    setReportGenerated(true);
+    toast.success("Relatório gerado e salvo com sucesso!");
+  };
+
+  const handlePrint = () => {
     window.print();
   };
 
