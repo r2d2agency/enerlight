@@ -15,6 +15,7 @@ import campaignsRoutes from './routes/campaigns.js';
 import organizationsRoutes from './routes/organizations.js';
 import asaasRoutes from './routes/asaas.js';
 import adminRoutes from './routes/admin.js';
+import publicRoutes from './routes/public.js';
 import uploadsRoutes from './routes/uploads.js';
 import notificationsRoutes from './routes/notifications.js';
 import evolutionRoutes from './routes/evolution.js';
@@ -189,9 +190,10 @@ app.use('/api/contacts', contactsRoutes);
 app.use('/api/campaigns', campaignsRoutes);
 app.use('/api/organizations', organizationsRoutes);
 app.use('/api/asaas', asaasRoutes);
+app.use('/api/admin', publicRoutes); // Public endpoints also available under /api/admin
 app.use('/api/admin', adminRoutes);
-// Mount admin routes also at /api/public for public endpoints (pre-register, branding)
-app.use('/api/public', adminRoutes);
+// Mount public routes for branding and pre-registration
+app.use('/api/public', publicRoutes);
 app.use('/api/uploads', uploadsRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/evolution', evolutionRoutes);
