@@ -278,17 +278,17 @@ export default function CalculadoraLuminotecnica() {
             <div className="bg-primary/10 p-2 rounded-lg">
               <Lightbulb className="h-6 w-6 text-primary" />
             </div>
-            <span className="font-bold text-xl hidden sm:inline-block">Simulador de Iluminação</span>
+            <span className="font-bold text-xl hidden sm:inline-block">Calculadora Enerlight</span>
           </div>
           <div className="flex items-center gap-4">
-            <span className="text-sm text-muted-foreground hidden md:block">Olá, {formData.name.split(' ')[0]}</span>
             <Button variant="outline" size="sm" onClick={handlePrint} className="gap-2">
               <Printer className="h-4 w-4" />
-              Imprimir/PDF
+              Imprimir Relatório
             </Button>
           </div>
         </div>
       </header>
+
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
