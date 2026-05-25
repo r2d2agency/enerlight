@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { ScrollReveal } from "@/hooks/use-scroll-animation";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -24,11 +24,17 @@ import {
   Target,
   ShieldCheck,
   ChevronRight,
+  ChevronLeft,
   Download,
-  Printer
+  Printer,
+  Sparkles,
+  Home,
+  Briefcase,
+  Monitor,
+  LightbulbIcon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import gleegoLogo from "@/assets/gleego-logo.png";
+
 
 // ABNT NBR ISO/CIE 8995-1 simplified data
 const ABNT_STANDARDS = [
