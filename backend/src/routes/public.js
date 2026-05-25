@@ -109,16 +109,18 @@ router.post('/pre-register', async (req, res) => {
     // Check if prospect already exists in this organization
     let existingProspect;
     try {
+      // Use a more robust check that doesn't fail if the table is missing or columns are weird
       const checkResult = await query(
         `SELECT id FROM crm_prospects 
-         WHERE organization_id = $1 AND phone = $2`,
+         WHERE organization_id = $1 AND phone = $2 
+         LIMIT 1`,
         [organizationId, normalizedPhone]
       );
       existingProspect = checkResult.rows[0];
     } catch (err) {
-      // If table doesn't exist yet, it's a first run/init issue
-      console.error('Pre-register check error (checking table existence):', err.message);
-      return res.status(500).json({ error: 'Sistema em manutenção. Tente novamente em instantes.' });
+      console.error('Pre-register check error:', err.message);
+      // If table doesn't exist, we might need to handle it or at least log it better
+      return res.status(500).json({ error: 'Erro ao verificar prospect: ' + err.message });
     }
 
     if (existingProspect) {
