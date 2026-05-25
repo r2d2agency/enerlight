@@ -772,19 +772,6 @@ export default function CalculadoraLuminotecnica() {
               </CardContent>
             </Card>
 
-            {/* Footer / Contact for Architects */}
-            <div className="bg-primary/5 rounded-xl p-8 border border-primary/10 flex flex-col md:flex-row items-center gap-6 print:hidden">
-              <div className="flex-1 space-y-2">
-                <h3 className="text-xl font-bold">Você é arquiteto ou engenheiro?</h3>
-                <p className="text-muted-foreground">
-                  Temos condições especiais e suporte técnico dedicado para seus projetos luminotécnicos. 
-                  Entre em contato com nosso departamento de projetos.
-                </p>
-              </div>
-              <Button size="lg" className="shrink-0">
-                Falar com Especialista
-              </Button>
-            </div>
           </div>
         </div>
       </main>
