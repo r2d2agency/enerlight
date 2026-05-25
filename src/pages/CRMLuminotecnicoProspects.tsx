@@ -458,13 +458,13 @@ export default function CRMLuminotecnicoProspects() {
             <DialogTitle>Histórico de Projetos: {selectedProspect?.name}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            {!selectedProspect?.custom_fields?.lighting_projects || (selectedProspect.custom_fields.lighting_projects as any[]).length === 0 ? (
+            {!selectedProspect?.custom_fields?.lighting_projects || (selectedProspect.custom_fields.lighting_projects as unknown as any[]).length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <FileText className="h-12 w-12 mx-auto mb-2 opacity-20" />
                 <p>Nenhum projeto salvo para este prospect.</p>
               </div>
             ) : (
-              (selectedProspect.custom_fields.lighting_projects as any[]).map((project, idx) => (
+              (selectedProspect.custom_fields.lighting_projects as unknown as any[]).map((project, idx) => (
                 <div key={idx} className="p-4 border rounded-lg bg-muted/30">
                   <div className="flex justify-between items-start mb-2">
                     <h4 className="font-bold text-primary">{project.environment}</h4>
