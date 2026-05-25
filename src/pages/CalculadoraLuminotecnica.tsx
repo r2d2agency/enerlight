@@ -508,9 +508,9 @@ export default function CalculadoraLuminotecnica() {
                       </Button>
                       <Button 
                         className="w-full gap-2"
-                        onClick={() => window.open(`https://wa.me/55${formData.whatsapp.replace(/\D/g, '')}?text=Olá! Fiz uma simulação na calculadora luminotécnica e gostaria de um orçamento para ${results.fixtureCount} luminárias.`, '_blank')}
+                        onClick={() => toast.success("Um especialista entrará em contato com você em breve pelo WhatsApp informado!")}
                       >
-                        Solicitar Orçamento
+                        Solicitar Orçamento de Luminárias
                         <ArrowRight className="h-4 w-4" />
                       </Button>
                     </div>
