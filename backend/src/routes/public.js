@@ -115,26 +115,35 @@ router.post('/pre-register', async (req, res) => {
     }
 
     // Create the prospect
-    const prospectResult = await query(
-      `INSERT INTO crm_prospects (
-         organization_id, name, phone, email, company, city, state, source, created_by
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-       RETURNING id`,
-      [
-        organizationId,
-        sanitizedName,
-        normalizedPhone,
-        sanitizedEmail,
-        company?.trim() || null,
-        city?.trim() || null,
-        state?.trim() || null,
-        source || 'Calculadora Luminotécnica',
-        superadmin.id
-      ]
-    );
+    try {
+      const prospectResult = await query(
+        `INSERT INTO crm_prospects (
+           organization_id, name, phone, email, company, city, state, source, created_by
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         RETURNING id`,
+        [
+          organizationId,
+          sanitizedName,
+          normalizedPhone,
+          sanitizedEmail,
+          company?.trim() || null,
+          city?.trim() || null,
+          state?.trim() || null,
+          source || 'Calculadora Luminotécnica',
+          superadmin.id
+        ]
+      );
 
-    console.log(`Pre-register: Created prospect ${prospectResult.rows[0].id} for ${normalizedPhone}`);
-    res.json({ success: true, message: 'Cadastro recebido com sucesso' });
+      console.log(`Pre-register: Created prospect ${prospectResult.rows[0].id} for ${normalizedPhone}`);
+      res.json({ success: true, message: 'Cadastro recebido com sucesso' });
+    } catch (insertErr) {
+      console.error('Pre-register insert error:', insertErr.message);
+      // Check for race condition (unique violation)
+      if (insertErr.code === '23505') {
+        return res.json({ success: true, message: 'Prospect já cadastrado' });
+      }
+      throw insertErr;
+    }
 
   } catch (error) {
     console.error('Pre-register error:', error);
