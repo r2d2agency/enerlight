@@ -14,7 +14,8 @@ const router = Router();
 })();
 
 
-router.use(authenticate);
+// These routes are authenticated
+// router.use(authenticate); // Moved authentication check to specific routes or after public ones
 
 // Middleware to check superadmin
 const requireSuperadmin = async (req, res, next) => {
@@ -36,7 +37,7 @@ const requireSuperadmin = async (req, res, next) => {
 };
 
 // Check if current user is superadmin
-router.get('/check', async (req, res) => {
+router.get('/check', authenticate, async (req, res) => {
   try {
     console.log('Checking superadmin for userId:', req.userId);
     const result = await query(
@@ -57,7 +58,7 @@ router.get('/check', async (req, res) => {
 // ============================================
 
 // List all plans
-router.get('/plans', requireSuperadmin, async (req, res) => {
+router.get('/plans', authenticate, requireSuperadmin, async (req, res) => {
   try {
     const result = await query(
       `SELECT p.*, 
@@ -73,7 +74,7 @@ router.get('/plans', requireSuperadmin, async (req, res) => {
 });
 
 // Create plan
-router.post('/plans', requireSuperadmin, async (req, res) => {
+router.post('/plans', authenticate, requireSuperadmin, async (req, res) => {
   try {
     const { name } = req.body;
     if (!name) {
@@ -150,7 +151,7 @@ router.post('/plans', requireSuperadmin, async (req, res) => {
 });
 
 // Update plan
-router.patch('/plans/:id', requireSuperadmin, async (req, res) => {
+router.patch('/plans/:id', authenticate, requireSuperadmin, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -209,7 +210,7 @@ router.patch('/plans/:id', requireSuperadmin, async (req, res) => {
 });
 
 // Sync all organizations' modules with their plans
-router.post('/plans/sync-all', requireSuperadmin, async (req, res) => {
+router.post('/plans/sync-all', authenticate, requireSuperadmin, async (req, res) => {
   try {
     // Get all plans with their modules
     const plansResult = await query(`SELECT * FROM plans`);
@@ -270,7 +271,7 @@ router.post('/plans/sync-all', requireSuperadmin, async (req, res) => {
 });
 
 // Delete plan
-router.delete('/plans/:id', requireSuperadmin, async (req, res) => {
+router.delete('/plans/:id', authenticate, requireSuperadmin, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -298,7 +299,7 @@ router.delete('/plans/:id', requireSuperadmin, async (req, res) => {
 // ============================================
 
 // List all users with orphan status (superadmin only)
-router.get('/users', requireSuperadmin, async (req, res) => {
+router.get('/users', authenticate, requireSuperadmin, async (req, res) => {
   try {
     const { search, orphans_only } = req.query;
     
@@ -340,7 +341,7 @@ router.get('/users', requireSuperadmin, async (req, res) => {
 });
 
 // Search user by exact email (superadmin only)
-router.get('/users/search-email', requireSuperadmin, async (req, res) => {
+router.get('/users/search-email', authenticate, requireSuperadmin, async (req, res) => {
   try {
     const { email } = req.query;
     
@@ -374,7 +375,7 @@ router.get('/users/search-email', requireSuperadmin, async (req, res) => {
 });
 
 // Delete user by email (superadmin only - for orphan cleanup)
-router.delete('/users/by-email/:email', requireSuperadmin, async (req, res) => {
+router.delete('/users/by-email/:email', authenticate, requireSuperadmin, async (req, res) => {
   try {
     const { email } = req.params;
     
@@ -412,7 +413,7 @@ router.delete('/users/by-email/:email', requireSuperadmin, async (req, res) => {
 });
 
 // Delete user completely (with all related data)
-router.delete('/users/:id', requireSuperadmin, async (req, res) => {
+router.delete('/users/:id', authenticate, requireSuperadmin, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -477,7 +478,7 @@ router.delete('/users/:id', requireSuperadmin, async (req, res) => {
 });
 
 // Set user superadmin status
-router.patch('/users/:id/superadmin', requireSuperadmin, async (req, res) => {
+router.patch('/users/:id/superadmin', authenticate, requireSuperadmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { is_superadmin } = req.body;
