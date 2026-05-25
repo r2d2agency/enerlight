@@ -407,6 +407,9 @@ export default function LandingPage() {
     name: "",
     email: "",
     whatsapp: "",
+    company: "",
+    city: "",
+    state: "",
   });
 
   const handlePreRegister = async (e: React.FormEvent) => {
