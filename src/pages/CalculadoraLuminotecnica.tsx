@@ -34,6 +34,12 @@ import {
   LightbulbIcon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import enerlightLogo from "@/assets/enerlight-logo.png";
+
+// Enerlight brand colors (from logo)
+const ENERLIGHT_BLUE = "#1B3FB8";
+const ENERLIGHT_NAVY = "#0B1B5C";
+const ENERLIGHT_YELLOW = "#FFD400";
 
 
 // ABNT NBR ISO/CIE 8995-1 simplified data
@@ -773,36 +779,44 @@ export default function CalculadoraLuminotecnica() {
         </div>
       </main>
 
-      {/* Printable Report Section */}
+      {/* Printable Report Section - Enerlight Branded */}
       <div className="hidden print:block p-8 bg-white text-black min-h-screen">
-        <div className="flex justify-between items-start border-b-2 border-primary pb-6 mb-8">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              {branding.logo_topbar ? (
-                <img src={branding.logo_topbar} alt="Enerlight" className="h-10 w-auto" />
-              ) : (
-                <>
-                  <LightbulbIcon className="h-8 w-8 text-primary" />
-                  <h1 className="text-3xl font-bold tracking-tighter text-primary">ENERLIGHT</h1>
-                </>
-              )}
-            </div>
+        <style>{`
+          @media print {
+            @page { margin: 12mm; size: A4; }
+            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          }
+        `}</style>
 
-            <p className="text-sm text-gray-500 uppercase tracking-widest">Relatório Técnico Luminotécnico</p>
-          </div>
-          <div className="text-right text-sm">
-            <p className="font-bold">{branding.company_name || "Enerlight Iluminação"}</p>
+        <div
+          className="flex justify-between items-center pb-6 mb-8"
+          style={{ borderBottom: `4px solid ${ENERLIGHT_BLUE}` }}
+        >
+          <img src={enerlightLogo} alt="Enerlight" className="h-16 w-auto" />
+          <div className="text-right text-sm" style={{ color: ENERLIGHT_NAVY }}>
+            <p className="font-black text-base uppercase tracking-widest" style={{ color: ENERLIGHT_BLUE }}>
+              Relatório Luminotécnico
+            </p>
             <p>Data: {new Date().toLocaleDateString('pt-BR')}</p>
-            <p>Norma: ABNT NBR ISO/CIE 8995-1</p>
+            <p className="text-xs text-gray-500 mt-1">Norma: ABNT NBR ISO/CIE 8995-1</p>
           </div>
+        </div>
+
+        <div
+          className="inline-block px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-6"
+          style={{ background: ENERLIGHT_YELLOW, color: ENERLIGHT_NAVY }}
+        >
+          Soluções em Iluminação Profissional
         </div>
 
         <div className="grid grid-cols-2 gap-8 mb-8">
           <div className="space-y-4">
-            <h2 className="text-xl font-bold border-b pb-2">Dados do Ambiente</h2>
+            <h2 className="text-xl font-bold pb-2" style={{ color: ENERLIGHT_NAVY, borderBottom: `2px solid ${ENERLIGHT_YELLOW}` }}>
+              Dados do Ambiente
+            </h2>
             <dl className="grid grid-cols-2 gap-y-2 text-sm">
               <dt className="text-gray-600">Tipo:</dt>
-              <dd className="font-bold">{ABNT_STANDARDS.find(s => s.id === calcData.environmentId)?.name}</dd>
+              <dd className="font-bold" style={{ color: ENERLIGHT_NAVY }}>{ABNT_STANDARDS.find(s => s.id === calcData.environmentId)?.name}</dd>
               <dt className="text-gray-600">Dimensões:</dt>
               <dd>{calcData.length}m x {calcData.width}m</dd>
               <dt className="text-gray-600">Área Total:</dt>
@@ -812,10 +826,12 @@ export default function CalculadoraLuminotecnica() {
             </dl>
           </div>
           <div className="space-y-4">
-            <h2 className="text-xl font-bold border-b pb-2">Especificação Técnica</h2>
+            <h2 className="text-xl font-bold pb-2" style={{ color: ENERLIGHT_NAVY, borderBottom: `2px solid ${ENERLIGHT_YELLOW}` }}>
+              Especificação Técnica
+            </h2>
             <dl className="grid grid-cols-2 gap-y-2 text-sm">
               <dt className="text-gray-600">Luminária:</dt>
-              <dd>LED Profissional</dd>
+              <dd>LED Profissional Enerlight</dd>
               <dt className="text-gray-600">Fluxo Unitário:</dt>
               <dd>{calcData.fixtureLumens} lm</dd>
               <dt className="text-gray-600">Potência Unitária:</dt>
@@ -826,61 +842,70 @@ export default function CalculadoraLuminotecnica() {
           </div>
         </div>
 
-        <div className="bg-primary/5 p-8 rounded-2xl border-2 border-primary/20 mb-10">
-          <h2 className="text-2xl font-bold text-primary mb-6 text-center">Resultado da Simulação</h2>
+        <div
+          className="p-8 rounded-2xl mb-10"
+          style={{ background: `linear-gradient(135deg, ${ENERLIGHT_NAVY} 0%, ${ENERLIGHT_BLUE} 100%)`, color: "white" }}
+        >
+          <h2 className="text-2xl font-bold mb-6 text-center text-white">Resultado da Simulação</h2>
           <div className="grid grid-cols-3 gap-4 text-center">
-            <div className="p-4 bg-white rounded-xl shadow-sm border">
+            <div className="p-4 bg-white rounded-xl shadow-sm">
               <p className="text-xs text-gray-500 uppercase mb-1">Quantidade de Pontos</p>
-              <p className="text-4xl font-black text-primary">{results.fixtureCount}</p>
+              <p className="text-4xl font-black" style={{ color: ENERLIGHT_BLUE }}>{results.fixtureCount}</p>
             </div>
-            <div className="p-4 bg-white rounded-xl shadow-sm border">
+            <div className="p-4 bg-white rounded-xl shadow-sm">
               <p className="text-xs text-gray-500 uppercase mb-1">Iluminância (Lux)</p>
-              <p className="text-4xl font-black text-primary">{results.requiredLux}</p>
+              <p className="text-4xl font-black" style={{ color: ENERLIGHT_BLUE }}>{results.requiredLux}</p>
             </div>
-            <div className="p-4 bg-white rounded-xl shadow-sm border">
-              <p className="text-xs text-gray-500 uppercase mb-1">Potência Total</p>
-              <p className="text-4xl font-black text-primary">{results.totalPower}W</p>
+            <div className="p-4 rounded-xl shadow-sm" style={{ background: ENERLIGHT_YELLOW }}>
+              <p className="text-xs uppercase mb-1" style={{ color: ENERLIGHT_NAVY }}>Potência Total</p>
+              <p className="text-4xl font-black" style={{ color: ENERLIGHT_NAVY }}>{results.totalPower}W</p>
             </div>
           </div>
         </div>
 
         <div className="space-y-6">
-          <h2 className="text-xl font-bold border-b pb-2">Entendendo os Resultados</h2>
+          <h2 className="text-xl font-bold pb-2" style={{ color: ENERLIGHT_NAVY, borderBottom: `2px solid ${ENERLIGHT_YELLOW}` }}>
+            Entendendo os Resultados
+          </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
             <div className="space-y-2">
-              <p className="font-bold">O que é LUX?</p>
-              <p className="text-gray-600">
-                É a unidade de medida da iluminância, ou seja, a quantidade de luz que chega em uma superfície (plano de trabalho). 
+              <p className="font-bold" style={{ color: ENERLIGHT_BLUE }}>O que é LUX?</p>
+              <p className="text-gray-700">
+                É a unidade de medida da iluminância, ou seja, a quantidade de luz que chega em uma superfície (plano de trabalho).
                 A norma ABNT define o mínimo necessário para cada tipo de atividade para garantir saúde e produtividade.
               </p>
             </div>
             <div className="space-y-2">
-              <p className="font-bold">O que é Lúmen (lm)?</p>
-              <p className="text-gray-600">
-                É a quantidade total de luz emitida por uma fonte. Quanto maior o lúmen, mais luz a luminária emite. 
+              <p className="font-bold" style={{ color: ENERLIGHT_BLUE }}>O que é Lúmen (lm)?</p>
+              <p className="text-gray-700">
+                É a quantidade total de luz emitida por uma fonte. Quanto maior o lúmen, mais luz a luminária emite.
                 Não confunda com Watt (potência), que é apenas o consumo de energia.
               </p>
             </div>
             <div className="space-y-2">
-              <p className="font-bold">Fator de Manutenção</p>
-              <p className="text-gray-600">
-                Consideramos que ao longo do tempo as luminárias perdem eficiência e acumulam poeira. 
+              <p className="font-bold" style={{ color: ENERLIGHT_BLUE }}>Fator de Manutenção</p>
+              <p className="text-gray-700">
+                Consideramos que ao longo do tempo as luminárias perdem eficiência e acumulam poeira.
                 Nosso cálculo já prevê essa perda para garantir que o ambiente continue iluminado no futuro.
               </p>
             </div>
             <div className="space-y-2">
-              <p className="font-bold">Densidade de Potência ({results.powerDensity} W/m²)</p>
-              <p className="text-gray-600">
-                Indica o consumo de energia por metro quadrado. Sistemas modernos com LED da Enerlight 
+              <p className="font-bold" style={{ color: ENERLIGHT_BLUE }}>Densidade de Potência ({results.powerDensity} W/m²)</p>
+              <p className="text-gray-700">
+                Indica o consumo de energia por metro quadrado. Sistemas modernos com LED da Enerlight
                 buscam a maior iluminação com o menor consumo possível.
               </p>
             </div>
           </div>
         </div>
 
-        <div className="mt-20 pt-10 border-t text-center text-xs text-gray-400">
-          <p>Este relatório é uma simulação preliminar baseada no método dos lúmens.</p>
-          <p>Para projetos executivos e validação oficial, consulte um especialista Enerlight.</p>
+        <div
+          className="mt-16 pt-6 text-center text-xs"
+          style={{ borderTop: `2px solid ${ENERLIGHT_BLUE}`, color: ENERLIGHT_NAVY }}
+        >
+          <img src={enerlightLogo} alt="Enerlight" className="h-8 w-auto mx-auto mb-3 opacity-90" />
+          <p className="font-semibold">Este relatório é uma simulação preliminar baseada no método dos lúmens.</p>
+          <p className="text-gray-500">Para projetos executivos e validação oficial, consulte um especialista Enerlight.</p>
         </div>
       </div>
 
