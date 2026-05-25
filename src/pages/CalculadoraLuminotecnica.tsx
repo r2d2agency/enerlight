@@ -168,6 +168,9 @@ export default function CalculadoraLuminotecnica() {
           name: formData.name.trim(),
           email: formData.email.trim(),
           whatsapp: phone,
+          company: formData.company.trim(),
+          city: formData.city.trim(),
+          state: formData.state,
           source: "Calculadora Luminotécnica",
         }),
       });
