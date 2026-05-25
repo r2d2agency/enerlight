@@ -33,6 +33,7 @@ interface CreateProspectData {
   name: string;
   phone: string;
   source?: string;
+  company?: string;
   city?: string;
   state?: string;
   address?: string;
