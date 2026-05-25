@@ -116,22 +116,35 @@ router.post('/pre-register', async (req, res) => {
 
     // Create the prospect
     try {
+      // First, get valid columns for crm_prospects to avoid 500 if email or other columns don't exist yet
+      const columnsResult = await query(
+        "SELECT column_name FROM information_schema.columns WHERE table_name = 'crm_prospects'"
+      );
+      const validColumns = columnsResult.rows.map(r => r.column_name);
+      
+      const insertData = {
+        organization_id: organizationId,
+        name: sanitizedName,
+        phone: normalizedPhone,
+        source: source || 'Calculadora Luminotécnica',
+        created_by: superadmin.id
+      };
+      
+      // Optional columns that might not exist in all versions of the DB
+      if (validColumns.includes('email')) insertData.email = sanitizedEmail;
+      if (validColumns.includes('company')) insertData.company = company?.trim() || null;
+      if (validColumns.includes('city')) insertData.city = city?.trim() || null;
+      if (validColumns.includes('state')) insertData.state = state?.trim() || null;
+      
+      const cols = Object.keys(insertData);
+      const vals = Object.values(insertData);
+      const placeholders = vals.map((_, i) => `$${i + 1}`).join(', ');
+      
       const prospectResult = await query(
-        `INSERT INTO crm_prospects (
-           organization_id, name, phone, email, company, city, state, source, created_by
-         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        `INSERT INTO crm_prospects (${cols.join(', ')}) 
+         VALUES (${placeholders})
          RETURNING id`,
-        [
-          organizationId,
-          sanitizedName,
-          normalizedPhone,
-          sanitizedEmail,
-          company?.trim() || null,
-          city?.trim() || null,
-          state?.trim() || null,
-          source || 'Calculadora Luminotécnica',
-          superadmin.id
-        ]
+        vals
       );
 
       console.log(`Pre-register: Created prospect ${prospectResult.rows[0].id} for ${normalizedPhone}`);
