@@ -479,19 +479,29 @@ export default function CalculadoraLuminotecnica() {
                   <div className="bg-primary/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
                     <CheckCircle2 className="h-8 w-8 text-primary" />
                   </div>
-                  <h3 className="text-xl font-bold">Tudo pronto!</h3>
+                  <h3 className="text-xl font-bold">Cálculo Concluído com Sucesso!</h3>
                   <p className="text-muted-foreground max-w-md mx-auto">
-                    Com base nas suas respostas, calculamos a melhor configuração de iluminação para você.
+                    Seu relatório comercial Enerlight está pronto. Você pode visualizar os detalhes técnicos abaixo ou imprimir agora.
                   </p>
-                  <div className="flex justify-center gap-3 pt-4">
-                    <Button variant="outline" onClick={() => setWizardStep(1)}>Reiniciar Wizard</Button>
-                    <Button onClick={() => {
+                  <div className="flex flex-col sm:flex-row justify-center gap-3 pt-4">
+                    <Button variant="outline" onClick={() => setWizardStep(1)} className="gap-2">
+                      <Layout className="h-4 w-4" />
+                      Novo Cálculo
+                    </Button>
+                    <Button onClick={handlePrint} className="gap-2">
+                      <Printer className="h-4 w-4" />
+                      Imprimir Relatório Enerlight
+                    </Button>
+                    <Button variant="secondary" onClick={() => {
                       setIsWizardMode(false);
                       setWizardStep(1);
-                    }}>Ver Resultado Completo</Button>
+                    }}>
+                      Ajustes Técnicos
+                    </Button>
                   </div>
                 </div>
               )}
+
             </CardContent>
           </Card>
         ) : null}
