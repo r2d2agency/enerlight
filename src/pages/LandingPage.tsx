@@ -486,7 +486,7 @@ export default function LandingPage() {
 
       toast.success("Cadastro recebido! Entraremos em contato em breve.");
       setShowPreRegister(false);
-      setFormData({ name: "", email: "", whatsapp: "" });
+      setFormData({ name: "", email: "", whatsapp: "", company: "", city: "", state: "" });
     } catch (error: any) {
       toast.error(error.message || "Erro ao enviar cadastro");
     } finally {
