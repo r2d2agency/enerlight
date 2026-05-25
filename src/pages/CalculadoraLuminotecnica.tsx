@@ -38,7 +38,7 @@ import { cn } from "@/lib/utils";
 
 // ABNT NBR ISO/CIE 8995-1 simplified data
 const ABNT_STANDARDS = [
-  { id: "office", name: "Escritório - Geral", lux: 500 },
+  { id: "office", name: "Escritório", lux: 500 },
   { id: "meeting", name: "Sala de Reuniões", lux: 500 },
   { id: "corridor", name: "Corredores/Circulação", lux: 100 },
   { id: "bathroom", name: "Sanitários", lux: 200 },
@@ -46,9 +46,13 @@ const ABNT_STANDARDS = [
   { id: "retail", name: "Lojas e Comércio", lux: 500 },
   { id: "drawing", name: "Desenho Técnico", lux: 750 },
   { id: "warehouse", name: "Almoxarifado/Depósito", lux: 200 },
-  { id: "factory", name: "Fábrica - Produção Geral", lux: 300 },
+  { id: "factory", name: "Fábrica - Produção", lux: 300 },
   { id: "hospital", name: "Quartos de Hospital", lux: 100 },
-  { id: "surgery", name: "Sala de Cirurgia (Geral)", lux: 1000 },
+  { id: "surgery", name: "Sala de Cirurgia", lux: 1000 },
+  { id: "kitchen", name: "Cozinha/Refeitório", lux: 300 },
+  { id: "living", name: "Área de Estar/Lounge", lux: 150 },
+  { id: "parking", name: "Estacionamentos", lux: 75 },
+
 ];
 
 const MAINTENANCE_FACTORS = [
