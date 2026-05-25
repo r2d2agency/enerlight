@@ -1175,6 +1175,43 @@ export default function LandingPage() {
                 required
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="company">Empresa</Label>
+              <Input
+                id="company"
+                placeholder="Nome do seu escritório/empresa"
+                value={formData.company}
+                onChange={(e) => setFormData(prev => ({ ...prev, company: e.target.value }))}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="city">Cidade</Label>
+                <Input
+                  id="city"
+                  placeholder="Sua cidade"
+                  value={formData.city}
+                  onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="state">UF</Label>
+                <Select 
+                  value={formData.state} 
+                  onValueChange={(v) => setFormData(prev => ({ ...prev, state: v }))}
+                >
+                  <SelectTrigger id="state">
+                    <SelectValue placeholder="UF" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {BRAZILIAN_STATES.map(s => (
+                      <SelectItem key={s.value} value={s.value}>{s.value}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
             <DialogFooter className="pt-2">
               <Button type="submit" className="w-full gap-2" disabled={isSubmitting}>
                 {isSubmitting ? (
