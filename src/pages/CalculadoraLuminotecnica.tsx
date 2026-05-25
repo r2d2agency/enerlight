@@ -226,7 +226,29 @@ export default function CalculadoraLuminotecnica() {
     };
   }, [calcData]);
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
+    // Save project to history before printing
+    if (formData.whatsapp) {
+      try {
+        await fetch(`${API_URL}/api/public/save-project`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            whatsapp: formData.whatsapp,
+            project_data: {
+              environment: ABNT_STANDARDS.find(s => s.id === calcData.environmentId)?.name,
+              area: results.area,
+              fixture_count: results.fixtureCount,
+              required_lux: results.requiredLux,
+              total_power: results.totalPower,
+              dimensions: `${calcData.length}x${calcData.width}x${calcData.height}m`
+            }
+          }),
+        });
+      } catch (err) {
+        console.error("Erro ao salvar histórico do projeto", err);
+      }
+    }
     window.print();
   };
 
