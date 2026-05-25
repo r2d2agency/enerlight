@@ -15,6 +15,7 @@ import campaignsRoutes from './routes/campaigns.js';
 import organizationsRoutes from './routes/organizations.js';
 import asaasRoutes from './routes/asaas.js';
 import adminRoutes from './routes/admin.js';
+import publicRoutes from './routes/public.js';
 import uploadsRoutes from './routes/uploads.js';
 import notificationsRoutes from './routes/notifications.js';
 import evolutionRoutes from './routes/evolution.js';
