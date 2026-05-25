@@ -290,8 +290,210 @@ export default function CalculadoraLuminotecnica() {
       </header>
 
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 print:p-0">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-8 print:hidden">
+          <div>
+            <h2 className="text-2xl font-bold">Simulação Luminotécnica</h2>
+            <p className="text-muted-foreground">Cálculos baseados na norma ABNT NBR ISO/CIE 8995-1</p>
+          </div>
+          <div className="flex bg-muted p-1 rounded-lg">
+            <Button 
+              variant={isWizardMode ? "default" : "ghost"} 
+              size="sm" 
+              onClick={() => setIsWizardMode(true)}
+              className="gap-2"
+            >
+              <Sparkles className="h-4 w-4" />
+              Modo Guiado (Rápido)
+            </Button>
+            <Button 
+              variant={!isWizardMode ? "default" : "ghost"} 
+              size="sm" 
+              onClick={() => setIsWizardMode(false)}
+              className="gap-2"
+            >
+              <Zap className="h-4 w-4" />
+              Modo Técnico (Avançado)
+            </Button>
+          </div>
+        </div>
+
+        {isWizardMode ? (
+          <Card className="mb-8 border-primary/20 shadow-md print:hidden">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Passo {wizardStep} de 4</CardTitle>
+                  <CardDescription>Responda algumas perguntas para um cálculo rápido</CardDescription>
+                </div>
+                <div className="flex gap-2">
+                  <div className={cn("h-2 w-12 rounded-full", wizardStep >= 1 ? "bg-primary" : "bg-muted")} />
+                  <div className={cn("h-2 w-12 rounded-full", wizardStep >= 2 ? "bg-primary" : "bg-muted")} />
+                  <div className={cn("h-2 w-12 rounded-full", wizardStep >= 3 ? "bg-primary" : "bg-muted")} />
+                  <div className={cn("h-2 w-12 rounded-full", wizardStep >= 4 ? "bg-primary" : "bg-muted")} />
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {wizardStep === 1 && (
+                <div className="space-y-6">
+                  <h3 className="text-lg font-medium">Qual o tipo de ambiente?</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {[
+                      { id: "office", name: "Escritório", icon: Briefcase },
+                      { id: "retail", name: "Loja/Comércio", icon: Building2 },
+                      { id: "warehouse", name: "Galpão/Depósito", icon: Home },
+                      { id: "factory", name: "Fábrica", icon: Zap },
+                      { id: "classroom", name: "Escola/Sala", icon: Monitor },
+                      { id: "hospital", name: "Saúde/Hospital", icon: ShieldCheck },
+                      { id: "corridor", name: "Corredor/Circulação", icon: Ruler },
+                      { id: "meeting", name: "Sala Reunião", icon: Layout },
+                    ].map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={() => {
+                          setCalcData({ ...calcData, environmentId: item.id });
+                          setWizardStep(2);
+                        }}
+                        className={cn(
+                          "flex flex-col items-center gap-3 p-6 rounded-xl border-2 transition-all hover:border-primary/50",
+                          calcData.environmentId === item.id ? "border-primary bg-primary/5 shadow-sm" : "border-muted"
+                        )}
+                      >
+                        <item.icon className="h-8 w-8 text-primary" />
+                        <span className="text-sm font-medium text-center">{item.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {wizardStep === 2 && (
+                <div className="space-y-6 max-w-2xl mx-auto">
+                  <h3 className="text-lg font-medium">Quais as dimensões do local?</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label>Comprimento (metros)</Label>
+                      <Input 
+                        type="number" 
+                        value={calcData.length} 
+                        onChange={(e) => setCalcData({ ...calcData, length: Number(e.target.value) })}
+                        placeholder="Ex: 5"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Largura (metros)</Label>
+                      <Input 
+                        type="number" 
+                        value={calcData.width} 
+                        onChange={(e) => setCalcData({ ...calcData, width: Number(e.target.value) })}
+                        placeholder="Ex: 4"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Altura do Teto (Pé-direito)</Label>
+                      <Input 
+                        type="number" 
+                        value={calcData.height} 
+                        onChange={(e) => setCalcData({ ...calcData, height: Number(e.target.value) })}
+                        placeholder="Ex: 3"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Altura da mesa/trabalho (m)</Label>
+                      <Input 
+                        type="number" 
+                        value={calcData.workPlaneHeight} 
+                        onChange={(e) => setCalcData({ ...calcData, workPlaneHeight: Number(e.target.value) })}
+                        placeholder="Padrão: 0.75"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-between pt-4">
+                    <Button variant="ghost" onClick={() => setWizardStep(1)} className="gap-2">
+                      <ChevronLeft className="h-4 w-4" /> Voltar
+                    </Button>
+                    <Button onClick={() => setWizardStep(3)} className="gap-2">
+                      Próximo Passo <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {wizardStep === 3 && (
+                <div className="space-y-6 max-w-2xl mx-auto">
+                  <h3 className="text-lg font-medium">Como é o ambiente fisicamente?</h3>
+                  <div className="space-y-6">
+                    <div className="space-y-3">
+                      <Label>Cores predominantes (Teto e Paredes)</Label>
+                      <div className="grid grid-cols-3 gap-3">
+                        {REFLECTANCES.map((r) => (
+                          <button
+                            key={r.id}
+                            onClick={() => setCalcData({ ...calcData, reflectanceId: r.id })}
+                            className={cn(
+                              "p-3 rounded-lg border text-sm transition-all",
+                              calcData.reflectanceId === r.id ? "border-primary bg-primary/5 ring-1 ring-primary" : "bg-card"
+                            )}
+                          >
+                            {r.name.split(' (')[0]}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <Label>Nível de limpeza/poeira</Label>
+                      <div className="grid grid-cols-3 gap-3">
+                        {MAINTENANCE_FACTORS.map((f) => (
+                          <button
+                            key={f.id}
+                            onClick={() => setCalcData({ ...calcData, maintenanceFactor: f.value })}
+                            className={cn(
+                              "p-3 rounded-lg border text-sm transition-all",
+                              calcData.maintenanceFactor === f.value ? "border-primary bg-primary/5 ring-1 ring-primary" : "bg-card"
+                            )}
+                          >
+                            {f.name.split(' (')[0]}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex justify-between pt-4">
+                    <Button variant="ghost" onClick={() => setWizardStep(2)} className="gap-2">
+                      <ChevronLeft className="h-4 w-4" /> Voltar
+                    </Button>
+                    <Button onClick={() => setWizardStep(4)} className="gap-2">
+                      Finalizar <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {wizardStep === 4 && (
+                <div className="space-y-6 text-center py-4">
+                  <div className="bg-primary/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <CheckCircle2 className="h-8 w-8 text-primary" />
+                  </div>
+                  <h3 className="text-xl font-bold">Tudo pronto!</h3>
+                  <p className="text-muted-foreground max-w-md mx-auto">
+                    Com base nas suas respostas, calculamos a melhor configuração de iluminação para você.
+                  </p>
+                  <div className="flex justify-center gap-3 pt-4">
+                    <Button variant="outline" onClick={() => setWizardStep(1)}>Reiniciar Wizard</Button>
+                    <Button onClick={() => {
+                      setIsWizardMode(false);
+                      setWizardStep(1);
+                    }}>Ver Resultado Completo</Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ) : null}
+
+        <div className={cn("grid grid-cols-1 lg:grid-cols-3 gap-8", isWizardMode && wizardStep < 4 ? "opacity-30 pointer-events-none" : "")}>
+
           
           {/* Inputs Column */}
           <div className="lg:col-span-1 space-y-6 print:hidden">
