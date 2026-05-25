@@ -734,18 +734,15 @@ export default function CalculadoraLuminotecnica() {
                     </div>
 
                     <div className="mt-8 flex flex-col gap-3 print:hidden">
-                      <Button className="w-full gap-2" variant="outline" onClick={handlePrint}>
-                        <FileText className="h-4 w-4" />
-                        Gerar PDF do Projeto
+                      <Button className="w-full gap-2 py-6 text-lg" onClick={handlePrint}>
+                        <Printer className="h-5 w-5" />
+                        Imprimir Relatório Comercial
                       </Button>
-                      <Button 
-                        className="w-full gap-2"
-                        onClick={() => window.open(`https://wa.me/55?text=Olá, acabei de realizar uma simulação luminotécnica no site da Enerlight e gostaria de um orçamento para ${results.fixtureCount} luminárias.`)}
-                      >
-                        Falar com Especialista
-                        <ArrowRight className="h-4 w-4" />
-                      </Button>
+                      <p className="text-center text-xs text-muted-foreground mt-2">
+                        Relatório completo com especificações técnicas e normas ABNT.
+                      </p>
                     </div>
+
 
                   </div>
                 </div>
