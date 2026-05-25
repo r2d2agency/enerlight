@@ -83,13 +83,21 @@ router.post('/pre-register', async (req, res) => {
     const organizationId = superadmin.organization_id;
 
     // Check if prospect already exists in this organization
-    const existingProspect = await query(
-      `SELECT id FROM crm_prospects 
-       WHERE organization_id = $1 AND phone = $2`,
-      [organizationId, normalizedPhone]
-    );
+    let existingProspect;
+    try {
+      const checkResult = await query(
+        `SELECT id FROM crm_prospects 
+         WHERE organization_id = $1 AND phone = $2`,
+        [organizationId, normalizedPhone]
+      );
+      existingProspect = checkResult.rows[0];
+    } catch (err) {
+      // If table doesn't exist yet, it's a first run/init issue
+      console.error('Pre-register check error (checking table existence):', err.message);
+      return res.status(500).json({ error: 'Sistema em manutenção. Tente novamente em instantes.' });
+    }
 
-    if (existingProspect.rows.length > 0) {
+    if (existingProspect) {
       // Update existing prospect
       await query(
         `UPDATE crm_prospects SET 
@@ -100,33 +108,55 @@ router.post('/pre-register', async (req, res) => {
            state = COALESCE($7, state),
            updated_at = NOW()
          WHERE id = $1 AND organization_id = $2`,
-        [existingProspect.rows[0].id, organizationId, sanitizedName, sanitizedEmail, company?.trim(), city?.trim(), state?.trim()]
+        [existingProspect.id, organizationId, sanitizedName, sanitizedEmail, company?.trim(), city?.trim(), state?.trim()]
       );
       
       return res.json({ success: true, message: 'Prospect atualizado' });
     }
 
     // Create the prospect
-    const prospectResult = await query(
-      `INSERT INTO crm_prospects (
-         organization_id, name, phone, email, company, city, state, source, created_by
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-       RETURNING id`,
-      [
-        organizationId,
-        sanitizedName,
-        normalizedPhone,
-        sanitizedEmail,
-        company?.trim() || null,
-        city?.trim() || null,
-        state?.trim() || null,
-        source || 'Calculadora Luminotécnica',
-        superadmin.id
-      ]
-    );
+    try {
+      // First, get valid columns for crm_prospects to avoid 500 if email or other columns don't exist yet
+      const columnsResult = await query(
+        "SELECT column_name FROM information_schema.columns WHERE table_name = 'crm_prospects'"
+      );
+      const validColumns = columnsResult.rows.map(r => r.column_name);
+      
+      const insertData = {
+        organization_id: organizationId,
+        name: sanitizedName,
+        phone: normalizedPhone,
+        source: source || 'Calculadora Luminotécnica',
+        created_by: superadmin.id
+      };
+      
+      // Optional columns that might not exist in all versions of the DB
+      if (validColumns.includes('email')) insertData.email = sanitizedEmail;
+      if (validColumns.includes('company')) insertData.company = company?.trim() || null;
+      if (validColumns.includes('city')) insertData.city = city?.trim() || null;
+      if (validColumns.includes('state')) insertData.state = state?.trim() || null;
+      
+      const cols = Object.keys(insertData);
+      const vals = Object.values(insertData);
+      const placeholders = vals.map((_, i) => `$${i + 1}`).join(', ');
+      
+      const prospectResult = await query(
+        `INSERT INTO crm_prospects (${cols.join(', ')}) 
+         VALUES (${placeholders})
+         RETURNING id`,
+        vals
+      );
 
-    console.log(`Pre-register: Created prospect ${prospectResult.rows[0].id} for ${normalizedPhone}`);
-    res.json({ success: true, message: 'Cadastro recebido com sucesso' });
+      console.log(`Pre-register: Created prospect ${prospectResult.rows[0].id} for ${normalizedPhone}`);
+      res.json({ success: true, message: 'Cadastro recebido com sucesso' });
+    } catch (insertErr) {
+      console.error('Pre-register insert error:', insertErr.message);
+      // Check for race condition (unique violation)
+      if (insertErr.code === '23505') {
+        return res.json({ success: true, message: 'Prospect já cadastrado' });
+      }
+      throw insertErr;
+    }
 
   } catch (error) {
     console.error('Pre-register error:', error);
