@@ -34,6 +34,12 @@ import {
   LightbulbIcon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import enerlightLogo from "@/assets/enerlight-logo.png";
+
+// Enerlight brand colors (from logo)
+const ENERLIGHT_BLUE = "#1B3FB8";
+const ENERLIGHT_NAVY = "#0B1B5C";
+const ENERLIGHT_YELLOW = "#FFD400";
 
 
 // ABNT NBR ISO/CIE 8995-1 simplified data
