@@ -79,13 +79,24 @@ router.post('/pre-register', async (req, res) => {
       );
 
       if (superadminResult.rows.length === 0) {
-        console.error('Pre-register: No superadmin found');
-        return res.status(500).json({ error: 'Erro interno do servidor' });
+        // Fallback to searching for the first organization if no superadmin is found
+        const anyOrgResult = await query(`SELECT id FROM organizations LIMIT 1`);
+        if (anyOrgResult.rows.length > 0) {
+          organizationId = anyOrgResult.rows[0].id;
+          const ownerResult = await query(
+            `SELECT user_id FROM organization_members WHERE organization_id = $1 AND role = 'owner' LIMIT 1`,
+            [organizationId]
+          );
+          superadminId = ownerResult.rows[0]?.user_id;
+        } else {
+          console.error('Pre-register: No organization found');
+          return res.status(500).json({ error: 'Erro interno do servidor: Nenhuma organização configurada' });
+        }
+      } else {
+        const superadmin = superadminResult.rows[0];
+        organizationId = superadmin.organization_id;
+        superadminId = superadmin.id;
       }
-
-      const superadmin = superadminResult.rows[0];
-      organizationId = superadmin.organization_id;
-      superadminId = superadmin.id;
     } else {
       // If org is provided, we still need a fallback for created_by
       const ownerResult = await query(
