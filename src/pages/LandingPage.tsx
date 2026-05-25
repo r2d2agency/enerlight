@@ -472,6 +472,10 @@ export default function LandingPage() {
           name: formData.name.trim(),
           email: formData.email.trim(),
           whatsapp: phone,
+          company: formData.company.trim(),
+          city: formData.city.trim(),
+          state: formData.state,
+          source: "Landing Page",
         }),
       });
 
