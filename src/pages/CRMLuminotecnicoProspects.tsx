@@ -42,6 +42,8 @@ import {
   MapPin,
   Mail,
   Phone,
+  FileText,
+  History,
 } from "lucide-react";
 import { useProspects, Prospect } from "@/hooks/use-prospects";
 import { useCRMFunnels } from "@/hooks/use-crm";
@@ -52,6 +54,8 @@ export default function CRMLuminotecnicoProspects() {
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showConvertDialog, setShowConvertDialog] = useState(false);
+  const [showProjectsDialog, setShowProjectsDialog] = useState(false);
+  const [selectedProspect, setSelectedProspect] = useState<Prospect | null>(null);
   const [convertingProspect, setConvertingProspect] = useState<Prospect | null>(null);
   
   const { prospects, isLoading, deleteProspect, convertToDeal } = useProspects();
@@ -324,6 +328,10 @@ export default function CRMLuminotecnicoProspects() {
                                 Converter para Negociação
                               </DropdownMenuItem>
                             )}
+                            <DropdownMenuItem onClick={() => { setSelectedProspect(prospect); setShowProjectsDialog(true); }}>
+                              <History className="h-4 w-4 mr-2" />
+                              Histórico de Projetos
+                            </DropdownMenuItem>
                             <DropdownMenuItem
                                 className="text-destructive"
                                 onClick={() => handleDelete(prospect.id)}
@@ -439,6 +447,58 @@ export default function CRMLuminotecnicoProspects() {
               <Button onClick={handleConvert} disabled={convertToDeal.isPending}>
                 {convertToDeal.isPending ? "Processando..." : "Transformar em Negociação"}
               </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+      {/* Projects History Dialog */}
+      <Dialog open={showProjectsDialog} onOpenChange={setShowProjectsDialog}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Histórico de Projetos: {selectedProspect?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {!selectedProspect?.custom_fields?.lighting_projects || (selectedProspect.custom_fields.lighting_projects as unknown as any[]).length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <FileText className="h-12 w-12 mx-auto mb-2 opacity-20" />
+                <p>Nenhum projeto salvo para este prospect.</p>
+              </div>
+            ) : (
+              (selectedProspect.custom_fields.lighting_projects as unknown as any[]).map((project, idx) => (
+                <div key={idx} className="p-4 border rounded-lg bg-muted/30">
+                  <div className="flex justify-between items-start mb-2">
+                    <h4 className="font-bold text-primary">{project.environment}</h4>
+                    <span className="text-xs text-muted-foreground">
+                      {project.saved_at ? format(new Date(project.saved_at), "dd/MM/yyyy HH:mm") : "Data não disponível"}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <p className="text-muted-foreground text-xs uppercase">Dimensões</p>
+                      <p className="font-medium">{project.dimensions}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground text-xs uppercase">Área</p>
+                      <p className="font-medium">{project.area} m²</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground text-xs uppercase">Pontos de Luz</p>
+                      <p className="font-medium">{project.fixture_count}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground text-xs uppercase">Requisito Lux</p>
+                      <p className="font-medium">{project.required_lux} lux</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground text-xs uppercase">Potência Total</p>
+                      <p className="font-medium">{project.total_power} W</p>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+            <div className="flex justify-end pt-4">
+              <Button onClick={() => setShowProjectsDialog(false)}>Fechar</Button>
             </div>
           </div>
         </DialogContent>
