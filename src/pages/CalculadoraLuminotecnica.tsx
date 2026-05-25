@@ -850,13 +850,51 @@ export default function CalculadoraLuminotecnica() {
                     </div>
 
                     <div className="mt-8 flex flex-col gap-3 print:hidden">
-                      <Button className="w-full gap-2 py-6 text-lg" onClick={handlePrint}>
-                        <Printer className="h-5 w-5" />
-                        Imprimir Relatório Comercial
-                      </Button>
-                      <p className="text-center text-xs text-muted-foreground mt-2">
-                        Relatório completo com especificações técnicas e normas ABNT.
-                      </p>
+                      {isGenerating ? (
+                        <div className="flex flex-col items-center justify-center py-8 space-y-4 bg-primary/5 rounded-xl border border-primary/10 animate-pulse">
+                          <Loader2 className="h-10 w-10 text-primary" />
+                          <div className="text-center">
+                            <p className="font-bold text-primary">Processando Relatório...</p>
+                            <p className="text-xs text-muted-foreground">Isso levará apenas alguns segundos.</p>
+                          </div>
+                        </div>
+                      ) : reportGenerated ? (
+                        <div className="space-y-4">
+                          <div className="bg-green-50 border border-green-100 p-4 rounded-xl text-center">
+                            <h3 className="text-green-800 font-bold flex items-center justify-center gap-2">
+                              <CheckCircle2 className="h-5 w-5" />
+                              Cálculo Concluído com Sucesso!
+                            </h3>
+                            <p className="text-green-700 text-sm mt-1">
+                              Seu relatório comercial Enerlight está pronto e salvo.
+                            </p>
+                          </div>
+                          
+                          <Button className="w-full gap-2 py-6 text-lg" onClick={handlePrint}>
+                            <Printer className="h-5 w-5" />
+                            Imprimir Agora
+                          </Button>
+                          
+                          <Button 
+                            variant="ghost" 
+                            className="w-full text-xs text-muted-foreground"
+                            onClick={() => setReportGenerated(false)}
+                          >
+                            Editar dados e gerar novo relatório
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button className="w-full gap-2 py-6 text-lg" onClick={handleGenerateReport}>
+                          <Sparkles className="h-5 w-5" />
+                          Gerar Relatório Comercial
+                        </Button>
+                      )}
+                      
+                      {!isGenerating && !reportGenerated && (
+                        <p className="text-center text-xs text-muted-foreground mt-2">
+                          Clique para salvar e gerar o relatório completo com normas ABNT.
+                        </p>
+                      )}
                     </div>
 
 
