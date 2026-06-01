@@ -309,11 +309,15 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
     if (!deal?.id) return;
     try {
       const isoDate = editCreatedAt ? new Date(editCreatedAt).toISOString() : new Date().toISOString();
-      await updateDeal.mutateAsync({ 
+      
+      // Enviamos a atualização
+      const updatedDeal = await updateDeal.mutateAsync({ 
         id: deal.id, 
         created_at: isoDate 
       } as any);
       
+      // Atualizamos o estado local explicitamente com o valor retornado ou formatado
+      setEditCreatedAt(updatedDeal.created_at ? updatedDeal.created_at.substring(0, 16) : editCreatedAt);
       setIsEditingCreatedAt(false);
       toast.success("Data de criação atualizada!");
     } catch (error) {
