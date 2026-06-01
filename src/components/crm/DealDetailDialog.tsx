@@ -230,6 +230,7 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
       setEditCloseDate(currentDeal.expected_close_date ? currentDeal.expected_close_date.substring(0, 10) : "");
       setDealCustomFields(currentDeal.custom_fields || {});
       setEditProbability(String(currentDeal.probability || 0));
+      setEditCreatedAt(currentDeal.created_at ? currentDeal.created_at.substring(0, 16) : "");
       setQuoteCarrier((currentDeal as any).quote_carrier || "");
       setQuoteValue(String((currentDeal as any).quote_value || ""));
       setQuoteCode((currentDeal as any).quote_code || "");
