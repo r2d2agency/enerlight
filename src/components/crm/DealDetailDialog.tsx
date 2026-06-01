@@ -305,10 +305,27 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
     toast.success("Data de fechamento atualizada!");
   };
 
-  const handleSaveCreatedAt = () => {
-    updateDeal.mutate({ id: deal.id, created_at: editCreatedAt ? new Date(editCreatedAt).toISOString() : new Date().toISOString() } as any);
-    setIsEditingCreatedAt(false);
-    toast.success("Data de criação atualizada!");
+  const handleSaveCreatedAt = async () => {
+    if (!deal?.id) return;
+    try {
+      // Direct API call to ensure created_at is sent correctly as a top-level property
+      await api(`/api/crm/deals/${deal.id}`, { 
+        method: 'PUT', 
+        body: { 
+          created_at: editCreatedAt ? new Date(editCreatedAt).toISOString() : new Date().toISOString() 
+        } 
+      });
+      
+      // Invalidate queries to refresh the UI with data from the server
+      queryClient.invalidateQueries({ queryKey: ["crm-deals"] });
+      queryClient.invalidateQueries({ queryKey: ["crm-deal", deal.id] });
+      
+      setIsEditingCreatedAt(false);
+      toast.success("Data de criação atualizada!");
+    } catch (error) {
+      console.error("Error updating created_at:", error);
+      toast.error("Erro ao atualizar data de criação");
+    }
   };
 
   const handleSaveCustomField = (fieldName: string, value: any) => {
