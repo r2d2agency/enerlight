@@ -305,6 +305,12 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
     toast.success("Data de fechamento atualizada!");
   };
 
+  const handleSaveCreatedAt = () => {
+    updateDeal.mutate({ id: deal.id, created_at: editCreatedAt ? new Date(editCreatedAt).toISOString() : new Date().toISOString() } as any);
+    setIsEditingCreatedAt(false);
+    toast.success("Data de criação atualizada!");
+  };
+
   const handleSaveCustomField = (fieldName: string, value: any) => {
     const updated = { ...dealCustomFields, [fieldName]: value };
     setDealCustomFields(updated);
