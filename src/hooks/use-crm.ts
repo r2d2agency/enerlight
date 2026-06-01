@@ -535,9 +535,14 @@ export function useCRMDealMutations() {
 
   const updateDeal = useMutation({
     mutationFn: async ({ id, ...data }: Partial<CRMDeal> & { id: string }) => {
-      return api<CRMDeal>(`/api/crm/deals/${id}`, { method: "PUT", body: data });
+      const response = await api<CRMDeal>(`/api/crm/deals/${id}`, { method: "PUT", body: data });
+      return response;
     },
     onSuccess: (data, variables) => {
+      // Forçamos a atualização imediata do cache com os dados retornados do servidor
+      queryClient.setQueryData(["crm-deal", variables.id], data);
+      
+      // Invalidamos para garantir consistência em outras views
       queryClient.invalidateQueries({ queryKey: ["crm-deals"] });
       queryClient.invalidateQueries({ queryKey: ["crm-deal", variables.id] });
       toast({ title: "Negociação atualizada" });

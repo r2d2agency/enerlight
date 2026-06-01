@@ -308,14 +308,17 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
   const handleSaveCreatedAt = async () => {
     if (!deal?.id) return;
     try {
+      const isoDate = editCreatedAt ? new Date(editCreatedAt).toISOString() : new Date().toISOString();
       await updateDeal.mutateAsync({ 
         id: deal.id, 
-        created_at: editCreatedAt ? new Date(editCreatedAt).toISOString() : new Date().toISOString() 
+        created_at: isoDate 
       } as any);
       
       setIsEditingCreatedAt(false);
+      toast.success("Data de criação atualizada!");
     } catch (error) {
       console.error("Error updating created_at:", error);
+      toast.error("Erro ao atualizar data de criação");
     }
   };
 
