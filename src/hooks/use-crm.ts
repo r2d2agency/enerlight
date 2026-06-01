@@ -537,9 +537,9 @@ export function useCRMDealMutations() {
     mutationFn: async ({ id, ...data }: Partial<CRMDeal> & { id: string }) => {
       return api<CRMDeal>(`/api/crm/deals/${id}`, { method: "PUT", body: data });
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["crm-deals"] });
-      queryClient.invalidateQueries({ queryKey: ["crm-deal"] });
+      queryClient.invalidateQueries({ queryKey: ["crm-deal", variables.id] });
       toast({ title: "Negociação atualizada" });
     },
   });
