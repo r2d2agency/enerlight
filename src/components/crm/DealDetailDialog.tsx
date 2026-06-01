@@ -235,7 +235,7 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
       setQuoteValue(String((currentDeal as any).quote_value || ""));
       setQuoteCode((currentDeal as any).quote_code || "");
     }
-  }, [currentDeal?.id]);
+  }, [currentDeal?.id, currentDeal?.created_at, currentDeal?.value, currentDeal?.expected_close_date]);
 
   if (!deal) return null;
 
