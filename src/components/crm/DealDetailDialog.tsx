@@ -910,9 +910,26 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
                         </button>
                       )}
                     </div>
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-center">
                       <span className="text-muted-foreground">Criado em</span>
-                      <span>{format(parseISO(currentDeal?.created_at || new Date().toISOString()), "dd/MM/yyyy", { locale: ptBR })}</span>
+                      {isEditingCreatedAt ? (
+                        <div className="flex items-center gap-1">
+                          <Input
+                            type="datetime-local"
+                            value={editCreatedAt}
+                            onChange={(e) => setEditCreatedAt(e.target.value)}
+                            className="w-44 h-7 text-sm"
+                            onKeyDown={(e) => { if (e.key === 'Enter') handleSaveCreatedAt(); if (e.key === 'Escape') setIsEditingCreatedAt(false); }}
+                          />
+                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={handleSaveCreatedAt}><Save className="h-3 w-3" /></Button>
+                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setIsEditingCreatedAt(false)}><X className="h-3 w-3" /></Button>
+                        </div>
+                      ) : (
+                        <button onClick={() => setIsEditingCreatedAt(true)} className="hover:underline flex items-center gap-1">
+                          {format(parseISO(currentDeal?.created_at || new Date().toISOString()), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                          <Edit2 className="h-3 w-3 opacity-50" />
+                        </button>
+                      )}
                     </div>
                   </div>
 
