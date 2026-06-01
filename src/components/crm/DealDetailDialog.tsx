@@ -133,6 +133,8 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
   const [editProbability, setEditProbability] = useState("");
   const [isEditingOwner, setIsEditingOwner] = useState(false);
   const [isEditingRepresentative, setIsEditingRepresentative] = useState(false);
+  const [isEditingCreatedAt, setIsEditingCreatedAt] = useState(false);
+  const [editCreatedAt, setEditCreatedAt] = useState("");
   const [lossDialogOpen, setLossDialogOpen] = useState(false);
 
   const { user } = useAuth();
