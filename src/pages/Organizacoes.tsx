@@ -18,6 +18,7 @@ import { useSuperadmin } from '@/hooks/use-superadmin';
 import { useCRMGroups, useCRMGroupMembers, useCRMGroupMutations, useCRMFunnels, useCRMGroupFunnels, useCRMGroupFunnelMutations } from '@/hooks/use-crm';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
 import { Building2, Plus, Users, Trash2, UserPlus, Crown, Shield, User, Briefcase, Loader2, Pencil, Link2, Settings, KeyRound, Megaphone, Receipt, UsersRound, CalendarClock, Bot, Layers, MessagesSquare, Upload, Image, ShieldCheck, GitBranch, Edit, ClipboardList, UserX, UserCheck, Gavel, FileText } from 'lucide-react';
 import { PermissionsDialog } from '@/components/permissions/PermissionsDialog';
 import { PermissionTemplatesTab } from '@/components/admin/PermissionTemplatesTab';
@@ -82,6 +83,7 @@ const roleLabels: Record<string, { label: string; icon: typeof Crown; color: str
 const getRole = (role: string) => roleLabels[role] || { label: role, icon: User, color: 'bg-gray-500' };
 
 export default function Organizacoes() {
+  const { user } = useAuth();
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null);
   const [members, setMembers] = useState<OrganizationMember[]>([]);
@@ -493,7 +495,9 @@ export default function Organizacoes() {
     }
   };
 
-  const canManageOrg = isSuperadmin || selectedOrg?.role === 'owner' || selectedOrg?.role === 'admin';
+  const currentMemberRole = members.find((member) => member.user_id === user?.id)?.role;
+  const effectiveOrgRole = selectedOrg?.role || currentMemberRole;
+  const canManageOrg = isSuperadmin || effectiveOrgRole === 'owner' || effectiveOrgRole === 'admin';
 
   // CRM Group handlers
   const openCrmGroupDialog = (group?: any) => {
@@ -1038,7 +1042,7 @@ export default function Organizacoes() {
                                       {new Date(member.created_at).toLocaleDateString('pt-BR')}
                                     </TableCell>
                                     {canManageOrg && (
-                                      <TableCell className="sticky right-0 bg-background shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.1)]">
+                                      <TableCell className="sticky right-0 z-10 w-[180px] bg-background shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.1)]">
                                         <div className="flex items-center gap-1">
                                           <Button 
                                                 variant="ghost" 
