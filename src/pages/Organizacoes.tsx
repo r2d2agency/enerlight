@@ -493,7 +493,7 @@ export default function Organizacoes() {
     }
   };
 
-  const canManageOrg = selectedOrg?.role === 'owner' || selectedOrg?.role === 'admin';
+  const canManageOrg = isSuperadmin || selectedOrg?.role === 'owner' || selectedOrg?.role === 'admin';
 
   // CRM Group handlers
   const openCrmGroupDialog = (group?: any) => {
