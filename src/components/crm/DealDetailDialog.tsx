@@ -230,7 +230,22 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
       setEditCloseDate(currentDeal.expected_close_date ? currentDeal.expected_close_date.substring(0, 10) : "");
       setDealCustomFields(currentDeal.custom_fields || {});
       setEditProbability(String(currentDeal.probability || 0));
-      setEditCreatedAt(currentDeal.created_at ? currentDeal.created_at.substring(0, 16) : "");
+      
+      // Ajuste para garantir que a data de criação seja carregada corretamente no formato datetime-local
+      if (currentDeal.created_at) {
+        try {
+          const date = new Date(currentDeal.created_at);
+          // O formato datetime-local espera YYYY-MM-DDTHH:mm
+          const offset = date.getTimezoneOffset() * 60000;
+          const localISOTime = new Date(date.getTime( ) - offset).toISOString().slice(0, 16);
+          setEditCreatedAt(localISOTime);
+        } catch (e) {
+          setEditCreatedAt(currentDeal.created_at.substring(0, 16));
+        }
+      } else {
+        setEditCreatedAt("");
+      }
+
       setQuoteCarrier((currentDeal as any).quote_carrier || "");
       setQuoteValue(String((currentDeal as any).quote_value || ""));
       setQuoteCode((currentDeal as any).quote_code || "");
@@ -306,18 +321,18 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
   };
 
   const handleSaveCreatedAt = async () => {
-    if (!deal?.id) return;
+    if (!deal?.id || !editCreatedAt) return;
     try {
-      const isoDate = editCreatedAt ? new Date(editCreatedAt).toISOString() : new Date().toISOString();
+      console.log("Saving new created_at:", editCreatedAt);
+      const date = new Date(editCreatedAt);
+      const isoDate = date.toISOString();
       
       // Enviamos a atualização
-      const updatedDeal = await updateDeal.mutateAsync({ 
+      await updateDeal.mutateAsync({ 
         id: deal.id, 
         created_at: isoDate 
       } as any);
       
-      // Atualizamos o estado local explicitamente com o valor retornado ou formatado
-      setEditCreatedAt(updatedDeal.created_at ? updatedDeal.created_at.substring(0, 16) : editCreatedAt);
       setIsEditingCreatedAt(false);
       toast.success("Data de criação atualizada!");
     } catch (error) {
@@ -932,16 +947,30 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
                           <Input
                             type="datetime-local"
                             value={editCreatedAt}
-                            onChange={(e) => setEditCreatedAt(e.target.value)}
-                            className="w-44 h-7 text-sm"
-                            onKeyDown={(e) => { if (e.key === 'Enter') handleSaveCreatedAt(); if (e.key === 'Escape') setIsEditingCreatedAt(false); }}
+                            onChange={(e) => {
+                              console.log("Criação - Novo valor:", e.target.value);
+                              setEditCreatedAt(e.target.value);
+                            }}
+                            className="w-48 h-7 text-sm"
+                            onKeyDown={(e) => { 
+                              if (e.key === 'Enter') handleSaveCreatedAt(); 
+                              if (e.key === 'Escape') setIsEditingCreatedAt(false); 
+                            }}
                           />
                           <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={handleSaveCreatedAt}><Save className="h-3 w-3" /></Button>
                           <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setIsEditingCreatedAt(false)}><X className="h-3 w-3" /></Button>
                         </div>
                       ) : (
-                        <button onClick={() => setIsEditingCreatedAt(true)} className="hover:underline flex items-center gap-1">
-                          {format(parseISO(currentDeal?.created_at || new Date().toISOString()), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                        <button 
+                          onClick={() => {
+                            console.log("Iniciando edição da data de criação:", currentDeal?.created_at);
+                            setIsEditingCreatedAt(true);
+                          }} 
+                          className="hover:underline flex items-center gap-1"
+                        >
+                          {currentDeal?.created_at 
+                            ? format(parseISO(currentDeal.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })
+                            : "Definir data"}
                           <Edit2 className="h-3 w-3 opacity-50" />
                         </button>
                       )}
