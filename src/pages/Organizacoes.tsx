@@ -1101,6 +1101,7 @@ export default function Organizacoes() {
                               })}
                             </TableBody>
                           </Table>
+                          </div>
                         )}
                       </CardContent>
                     </Card>
