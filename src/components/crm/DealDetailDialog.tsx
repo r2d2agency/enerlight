@@ -234,11 +234,17 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
       // Ajuste para garantir que a data de criação seja carregada corretamente no formato datetime-local
       if (currentDeal.created_at) {
         try {
+          // A data do servidor já está em UTC. Queremos mostrar no horário local do navegador.
           const date = new Date(currentDeal.created_at);
-          // O formato datetime-local espera YYYY-MM-DDTHH:mm
-          const offset = date.getTimezoneOffset() * 60000;
-          const localISOTime = new Date(date.getTime( ) - offset).toISOString().slice(0, 16);
-          setEditCreatedAt(localISOTime);
+          
+          // O formato datetime-local espera YYYY-MM-DDTHH:mm no horário LOCAL do input
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          const hours = String(date.getHours()).padStart(2, '0');
+          const minutes = String(date.getMinutes()).padStart(2, '0');
+          
+          setEditCreatedAt(`${year}-${month}-${day}T${hours}:${minutes}`);
         } catch (e) {
           setEditCreatedAt(currentDeal.created_at.substring(0, 16));
         }
@@ -323,9 +329,14 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
   const handleSaveCreatedAt = async () => {
     if (!deal?.id || !editCreatedAt) return;
     try {
-      console.log("Saving new created_at:", editCreatedAt);
+      console.log("Saving new created_at (local):", editCreatedAt);
+      
+      // O input datetime-local fornece o valor no horário local.
+      // Precisamos converter para ISO (UTC) para enviar ao servidor.
       const date = new Date(editCreatedAt);
       const isoDate = date.toISOString();
+      
+      console.log("Saving new created_at (UTC):", isoDate);
       
       // Enviamos a atualização
       await updateDeal.mutateAsync({ 
