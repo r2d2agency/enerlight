@@ -1039,7 +1039,7 @@ export default function Organizacoes() {
                                       {new Date(member.created_at).toLocaleDateString('pt-BR')}
                                     </TableCell>
                                     {canManageOrg && (
-                                      <TableCell>
+                                      <TableCell className="sticky right-0 bg-background shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.1)]">
                                         <div className="flex items-center gap-1">
                                           <Button 
                                                 variant="ghost" 
