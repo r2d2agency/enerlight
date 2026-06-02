@@ -1797,7 +1797,7 @@ router.put('/deals/:id', async (req, res) => {
 
     const { stage_id, title, value, probability, expected_close_date, description, 
             tags, owner_id, group_id, status, lost_reason, loss_reason_id, custom_fields, representative_id, company_id,
-            quote_carrier, quote_value, quote_code } = req.body;
+            quote_carrier, quote_value, quote_code, created_at } = req.body;
 
     // Get current deal for history
     const current = await query(`SELECT * FROM crm_deals WHERE id = $1`, [req.params.id]);
@@ -1810,7 +1810,7 @@ router.put('/deals/:id', async (req, res) => {
     // Build dynamic update
     const fieldsToUpdate = { stage_id, title, value, probability, expected_close_date, 
                              description, tags, owner_id, group_id, status, lost_reason, loss_reason_id, representative_id, company_id,
-                             quote_carrier, quote_value, quote_code };
+                             quote_carrier, quote_value, quote_code, created_at };
     
     for (const [key, val] of Object.entries(fieldsToUpdate)) {
       if (val !== undefined) {
