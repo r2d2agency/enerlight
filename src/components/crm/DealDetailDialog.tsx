@@ -332,16 +332,26 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
       console.log("Saving new created_at (local):", editCreatedAt);
       
       // O input datetime-local fornece o valor no horário local.
-      // Precisamos converter para ISO (UTC) para enviar ao servidor.
+      // Vamos construir uma string ISO que preserve o valor exato selecionado no input
+      // sem converter para UTC (para evitar o deslocamento de timezone no servidor)
       const date = new Date(editCreatedAt);
-      const isoDate = date.toISOString();
       
-      console.log("Saving new created_at (UTC):", isoDate);
+      // Formata como YYYY-MM-DD HH:mm:ss para o PostgreSQL tratar como timezone local ou persistir sem deslocamento
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      const seconds = "00";
+      
+      const dbDate = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+      
+      console.log("Saving new created_at (to DB):", dbDate);
       
       // Enviamos a atualização
       await updateDeal.mutateAsync({ 
         id: deal.id, 
-        created_at: isoDate 
+        created_at: dbDate 
       } as any);
       
       setIsEditingCreatedAt(false);
