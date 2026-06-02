@@ -940,6 +940,7 @@ export default function Organizacoes() {
                             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                           </div>
                         ) : (
+                          <div className="w-full overflow-x-auto">
                           <Table>
                             <TableHeader>
                               <TableRow>
@@ -949,7 +950,7 @@ export default function Organizacoes() {
                                 <TableHead>Conexões</TableHead>
                                 <TableHead>Departamentos</TableHead>
                                 <TableHead>Desde</TableHead>
-                                {canManageOrg && <TableHead className="w-[120px]">Ações</TableHead>}
+                                {canManageOrg && <TableHead className="sticky right-0 bg-background shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.1)] w-[180px]">Ações</TableHead>}
                               </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -1038,7 +1039,7 @@ export default function Organizacoes() {
                                       {new Date(member.created_at).toLocaleDateString('pt-BR')}
                                     </TableCell>
                                     {canManageOrg && (
-                                      <TableCell>
+                                      <TableCell className="sticky right-0 bg-background shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.1)]">
                                         <div className="flex items-center gap-1">
                                           <Button 
                                                 variant="ghost" 
@@ -1100,6 +1101,7 @@ export default function Organizacoes() {
                               })}
                             </TableBody>
                           </Table>
+                          </div>
                         )}
                       </CardContent>
                     </Card>
