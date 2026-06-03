@@ -102,6 +102,8 @@ export default function Organizacoes() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editOrgName, setEditOrgName] = useState('');
   const [editOrgLogo, setEditOrgLogo] = useState<string | null>(null);
+  const [editOrgConnectionIds, setEditOrgConnectionIds] = useState<string[]>([]);
+  const [allSystemConnections, setAllSystemConnections] = useState<OrgConnection[]>([]);
   const logoInputRef = useRef<HTMLInputElement>(null);
   
   // Create user dialog
