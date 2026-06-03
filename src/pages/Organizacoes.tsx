@@ -102,6 +102,8 @@ export default function Organizacoes() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editOrgName, setEditOrgName] = useState('');
   const [editOrgLogo, setEditOrgLogo] = useState<string | null>(null);
+  const [editOrgConnectionIds, setEditOrgConnectionIds] = useState<string[]>([]);
+  const [allSystemConnections, setAllSystemConnections] = useState<OrgConnection[]>([]);
   const logoInputRef = useRef<HTMLInputElement>(null);
   
   // Create user dialog
@@ -327,7 +329,10 @@ export default function Organizacoes() {
   const handleUpdateOrg = async () => {
     if (!selectedOrg || !editOrgName) return;
     
-    const data: { name?: string; logo_url?: string } = { name: editOrgName };
+    const data: { name?: string; logo_url?: string; connection_ids?: string[] } = { 
+      name: editOrgName,
+      connection_ids: editOrgConnectionIds 
+    };
     if (editOrgLogo !== undefined) data.logo_url = editOrgLogo || '';
     
     const updated = await updateOrganization(selectedOrg.id, data);
@@ -335,10 +340,32 @@ export default function Organizacoes() {
       toast.success('Organização atualizada!');
       setEditDialogOpen(false);
       loadOrganizations();
+      // Reload connections as they might have changed
+      loadConnections(selectedOrg.id);
       setSelectedOrg({ ...selectedOrg, name: editOrgName, logo_url: editOrgLogo });
     } else if (error) {
       toast.error(error);
     }
+  };
+
+  const handleOpenEditOrg = async () => {
+    if (!selectedOrg) return;
+    setEditOrgName(selectedOrg.name);
+    setEditOrgLogo(selectedOrg.logo_url);
+    
+    // For superadmin, we might want to see all system connections to assign them
+    if (isSuperadmin) {
+      try {
+        const allConns = await api<OrgConnection[]>('/api/connections');
+        setAllSystemConnections(allConns);
+      } catch (e) {
+        console.error('Error loading all connections:', e);
+      }
+    }
+    
+    // Load currently assigned connections for the org
+    setEditOrgConnectionIds(connections.map(c => c.id));
+    setEditDialogOpen(true);
   };
 
   const handleCreateUser = async () => {
@@ -695,7 +722,7 @@ export default function Organizacoes() {
                       {canManageOrg && (
                         <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
                           <DialogTrigger asChild>
-                            <Button variant="outline" size="sm" onClick={() => { setEditOrgName(selectedOrg.name); setEditOrgLogo(selectedOrg.logo_url); }} className="shrink-0 w-full sm:w-auto">
+                            <Button variant="outline" size="sm" onClick={handleOpenEditOrg} className="shrink-0 w-full sm:w-auto">
                               <Pencil className="h-4 w-4 mr-2" />
                               Editar
                             </Button>
@@ -749,6 +776,46 @@ export default function Organizacoes() {
                                   </Button>
                                 )}
                               </div>
+
+                              {isSuperadmin && (
+                                <div className="space-y-2">
+                                  <Label className="flex items-center gap-2">
+                                    <Link2 className="h-4 w-4" />
+                                    Canais (Conexões) Vinculados
+                                  </Label>
+                                  {allSystemConnections.length === 0 ? (
+                                    <p className="text-muted-foreground text-xs py-2">
+                                      Nenhuma conexão cadastrada no sistema
+                                    </p>
+                                  ) : (
+                                    <div className="space-y-2 border rounded-md p-3 max-h-40 overflow-y-auto bg-muted/20">
+                                      {allSystemConnections.map((conn) => (
+                                        <div key={conn.id} className="flex items-center space-x-2">
+                                          <Checkbox
+                                            id={`org-conn-${conn.id}`}
+                                            checked={editOrgConnectionIds.includes(conn.id)}
+                                            onCheckedChange={() => toggleConnection(conn.id, editOrgConnectionIds, setEditOrgConnectionIds)}
+                                          />
+                                          <label
+                                            htmlFor={`org-conn-${conn.id}`}
+                                            className="text-sm font-medium leading-none cursor-pointer flex-1"
+                                          >
+                                            {conn.name}
+                                            {conn.phone_number && (
+                                              <span className="text-muted-foreground ml-2 text-xs">
+                                                ({conn.phone_number})
+                                              </span>
+                                            )}
+                                          </label>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                  <p className="text-[10px] text-muted-foreground">
+                                    Como Superadmin, você pode vincular canais globais a esta organização.
+                                  </p>
+                                </div>
+                              )}
                             </div>
                             <DialogFooter>
                               <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
