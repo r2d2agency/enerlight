@@ -329,7 +329,10 @@ export default function Organizacoes() {
   const handleUpdateOrg = async () => {
     if (!selectedOrg || !editOrgName) return;
     
-    const data: { name?: string; logo_url?: string } = { name: editOrgName };
+    const data: { name?: string; logo_url?: string; connection_ids?: string[] } = { 
+      name: editOrgName,
+      connection_ids: editOrgConnectionIds 
+    };
     if (editOrgLogo !== undefined) data.logo_url = editOrgLogo || '';
     
     const updated = await updateOrganization(selectedOrg.id, data);
@@ -337,10 +340,32 @@ export default function Organizacoes() {
       toast.success('Organização atualizada!');
       setEditDialogOpen(false);
       loadOrganizations();
+      // Reload connections as they might have changed
+      loadConnections(selectedOrg.id);
       setSelectedOrg({ ...selectedOrg, name: editOrgName, logo_url: editOrgLogo });
     } else if (error) {
       toast.error(error);
     }
+  };
+
+  const handleOpenEditOrg = async () => {
+    if (!selectedOrg) return;
+    setEditOrgName(selectedOrg.name);
+    setEditOrgLogo(selectedOrg.logo_url);
+    
+    // For superadmin, we might want to see all system connections to assign them
+    if (isSuperadmin) {
+      try {
+        const allConns = await api<OrgConnection[]>('/api/connections');
+        setAllSystemConnections(allConns);
+      } catch (e) {
+        console.error('Error loading all connections:', e);
+      }
+    }
+    
+    // Load currently assigned connections for the org
+    setEditOrgConnectionIds(connections.map(c => c.id));
+    setEditDialogOpen(true);
   };
 
   const handleCreateUser = async () => {
