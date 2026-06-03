@@ -776,6 +776,46 @@ export default function Organizacoes() {
                                   </Button>
                                 )}
                               </div>
+
+                              {isSuperadmin && (
+                                <div className="space-y-2">
+                                  <Label className="flex items-center gap-2">
+                                    <Link2 className="h-4 w-4" />
+                                    Canais (Conexões) Vinculados
+                                  </Label>
+                                  {allSystemConnections.length === 0 ? (
+                                    <p className="text-muted-foreground text-xs py-2">
+                                      Nenhuma conexão cadastrada no sistema
+                                    </p>
+                                  ) : (
+                                    <div className="space-y-2 border rounded-md p-3 max-h-40 overflow-y-auto bg-muted/20">
+                                      {allSystemConnections.map((conn) => (
+                                        <div key={conn.id} className="flex items-center space-x-2">
+                                          <Checkbox
+                                            id={`org-conn-${conn.id}`}
+                                            checked={editOrgConnectionIds.includes(conn.id)}
+                                            onCheckedChange={() => toggleConnection(conn.id, editOrgConnectionIds, setEditOrgConnectionIds)}
+                                          />
+                                          <label
+                                            htmlFor={`org-conn-${conn.id}`}
+                                            className="text-sm font-medium leading-none cursor-pointer flex-1"
+                                          >
+                                            {conn.name}
+                                            {conn.phone_number && (
+                                              <span className="text-muted-foreground ml-2 text-xs">
+                                                ({conn.phone_number})
+                                              </span>
+                                            )}
+                                          </label>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                  <p className="text-[10px] text-muted-foreground">
+                                    Como Superadmin, você pode vincular canais globais a esta organização.
+                                  </p>
+                                </div>
+                              )}
                             </div>
                             <DialogFooter>
                               <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
