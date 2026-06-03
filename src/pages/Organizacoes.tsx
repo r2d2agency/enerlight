@@ -722,7 +722,7 @@ export default function Organizacoes() {
                       {canManageOrg && (
                         <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
                           <DialogTrigger asChild>
-                            <Button variant="outline" size="sm" onClick={() => { setEditOrgName(selectedOrg.name); setEditOrgLogo(selectedOrg.logo_url); }} className="shrink-0 w-full sm:w-auto">
+                            <Button variant="outline" size="sm" onClick={handleOpenEditOrg} className="shrink-0 w-full sm:w-auto">
                               <Pencil className="h-4 w-4 mr-2" />
                               Editar
                             </Button>
