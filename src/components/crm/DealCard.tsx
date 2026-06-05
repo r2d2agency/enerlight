@@ -152,13 +152,14 @@ export const DealCard = forwardRef<HTMLDivElement, DealCardProps>(
         )}
 
         {/* Title & Value */}
-        <div className="mb-2 min-w-0">
+        <div className="mb-2 min-w-0 pr-6">
           <h4 className={cn(
-            "font-semibold text-sm line-clamp-2 mb-1",
+            "font-semibold text-sm line-clamp-2 mb-1 break-words",
             isPaused && "text-muted-foreground"
           )}>
             {deal.title}
           </h4>
+
           
           {deal.value > 0 && (
             <div className={cn(
