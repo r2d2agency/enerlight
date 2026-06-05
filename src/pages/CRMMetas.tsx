@@ -79,6 +79,7 @@ export default function CRMMetas() {
   const { user, userPermissions } = useAuth();
   const isAdmin = user?.role && ["owner", "admin", "manager"].includes(user.role);
   const canViewMetas = userPermissions?.can_view_goals || isAdmin;
+  console.log('[CRMMetas] Access check:', { userId: user?.id, role: user?.role, can_view_goals: userPermissions?.can_view_goals, isAdmin, canViewMetas });
 
   if (!canViewMetas && user?.role !== 'owner') {
     return (
