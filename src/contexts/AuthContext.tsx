@@ -23,6 +23,8 @@ interface ModulesEnabled {
   logistics: boolean;
   document_signatures: boolean;
   online_quotes: boolean;
+  goals: boolean;
+  representatives: boolean;
 }
 
 export interface UserPermissions {
@@ -125,6 +127,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     logistics: false,
     document_signatures: false,
     online_quotes: true,
+    goals: true,
+    representatives: true,
   };
 
   const refreshUser = async () => {
