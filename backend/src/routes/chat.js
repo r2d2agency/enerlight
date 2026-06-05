@@ -2607,7 +2607,19 @@ router.get('/contacts', authenticate, async (req, res) => {
       console.warn('Auto-populate chat contacts failed (non-critical):', autoPopulateError.message);
     }
 
-    // Build chat_contacts query
+    // Resolve organization (to broaden scope to org-wide contacts the user owns)
+    const orgRes = await query(
+      `SELECT organization_id, role FROM organization_members WHERE user_id = $1 LIMIT 1`,
+      [req.userId]
+    );
+    const orgId = orgRes.rows[0]?.organization_id || null;
+    const role = orgRes.rows[0]?.role || null;
+    const isPrivileged = ['owner', 'admin', 'manager', 'supervisor'].includes(role || '');
+
+    // Build chat_contacts query – widen scope:
+    //  - contacts on connections assigned to the user
+    //  - OR contacts created by the user (regardless of connection)
+    //  - OR (for privileged roles) all contacts in any connection of the org
     let chatSql = `
       SELECT 
         cc.id,
@@ -2624,13 +2636,21 @@ router.get('/contacts', authenticate, async (req, res) => {
         cc.created_at
       FROM chat_contacts cc
       JOIN connections c ON c.id = cc.connection_id
-      WHERE cc.connection_id = ANY($1::uuid[])
-        AND COALESCE(cc.is_deleted, false) = false
+      WHERE COALESCE(cc.is_deleted, false) = false
         AND (cc.jid IS NULL OR cc.jid NOT LIKE '%@g.us')
+        AND (
+          cc.connection_id = ANY($1::uuid[])
+          OR cc.created_by = $2
     `;
+    const chatParams = [connectionIds, req.userId];
+    let chatParamIndex = 3;
 
-    const chatParams = [connectionIds];
-    let chatParamIndex = 2;
+    if (isPrivileged && orgId) {
+      chatSql += ` OR c.organization_id = $${chatParamIndex}`;
+      chatParams.push(orgId);
+      chatParamIndex++;
+    }
+    chatSql += ` )`;
 
     if (connection && connection !== 'all') {
       chatSql += ` AND cc.connection_id = $${chatParamIndex}`;
@@ -2644,12 +2664,12 @@ router.get('/contacts', authenticate, async (req, res) => {
       chatParamIndex++;
     }
 
-    chatSql += ` ORDER BY cc.name ASC NULLS LAST LIMIT 200`;
+    chatSql += ` ORDER BY cc.name ASC NULLS LAST LIMIT 400`;
 
     const chatResult = await query(chatSql, chatParams);
 
     // Also search in contacts table (campaign/list contacts) to include imported contacts
-    // that may not be in chat_contacts yet
+    // Scope: lists from connections in user scope OR lists owned by the user OR (privileged) any list of users in same org
     let listContactsSql = `
       SELECT DISTINCT ON (ct.phone)
         ct.id,
@@ -2662,12 +2682,29 @@ router.get('/contacts', authenticate, async (req, res) => {
         ct.created_at
       FROM contacts ct
       JOIN contact_lists cl ON cl.id = ct.list_id
-      JOIN connections cn ON cn.id = cl.connection_id
-      WHERE cl.connection_id = ANY($1::uuid[])
-        AND ct.phone IS NOT NULL AND ct.phone <> ''
+      LEFT JOIN connections cn ON cn.id = cl.connection_id
+      WHERE ct.phone IS NOT NULL AND ct.phone <> ''
+        AND (
+          cl.connection_id = ANY($1::uuid[])
+          OR cl.user_id = $2
     `;
-    const listParams = [connectionIds];
-    let listParamIndex = 2;
+    const listParams = [connectionIds, req.userId];
+    let listParamIndex = 3;
+
+    if (isPrivileged && orgId) {
+      listContactsSql += ` OR cl.user_id IN (SELECT user_id FROM organization_members WHERE organization_id = $${listParamIndex})`;
+      listParams.push(orgId);
+      listParamIndex++;
+    } else if (orgId) {
+      // Regular seller: also include lists owned by anyone in the same org but only when the user has no connection scope at all
+      // (keeps backward compatibility when sellers have no connection_members assignment)
+      if (connectionIds.length === 0) {
+        listContactsSql += ` OR cl.user_id IN (SELECT user_id FROM organization_members WHERE organization_id = $${listParamIndex})`;
+        listParams.push(orgId);
+        listParamIndex++;
+      }
+    }
+    listContactsSql += ` )`;
 
     if (connection && connection !== 'all') {
       listContactsSql += ` AND cl.connection_id = $${listParamIndex}`;
@@ -2681,7 +2718,7 @@ router.get('/contacts', authenticate, async (req, res) => {
       listParamIndex++;
     }
 
-    listContactsSql += ` ORDER BY ct.phone, ct.created_at DESC LIMIT 200`;
+    listContactsSql += ` ORDER BY ct.phone, ct.created_at DESC LIMIT 400`;
 
     let listResult;
     try {
@@ -2710,8 +2747,9 @@ router.get('/contacts', authenticate, async (req, res) => {
       return nameA.localeCompare(nameB);
     });
 
-    const result = { rows: mergedRows.slice(0, 300) };
+    const result = { rows: mergedRows.slice(0, 500) };
     res.json(result.rows);
+
   } catch (error) {
     console.error('Get chat contacts error:', error);
     res.status(500).json({ error: 'Erro ao buscar contatos' });
