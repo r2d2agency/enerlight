@@ -72,8 +72,10 @@ const emptyForm: FormState = {
 
 export default function CRMRepresentantes() {
   const { user, userPermissions } = useAuth();
-  const canManageRep = true; // Liberado para todos cadastrarem conforme solicitação do usuário
   const isAdminOrManager = user?.role === "owner" || user?.role === "admin" || user?.role === "manager";
+  const canViewIndicators = userPermissions?.can_view_representatives || isAdminOrManager;
+  console.log('[CRMRepresentantes] Access check:', { userId: user?.id, role: user?.role, can_view_representatives: userPermissions?.can_view_representatives, isAdminOrManager, canViewIndicators });
+  const canManageRep = true; // Liberado para todos cadastrarem conforme solicitação do usuário
 
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
