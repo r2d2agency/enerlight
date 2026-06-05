@@ -75,6 +75,8 @@ export interface UserPermissions {
   can_edit_price_lists: boolean;
   can_view_goals: boolean;
   can_view_representatives: boolean;
+  can_view_rh: boolean;
+  can_approve_rh: boolean;
 }
 
 interface User {
