@@ -157,8 +157,11 @@ export default function Organizacoes() {
     logistics: false,
     online_quotes: true,
     rh_module: false,
+    goals: true,
+    representatives: true,
   });
   const [savingModules, setSavingModules] = useState(false);
+
 
   // Groups management
   const { data: crmGroups, isLoading: loadingCrmGroups } = useCRMGroups();
