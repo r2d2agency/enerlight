@@ -190,12 +190,6 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
   // Load agenda contacts & custom fields
   useEffect(() => {
     if (open) {
-      setLoadingContacts(true);
-      api<ChatContact[]>('/api/chat/contacts')
-        .then(setAgendaContacts)
-        .catch(console.error)
-        .finally(() => setLoadingContacts(false));
-      
       // Load scheduled WhatsApp messages for this deal's contacts
       loadScheduledMessages();
 
@@ -205,6 +199,22 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
         .catch(() => setCustomFields([]));
     }
   }, [open, currentDeal?.contacts]);
+
+  // Load agenda contacts with server-side search (debounced)
+  useEffect(() => {
+    if (!open) return;
+    setLoadingContacts(true);
+    const handle = setTimeout(() => {
+      const qs = contactSearch.trim()
+        ? `?search=${encodeURIComponent(contactSearch.trim())}`
+        : '';
+      api<ChatContact[]>(`/api/chat/contacts${qs}`)
+        .then(setAgendaContacts)
+        .catch(console.error)
+        .finally(() => setLoadingContacts(false));
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [open, contactSearch]);
 
   // Load deal attachments from backend
   useEffect(() => {
@@ -1649,31 +1659,24 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-[350px] p-0 z-[200]" align="start">
-                      <Command>
+                      <Command shouldFilter={false}>
                         <CommandInput
                           placeholder="Buscar por nome ou telefone..."
                           value={contactSearch}
                           onValueChange={setContactSearch}
                         />
                         <CommandList>
-                          <CommandEmpty>Nenhum contato encontrado.</CommandEmpty>
+                          <CommandEmpty>
+                            {loadingContacts ? "Carregando..." : "Nenhum contato encontrado."}
+                          </CommandEmpty>
                           <CommandGroup>
                             {agendaContacts
-                              .filter((c) => {
-                                const search = contactSearch.toLowerCase();
-                                const name = c.name || c.phone || "";
-                                const phone = c.phone || "";
-                                return (
-                                  name.toLowerCase().includes(search) ||
-                                  phone.includes(search)
-                                );
-                              })
                               .filter((c) => !fullDeal?.contacts?.some((dc: any) => dc.phone === c.phone))
-                              .slice(0, 15)
+                              .slice(0, 50)
                               .map((contact) => (
                                 <CommandItem
                                   key={contact.id}
-                                  value={`${contact.name || ""} ${contact.phone || ""}`}
+                                  value={`${contact.name || ""} ${contact.phone || ""} ${contact.id}`}
                                   onSelect={() => {
                                     addContact.mutate({
                                       dealId: deal.id,
