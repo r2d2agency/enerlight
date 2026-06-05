@@ -282,7 +282,7 @@ function SidebarContentComponent({ isExpanded, isSuperadmin, onNavigate }: Sideb
   const [openSections, setOpenSections] = useState<string[]>(getInitialOpenSections);
 
   // Helper to check if user has admin-level role
-  const isAdminRole = (role?: string) => ['owner', 'admin', 'manager'].includes(role || '');
+  const isAdminRole = (role?: string) => ['owner', 'admin', 'manager', 'supervisor'].includes(role || '');
   const isOwnerRole = (role?: string) => role === 'owner';
   const userIsAdmin = isSuperadmin || isAdminRole(user?.role);
   const userIsOwner = isSuperadmin || isOwnerRole(user?.role);
@@ -291,10 +291,12 @@ function SidebarContentComponent({ isExpanded, isSuperadmin, onNavigate }: Sideb
   // Check permission - if user has custom permissions, use them; otherwise fall through to role-based
   const hasPermission = (permKey?: string): boolean => {
     if (!permKey) return true;
-    if (isSuperadmin) return true;
+    if (isSuperadmin || userIsOwner) return true;
     
     // If it's a specific permission and we have custom permissions set
     if (userPermissions && Object.keys(userPermissions).length > 0) {
+      // For goals and representatives, double check if they are explicitly false
+      // to avoid accidental exclusion if the template didn't include them
       return (userPermissions as any)[permKey] === true;
     }
 
