@@ -292,9 +292,18 @@ function SidebarContentComponent({ isExpanded, isSuperadmin, onNavigate }: Sideb
   const hasPermission = (permKey?: string): boolean => {
     if (!permKey) return true;
     if (isSuperadmin) return true;
-    if (!userPermissions) return true; // no custom permissions = use role-based defaults
-    return (userPermissions as any)[permKey] === true;
+    
+    // If it's a specific permission and we have custom permissions set
+    if (userPermissions && Object.keys(userPermissions).length > 0) {
+      return (userPermissions as any)[permKey] === true;
+    }
+
+    // Role-based fallbacks if no custom permissions
+    if (userIsAdmin) return true;
+    
+    return false;
   };
+
 
   // Map module keys to their corresponding permission keys
   const modulePermissionMap: Partial<Record<ModuleKey, string>> = {
