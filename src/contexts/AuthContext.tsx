@@ -138,14 +138,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const token = getAuthToken();
     if (token) {
       try {
+        console.log('[Auth] Refreshing user data...');
         const response = await authApi.getMe();
+        console.log('[Auth] User data refreshed:', response.user?.email);
         setUser(response.user);
         // Auto-renew token if backend sent a new one
         if (response.token) {
           setAuthToken(response.token);
         }
-      } catch {
-        // Ignore errors on refresh
+      } catch (error) {
+        console.error('[Auth] Error refreshing user:', error);
       }
     }
   };

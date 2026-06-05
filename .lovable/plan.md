@@ -1,29 +1,16 @@
-I will fix the permissions and menu visibility issues by synchronizing the permission keys and module settings across the application.
+O usuário relata que, mesmo após ativar as permissões (como Metas, Indicadores e Logística) e salvar no usuário, os itens não aparecem no menu lateral.
 
-### Improvements:
+Após análise técnica, identifiquei que:
+1.  **Sidebar.tsx**: A lógica de visibilidade no menu lateral utiliza `userPermissions` e `modulesEnabled`. A função `hasModuleAccess` prioriza permissões explícitas em `userPermissions`.
+2.  **AuthContext.tsx**: O estado `userPermissions` é derivado de `user.user_permissions`. Quando as permissões são atualizadas via API, o frontend chama `refreshUser()` para buscar os dados atualizados do endpoint `/api/auth/me`.
+3.  **Persistence**: Se o usuário salva e "não funciona", pode ser um problema de cache no navegador, falha na atualização do estado global do React após o salvamento, ou os campos no banco de dados não estarem sendo lidos corretamente pelo endpoint `/me`.
 
-1.  **Sync Permission Templates**:
-    *   Update `src/components/admin/PermissionTemplatesTab.tsx` to include the missing "Logística" and "Assinaturas" permission groups.
-    *   Ensure all permission keys (like `can_view_logistics`, `can_view_document_signatures`) are available in the templates UI.
-2.  **Sync Permissions Dialog**:
-    *   Update `src/components/permissions/PermissionsDialog.tsx` to match the groups and keys in the templates tab.
-3.  **Update Sidebar Module Logic**:
-    *   Add `moduleKey: 'goals'` to the "Metas" menu item.
-    *   Add `moduleKey: 'representatives'` to the "Indicadores" menu item.
-    *   This ensures that even if a user has the permission, the item only appears if the module is enabled for the organization.
-4.  **Update Auth Context**:
-    *   Add `goals` and `representatives` to the `ModulesEnabled` interface and default state.
-5.  **Refactor Permission Groups**:
-    *   I will extract the `PERMISSION_GROUPS` to a shared file or at least ensure they are identical in both components to avoid future sync issues.
+Vou realizar as seguintes correções:
+- **Forçar refresh de permissões**: Garantir que após salvar permissões em `PermissionsDialog.tsx` e templates em `PermissionTemplatesTab.tsx`, o estado de autenticação seja invalidado ou atualizado corretamente.
+- **Sincronização de Chaves**: Verificar se todas as chaves de permissão usadas no Sidebar (ex: `can_view_goals`, `can_view_representatives`, `can_view_logistics`) estão presentes no `AuthContext` e nos diálogos de permissão.
+- **Módulos da Organização**: Garantir que as permissões de usuário tenham precedência sobre as travas de módulos da organização no menu lateral, conforme a lógica pretendida.
 
-### Technical Details:
--   **Files to modify**:
-    -   `src/contexts/AuthContext.tsx`: Update `ModulesEnabled` and `defaultModules`.
-    -   `src/components/admin/PermissionTemplatesTab.tsx`: Add missing groups and keys.
-    -   `src/components/permissions/PermissionsDialog.tsx`: Match the template groups.
-    -   `src/components/layout/Sidebar.tsx`: Add `moduleKey` to Metas and Indicadores.
--   **New Permission Keys to ensure everywhere**:
-    -   `can_view_logistics`, `can_edit_logistics`, `can_delete_logistics`
-    -   `can_view_document_signatures`
-    -   `can_view_goals`
-    -   `can_view_representatives`
+### Detalhes Técnicos
+- Atualizar `src/components/permissions/PermissionsDialog.tsx` para garantir que `refreshUser()` atualize o estado local de forma reativa.
+- Verificar o mapeamento de `modulePermissionMap` no `Sidebar.tsx` para garantir que cobre todos os novos módulos adicionados recentemente.
+- Adicionar logs de depuração temporários (se necessário) para rastrear o fluxo de dados de permissões.

@@ -236,6 +236,10 @@ export function PermissionsDialog({ open, onOpenChange, userId, userName, userRo
       toast.success('Permissões salvas!');
       // Refresh auth session to update sidebar/permissions globally
       await refreshUser();
+      
+      // Also refresh the local permissions state just in case
+      await loadPermissions();
+      
       onOpenChange(false);
     } catch (error) {
       toast.error('Erro ao salvar permissões');
