@@ -210,10 +210,24 @@ export function PermissionTemplatesTab() {
     setSaving(true);
     try {
       if (editing) {
-        await api(`/api/permission-templates/${editing.id}`, {
-          method: 'PATCH',
-          body: { name, description, icon, permissions },
-        });
+        const payload = { name, description, icon, permissions };
+
+        try {
+          await api(`/api/permission-templates/${editing.id}`, {
+            method: 'PUT',
+            body: payload,
+          });
+        } catch (error: any) {
+          if (error?.status !== 404 && error?.status !== 405) {
+            throw error;
+          }
+
+          await api(`/api/permission-templates/${editing.id}`, {
+            method: 'PATCH',
+            body: payload,
+          });
+        }
+
         toast.success('Template atualizado!');
       } else {
         await api('/api/permission-templates', {
