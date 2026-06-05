@@ -227,9 +227,14 @@ export function PermissionTemplatesTab() {
       return;
     }
     setSaving(true);
+    
+    // Ensure critical permissions are preserved in the payload
+    const permissionsToSave = { ...permissions };
+    console.log('[PermissionTemplatesTab] Saving template:', { name, permissions: permissionsToSave });
+
     try {
       if (editing) {
-        const payload = { name, description, icon, permissions };
+        const payload = { name, description, icon, permissions: permissionsToSave };
 
         try {
           await api(`/api/permission-templates/${editing.id}`, {
@@ -251,13 +256,14 @@ export function PermissionTemplatesTab() {
       } else {
         await api('/api/permission-templates', {
           method: 'POST',
-          body: { name, description, icon, permissions },
+          body: { name, description, icon, permissions: permissionsToSave },
         });
         toast.success('Template criado!');
       }
       setEditorOpen(false);
       loadTemplates();
-    } catch {
+    } catch (error) {
+      console.error('[PermissionTemplatesTab] Save error:', error);
       toast.error('Erro ao salvar template');
     } finally {
       setSaving(false);
