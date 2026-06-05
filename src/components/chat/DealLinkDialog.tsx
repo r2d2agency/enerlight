@@ -455,7 +455,7 @@ export function DealLinkDialog({
           {mode === "create" && (
             <Button 
               onClick={handleCreateDeal}
-              disabled={!title.trim() || !selectedFunnelId || !selectedStageId || createDeal.isPending}
+              disabled={createDeal.isPending}
             >
               {createDeal.isPending ? (
                 <>
