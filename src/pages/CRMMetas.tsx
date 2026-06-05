@@ -76,8 +76,20 @@ function formatMarkupFromMargin(avgMargin: number) {
 }
 
 export default function CRMMetas() {
-  const { user } = useAuth();
+  const { user, userPermissions } = useAuth();
   const isAdmin = user?.role && ["owner", "admin", "manager"].includes(user.role);
+  const canViewMetas = userPermissions?.can_view_goals || isAdmin;
+
+  if (!canViewMetas && user?.role !== 'owner') {
+    return (
+      <MainLayout>
+        <div className="flex h-[80vh] items-center justify-center">
+          <p className="text-muted-foreground">Você não tem permissão para acessar este módulo.</p>
+        </div>
+      </MainLayout>
+    );
+  }
+
 
   const [activeTab, setActiveTab] = useState("dashboard");
   const [formOpen, setFormOpen] = useState(false);
