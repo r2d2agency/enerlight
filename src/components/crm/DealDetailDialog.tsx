@@ -190,12 +190,6 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
   // Load agenda contacts & custom fields
   useEffect(() => {
     if (open) {
-      setLoadingContacts(true);
-      api<ChatContact[]>('/api/chat/contacts')
-        .then(setAgendaContacts)
-        .catch(console.error)
-        .finally(() => setLoadingContacts(false));
-      
       // Load scheduled WhatsApp messages for this deal's contacts
       loadScheduledMessages();
 
@@ -205,6 +199,22 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
         .catch(() => setCustomFields([]));
     }
   }, [open, currentDeal?.contacts]);
+
+  // Load agenda contacts with server-side search (debounced)
+  useEffect(() => {
+    if (!open) return;
+    setLoadingContacts(true);
+    const handle = setTimeout(() => {
+      const qs = contactSearch.trim()
+        ? `?search=${encodeURIComponent(contactSearch.trim())}`
+        : '';
+      api<ChatContact[]>(`/api/chat/contacts${qs}`)
+        .then(setAgendaContacts)
+        .catch(console.error)
+        .finally(() => setLoadingContacts(false));
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [open, contactSearch]);
 
   // Load deal attachments from backend
   useEffect(() => {
