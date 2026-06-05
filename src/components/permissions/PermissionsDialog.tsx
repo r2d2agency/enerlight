@@ -239,17 +239,21 @@ export function PermissionsDialog({ open, onOpenChange, userId, userName, userRo
 
   const handleSave = async () => {
     setSaving(true);
+    console.log('[PermissionsDialog] Saving permissions for userId:', userId, permissions);
     try {
-      await api(`/api/permissions/${userId}`, {
+      const response = await api<{ success: boolean; permissions?: Record<string, boolean> }>(`/api/permissions/${userId}`, {
         method: 'PUT',
         body: { permissions },
       });
+      console.log('[PermissionsDialog] Save response:', response);
       toast.success('Permissões salvas!');
+      
       // Refresh auth session to update sidebar/permissions globally
       await refreshUser();
       
-      // Also refresh the local permissions state just in case
-      await loadPermissions();
+      // Instead of reloadPermissions which might overwrite with old data if API hasn't fully propagated,
+      // we update the local state with what we just sent
+      setInitialPermissions(JSON.parse(JSON.stringify(permissions)));
       
       onOpenChange(false);
     } catch (error) {
