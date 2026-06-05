@@ -211,7 +211,7 @@ export function PermissionTemplatesTab() {
     try {
       if (editing) {
         await api(`/api/permission-templates/${editing.id}`, {
-          method: 'PUT',
+          method: 'PATCH',
           body: { name, description, icon, permissions },
         });
         toast.success('Template atualizado!');
