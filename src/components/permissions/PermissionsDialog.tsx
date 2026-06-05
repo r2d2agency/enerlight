@@ -226,7 +226,10 @@ export function PermissionsDialog({ open, onOpenChange, userId, userName, userRo
   const handleApplyTemplate = (templateId: string) => {
     const template = templates.find(t => t.id === templateId);
     if (template) {
-      setPermissions({ ...Object.fromEntries(ALL_KEYS.map(k => [k, false])), ...template.permissions });
+      // Create fresh permissions map with ALL keys defaulted to false
+      const freshPermissions = Object.fromEntries(ALL_KEYS.map(k => [k, false]));
+      // Merge template permissions into it
+      setPermissions({ ...freshPermissions, ...template.permissions });
       toast.info(`Template "${template.name}" aplicado`);
     }
   };

@@ -295,9 +295,15 @@ function SidebarContentComponent({ isExpanded, isSuperadmin, onNavigate }: Sideb
     
     // If it's a specific permission and we have custom permissions set
     if (userPermissions && Object.keys(userPermissions).length > 0) {
-      // For goals and representatives, double check if they are explicitly false
-      // to avoid accidental exclusion if the template didn't include them
-      return (userPermissions as any)[permKey] === true;
+      // Check if permission is explicitly enabled
+      const isEnabled = (userPermissions as any)[permKey] === true;
+      
+      // LOGS for debugging - help track why Metas/Indicadores might be hidden
+      if (['can_view_goals', 'can_view_representatives', 'can_view_logistics'].includes(permKey)) {
+        console.log(`[Sidebar] Checking permission: ${permKey} = ${isEnabled}`);
+      }
+      
+      return isEnabled;
     }
 
     // Role-based fallbacks if no custom permissions
