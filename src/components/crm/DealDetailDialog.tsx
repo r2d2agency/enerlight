@@ -1659,31 +1659,24 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-[350px] p-0 z-[200]" align="start">
-                      <Command>
+                      <Command shouldFilter={false}>
                         <CommandInput
                           placeholder="Buscar por nome ou telefone..."
                           value={contactSearch}
                           onValueChange={setContactSearch}
                         />
                         <CommandList>
-                          <CommandEmpty>Nenhum contato encontrado.</CommandEmpty>
+                          <CommandEmpty>
+                            {loadingContacts ? "Carregando..." : "Nenhum contato encontrado."}
+                          </CommandEmpty>
                           <CommandGroup>
                             {agendaContacts
-                              .filter((c) => {
-                                const search = contactSearch.toLowerCase();
-                                const name = c.name || c.phone || "";
-                                const phone = c.phone || "";
-                                return (
-                                  name.toLowerCase().includes(search) ||
-                                  phone.includes(search)
-                                );
-                              })
                               .filter((c) => !fullDeal?.contacts?.some((dc: any) => dc.phone === c.phone))
-                              .slice(0, 15)
+                              .slice(0, 50)
                               .map((contact) => (
                                 <CommandItem
                                   key={contact.id}
-                                  value={`${contact.name || ""} ${contact.phone || ""}`}
+                                  value={`${contact.name || ""} ${contact.phone || ""} ${contact.id}`}
                                   onSelect={() => {
                                     addContact.mutate({
                                       dealId: deal.id,
