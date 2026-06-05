@@ -329,6 +329,7 @@ function SidebarContentComponent({ isExpanded, isSuperadmin, onNavigate }: Sideb
     // If user has explicit permission for this module, grant access regardless of org module toggle
     const permKey = modulePermissionMap[moduleKey];
     if (permKey && userPermissions && (userPermissions as any)[permKey] === true) {
+      console.log(`[Sidebar] Granting access to module ${moduleKey} due to user permission ${permKey}`);
       return true;
     }
 
