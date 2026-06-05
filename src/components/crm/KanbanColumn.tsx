@@ -98,7 +98,7 @@ function SortableDealItem({
       />
       
       {onStatusChange && !isDragging && !selectionMode && (
-        <div className="absolute top-2 right-2 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity z-10">
+        <div className="absolute top-2 right-1.5 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity z-10">
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
