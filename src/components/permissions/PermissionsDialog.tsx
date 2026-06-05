@@ -161,6 +161,7 @@ interface APITemplate {
 
 export function PermissionsDialog({ open, onOpenChange, userId, userName, userRole }: PermissionsDialogProps) {
   const [permissions, setPermissions] = useState<Record<string, boolean>>({});
+  const [initialPermissions, setInitialPermissions] = useState<Record<string, boolean>>({});
   const [isCustom, setIsCustom] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -197,7 +198,9 @@ export function PermissionsDialog({ open, onOpenChange, userId, userName, userRo
     try {
       const data = await api<{ permissions: Record<string, boolean>; is_custom: boolean }>(`/api/permissions/${userId}`);
       console.log('[PermissionsDialog] Loaded permissions:', data);
-      setPermissions(data.permissions || {});
+      const perms = data.permissions || {};
+      setPermissions(perms);
+      setInitialPermissions(JSON.parse(JSON.stringify(perms)));
       setIsCustom(data.is_custom);
     } catch (error: any) {
       console.error('Error loading permissions:', error);
@@ -383,7 +386,10 @@ export function PermissionsDialog({ open, onOpenChange, userId, userName, userRo
             Resetar
           </Button>
           <div className="flex-1" />
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => {
+            setPermissions(JSON.parse(JSON.stringify(initialPermissions)));
+            onOpenChange(false);
+          }}>
             Cancelar
           </Button>
           <Button onClick={handleSave} disabled={saving}>
