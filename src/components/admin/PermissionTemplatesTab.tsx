@@ -97,6 +97,20 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
     ],
   },
   {
+    title: 'Logística',
+    items: [
+      { key: 'can_view_logistics', label: 'Ver Logística', description: 'Visualizar módulo de logística' },
+      { key: 'can_edit_logistics', label: 'Editar Logística', description: 'Criar e editar remessas' },
+      { key: 'can_delete_logistics', label: 'Excluir Logística', description: 'Permite excluir remessas' },
+    ],
+  },
+  {
+    title: 'Assinaturas',
+    items: [
+      { key: 'can_view_document_signatures', label: 'Assinaturas', description: 'Módulo de assinatura de documentos' },
+    ],
+  },
+  {
     title: 'Captador',
     items: [
       { key: 'can_view_captador', label: 'Captador', description: 'Fichas de campo e mapa de obras' },
