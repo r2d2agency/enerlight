@@ -271,7 +271,10 @@ export default function Organizacoes() {
         logistics: modules.logistics ?? false,
         online_quotes: modules.online_quotes ?? true,
         rh_module: modules.rh_module ?? false,
+        goals: modules.goals ?? true,
+        representatives: modules.representatives ?? true,
       });
+
     } catch (error) {
       console.error('Error loading modules:', error);
     }
