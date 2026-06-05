@@ -335,6 +335,11 @@ function SidebarContentComponent({ isExpanded, isSuperadmin, onNavigate }: Sideb
       return true;
     }
 
+    // Role-based access for non-custom permission users
+    if (!userPermissions || Object.keys(userPermissions).length === 0) {
+      if (userIsAdmin) return true;
+    }
+
     const rawModules = user?.modules_enabled as Partial<Record<ModuleKey, boolean>> | undefined;
     if (rawModules && !(moduleKey in rawModules)) {
       return true;
