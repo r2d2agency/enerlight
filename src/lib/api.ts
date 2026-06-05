@@ -73,9 +73,10 @@ export const api = async <T>(endpoint: string, options: ApiOptions = {}): Promis
       response: data,
     });
 
-    const error = new Error(`${baseMsg}${details}`) as Error & { status?: number; endpoint?: string };
+    const error = new Error(`${baseMsg}${details}`) as Error & { status?: number; endpoint?: string; data?: any };
     error.status = response.status;
     error.endpoint = endpoint;
+    error.data = data;
     throw error;
   }
 

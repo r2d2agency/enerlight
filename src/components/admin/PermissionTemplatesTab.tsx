@@ -191,8 +191,13 @@ export function PermissionTemplatesTab() {
     try {
       const data = await api<PermissionTemplate[]>('/api/permission-templates');
       setTemplates(data);
-    } catch {
-      toast.error('Erro ao carregar templates');
+    } catch (error: any) {
+      console.error('[PermissionTemplatesTab] Error loading templates:', error);
+      if (error?.status === 403) {
+        toast.error('Acesso negado: você não tem permissão para gerenciar templates');
+      } else {
+        toast.error('Erro ao carregar templates');
+      }
     } finally {
       setLoading(false);
     }
