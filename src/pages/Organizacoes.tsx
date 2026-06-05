@@ -19,7 +19,7 @@ import { useCRMGroups, useCRMGroupMembers, useCRMGroupMutations, useCRMFunnels, 
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
-import { Building2, Plus, Users, Trash2, UserPlus, Crown, Shield, User, Briefcase, Loader2, Pencil, Link2, Settings, KeyRound, Megaphone, Receipt, UsersRound, CalendarClock, Bot, Layers, MessagesSquare, Upload, Image, ShieldCheck, GitBranch, Edit, ClipboardList, UserX, UserCheck, Gavel, FileText } from 'lucide-react';
+import { Building2, Plus, Users, Trash2, UserPlus, Crown, Shield, User, Briefcase, Loader2, Pencil, Link2, Settings, KeyRound, Megaphone, Receipt, UsersRound, CalendarClock, Bot, Layers, MessagesSquare, Upload, Image, ShieldCheck, GitBranch, Edit, ClipboardList, UserX, UserCheck, Gavel, FileText, Target, Handshake } from 'lucide-react';
 import { PermissionsDialog } from '@/components/permissions/PermissionsDialog';
 import { PermissionTemplatesTab } from '@/components/admin/PermissionTemplatesTab';
 import { useUpload } from '@/hooks/use-upload';
@@ -157,8 +157,11 @@ export default function Organizacoes() {
     logistics: false,
     online_quotes: true,
     rh_module: false,
+    goals: true,
+    representatives: true,
   });
   const [savingModules, setSavingModules] = useState(false);
+
 
   // Groups management
   const { data: crmGroups, isLoading: loadingCrmGroups } = useCRMGroups();
@@ -268,7 +271,10 @@ export default function Organizacoes() {
         logistics: modules.logistics ?? false,
         online_quotes: modules.online_quotes ?? true,
         rh_module: modules.rh_module ?? false,
+        goals: modules.goals ?? true,
+        representatives: modules.representatives ?? true,
       });
+
     } catch (error) {
       console.error('Error loading modules:', error);
     }
@@ -1422,6 +1428,47 @@ export default function Organizacoes() {
                             disabled={!canManageOrg}
                           />
                         </div>
+
+                        {/* CRM Goals */}
+                        <div className="flex items-center justify-between rounded-lg border p-4">
+                          <div className="flex items-center gap-4">
+                            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                              <Target className="h-5 w-5 text-primary" />
+                            </div>
+                            <div>
+                              <p className="font-medium">Metas</p>
+                              <p className="text-sm text-muted-foreground">
+                                Acompanhamento de metas de vendas e relatórios de desempenho
+                              </p>
+                            </div>
+                          </div>
+                          <Switch
+                            checked={modulesEnabled.goals}
+                            onCheckedChange={(checked) => setModulesEnabled(prev => ({ ...prev, goals: checked }))}
+                            disabled={!canManageOrg}
+                          />
+                        </div>
+
+                        {/* CRM Representatives/Indicators */}
+                        <div className="flex items-center justify-between rounded-lg border p-4">
+                          <div className="flex items-center gap-4">
+                            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                              <Handshake className="h-5 w-5 text-primary" />
+                            </div>
+                            <div>
+                              <p className="font-medium">Indicadores</p>
+                              <p className="text-sm text-muted-foreground">
+                                Gestão de indicadores e representantes externos
+                              </p>
+                            </div>
+                          </div>
+                          <Switch
+                            checked={modulesEnabled.representatives}
+                            onCheckedChange={(checked) => setModulesEnabled(prev => ({ ...prev, representatives: checked }))}
+                            disabled={!canManageOrg}
+                          />
+                        </div>
+
 
                         {/* Group Secretary */}
                         <div className="flex items-center justify-between rounded-lg border p-4">
