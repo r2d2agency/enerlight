@@ -44,11 +44,12 @@ export function DealLinkDialog({
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>("");
   const [companySearch, setCompanySearch] = useState("");
 
-  const { data: funnels, isLoading: loadingFunnels } = useCRMFunnels();
-  const { data: selectedFunnelData } = useCRMFunnel(selectedFunnelId || null);
+  const { data: funnels, isLoading: loadingFunnels, error: funnelsError } = useCRMFunnels();
+  const { data: selectedFunnelData, error: funnelDataError } = useCRMFunnel(selectedFunnelId || null);
   const { data: companies } = useCRMCompanies(companySearch);
   const { data: searchedDeals, isLoading: searchingDeals } = useCRMDealsSearch(searchDeal);
   const { createDeal } = useCRMDealMutations();
+
 
   // Get stages from the fetched funnel data
   const stages: CRMStage[] = selectedFunnelData?.stages || [];
@@ -60,16 +61,30 @@ export function DealLinkDialog({
     }
   }, [selectedFunnelData, selectedStageId]);
 
+  useEffect(() => {
+    if (funnelsError) {
+      console.error('[DealLinkDialog] funnels error:', funnelsError);
+      toast.error('Não foi possível carregar funis. Verifique suas permissões.');
+    }
+  }, [funnelsError]);
+
+  useEffect(() => {
+    if (funnelDataError) {
+      console.error('[DealLinkDialog] funnel detail error:', funnelDataError);
+      toast.error('Não foi possível carregar etapas deste funil.');
+    }
+  }, [funnelDataError]);
+
   const handleFunnelChange = (funnelId: string) => {
     setSelectedFunnelId(funnelId);
     setSelectedStageId(""); // Reset stage when funnel changes
   };
 
   const handleCreateDeal = async () => {
-    if (!title.trim() || !selectedFunnelId || !selectedStageId) {
-      toast.error("Preencha o título, funil e etapa");
-      return;
-    }
+    if (!title.trim()) { toast.error("Informe o título"); return; }
+    if (!selectedFunnelId) { toast.error("Selecione um funil"); return; }
+    if (!selectedStageId) { toast.error("Selecione uma etapa"); return; }
+
 
     try {
       const dealData = {
@@ -440,7 +455,7 @@ export function DealLinkDialog({
           {mode === "create" && (
             <Button 
               onClick={handleCreateDeal}
-              disabled={!title.trim() || !selectedFunnelId || !selectedStageId || createDeal.isPending}
+              disabled={createDeal.isPending}
             >
               {createDeal.isPending ? (
                 <>
