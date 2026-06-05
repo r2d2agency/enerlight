@@ -196,11 +196,16 @@ export function PermissionsDialog({ open, onOpenChange, userId, userName, userRo
     setLoading(true);
     try {
       const data = await api<{ permissions: Record<string, boolean>; is_custom: boolean }>(`/api/permissions/${userId}`);
-      setPermissions(data.permissions);
+      console.log('[PermissionsDialog] Loaded permissions:', data);
+      setPermissions(data.permissions || {});
       setIsCustom(data.is_custom);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading permissions:', error);
-      toast.error('Erro ao carregar permissões');
+      if (error?.status === 403) {
+        toast.error('Você não tem permissão para ver as permissões deste usuário');
+      } else {
+        toast.error('Erro ao carregar permissões');
+      }
     } finally {
       setLoading(false);
     }
