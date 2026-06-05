@@ -129,6 +129,17 @@ export default function CRMRepresentantes() {
 
   const [form, setForm] = useState<FormState>(emptyForm);
 
+  if (!canViewIndicators && user?.role !== 'owner') {
+    return (
+      <MainLayout>
+        <div className="flex h-[80vh] items-center justify-center">
+          <p className="text-muted-foreground">Você não tem permissão para acessar este módulo.</p>
+        </div>
+      </MainLayout>
+    );
+  }
+
+
   // Pre-fill form when editingRep loads
   useEffect(() => {
     if (editingRep) {
