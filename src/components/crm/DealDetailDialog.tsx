@@ -282,11 +282,26 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
       setLossDialogOpen(true);
       return;
     }
+    
+    if (status === 'deleted') {
+      if (window.confirm("Tem certeza que deseja excluir esta negociação?")) {
+        api(`/api/crm/deals/${deal.id}`, { method: 'DELETE' })
+          .then(() => {
+            toast.success("Negociação excluída com sucesso");
+            queryClient.invalidateQueries({ queryKey: ["crm-deals"] });
+            onOpenChange(false);
+          })
+          .catch((err) => toast.error("Erro ao excluir negociação: " + err.message));
+      }
+      return;
+    }
+
     updateDeal.mutate({ 
       id: deal.id, 
-      status: status as 'open' | 'won' | 'lost'
+      status: status as 'open' | 'won' | 'lost' | 'paused'
     });
   };
+
 
   const handleConfirmLoss = (reasonId: string, lossDescription: string) => {
     if (!deal) return;
@@ -737,6 +752,9 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
                   <SelectItem value="open">Em aberto</SelectItem>
                   <SelectItem value="won">Ganho</SelectItem>
                   <SelectItem value="lost">Perdido</SelectItem>
+                  <SelectItem value="paused">Pausado</SelectItem>
+                  <SelectItem value="deleted">Excluir</SelectItem>
+
                 </SelectContent>
               </Select>
             </div>
