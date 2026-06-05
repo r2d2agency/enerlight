@@ -322,6 +322,12 @@ function SidebarContentComponent({ isExpanded, isSuperadmin, onNavigate }: Sideb
     rh_module: 'can_view_rh',
     goals: 'can_view_goals',
     representatives: 'can_view_representatives',
+    crm: 'can_view_crm',
+    campaigns: 'can_view_campaigns',
+    chat: 'can_view_chat',
+    chatbots: 'can_view_chatbots',
+    scheduled_messages: 'can_view_schedules',
+    billing: 'can_view_billing',
   };
 
   const hasModuleAccess = (moduleKey?: ModuleKey): boolean => {
