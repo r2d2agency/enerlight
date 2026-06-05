@@ -1429,6 +1429,47 @@ export default function Organizacoes() {
                           />
                         </div>
 
+                        {/* CRM Goals */}
+                        <div className="flex items-center justify-between rounded-lg border p-4">
+                          <div className="flex items-center gap-4">
+                            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                              <Target className="h-5 w-5 text-primary" />
+                            </div>
+                            <div>
+                              <p className="font-medium">Metas</p>
+                              <p className="text-sm text-muted-foreground">
+                                Acompanhamento de metas de vendas e relatórios de desempenho
+                              </p>
+                            </div>
+                          </div>
+                          <Switch
+                            checked={modulesEnabled.goals}
+                            onCheckedChange={(checked) => setModulesEnabled(prev => ({ ...prev, goals: checked }))}
+                            disabled={!canManageOrg}
+                          />
+                        </div>
+
+                        {/* CRM Representatives/Indicators */}
+                        <div className="flex items-center justify-between rounded-lg border p-4">
+                          <div className="flex items-center gap-4">
+                            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                              <Handshake className="h-5 w-5 text-primary" />
+                            </div>
+                            <div>
+                              <p className="font-medium">Indicadores</p>
+                              <p className="text-sm text-muted-foreground">
+                                Gestão de indicadores e representantes externos
+                              </p>
+                            </div>
+                          </div>
+                          <Switch
+                            checked={modulesEnabled.representatives}
+                            onCheckedChange={(checked) => setModulesEnabled(prev => ({ ...prev, representatives: checked }))}
+                            disabled={!canManageOrg}
+                          />
+                        </div>
+
+
                         {/* Group Secretary */}
                         <div className="flex items-center justify-between rounded-lg border p-4">
                           <div className="flex items-center gap-4">
