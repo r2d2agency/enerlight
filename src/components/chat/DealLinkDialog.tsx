@@ -44,11 +44,12 @@ export function DealLinkDialog({
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>("");
   const [companySearch, setCompanySearch] = useState("");
 
-  const { data: funnels, isLoading: loadingFunnels } = useCRMFunnels();
-  const { data: selectedFunnelData } = useCRMFunnel(selectedFunnelId || null);
+  const { data: funnels, isLoading: loadingFunnels, error: funnelsError } = useCRMFunnels();
+  const { data: selectedFunnelData, error: funnelDataError } = useCRMFunnel(selectedFunnelId || null);
   const { data: companies } = useCRMCompanies(companySearch);
   const { data: searchedDeals, isLoading: searchingDeals } = useCRMDealsSearch(searchDeal);
   const { createDeal } = useCRMDealMutations();
+
 
   // Get stages from the fetched funnel data
   const stages: CRMStage[] = selectedFunnelData?.stages || [];
