@@ -136,6 +136,13 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
       { key: 'can_view_internal_chat', label: 'Chat Interno', description: 'Comunicação entre equipe' },
     ],
   },
+  {
+    title: 'RH / Ponto',
+    items: [
+      { key: 'can_view_rh', label: 'RH / Ponto', description: 'Registro de ponto e gestão de RH' },
+      { key: 'can_approve_rh', label: 'Aprovar Pontos', description: 'Permite aprovar registros de ponto' },
+    ],
+  },
 ];
 
 const ALL_KEYS = PERMISSION_GROUPS.flatMap(g => g.items.map(i => i.key));

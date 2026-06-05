@@ -61,7 +61,7 @@ interface NavItem {
   name: string;
   href: string;
   icon: any;
-  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat' | 'homologation' | 'tasks' | 'lead_gleego' | 'captador' | 'document_signatures' | 'licitacao' | 'logistics' | 'online_quotes' | 'rh_module';
+  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat' | 'homologation' | 'tasks' | 'lead_gleego' | 'captador' | 'document_signatures' | 'licitacao' | 'logistics' | 'online_quotes' | 'rh_module' | 'goals' | 'representatives';
   adminOnly?: boolean;
   ownerOnly?: boolean;
   superadminOnly?: boolean;
@@ -72,7 +72,7 @@ interface NavSection {
   title: string;
   icon: any;
   items: NavItem[];
-  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat' | 'homologation' | 'tasks' | 'lead_gleego' | 'captador' | 'document_signatures' | 'licitacao' | 'logistics' | 'online_quotes' | 'rh_module';
+  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat' | 'homologation' | 'tasks' | 'lead_gleego' | 'captador' | 'document_signatures' | 'licitacao' | 'logistics' | 'online_quotes' | 'rh_module' | 'goals' | 'representatives';
   adminOnly?: boolean;
   permissionKey?: string;
 }
@@ -111,8 +111,8 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
       { name: "Tarefas", href: "/crm/tarefas", icon: ClipboardList, permissionKey: 'can_view_tasks' },
       { name: "Visitas Externas", href: "/crm/visitas-externas", icon: Map, permissionKey: 'can_view_tasks' },
       { name: "Relatórios", href: "/crm/relatorios", icon: BarChart3, permissionKey: 'can_view_reports' },
-      { name: "Indicadores", href: "/crm/representantes", icon: Handshake, permissionKey: 'can_view_representatives' },
-      { name: "Metas", href: "/crm/metas", icon: Target, permissionKey: 'can_view_goals' },
+      { name: "Indicadores", href: "/crm/representantes", icon: Handshake, moduleKey: 'representatives', permissionKey: 'can_view_representatives' },
+      { name: "Metas", href: "/crm/metas", icon: Target, moduleKey: 'goals', permissionKey: 'can_view_goals' },
       { name: "Revenue Intel", href: "/revenue-intelligence", icon: Brain, adminOnly: true, permissionKey: 'can_view_revenue_intel' },
       { name: "Segmentação", href: "/crm/segmentacao", icon: Filter, permissionKey: 'can_view_companies' },
       { name: "Pesquisas", href: "/crm/pesquisas", icon: ClipboardList, permissionKey: 'can_view_crm' },
@@ -318,6 +318,8 @@ function SidebarContentComponent({ isExpanded, isSuperadmin, onNavigate }: Sideb
     lead_gleego: 'can_view_lead_gleego',
     online_quotes: 'can_view_online_quotes',
     rh_module: 'can_view_rh',
+    goals: 'can_view_goals',
+    representatives: 'can_view_representatives',
   };
 
   const hasModuleAccess = (moduleKey?: ModuleKey): boolean => {

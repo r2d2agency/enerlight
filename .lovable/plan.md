@@ -1,21 +1,29 @@
-The user wants to add a "thinking" animation (simulated calculation delay) when generating the report, and then automatically save the report to the system before showing the print option.
+I will fix the permissions and menu visibility issues by synchronizing the permission keys and module settings across the application.
 
-Steps:
-1.  **Add `isGenerating` State**: Introduce a state to track when the calculation is "in progress" (simulated).
-2.  **Add `reportGenerated` State**: Introduce a state to track if the report has already been saved to the system.
-3.  **Implement `handleGenerateReport` Function**:
-    *   This function will set `isGenerating(true)`.
-    *   It will wait for 4 seconds (as requested).
-    *   It will call the existing save logic (moved from `handlePrint` or improved).
-    *   It will set `isGenerating(false)` and `setReportGenerated(true)`.
-4.  **Update UI**:
-    *   If `!reportGenerated` and `!isGenerating`, show a "Gerar Relatório" button.
-    *   If `isGenerating`, show a loading animation with a message like "Processando seu relatório comercial...".
-    *   If `reportGenerated`, show the success message "Cálculo Concluído com Sucesso!" and the "Imprimir" button.
-5.  **Refactor `handlePrint`**: Remove the auto-save logic from `handlePrint` since it will be handled during generation.
+### Improvements:
 
-Technical details:
-*   File: `src/pages/CalculadoraLuminotecnica.tsx`
-*   State variables: `[isGenerating, setIsGenerating]`, `[reportGenerated, setReportGenerated]`.
-*   Timeout: `setTimeout` for 4000ms.
-*   Animation: Use a spinner or a progress bar.
+1.  **Sync Permission Templates**:
+    *   Update `src/components/admin/PermissionTemplatesTab.tsx` to include the missing "Logística" and "Assinaturas" permission groups.
+    *   Ensure all permission keys (like `can_view_logistics`, `can_view_document_signatures`) are available in the templates UI.
+2.  **Sync Permissions Dialog**:
+    *   Update `src/components/permissions/PermissionsDialog.tsx` to match the groups and keys in the templates tab.
+3.  **Update Sidebar Module Logic**:
+    *   Add `moduleKey: 'goals'` to the "Metas" menu item.
+    *   Add `moduleKey: 'representatives'` to the "Indicadores" menu item.
+    *   This ensures that even if a user has the permission, the item only appears if the module is enabled for the organization.
+4.  **Update Auth Context**:
+    *   Add `goals` and `representatives` to the `ModulesEnabled` interface and default state.
+5.  **Refactor Permission Groups**:
+    *   I will extract the `PERMISSION_GROUPS` to a shared file or at least ensure they are identical in both components to avoid future sync issues.
+
+### Technical Details:
+-   **Files to modify**:
+    -   `src/contexts/AuthContext.tsx`: Update `ModulesEnabled` and `defaultModules`.
+    -   `src/components/admin/PermissionTemplatesTab.tsx`: Add missing groups and keys.
+    -   `src/components/permissions/PermissionsDialog.tsx`: Match the template groups.
+    -   `src/components/layout/Sidebar.tsx`: Add `moduleKey` to Metas and Indicadores.
+-   **New Permission Keys to ensure everywhere**:
+    -   `can_view_logistics`, `can_edit_logistics`, `can_delete_logistics`
+    -   `can_view_document_signatures`
+    -   `can_view_goals`
+    -   `can_view_representatives`

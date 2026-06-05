@@ -23,6 +23,8 @@ interface ModulesEnabled {
   logistics: boolean;
   document_signatures: boolean;
   online_quotes: boolean;
+  goals: boolean;
+  representatives: boolean;
 }
 
 export interface UserPermissions {
@@ -72,6 +74,9 @@ export interface UserPermissions {
   can_view_online_quotes: boolean;
   can_edit_price_lists: boolean;
   can_view_goals: boolean;
+  can_view_representatives: boolean;
+  can_view_rh: boolean;
+  can_approve_rh: boolean;
 }
 
 interface User {
@@ -125,6 +130,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     logistics: false,
     document_signatures: false,
     online_quotes: true,
+    goals: true,
+    representatives: true,
   };
 
   const refreshUser = async () => {
