@@ -4,11 +4,17 @@ import { Button } from "@/components/ui/button";
 import { RefreshCw, X } from "lucide-react";
 
 export function UpdateNotification() {
+  const shouldEnableServiceWorker =
+    typeof window !== "undefined" && !window.location.hostname.endsWith(".lovable.app");
+
   const {
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
   } = useRegisterSW({
+    immediate: shouldEnableServiceWorker,
     onRegisteredSW(swUrl, r) {
+      if (!shouldEnableServiceWorker) return;
+
       // Check for updates every 5 minutes
       if (r) {
         setInterval(() => {
@@ -20,6 +26,8 @@ export function UpdateNotification() {
       console.error("SW registration error", error);
     },
   });
+
+  if (!shouldEnableServiceWorker) return null;
 
   if (!needRefresh) return null;
 
