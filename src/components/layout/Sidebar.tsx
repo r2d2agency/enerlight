@@ -112,7 +112,7 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
       { name: "Visitas Externas", href: "/crm/visitas-externas", icon: Map, permissionKey: 'can_view_tasks' },
       { name: "Relatórios", href: "/crm/relatorios", icon: BarChart3, permissionKey: 'can_view_reports' },
       { name: "Indicadores", href: "/crm/representantes", icon: Handshake, permissionKey: 'can_view_crm' },
-      { name: "Metas", href: "/crm/metas", icon: Target, permissionKey: 'can_view_crm' },
+      { name: "Metas", href: "/crm/metas", icon: Target, permissionKey: 'can_view_goals' },
       { name: "Revenue Intel", href: "/revenue-intelligence", icon: Brain, adminOnly: true, permissionKey: 'can_view_revenue_intel' },
       { name: "Segmentação", href: "/crm/segmentacao", icon: Filter, permissionKey: 'can_view_companies' },
       { name: "Pesquisas", href: "/crm/pesquisas", icon: ClipboardList, permissionKey: 'can_view_crm' },
