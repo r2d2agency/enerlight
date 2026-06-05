@@ -300,7 +300,7 @@ function SidebarContentComponent({ isExpanded, isSuperadmin, onNavigate }: Sideb
       
       // LOGS for debugging - help track why Metas/Indicadores might be hidden
       if (['can_view_goals', 'can_view_representatives', 'can_view_logistics'].includes(permKey)) {
-        console.log(`[Sidebar] Checking permission: ${permKey} = ${isEnabled}`);
+        console.log(`[Sidebar] Checking permission: ${permKey} = ${isEnabled}`, { userPermissions });
       }
       
       return isEnabled;
@@ -343,7 +343,7 @@ function SidebarContentComponent({ isExpanded, isSuperadmin, onNavigate }: Sideb
     // If user has explicit permission for this module, grant access regardless of org module toggle
     const permKey = modulePermissionMap[moduleKey];
     if (permKey && userPermissions && (userPermissions as any)[permKey] === true) {
-      console.log(`[Sidebar] Granting access to module ${moduleKey} due to user permission ${permKey}`);
+      console.log(`[Sidebar] Granting access to module ${moduleKey} due to user permission ${permKey}`, { userPermissions });
       return true;
     }
 
