@@ -61,16 +61,30 @@ export function DealLinkDialog({
     }
   }, [selectedFunnelData, selectedStageId]);
 
+  useEffect(() => {
+    if (funnelsError) {
+      console.error('[DealLinkDialog] funnels error:', funnelsError);
+      toast.error('Não foi possível carregar funis. Verifique suas permissões.');
+    }
+  }, [funnelsError]);
+
+  useEffect(() => {
+    if (funnelDataError) {
+      console.error('[DealLinkDialog] funnel detail error:', funnelDataError);
+      toast.error('Não foi possível carregar etapas deste funil.');
+    }
+  }, [funnelDataError]);
+
   const handleFunnelChange = (funnelId: string) => {
     setSelectedFunnelId(funnelId);
     setSelectedStageId(""); // Reset stage when funnel changes
   };
 
   const handleCreateDeal = async () => {
-    if (!title.trim() || !selectedFunnelId || !selectedStageId) {
-      toast.error("Preencha o título, funil e etapa");
-      return;
-    }
+    if (!title.trim()) { toast.error("Informe o título"); return; }
+    if (!selectedFunnelId) { toast.error("Selecione um funil"); return; }
+    if (!selectedStageId) { toast.error("Selecione uma etapa"); return; }
+
 
     try {
       const dealData = {
