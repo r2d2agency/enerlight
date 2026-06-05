@@ -737,6 +737,9 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
                   <SelectItem value="open">Em aberto</SelectItem>
                   <SelectItem value="won">Ganho</SelectItem>
                   <SelectItem value="lost">Perdido</SelectItem>
+                  <SelectItem value="paused">Pausado</SelectItem>
+                  <SelectItem value="deleted">Excluir</SelectItem>
+
                 </SelectContent>
               </Select>
             </div>
