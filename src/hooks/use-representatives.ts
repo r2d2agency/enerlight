@@ -155,7 +155,11 @@ export function useRepresentativeMutations() {
       queryClient.invalidateQueries({ queryKey: ["crm-map-data"] });
       toast({ title: "Indicador criado com sucesso" });
     },
+    onError: (err: any) => {
+      toast({ title: "Erro ao criar indicador", description: err?.message || "Tente novamente", variant: "destructive" });
+    },
   });
+
 
   const updateRepresentative = useMutation({
     mutationFn: async ({ id, ...data }: Partial<Representative> & { id: string }) => {
@@ -167,7 +171,11 @@ export function useRepresentativeMutations() {
       queryClient.invalidateQueries({ queryKey: ["crm-map-data"] });
       toast({ title: "Indicador atualizado" });
     },
+    onError: (err: any) => {
+      toast({ title: "Erro ao atualizar indicador", description: err?.message || "Tente novamente", variant: "destructive" });
+    },
   });
+
 
   const deleteRepresentative = useMutation({
     mutationFn: async (id: string) => {

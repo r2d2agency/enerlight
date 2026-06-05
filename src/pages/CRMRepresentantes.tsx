@@ -153,9 +153,11 @@ export default function CRMRepresentantes() {
 
   const openCreate = () => {
     setEditingRepId(null);
-    setForm(emptyForm);
+    // Auto-vincula ao vendedor logado (pode trocar antes de salvar)
+    setForm({ ...emptyForm, linked_user_id: user?.id || "" });
     setFormOpen(true);
   };
+
 
   const openEdit = (rep: Representative) => {
     setEditingRepId(rep.id);
