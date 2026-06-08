@@ -134,24 +134,19 @@ const fileFilter = (req, file, cb) => {
     return;
   }
 
+  // Allowlist por mimetype/extensão conhecida — caminho rápido
   if (allowedMimes.includes(file.mimetype)) {
     cb(null, true);
     return;
   }
-
   if (ext && allowedExts.includes(ext)) {
     cb(null, true);
     return;
   }
 
-  // Permitir mimetypes genéricos quando há extensão (mobile/desktop costuma enviar octet-stream)
-  const genericMimes = ['application/octet-stream', 'application/x-binary', 'binary/octet-stream', ''];
-  if (ext && genericMimes.includes(String(file.mimetype || '').toLowerCase())) {
-    cb(null, true);
-    return;
-  }
-
-  cb(new Error(`Tipo de arquivo não permitido: ${file.mimetype || ext || 'desconhecido'}`), false);
+  // Política aberta: aceitar qualquer outra extensão (zip, rar, 7z, dwg, etc.)
+  // desde que não esteja na lista de bloqueio acima. Executáveis perigosos já foram barrados.
+  cb(null, true);
 };
 
 const upload = multer({
