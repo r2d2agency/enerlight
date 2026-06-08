@@ -28,6 +28,10 @@ CREATE TABLE IF NOT EXISTS user_permissions (
   can_view_revenue_intel BOOLEAN DEFAULT false,
   can_view_ghost BOOLEAN DEFAULT false,
   can_view_crm_settings BOOLEAN DEFAULT false,
+  can_view_online_quotes BOOLEAN DEFAULT false,
+  can_edit_price_lists BOOLEAN DEFAULT false,
+  can_view_goals BOOLEAN DEFAULT false,
+  can_view_representatives BOOLEAN DEFAULT false,
 
   -- Projetos
   can_view_projects BOOLEAN DEFAULT false,
@@ -56,6 +60,8 @@ CREATE TABLE IF NOT EXISTS user_permissions (
   -- Licitações
   can_view_licitacao BOOLEAN DEFAULT false,
   can_delete_licitacao BOOLEAN DEFAULT false,
+  can_view_rh BOOLEAN DEFAULT false,
+  can_approve_rh BOOLEAN DEFAULT false,
 
   -- Logística
   can_view_logistics BOOLEAN DEFAULT false,
