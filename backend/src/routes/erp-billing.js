@@ -11,7 +11,7 @@ const router = express.Router();
 router.use(authenticate);
 
 const uploadsDir = path.join(process.cwd(), 'uploads');
-const upload = multer({ dest: uploadsDir, limits: { fileSize: 100 * 1024 * 1024 } });
+const upload = multer({ dest: uploadsDir, limits: { fileSize: 300 * 1024 * 1024 } });
 
 async function getUserOrg(userId) {
   const result = await query(
