@@ -100,7 +100,7 @@ const ROLE_DEFAULTS = {
   },
 };
 
-const PERMISSION_COLUMN_REGEX = /^(can_view_|can_edit_|can_delete_)[a-z0-9_]+$/;
+const PERMISSION_COLUMN_REGEX = /^can_[a-z]+_[a-z0-9_]+$/;
 
 let ensurePermissionColumnsPromise = null;
 
