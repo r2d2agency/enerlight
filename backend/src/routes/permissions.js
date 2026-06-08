@@ -100,7 +100,7 @@ const ROLE_DEFAULTS = {
   },
 };
 
-const PERMISSION_COLUMN_REGEX = /^(can_view_|can_edit_|can_delete_)[a-z0-9_]+$/;
+const PERMISSION_COLUMN_REGEX = /^can_[a-z]+_[a-z0-9_]+$/;
 
 let ensurePermissionColumnsPromise = null;
 
@@ -255,7 +255,7 @@ router.put('/:userId', authenticate, async (req, res) => {
     
     // Get actual columns from the table to avoid inserting into non-existent columns
     const colCheck = await query(
-       `SELECT column_name FROM information_schema.columns WHERE table_name = 'user_permissions' AND (column_name LIKE 'can_view_%' OR column_name LIKE 'can_edit_%' OR column_name LIKE 'can_delete_%')`
+       `SELECT column_name FROM information_schema.columns WHERE table_name = 'user_permissions' AND column_name LIKE 'can\\_%' ESCAPE '\\'`
     );
     const existingCols = new Set(colCheck.rows.map(r => r.column_name));
 
