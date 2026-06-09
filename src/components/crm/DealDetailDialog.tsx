@@ -83,6 +83,8 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
   // Inline edit states for value, expected_close_date, custom_fields
   const [isEditingValue, setIsEditingValue] = useState(false);
   const [editValue, setEditValue] = useState("");
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
   const [isEditingCloseDate, setIsEditingCloseDate] = useState(false);
   const [editCloseDate, setEditCloseDate] = useState("");
   const [customFields, setCustomFields] = useState<CustomField[]>([]);
@@ -343,6 +345,17 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
     updateDeal.mutate({ id: deal.id, value: Number(editValue) || 0 } as any);
     setIsEditingValue(false);
     toast.success("Valor atualizado!");
+  };
+
+  const handleSaveTitle = () => {
+    const trimmed = editTitle.trim();
+    if (!trimmed) {
+      toast.error("O nome não pode estar vazio");
+      return;
+    }
+    updateDeal.mutate({ id: deal.id, title: trimmed } as any);
+    setIsEditingTitle(false);
+    toast.success("Nome atualizado!");
   };
 
   const handleSaveCloseDate = () => {
@@ -631,7 +644,30 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
         <DialogHeader>
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
             <div className="min-w-0">
-              <DialogTitle className="text-lg sm:text-xl truncate">{currentDeal?.title}</DialogTitle>
+              {isEditingTitle ? (
+                <div className="flex items-center gap-1">
+                  <Input
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    className="h-8 text-lg sm:text-xl font-semibold"
+                    autoFocus
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleSaveTitle(); if (e.key === 'Escape') setIsEditingTitle(false); }}
+                  />
+                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={handleSaveTitle}><Save className="h-4 w-4" /></Button>
+                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => setIsEditingTitle(false)}><X className="h-4 w-4" /></Button>
+                </div>
+              ) : (
+                <DialogTitle className="text-lg sm:text-xl truncate flex items-center gap-2">
+                  <span className="truncate">{currentDeal?.title}</span>
+                  <button
+                    onClick={() => { setEditTitle(currentDeal?.title || ""); setIsEditingTitle(true); }}
+                    className="opacity-50 hover:opacity-100 shrink-0"
+                    title="Editar nome"
+                  >
+                    <Edit2 className="h-4 w-4" />
+                  </button>
+                </DialogTitle>
+              )}
               <div className="flex flex-wrap items-center gap-1 sm:gap-2 mt-1 text-xs sm:text-sm text-muted-foreground">
                 <Building2 className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />
                 {isEditingCompany ? (
