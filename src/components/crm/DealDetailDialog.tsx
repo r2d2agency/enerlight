@@ -83,6 +83,8 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
   // Inline edit states for value, expected_close_date, custom_fields
   const [isEditingValue, setIsEditingValue] = useState(false);
   const [editValue, setEditValue] = useState("");
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
   const [isEditingCloseDate, setIsEditingCloseDate] = useState(false);
   const [editCloseDate, setEditCloseDate] = useState("");
   const [customFields, setCustomFields] = useState<CustomField[]>([]);
