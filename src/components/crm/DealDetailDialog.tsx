@@ -347,6 +347,17 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
     toast.success("Valor atualizado!");
   };
 
+  const handleSaveTitle = () => {
+    const trimmed = editTitle.trim();
+    if (!trimmed) {
+      toast.error("O nome não pode estar vazio");
+      return;
+    }
+    updateDeal.mutate({ id: deal.id, title: trimmed } as any);
+    setIsEditingTitle(false);
+    toast.success("Nome atualizado!");
+  };
+
   const handleSaveCloseDate = () => {
     updateDeal.mutate({ id: deal.id, expected_close_date: editCloseDate || null } as any);
     setIsEditingCloseDate(false);
