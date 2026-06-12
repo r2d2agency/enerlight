@@ -175,15 +175,14 @@ export const DealCard = forwardRef<HTMLDivElement, DealCardProps>(
         </div>
 
         {/* Company & Contact */}
-        <div className="flex items-start gap-1.5 text-xs text-muted-foreground min-w-0">
+        <div className="flex items-start gap-1.5 text-xs text-muted-foreground min-w-0 w-full overflow-hidden pr-2">
           <Building2 className="h-3 w-3 shrink-0 mt-0.5" />
-          <span className="line-clamp-2 break-words min-w-0 flex-1">{deal.company_name}</span>
-          {primaryContact && (
-            <>
-              <span className="text-muted-foreground/50">·</span>
-              <span className="truncate">{primaryContact.name}</span>
-            </>
-          )}
+          <span className="line-clamp-2 break-all min-w-0 flex-1 [overflow-wrap:anywhere]">
+            {deal.company_name}
+            {primaryContact && (
+              <span className="text-muted-foreground/70"> · {primaryContact.name}</span>
+            )}
+          </span>
         </div>
 
         {/* Footer */}
