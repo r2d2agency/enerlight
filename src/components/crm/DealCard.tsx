@@ -175,9 +175,9 @@ export const DealCard = forwardRef<HTMLDivElement, DealCardProps>(
         </div>
 
         {/* Company & Contact */}
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Building2 className="h-3 w-3 shrink-0" />
-          <span className="truncate">{deal.company_name}</span>
+        <div className="flex items-start gap-1.5 text-xs text-muted-foreground min-w-0">
+          <Building2 className="h-3 w-3 shrink-0 mt-0.5" />
+          <span className="line-clamp-2 break-words min-w-0 flex-1">{deal.company_name}</span>
           {primaryContact && (
             <>
               <span className="text-muted-foreground/50">·</span>
