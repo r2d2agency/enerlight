@@ -541,6 +541,15 @@ export default function CalculadoraLuminotecnica() {
                 Economia (Interno)
               </Button>
             )}
+            <Button
+              variant={activeMode === "public" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setActiveMode("public")}
+              className="gap-2"
+            >
+              <Lamp className="h-4 w-4" />
+              Iluminação Pública
+            </Button>
           </div>
         </div>
 
@@ -550,6 +559,12 @@ export default function CalculadoraLuminotecnica() {
             setData={setEconomyData}
             results={economyResults}
             formatBRL={formatBRL}
+          />
+        ) : activeMode === "public" ? (
+          <PublicLightingCalculator
+            data={publicData}
+            setData={setPublicData}
+            categories={publicLightingCats}
           />
         ) : (
         <>
