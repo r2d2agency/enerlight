@@ -568,10 +568,10 @@ export default function CRMMetas() {
                 {(() => {
                   const sumGoal = (metric: string) => {
                     if (!goals) return 0;
-                    const active = goals.filter(g => g.metric === metric && g.is_active && g.period === "monthly");
+                    const active = goals.filter(g => g.metric === metric && g.is_active && g.period === "monthly" && g.type === "geral");
                     const scoped = filterChannel !== "all"
                       ? active.filter(g => (g as any).target_channel === filterChannel)
-                      : active.filter(g => !(g as any).target_channel);
+                      : active;
                     return scoped.reduce((s, g) => s + Number(g.target_value || 0), 0);
                   };
                   return (
