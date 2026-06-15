@@ -128,13 +128,25 @@ export default function CalculadoraLuminotecnica() {
 
   // Calculator State
   const [isWizardMode, setIsWizardMode] = useState(true);
-  const [activeMode, setActiveMode] = useState<"wizard" | "tech" | "economy">("wizard");
+  const [activeMode, setActiveMode] = useState<"wizard" | "tech" | "economy" | "public">("wizard");
   const [wizardStep, setWizardStep] = useState(1);
   const [wizardData, setWizardData] = useState({
     environmentId: "office",
     reflectanceId: "standard",
     maintenanceFactor: 0.8,
   });
+  const [activeRootCategoryId, setActiveRootCategoryId] = useState<string | null>(null);
+
+  // Categories from backend (admin-managed)
+  const { items: calcCategories } = usePublicCalcCategories();
+  const indoorCategories = useMemo(() => calcCategories.filter(c => c.scope === "indoor"), [calcCategories]);
+  const indoorRoots = useMemo(() => indoorCategories.filter(c => !c.parent_id), [indoorCategories]);
+  const childrenOf = (id: string) => indoorCategories.filter(c => c.parent_id === id);
+  const findCategoryBySlug = (slug: string) => calcCategories.find(c => c.slug === slug);
+  const publicLightingCats = useMemo(
+    () => calcCategories.filter(c => c.scope === "public_lighting"),
+    [calcCategories]
+  );
 
   // Calculator State
   const [calcData, setCalcData] = useState({
