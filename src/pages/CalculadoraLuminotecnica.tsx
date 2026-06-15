@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useBranding } from "@/hooks/use-branding";
 import { API_URL } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { 
   Calculator, 
@@ -31,7 +32,9 @@ import {
   Home,
   Briefcase,
   Monitor,
-  LightbulbIcon
+  LightbulbIcon,
+  DollarSign,
+  TrendingDown
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import enerlightLogo from "@/assets/enerlight-logo.png";
@@ -105,7 +108,9 @@ const REFLECTANCES = [
 
 export default function CalculadoraLuminotecnica() {
   const { branding } = useBranding();
-  const [isRegistered, setIsRegistered] = useState(false);
+  const { user, isAuthenticated } = useAuth();
+  const isInternalUser = isAuthenticated && !!user;
+  const [isRegistered, setIsRegistered] = useState(isInternalUser);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [reportGenerated, setReportGenerated] = useState(false);
@@ -120,6 +125,7 @@ export default function CalculadoraLuminotecnica() {
 
   // Calculator State
   const [isWizardMode, setIsWizardMode] = useState(true);
+  const [activeMode, setActiveMode] = useState<"wizard" | "tech" | "economy">("wizard");
   const [wizardStep, setWizardStep] = useState(1);
   const [wizardData, setWizardData] = useState({
     environmentId: "office",
@@ -139,6 +145,67 @@ export default function CalculadoraLuminotecnica() {
     fixtureWattage: 18,
     reflectanceId: "standard",
   });
+
+  // Economy Calculator State (sales team only)
+  const [economyData, setEconomyData] = useState({
+    // Atual
+    currentFixtureCount: 30,
+    currentWattage: 400,
+    currentLumens: 38400, // ~96 lm/W * 400W
+    // Nova
+    newWattage: 150,
+    newLumens: 22500, // ~150 lm/W
+    // Uso
+    hoursPerDay: 10,
+    daysPerMonth: 26,
+    kwhPrice: 0.86,
+  });
+
+  const economyResults = useMemo(() => {
+    const currentTotalLumens = economyData.currentFixtureCount * economyData.currentLumens;
+    // Para entregar o mesmo total de lumens com a nova luminária
+    const newFixtureCount = economyData.newLumens > 0
+      ? Math.ceil(currentTotalLumens / economyData.newLumens)
+      : 0;
+
+    const currentTotalW = economyData.currentFixtureCount * economyData.currentWattage;
+    const newTotalW = newFixtureCount * economyData.newWattage;
+
+    const hoursMonth = economyData.hoursPerDay * economyData.daysPerMonth;
+    const currentKwhMonth = (currentTotalW * hoursMonth) / 1000;
+    const newKwhMonth = (newTotalW * hoursMonth) / 1000;
+
+    const currentCostMonth = currentKwhMonth * economyData.kwhPrice;
+    const newCostMonth = newKwhMonth * economyData.kwhPrice;
+
+    const savingsMonth = currentCostMonth - newCostMonth;
+    const savingsYear = savingsMonth * 12;
+    const savingsPercent = currentCostMonth > 0
+      ? ((savingsMonth / currentCostMonth) * 100)
+      : 0;
+
+    const kwhSavedYear = (currentKwhMonth - newKwhMonth) * 12;
+
+    return {
+      currentTotalLumens,
+      newFixtureCount,
+      currentTotalW,
+      newTotalW,
+      hoursMonth,
+      currentKwhMonth: currentKwhMonth.toFixed(0),
+      newKwhMonth: newKwhMonth.toFixed(0),
+      currentCostMonth,
+      newCostMonth,
+      savingsMonth,
+      savingsYear,
+      savingsPercent: savingsPercent.toFixed(1),
+      kwhSavedYear: kwhSavedYear.toFixed(0),
+    };
+  }, [economyData]);
+
+  const formatBRL = (v: number) =>
+    v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
 
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -235,8 +302,8 @@ export default function CalculadoraLuminotecnica() {
     // Simulating "thinking" for 4 seconds as requested
     await new Promise(resolve => setTimeout(resolve, 4000));
 
-    // Save project to history
-    if (formData.whatsapp) {
+    // Save project to history (skip for internal/sales users — they only simulate)
+    if (!isInternalUser && formData.whatsapp) {
       try {
         await fetch(`${API_URL}/api/public/save-project`, {
           method: "POST",
@@ -257,6 +324,7 @@ export default function CalculadoraLuminotecnica() {
         console.error("Erro ao salvar histórico do projeto", err);
       }
     }
+
 
     setIsGenerating(false);
     setReportGenerated(true);
@@ -416,27 +484,49 @@ export default function CalculadoraLuminotecnica() {
             <h2 className="text-2xl font-bold">Simulação Luminotécnica</h2>
             <p className="text-muted-foreground">Cálculos baseados na norma ABNT NBR ISO/CIE 8995-1</p>
           </div>
-          <div className="flex bg-muted p-1 rounded-lg">
+          <div className="flex flex-wrap bg-muted p-1 rounded-lg">
             <Button 
-              variant={isWizardMode ? "default" : "ghost"} 
+              variant={activeMode === "wizard" ? "default" : "ghost"} 
               size="sm" 
-              onClick={() => setIsWizardMode(true)}
+              onClick={() => { setActiveMode("wizard"); setIsWizardMode(true); }}
               className="gap-2"
             >
               <Sparkles className="h-4 w-4" />
-              Modo Guiado (Rápido)
+              Modo Guiado
             </Button>
             <Button 
-              variant={!isWizardMode ? "default" : "ghost"} 
+              variant={activeMode === "tech" ? "default" : "ghost"} 
               size="sm" 
-              onClick={() => setIsWizardMode(false)}
+              onClick={() => { setActiveMode("tech"); setIsWizardMode(false); }}
               className="gap-2"
             >
               <Zap className="h-4 w-4" />
-              Modo Técnico (Avançado)
+              Modo Técnico
             </Button>
+            {isInternalUser && (
+              <Button
+                variant={activeMode === "economy" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setActiveMode("economy")}
+                className="gap-2"
+              >
+                <TrendingDown className="h-4 w-4" />
+                Economia (Interno)
+              </Button>
+            )}
           </div>
         </div>
+
+        {activeMode === "economy" ? (
+          <EconomyCalculator
+            data={economyData}
+            setData={setEconomyData}
+            results={economyResults}
+            formatBRL={formatBRL}
+          />
+        ) : (
+        <>
+
 
         {isWizardMode ? (
           <Card className="mb-8 border-primary/20 shadow-md print:hidden">
@@ -925,7 +1015,10 @@ export default function CalculadoraLuminotecnica() {
 
           </div>
         </div>
+        </>
+        )}
       </main>
+
 
       {/* Printable Report Section - Enerlight Branded */}
       <div className="hidden print:block p-8 bg-white text-black min-h-screen">
@@ -1083,5 +1176,225 @@ function Loader2({ className }: { className?: string }) {
     >
       <path d="M21 12a9 9 0 1 1-6.219-8.56" />
     </svg>
+  );
+}
+
+interface EconomyData {
+  currentFixtureCount: number;
+  currentWattage: number;
+  currentLumens: number;
+  newWattage: number;
+  newLumens: number;
+  hoursPerDay: number;
+  daysPerMonth: number;
+  kwhPrice: number;
+}
+
+interface EconomyResults {
+  currentTotalLumens: number;
+  newFixtureCount: number;
+  currentTotalW: number;
+  newTotalW: number;
+  hoursMonth: number;
+  currentKwhMonth: string;
+  newKwhMonth: string;
+  currentCostMonth: number;
+  newCostMonth: number;
+  savingsMonth: number;
+  savingsYear: number;
+  savingsPercent: string;
+  kwhSavedYear: string;
+}
+
+function EconomyCalculator({
+  data,
+  setData,
+  results,
+  formatBRL,
+}: {
+  data: EconomyData;
+  setData: React.Dispatch<React.SetStateAction<EconomyData>>;
+  results: EconomyResults;
+  formatBRL: (v: number) => string;
+}) {
+  const update = (patch: Partial<EconomyData>) => setData({ ...data, ...patch });
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print:hidden">
+      {/* Inputs */}
+      <div className="lg:col-span-1 space-y-6">
+        <Card className="border-amber-200">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Lightbulb className="h-5 w-5 text-amber-500" />
+              <CardTitle className="text-lg">Luminária Atual do Cliente</CardTitle>
+            </div>
+            <CardDescription>Equipamento em uso hoje</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="space-y-2">
+              <Label>Quantidade de luminárias</Label>
+              <Input type="number" value={data.currentFixtureCount}
+                onChange={(e) => update({ currentFixtureCount: Number(e.target.value) })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Potência (W) por luminária</Label>
+              <Input type="number" value={data.currentWattage}
+                onChange={(e) => update({ currentWattage: Number(e.target.value) })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Lúmens por luminária</Label>
+              <Input type="number" value={data.currentLumens}
+                onChange={(e) => update({ currentLumens: Number(e.target.value) })} />
+              <p className="text-xs text-muted-foreground">
+                Eficiência: {data.currentWattage > 0 ? Math.round(data.currentLumens / data.currentWattage) : 0} lm/W
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-emerald-200">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-emerald-600" />
+              <CardTitle className="text-lg">Luminária Proposta</CardTitle>
+            </div>
+            <CardDescription>Solução Enerlight equivalente</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="space-y-2">
+              <Label>Potência (W) por luminária</Label>
+              <Input type="number" value={data.newWattage}
+                onChange={(e) => update({ newWattage: Number(e.target.value) })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Lúmens por luminária</Label>
+              <Input type="number" value={data.newLumens}
+                onChange={(e) => update({ newLumens: Number(e.target.value) })} />
+              <p className="text-xs text-muted-foreground">
+                Eficiência: {data.newWattage > 0 ? Math.round(data.newLumens / data.newWattage) : 0} lm/W
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Zap className="h-5 w-5 text-primary" />
+              <CardTitle className="text-lg">Uso & Tarifa</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Horas/dia</Label>
+                <Input type="number" value={data.hoursPerDay}
+                  onChange={(e) => update({ hoursPerDay: Number(e.target.value) })} />
+              </div>
+              <div className="space-y-2">
+                <Label>Dias/mês</Label>
+                <Input type="number" value={data.daysPerMonth}
+                  onChange={(e) => update({ daysPerMonth: Number(e.target.value) })} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Preço do kWh (R$)</Label>
+              <Input type="number" step="0.01" value={data.kwhPrice}
+                onChange={(e) => update({ kwhPrice: Number(e.target.value) })} />
+              <p className="text-xs text-muted-foreground">Padrão: R$ 0,86/kWh</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Results */}
+      <div className="lg:col-span-2 space-y-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Card className="bg-emerald-600 text-white border-none shadow-lg">
+            <CardHeader className="pb-2">
+              <CardDescription className="text-emerald-50">Economia / Mês</CardDescription>
+              <CardTitle className="text-3xl font-bold">{formatBRL(results.savingsMonth)}</CardTitle>
+            </CardHeader>
+          </Card>
+          <Card className="bg-emerald-700 text-white border-none shadow-lg">
+            <CardHeader className="pb-2">
+              <CardDescription className="text-emerald-50">Economia / Ano</CardDescription>
+              <CardTitle className="text-3xl font-bold">{formatBRL(results.savingsYear)}</CardTitle>
+            </CardHeader>
+          </Card>
+          <Card className="shadow-md">
+            <CardHeader className="pb-2">
+              <CardDescription>Redução</CardDescription>
+              <CardTitle className="text-3xl flex items-center gap-2 text-emerald-600">
+                <TrendingDown className="h-6 w-6" />
+                {results.savingsPercent}%
+              </CardTitle>
+            </CardHeader>
+          </Card>
+        </div>
+
+        <Card className="overflow-hidden border-2 border-emerald-200/40">
+          <CardHeader className="bg-muted/50 border-b">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <CardTitle>Comparativo Detalhado</CardTitle>
+              <Badge variant="outline">Tarifa: {formatBRL(data.kwhPrice)}/kWh</Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x">
+              <div className="p-6 space-y-3">
+                <h4 className="text-sm font-semibold text-amber-600 uppercase tracking-wider">Situação Atual</h4>
+                <dl className="grid grid-cols-2 gap-y-2 text-sm">
+                  <dt>Luminárias:</dt><dd className="text-right font-medium">{data.currentFixtureCount} un</dd>
+                  <dt>Potência total:</dt><dd className="text-right font-medium">{results.currentTotalW} W</dd>
+                  <dt>Lúmens totais:</dt><dd className="text-right font-medium">{results.currentTotalLumens.toLocaleString('pt-BR')} lm</dd>
+                  <dt>Consumo/mês:</dt><dd className="text-right font-medium">{results.currentKwhMonth} kWh</dd>
+                  <dt>Custo/mês:</dt><dd className="text-right font-bold text-red-600">{formatBRL(results.currentCostMonth)}</dd>
+                  <dt>Custo/ano:</dt><dd className="text-right font-bold text-red-600">{formatBRL(results.currentCostMonth * 12)}</dd>
+                </dl>
+              </div>
+              <div className="p-6 space-y-3 bg-emerald-50/40">
+                <h4 className="text-sm font-semibold text-emerald-700 uppercase tracking-wider">Com Solução Enerlight</h4>
+                <dl className="grid grid-cols-2 gap-y-2 text-sm">
+                  <dt>Luminárias:</dt><dd className="text-right font-medium">{results.newFixtureCount} un</dd>
+                  <dt>Potência total:</dt><dd className="text-right font-medium">{results.newTotalW} W</dd>
+                  <dt>Lúmens totais:</dt><dd className="text-right font-medium">{(results.newFixtureCount * data.newLumens).toLocaleString('pt-BR')} lm</dd>
+                  <dt>Consumo/mês:</dt><dd className="text-right font-medium">{results.newKwhMonth} kWh</dd>
+                  <dt>Custo/mês:</dt><dd className="text-right font-bold text-emerald-700">{formatBRL(results.newCostMonth)}</dd>
+                  <dt>Custo/ano:</dt><dd className="text-right font-bold text-emerald-700">{formatBRL(results.newCostMonth * 12)}</dd>
+                </dl>
+              </div>
+            </div>
+            <div className="p-6 border-t bg-gradient-to-r from-emerald-500/10 to-emerald-700/10">
+              <div className="flex items-start gap-3">
+                <DollarSign className="h-8 w-8 text-emerald-600 flex-shrink-0" />
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">
+                    Substituindo <strong>{data.currentFixtureCount}</strong> luminárias de {data.currentWattage}W
+                    por <strong>{results.newFixtureCount}</strong> luminárias de {data.newWattage}W
+                    (mantendo o mesmo nível de iluminação):
+                  </p>
+                  <p className="text-base">
+                    Economia anual estimada de <strong className="text-emerald-700">{formatBRL(results.savingsYear)}</strong>
+                    {' '}({results.kwhSavedYear} kWh evitados por ano).
+                  </p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-muted/30">
+          <CardContent className="p-4 flex items-start gap-3">
+            <Info className="h-5 w-5 text-blue-500 mt-0.5 flex-shrink-0" />
+            <p className="text-xs text-muted-foreground">
+              Cálculo baseado em consumo linear: (W total × horas/mês) ÷ 1000 × tarifa kWh.
+              A quantidade de luminárias proposta é dimensionada para entregar pelo menos
+              o mesmo total de lúmens da instalação atual. Ferramenta de uso interno da equipe comercial.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   );
 }
