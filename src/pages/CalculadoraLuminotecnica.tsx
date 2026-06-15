@@ -1014,7 +1014,10 @@ export default function CalculadoraLuminotecnica() {
 
           </div>
         </div>
+        </>
+        )}
       </main>
+
 
       {/* Printable Report Section - Enerlight Branded */}
       <div className="hidden print:block p-8 bg-white text-black min-h-screen">
