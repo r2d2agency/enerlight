@@ -564,6 +564,28 @@ export default function CRMMetas() {
                   );
                 })()}
 
+                {/* Projeção do mês — ritmo atual */}
+                {(() => {
+                  const sumGoal = (metric: string) => {
+                    if (!goals) return 0;
+                    const active = goals.filter(g => g.metric === metric && g.is_active && g.period === "monthly");
+                    const scoped = filterChannel !== "all"
+                      ? active.filter(g => (g as any).target_channel === filterChannel)
+                      : active.filter(g => !(g as any).target_channel);
+                    return scoped.reduce((s, g) => s + Number(g.target_value || 0), 0);
+                  };
+                  return (
+                    <MonthProjectionCard
+                      filterUserId={filterUserId}
+                      filterChannel={filterChannel}
+                      filterGroupId={filterGroupId}
+                      quotesGoal={sumGoal("quotes_value")}
+                      ordersGoal={sumGoal("orders_value")}
+                      billingGoal={sumGoal("billing_value")}
+                    />
+                  );
+                })()}
+
                 {/* Gráfico de Evolução Acumulada */}
                 <DailyEvolutionChart
                   startDate={startDate}
