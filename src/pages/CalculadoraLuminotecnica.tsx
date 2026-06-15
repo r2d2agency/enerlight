@@ -868,8 +868,13 @@ export default function CalculadoraLuminotecnica() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {ABNT_STANDARDS.map(s => (
-                        <SelectItem key={s.id} value={s.id}>{s.name} ({s.lux} lux)</SelectItem>
+                      {(indoorCategories.length > 0
+                        ? indoorCategories
+                        : ABNT_STANDARDS.map(s => ({ slug: s.id, name: s.name, lux: s.lux, parent_id: null } as any))
+                      ).map((s: any) => (
+                        <SelectItem key={s.slug} value={s.slug}>
+                          {s.parent_id ? "↳ " : ""}{s.name} ({s.lux} lux)
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
