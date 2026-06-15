@@ -84,6 +84,7 @@ const PublicSurveyPage = lazyRetry(() => import("./pages/PublicSurveyPage"));
 const OnlineQuotes = lazyRetry(() => import("./pages/OnlineQuotes"));
 const RhModule = lazyRetry(() => import("./pages/RhModule"));
 const CalculadoraLuminotecnica = lazyRetry(() => import("./pages/CalculadoraLuminotecnica"));
+const CalculadoraCategorias = lazyRetry(() => import("./pages/CalculadoraCategorias"));
 const CRMLuminotecnicoProspects = lazyRetry(() => import("./pages/CRMLuminotecnicoProspects"));
 const NotFound = lazyRetry(() => import("./pages/NotFound"));
 
@@ -189,6 +190,7 @@ const App = () => (
               <Route path="/crm/orcamentos" element={<ProtectedRoute><OnlineQuotes /></ProtectedRoute>} />
               <Route path="/rh" element={<ProtectedRoute><RhModule /></ProtectedRoute>} />
               <Route path="/calculadora-luminotecnica" element={<CalculadoraLuminotecnica />} />
+              <Route path="/admin/calculadora-categorias" element={<ProtectedRoute><CalculadoraCategorias /></ProtectedRoute>} />
               <Route path="/politica-privacidade" element={<PoliticaPrivacidade />} />
               <Route path="*" element={<NotFound />} />
             </Routes>

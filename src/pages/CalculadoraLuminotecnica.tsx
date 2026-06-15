@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useBranding } from "@/hooks/use-branding";
+import { usePublicCalcCategories, type CalcCategory } from "@/hooks/use-calc-categories";
 import { API_URL } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -34,7 +35,9 @@ import {
   Monitor,
   LightbulbIcon,
   DollarSign,
-  TrendingDown
+  TrendingDown,
+  Lamp,
+  ChevronDown
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import enerlightLogo from "@/assets/enerlight-logo.png";
@@ -125,13 +128,25 @@ export default function CalculadoraLuminotecnica() {
 
   // Calculator State
   const [isWizardMode, setIsWizardMode] = useState(true);
-  const [activeMode, setActiveMode] = useState<"wizard" | "tech" | "economy">("wizard");
+  const [activeMode, setActiveMode] = useState<"wizard" | "tech" | "economy" | "public">("wizard");
   const [wizardStep, setWizardStep] = useState(1);
   const [wizardData, setWizardData] = useState({
     environmentId: "office",
     reflectanceId: "standard",
     maintenanceFactor: 0.8,
   });
+  const [activeRootCategoryId, setActiveRootCategoryId] = useState<string | null>(null);
+
+  // Categories from backend (admin-managed)
+  const { items: calcCategories } = usePublicCalcCategories();
+  const indoorCategories = useMemo(() => calcCategories.filter(c => c.scope === "indoor"), [calcCategories]);
+  const indoorRoots = useMemo(() => indoorCategories.filter(c => !c.parent_id), [indoorCategories]);
+  const childrenOf = (id: string) => indoorCategories.filter(c => c.parent_id === id);
+  const findCategoryBySlug = (slug: string) => calcCategories.find(c => c.slug === slug);
+  const publicLightingCats = useMemo(
+    () => calcCategories.filter(c => c.scope === "public_lighting"),
+    [calcCategories]
+  );
 
   // Calculator State
   const [calcData, setCalcData] = useState({
@@ -144,6 +159,18 @@ export default function CalculadoraLuminotecnica() {
     fixtureLumens: 2000,
     fixtureWattage: 18,
     reflectanceId: "standard",
+  });
+
+  // Public Lighting State
+  const [publicData, setPublicData] = useState({
+    categorySlug: "pub-coletora",
+    method: "simple" as "simple" | "abnt",
+    roadLength: 200,        // m
+    roadWidth: 10,          // m
+    poleHeight: 10,         // m
+    fixtureLumens: 12000,
+    fixtureWattage: 100,
+    maintenanceFactor: 0.8,
   });
 
   // Economy Calculator State (sales team only)
@@ -263,9 +290,10 @@ export default function CalculadoraLuminotecnica() {
     const area = calcData.length * calcData.width;
     const h = calcData.height - calcData.workPlaneHeight;
     const k = (calcData.length * calcData.width) / (h * (calcData.length + calcData.width));
-    
+
+    const apiCat = findCategoryBySlug(calcData.environmentId);
     const standard = ABNT_STANDARDS.find(s => s.id === calcData.environmentId);
-    const requiredLux = standard ? standard.lux : 500;
+    const requiredLux = apiCat?.lux ?? standard?.lux ?? 500;
     
     // Utilization factor estimation based on K (simplified)
     // In reality, this comes from tables, but we can approximate:
@@ -311,7 +339,7 @@ export default function CalculadoraLuminotecnica() {
           body: JSON.stringify({
             whatsapp: formData.whatsapp,
             project_data: {
-              environment: ABNT_STANDARDS.find(s => s.id === calcData.environmentId)?.name,
+              environment: (findCategoryBySlug(calcData.environmentId)?.name) || ABNT_STANDARDS.find(s => s.id === calcData.environmentId)?.name,
               area: results.area,
               fixture_count: results.fixtureCount,
               required_lux: results.requiredLux,
@@ -514,6 +542,15 @@ export default function CalculadoraLuminotecnica() {
                 Economia (Interno)
               </Button>
             )}
+            <Button
+              variant={activeMode === "public" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setActiveMode("public")}
+              className="gap-2"
+            >
+              <Lamp className="h-4 w-4" />
+              Iluminação Pública
+            </Button>
           </div>
         </div>
 
@@ -523,6 +560,12 @@ export default function CalculadoraLuminotecnica() {
             setData={setEconomyData}
             results={economyResults}
             formatBRL={formatBRL}
+          />
+        ) : activeMode === "public" ? (
+          <PublicLightingCalculator
+            data={publicData}
+            setData={setPublicData}
+            categories={publicLightingCats}
           />
         ) : (
         <>
@@ -547,36 +590,75 @@ export default function CalculadoraLuminotecnica() {
             <CardContent>
               {wizardStep === 1 && (
                 <div className="space-y-6">
-                  <h3 className="text-lg font-medium">Qual o tipo de ambiente?</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {[
-                      { id: "office", name: "Escritório", icon: Briefcase },
-                      { id: "retail", name: "Loja/Comércio", icon: Building2 },
-                      { id: "warehouse", name: "Galpão/Depósito", icon: Home },
-                      { id: "factory", name: "Fábrica", icon: Zap },
-                      { id: "classroom", name: "Escola/Sala", icon: Monitor },
-                      { id: "hospital", name: "Saúde/Hospital", icon: ShieldCheck },
-                      { id: "corridor", name: "Corredor/Circulação", icon: Ruler },
-                      { id: "meeting", name: "Sala Reunião", icon: Layout },
-                    ].map((item) => (
-                      <button
-                        key={item.id}
-                        onClick={() => {
-                          setCalcData({ ...calcData, environmentId: item.id });
-                          setWizardStep(2);
-                        }}
-                        className={cn(
-                          "flex flex-col items-center gap-3 p-6 rounded-xl border-2 transition-all hover:border-primary/50",
-                          calcData.environmentId === item.id ? "border-primary bg-primary/5 shadow-sm" : "border-muted"
-                        )}
-                      >
-                        <item.icon className="h-8 w-8 text-primary" />
-                        <span className="text-sm font-medium text-center">{item.name}</span>
-                      </button>
-                    ))}
-                  </div>
+                  {(() => {
+                    const activeRoot = activeRootCategoryId
+                      ? indoorCategories.find(c => c.id === activeRootCategoryId)
+                      : null;
+                    const subs = activeRoot ? childrenOf(activeRoot.id) : [];
+                    const visible = activeRoot && subs.length > 0
+                      ? subs
+                      : indoorRoots;
+                    return (
+                      <>
+                        <div className="flex items-center justify-between gap-3">
+                          <h3 className="text-lg font-medium">
+                            {activeRoot && subs.length > 0
+                              ? `Selecione: ${activeRoot.name}`
+                              : "Qual o tipo de ambiente?"}
+                          </h3>
+                          {activeRoot && subs.length > 0 && (
+                            <Button variant="ghost" size="sm" onClick={() => setActiveRootCategoryId(null)}>
+                              <ChevronLeft className="h-4 w-4 mr-1" /> Voltar às categorias
+                            </Button>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          {visible.map((cat) => {
+                            const hasChildren = !activeRoot && childrenOf(cat.id).length > 0;
+                            const IconComp = (
+                              { Briefcase, Building2, Home, Zap, Monitor, ShieldCheck, Ruler, Layout, Lightbulb } as any
+                            )[cat.icon] || Building2;
+                            return (
+                              <button
+                                key={cat.id}
+                                onClick={() => {
+                                  if (hasChildren) {
+                                    setActiveRootCategoryId(cat.id);
+                                  } else {
+                                    setCalcData({ ...calcData, environmentId: cat.slug });
+                                    setActiveRootCategoryId(null);
+                                    setWizardStep(2);
+                                  }
+                                }}
+                                className={cn(
+                                  "relative flex flex-col items-center gap-3 p-6 rounded-xl border-2 transition-all hover:border-primary/50",
+                                  calcData.environmentId === cat.slug
+                                    ? "border-primary bg-primary/5 shadow-sm"
+                                    : "border-muted"
+                                )}
+                              >
+                                <IconComp className="h-8 w-8 text-primary" />
+                                <span className="text-sm font-medium text-center">{cat.name}</span>
+                                {hasChildren && (
+                                  <Badge variant="secondary" className="absolute top-2 right-2 text-[10px]">
+                                    {childrenOf(cat.id).length} subs
+                                  </Badge>
+                                )}
+                              </button>
+                            );
+                          })}
+                          {visible.length === 0 && (
+                            <p className="col-span-full text-sm text-muted-foreground text-center py-8">
+                              Nenhuma categoria cadastrada.
+                            </p>
+                          )}
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               )}
+
 
               {wizardStep === 2 && (
                 <div className="space-y-6 max-w-2xl mx-auto">
@@ -786,8 +868,13 @@ export default function CalculadoraLuminotecnica() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {ABNT_STANDARDS.map(s => (
-                        <SelectItem key={s.id} value={s.id}>{s.name} ({s.lux} lux)</SelectItem>
+                      {(indoorCategories.length > 0
+                        ? indoorCategories
+                        : ABNT_STANDARDS.map(s => ({ slug: s.id, name: s.name, lux: s.lux, parent_id: null } as any))
+                      ).map((s: any) => (
+                        <SelectItem key={s.slug} value={s.slug}>
+                          {s.parent_id ? "↳ " : ""}{s.name} ({s.lux} lux)
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -923,7 +1010,7 @@ export default function CalculadoraLuminotecnica() {
                     <div>
                       <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Resumo do Projeto</h4>
                       <p className="text-sm text-muted-foreground mb-6">
-                        Para o ambiente de <strong>{ABNT_STANDARDS.find(s => s.id === calcData.environmentId)?.name}</strong>, 
+                        Para o ambiente de <strong>{findCategoryBySlug(calcData.environmentId)?.name || ABNT_STANDARDS.find(s => s.id === calcData.environmentId)?.name}</strong>, 
                         com área de {results.area} m², são recomendados no mínimo {results.fixtureCount} pontos de luz utilizando 
                         luminárias de {calcData.fixtureLumens} lumens cada.
                       </p>
@@ -1003,8 +1090,11 @@ export default function CalculadoraLuminotecnica() {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2">
-                  {ABNT_STANDARDS.slice(0, 10).map(s => (
-                    <div key={s.id} className="flex justify-between items-center py-2 border-b border-dashed last:border-0">
+                  {(indoorCategories.length > 0
+                    ? indoorCategories.slice(0, 12)
+                    : ABNT_STANDARDS.slice(0, 10).map(s => ({ slug: s.id, name: s.name, lux: s.lux } as any))
+                  ).map((s: any) => (
+                    <div key={s.slug} className="flex justify-between items-center py-2 border-b border-dashed last:border-0">
                       <span className="text-sm">{s.name}</span>
                       <Badge variant="secondary">{s.lux} lux</Badge>
                     </div>
@@ -1057,7 +1147,7 @@ export default function CalculadoraLuminotecnica() {
             </h2>
             <dl className="grid grid-cols-2 gap-y-2 text-sm">
               <dt className="text-gray-600">Tipo:</dt>
-              <dd className="font-bold" style={{ color: ENERLIGHT_NAVY }}>{ABNT_STANDARDS.find(s => s.id === calcData.environmentId)?.name}</dd>
+              <dd className="font-bold" style={{ color: ENERLIGHT_NAVY }}>{findCategoryBySlug(calcData.environmentId)?.name || ABNT_STANDARDS.find(s => s.id === calcData.environmentId)?.name}</dd>
               <dt className="text-gray-600">Dimensões:</dt>
               <dd>{calcData.length}m x {calcData.width}m</dd>
               <dt className="text-gray-600">Área Total:</dt>
@@ -1398,3 +1488,294 @@ function EconomyCalculator({
     </div>
   );
 }
+
+interface PublicData {
+  categorySlug: string;
+  method: "simple" | "abnt";
+  roadLength: number;
+  roadWidth: number;
+  poleHeight: number;
+  fixtureLumens: number;
+  fixtureWattage: number;
+  maintenanceFactor: number;
+}
+
+function PublicLightingCalculator({
+  data,
+  setData,
+  categories,
+}: {
+  data: PublicData;
+  setData: React.Dispatch<React.SetStateAction<PublicData>>;
+  categories: CalcCategory[];
+}) {
+  const update = (patch: Partial<PublicData>) => setData({ ...data, ...patch });
+  const selected = categories.find(c => c.slug === data.categorySlug) || categories[0];
+
+  const results = useMemo(() => {
+    const area = data.roadLength * data.roadWidth;
+    const targetLux = selected?.lux ?? 20;
+    const uniformity = selected?.pole_uniformity ?? 0.25;
+
+    // Method 1: Simplified — Lumen method for outdoor area
+    // Coefficient of utilization for outdoor pole-mounted: typical 0.30-0.45
+    // We adjust by pole height vs. road width (overhang effect)
+    const ratio = data.poleHeight / Math.max(data.roadWidth, 1);
+    const cu = Math.min(0.45, 0.20 + ratio * 0.10);
+    const totalLumensNeeded = (targetLux * area) / (cu * data.maintenanceFactor);
+    const fixtureCount = Math.max(1, Math.ceil(totalLumensNeeded / Math.max(data.fixtureLumens, 1)));
+
+    // Spacing along road (one-sided arrangement)
+    const spacing = data.roadLength / fixtureCount;
+    const spacingHeightRatio = spacing / Math.max(data.poleHeight, 1);
+
+    // Method 2: ABNT NBR 5101 inspired — pole spacing rule of thumb
+    // Recommended spacing ≈ 3 × pole height for arterial; 4× for local
+    const recommendedSpacingMax = data.poleHeight * (uniformity >= 0.40 ? 3 : 4);
+    const polesAbnt = Math.max(1, Math.ceil(data.roadLength / recommendedSpacingMax));
+    const lumensPerPoleAbnt = totalLumensNeeded / polesAbnt;
+
+    const totalPower = fixtureCount * data.fixtureWattage;
+    const powerDensity = totalPower / area;
+
+    return {
+      area,
+      targetLux,
+      uniformity,
+      cu: cu.toFixed(2),
+      totalLumensNeeded: Math.round(totalLumensNeeded),
+      fixtureCount,
+      spacing: spacing.toFixed(1),
+      spacingHeightRatio: spacingHeightRatio.toFixed(2),
+      recommendedSpacingMax: recommendedSpacingMax.toFixed(1),
+      polesAbnt,
+      lumensPerPoleAbnt: Math.round(lumensPerPoleAbnt),
+      totalPower,
+      powerDensity: powerDensity.toFixed(2),
+    };
+  }, [data, selected]);
+
+  if (categories.length === 0) {
+    return (
+      <Card>
+        <CardContent className="py-12 text-center text-sm text-muted-foreground">
+          Nenhuma categoria de iluminação pública cadastrada. Peça ao administrador para cadastrar em
+          <strong> Categorias da Calculadora</strong>.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print:hidden">
+      <div className="lg:col-span-1 space-y-6">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Lamp className="h-5 w-5 text-primary" />
+              <CardTitle className="text-lg">Tipo de Via / Área</CardTitle>
+            </div>
+            <CardDescription>Selecione conforme a aplicação</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="space-y-2">
+              <Label>Categoria</Label>
+              <Select value={data.categorySlug} onValueChange={(v) => update({ categorySlug: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {categories.map(c => (
+                    <SelectItem key={c.id} value={c.slug}>
+                      {c.name} — {c.lux} lux
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selected && (
+                <p className="text-xs text-muted-foreground">
+                  Poste recomendado: {selected.pole_height_min}–{selected.pole_height_max}m ·
+                  Uniformidade mínima ≥ {selected.pole_uniformity}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label>Método de cálculo</Label>
+              <Select value={data.method} onValueChange={(v: any) => update({ method: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="simple">Simplificado (por altura de poste)</SelectItem>
+                  <SelectItem value="abnt">ABNT NBR 5101 (espaçamento norma)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Ruler className="h-5 w-5 text-primary" />
+              <CardTitle className="text-lg">Dimensões da Via</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Comprimento (m)</Label>
+                <Input type="number" value={data.roadLength}
+                  onChange={(e) => update({ roadLength: Number(e.target.value) })} />
+              </div>
+              <div className="space-y-2">
+                <Label>Largura (m)</Label>
+                <Input type="number" value={data.roadWidth}
+                  onChange={(e) => update({ roadWidth: Number(e.target.value) })} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Altura do poste (m)</Label>
+              <Input type="number" step="0.5" value={data.poleHeight}
+                onChange={(e) => update({ poleHeight: Number(e.target.value) })} />
+              {selected?.pole_height_min != null && selected?.pole_height_max != null && (
+                <p className="text-xs text-muted-foreground">
+                  Faixa recomendada para esta categoria: {selected.pole_height_min}–{selected.pole_height_max}m
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Zap className="h-5 w-5 text-primary" />
+              <CardTitle className="text-lg">Luminária</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="space-y-2">
+              <Label>Fluxo (lm) por luminária</Label>
+              <Input type="number" value={data.fixtureLumens}
+                onChange={(e) => update({ fixtureLumens: Number(e.target.value) })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Potência (W) por luminária</Label>
+              <Input type="number" value={data.fixtureWattage}
+                onChange={(e) => update({ fixtureWattage: Number(e.target.value) })} />
+              <p className="text-xs text-muted-foreground">
+                Eficiência: {data.fixtureWattage > 0 ? Math.round(data.fixtureLumens / data.fixtureWattage) : 0} lm/W
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label>Fator de manutenção</Label>
+              <Input type="number" step="0.05" value={data.maintenanceFactor}
+                onChange={(e) => update({ maintenanceFactor: Number(e.target.value) })} />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="lg:col-span-2 space-y-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card className="bg-primary text-primary-foreground border-none shadow-lg">
+            <CardHeader className="pb-2">
+              <CardDescription className="text-primary-foreground/80">Luminárias / Postes</CardDescription>
+              <CardTitle className="text-3xl font-bold">
+                {data.method === "abnt" ? results.polesAbnt : results.fixtureCount}
+              </CardTitle>
+            </CardHeader>
+          </Card>
+          <Card><CardHeader className="pb-2">
+            <CardDescription>Espaçamento</CardDescription>
+            <CardTitle className="text-2xl">
+              {data.method === "abnt"
+                ? `${results.recommendedSpacingMax} m`
+                : `${results.spacing} m`}
+            </CardTitle>
+          </CardHeader></Card>
+          <Card><CardHeader className="pb-2">
+            <CardDescription>Potência Total</CardDescription>
+            <CardTitle className="text-2xl">{results.totalPower} W</CardTitle>
+          </CardHeader></Card>
+          <Card><CardHeader className="pb-2">
+            <CardDescription>Meta de iluminância</CardDescription>
+            <CardTitle className="text-2xl">{results.targetLux} lux</CardTitle>
+          </CardHeader></Card>
+        </div>
+
+        <Card>
+          <CardHeader className="bg-muted/50 border-b">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <CardTitle>Resultado — Iluminação Pública</CardTitle>
+              <Badge variant="outline">
+                {data.method === "abnt" ? "ABNT NBR 5101" : "Método simplificado"}
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x p-0">
+            <div className="p-6 space-y-2">
+              <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                Dados de Entrada
+              </h4>
+              <dl className="grid grid-cols-2 gap-y-2 text-sm">
+                <dt>Categoria:</dt><dd className="text-right font-medium">{selected?.name}</dd>
+                <dt>Área total:</dt><dd className="text-right font-medium">{results.area} m²</dd>
+                <dt>Altura do poste:</dt><dd className="text-right font-medium">{data.poleHeight} m</dd>
+                <dt>Fluxo unitário:</dt><dd className="text-right font-medium">{data.fixtureLumens} lm</dd>
+                <dt>Potência unitária:</dt><dd className="text-right font-medium">{data.fixtureWattage} W</dd>
+                <dt>Fator de utilização:</dt><dd className="text-right font-medium">{results.cu}</dd>
+              </dl>
+            </div>
+            <div className="p-6 space-y-2 bg-primary/5">
+              <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                Dimensionamento
+              </h4>
+              {data.method === "simple" ? (
+                <dl className="grid grid-cols-2 gap-y-2 text-sm">
+                  <dt>Fluxo total necessário:</dt>
+                  <dd className="text-right font-medium">{results.totalLumensNeeded.toLocaleString("pt-BR")} lm</dd>
+                  <dt>Nº de luminárias:</dt>
+                  <dd className="text-right font-bold text-primary">{results.fixtureCount}</dd>
+                  <dt>Espaçamento entre postes:</dt>
+                  <dd className="text-right font-medium">{results.spacing} m</dd>
+                  <dt>Relação E/H:</dt>
+                  <dd className="text-right font-medium">{results.spacingHeightRatio}</dd>
+                  <dt>Densidade de potência:</dt>
+                  <dd className="text-right font-medium">{results.powerDensity} W/m²</dd>
+                </dl>
+              ) : (
+                <dl className="grid grid-cols-2 gap-y-2 text-sm">
+                  <dt>Espaçamento máx. recomendado:</dt>
+                  <dd className="text-right font-medium">
+                    {results.recommendedSpacingMax} m
+                    <span className="text-xs text-muted-foreground block">
+                      ({selected?.pole_uniformity && selected.pole_uniformity >= 0.40 ? "3×" : "4×"} altura do poste)
+                    </span>
+                  </dd>
+                  <dt>Nº de postes:</dt>
+                  <dd className="text-right font-bold text-primary">{results.polesAbnt}</dd>
+                  <dt>Fluxo mínimo por poste:</dt>
+                  <dd className="text-right font-medium">{results.lumensPerPoleAbnt.toLocaleString("pt-BR")} lm</dd>
+                  <dt>Uniformidade alvo (U):</dt>
+                  <dd className="text-right font-medium">≥ {results.uniformity}</dd>
+                </dl>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-muted/30">
+          <CardContent className="p-4 flex items-start gap-3">
+            <Info className="h-5 w-5 text-blue-500 mt-0.5 flex-shrink-0" />
+            <p className="text-xs text-muted-foreground">
+              Cálculo simplificado para iluminação pública/áreas externas. Para projetos executivos siga integralmente
+              a <strong>ABNT NBR 5101</strong> e valide com luminotécnico responsável. O método "Simplificado" usa o
+              método dos lúmens com coeficiente de utilização estimado pela razão altura/largura; o método "ABNT"
+              dimensiona postes pela regra prática de espaçamento ≤ 3–4× altura do poste conforme a uniformidade alvo.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
