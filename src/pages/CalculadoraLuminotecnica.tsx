@@ -1147,7 +1147,7 @@ export default function CalculadoraLuminotecnica() {
             </h2>
             <dl className="grid grid-cols-2 gap-y-2 text-sm">
               <dt className="text-gray-600">Tipo:</dt>
-              <dd className="font-bold" style={{ color: ENERLIGHT_NAVY }}>{ABNT_STANDARDS.find(s => s.id === calcData.environmentId)?.name}</dd>
+              <dd className="font-bold" style={{ color: ENERLIGHT_NAVY }}>{findCategoryBySlug(calcData.environmentId)?.name || ABNT_STANDARDS.find(s => s.id === calcData.environmentId)?.name}</dd>
               <dt className="text-gray-600">Dimensões:</dt>
               <dd>{calcData.length}m x {calcData.width}m</dd>
               <dt className="text-gray-600">Área Total:</dt>
