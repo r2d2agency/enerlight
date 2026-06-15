@@ -43,7 +43,7 @@ export function useCalcCategoriesAdmin() {
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await api<CalcCategory[]>("/calc-categories");
+      const data = await api<CalcCategory[]>("/api/calc-categories");
       setItems(data);
     } finally {
       setLoading(false);
@@ -53,17 +53,17 @@ export function useCalcCategoriesAdmin() {
   useEffect(() => { refresh(); }, [refresh]);
 
   const create = async (body: Partial<CalcCategory>) => {
-    const created = await api<CalcCategory>("/calc-categories", { method: "POST", body });
+    const created = await api<CalcCategory>("/api/calc-categories", { method: "POST", body });
     await refresh();
     return created;
   };
   const update = async (id: string, body: Partial<CalcCategory>) => {
-    const updated = await api<CalcCategory>(`/calc-categories/${id}`, { method: "PUT", body });
+    const updated = await api<CalcCategory>(`/api/calc-categories/${id}`, { method: "PUT", body });
     await refresh();
     return updated;
   };
   const remove = async (id: string) => {
-    await api<{ ok: true }>(`/calc-categories/${id}`, { method: "DELETE" });
+    await api<{ ok: true }>(`/api/calc-categories/${id}`, { method: "DELETE" });
     await refresh();
   };
 
