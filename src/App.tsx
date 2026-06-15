@@ -190,6 +190,7 @@ const App = () => (
               <Route path="/crm/orcamentos" element={<ProtectedRoute><OnlineQuotes /></ProtectedRoute>} />
               <Route path="/rh" element={<ProtectedRoute><RhModule /></ProtectedRoute>} />
               <Route path="/calculadora-luminotecnica" element={<CalculadoraLuminotecnica />} />
+              <Route path="/admin/calculadora-categorias" element={<ProtectedRoute><CalculadoraCategorias /></ProtectedRoute>} />
               <Route path="/politica-privacidade" element={<PoliticaPrivacidade />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
