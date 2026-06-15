@@ -84,6 +84,7 @@ const PublicSurveyPage = lazyRetry(() => import("./pages/PublicSurveyPage"));
 const OnlineQuotes = lazyRetry(() => import("./pages/OnlineQuotes"));
 const RhModule = lazyRetry(() => import("./pages/RhModule"));
 const CalculadoraLuminotecnica = lazyRetry(() => import("./pages/CalculadoraLuminotecnica"));
+const CalculadoraCategorias = lazyRetry(() => import("./pages/CalculadoraCategorias"));
 const CRMLuminotecnicoProspects = lazyRetry(() => import("./pages/CRMLuminotecnicoProspects"));
 const NotFound = lazyRetry(() => import("./pages/NotFound"));
 
