@@ -483,27 +483,49 @@ export default function CalculadoraLuminotecnica() {
             <h2 className="text-2xl font-bold">Simulação Luminotécnica</h2>
             <p className="text-muted-foreground">Cálculos baseados na norma ABNT NBR ISO/CIE 8995-1</p>
           </div>
-          <div className="flex bg-muted p-1 rounded-lg">
+          <div className="flex flex-wrap bg-muted p-1 rounded-lg">
             <Button 
-              variant={isWizardMode ? "default" : "ghost"} 
+              variant={activeMode === "wizard" ? "default" : "ghost"} 
               size="sm" 
-              onClick={() => setIsWizardMode(true)}
+              onClick={() => { setActiveMode("wizard"); setIsWizardMode(true); }}
               className="gap-2"
             >
               <Sparkles className="h-4 w-4" />
-              Modo Guiado (Rápido)
+              Modo Guiado
             </Button>
             <Button 
-              variant={!isWizardMode ? "default" : "ghost"} 
+              variant={activeMode === "tech" ? "default" : "ghost"} 
               size="sm" 
-              onClick={() => setIsWizardMode(false)}
+              onClick={() => { setActiveMode("tech"); setIsWizardMode(false); }}
               className="gap-2"
             >
               <Zap className="h-4 w-4" />
-              Modo Técnico (Avançado)
+              Modo Técnico
             </Button>
+            {isInternalUser && (
+              <Button
+                variant={activeMode === "economy" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setActiveMode("economy")}
+                className="gap-2"
+              >
+                <TrendingDown className="h-4 w-4" />
+                Economia (Interno)
+              </Button>
+            )}
           </div>
         </div>
+
+        {activeMode === "economy" ? (
+          <EconomyCalculator
+            data={economyData}
+            setData={setEconomyData}
+            results={economyResults}
+            formatBRL={formatBRL}
+          />
+        ) : (
+        <>
+
 
         {isWizardMode ? (
           <Card className="mb-8 border-primary/20 shadow-md print:hidden">
