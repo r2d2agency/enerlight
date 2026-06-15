@@ -4910,6 +4910,72 @@ DO $$ BEGIN
 EXCEPTION WHEN others THEN null; END $$;
 `;
 
+const step67CalcCategories = `
+CREATE TABLE IF NOT EXISTS calc_categories (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  parent_id UUID REFERENCES calc_categories(id) ON DELETE CASCADE,
+  name VARCHAR(150) NOT NULL,
+  slug VARCHAR(150) NOT NULL UNIQUE,
+  lux INTEGER NOT NULL DEFAULT 300,
+  icon VARCHAR(50) DEFAULT 'Building2',
+  scope VARCHAR(20) NOT NULL DEFAULT 'indoor',
+  pole_height_min NUMERIC(5,2),
+  pole_height_max NUMERIC(5,2),
+  pole_uniformity NUMERIC(4,2),
+  position INTEGER NOT NULL DEFAULT 0,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_calc_categories_parent ON calc_categories(parent_id);
+CREATE INDEX IF NOT EXISTS idx_calc_categories_scope ON calc_categories(scope);
+
+INSERT INTO calc_categories (name, slug, lux, icon, scope, position) VALUES
+  ('Escritório','office',500,'Briefcase','indoor',1),
+  ('Loja/Comércio','retail',500,'Building2','indoor',2),
+  ('Galpão/Depósito','warehouse',200,'Home','indoor',3),
+  ('Fábrica','factory',300,'Zap','indoor',4),
+  ('Escola/Sala de Aula','classroom',500,'Monitor','indoor',5),
+  ('Saúde/Hospital','hospital',300,'ShieldCheck','indoor',6),
+  ('Corredor/Circulação','corridor',100,'Ruler','indoor',7),
+  ('Sala de Reunião','meeting',500,'Layout','indoor',8),
+  ('Sala de Cirurgia','surgery',1000,'ShieldCheck','indoor',9),
+  ('Cozinha/Refeitório','kitchen',300,'Home','indoor',10),
+  ('Desenho Técnico','drawing',750,'Ruler','indoor',11),
+  ('Sanitários','bathroom',200,'Home','indoor',12),
+  ('Estacionamento Interno','parking-indoor',75,'Building2','indoor',13)
+ON CONFLICT (slug) DO NOTHING;
+
+INSERT INTO calc_categories (name, slug, lux, icon, scope, position) VALUES
+  ('Petro / Postos de Combustível','petro',150,'Zap','indoor',20)
+ON CONFLICT (slug) DO NOTHING;
+
+DO $petro$
+DECLARE petro_id UUID;
+BEGIN
+  SELECT id INTO petro_id FROM calc_categories WHERE slug = 'petro';
+  IF petro_id IS NOT NULL THEN
+    INSERT INTO calc_categories (parent_id, name, slug, lux, icon, scope, position) VALUES
+      (petro_id, 'Pista de Abastecimento','petro-pista',150,'Zap','indoor',1),
+      (petro_id, 'Área de Estacionamento (Pública)','petro-estacionamento',75,'Building2','indoor',2),
+      (petro_id, 'Loja de Conveniência','petro-loja',500,'Building2','indoor',3),
+      (petro_id, 'Área de Troca de Óleo','petro-troca-oleo',500,'Ruler','indoor',4)
+    ON CONFLICT (slug) DO NOTHING;
+  END IF;
+END $petro$;
+
+INSERT INTO calc_categories
+  (name, slug, lux, icon, scope, pole_height_min, pole_height_max, pole_uniformity, position) VALUES
+  ('Via Local / Residencial','pub-residencial',15,'Home','public_lighting',6,8,0.20,1),
+  ('Via Coletora / Avenida','pub-coletora',20,'Ruler','public_lighting',9,10,0.25,2),
+  ('Via Arterial / Avenida Larga','pub-arterial',30,'Layout','public_lighting',11,12,0.30,3),
+  ('Rodovia / Anel Viário','pub-rodovia',30,'Zap','public_lighting',13,15,0.40,4),
+  ('Pátio / Posto / Área Aberta','pub-patio',100,'Building2','public_lighting',8,12,0.40,5),
+  ('Praça / Área de Lazer','pub-praca',20,'Home','public_lighting',6,9,0.25,6),
+  ('Quadra Esportiva (recreativa)','pub-quadra',200,'Layout','public_lighting',10,14,0.50,7)
+ON CONFLICT (slug) DO NOTHING;
+`;
+
 const migrationSteps = [
   { name: 'Enums', sql: step1Enums, critical: true },
   { name: 'Core Tables (users, plans)', sql: step2CoreTables, critical: true },
