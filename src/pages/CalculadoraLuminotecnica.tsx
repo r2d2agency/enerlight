@@ -589,36 +589,75 @@ export default function CalculadoraLuminotecnica() {
             <CardContent>
               {wizardStep === 1 && (
                 <div className="space-y-6">
-                  <h3 className="text-lg font-medium">Qual o tipo de ambiente?</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {[
-                      { id: "office", name: "Escritório", icon: Briefcase },
-                      { id: "retail", name: "Loja/Comércio", icon: Building2 },
-                      { id: "warehouse", name: "Galpão/Depósito", icon: Home },
-                      { id: "factory", name: "Fábrica", icon: Zap },
-                      { id: "classroom", name: "Escola/Sala", icon: Monitor },
-                      { id: "hospital", name: "Saúde/Hospital", icon: ShieldCheck },
-                      { id: "corridor", name: "Corredor/Circulação", icon: Ruler },
-                      { id: "meeting", name: "Sala Reunião", icon: Layout },
-                    ].map((item) => (
-                      <button
-                        key={item.id}
-                        onClick={() => {
-                          setCalcData({ ...calcData, environmentId: item.id });
-                          setWizardStep(2);
-                        }}
-                        className={cn(
-                          "flex flex-col items-center gap-3 p-6 rounded-xl border-2 transition-all hover:border-primary/50",
-                          calcData.environmentId === item.id ? "border-primary bg-primary/5 shadow-sm" : "border-muted"
-                        )}
-                      >
-                        <item.icon className="h-8 w-8 text-primary" />
-                        <span className="text-sm font-medium text-center">{item.name}</span>
-                      </button>
-                    ))}
-                  </div>
+                  {(() => {
+                    const activeRoot = activeRootCategoryId
+                      ? indoorCategories.find(c => c.id === activeRootCategoryId)
+                      : null;
+                    const subs = activeRoot ? childrenOf(activeRoot.id) : [];
+                    const visible = activeRoot && subs.length > 0
+                      ? subs
+                      : indoorRoots;
+                    return (
+                      <>
+                        <div className="flex items-center justify-between gap-3">
+                          <h3 className="text-lg font-medium">
+                            {activeRoot && subs.length > 0
+                              ? `Selecione: ${activeRoot.name}`
+                              : "Qual o tipo de ambiente?"}
+                          </h3>
+                          {activeRoot && subs.length > 0 && (
+                            <Button variant="ghost" size="sm" onClick={() => setActiveRootCategoryId(null)}>
+                              <ChevronLeft className="h-4 w-4 mr-1" /> Voltar às categorias
+                            </Button>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          {visible.map((cat) => {
+                            const hasChildren = !activeRoot && childrenOf(cat.id).length > 0;
+                            const IconComp = (
+                              { Briefcase, Building2, Home, Zap, Monitor, ShieldCheck, Ruler, Layout, Lightbulb } as any
+                            )[cat.icon] || Building2;
+                            return (
+                              <button
+                                key={cat.id}
+                                onClick={() => {
+                                  if (hasChildren) {
+                                    setActiveRootCategoryId(cat.id);
+                                  } else {
+                                    setCalcData({ ...calcData, environmentId: cat.slug });
+                                    setActiveRootCategoryId(null);
+                                    setWizardStep(2);
+                                  }
+                                }}
+                                className={cn(
+                                  "relative flex flex-col items-center gap-3 p-6 rounded-xl border-2 transition-all hover:border-primary/50",
+                                  calcData.environmentId === cat.slug
+                                    ? "border-primary bg-primary/5 shadow-sm"
+                                    : "border-muted"
+                                )}
+                              >
+                                <IconComp className="h-8 w-8 text-primary" />
+                                <span className="text-sm font-medium text-center">{cat.name}</span>
+                                {hasChildren && (
+                                  <Badge variant="secondary" className="absolute top-2 right-2 text-[10px]">
+                                    {childrenOf(cat.id).length} subs
+                                  </Badge>
+                                )}
+                              </button>
+                            );
+                          })}
+                          {visible.length === 0 && (
+                            <p className="col-span-full text-sm text-muted-foreground text-center py-8">
+                              Nenhuma categoria cadastrada.
+                            </p>
+                          )}
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               )}
+
 
               {wizardStep === 2 && (
                 <div className="space-y-6 max-w-2xl mx-auto">
