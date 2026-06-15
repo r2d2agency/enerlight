@@ -1488,3 +1488,294 @@ function EconomyCalculator({
     </div>
   );
 }
+
+interface PublicData {
+  categorySlug: string;
+  method: "simple" | "abnt";
+  roadLength: number;
+  roadWidth: number;
+  poleHeight: number;
+  fixtureLumens: number;
+  fixtureWattage: number;
+  maintenanceFactor: number;
+}
+
+function PublicLightingCalculator({
+  data,
+  setData,
+  categories,
+}: {
+  data: PublicData;
+  setData: React.Dispatch<React.SetStateAction<PublicData>>;
+  categories: CalcCategory[];
+}) {
+  const update = (patch: Partial<PublicData>) => setData({ ...data, ...patch });
+  const selected = categories.find(c => c.slug === data.categorySlug) || categories[0];
+
+  const results = useMemo(() => {
+    const area = data.roadLength * data.roadWidth;
+    const targetLux = selected?.lux ?? 20;
+    const uniformity = selected?.pole_uniformity ?? 0.25;
+
+    // Method 1: Simplified — Lumen method for outdoor area
+    // Coefficient of utilization for outdoor pole-mounted: typical 0.30-0.45
+    // We adjust by pole height vs. road width (overhang effect)
+    const ratio = data.poleHeight / Math.max(data.roadWidth, 1);
+    const cu = Math.min(0.45, 0.20 + ratio * 0.10);
+    const totalLumensNeeded = (targetLux * area) / (cu * data.maintenanceFactor);
+    const fixtureCount = Math.max(1, Math.ceil(totalLumensNeeded / Math.max(data.fixtureLumens, 1)));
+
+    // Spacing along road (one-sided arrangement)
+    const spacing = data.roadLength / fixtureCount;
+    const spacingHeightRatio = spacing / Math.max(data.poleHeight, 1);
+
+    // Method 2: ABNT NBR 5101 inspired — pole spacing rule of thumb
+    // Recommended spacing ≈ 3 × pole height for arterial; 4× for local
+    const recommendedSpacingMax = data.poleHeight * (uniformity >= 0.40 ? 3 : 4);
+    const polesAbnt = Math.max(1, Math.ceil(data.roadLength / recommendedSpacingMax));
+    const lumensPerPoleAbnt = totalLumensNeeded / polesAbnt;
+
+    const totalPower = fixtureCount * data.fixtureWattage;
+    const powerDensity = totalPower / area;
+
+    return {
+      area,
+      targetLux,
+      uniformity,
+      cu: cu.toFixed(2),
+      totalLumensNeeded: Math.round(totalLumensNeeded),
+      fixtureCount,
+      spacing: spacing.toFixed(1),
+      spacingHeightRatio: spacingHeightRatio.toFixed(2),
+      recommendedSpacingMax: recommendedSpacingMax.toFixed(1),
+      polesAbnt,
+      lumensPerPoleAbnt: Math.round(lumensPerPoleAbnt),
+      totalPower,
+      powerDensity: powerDensity.toFixed(2),
+    };
+  }, [data, selected]);
+
+  if (categories.length === 0) {
+    return (
+      <Card>
+        <CardContent className="py-12 text-center text-sm text-muted-foreground">
+          Nenhuma categoria de iluminação pública cadastrada. Peça ao administrador para cadastrar em
+          <strong> Categorias da Calculadora</strong>.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print:hidden">
+      <div className="lg:col-span-1 space-y-6">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Lamp className="h-5 w-5 text-primary" />
+              <CardTitle className="text-lg">Tipo de Via / Área</CardTitle>
+            </div>
+            <CardDescription>Selecione conforme a aplicação</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="space-y-2">
+              <Label>Categoria</Label>
+              <Select value={data.categorySlug} onValueChange={(v) => update({ categorySlug: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {categories.map(c => (
+                    <SelectItem key={c.id} value={c.slug}>
+                      {c.name} — {c.lux} lux
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selected && (
+                <p className="text-xs text-muted-foreground">
+                  Poste recomendado: {selected.pole_height_min}–{selected.pole_height_max}m ·
+                  Uniformidade mínima ≥ {selected.pole_uniformity}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label>Método de cálculo</Label>
+              <Select value={data.method} onValueChange={(v: any) => update({ method: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="simple">Simplificado (por altura de poste)</SelectItem>
+                  <SelectItem value="abnt">ABNT NBR 5101 (espaçamento norma)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Ruler className="h-5 w-5 text-primary" />
+              <CardTitle className="text-lg">Dimensões da Via</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Comprimento (m)</Label>
+                <Input type="number" value={data.roadLength}
+                  onChange={(e) => update({ roadLength: Number(e.target.value) })} />
+              </div>
+              <div className="space-y-2">
+                <Label>Largura (m)</Label>
+                <Input type="number" value={data.roadWidth}
+                  onChange={(e) => update({ roadWidth: Number(e.target.value) })} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Altura do poste (m)</Label>
+              <Input type="number" step="0.5" value={data.poleHeight}
+                onChange={(e) => update({ poleHeight: Number(e.target.value) })} />
+              {selected?.pole_height_min != null && selected?.pole_height_max != null && (
+                <p className="text-xs text-muted-foreground">
+                  Faixa recomendada para esta categoria: {selected.pole_height_min}–{selected.pole_height_max}m
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Zap className="h-5 w-5 text-primary" />
+              <CardTitle className="text-lg">Luminária</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="space-y-2">
+              <Label>Fluxo (lm) por luminária</Label>
+              <Input type="number" value={data.fixtureLumens}
+                onChange={(e) => update({ fixtureLumens: Number(e.target.value) })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Potência (W) por luminária</Label>
+              <Input type="number" value={data.fixtureWattage}
+                onChange={(e) => update({ fixtureWattage: Number(e.target.value) })} />
+              <p className="text-xs text-muted-foreground">
+                Eficiência: {data.fixtureWattage > 0 ? Math.round(data.fixtureLumens / data.fixtureWattage) : 0} lm/W
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label>Fator de manutenção</Label>
+              <Input type="number" step="0.05" value={data.maintenanceFactor}
+                onChange={(e) => update({ maintenanceFactor: Number(e.target.value) })} />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="lg:col-span-2 space-y-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card className="bg-primary text-primary-foreground border-none shadow-lg">
+            <CardHeader className="pb-2">
+              <CardDescription className="text-primary-foreground/80">Luminárias / Postes</CardDescription>
+              <CardTitle className="text-3xl font-bold">
+                {data.method === "abnt" ? results.polesAbnt : results.fixtureCount}
+              </CardTitle>
+            </CardHeader>
+          </Card>
+          <Card><CardHeader className="pb-2">
+            <CardDescription>Espaçamento</CardDescription>
+            <CardTitle className="text-2xl">
+              {data.method === "abnt"
+                ? `${results.recommendedSpacingMax} m`
+                : `${results.spacing} m`}
+            </CardTitle>
+          </CardHeader></Card>
+          <Card><CardHeader className="pb-2">
+            <CardDescription>Potência Total</CardDescription>
+            <CardTitle className="text-2xl">{results.totalPower} W</CardTitle>
+          </CardHeader></Card>
+          <Card><CardHeader className="pb-2">
+            <CardDescription>Meta de iluminância</CardDescription>
+            <CardTitle className="text-2xl">{results.targetLux} lux</CardTitle>
+          </CardHeader></Card>
+        </div>
+
+        <Card>
+          <CardHeader className="bg-muted/50 border-b">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <CardTitle>Resultado — Iluminação Pública</CardTitle>
+              <Badge variant="outline">
+                {data.method === "abnt" ? "ABNT NBR 5101" : "Método simplificado"}
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x p-0">
+            <div className="p-6 space-y-2">
+              <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                Dados de Entrada
+              </h4>
+              <dl className="grid grid-cols-2 gap-y-2 text-sm">
+                <dt>Categoria:</dt><dd className="text-right font-medium">{selected?.name}</dd>
+                <dt>Área total:</dt><dd className="text-right font-medium">{results.area} m²</dd>
+                <dt>Altura do poste:</dt><dd className="text-right font-medium">{data.poleHeight} m</dd>
+                <dt>Fluxo unitário:</dt><dd className="text-right font-medium">{data.fixtureLumens} lm</dd>
+                <dt>Potência unitária:</dt><dd className="text-right font-medium">{data.fixtureWattage} W</dd>
+                <dt>Fator de utilização:</dt><dd className="text-right font-medium">{results.cu}</dd>
+              </dl>
+            </div>
+            <div className="p-6 space-y-2 bg-primary/5">
+              <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                Dimensionamento
+              </h4>
+              {data.method === "simple" ? (
+                <dl className="grid grid-cols-2 gap-y-2 text-sm">
+                  <dt>Fluxo total necessário:</dt>
+                  <dd className="text-right font-medium">{results.totalLumensNeeded.toLocaleString("pt-BR")} lm</dd>
+                  <dt>Nº de luminárias:</dt>
+                  <dd className="text-right font-bold text-primary">{results.fixtureCount}</dd>
+                  <dt>Espaçamento entre postes:</dt>
+                  <dd className="text-right font-medium">{results.spacing} m</dd>
+                  <dt>Relação E/H:</dt>
+                  <dd className="text-right font-medium">{results.spacingHeightRatio}</dd>
+                  <dt>Densidade de potência:</dt>
+                  <dd className="text-right font-medium">{results.powerDensity} W/m²</dd>
+                </dl>
+              ) : (
+                <dl className="grid grid-cols-2 gap-y-2 text-sm">
+                  <dt>Espaçamento máx. recomendado:</dt>
+                  <dd className="text-right font-medium">
+                    {results.recommendedSpacingMax} m
+                    <span className="text-xs text-muted-foreground block">
+                      ({selected?.pole_uniformity && selected.pole_uniformity >= 0.40 ? "3×" : "4×"} altura do poste)
+                    </span>
+                  </dd>
+                  <dt>Nº de postes:</dt>
+                  <dd className="text-right font-bold text-primary">{results.polesAbnt}</dd>
+                  <dt>Fluxo mínimo por poste:</dt>
+                  <dd className="text-right font-medium">{results.lumensPerPoleAbnt.toLocaleString("pt-BR")} lm</dd>
+                  <dt>Uniformidade alvo (U):</dt>
+                  <dd className="text-right font-medium">≥ {results.uniformity}</dd>
+                </dl>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-muted/30">
+          <CardContent className="p-4 flex items-start gap-3">
+            <Info className="h-5 w-5 text-blue-500 mt-0.5 flex-shrink-0" />
+            <p className="text-xs text-muted-foreground">
+              Cálculo simplificado para iluminação pública/áreas externas. Para projetos executivos siga integralmente
+              a <strong>ABNT NBR 5101</strong> e valide com luminotécnico responsável. O método "Simplificado" usa o
+              método dos lúmens com coeficiente de utilização estimado pela razão altura/largura; o método "ABNT"
+              dimensiona postes pela regra prática de espaçamento ≤ 3–4× altura do poste conforme a uniformidade alvo.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
