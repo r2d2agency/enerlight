@@ -339,7 +339,7 @@ export default function CalculadoraLuminotecnica() {
           body: JSON.stringify({
             whatsapp: formData.whatsapp,
             project_data: {
-              environment: ABNT_STANDARDS.find(s => s.id === calcData.environmentId)?.name,
+              environment: (findCategoryBySlug(calcData.environmentId)?.name) || ABNT_STANDARDS.find(s => s.id === calcData.environmentId)?.name,
               area: results.area,
               fixture_count: results.fixtureCount,
               required_lux: results.requiredLux,
