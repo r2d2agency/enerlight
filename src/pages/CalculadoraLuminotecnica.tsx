@@ -1178,3 +1178,223 @@ function Loader2({ className }: { className?: string }) {
     </svg>
   );
 }
+
+interface EconomyData {
+  currentFixtureCount: number;
+  currentWattage: number;
+  currentLumens: number;
+  newWattage: number;
+  newLumens: number;
+  hoursPerDay: number;
+  daysPerMonth: number;
+  kwhPrice: number;
+}
+
+interface EconomyResults {
+  currentTotalLumens: number;
+  newFixtureCount: number;
+  currentTotalW: number;
+  newTotalW: number;
+  hoursMonth: number;
+  currentKwhMonth: string;
+  newKwhMonth: string;
+  currentCostMonth: number;
+  newCostMonth: number;
+  savingsMonth: number;
+  savingsYear: number;
+  savingsPercent: string;
+  kwhSavedYear: string;
+}
+
+function EconomyCalculator({
+  data,
+  setData,
+  results,
+  formatBRL,
+}: {
+  data: EconomyData;
+  setData: React.Dispatch<React.SetStateAction<EconomyData>>;
+  results: EconomyResults;
+  formatBRL: (v: number) => string;
+}) {
+  const update = (patch: Partial<EconomyData>) => setData({ ...data, ...patch });
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print:hidden">
+      {/* Inputs */}
+      <div className="lg:col-span-1 space-y-6">
+        <Card className="border-amber-200">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Lightbulb className="h-5 w-5 text-amber-500" />
+              <CardTitle className="text-lg">Luminária Atual do Cliente</CardTitle>
+            </div>
+            <CardDescription>Equipamento em uso hoje</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="space-y-2">
+              <Label>Quantidade de luminárias</Label>
+              <Input type="number" value={data.currentFixtureCount}
+                onChange={(e) => update({ currentFixtureCount: Number(e.target.value) })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Potência (W) por luminária</Label>
+              <Input type="number" value={data.currentWattage}
+                onChange={(e) => update({ currentWattage: Number(e.target.value) })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Lúmens por luminária</Label>
+              <Input type="number" value={data.currentLumens}
+                onChange={(e) => update({ currentLumens: Number(e.target.value) })} />
+              <p className="text-xs text-muted-foreground">
+                Eficiência: {data.currentWattage > 0 ? Math.round(data.currentLumens / data.currentWattage) : 0} lm/W
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-emerald-200">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-emerald-600" />
+              <CardTitle className="text-lg">Luminária Proposta</CardTitle>
+            </div>
+            <CardDescription>Solução Enerlight equivalente</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="space-y-2">
+              <Label>Potência (W) por luminária</Label>
+              <Input type="number" value={data.newWattage}
+                onChange={(e) => update({ newWattage: Number(e.target.value) })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Lúmens por luminária</Label>
+              <Input type="number" value={data.newLumens}
+                onChange={(e) => update({ newLumens: Number(e.target.value) })} />
+              <p className="text-xs text-muted-foreground">
+                Eficiência: {data.newWattage > 0 ? Math.round(data.newLumens / data.newWattage) : 0} lm/W
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Zap className="h-5 w-5 text-primary" />
+              <CardTitle className="text-lg">Uso & Tarifa</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Horas/dia</Label>
+                <Input type="number" value={data.hoursPerDay}
+                  onChange={(e) => update({ hoursPerDay: Number(e.target.value) })} />
+              </div>
+              <div className="space-y-2">
+                <Label>Dias/mês</Label>
+                <Input type="number" value={data.daysPerMonth}
+                  onChange={(e) => update({ daysPerMonth: Number(e.target.value) })} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Preço do kWh (R$)</Label>
+              <Input type="number" step="0.01" value={data.kwhPrice}
+                onChange={(e) => update({ kwhPrice: Number(e.target.value) })} />
+              <p className="text-xs text-muted-foreground">Padrão: R$ 0,86/kWh</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Results */}
+      <div className="lg:col-span-2 space-y-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Card className="bg-emerald-600 text-white border-none shadow-lg">
+            <CardHeader className="pb-2">
+              <CardDescription className="text-emerald-50">Economia / Mês</CardDescription>
+              <CardTitle className="text-3xl font-bold">{formatBRL(results.savingsMonth)}</CardTitle>
+            </CardHeader>
+          </Card>
+          <Card className="bg-emerald-700 text-white border-none shadow-lg">
+            <CardHeader className="pb-2">
+              <CardDescription className="text-emerald-50">Economia / Ano</CardDescription>
+              <CardTitle className="text-3xl font-bold">{formatBRL(results.savingsYear)}</CardTitle>
+            </CardHeader>
+          </Card>
+          <Card className="shadow-md">
+            <CardHeader className="pb-2">
+              <CardDescription>Redução</CardDescription>
+              <CardTitle className="text-3xl flex items-center gap-2 text-emerald-600">
+                <TrendingDown className="h-6 w-6" />
+                {results.savingsPercent}%
+              </CardTitle>
+            </CardHeader>
+          </Card>
+        </div>
+
+        <Card className="overflow-hidden border-2 border-emerald-200/40">
+          <CardHeader className="bg-muted/50 border-b">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <CardTitle>Comparativo Detalhado</CardTitle>
+              <Badge variant="outline">Tarifa: {formatBRL(data.kwhPrice)}/kWh</Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x">
+              <div className="p-6 space-y-3">
+                <h4 className="text-sm font-semibold text-amber-600 uppercase tracking-wider">Situação Atual</h4>
+                <dl className="grid grid-cols-2 gap-y-2 text-sm">
+                  <dt>Luminárias:</dt><dd className="text-right font-medium">{data.currentFixtureCount} un</dd>
+                  <dt>Potência total:</dt><dd className="text-right font-medium">{results.currentTotalW} W</dd>
+                  <dt>Lúmens totais:</dt><dd className="text-right font-medium">{results.currentTotalLumens.toLocaleString('pt-BR')} lm</dd>
+                  <dt>Consumo/mês:</dt><dd className="text-right font-medium">{results.currentKwhMonth} kWh</dd>
+                  <dt>Custo/mês:</dt><dd className="text-right font-bold text-red-600">{formatBRL(results.currentCostMonth)}</dd>
+                  <dt>Custo/ano:</dt><dd className="text-right font-bold text-red-600">{formatBRL(results.currentCostMonth * 12)}</dd>
+                </dl>
+              </div>
+              <div className="p-6 space-y-3 bg-emerald-50/40">
+                <h4 className="text-sm font-semibold text-emerald-700 uppercase tracking-wider">Com Solução Enerlight</h4>
+                <dl className="grid grid-cols-2 gap-y-2 text-sm">
+                  <dt>Luminárias:</dt><dd className="text-right font-medium">{results.newFixtureCount} un</dd>
+                  <dt>Potência total:</dt><dd className="text-right font-medium">{results.newTotalW} W</dd>
+                  <dt>Lúmens totais:</dt><dd className="text-right font-medium">{(results.newFixtureCount * data.newLumens).toLocaleString('pt-BR')} lm</dd>
+                  <dt>Consumo/mês:</dt><dd className="text-right font-medium">{results.newKwhMonth} kWh</dd>
+                  <dt>Custo/mês:</dt><dd className="text-right font-bold text-emerald-700">{formatBRL(results.newCostMonth)}</dd>
+                  <dt>Custo/ano:</dt><dd className="text-right font-bold text-emerald-700">{formatBRL(results.newCostMonth * 12)}</dd>
+                </dl>
+              </div>
+            </div>
+            <div className="p-6 border-t bg-gradient-to-r from-emerald-500/10 to-emerald-700/10">
+              <div className="flex items-start gap-3">
+                <DollarSign className="h-8 w-8 text-emerald-600 flex-shrink-0" />
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">
+                    Substituindo <strong>{data.currentFixtureCount}</strong> luminárias de {data.currentWattage}W
+                    por <strong>{results.newFixtureCount}</strong> luminárias de {data.newWattage}W
+                    (mantendo o mesmo nível de iluminação):
+                  </p>
+                  <p className="text-base">
+                    Economia anual estimada de <strong className="text-emerald-700">{formatBRL(results.savingsYear)}</strong>
+                    {' '}({results.kwhSavedYear} kWh evitados por ano).
+                  </p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-muted/30">
+          <CardContent className="p-4 flex items-start gap-3">
+            <Info className="h-5 w-5 text-blue-500 mt-0.5 flex-shrink-0" />
+            <p className="text-xs text-muted-foreground">
+              Cálculo baseado em consumo linear: (W total × horas/mês) ÷ 1000 × tarifa kWh.
+              A quantidade de luminárias proposta é dimensionada para entregar pelo menos
+              o mesmo total de lúmens da instalação atual. Ferramenta de uso interno da equipe comercial.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
