@@ -1010,7 +1010,7 @@ export default function CalculadoraLuminotecnica() {
                     <div>
                       <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Resumo do Projeto</h4>
                       <p className="text-sm text-muted-foreground mb-6">
-                        Para o ambiente de <strong>{ABNT_STANDARDS.find(s => s.id === calcData.environmentId)?.name}</strong>, 
+                        Para o ambiente de <strong>{findCategoryBySlug(calcData.environmentId)?.name || ABNT_STANDARDS.find(s => s.id === calcData.environmentId)?.name}</strong>, 
                         com área de {results.area} m², são recomendados no mínimo {results.fixtureCount} pontos de luz utilizando 
                         luminárias de {calcData.fixtureLumens} lumens cada.
                       </p>
