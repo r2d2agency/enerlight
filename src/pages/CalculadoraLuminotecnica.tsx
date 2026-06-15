@@ -591,22 +591,24 @@ export default function CalculadoraLuminotecnica() {
               {wizardStep === 1 && (
                 <div className="space-y-6">
                   {(() => {
-                    const activeRoot = activeRootCategoryId
+                    const PUBLIC_ROOT_ID = "__public_lighting__";
+                    const isPublicRoot = activeRootCategoryId === PUBLIC_ROOT_ID;
+                    const activeRoot = activeRootCategoryId && !isPublicRoot
                       ? indoorCategories.find(c => c.id === activeRootCategoryId)
                       : null;
-                    const subs = activeRoot ? childrenOf(activeRoot.id) : [];
-                    const visible = activeRoot && subs.length > 0
-                      ? subs
-                      : indoorRoots;
+                    const subs = isPublicRoot
+                      ? publicLightingCats
+                      : (activeRoot ? childrenOf(activeRoot.id) : []);
+                    const showingSubs = (isPublicRoot || !!activeRoot) && subs.length > 0;
+                    const visible = showingSubs ? subs : indoorRoots;
+                    const headerName = isPublicRoot ? "Iluminação Pública" : activeRoot?.name;
                     return (
                       <>
                         <div className="flex items-center justify-between gap-3">
                           <h3 className="text-lg font-medium">
-                            {activeRoot && subs.length > 0
-                              ? `Selecione: ${activeRoot.name}`
-                              : "Qual o tipo de ambiente?"}
+                            {showingSubs ? `Selecione: ${headerName}` : "Qual o tipo de ambiente?"}
                           </h3>
-                          {activeRoot && subs.length > 0 && (
+                          {showingSubs && (
                             <Button variant="ghost" size="sm" onClick={() => setActiveRootCategoryId(null)}>
                               <ChevronLeft className="h-4 w-4 mr-1" /> Voltar às categorias
                             </Button>
@@ -614,9 +616,9 @@ export default function CalculadoraLuminotecnica() {
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                           {visible.map((cat) => {
-                            const hasChildren = !activeRoot && childrenOf(cat.id).length > 0;
+                            const hasChildren = !showingSubs && childrenOf(cat.id).length > 0;
                             const IconComp = (
-                              { Briefcase, Building2, Home, Zap, Monitor, ShieldCheck, Ruler, Layout, Lightbulb } as any
+                              { Briefcase, Building2, Home, Zap, Monitor, ShieldCheck, Ruler, Layout, Lightbulb, Lamp } as any
                             )[cat.icon] || Building2;
                             return (
                               <button
@@ -624,6 +626,10 @@ export default function CalculadoraLuminotecnica() {
                                 onClick={() => {
                                   if (hasChildren) {
                                     setActiveRootCategoryId(cat.id);
+                                  } else if (isPublicRoot) {
+                                    setPublicData(d => ({ ...d, categorySlug: cat.slug }));
+                                    setActiveRootCategoryId(null);
+                                    setActiveMode("public");
                                   } else {
                                     setCalcData({ ...calcData, environmentId: cat.slug });
                                     setActiveRootCategoryId(null);
@@ -647,6 +653,18 @@ export default function CalculadoraLuminotecnica() {
                               </button>
                             );
                           })}
+                          {!showingSubs && publicLightingCats.length > 0 && (
+                            <button
+                              onClick={() => setActiveRootCategoryId(PUBLIC_ROOT_ID)}
+                              className="relative flex flex-col items-center gap-3 p-6 rounded-xl border-2 border-muted transition-all hover:border-primary/50"
+                            >
+                              <Lamp className="h-8 w-8 text-primary" />
+                              <span className="text-sm font-medium text-center">Iluminação Pública</span>
+                              <Badge variant="secondary" className="absolute top-2 right-2 text-[10px]">
+                                {publicLightingCats.length} subs
+                              </Badge>
+                            </button>
+                          )}
                           {visible.length === 0 && (
                             <p className="col-span-full text-sm text-muted-foreground text-center py-8">
                               Nenhuma categoria cadastrada.
