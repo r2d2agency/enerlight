@@ -5044,6 +5044,7 @@ const migrationSteps = [
   { name: 'Online Quotes Images', sql: step64OnlineQuotesImages, critical: false },
   { name: 'Online Quote Templates', sql: step65OnlineQuoteTemplates, critical: false },
   { name: 'Online Quote Items Discount', sql: step66OnlineQuoteItemsDiscount, critical: false },
+  { name: 'Calculator Categories', sql: step67CalcCategories, critical: false },
 ];
 
 
