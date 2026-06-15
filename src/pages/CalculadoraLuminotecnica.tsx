@@ -1516,6 +1516,10 @@ interface PublicData {
   fixtureLumens: number;
   fixtureWattage: number;
   maintenanceFactor: number;
+  hasExistingPoles: boolean;
+  existingPoleCount: number;
+  existingPoleDistance: number; // m de referência
+  existingPoleHeight: number;
 }
 
 function PublicLightingCalculator({
