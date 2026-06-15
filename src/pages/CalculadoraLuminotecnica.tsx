@@ -1852,6 +1852,95 @@ function PublicLightingCalculator({
           </CardContent>
         </Card>
 
+        {data.hasExistingPoles && (
+          <Card>
+            <CardHeader className="bg-muted/50 border-b">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <CardTitle>Comparativo — Existente × ABNT</CardTitle>
+                <Badge variant={results.existingCompliant ? "default" : "destructive"}>
+                  {results.existingCompliant ? "Dentro da norma" : "Acima do recomendado"}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x p-0">
+              <div className="p-6 space-y-2">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                  Existente (cliente)
+                </h4>
+                <dl className="grid grid-cols-2 gap-y-1.5 text-sm">
+                  <dt>Postes informados:</dt>
+                  <dd className="text-right font-medium">{data.existingPoleCount} un</dd>
+                  <dt>No trecho:</dt>
+                  <dd className="text-right font-medium">{data.existingPoleDistance} m</dd>
+                  <dt>Espaçamento atual:</dt>
+                  <dd className="text-right font-bold">{results.existingSpacing} m</dd>
+                  <dt>Altura do poste:</dt>
+                  <dd className="text-right font-medium">{data.existingPoleHeight} m</dd>
+                  <dt>Relação E/H:</dt>
+                  <dd className="text-right font-medium">{results.existingSpacingHeightRatio}</dd>
+                  <dt>Postes / km:</dt>
+                  <dd className="text-right font-medium">{results.existingPolesPerKm}</dd>
+                </dl>
+              </div>
+              <div className="p-6 space-y-2 bg-primary/5">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                  ABNT NBR 5101
+                </h4>
+                <dl className="grid grid-cols-2 gap-y-1.5 text-sm">
+                  <dt>Espaçamento máx.:</dt>
+                  <dd className="text-right font-bold text-primary">{results.existingRecommendedMax} m</dd>
+                  <dt>Regra:</dt>
+                  <dd className="text-right font-medium">
+                    {results.uniformity >= 0.40 ? "3×" : "4×"} altura
+                  </dd>
+                  <dt>Uniformidade alvo:</dt>
+                  <dd className="text-right font-medium">≥ {results.uniformity}</dd>
+                  <dt>Iluminância alvo:</dt>
+                  <dd className="text-right font-medium">{results.targetLux} lux</dd>
+                  <dt>Postes p/ o trecho:</dt>
+                  <dd className="text-right font-medium">{results.polesAbnt} un</dd>
+                </dl>
+              </div>
+              <div className="p-6 space-y-2">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                  Diagnóstico
+                </h4>
+                <p className="text-sm">
+                  {results.existingCompliant ? (
+                    <>O espaçamento atual de <strong>{results.existingSpacing} m</strong> está
+                    <strong> abaixo</strong> do máximo recomendado pela ABNT
+                    (<strong>{results.existingRecommendedMax} m</strong>) para poste de
+                    {" "}{data.existingPoleHeight} m.</>
+                  ) : (
+                    <>O espaçamento atual de <strong>{results.existingSpacing} m</strong>
+                    {" "}<strong>excede</strong> o limite ABNT de <strong>{results.existingRecommendedMax} m</strong>
+                    {" "}para poste de {data.existingPoleHeight} m — risco de pontos escuros e
+                    uniformidade abaixo de {results.uniformity}.</>
+                  )}
+                </p>
+                <div className="pt-2 border-t mt-3 text-sm space-y-1">
+                  <p>
+                    Para o trecho de <strong>{data.roadLength} m</strong>:
+                  </p>
+                  <p>• Mantendo o espaçamento atual: <strong>{results.existingProjectedPoles} postes</strong></p>
+                  <p>• Pelo padrão ABNT: <strong>{results.polesAbnt} postes</strong></p>
+                  {results.polesDiffAbnt !== 0 && (
+                    <p className={cn(
+                      "font-medium",
+                      results.polesDiffAbnt > 0 ? "text-emerald-600" : "text-amber-600"
+                    )}>
+                      Diferença: {results.polesDiffAbnt > 0 ? "+" : ""}{results.polesDiffAbnt} postes
+                      {results.polesDiffAbnt > 0 ? " (existente tem mais densidade)" : " (faltam postes vs norma)"}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+
+
         <Card className="bg-muted/30">
           <CardContent className="p-4 flex items-start gap-3">
             <Info className="h-5 w-5 text-blue-500 mt-0.5 flex-shrink-0" />
