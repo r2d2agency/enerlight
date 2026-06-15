@@ -1714,7 +1714,54 @@ function PublicLightingCalculator({
             </div>
           </CardContent>
         </Card>
+
+        <Card className={cn(data.hasExistingPoles && "ring-2 ring-primary/40")}>
+          <CardHeader>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Building2 className="h-5 w-5 text-primary" />
+                <CardTitle className="text-lg">Infraestrutura existente</CardTitle>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant={data.hasExistingPoles ? "default" : "outline"}
+                onClick={() => update({ hasExistingPoles: !data.hasExistingPoles })}
+              >
+                {data.hasExistingPoles ? "Ativado" : "Ativar"}
+              </Button>
+            </div>
+            <CardDescription>
+              Informe os postes que já existem no local para comparar com a ABNT.
+            </CardDescription>
+          </CardHeader>
+          {data.hasExistingPoles && (
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Qtd. de postes</Label>
+                  <Input type="number" min={1} value={data.existingPoleCount}
+                    onChange={(e) => update({ existingPoleCount: Number(e.target.value) })} />
+                </div>
+                <div className="space-y-2">
+                  <Label>No trecho de (m)</Label>
+                  <Input type="number" min={1} value={data.existingPoleDistance}
+                    onChange={(e) => update({ existingPoleDistance: Number(e.target.value) })} />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Altura do poste existente (m)</Label>
+                <Input type="number" step="0.5" value={data.existingPoleHeight}
+                  onChange={(e) => update({ existingPoleHeight: Number(e.target.value) })} />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Ex.: <strong>5 postes em 100 m</strong> = espaçamento de 25 m entre postes.
+              </p>
+            </CardContent>
+          )}
+        </Card>
       </div>
+
 
       <div className="lg:col-span-2 space-y-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
