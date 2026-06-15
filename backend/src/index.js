@@ -241,6 +241,7 @@ app.use('/api/meta', metaTemplatesRoutes);
 app.use('/api/surveys', surveysRoutes);
 app.use('/api/online-quotes', onlineQuotesRoutes);
 app.use('/api/rh', rhRoutes);
+app.use('/api/calc-categories', calcCategoriesRoutes);
 
 
 app.get('/health', (req, res) => {
