@@ -290,9 +290,10 @@ export default function CalculadoraLuminotecnica() {
     const area = calcData.length * calcData.width;
     const h = calcData.height - calcData.workPlaneHeight;
     const k = (calcData.length * calcData.width) / (h * (calcData.length + calcData.width));
-    
+
+    const apiCat = findCategoryBySlug(calcData.environmentId);
     const standard = ABNT_STANDARDS.find(s => s.id === calcData.environmentId);
-    const requiredLux = standard ? standard.lux : 500;
+    const requiredLux = apiCat?.lux ?? standard?.lux ?? 500;
     
     // Utilization factor estimation based on K (simplified)
     // In reality, this comes from tables, but we can approximate:
