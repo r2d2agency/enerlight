@@ -32,7 +32,9 @@ import {
   Home,
   Briefcase,
   Monitor,
-  LightbulbIcon
+  LightbulbIcon,
+  DollarSign,
+  TrendingDown
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import enerlightLogo from "@/assets/enerlight-logo.png";
