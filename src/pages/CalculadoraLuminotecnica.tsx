@@ -1544,25 +1544,34 @@ function PublicLightingCalculator({
     const uniformity = selected?.pole_uniformity ?? 0.25;
 
     // Method 1: Simplified — Lumen method for outdoor area
-    // Coefficient of utilization for outdoor pole-mounted: typical 0.30-0.45
-    // We adjust by pole height vs. road width (overhang effect)
     const ratio = data.poleHeight / Math.max(data.roadWidth, 1);
     const cu = Math.min(0.45, 0.20 + ratio * 0.10);
     const totalLumensNeeded = (targetLux * area) / (cu * data.maintenanceFactor);
     const fixtureCount = Math.max(1, Math.ceil(totalLumensNeeded / Math.max(data.fixtureLumens, 1)));
 
-    // Spacing along road (one-sided arrangement)
     const spacing = data.roadLength / fixtureCount;
     const spacingHeightRatio = spacing / Math.max(data.poleHeight, 1);
 
-    // Method 2: ABNT NBR 5101 inspired — pole spacing rule of thumb
-    // Recommended spacing ≈ 3 × pole height for arterial; 4× for local
+    // Method 2: ABNT NBR 5101 inspired
     const recommendedSpacingMax = data.poleHeight * (uniformity >= 0.40 ? 3 : 4);
     const polesAbnt = Math.max(1, Math.ceil(data.roadLength / recommendedSpacingMax));
     const lumensPerPoleAbnt = totalLumensNeeded / polesAbnt;
 
     const totalPower = fixtureCount * data.fixtureWattage;
     const powerDensity = totalPower / area;
+
+    // Existing infrastructure analysis
+    const existingSpacing = data.existingPoleCount > 1
+      ? data.existingPoleDistance / (data.existingPoleCount - 1)
+      : data.existingPoleDistance;
+    const existingSpacingHeightRatio = existingSpacing / Math.max(data.existingPoleHeight, 1);
+    const existingRecommendedMax = data.existingPoleHeight * (uniformity >= 0.40 ? 3 : 4);
+    const existingPolesPerKm = (data.existingPoleCount / Math.max(data.existingPoleDistance, 1)) * 1000;
+    const existingCompliant = existingSpacing <= existingRecommendedMax;
+    // Quantos postes em todo o trecho mantendo o espaçamento atual
+    const existingProjectedPoles = Math.max(1, Math.round(data.roadLength / Math.max(existingSpacing, 1)) + 1);
+    // Diferença vs ABNT
+    const polesDiffAbnt = existingProjectedPoles - polesAbnt;
 
     return {
       area,
@@ -1578,6 +1587,13 @@ function PublicLightingCalculator({
       lumensPerPoleAbnt: Math.round(lumensPerPoleAbnt),
       totalPower,
       powerDensity: powerDensity.toFixed(2),
+      existingSpacing: existingSpacing.toFixed(1),
+      existingSpacingHeightRatio: existingSpacingHeightRatio.toFixed(2),
+      existingRecommendedMax: existingRecommendedMax.toFixed(1),
+      existingPolesPerKm: existingPolesPerKm.toFixed(1),
+      existingCompliant,
+      existingProjectedPoles,
+      polesDiffAbnt,
     };
   }, [data, selected]);
 
