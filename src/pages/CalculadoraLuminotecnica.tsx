@@ -161,6 +161,18 @@ export default function CalculadoraLuminotecnica() {
     reflectanceId: "standard",
   });
 
+  // Public Lighting State
+  const [publicData, setPublicData] = useState({
+    categorySlug: "pub-coletora",
+    method: "simple" as "simple" | "abnt",
+    roadLength: 200,        // m
+    roadWidth: 10,          // m
+    poleHeight: 10,         // m
+    fixtureLumens: 12000,
+    fixtureWattage: 100,
+    maintenanceFactor: 0.8,
+  });
+
   // Economy Calculator State (sales team only)
   const [economyData, setEconomyData] = useState({
     // Atual
