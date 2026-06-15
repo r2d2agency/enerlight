@@ -302,8 +302,8 @@ export default function CalculadoraLuminotecnica() {
     // Simulating "thinking" for 4 seconds as requested
     await new Promise(resolve => setTimeout(resolve, 4000));
 
-    // Save project to history
-    if (formData.whatsapp) {
+    // Save project to history (skip for internal/sales users — they only simulate)
+    if (!isInternalUser && formData.whatsapp) {
       try {
         await fetch(`${API_URL}/api/public/save-project`, {
           method: "POST",
@@ -324,6 +324,7 @@ export default function CalculadoraLuminotecnica() {
         console.error("Erro ao salvar histórico do projeto", err);
       }
     }
+
 
     setIsGenerating(false);
     setReportGenerated(true);
