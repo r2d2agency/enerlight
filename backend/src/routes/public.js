@@ -160,7 +160,7 @@ router.post('/pre-register', async (req, res) => {
     try {
       // First, get valid columns for crm_prospects to avoid 500 if email or other columns don't exist yet
       const columnsResult = await query(
-        "SELECT column_name FROM information_schema.columns WHERE table_name = 'crm_prospects'"
+        "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'crm_prospects'"
       );
       const validColumns = columnsResult.rows.map(r => r.column_name);
       
