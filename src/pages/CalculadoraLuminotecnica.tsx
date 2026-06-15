@@ -108,7 +108,9 @@ const REFLECTANCES = [
 
 export default function CalculadoraLuminotecnica() {
   const { branding } = useBranding();
-  const [isRegistered, setIsRegistered] = useState(false);
+  const { user, isAuthenticated } = useAuth();
+  const isInternalUser = isAuthenticated && !!user;
+  const [isRegistered, setIsRegistered] = useState(isInternalUser);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [reportGenerated, setReportGenerated] = useState(false);
@@ -123,6 +125,7 @@ export default function CalculadoraLuminotecnica() {
 
   // Calculator State
   const [isWizardMode, setIsWizardMode] = useState(true);
+  const [activeMode, setActiveMode] = useState<"wizard" | "tech" | "economy">("wizard");
   const [wizardStep, setWizardStep] = useState(1);
   const [wizardData, setWizardData] = useState({
     environmentId: "office",
@@ -142,6 +145,67 @@ export default function CalculadoraLuminotecnica() {
     fixtureWattage: 18,
     reflectanceId: "standard",
   });
+
+  // Economy Calculator State (sales team only)
+  const [economyData, setEconomyData] = useState({
+    // Atual
+    currentFixtureCount: 30,
+    currentWattage: 400,
+    currentLumens: 38400, // ~96 lm/W * 400W
+    // Nova
+    newWattage: 150,
+    newLumens: 22500, // ~150 lm/W
+    // Uso
+    hoursPerDay: 10,
+    daysPerMonth: 26,
+    kwhPrice: 0.86,
+  });
+
+  const economyResults = useMemo(() => {
+    const currentTotalLumens = economyData.currentFixtureCount * economyData.currentLumens;
+    // Para entregar o mesmo total de lumens com a nova luminária
+    const newFixtureCount = economyData.newLumens > 0
+      ? Math.ceil(currentTotalLumens / economyData.newLumens)
+      : 0;
+
+    const currentTotalW = economyData.currentFixtureCount * economyData.currentWattage;
+    const newTotalW = newFixtureCount * economyData.newWattage;
+
+    const hoursMonth = economyData.hoursPerDay * economyData.daysPerMonth;
+    const currentKwhMonth = (currentTotalW * hoursMonth) / 1000;
+    const newKwhMonth = (newTotalW * hoursMonth) / 1000;
+
+    const currentCostMonth = currentKwhMonth * economyData.kwhPrice;
+    const newCostMonth = newKwhMonth * economyData.kwhPrice;
+
+    const savingsMonth = currentCostMonth - newCostMonth;
+    const savingsYear = savingsMonth * 12;
+    const savingsPercent = currentCostMonth > 0
+      ? ((savingsMonth / currentCostMonth) * 100)
+      : 0;
+
+    const kwhSavedYear = (currentKwhMonth - newKwhMonth) * 12;
+
+    return {
+      currentTotalLumens,
+      newFixtureCount,
+      currentTotalW,
+      newTotalW,
+      hoursMonth,
+      currentKwhMonth: currentKwhMonth.toFixed(0),
+      newKwhMonth: newKwhMonth.toFixed(0),
+      currentCostMonth,
+      newCostMonth,
+      savingsMonth,
+      savingsYear,
+      savingsPercent: savingsPercent.toFixed(1),
+      kwhSavedYear: kwhSavedYear.toFixed(0),
+    };
+  }, [economyData]);
+
+  const formatBRL = (v: number) =>
+    v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
 
 
   const handleRegister = async (e: React.FormEvent) => {
