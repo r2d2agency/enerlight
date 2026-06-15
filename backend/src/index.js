@@ -62,6 +62,7 @@ import metaTemplatesRoutes from './routes/meta-templates.js';
 import surveysRoutes from './routes/surveys.js';
 import onlineQuotesRoutes from './routes/online-quotes.js';
 import rhRoutes from './routes/rh.js';
+import calcCategoriesRoutes from './routes/calc-categories.js';
 import { initDatabase } from './init-db.js';
 import { executeNotifications } from './scheduler.js';
 import { executeCampaignMessages } from './campaign-scheduler.js';
