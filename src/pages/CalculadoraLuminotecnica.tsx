@@ -1090,8 +1090,11 @@ export default function CalculadoraLuminotecnica() {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2">
-                  {ABNT_STANDARDS.slice(0, 10).map(s => (
-                    <div key={s.id} className="flex justify-between items-center py-2 border-b border-dashed last:border-0">
+                  {(indoorCategories.length > 0
+                    ? indoorCategories.slice(0, 12)
+                    : ABNT_STANDARDS.slice(0, 10).map(s => ({ slug: s.id, name: s.name, lux: s.lux } as any))
+                  ).map((s: any) => (
+                    <div key={s.slug} className="flex justify-between items-center py-2 border-b border-dashed last:border-0">
                       <span className="text-sm">{s.name}</span>
                       <Badge variant="secondary">{s.lux} lux</Badge>
                     </div>
