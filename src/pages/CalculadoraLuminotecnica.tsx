@@ -35,7 +35,9 @@ import {
   Monitor,
   LightbulbIcon,
   DollarSign,
-  TrendingDown
+  TrendingDown,
+  Lamp,
+  ChevronDown
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import enerlightLogo from "@/assets/enerlight-logo.png";
