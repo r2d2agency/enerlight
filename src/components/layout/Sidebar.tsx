@@ -82,13 +82,6 @@ type ModuleKey = NonNullable<NavItem['moduleKey']>;
 
 const getNavSections = (hasConnections: boolean): NavSection[] => [
   {
-    title: "Meu Dia",
-    icon: Sparkles,
-    items: [
-      { name: "Painel de Ações", href: "/meu-dia", icon: Sparkles },
-    ],
-  },
-  {
     title: "Atendimento",
     icon: MessagesSquare,
     items: [
