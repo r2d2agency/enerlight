@@ -437,3 +437,47 @@ function RuleRow({ label, checked, onChange }: { label: string; checked: boolean
     </div>
   );
 }
+
+function RuleRowWithStages({
+  label, checked, onChange, stages, funnelIds, selectedStages, onToggleStage,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  stages?: { id: string; name: string; funnel_id: string }[];
+  funnelIds: string[];
+  selectedStages: string[];
+  onToggleStage: (id: string) => void;
+}) {
+  const scopedStages = (stages || []).filter(s => funnelIds.includes(s.funnel_id));
+  return (
+    <div className="border rounded-lg p-3 space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium">{label}</p>
+        <Switch checked={checked} onCheckedChange={onChange} />
+      </div>
+      {checked && (
+        scopedStages.length === 0 ? (
+          <p className="text-xs text-muted-foreground">Selecione funis em "Kanbans" para escolher etapas específicas. Sem etapa marcada = aplica em todas.</p>
+        ) : (
+          <div>
+            <p className="text-[11px] text-muted-foreground mb-1">
+              Aplicar somente nas etapas: <span className="font-medium">{selectedStages.length === 0 ? 'todas' : `${selectedStages.length} selecionada(s)`}</span>
+            </p>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5 max-h-40 overflow-auto">
+              {scopedStages.map(s => {
+                const on = selectedStages.includes(s.id);
+                return (
+                  <label key={s.id} className={`flex items-center gap-1.5 border rounded px-2 py-1 cursor-pointer hover:bg-muted/50 ${on ? 'bg-primary/5 border-primary/40' : ''}`}>
+                    <Checkbox checked={on} onCheckedChange={() => onToggleStage(s.id)} />
+                    <span className="text-xs truncate">{s.name}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        )
+      )}
+    </div>
+  );
+}
