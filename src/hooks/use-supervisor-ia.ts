@@ -8,6 +8,7 @@ export interface SupervisorIAConfig {
   licitacao_board_ids: string[];
   group_ids: string[];
   user_ids: string[];
+  representative_ids: string[];
   rule_require_company: boolean;
   rule_require_value: boolean;
   rule_require_owner: boolean;
@@ -21,6 +22,7 @@ export interface ScopeOptions {
   funnels: { id: string; name: string; color?: string }[];
   groups: { id: string; name: string }[];
   users: { id: string; name: string; email?: string }[];
+  representatives: { id: string; name: string }[];
   homologation_boards: { id: string; name: string }[];
   licitacao_boards: { id: string; name: string }[];
 }
