@@ -117,8 +117,9 @@ async function loadConfig(orgId, userId) {
 router.get('/scope-options', async (req, res) => {
   try {
     const orgId = req.user.organization_id;
-    const [funnels, groups, users, representatives, homBoards, licBoards] = await Promise.all([
+    const [funnels, stages, groups, users, representatives, homBoards, licBoards] = await Promise.all([
       query(`SELECT id, name, color FROM crm_funnels WHERE organization_id = $1 AND is_active = true ORDER BY name`, [orgId]).catch((e) => { logError('supervisor_ia.scope.funnels', e); return { rows: [] }; }),
+      query(`SELECT id, name, funnel_id, position FROM crm_stages WHERE organization_id = $1 ORDER BY funnel_id, position`, [orgId]).catch((e) => { logError('supervisor_ia.scope.stages', e); return { rows: [] }; }),
       query(`SELECT id, name FROM crm_user_groups WHERE organization_id = $1 ORDER BY name`, [orgId]).catch((e) => { logError('supervisor_ia.scope.groups', e); return { rows: [] }; }),
       query(`
         SELECT u.id, u.name, u.email
@@ -134,6 +135,7 @@ router.get('/scope-options', async (req, res) => {
 
     res.json({
       funnels: funnels.rows,
+      stages: stages.rows,
       groups: groups.rows,
       users: users.rows,
       representatives: representatives.rows,
@@ -178,13 +180,21 @@ router.put('/config', async (req, res) => {
       b.rule_require_followup !== false,
       b.rule_require_history !== false,
       Number.isFinite(Number(b.stale_hours)) ? Number(b.stale_hours) : 72,
+      JSON.stringify(safeArray(b.rule_company_stage_ids)),
+      JSON.stringify(safeArray(b.rule_value_stage_ids)),
+      JSON.stringify(safeArray(b.rule_owner_stage_ids)),
+      JSON.stringify(safeArray(b.rule_contact_stage_ids)),
+      JSON.stringify(safeArray(b.rule_followup_stage_ids)),
+      JSON.stringify(safeArray(b.rule_history_stage_ids)),
     ];
     await query(`
       INSERT INTO supervisor_ia_configs
         (organization_id, user_id, funnel_ids, homologation_board_ids, licitacao_board_ids,
          group_ids, user_ids, representative_ids, rule_require_company, rule_require_value, rule_require_owner,
-         rule_require_contact, rule_require_followup, rule_require_history, stale_hours)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+         rule_require_contact, rule_require_followup, rule_require_history, stale_hours,
+         rule_company_stage_ids, rule_value_stage_ids, rule_owner_stage_ids,
+         rule_contact_stage_ids, rule_followup_stage_ids, rule_history_stage_ids)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
       ON CONFLICT (organization_id, user_id) DO UPDATE SET
         funnel_ids = EXCLUDED.funnel_ids,
         homologation_board_ids = EXCLUDED.homologation_board_ids,
@@ -199,6 +209,12 @@ router.put('/config', async (req, res) => {
         rule_require_followup = EXCLUDED.rule_require_followup,
         rule_require_history = EXCLUDED.rule_require_history,
         stale_hours = EXCLUDED.stale_hours,
+        rule_company_stage_ids = EXCLUDED.rule_company_stage_ids,
+        rule_value_stage_ids = EXCLUDED.rule_value_stage_ids,
+        rule_owner_stage_ids = EXCLUDED.rule_owner_stage_ids,
+        rule_contact_stage_ids = EXCLUDED.rule_contact_stage_ids,
+        rule_followup_stage_ids = EXCLUDED.rule_followup_stage_ids,
+        rule_history_stage_ids = EXCLUDED.rule_history_stage_ids,
         updated_at = NOW()
     `, params);
     const cfg = await loadConfig(orgId, userId);
