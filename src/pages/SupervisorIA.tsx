@@ -12,14 +12,23 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Brain, Settings2, RefreshCw, AlertTriangle, Clock, FileWarning, Building2, TrendingUp, ListChecks } from "lucide-react";
+import { Brain, Settings2, RefreshCw, AlertTriangle, Clock, FileWarning, Building2, TrendingUp, ListChecks, Sparkles, Send, Trash2, MessageCircle } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import {
   useSupervisorIAConfig,
   useSupervisorIAScopeOptions,
   useSupervisorIAUpdateConfig,
   useSupervisorIAAnalysis,
+  useBrainInsights,
+  useRunBrainAnalysis,
+  useDeleteInsight,
+  useBrainChatHistory,
+  useBrainChatSend,
+  useClearBrainChat,
   type SupervisorIAConfig,
   type SupervisorIAAnalysis,
+  type BrainInsight,
+  type BrainInsightRecord,
 } from "@/hooks/use-supervisor-ia";
 
 const formatCurrency = (v: number) =>
@@ -118,12 +127,17 @@ export default function SupervisorIA() {
 
         {/* Conteúdo */}
         {analysis.data && (
-          <Tabs defaultValue="vendedores" className="space-y-4">
+          <Tabs defaultValue="cerebro" className="space-y-4">
             <TabsList>
+              <TabsTrigger value="cerebro"><Sparkles className="h-3.5 w-3.5 mr-1" />Cérebro IA</TabsTrigger>
               <TabsTrigger value="vendedores">Por vendedor</TabsTrigger>
               <TabsTrigger value="kanbans">Por kanban</TabsTrigger>
               <TabsTrigger value="empresas">Empresas novas</TabsTrigger>
             </TabsList>
+
+            <TabsContent value="cerebro">
+              <BrainTab />
+            </TabsContent>
 
             <TabsContent value="vendedores">
               <Card>
@@ -396,13 +410,20 @@ function ConfigDialog({ open, onOpenChange, config, options }: ConfigDialogProps
   const [local, setLocal] = useState<SupervisorIAConfig | null>(null);
 
   // Sincroniza quando abrir
-  const draft = local ?? config ?? {
+  const draft: SupervisorIAConfig = local ?? config ?? {
     funnel_ids: [], homologation_board_ids: [], licitacao_board_ids: [], group_ids: [], user_ids: [], representative_ids: [],
     rule_require_company: true, rule_require_value: true, rule_require_owner: true,
     rule_require_contact: true, rule_require_followup: true, rule_require_history: true,
     rule_company_stage_ids: [], rule_value_stage_ids: [], rule_owner_stage_ids: [],
     rule_contact_stage_ids: [], rule_followup_stage_ids: [], rule_history_stage_ids: [],
     stale_hours: 72,
+    ai_agent_id: null,
+    auto_analysis_enabled: false,
+    auto_analysis_interval_hours: 4,
+    alert_whatsapp_numbers: [],
+    alert_whatsapp_connection_id: null,
+    analysis_period_days: 7,
+    last_auto_analysis_at: null,
   };
 
   const set = <K extends keyof SupervisorIAConfig>(key: K, val: SupervisorIAConfig[K]) => {
@@ -440,6 +461,7 @@ function ConfigDialog({ open, onOpenChange, config, options }: ConfigDialogProps
               <TabsTrigger value="kanbans">Kanbans</TabsTrigger>
               <TabsTrigger value="pessoas">Pessoas</TabsTrigger>
               <TabsTrigger value="regras">Regras</TabsTrigger>
+              <TabsTrigger value="cerebro">Cérebro IA</TabsTrigger>
             </TabsList>
 
             <TabsContent value="kanbans" className="space-y-6">
@@ -508,6 +530,79 @@ function ConfigDialog({ open, onOpenChange, config, options }: ConfigDialogProps
                   value={draft.stale_hours}
                   onChange={(e) => set('stale_hours', Number(e.target.value) || 72)}
                 />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="cerebro" className="space-y-4">
+              <div className="border rounded-lg p-3 space-y-3">
+                <div>
+                  <p className="text-sm font-medium">Agente IA usado pelo Supervisor</p>
+                  <p className="text-xs text-muted-foreground">Selecione um agente já configurado. Se nenhum, usa a chave da organização.</p>
+                </div>
+                <select
+                  className="w-full border rounded-md px-2 py-1.5 text-sm bg-background"
+                  value={draft.ai_agent_id ?? ''}
+                  onChange={(e) => set('ai_agent_id', e.target.value || null)}
+                >
+                  <option value="">— Usar chave da organização —</option>
+                  {(options?.ai_agents || []).map((a: any) => (
+                    <option key={a.id} value={a.id}>{a.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="border rounded-lg p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium">Análise proativa automática</p>
+                    <p className="text-xs text-muted-foreground">O cérebro roda sozinho periodicamente e gera diagnósticos.</p>
+                  </div>
+                  <Switch checked={draft.auto_analysis_enabled} onCheckedChange={(v) => set('auto_analysis_enabled', v)} />
+                </div>
+                {draft.auto_analysis_enabled && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs">Intervalo (horas)</Label>
+                      <Input type="number" min={1} max={24}
+                        value={draft.auto_analysis_interval_hours}
+                        onChange={(e) => set('auto_analysis_interval_hours', Number(e.target.value) || 4)} />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Período analisado (dias)</Label>
+                      <Input type="number" min={1} max={90}
+                        value={draft.analysis_period_days}
+                        onChange={(e) => set('analysis_period_days', Number(e.target.value) || 7)} />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="border rounded-lg p-3 space-y-3">
+                <div>
+                  <p className="text-sm font-medium">Alertas por WhatsApp</p>
+                  <p className="text-xs text-muted-foreground">Quando o cérebro detectar problemas críticos ou altos, envia resumo via WhatsApp.</p>
+                </div>
+                <div>
+                  <Label className="text-xs">Conexão WhatsApp</Label>
+                  <select
+                    className="w-full border rounded-md px-2 py-1.5 text-sm bg-background"
+                    value={draft.alert_whatsapp_connection_id ?? ''}
+                    onChange={(e) => set('alert_whatsapp_connection_id', e.target.value || null)}
+                  >
+                    <option value="">— Selecione —</option>
+                    {(options?.connections || []).map((c: any) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <Label className="text-xs">Números de destino (com DDI/DDD, separados por vírgula)</Label>
+                  <Input
+                    placeholder="5511999999999, 5511888888888"
+                    value={(draft.alert_whatsapp_numbers || []).join(', ')}
+                    onChange={(e) => set('alert_whatsapp_numbers', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
+                  />
+                </div>
               </div>
             </TabsContent>
           </Tabs>
@@ -595,6 +690,220 @@ function RuleRowWithStages({
             </div>
           </div>
         )
+      )}
+    </div>
+  );
+}
+
+// ---------------- BRAIN TAB ----------------
+function severityColor(s: string) {
+  if (s === 'critical') return 'bg-red-100 text-red-700 border-red-300';
+  if (s === 'high') return 'bg-orange-100 text-orange-700 border-orange-300';
+  if (s === 'medium') return 'bg-amber-100 text-amber-700 border-amber-300';
+  return 'bg-emerald-100 text-emerald-700 border-emerald-300';
+}
+
+function BrainTab() {
+  const insights = useBrainInsights();
+  const run = useRunBrainAnalysis();
+  const del = useDeleteInsight();
+  const chat = useBrainChatHistory();
+  const send = useBrainChatSend();
+  const clearChat = useClearBrainChat();
+  const [msg, setMsg] = useState('');
+  const [openId, setOpenId] = useState<string | null>(null);
+
+  const latest = insights.data?.[0];
+  const opened = openId ? insights.data?.find(i => i.id === openId) : latest;
+
+  const handleSend = async () => {
+    const t = msg.trim();
+    if (!t) return;
+    setMsg('');
+    await send.mutateAsync(t);
+  };
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      {/* Coluna principal: diagnóstico */}
+      <div className="lg:col-span-2 space-y-4">
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-primary" />
+                <CardTitle className="text-base">Diagnóstico do Gerente IA</CardTitle>
+              </div>
+              <Button size="sm" onClick={() => run.mutate(undefined)} disabled={run.isPending}>
+                <Brain className={`h-4 w-4 mr-2 ${run.isPending ? 'animate-pulse' : ''}`} />
+                {run.isPending ? 'Analisando…' : 'Analisar agora'}
+              </Button>
+            </div>
+            {opened && (
+              <CardDescription className="text-xs">
+                Gerado em {new Date(opened.created_at).toLocaleString('pt-BR')} • Período {opened.period_start} → {opened.period_end} • {opened.trigger === 'auto' ? 'automático' : 'manual'}
+              </CardDescription>
+            )}
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {!opened ? (
+              <div className="text-center py-10 text-sm text-muted-foreground">
+                <Brain className="h-10 w-10 mx-auto mb-3 opacity-40" />
+                <p>O Cérebro IA ainda não rodou nenhuma análise.</p>
+                <p className="text-xs mt-1">Configure o agente IA em "Configurar escopo → Cérebro IA" e clique em <strong>Analisar agora</strong>.</p>
+              </div>
+            ) : (
+              <BrainInsightView insight={opened.insight} />
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Histórico */}
+        {insights.data && insights.data.length > 1 && (
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-sm">Histórico de análises</CardTitle></CardHeader>
+            <CardContent>
+              <div className="space-y-1 max-h-60 overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+                {insights.data.map(i => (
+                  <button
+                    key={i.id}
+                    onClick={() => setOpenId(i.id)}
+                    className={`w-full text-left flex items-center justify-between gap-2 px-2 py-1.5 rounded hover:bg-muted ${(openId ?? latest?.id) === i.id ? 'bg-muted' : ''}`}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Badge variant="outline" className="text-[10px]">{i.trigger}</Badge>
+                      <span className="text-xs truncate">{i.insight?.executive_summary?.slice(0, 80) || '—'}</span>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground whitespace-nowrap">{new Date(i.created_at).toLocaleString('pt-BR')}</span>
+                    <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" onClick={(e) => { e.stopPropagation(); del.mutate(i.id); }} />
+                  </button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/* Chat */}
+      <Card className="lg:row-span-2 flex flex-col h-[600px]">
+        <CardHeader className="pb-3 flex-row items-center justify-between">
+          <div className="flex items-center gap-2">
+            <MessageCircle className="h-4 w-4" />
+            <CardTitle className="text-base">Converse com o Gerente IA</CardTitle>
+          </div>
+          {chat.data && chat.data.length > 0 && (
+            <Button variant="ghost" size="sm" onClick={() => clearChat.mutate()}>
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </CardHeader>
+        <CardContent className="flex-1 flex flex-col min-h-0 gap-3">
+          <div className="flex-1 overflow-y-auto space-y-2 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent pr-1">
+            {(!chat.data || chat.data.length === 0) ? (
+              <div className="text-xs text-muted-foreground text-center py-6">
+                Pergunte algo: "Por que o funil X está travado?", "Qual vendedor precisa de ajuda?", "Sugira ações para esta semana".
+              </div>
+            ) : chat.data.map(m => (
+              <div key={m.id} className={`rounded-lg px-3 py-2 text-sm whitespace-pre-wrap ${m.role === 'user' ? 'bg-primary/10 ml-6' : 'bg-muted mr-6'}`}>
+                <div className="text-[10px] font-medium opacity-70 mb-1">{m.role === 'user' ? 'Você' : 'Gerente IA'}</div>
+                {m.content}
+              </div>
+            ))}
+            {send.isPending && (
+              <div className="bg-muted mr-6 rounded-lg px-3 py-2 text-sm text-muted-foreground italic">Pensando…</div>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <Textarea
+              placeholder="Pergunte ao Gerente IA…"
+              value={msg}
+              onChange={(e) => setMsg(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+              className="min-h-[60px] resize-none"
+            />
+            <Button onClick={handleSend} disabled={send.isPending || !msg.trim()} size="icon">
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function BrainInsightView({ insight }: { insight: BrainInsight }) {
+  return (
+    <div className="space-y-4">
+      <div className="flex items-start gap-3">
+        <div className="flex-1">
+          <p className="text-sm">{insight.executive_summary}</p>
+        </div>
+        <div className="text-center shrink-0">
+          <div className={`text-2xl font-bold ${(insight.health_score ?? 0) >= 70 ? 'text-emerald-600' : (insight.health_score ?? 0) >= 40 ? 'text-amber-600' : 'text-red-600'}`}>
+            {insight.health_score ?? '—'}
+          </div>
+          <div className="text-[10px] uppercase text-muted-foreground">Saúde</div>
+        </div>
+      </div>
+      {insight.trend_explanation && (
+        <div className="text-xs text-muted-foreground border-l-2 border-primary/40 pl-2">
+          <Badge variant="outline" className="mr-2 text-[10px]">{insight.trend}</Badge>
+          {insight.trend_explanation}
+        </div>
+      )}
+
+      {(insight.diagnostics || []).length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase text-muted-foreground">Diagnósticos</p>
+          {insight.diagnostics.map((d, i) => (
+            <div key={i} className={`border rounded-lg p-3 space-y-2 ${severityColor(d.severity)}`}>
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <p className="font-semibold text-sm">{d.title}</p>
+                <Badge variant="outline" className="text-[10px] uppercase">{d.severity}</Badge>
+              </div>
+              <p className="text-xs">{d.description}</p>
+              {d.root_cause && <p className="text-xs"><strong>Causa-raiz:</strong> {d.root_cause}</p>}
+              {d.recommended_actions?.length > 0 && (
+                <ul className="text-xs list-disc list-inside space-y-0.5">
+                  {d.recommended_actions.map((a, j) => <li key={j}>{a}</li>)}
+                </ul>
+              )}
+              {d.expected_impact && <p className="text-xs italic opacity-80">→ {d.expected_impact}</p>}
+              <p className="text-[10px] opacity-70">Kanban: {d.kanban_name}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {(insight.priority_actions || []).length > 0 && (
+        <div className="border rounded-lg p-3 bg-primary/5">
+          <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">🎯 Ações prioritárias</p>
+          <ol className="text-sm list-decimal list-inside space-y-1">
+            {insight.priority_actions.map((a, i) => <li key={i}>{a}</li>)}
+          </ol>
+        </div>
+      )}
+
+      {(insight.team_insights || []).length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase text-muted-foreground">Insights por pessoa</p>
+          {insight.team_insights.map((t, i) => (
+            <div key={i} className="border rounded-lg p-2 text-xs">
+              <p className="font-medium">{t.user_name}</p>
+              <p className="text-muted-foreground">{t.observation}</p>
+              <p className="mt-1">💡 {t.suggestion}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {(insight.opportunities || []).length > 0 && (
+        <div className="border rounded-lg p-3">
+          <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">💎 Oportunidades</p>
+          <ul className="text-sm list-disc list-inside space-y-0.5">
+            {insight.opportunities.map((o, i) => <li key={i}>{o}</li>)}
+          </ul>
+        </div>
       )}
     </div>
   );

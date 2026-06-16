@@ -22,6 +22,14 @@ export interface SupervisorIAConfig {
   rule_followup_stage_ids: string[];
   rule_history_stage_ids: string[];
   stale_hours: number;
+  // Cérebro IA
+  ai_agent_id: string | null;
+  auto_analysis_enabled: boolean;
+  auto_analysis_interval_hours: number;
+  alert_whatsapp_numbers: string[];
+  alert_whatsapp_connection_id: string | null;
+  analysis_period_days: number;
+  last_auto_analysis_at: string | null;
 }
 
 export interface ScopeOptions {
@@ -32,6 +40,8 @@ export interface ScopeOptions {
   representatives: { id: string; name: string }[];
   homologation_boards: { id: string; name: string }[];
   licitacao_boards: { id: string; name: string }[];
+  ai_agents: { id: string; name: string }[];
+  connections: { id: string; name: string }[];
 }
 
 export interface SupervisorIAAnalysis {
@@ -69,6 +79,44 @@ export interface SupervisorIAAnalysis {
   }[];
 }
 
+export interface BrainInsight {
+  executive_summary: string;
+  health_score: number;
+  trend: 'improving' | 'stable' | 'declining';
+  trend_explanation: string;
+  diagnostics: {
+    title: string;
+    severity: 'critical' | 'high' | 'medium' | 'low';
+    kanban_name: string;
+    description: string;
+    root_cause: string;
+    recommended_actions: string[];
+    expected_impact: string;
+  }[];
+  team_insights: { user_name: string; observation: string; suggestion: string }[];
+  priority_actions: string[];
+  opportunities: string[];
+}
+
+export interface BrainInsightRecord {
+  id: string;
+  trigger: string;
+  period_start: string;
+  period_end: string;
+  insight: BrainInsight;
+  tokens_used: number;
+  model: string;
+  alerted_at: string | null;
+  created_at: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  created_at: string;
+}
+
 export function useSupervisorIAConfig() {
   return useQuery({
     queryKey: ['supervisor-ia', 'config'],
@@ -104,5 +152,59 @@ export function useSupervisorIAAnalysis(params: { startDate: string; endDate: st
     queryKey: ['supervisor-ia', 'analysis', params.startDate, params.endDate],
     queryFn: () => api<SupervisorIAAnalysis>(`/api/supervisor-ia/analysis?${sp}`),
     enabled: params.enabled !== false,
+  });
+}
+
+// ---- Cérebro IA ----
+export function useBrainInsights() {
+  return useQuery({
+    queryKey: ['supervisor-ia', 'insights'],
+    queryFn: () => api<BrainInsightRecord[]>('/api/supervisor-ia/insights?limit=30'),
+  });
+}
+
+export function useRunBrainAnalysis() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body?: { context?: string; period_days?: number }) =>
+      api<BrainInsightRecord>('/api/supervisor-ia/brain/analyze', { method: 'POST', body: body || {} }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['supervisor-ia', 'insights'] });
+      toast.success('Cérebro IA gerou uma nova análise');
+    },
+    onError: (e: Error) => toast.error(`Erro ao analisar: ${e.message}`),
+  });
+}
+
+export function useDeleteInsight() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api(`/api/supervisor-ia/insights/${id}`, { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['supervisor-ia', 'insights'] }),
+  });
+}
+
+export function useBrainChatHistory() {
+  return useQuery({
+    queryKey: ['supervisor-ia', 'chat'],
+    queryFn: () => api<ChatMessage[]>('/api/supervisor-ia/chat'),
+  });
+}
+
+export function useBrainChatSend() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (message: string) =>
+      api<ChatMessage>('/api/supervisor-ia/chat', { method: 'POST', body: { message } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['supervisor-ia', 'chat'] }),
+    onError: (e: Error) => toast.error(`Erro no chat: ${e.message}`),
+  });
+}
+
+export function useClearBrainChat() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api('/api/supervisor-ia/chat', { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['supervisor-ia', 'chat'] }),
   });
 }

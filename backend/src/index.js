@@ -76,6 +76,7 @@ import { executeTaskReminders } from './task-reminder-scheduler.js';
 import { executeSecretaryFollowups } from './secretary-followup-scheduler.js';
 import { executeSecretaryDigest } from './secretary-digest-scheduler.js';
 import { executeGoalsReport } from './goals-report-scheduler.js';
+import { executeSupervisorIA } from './supervisor-ia-scheduler.js';
 import { checkWaitResponseTimeouts } from './lib/flow-executor.js';
 import { requestContext } from './request-context.js';
 import { log, logError } from './logger.js';
@@ -444,6 +445,17 @@ initDatabase().then((ok) => {
       timezone: 'America/Sao_Paulo'
     });
 
+    // Supervisor IA — proactive brain analysis (every hour, fires per-config based on interval)
+    cron.schedule('0 * * * *', async () => {
+      try {
+        await executeSupervisorIA();
+      } catch (error) {
+        console.error('🧠 [CRON] Error executing Supervisor IA:', error);
+      }
+    }, {
+      timezone: 'America/Sao_Paulo'
+    });
+
     console.log('⏰ Notification scheduler started - checks every hour (timezone: America/Sao_Paulo)');
     console.log('📤 Campaign scheduler started - checks every 30 seconds');
     console.log('📅 Scheduled messages started - checks every minute');
@@ -457,5 +469,6 @@ initDatabase().then((ok) => {
     console.log('📊 Secretary daily digest started - checks every hour');
     console.log('📊 Goals daily report started - checks every minute');
     console.log('⏳ Wait response timeout checker started - checks every 2 minutes');
+    console.log('🧠 Supervisor IA brain started - runs at every hour (per-config interval)');
   });
 });
