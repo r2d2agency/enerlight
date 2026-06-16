@@ -127,12 +127,17 @@ export default function SupervisorIA() {
 
         {/* Conteúdo */}
         {analysis.data && (
-          <Tabs defaultValue="vendedores" className="space-y-4">
+          <Tabs defaultValue="cerebro" className="space-y-4">
             <TabsList>
+              <TabsTrigger value="cerebro"><Sparkles className="h-3.5 w-3.5 mr-1" />Cérebro IA</TabsTrigger>
               <TabsTrigger value="vendedores">Por vendedor</TabsTrigger>
               <TabsTrigger value="kanbans">Por kanban</TabsTrigger>
               <TabsTrigger value="empresas">Empresas novas</TabsTrigger>
             </TabsList>
+
+            <TabsContent value="cerebro">
+              <BrainTab />
+            </TabsContent>
 
             <TabsContent value="vendedores">
               <Card>
