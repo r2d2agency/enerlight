@@ -152,8 +152,6 @@ async function ruleStaleToNext({ orgId, userId, runId, cfg, stages, stageNextMap
       AND d.funnel_id = ANY($2::uuid[])
       AND d.status = 'open'
       AND (NOW() - COALESCE(d.last_activity_at, d.created_at)) >= ($3 || ' hours')::interval
-      AND COALESCE(s.is_won, false) = false
-      AND COALESCE(s.is_lost, false) = false
   `, [orgId, funnelIds, String(hours)]).catch((e) => { logError('organizer.stale_to_next.query', e); return { rows: [] }; });
 
   for (const d of rows) {
