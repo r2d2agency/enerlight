@@ -286,6 +286,28 @@ router.put('/config', async (req, res) => {
         rule_history_stage_ids = EXCLUDED.rule_history_stage_ids,
         updated_at = NOW()
     `, params);
+
+    // Novos campos: cérebro IA, proatividade e alertas WhatsApp
+    await query(`
+      UPDATE supervisor_ia_configs SET
+        ai_agent_id = $3,
+        auto_analysis_enabled = $4,
+        auto_analysis_interval_hours = $5,
+        alert_whatsapp_numbers = $6,
+        alert_whatsapp_connection_id = $7,
+        analysis_period_days = $8,
+        updated_at = NOW()
+      WHERE organization_id = $1 AND user_id = $2
+    `, [
+      orgId, userId,
+      b.ai_agent_id || null,
+      b.auto_analysis_enabled === true,
+      Number.isFinite(Number(b.auto_analysis_interval_hours)) ? Number(b.auto_analysis_interval_hours) : 4,
+      JSON.stringify(safeArray(b.alert_whatsapp_numbers)),
+      b.alert_whatsapp_connection_id || null,
+      Number.isFinite(Number(b.analysis_period_days)) ? Number(b.analysis_period_days) : 7,
+    ]);
+
     const cfg = await loadConfig(orgId, userId);
     res.json(cfg);
   } catch (e) {
