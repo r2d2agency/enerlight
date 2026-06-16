@@ -300,9 +300,9 @@ async function ruleRoundRobin({ orgId, userId, runId, cfg, actions }) {
         [chosen.id, d.id]
       );
       await query(
-        `INSERT INTO crm_deal_history (deal_id, user_id, user_name, action, description)
-         VALUES ($1, NULL, 'Supervisor IA', 'owner_assigned', $2)`,
-        [d.id, `Atribuído a ${chosen.name} (round-robin)`]
+        `INSERT INTO crm_deal_history (deal_id, user_id, user_name_snapshot, action, to_value, notes)
+         VALUES ($1, NULL, 'Supervisor IA', 'owner_assigned', $2, $3)`,
+        [d.id, chosen.name, `Atribuído via round-robin pelo Supervisor IA`]
       ).catch(() => {});
       const id = await recordAction(null, base, 'low', 'auto_applied');
       actions.applied++;
