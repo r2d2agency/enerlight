@@ -447,7 +447,7 @@ export function AgentEditorDialog({ open, onOpenChange, agent, onSaved }: AgentE
                           setFormData(prev => ({
                             ...prev,
                             ai_provider: value,
-                            ai_model: value === 'openai' ? 'gpt-4o-mini' : 'gemini-1.5-flash'
+                            ai_model: value === 'openai' ? 'gpt-4o-mini' : 'gemini-2.5-flash'
                           }));
                         }}
                       >
