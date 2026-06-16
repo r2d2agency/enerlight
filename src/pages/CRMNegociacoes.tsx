@@ -12,7 +12,8 @@ import { LossReasonDialog } from "@/components/crm/LossReasonDialog";
 import { CRMImportDialog } from "@/components/crm/CRMImportDialog";
 import { QuoteImportDialog } from "@/components/crm/QuoteImportDialog";
 import { useCRMFunnels, useCRMFunnel, useCRMDeals, useCRMMyTeam, useCRMDealMutations, useCRMDeal, useCRMGroups, useCRMGroupMembers, CRMDeal, CRMFunnel } from "@/hooks/use-crm";
-import { Plus, Settings, Loader2, Filter, User, ArrowUpDown, CalendarIcon, X, LayoutGrid, List, Trophy, XCircle, Pause, FileSpreadsheet, CheckSquare, Trash2, ArrowRight, Users, Search } from "lucide-react";
+import { useRepresentativesHub } from "@/hooks/use-representatives";
+import { Plus, Settings, Loader2, Filter, User, ArrowUpDown, CalendarIcon, X, LayoutGrid, List, Trophy, XCircle, Pause, FileSpreadsheet, CheckSquare, Trash2, ArrowRight, Users, Search, Handshake, MessageSquarePlus, ClipboardList } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { parseISO, format, startOfDay, endOfDay, isWithinInterval } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -34,6 +35,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Link } from "react-router-dom";
+import { Badge } from "@/components/ui/badge";
 
 export default function CRMNegociacoes() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -97,7 +104,22 @@ export default function CRMNegociacoes() {
   const { data: teamMembers } = useCRMMyTeam();
   const { data: groups = [] } = useCRMGroups();
   const { data: groupMembers = [] } = useCRMGroupMembers(groupFilter !== "all" ? groupFilter : null);
-  const { updateDeal, bulkDeleteDeals, bulkMoveDeals } = useCRMDealMutations();
+  const { updateDeal, bulkDeleteDeals, bulkMoveDeals, bulkReassignRep, bulkAddNote, bulkAddTask } = useCRMDealMutations();
+
+  // Representative filter from URL (?representative_id=...)
+  const representativeIdFilter = searchParams.get("representative_id");
+  const { data: repsHub = [] } = useRepresentativesHub();
+  const currentRep = useMemo(
+    () => repsHub.find(r => r.id === representativeIdFilter) || null,
+    [repsHub, representativeIdFilter]
+  );
+
+  // Bulk dialogs
+  const [bulkNoteOpen, setBulkNoteOpen] = useState(false);
+  const [bulkNoteText, setBulkNoteText] = useState("");
+  const [bulkTaskOpen, setBulkTaskOpen] = useState(false);
+  const [bulkTaskTitle, setBulkTaskTitle] = useState("");
+  const [bulkTaskDate, setBulkTaskDate] = useState("");
 
   const filteredTeamMembers = useMemo(() => {
     if (groupFilter === "all" || !groupMembers.length) return teamMembers || [];
@@ -178,6 +200,49 @@ export default function CRMNegociacoes() {
       console.error("Bulk move error:", error);
     }
   }, [selectedDealIds, bulkMoveDeals, exitSelectionMode]);
+
+  // Bulk reassign representative
+  const handleBulkReassignRep = useCallback(async (repId: string | null) => {
+    try {
+      await bulkReassignRep.mutateAsync({ dealIds: Array.from(selectedDealIds), representativeId: repId });
+      exitSelectionMode();
+    } catch (error) {
+      console.error("Bulk reassign error:", error);
+    }
+  }, [selectedDealIds, bulkReassignRep, exitSelectionMode]);
+
+  // Bulk note submit
+  const handleBulkNoteSubmit = useCallback(async () => {
+    if (!bulkNoteText.trim()) return;
+    try {
+      await bulkAddNote.mutateAsync({ dealIds: Array.from(selectedDealIds), content: bulkNoteText.trim() });
+      setBulkNoteText("");
+      setBulkNoteOpen(false);
+      exitSelectionMode();
+    } catch (error) {
+      console.error("Bulk note error:", error);
+    }
+  }, [bulkNoteText, selectedDealIds, bulkAddNote, exitSelectionMode]);
+
+  // Bulk task submit
+  const handleBulkTaskSubmit = useCallback(async () => {
+    if (!bulkTaskTitle.trim()) return;
+    try {
+      await bulkAddTask.mutateAsync({
+        dealIds: Array.from(selectedDealIds),
+        title: bulkTaskTitle.trim(),
+        due_date: bulkTaskDate || undefined,
+      });
+      setBulkTaskTitle("");
+      setBulkTaskDate("");
+      setBulkTaskOpen(false);
+      exitSelectionMode();
+    } catch (error) {
+      console.error("Bulk task error:", error);
+    }
+  }, [bulkTaskTitle, bulkTaskDate, selectedDealIds, bulkAddTask, exitSelectionMode]);
+
+
   
   // Handle status change with celebration
   const handleStatusChange = useCallback((dealId: string, status: 'won' | 'lost' | 'paused' | 'open', dealTitle?: string) => {
@@ -256,6 +321,10 @@ export default function CRMNegociacoes() {
       if (groupFilter !== "all") {
         filtered = filtered.filter(d => d.group_id === groupFilter);
       }
+
+      if (representativeIdFilter) {
+        filtered = filtered.filter(d => (d as any).representative_id === representativeIdFilter);
+      }
       
       if (statusFilter !== "all") {
         filtered = filtered.filter(d => d.status === statusFilter);
@@ -292,7 +361,7 @@ export default function CRMNegociacoes() {
       acc[stageId] = filtered;
       return acc;
     }, {} as Record<string, CRMDeal[]>);
-  }, [dealsByStage, ownerFilter, groupFilter, sortOrder, user?.id, startDate, endDate, dateFilterType, statusFilter, searchQuery]);
+  }, [dealsByStage, ownerFilter, groupFilter, sortOrder, user?.id, startDate, endDate, dateFilterType, statusFilter, searchQuery, representativeIdFilter]);
 
   const totalVisibleDeals = useMemo(() => {
     return Object.values(filteredDealsByStage).flat().length;
@@ -332,9 +401,29 @@ export default function CRMNegociacoes() {
       <div className="flex flex-col h-full">
         {/* Header */}
         <div className="flex flex-col gap-3 p-3 lg:p-4 border-b">
+          {/* Breadcrumb when viewing a single representative's kanban */}
+          {currentRep && (
+            <div className="flex items-center gap-2 text-sm">
+              <Link to="/crm/representantes-hub" className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
+                <Handshake className="h-3.5 w-3.5" /> Hub
+              </Link>
+              <span className="text-muted-foreground">›</span>
+              <span className="font-medium">Kanban de {currentRep.name}</span>
+              <Badge variant="secondary" className="ml-1">{currentRep.open_deals_count} aberta(s)</Badge>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="ml-auto h-7"
+                onClick={() => { searchParams.delete("representative_id"); setSearchParams(searchParams, { replace: true }); }}
+              >
+                <X className="h-3.5 w-3.5 mr-1" /> Limpar filtro
+              </Button>
+            </div>
+          )}
           {/* Top row: title + main actions */}
           <div className="flex items-center justify-between gap-2">
             <h1 className="text-lg lg:text-2xl font-bold shrink-0">Negociações</h1>
+
 
             <div className="flex items-center gap-2">
               {/* View Toggle */}
@@ -448,11 +537,57 @@ export default function CRMNegociacoes() {
                 </Popover>
               )}
 
+              {/* Reassign representative */}
+              {repsHub.length > 0 && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <Handshake className="h-4 w-4 mr-1" />
+                      Reatribuir rep.
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 p-1 max-h-72 overflow-auto" align="end">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full justify-start"
+                      onClick={() => handleBulkReassignRep(null)}
+                    >
+                      <X className="h-4 w-4 mr-2" /> Remover representante
+                    </Button>
+                    {repsHub.filter(r => r.is_active).map(r => (
+                      <Button
+                        key={r.id}
+                        variant="ghost"
+                        size="sm"
+                        className="w-full justify-start"
+                        onClick={() => handleBulkReassignRep(r.id)}
+                      >
+                        {r.name}
+                      </Button>
+                    ))}
+                  </PopoverContent>
+                </Popover>
+              )}
+
+              {/* Bulk note */}
+              <Button variant="outline" size="sm" onClick={() => setBulkNoteOpen(true)}>
+                <MessageSquarePlus className="h-4 w-4 mr-1" />
+                Nota
+              </Button>
+
+              {/* Bulk task */}
+              <Button variant="outline" size="sm" onClick={() => setBulkTaskOpen(true)}>
+                <ClipboardList className="h-4 w-4 mr-1" />
+                Tarefa
+              </Button>
+
               {/* Delete */}
               <Button variant="destructive" size="sm" onClick={() => setBulkDeleteOpen(true)}>
                 <Trash2 className="h-4 w-4 mr-1" />
                 Excluir
               </Button>
+
             </div>
           )}
 
@@ -780,6 +915,66 @@ export default function CRMNegociacoes() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Bulk note dialog */}
+      <Dialog open={bulkNoteOpen} onOpenChange={setBulkNoteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Adicionar nota em {selectedDealIds.size} negociação(ões)</DialogTitle>
+            <DialogDescription>
+              A mesma nota será registrada no histórico de cada negociação selecionada.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={bulkNoteText}
+            onChange={(e) => setBulkNoteText(e.target.value)}
+            placeholder="Digite a observação..."
+            rows={5}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkNoteOpen(false)}>Cancelar</Button>
+            <Button onClick={handleBulkNoteSubmit} disabled={!bulkNoteText.trim() || bulkAddNote.isPending}>
+              {bulkAddNote.isPending ? "Salvando..." : "Adicionar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk task dialog */}
+      <Dialog open={bulkTaskOpen} onOpenChange={setBulkTaskOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Criar tarefa em {selectedDealIds.size} negociação(ões)</DialogTitle>
+            <DialogDescription>
+              Uma tarefa será criada para cada negociação selecionada, atribuída a você.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Título</Label>
+              <Input
+                value={bulkTaskTitle}
+                onChange={(e) => setBulkTaskTitle(e.target.value)}
+                placeholder="Ex.: Ligar para acompanhar"
+              />
+            </div>
+            <div>
+              <Label>Data/hora (opcional)</Label>
+              <Input
+                type="datetime-local"
+                value={bulkTaskDate}
+                onChange={(e) => setBulkTaskDate(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkTaskOpen(false)}>Cancelar</Button>
+            <Button onClick={handleBulkTaskSubmit} disabled={!bulkTaskTitle.trim() || bulkAddTask.isPending}>
+              {bulkAddTask.isPending ? "Criando..." : "Criar tarefas"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 }

@@ -75,6 +75,34 @@ export function useRepresentatives(search?: string, type?: string, ownerId?: str
   });
 }
 
+export interface RepresentativeHubItem {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  city?: string;
+  state?: string;
+  is_active: boolean;
+  commission_percent: number;
+  linked_user_id?: string;
+  linked_user_name?: string;
+  open_deals_count: number;
+  open_deals_value: number;
+  won_deals_count: number;
+  lost_deals_count: number;
+  stale_deals_count: number;
+  last_activity_at?: string | null;
+}
+
+export function useRepresentativesHub() {
+  return useQuery({
+    queryKey: ["crm-representatives-hub"],
+    queryFn: async () => api<RepresentativeHubItem[]>(`/api/crm/representatives/hub`),
+  });
+}
+
+
+
 
 export function useRepresentative(id: string | null) {
   return useQuery({

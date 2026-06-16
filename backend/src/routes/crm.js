@@ -8045,4 +8045,252 @@ router.post('/goals/report-send-now', async (req, res) => {
   }
 });
 
+// ============================================
+// REPRESENTATIVES HUB (Vendedora gerindo vários representantes)
+// ============================================
+
+// Helper: returns array of representative IDs visible to the current user
+async function getVisibleRepresentativeIds(userId, organizationId, role) {
+  if (canManage(role)) {
+    const r = await query(
+      `SELECT id FROM crm_representatives WHERE organization_id = $1`,
+      [organizationId]
+    );
+    return r.rows.map((x) => x.id);
+  }
+  const r = await query(
+    `SELECT r.id FROM crm_representatives r
+     WHERE r.organization_id = $1
+       AND (
+         r.linked_user_id = $2
+         OR r.linked_user_id IN (
+           SELECT gm2.user_id FROM crm_user_group_members gm
+           JOIN crm_user_group_members gm2 ON gm2.group_id = gm.group_id
+           WHERE gm.user_id = $2
+         )
+       )`,
+    [organizationId, userId]
+  );
+  return r.rows.map((x) => x.id);
+}
+
+// Hub: list reps visible to the user with aggregated stats per representative
+router.get('/representatives/hub', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const visibilityCte = canManage(org.role)
+      ? `SELECT id FROM crm_representatives WHERE organization_id = $1`
+      : `SELECT r.id FROM crm_representatives r
+         WHERE r.organization_id = $1
+           AND (
+             r.linked_user_id = $2
+             OR r.linked_user_id IN (
+               SELECT gm2.user_id FROM crm_user_group_members gm
+               JOIN crm_user_group_members gm2 ON gm2.group_id = gm.group_id
+               WHERE gm.user_id = $2
+             )
+           )`;
+
+    const params = canManage(org.role)
+      ? [org.organization_id]
+      : [org.organization_id, req.userId];
+
+    const result = await query(
+      `WITH visible AS (${visibilityCte})
+       SELECT r.id, r.name, r.email, r.phone, r.city, r.state, r.is_active,
+              r.commission_percent, r.linked_user_id, u.name AS linked_user_name,
+              COALESCE(stats.open_count, 0)::int AS open_deals_count,
+              COALESCE(stats.open_value, 0)::numeric AS open_deals_value,
+              COALESCE(stats.won_count, 0)::int AS won_deals_count,
+              COALESCE(stats.lost_count, 0)::int AS lost_deals_count,
+              COALESCE(stats.stale_count, 0)::int AS stale_deals_count,
+              stats.last_activity_at
+         FROM crm_representatives r
+         JOIN visible v ON v.id = r.id
+         LEFT JOIN users u ON u.id = r.linked_user_id
+         LEFT JOIN LATERAL (
+           SELECT
+             COUNT(*) FILTER (WHERE d.status = 'open') AS open_count,
+             COALESCE(SUM(CASE WHEN d.status = 'open' THEN d.value END), 0) AS open_value,
+             COUNT(*) FILTER (WHERE d.status = 'won') AS won_count,
+             COUNT(*) FILTER (WHERE d.status = 'lost') AS lost_count,
+             COUNT(*) FILTER (
+               WHERE d.status = 'open'
+                 AND (d.last_activity_at IS NULL OR d.last_activity_at < NOW() - INTERVAL '15 days')
+             ) AS stale_count,
+             MAX(d.last_activity_at) AS last_activity_at
+           FROM crm_deals d
+           WHERE d.representative_id = r.id AND d.organization_id = $1
+         ) stats ON true
+         WHERE r.organization_id = $1
+         ORDER BY r.is_active DESC, r.name ASC`,
+      params
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    if (isMissingSchemaError(error)) return res.json([]);
+    console.error('Error fetching representatives hub:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Helper: filter deal_ids the user is allowed to act on (owner or visible rep)
+async function filterAuthorizedDealIds(userId, organizationId, role, dealIds) {
+  if (!dealIds?.length) return [];
+  if (canManage(role)) {
+    const r = await query(
+      `SELECT id FROM crm_deals WHERE id = ANY($1::uuid[]) AND organization_id = $2`,
+      [dealIds, organizationId]
+    );
+    return r.rows.map((x) => x.id);
+  }
+  const visibleReps = await getVisibleRepresentativeIds(userId, organizationId, role);
+  const r = await query(
+    `SELECT id FROM crm_deals
+      WHERE id = ANY($1::uuid[])
+        AND organization_id = $2
+        AND (owner_id = $3 OR representative_id = ANY($4::uuid[]))`,
+    [dealIds, organizationId, userId, visibleReps]
+  );
+  return r.rows.map((x) => x.id);
+}
+
+// Bulk reassign representative on multiple deals
+router.post('/deals/bulk-reassign-representative', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const { deal_ids, representative_id } = req.body || {};
+    if (!Array.isArray(deal_ids) || deal_ids.length === 0) {
+      return res.status(400).json({ error: 'deal_ids array is required' });
+    }
+
+    // Validate destination rep is visible to the user
+    if (representative_id) {
+      const visible = await getVisibleRepresentativeIds(req.userId, org.organization_id, org.role);
+      if (!visible.includes(representative_id)) {
+        return res.status(403).json({ error: 'Representante de destino não autorizado' });
+      }
+    }
+
+    const allowedIds = await filterAuthorizedDealIds(req.userId, org.organization_id, org.role, deal_ids);
+    if (!allowedIds.length) return res.json({ success: true, updated: 0, skipped: deal_ids.length });
+
+    const userName = await getUserName(req.userId);
+    await query(
+      `UPDATE crm_deals
+          SET representative_id = $1,
+              last_activity_at = NOW(),
+              updated_at = NOW()
+        WHERE id = ANY($2::uuid[]) AND organization_id = $3`,
+      [representative_id || null, allowedIds, org.organization_id]
+    );
+
+    // Audit history snapshot per deal
+    for (const dealId of allowedIds) {
+      await query(
+        `INSERT INTO crm_deal_history (deal_id, user_id, user_name_snapshot, action, notes)
+         VALUES ($1, $2, $3, 'note', $4)`,
+        [dealId, req.userId, userName, `Reatribuído ao representante via gestão em lote`]
+      );
+    }
+
+    res.json({ success: true, updated: allowedIds.length, skipped: deal_ids.length - allowedIds.length });
+  } catch (error) {
+    console.error('Error bulk reassigning representative:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Bulk add note to multiple deals
+router.post('/deals/bulk-note', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const { deal_ids, content } = req.body || {};
+    if (!Array.isArray(deal_ids) || deal_ids.length === 0) {
+      return res.status(400).json({ error: 'deal_ids array is required' });
+    }
+    if (!content || !String(content).trim()) {
+      return res.status(400).json({ error: 'content is required' });
+    }
+
+    const allowedIds = await filterAuthorizedDealIds(req.userId, org.organization_id, org.role, deal_ids);
+    if (!allowedIds.length) return res.json({ success: true, created: 0, skipped: deal_ids.length });
+
+    const userName = await getUserName(req.userId);
+    const note = String(content).trim();
+
+    for (const dealId of allowedIds) {
+      await query(
+        `INSERT INTO crm_deal_history (deal_id, user_id, user_name_snapshot, action, notes)
+         VALUES ($1, $2, $3, 'note', $4)`,
+        [dealId, req.userId, userName, note]
+      );
+    }
+    await query(
+      `UPDATE crm_deals SET last_activity_at = NOW(), updated_at = NOW()
+        WHERE id = ANY($1::uuid[]) AND organization_id = $2`,
+      [allowedIds, org.organization_id]
+    );
+
+    res.json({ success: true, created: allowedIds.length, skipped: deal_ids.length - allowedIds.length });
+  } catch (error) {
+    console.error('Error bulk adding note:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Bulk create task on multiple deals
+router.post('/deals/bulk-task', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const { deal_ids, title, description, type, priority, due_date, assigned_to } = req.body || {};
+    if (!Array.isArray(deal_ids) || deal_ids.length === 0) {
+      return res.status(400).json({ error: 'deal_ids array is required' });
+    }
+    if (!title || !String(title).trim()) {
+      return res.status(400).json({ error: 'title is required' });
+    }
+
+    const allowedIds = await filterAuthorizedDealIds(req.userId, org.organization_id, org.role, deal_ids);
+    if (!allowedIds.length) return res.json({ success: true, created: 0, skipped: deal_ids.length });
+
+    for (const dealId of allowedIds) {
+      await query(
+        `INSERT INTO crm_tasks (organization_id, deal_id, assigned_to, created_by, title, description, type, priority, due_date)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [
+          org.organization_id,
+          dealId,
+          assigned_to || req.userId,
+          req.userId,
+          String(title).trim(),
+          description || null,
+          type || 'task',
+          priority || 'medium',
+          due_date || null,
+        ]
+      );
+    }
+    await query(
+      `UPDATE crm_deals SET last_activity_at = NOW(), updated_at = NOW()
+        WHERE id = ANY($1::uuid[]) AND organization_id = $2`,
+      [allowedIds, org.organization_id]
+    );
+
+    res.json({ success: true, created: allowedIds.length, skipped: deal_ids.length - allowedIds.length });
+  } catch (error) {
+    console.error('Error bulk creating task:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

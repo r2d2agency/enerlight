@@ -638,7 +638,60 @@ export function useCRMDealMutations() {
     },
   });
 
-  return { createDeal, updateDeal, moveDeal, migrateDealToFunnel, addContact, removeContact, bulkDeleteDeals, bulkMoveDeals };
+  const bulkReassignRep = useMutation({
+    mutationFn: async ({ dealIds, representativeId }: { dealIds: string[]; representativeId: string | null }) => {
+      return api<{ success: boolean; updated: number; skipped: number }>(
+        "/api/crm/deals/bulk-reassign-representative",
+        { method: "POST", body: { deal_ids: dealIds, representative_id: representativeId } }
+      );
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["crm-deals"] });
+      queryClient.invalidateQueries({ queryKey: ["crm-representatives-hub"] });
+      toast({ title: `${data.updated} reatribuída(s)${data.skipped ? ` · ${data.skipped} ignorada(s)` : ""}` });
+    },
+  });
+
+  const bulkAddNote = useMutation({
+    mutationFn: async ({ dealIds, content }: { dealIds: string[]; content: string }) => {
+      return api<{ success: boolean; created: number; skipped: number }>(
+        "/api/crm/deals/bulk-note",
+        { method: "POST", body: { deal_ids: dealIds, content } }
+      );
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["crm-deal"] });
+      queryClient.invalidateQueries({ queryKey: ["crm-deals"] });
+      toast({ title: `Nota adicionada em ${data.created} negociação(ões)` });
+    },
+  });
+
+  const bulkAddTask = useMutation({
+    mutationFn: async (payload: { dealIds: string[]; title: string; description?: string; type?: string; priority?: string; due_date?: string; assigned_to?: string }) => {
+      return api<{ success: boolean; created: number; skipped: number }>(
+        "/api/crm/deals/bulk-task",
+        {
+          method: "POST",
+          body: {
+            deal_ids: payload.dealIds,
+            title: payload.title,
+            description: payload.description,
+            type: payload.type,
+            priority: payload.priority,
+            due_date: payload.due_date,
+            assigned_to: payload.assigned_to,
+          },
+        }
+      );
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["crm-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["crm-deals"] });
+      toast({ title: `${data.created} tarefa(s) criada(s)` });
+    },
+  });
+
+  return { createDeal, updateDeal, moveDeal, migrateDealToFunnel, addContact, removeContact, bulkDeleteDeals, bulkMoveDeals, bulkReassignRep, bulkAddNote, bulkAddTask };
 }
 
 // Tasks
