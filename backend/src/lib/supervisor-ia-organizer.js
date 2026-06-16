@@ -188,7 +188,7 @@ async function ruleStaleToNext({ orgId, userId, runId, cfg, stages, stageNextMap
           [next.id, d.id]
         );
         await query(
-          `INSERT INTO crm_deal_history (deal_id, user_id, user_name, action, from_stage, to_stage, description)
+          `INSERT INTO crm_deal_history (deal_id, user_id, user_name_snapshot, action, from_value, to_value, notes)
            VALUES ($1, NULL, 'Supervisor IA', 'stage_changed', $2, $3, $4)`,
           [d.id, d.stage_name, next.name, `Movido automaticamente pelo Supervisor IA — parado há ${Math.round(d.hours_idle)}h`]
         ).catch(() => {});
