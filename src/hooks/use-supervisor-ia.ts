@@ -29,8 +29,32 @@ export interface SupervisorIAConfig {
   alert_whatsapp_numbers: string[];
   alert_whatsapp_connection_id: string | null;
   analysis_period_days: number;
-  last_auto_analysis_at: string | null;
+  organizer_enabled: boolean;
+  organizer_stale_to_next_enabled: boolean;
+  organizer_stale_to_next_hours: number;
+  organizer_dead_to_lost_enabled: boolean;
+  organizer_dead_to_lost_hours: number;
+  organizer_round_robin_enabled: boolean;
+  organizer_notify_missing_enabled: boolean;
+  organizer_auto_value_threshold: number;
+  organizer_last_run_at: string | null;
 }
+
+export interface OrganizerAction {
+  id: string;
+  rule: 'stale_to_next' | 'dead_to_lost' | 'unassigned_round_robin' | 'notify_missing_data';
+  severity: 'low' | 'high';
+  status: 'suggested' | 'auto_applied' | 'applied' | 'rejected' | 'failed';
+  deal_id: string | null;
+  deal_title: string | null;
+  funnel_name: string | null;
+  from_stage_name: string | null;
+  to_stage_name: string | null;
+  to_owner_name: string | null;
+  reason: string | null;
+  error: string | null;
+  created_at: string;
+  applied_at: string | null;
 
 export interface ScopeOptions {
   funnels: { id: string; name: string; color?: string }[];
