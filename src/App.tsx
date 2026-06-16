@@ -162,6 +162,7 @@ const App = () => (
               <Route path="/crm/configuracoes" element={<ProtectedRoute><CRMConfiguracoes /></ProtectedRoute>} />
               <Route path="/crm/relatorios" element={<ProtectedRoute><CRMRelatorios /></ProtectedRoute>} />
               <Route path="/crm/representantes" element={<ProtectedRoute><CRMRepresentantes /></ProtectedRoute>} />
+              <Route path="/crm/representantes-hub" element={<ProtectedRoute><RepresentativesHub /></ProtectedRoute>} />
               <Route path="/crm/metas" element={<ProtectedRoute><CRMMetas /></ProtectedRoute>} />
               <Route path="/mapa" element={<ProtectedRoute><Mapa /></ProtectedRoute>} />
               <Route path="/fluxos-externos" element={<ProtectedRoute><FluxosExternos /></ProtectedRoute>} />
