@@ -6,6 +6,23 @@ import { logInfo, logError } from './logger.js';
 import { computeAnalysis } from './routes/supervisor-ia.js';
 import { resolveAIConfig, runBrainAnalysis, formatWhatsappAlert } from './lib/supervisor-ia-brain.js';
 import { sendMessage as sendWhatsapp } from './lib/whatsapp-provider.js';
+import { runOrganizer, ensureOrganizerSchema } from './lib/supervisor-ia-organizer.js';
+
+export async function executeSupervisorIAOrganizer() {
+  try {
+    await ensureOrganizerSchema();
+    const { rows } = await query(`SELECT * FROM supervisor_ia_configs WHERE organizer_enabled = true`);
+    for (const cfg of rows) {
+      try {
+        await runOrganizer({ orgId: cfg.organization_id, userId: cfg.user_id, cfg });
+      } catch (e) {
+        logError('supervisor_ia.organizer_scheduler.run', e, { orgId: cfg.organization_id });
+      }
+    }
+  } catch (e) {
+    if (e.code !== '42P01' && e.code !== '42703') logError('supervisor_ia.organizer_scheduler', e);
+  }
+}
 
 function localDate(offsetDays = 0) {
   const d = new Date(Date.now() + offsetDays * 86400000);
