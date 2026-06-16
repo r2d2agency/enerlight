@@ -333,6 +333,7 @@ function SidebarContentComponent({ isExpanded, isSuperadmin, onNavigate }: Sideb
     rh_module: 'can_view_rh',
     goals: 'can_view_goals',
     representatives: 'can_view_representatives',
+    supervisor_ia: 'can_view_supervisor_ia',
     crm: 'can_view_crm',
     campaigns: 'can_view_campaigns',
     chat: 'can_view_chat',
