@@ -63,6 +63,7 @@ import surveysRoutes from './routes/surveys.js';
 import onlineQuotesRoutes from './routes/online-quotes.js';
 import rhRoutes from './routes/rh.js';
 import calcCategoriesRoutes from './routes/calc-categories.js';
+import supervisorIaRoutes from './routes/supervisor-ia.js';
 import { initDatabase } from './init-db.js';
 import { executeNotifications } from './scheduler.js';
 import { executeCampaignMessages } from './campaign-scheduler.js';
@@ -242,6 +243,7 @@ app.use('/api/surveys', surveysRoutes);
 app.use('/api/online-quotes', onlineQuotesRoutes);
 app.use('/api/rh', rhRoutes);
 app.use('/api/calc-categories', calcCategoriesRoutes);
+app.use('/api/supervisor-ia', supervisorIaRoutes);
 
 
 app.get('/health', (req, res) => {
