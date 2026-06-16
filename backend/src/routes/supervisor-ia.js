@@ -190,6 +190,16 @@ router.get('/scope-options', async (req, res) => {
       query(`SELECT id, name FROM licitacao_boards WHERE organization_id = $1 AND COALESCE(is_active, true) = true ORDER BY name`, [orgId]).catch((e) => { logError('supervisor_ia.scope.licitacao_boards', e); return { rows: [] }; }),
     ]);
 
+    const aiAgents = await query(
+      `SELECT id, name FROM ai_agents WHERE organization_id = $1 AND is_active = true ORDER BY name`,
+      [orgId]
+    ).then(r => r.rows).catch((e) => { logError('supervisor_ia.scope.ai_agents', e); return []; });
+
+    const connections = await query(
+      `SELECT id, name FROM connections WHERE organization_id = $1 AND status = 'connected' ORDER BY name`,
+      [orgId]
+    ).then(r => r.rows).catch((e) => { logError('supervisor_ia.scope.connections', e); return []; });
+
     res.json({
       funnels: funnels.rows,
       stages: stages.rows,
@@ -198,6 +208,8 @@ router.get('/scope-options', async (req, res) => {
       representatives: representatives.rows,
       homologation_boards: homBoards.rows,
       licitacao_boards: licBoards.rows,
+      ai_agents: aiAgents,
+      connections,
     });
   } catch (e) {
     logError('supervisor_ia.scope_options', e);
