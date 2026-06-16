@@ -4,6 +4,7 @@ import { authenticate } from '../middleware/auth.js';
 import { logError, logInfo } from '../logger.js';
 import { resolveAIConfig, runBrainAnalysis, runBrainChat, formatWhatsappAlert } from '../lib/supervisor-ia-brain.js';
 import { sendMessage as sendWhatsapp } from '../lib/whatsapp-provider.js';
+import { runOrganizer, applyAction, rejectAction, ensureOrganizerSchema } from '../lib/supervisor-ia-organizer.js';
 
 const router = express.Router();
 router.use(authenticate);
