@@ -316,7 +316,7 @@ function ConfigDialog({ open, onOpenChange, config, options }: ConfigDialogProps
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 -mx-6 px-6">
+        <div className="flex-1 -mx-6 px-6 overflow-y-auto">
           <Tabs defaultValue="kanbans" className="space-y-4">
             <TabsList>
               <TabsTrigger value="kanbans">Kanbans</TabsTrigger>
@@ -393,7 +393,7 @@ function ConfigDialog({ open, onOpenChange, config, options }: ConfigDialogProps
               </div>
             </TabsContent>
           </Tabs>
-        </ScrollArea>
+        </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => { setLocal(null); onOpenChange(false); }}>Cancelar</Button>
