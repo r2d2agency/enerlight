@@ -537,11 +537,57 @@ export default function CRMNegociacoes() {
                 </Popover>
               )}
 
+              {/* Reassign representative */}
+              {repsHub.length > 0 && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <Handshake className="h-4 w-4 mr-1" />
+                      Reatribuir rep.
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 p-1 max-h-72 overflow-auto" align="end">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full justify-start"
+                      onClick={() => handleBulkReassignRep(null)}
+                    >
+                      <X className="h-4 w-4 mr-2" /> Remover representante
+                    </Button>
+                    {repsHub.filter(r => r.is_active).map(r => (
+                      <Button
+                        key={r.id}
+                        variant="ghost"
+                        size="sm"
+                        className="w-full justify-start"
+                        onClick={() => handleBulkReassignRep(r.id)}
+                      >
+                        {r.name}
+                      </Button>
+                    ))}
+                  </PopoverContent>
+                </Popover>
+              )}
+
+              {/* Bulk note */}
+              <Button variant="outline" size="sm" onClick={() => setBulkNoteOpen(true)}>
+                <MessageSquarePlus className="h-4 w-4 mr-1" />
+                Nota
+              </Button>
+
+              {/* Bulk task */}
+              <Button variant="outline" size="sm" onClick={() => setBulkTaskOpen(true)}>
+                <ClipboardList className="h-4 w-4 mr-1" />
+                Tarefa
+              </Button>
+
               {/* Delete */}
               <Button variant="destructive" size="sm" onClick={() => setBulkDeleteOpen(true)}>
                 <Trash2 className="h-4 w-4 mr-1" />
                 Excluir
               </Button>
+
             </div>
           )}
 
