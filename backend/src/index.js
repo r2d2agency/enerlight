@@ -76,6 +76,7 @@ import { executeTaskReminders } from './task-reminder-scheduler.js';
 import { executeSecretaryFollowups } from './secretary-followup-scheduler.js';
 import { executeSecretaryDigest } from './secretary-digest-scheduler.js';
 import { executeGoalsReport } from './goals-report-scheduler.js';
+import { executeSupervisorIA } from './supervisor-ia-scheduler.js';
 import { checkWaitResponseTimeouts } from './lib/flow-executor.js';
 import { requestContext } from './request-context.js';
 import { log, logError } from './logger.js';
