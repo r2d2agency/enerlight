@@ -12,14 +12,23 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Brain, Settings2, RefreshCw, AlertTriangle, Clock, FileWarning, Building2, TrendingUp, ListChecks } from "lucide-react";
+import { Brain, Settings2, RefreshCw, AlertTriangle, Clock, FileWarning, Building2, TrendingUp, ListChecks, Sparkles, Send, Trash2, MessageCircle } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import {
   useSupervisorIAConfig,
   useSupervisorIAScopeOptions,
   useSupervisorIAUpdateConfig,
   useSupervisorIAAnalysis,
+  useBrainInsights,
+  useRunBrainAnalysis,
+  useDeleteInsight,
+  useBrainChatHistory,
+  useBrainChatSend,
+  useClearBrainChat,
   type SupervisorIAConfig,
   type SupervisorIAAnalysis,
+  type BrainInsight,
+  type BrainInsightRecord,
 } from "@/hooks/use-supervisor-ia";
 
 const formatCurrency = (v: number) =>
