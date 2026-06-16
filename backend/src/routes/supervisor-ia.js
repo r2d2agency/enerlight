@@ -226,6 +226,14 @@ router.get('/analysis', async (req, res) => {
     const hasLicBoards = cfg.licitacao_board_ids.length > 0;
 
     // ----- Negociações criadas por vendedor (no período, restrito aos funis selecionados) -----
+    const dealFilterSql = [
+      hasUserFilter ? `AND (d.owner_id = ANY($5::uuid[]) OR d.created_by = ANY($5::uuid[]))` : '',
+      hasRepresentativeFilter ? `AND d.representative_id = ANY($${hasUserFilter ? 6 : 5}::uuid[])` : '',
+    ].filter(Boolean).join('\n        ');
+    const dealFilterParams = [orgId, cfg.funnel_ids, startDate, endDate];
+    if (hasUserFilter) dealFilterParams.push(userIdArr);
+    if (hasRepresentativeFilter) dealFilterParams.push(cfg.representative_ids);
+
     const dealsByOwner = hasFunnels ? await query(`
       SELECT
         COALESCE(d.owner_id::text, 'unassigned') AS owner_id,
@@ -238,13 +246,13 @@ router.get('/analysis', async (req, res) => {
         AND d.funnel_id = ANY($2::uuid[])
         AND d.created_at >= $3::date
         AND d.created_at < ($4::date + INTERVAL '1 day')
-        ${hasUserFilter ? 'AND (d.owner_id = ANY($5::uuid[]) OR d.created_by = ANY($5::uuid[]))' : ''}
+        ${dealFilterSql}
       GROUP BY d.owner_id, u.name
       ORDER BY deals_created DESC
-    `, hasUserFilter
-      ? [orgId, cfg.funnel_ids, startDate, endDate, userIdArr]
-      : [orgId, cfg.funnel_ids, startDate, endDate]
-    ).then(r => r.rows) : [];
+    `, dealFilterParams).then(r => r.rows).catch((e) => {
+      logError('supervisor_ia.deals_by_owner', e);
+      return [];
+    }) : [];
 
     // ----- Empresas novas no período -----
     const newCompanies = await query(`
@@ -261,7 +269,8 @@ router.get('/analysis', async (req, res) => {
       GROUP BY c.created_by, u.name
       ORDER BY companies_created DESC
     `, hasUserFilter ? [orgId, startDate, endDate, userIdArr] : [orgId, startDate, endDate])
-      .then(r => r.rows);
+      .then(r => r.rows)
+      .catch((e) => { logError('supervisor_ia.new_companies', e); return []; });
 
     const newCompaniesTotal = newCompanies.reduce((s, r) => s + r.companies_created, 0);
 
