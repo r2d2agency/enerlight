@@ -67,6 +67,11 @@ function safeArray(v) {
   return [];
 }
 
+function localDate(offsetDays = 0) {
+  const d = new Date(Date.now() + offsetDays * 86400000);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 async function loadConfig(orgId, userId) {
   await ensureSchema();
   const { rows } = await query(
@@ -197,8 +202,8 @@ router.get('/analysis', async (req, res) => {
     const userId = req.user.id;
     const cfg = await loadConfig(orgId, userId);
 
-    const endDate = req.query.end_date || new Date().toISOString().slice(0, 10);
-    const startDate = req.query.start_date || new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+    const endDate = req.query.end_date || localDate(0);
+    const startDate = req.query.start_date || localDate(-7);
 
     // União dos usuários a checar: explícitos + membros dos grupos selecionados
     let scopedUserIds = new Set(cfg.user_ids);
@@ -206,11 +211,15 @@ router.get('/analysis', async (req, res) => {
       const { rows: gm } = await query(
         `SELECT DISTINCT user_id FROM crm_user_group_members WHERE group_id = ANY($1::uuid[])`,
         [cfg.group_ids]
-      );
+      ).catch((e) => {
+        if (!isMissingSchemaError(e)) logError('supervisor_ia.group_members', e);
+        return { rows: [] };
+      });
       gm.forEach(r => scopedUserIds.add(r.user_id));
     }
     const userIdArr = Array.from(scopedUserIds);
     const hasUserFilter = userIdArr.length > 0;
+    const hasRepresentativeFilter = cfg.representative_ids.length > 0;
 
     const hasFunnels = cfg.funnel_ids.length > 0;
     const hasHomBoards = cfg.homologation_board_ids.length > 0;
