@@ -288,7 +288,8 @@ router.put('/config', async (req, res) => {
         updated_at = NOW()
     `, params);
 
-    // Novos campos: cérebro IA, proatividade e alertas WhatsApp
+    // Novos campos: cérebro IA, proatividade, alertas WhatsApp e organizador
+    await ensureOrganizerSchema();
     await query(`
       UPDATE supervisor_ia_configs SET
         ai_agent_id = $3,
@@ -297,6 +298,14 @@ router.put('/config', async (req, res) => {
         alert_whatsapp_numbers = $6,
         alert_whatsapp_connection_id = $7,
         analysis_period_days = $8,
+        organizer_enabled = $9,
+        organizer_stale_to_next_enabled = $10,
+        organizer_stale_to_next_hours = $11,
+        organizer_dead_to_lost_enabled = $12,
+        organizer_dead_to_lost_hours = $13,
+        organizer_round_robin_enabled = $14,
+        organizer_notify_missing_enabled = $15,
+        organizer_auto_value_threshold = $16,
         updated_at = NOW()
       WHERE organization_id = $1 AND user_id = $2
     `, [
@@ -307,6 +316,14 @@ router.put('/config', async (req, res) => {
       JSON.stringify(safeArray(b.alert_whatsapp_numbers)),
       b.alert_whatsapp_connection_id || null,
       Number.isFinite(Number(b.analysis_period_days)) ? Number(b.analysis_period_days) : 7,
+      b.organizer_enabled === true,
+      b.organizer_stale_to_next_enabled !== false,
+      Number.isFinite(Number(b.organizer_stale_to_next_hours)) ? Number(b.organizer_stale_to_next_hours) : 72,
+      b.organizer_dead_to_lost_enabled !== false,
+      Number.isFinite(Number(b.organizer_dead_to_lost_hours)) ? Number(b.organizer_dead_to_lost_hours) : 720,
+      b.organizer_round_robin_enabled !== false,
+      b.organizer_notify_missing_enabled !== false,
+      Number.isFinite(Number(b.organizer_auto_value_threshold)) ? Number(b.organizer_auto_value_threshold) : 50000,
     ]);
 
     const cfg = await loadConfig(orgId, userId);
