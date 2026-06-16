@@ -392,9 +392,7 @@ async function ruleNotifyMissing({ orgId, userId, runId, cfg, actions }) {
 async function buildStageMaps(funnelIds) {
   if (!funnelIds.length) return { stages: [], nextMap: new Map() };
   const { rows } = await query(`
-    SELECT id, name, funnel_id, position,
-           COALESCE(is_won, false) AS is_won,
-           COALESCE(is_lost, false) AS is_lost
+    SELECT id, name, funnel_id, position
     FROM crm_stages
     WHERE funnel_id = ANY($1::uuid[])
     ORDER BY funnel_id, position
@@ -408,9 +406,8 @@ async function buildStageMaps(funnelIds) {
   }
   const nextMap = new Map();
   for (const arr of byFunnel.values()) {
-    const open = arr.filter(s => !s.is_won && !s.is_lost);
-    for (let i = 0; i < open.length - 1; i++) {
-      nextMap.set(open[i].id, open[i + 1]);
+    for (let i = 0; i < arr.length - 1; i++) {
+      nextMap.set(arr[i].id, arr[i + 1]);
     }
   }
   return { stages: rows, nextMap };
