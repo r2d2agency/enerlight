@@ -19,7 +19,7 @@ import { useCRMGroups, useCRMGroupMembers, useCRMGroupMutations, useCRMFunnels, 
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
-import { Building2, Plus, Users, Trash2, UserPlus, Crown, Shield, User, Briefcase, Loader2, Pencil, Link2, Settings, KeyRound, Megaphone, Receipt, UsersRound, CalendarClock, Bot, Layers, MessagesSquare, Upload, Image, ShieldCheck, GitBranch, Edit, ClipboardList, UserX, UserCheck, Gavel, FileText, Target, Handshake } from 'lucide-react';
+import { Building2, Plus, Users, Trash2, UserPlus, Crown, Shield, User, Briefcase, Loader2, Pencil, Link2, Settings, KeyRound, Megaphone, Receipt, UsersRound, CalendarClock, Bot, Layers, MessagesSquare, Upload, Image, ShieldCheck, GitBranch, Edit, ClipboardList, UserX, UserCheck, Gavel, FileText, Target, Handshake, Brain } from 'lucide-react';
 import { PermissionsDialog } from '@/components/permissions/PermissionsDialog';
 import { PermissionTemplatesTab } from '@/components/admin/PermissionTemplatesTab';
 import { useUpload } from '@/hooks/use-upload';
@@ -159,6 +159,7 @@ export default function Organizacoes() {
     rh_module: false,
     goals: true,
     representatives: true,
+    supervisor_ia: false,
   });
   const [savingModules, setSavingModules] = useState(false);
 
@@ -273,6 +274,7 @@ export default function Organizacoes() {
         rh_module: modules.rh_module ?? false,
         goals: modules.goals ?? true,
         representatives: modules.representatives ?? true,
+        supervisor_ia: modules.supervisor_ia ?? false,
       });
 
     } catch (error) {
@@ -1465,6 +1467,26 @@ export default function Organizacoes() {
                           <Switch
                             checked={modulesEnabled.representatives}
                             onCheckedChange={(checked) => setModulesEnabled(prev => ({ ...prev, representatives: checked }))}
+                            disabled={!canManageOrg}
+                          />
+                        </div>
+
+                        {/* Supervisor IA */}
+                        <div className="flex items-center justify-between rounded-lg border p-4">
+                          <div className="flex items-center gap-4">
+                            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                              <Brain className="h-5 w-5 text-primary" />
+                            </div>
+                            <div>
+                              <p className="font-medium">Supervisor IA</p>
+                              <p className="text-sm text-muted-foreground">
+                                Análise automática de Kanbans, cards incompletos e produtividade por vendedor
+                              </p>
+                            </div>
+                          </div>
+                          <Switch
+                            checked={modulesEnabled.supervisor_ia}
+                            onCheckedChange={(checked) => setModulesEnabled(prev => ({ ...prev, supervisor_ia: checked }))}
                             disabled={!canManageOrg}
                           />
                         </div>

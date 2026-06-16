@@ -25,6 +25,7 @@ interface ModulesEnabled {
   online_quotes: boolean;
   goals: boolean;
   representatives: boolean;
+  supervisor_ia: boolean;
 }
 
 export interface UserPermissions {
@@ -133,6 +134,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     online_quotes: true,
     goals: true,
     representatives: true,
+    supervisor_ia: false,
   };
 
   const refreshUser = async () => {

@@ -62,7 +62,7 @@ interface NavItem {
   name: string;
   href: string;
   icon: any;
-  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat' | 'homologation' | 'tasks' | 'lead_gleego' | 'captador' | 'document_signatures' | 'licitacao' | 'logistics' | 'online_quotes' | 'rh_module' | 'goals' | 'representatives';
+  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat' | 'homologation' | 'tasks' | 'lead_gleego' | 'captador' | 'document_signatures' | 'licitacao' | 'logistics' | 'online_quotes' | 'rh_module' | 'goals' | 'representatives' | 'supervisor_ia';
   adminOnly?: boolean;
   ownerOnly?: boolean;
   superadminOnly?: boolean;
@@ -118,7 +118,7 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
       { name: "Hub Representantes", href: "/crm/representantes-hub", icon: Handshake, moduleKey: 'representatives', permissionKey: 'can_view_representatives' },
       { name: "Metas", href: "/crm/metas", icon: Target, moduleKey: 'goals', permissionKey: 'can_view_goals' },
       { name: "Revenue Intel", href: "/revenue-intelligence", icon: Brain, permissionKey: 'can_view_revenue_intel' },
-      { name: "Supervisor IA", href: "/supervisor-ia", icon: Brain, permissionKey: 'can_view_supervisor_ia' },
+      { name: "Supervisor IA", href: "/supervisor-ia", icon: Brain, moduleKey: 'supervisor_ia', permissionKey: 'can_view_supervisor_ia' },
       { name: "Segmentação", href: "/crm/segmentacao", icon: Filter, permissionKey: 'can_view_companies' },
       { name: "Pesquisas", href: "/crm/pesquisas", icon: ClipboardList, permissionKey: 'can_view_crm' },
       { name: "Orçamentos Online", href: "/crm/orcamentos", icon: FileText, moduleKey: 'online_quotes', permissionKey: 'can_view_online_quotes' },
@@ -333,6 +333,7 @@ function SidebarContentComponent({ isExpanded, isSuperadmin, onNavigate }: Sideb
     rh_module: 'can_view_rh',
     goals: 'can_view_goals',
     representatives: 'can_view_representatives',
+    supervisor_ia: 'can_view_supervisor_ia',
     crm: 'can_view_crm',
     campaigns: 'can_view_campaigns',
     chat: 'can_view_chat',
