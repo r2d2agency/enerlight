@@ -157,18 +157,22 @@ async function callOpenAI(config, messages, options) {
 // ==================== Gemini ====================
 
 async function callGemini(config, messages, options) {
-  // Map deprecated models to current equivalents
+  // Map deprecated/legacy models to current equivalents (Gemini 2.5 line)
   const MODEL_ALIASES = {
-    'gemini-1.5-flash': 'gemini-2.0-flash',
-    'gemini-1.5-flash-8b': 'gemini-2.0-flash-lite',
+    'gemini-1.5-flash': 'gemini-2.5-flash',
+    'gemini-1.5-flash-8b': 'gemini-2.5-flash-lite',
     'gemini-1.5-pro': 'gemini-2.5-pro',
-    'gemini-pro': 'gemini-2.0-flash',
+    'gemini-1.0-pro': 'gemini-2.5-flash',
+    'gemini-pro': 'gemini-2.5-flash',
+    'gemini-flash': 'gemini-2.5-flash',
+    'gemini-2.0-flash': 'gemini-2.5-flash',
+    'gemini-2.0-flash-lite': 'gemini-2.5-flash-lite',
   };
-  const rawModel = config.model || 'gemini-2.0-flash';
+  const rawModel = config.model || 'gemini-2.5-flash';
   const primaryModel = MODEL_ALIASES[rawModel] || rawModel;
   // Fallback chain when primary model is overloaded (503) or not found (404)
   const fallbackChain = [primaryModel];
-  for (const fb of ['gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-2.0-flash-lite']) {
+  for (const fb of ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-pro']) {
     if (!fallbackChain.includes(fb)) fallbackChain.push(fb);
   }
 
