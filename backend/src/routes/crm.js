@@ -8126,15 +8126,23 @@ async function getVisibleRepresentativeIds(userId, organizationId, role) {
     );
     return r.rows.map((x) => x.id);
   }
+  try { await ensureRepLinksSchema(); } catch(_){}
   const r = await query(
     `SELECT r.id FROM crm_representatives r
      WHERE r.organization_id = $1
        AND (
          r.linked_user_id = $2
+         OR EXISTS (SELECT 1 FROM crm_representative_users ru WHERE ru.representative_id = r.id AND ru.user_id = $2)
          OR r.linked_user_id IN (
            SELECT gm2.user_id FROM crm_user_group_members gm
            JOIN crm_user_group_members gm2 ON gm2.group_id = gm.group_id
            WHERE gm.user_id = $2
+         )
+         OR EXISTS (
+           SELECT 1 FROM crm_representative_users ru2
+           JOIN crm_user_group_members gm3 ON gm3.user_id = ru2.user_id
+           WHERE ru2.representative_id = r.id
+             AND gm3.group_id IN (SELECT group_id FROM crm_user_group_members WHERE user_id = $2)
          )
        )`,
     [organizationId, userId]
@@ -8147,6 +8155,7 @@ router.get('/representatives/hub', async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
+    try { await ensureRepLinksSchema(); } catch(_){}
 
     const visibilityCte = canManage(org.role)
       ? `SELECT id FROM crm_representatives WHERE organization_id = $1`
@@ -8154,10 +8163,17 @@ router.get('/representatives/hub', async (req, res) => {
          WHERE r.organization_id = $1
            AND (
              r.linked_user_id = $2
+             OR EXISTS (SELECT 1 FROM crm_representative_users ru WHERE ru.representative_id = r.id AND ru.user_id = $2)
              OR r.linked_user_id IN (
                SELECT gm2.user_id FROM crm_user_group_members gm
                JOIN crm_user_group_members gm2 ON gm2.group_id = gm.group_id
                WHERE gm.user_id = $2
+             )
+             OR EXISTS (
+               SELECT 1 FROM crm_representative_users ru2
+               JOIN crm_user_group_members gm3 ON gm3.user_id = ru2.user_id
+               WHERE ru2.representative_id = r.id
+                 AND gm3.group_id IN (SELECT group_id FROM crm_user_group_members WHERE user_id = $2)
              )
            )`;
 
