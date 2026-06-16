@@ -112,7 +112,7 @@ export default function SupervisorIA() {
             <SummaryCard icon={TrendingUp} label="Negociações criadas" value={analysis.data.summary.total_deals_created} accent="text-emerald-600" />
             <SummaryCard icon={Building2} label="Empresas novas" value={analysis.data.summary.total_companies_created} accent="text-sky-600" />
             <SummaryCard icon={FileWarning} label="Cards incompletos" value={analysis.data.summary.total_incomplete} accent="text-amber-600" />
-            <SummaryCard icon={Clock} label={`Parados há ≥ ${analysis.data.period.stale_hours}h`} value={analysis.data.summary.total_stale} accent="text-red-600" />
+            <SummaryCard icon={Clock} label={`Parados há ≥ ${formatIdle(analysis.data.period.stale_hours)}`} value={analysis.data.summary.total_stale} accent="text-red-600" />
           </div>
         )}
 
