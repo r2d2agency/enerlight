@@ -6,6 +6,29 @@ import { logError } from '../logger.js';
 const router = express.Router();
 router.use(authenticate);
 
+function isMissingSchemaError(error) {
+  return ['42P01', '42703'].includes(error?.code);
+}
+
+router.use(async (req, res, next) => {
+  try {
+    const { rows } = await query(
+      `SELECT u.id, u.name, u.email, om.organization_id, om.role
+       FROM users u
+       JOIN organization_members om ON om.user_id = u.id
+       WHERE u.id = $1
+       LIMIT 1`,
+      [req.userId]
+    );
+    if (!rows[0]) return res.status(403).json({ error: 'Usuário sem organização' });
+    req.user = rows[0];
+    next();
+  } catch (e) {
+    logError('supervisor_ia.user_context', e);
+    res.status(500).json({ error: 'Erro ao carregar organização do usuário' });
+  }
+});
+
 // Garante schema (idempotente — útil em deploys parciais)
 async function ensureSchema() {
   await query(`
@@ -18,6 +41,7 @@ async function ensureSchema() {
       licitacao_board_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
       group_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
       user_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
+      representative_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
       rule_require_company BOOLEAN DEFAULT true,
       rule_require_value BOOLEAN DEFAULT true,
       rule_require_owner BOOLEAN DEFAULT true,
@@ -30,6 +54,7 @@ async function ensureSchema() {
       UNIQUE(organization_id, user_id)
     )
   `);
+  await query(`ALTER TABLE supervisor_ia_configs ADD COLUMN IF NOT EXISTS representative_ids JSONB NOT NULL DEFAULT '[]'::jsonb`);
   await query(`CREATE INDEX IF NOT EXISTS idx_supervisor_ia_configs_org ON supervisor_ia_configs(organization_id)`);
 }
 
@@ -51,7 +76,7 @@ async function loadConfig(orgId, userId) {
   if (!rows[0]) {
     return {
       funnel_ids: [], homologation_board_ids: [], licitacao_board_ids: [],
-      group_ids: [], user_ids: [],
+      group_ids: [], user_ids: [], representative_ids: [],
       rule_require_company: true, rule_require_value: true, rule_require_owner: true,
       rule_require_contact: true, rule_require_followup: true, rule_require_history: true,
       stale_hours: 72,
@@ -65,6 +90,7 @@ async function loadConfig(orgId, userId) {
     licitacao_board_ids: safeArray(r.licitacao_board_ids),
     group_ids: safeArray(r.group_ids),
     user_ids: safeArray(r.user_ids),
+    representative_ids: safeArray(r.representative_ids),
   };
 }
 
