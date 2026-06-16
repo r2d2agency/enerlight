@@ -316,15 +316,11 @@ router.put('/config', async (req, res) => {
   }
 });
 
-// ---- Análise principal ----
-router.get('/analysis', async (req, res) => {
-  try {
-    const orgId = req.user.organization_id;
-    const userId = req.user.id;
-    const cfg = await loadConfig(orgId, userId);
-
-    const endDate = req.query.end_date || localDate(0);
-    const startDate = req.query.start_date || localDate(-7);
+// ---- Análise principal (extraída para ser reusada pelo cérebro) ----
+export async function computeAnalysis(orgId, userId, startDate, endDate) {
+  const cfg = await loadConfig(orgId, userId);
+  startDate = startDate || localDate(-7);
+  endDate = endDate || localDate(0);
 
     // União dos usuários a checar: explícitos + membros dos grupos selecionados
     let scopedUserIds = new Set(cfg.user_ids);
