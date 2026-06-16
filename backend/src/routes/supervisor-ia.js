@@ -73,18 +73,19 @@ router.get('/scope-options', async (req, res) => {
   try {
     const orgId = req.user.organization_id;
     const [funnels, groups, users, homBoards, licBoards] = await Promise.all([
-      query(`SELECT id, name, color FROM crm_funnels WHERE organization_id = $1 AND is_active = true ORDER BY name`, [orgId]),
-      query(`SELECT id, name FROM crm_user_groups WHERE organization_id = $1 ORDER BY name`, [orgId]),
+      query(`SELECT id, name, color FROM crm_funnels WHERE organization_id = $1 AND is_active = true ORDER BY name`, [orgId]).catch((e) => { logError('supervisor_ia.scope.funnels', e); return { rows: [] }; }),
+      query(`SELECT id, name FROM crm_user_groups WHERE organization_id = $1 ORDER BY name`, [orgId]).catch((e) => { logError('supervisor_ia.scope.groups', e); return { rows: [] }; }),
       query(`
         SELECT u.id, u.name, u.email
         FROM users u
         JOIN organization_members om ON om.user_id = u.id
-        WHERE om.organization_id = $1 AND COALESCE(u.is_active, true) = true
+        WHERE om.organization_id = $1
         ORDER BY u.name
-      `, [orgId]),
+      `, [orgId]).catch((e) => { logError('supervisor_ia.scope.users', e); return { rows: [] }; }),
       query(`SELECT id, name FROM homologation_boards WHERE organization_id = $1 AND is_active = true ORDER BY name`, [orgId]).catch(() => ({ rows: [] })),
       query(`SELECT id, name FROM licitacao_boards WHERE organization_id = $1 AND is_active = true ORDER BY name`, [orgId]).catch(() => ({ rows: [] })),
     ]);
+
     res.json({
       funnels: funnels.rows,
       groups: groups.rows,
