@@ -91,6 +91,38 @@ export function buildAnalysisSnapshot(analysis) {
   return lines.join('\n');
 }
 
+/**
+ * Robustly extract a JSON object from raw LLM text. Handles ```json fences,
+ * leading/trailing prose, and finds the largest balanced {...} block.
+ */
+function extractJSON(text) {
+  if (!text) return null;
+  let raw = String(text).trim();
+  raw = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+  try { return JSON.parse(raw); } catch {}
+  const first = raw.indexOf('{');
+  if (first < 0) return null;
+  let depth = 0, inStr = false, esc = false;
+  for (let i = first; i < raw.length; i++) {
+    const c = raw[i];
+    if (esc) { esc = false; continue; }
+    if (c === '\\') { esc = true; continue; }
+    if (c === '"') { inStr = !inStr; continue; }
+    if (inStr) continue;
+    if (c === '{') depth++;
+    else if (c === '}') {
+      depth--;
+      if (depth === 0) {
+        try { return JSON.parse(raw.slice(first, i + 1)); } catch { break; }
+      }
+    }
+  }
+  const last = raw.lastIndexOf('}');
+  if (last > first) { try { return JSON.parse(raw.slice(first, last + 1)); } catch {} }
+  return null;
+}
+
+
 const BRAIN_SYSTEM_PROMPT = `Você é o **Gerente IA da Equipe de Vendas**, atuando como supervisor experiente.
 
 Sua missão: analisar os dados consolidados de kanbans (CRM, Homologação, Licitação), vendedores e cards problemáticos, e produzir um diagnóstico executivo prático e acionável - como um gerente de verdade faria ao revisar a operação.
@@ -137,6 +169,9 @@ export async function runBrainAnalysis({ aiConfig, analysis, context }) {
   const sysPrompt = (aiConfig.systemPromptBase ? aiConfig.systemPromptBase + '\n\n---\n\n' : '') + BRAIN_SYSTEM_PROMPT;
   const userPrompt = `${context ? `CONTEXTO ADICIONAL: ${context}\n\n` : ''}DADOS CONSOLIDADOS:\n\n${snapshot}\n\nProduza o diagnóstico em JSON estrito conforme o schema definido.`;
 
+
+
+
   const result = await callAI(aiConfig, [
     { role: 'system', content: sysPrompt },
     { role: 'user', content: userPrompt },
@@ -146,24 +181,19 @@ export async function runBrainAnalysis({ aiConfig, analysis, context }) {
     responseFormat: { type: 'json_object' },
   });
 
-  let parsed;
-  try {
-    // Some providers wrap JSON inside text/markdown
-    let raw = (result.content || '').trim();
-    raw = raw.replace(/^```json\s*|\s*```$/g, '').replace(/^```\s*|\s*```$/g, '');
-    parsed = JSON.parse(raw);
-  } catch (e) {
-    logError('supervisor_ia.brain.parse_failed', e, { raw: result.content?.slice(0, 500) });
-    parsed = {
-      executive_summary: result.content || 'Falha ao interpretar resposta da IA.',
-      health_score: 50,
-      trend: 'stable',
-      trend_explanation: '',
-      diagnostics: [],
-      team_insights: [],
-      priority_actions: [],
-      opportunities: [],
-    };
+  const parsed = extractJSON(result.content) || {
+    executive_summary: 'Falha ao interpretar resposta da IA. Tente novamente.',
+    health_score: 50,
+    trend: 'stable',
+    trend_explanation: '',
+    diagnostics: [],
+    team_insights: [],
+    priority_actions: [],
+    opportunities: [],
+    _raw: (result.content || '').slice(0, 2000),
+  };
+  if (!parsed.executive_summary) {
+    logError('supervisor_ia.brain.parse_failed', new Error('no executive_summary'), { raw: result.content?.slice(0, 500) });
   }
 
   return { insight: parsed, tokensUsed: result.tokensUsed || 0, model: result.model || aiConfig.model };
