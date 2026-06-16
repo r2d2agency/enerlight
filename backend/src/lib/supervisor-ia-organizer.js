@@ -339,7 +339,7 @@ async function ruleNotifyMissing({ orgId, userId, runId, cfg, actions }) {
   const { rows } = await query(`
     SELECT d.id, d.title, d.value, d.company_id, d.owner_id, d.funnel_id,
            f.name AS funnel_name, s.name AS stage_name,
-           u.name AS owner_name, u.phone AS owner_phone
+           u.name AS owner_name, u.whatsapp_phone AS owner_phone
     FROM crm_deals d
     JOIN crm_funnels f ON f.id = d.funnel_id
     LEFT JOIN crm_stages s ON s.id = d.stage_id
@@ -349,7 +349,7 @@ async function ruleNotifyMissing({ orgId, userId, runId, cfg, actions }) {
       AND d.status = 'open'
       AND d.owner_id IS NOT NULL
       AND (d.company_id IS NULL OR d.value IS NULL OR d.value = 0)
-      AND u.phone IS NOT NULL
+      AND u.whatsapp_phone IS NOT NULL
       AND u.phone <> ''
     LIMIT 100
   `, [orgId, funnelIds]).catch((e) => { logError('organizer.notify_missing.query', e); return { rows: [] }; });
