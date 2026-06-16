@@ -456,6 +456,18 @@ initDatabase().then((ok) => {
       timezone: 'America/Sao_Paulo'
     });
 
+    // Supervisor IA — auto-organizer (daily at 3am)
+    cron.schedule('0 3 * * *', async () => {
+      console.log('🤖 [CRON] 3AM Supervisor IA organizer triggered');
+      try {
+        await executeSupervisorIAOrganizer();
+      } catch (error) {
+        console.error('🤖 [CRON] Error executing Supervisor IA organizer:', error);
+      }
+    }, {
+      timezone: 'America/Sao_Paulo'
+    });
+
     console.log('⏰ Notification scheduler started - checks every hour (timezone: America/Sao_Paulo)');
     console.log('📤 Campaign scheduler started - checks every 30 seconds');
     console.log('📅 Scheduled messages started - checks every minute');
