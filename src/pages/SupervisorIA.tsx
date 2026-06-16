@@ -25,6 +25,14 @@ import {
 const formatCurrency = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 0 }).format(v || 0);
 
+const formatIdle = (hours: number) => {
+  const h = Math.max(0, Math.round(hours || 0));
+  if (h < 24) return `${h}h`;
+  const days = Math.floor(h / 24);
+  const rem = h % 24;
+  return rem === 0 ? `${days}d` : `${days}d ${rem}h`;
+};
+
 function todayBR(offsetDays = 0) {
   const d = new Date(Date.now() + offsetDays * 86400000);
   // YYYY-MM-DD local
@@ -104,7 +112,7 @@ export default function SupervisorIA() {
             <SummaryCard icon={TrendingUp} label="Negociações criadas" value={analysis.data.summary.total_deals_created} accent="text-emerald-600" />
             <SummaryCard icon={Building2} label="Empresas novas" value={analysis.data.summary.total_companies_created} accent="text-sky-600" />
             <SummaryCard icon={FileWarning} label="Cards incompletos" value={analysis.data.summary.total_incomplete} accent="text-amber-600" />
-            <SummaryCard icon={Clock} label={`Parados há ≥ ${analysis.data.period.stale_hours}h`} value={analysis.data.summary.total_stale} accent="text-red-600" />
+            <SummaryCard icon={Clock} label={`Parados há ≥ ${formatIdle(analysis.data.period.stale_hours)}`} value={analysis.data.summary.total_stale} accent="text-red-600" />
           </div>
         )}
 
@@ -302,7 +310,7 @@ function KanbanDiagnosticCard({ diagnostic: d }: { diagnostic: Diagnostic }) {
                         ))}
                       </div>
                     </TableCell>
-                    <TableCell className="text-right text-xs">{c.hours_idle}h</TableCell>
+                    <TableCell className="text-right text-xs">{formatIdle(c.hours_idle)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -340,7 +348,7 @@ function KanbanDiagnosticCard({ diagnostic: d }: { diagnostic: Diagnostic }) {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Parado há</p>
-                  <p className="font-medium">{selected.hours_idle}h</p>
+                  <p className="font-medium">{formatIdle(selected.hours_idle)}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Kanban</p>
