@@ -279,17 +279,17 @@ function ConfigDialog({ open, onOpenChange, config, options }: ConfigDialogProps
 
   // Sincroniza quando abrir
   const draft = local ?? config ?? {
-    funnel_ids: [], homologation_board_ids: [], licitacao_board_ids: [], group_ids: [], user_ids: [],
+    funnel_ids: [], homologation_board_ids: [], licitacao_board_ids: [], group_ids: [], user_ids: [], representative_ids: [],
     rule_require_company: true, rule_require_value: true, rule_require_owner: true,
     rule_require_contact: true, rule_require_followup: true, rule_require_history: true,
     stale_hours: 72,
   };
 
   const set = <K extends keyof SupervisorIAConfig>(key: K, val: SupervisorIAConfig[K]) => {
-    setLocal({ ...(local ?? config!), [key]: val });
+    setLocal({ ...draft, [key]: val });
   };
 
-  const toggleId = (key: 'funnel_ids' | 'homologation_board_ids' | 'licitacao_board_ids' | 'group_ids' | 'user_ids', id: string) => {
+  const toggleId = (key: 'funnel_ids' | 'homologation_board_ids' | 'licitacao_board_ids' | 'group_ids' | 'user_ids' | 'representative_ids', id: string) => {
     const cur = new Set(draft[key]);
     if (cur.has(id)) cur.delete(id); else cur.add(id);
     set(key, Array.from(cur) as any);
@@ -356,8 +356,14 @@ function ConfigDialog({ open, onOpenChange, config, options }: ConfigDialogProps
                 selected={draft.user_ids}
                 onToggle={(id) => toggleId('user_ids', id)}
               />
+              <PickerGroup
+                title="Representantes"
+                items={options?.representatives || []}
+                selected={draft.representative_ids}
+                onToggle={(id) => toggleId('representative_ids', id)}
+              />
               <p className="text-xs text-muted-foreground">
-                Se nenhum grupo/usuário for selecionado, o supervisor analisa todos os usuários da organização nos kanbans escolhidos.
+                Se nenhum grupo/usuário for selecionado, o supervisor analisa todos os usuários da organização nos kanbans escolhidos. Representantes filtram apenas negociações vinculadas a eles.
               </p>
             </TabsContent>
 

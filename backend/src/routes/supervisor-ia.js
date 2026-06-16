@@ -6,6 +6,29 @@ import { logError } from '../logger.js';
 const router = express.Router();
 router.use(authenticate);
 
+function isMissingSchemaError(error) {
+  return ['42P01', '42703'].includes(error?.code);
+}
+
+router.use(async (req, res, next) => {
+  try {
+    const { rows } = await query(
+      `SELECT u.id, u.name, u.email, om.organization_id, om.role
+       FROM users u
+       JOIN organization_members om ON om.user_id = u.id
+       WHERE u.id = $1
+       LIMIT 1`,
+      [req.userId]
+    );
+    if (!rows[0]) return res.status(403).json({ error: 'Usuário sem organização' });
+    req.user = rows[0];
+    next();
+  } catch (e) {
+    logError('supervisor_ia.user_context', e);
+    res.status(500).json({ error: 'Erro ao carregar organização do usuário' });
+  }
+});
+
 // Garante schema (idempotente — útil em deploys parciais)
 async function ensureSchema() {
   await query(`
@@ -18,6 +41,7 @@ async function ensureSchema() {
       licitacao_board_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
       group_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
       user_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
+      representative_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
       rule_require_company BOOLEAN DEFAULT true,
       rule_require_value BOOLEAN DEFAULT true,
       rule_require_owner BOOLEAN DEFAULT true,
@@ -30,6 +54,7 @@ async function ensureSchema() {
       UNIQUE(organization_id, user_id)
     )
   `);
+  await query(`ALTER TABLE supervisor_ia_configs ADD COLUMN IF NOT EXISTS representative_ids JSONB NOT NULL DEFAULT '[]'::jsonb`);
   await query(`CREATE INDEX IF NOT EXISTS idx_supervisor_ia_configs_org ON supervisor_ia_configs(organization_id)`);
 }
 
@@ -42,6 +67,11 @@ function safeArray(v) {
   return [];
 }
 
+function localDate(offsetDays = 0) {
+  const d = new Date(Date.now() + offsetDays * 86400000);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 async function loadConfig(orgId, userId) {
   await ensureSchema();
   const { rows } = await query(
@@ -51,7 +81,7 @@ async function loadConfig(orgId, userId) {
   if (!rows[0]) {
     return {
       funnel_ids: [], homologation_board_ids: [], licitacao_board_ids: [],
-      group_ids: [], user_ids: [],
+      group_ids: [], user_ids: [], representative_ids: [],
       rule_require_company: true, rule_require_value: true, rule_require_owner: true,
       rule_require_contact: true, rule_require_followup: true, rule_require_history: true,
       stale_hours: 72,
@@ -65,6 +95,7 @@ async function loadConfig(orgId, userId) {
     licitacao_board_ids: safeArray(r.licitacao_board_ids),
     group_ids: safeArray(r.group_ids),
     user_ids: safeArray(r.user_ids),
+    representative_ids: safeArray(r.representative_ids),
   };
 }
 
@@ -72,7 +103,7 @@ async function loadConfig(orgId, userId) {
 router.get('/scope-options', async (req, res) => {
   try {
     const orgId = req.user.organization_id;
-    const [funnels, groups, users, homBoards, licBoards] = await Promise.all([
+    const [funnels, groups, users, representatives, homBoards, licBoards] = await Promise.all([
       query(`SELECT id, name, color FROM crm_funnels WHERE organization_id = $1 AND is_active = true ORDER BY name`, [orgId]).catch((e) => { logError('supervisor_ia.scope.funnels', e); return { rows: [] }; }),
       query(`SELECT id, name FROM crm_user_groups WHERE organization_id = $1 ORDER BY name`, [orgId]).catch((e) => { logError('supervisor_ia.scope.groups', e); return { rows: [] }; }),
       query(`
@@ -82,14 +113,16 @@ router.get('/scope-options', async (req, res) => {
         WHERE om.organization_id = $1
         ORDER BY u.name
       `, [orgId]).catch((e) => { logError('supervisor_ia.scope.users', e); return { rows: [] }; }),
-      query(`SELECT id, name FROM homologation_boards WHERE organization_id = $1 AND is_active = true ORDER BY name`, [orgId]).catch(() => ({ rows: [] })),
-      query(`SELECT id, name FROM licitacao_boards WHERE organization_id = $1 AND is_active = true ORDER BY name`, [orgId]).catch(() => ({ rows: [] })),
+      query(`SELECT id, name FROM crm_representatives WHERE organization_id = $1 AND COALESCE(is_active, true) = true ORDER BY name`, [orgId]).catch((e) => { logError('supervisor_ia.scope.representatives', e); return { rows: [] }; }),
+      query(`SELECT id, name FROM homologation_boards WHERE organization_id = $1 AND COALESCE(is_active, true) = true ORDER BY name`, [orgId]).catch((e) => { logError('supervisor_ia.scope.homologation_boards', e); return { rows: [] }; }),
+      query(`SELECT id, name FROM licitacao_boards WHERE organization_id = $1 AND COALESCE(is_active, true) = true ORDER BY name`, [orgId]).catch((e) => { logError('supervisor_ia.scope.licitacao_boards', e); return { rows: [] }; }),
     ]);
 
     res.json({
       funnels: funnels.rows,
       groups: groups.rows,
       users: users.rows,
+      representatives: representatives.rows,
       homologation_boards: homBoards.rows,
       licitacao_boards: licBoards.rows,
     });
@@ -123,6 +156,7 @@ router.put('/config', async (req, res) => {
       JSON.stringify(safeArray(b.licitacao_board_ids)),
       JSON.stringify(safeArray(b.group_ids)),
       JSON.stringify(safeArray(b.user_ids)),
+      JSON.stringify(safeArray(b.representative_ids)),
       b.rule_require_company !== false,
       b.rule_require_value !== false,
       b.rule_require_owner !== false,
@@ -134,15 +168,16 @@ router.put('/config', async (req, res) => {
     await query(`
       INSERT INTO supervisor_ia_configs
         (organization_id, user_id, funnel_ids, homologation_board_ids, licitacao_board_ids,
-         group_ids, user_ids, rule_require_company, rule_require_value, rule_require_owner,
+         group_ids, user_ids, representative_ids, rule_require_company, rule_require_value, rule_require_owner,
          rule_require_contact, rule_require_followup, rule_require_history, stale_hours)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
       ON CONFLICT (organization_id, user_id) DO UPDATE SET
         funnel_ids = EXCLUDED.funnel_ids,
         homologation_board_ids = EXCLUDED.homologation_board_ids,
         licitacao_board_ids = EXCLUDED.licitacao_board_ids,
         group_ids = EXCLUDED.group_ids,
         user_ids = EXCLUDED.user_ids,
+        representative_ids = EXCLUDED.representative_ids,
         rule_require_company = EXCLUDED.rule_require_company,
         rule_require_value = EXCLUDED.rule_require_value,
         rule_require_owner = EXCLUDED.rule_require_owner,
@@ -167,8 +202,8 @@ router.get('/analysis', async (req, res) => {
     const userId = req.user.id;
     const cfg = await loadConfig(orgId, userId);
 
-    const endDate = req.query.end_date || new Date().toISOString().slice(0, 10);
-    const startDate = req.query.start_date || new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+    const endDate = req.query.end_date || localDate(0);
+    const startDate = req.query.start_date || localDate(-7);
 
     // União dos usuários a checar: explícitos + membros dos grupos selecionados
     let scopedUserIds = new Set(cfg.user_ids);
@@ -176,17 +211,29 @@ router.get('/analysis', async (req, res) => {
       const { rows: gm } = await query(
         `SELECT DISTINCT user_id FROM crm_user_group_members WHERE group_id = ANY($1::uuid[])`,
         [cfg.group_ids]
-      );
+      ).catch((e) => {
+        if (!isMissingSchemaError(e)) logError('supervisor_ia.group_members', e);
+        return { rows: [] };
+      });
       gm.forEach(r => scopedUserIds.add(r.user_id));
     }
     const userIdArr = Array.from(scopedUserIds);
     const hasUserFilter = userIdArr.length > 0;
+    const hasRepresentativeFilter = cfg.representative_ids.length > 0;
 
     const hasFunnels = cfg.funnel_ids.length > 0;
     const hasHomBoards = cfg.homologation_board_ids.length > 0;
     const hasLicBoards = cfg.licitacao_board_ids.length > 0;
 
     // ----- Negociações criadas por vendedor (no período, restrito aos funis selecionados) -----
+    const dealFilterSql = [
+      hasUserFilter ? `AND (d.owner_id = ANY($5::uuid[]) OR d.created_by = ANY($5::uuid[]))` : '',
+      hasRepresentativeFilter ? `AND d.representative_id = ANY($${hasUserFilter ? 6 : 5}::uuid[])` : '',
+    ].filter(Boolean).join('\n        ');
+    const dealFilterParams = [orgId, cfg.funnel_ids, startDate, endDate];
+    if (hasUserFilter) dealFilterParams.push(userIdArr);
+    if (hasRepresentativeFilter) dealFilterParams.push(cfg.representative_ids);
+
     const dealsByOwner = hasFunnels ? await query(`
       SELECT
         COALESCE(d.owner_id::text, 'unassigned') AS owner_id,
@@ -199,13 +246,13 @@ router.get('/analysis', async (req, res) => {
         AND d.funnel_id = ANY($2::uuid[])
         AND d.created_at >= $3::date
         AND d.created_at < ($4::date + INTERVAL '1 day')
-        ${hasUserFilter ? 'AND (d.owner_id = ANY($5::uuid[]) OR d.created_by = ANY($5::uuid[]))' : ''}
+        ${dealFilterSql}
       GROUP BY d.owner_id, u.name
       ORDER BY deals_created DESC
-    `, hasUserFilter
-      ? [orgId, cfg.funnel_ids, startDate, endDate, userIdArr]
-      : [orgId, cfg.funnel_ids, startDate, endDate]
-    ).then(r => r.rows) : [];
+    `, dealFilterParams).then(r => r.rows).catch((e) => {
+      logError('supervisor_ia.deals_by_owner', e);
+      return [];
+    }) : [];
 
     // ----- Empresas novas no período -----
     const newCompanies = await query(`
@@ -222,7 +269,8 @@ router.get('/analysis', async (req, res) => {
       GROUP BY c.created_by, u.name
       ORDER BY companies_created DESC
     `, hasUserFilter ? [orgId, startDate, endDate, userIdArr] : [orgId, startDate, endDate])
-      .then(r => r.rows);
+      .then(r => r.rows)
+      .catch((e) => { logError('supervisor_ia.new_companies', e); return []; });
 
     const newCompaniesTotal = newCompanies.reduce((s, r) => s + r.companies_created, 0);
 
@@ -230,6 +278,16 @@ router.get('/analysis', async (req, res) => {
     const staleHours = cfg.stale_hours || 72;
     const funnelDiagnostics = [];
     if (hasFunnels) {
+      const diagnosticParams = [orgId, cfg.funnel_ids];
+      const diagnosticFilters = [];
+      if (hasUserFilter) {
+        diagnosticParams.push(userIdArr);
+        diagnosticFilters.push(`AND d.owner_id = ANY($${diagnosticParams.length}::uuid[])`);
+      }
+      if (hasRepresentativeFilter) {
+        diagnosticParams.push(cfg.representative_ids);
+        diagnosticFilters.push(`AND d.representative_id = ANY($${diagnosticParams.length}::uuid[])`);
+      }
       const { rows } = await query(`
         WITH base AS (
           SELECT
@@ -251,7 +309,7 @@ router.get('/analysis', async (req, res) => {
           WHERE d.organization_id = $1
             AND d.funnel_id = ANY($2::uuid[])
             AND d.status = 'open'
-            ${hasUserFilter ? 'AND d.owner_id = ANY($3::uuid[])' : ''}
+            ${diagnosticFilters.join('\n            ')}
         )
         SELECT *,
           (CASE WHEN ${cfg.rule_require_company ? 'company_id IS NULL' : 'false'} THEN 1 ELSE 0 END) AS miss_company,
@@ -262,7 +320,10 @@ router.get('/analysis', async (req, res) => {
           (CASE WHEN ${cfg.rule_require_history ? 'history_count = 0' : 'false'} THEN 1 ELSE 0 END) AS miss_history,
           (CASE WHEN hours_idle >= ${staleHours} THEN 1 ELSE 0 END) AS is_stale
         FROM base
-      `, hasUserFilter ? [orgId, cfg.funnel_ids, userIdArr] : [orgId, cfg.funnel_ids]);
+      `, diagnosticParams).catch((e) => {
+        logError('supervisor_ia.funnel_diagnostics', e);
+        return { rows: [] };
+      });
 
       // agrupar por funil
       const byFunnel = new Map();
