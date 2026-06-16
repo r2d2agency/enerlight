@@ -791,7 +791,7 @@ async function getAgentAIConfig(agent, organizationId) {
 
   return {
     provider: org.ai_provider || agent.ai_provider,
-    model: agent.ai_model || org.ai_model || (org.ai_provider === 'openai' ? 'gpt-4o-mini' : 'gemini-1.5-flash'),
+    model: agent.ai_model || org.ai_model || (org.ai_provider === 'openai' ? 'gpt-4o-mini' : 'gemini-2.5-flash'),
     apiKey: org.ai_api_key,
   };
 }
@@ -1646,8 +1646,8 @@ router.get('/config/models', authenticate, async (req, res) => {
       { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', description: 'Econômico' }
     ],
     gemini: [
-      { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', description: 'Mais capaz, contexto longo' },
-      { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', description: 'Rápido e eficiente' },
+      { id: 'gemini-2.5-pro', name: 'Gemini 1.5 Pro', description: 'Mais capaz, contexto longo' },
+      { id: 'gemini-2.5-flash', name: 'Gemini 1.5 Flash', description: 'Rápido e eficiente' },
       { id: 'gemini-1.0-pro', name: 'Gemini 1.0 Pro', description: 'Versão estável' }
     ]
   });
