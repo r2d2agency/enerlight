@@ -61,6 +61,7 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
       { key: 'can_view_reports', label: 'Relatórios', description: 'Relatórios do CRM' },
       { key: 'can_view_goals', label: 'Metas', description: 'Módulo de metas e relatórios de vendas' },
       { key: 'can_view_revenue_intel', label: 'Revenue Intel', description: 'Inteligência de receita' },
+      { key: 'can_view_supervisor_ia', label: 'Supervisor IA', description: 'Painel de supervisão IA' },
       { key: 'can_view_ghost', label: 'Modo Fantasma', description: 'Auditoria e análise' },
       { key: 'can_view_crm_settings', label: 'Config. CRM', description: 'Configurações do CRM' },
       { key: 'can_view_online_quotes', label: 'Orçamentos Online', description: 'Módulo de orçamentos online' },
