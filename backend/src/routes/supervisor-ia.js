@@ -63,6 +63,46 @@ async function ensureSchema() {
   ]) {
     await query(`ALTER TABLE supervisor_ia_configs ADD COLUMN IF NOT EXISTS ${col} JSONB NOT NULL DEFAULT '[]'::jsonb`);
   }
+  await query(`ALTER TABLE supervisor_ia_configs ADD COLUMN IF NOT EXISTS ai_agent_id UUID`);
+  await query(`ALTER TABLE supervisor_ia_configs ADD COLUMN IF NOT EXISTS auto_analysis_enabled BOOLEAN DEFAULT false`);
+  await query(`ALTER TABLE supervisor_ia_configs ADD COLUMN IF NOT EXISTS auto_analysis_interval_hours INTEGER DEFAULT 4`);
+  await query(`ALTER TABLE supervisor_ia_configs ADD COLUMN IF NOT EXISTS alert_whatsapp_numbers JSONB NOT NULL DEFAULT '[]'::jsonb`);
+  await query(`ALTER TABLE supervisor_ia_configs ADD COLUMN IF NOT EXISTS alert_whatsapp_connection_id UUID`);
+  await query(`ALTER TABLE supervisor_ia_configs ADD COLUMN IF NOT EXISTS last_auto_analysis_at TIMESTAMP WITH TIME ZONE`);
+  await query(`ALTER TABLE supervisor_ia_configs ADD COLUMN IF NOT EXISTS analysis_period_days INTEGER DEFAULT 7`);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS supervisor_ia_insights (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL,
+      user_id UUID NOT NULL,
+      trigger TEXT NOT NULL DEFAULT 'manual',
+      period_start DATE,
+      period_end DATE,
+      insight JSONB NOT NULL,
+      raw_snapshot_summary JSONB,
+      tokens_used INTEGER DEFAULT 0,
+      model TEXT,
+      alerted_at TIMESTAMP WITH TIME ZONE,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    )
+  `);
+  await query(`CREATE INDEX IF NOT EXISTS idx_supervisor_ia_insights_org_user ON supervisor_ia_insights(organization_id, user_id, created_at DESC)`);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS supervisor_ia_chat_messages (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL,
+      user_id UUID NOT NULL,
+      role TEXT NOT NULL,
+      content TEXT NOT NULL,
+      tokens_used INTEGER DEFAULT 0,
+      model TEXT,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    )
+  `);
+  await query(`CREATE INDEX IF NOT EXISTS idx_supervisor_ia_chat_org_user ON supervisor_ia_chat_messages(organization_id, user_id, created_at)`);
+
   await query(`CREATE INDEX IF NOT EXISTS idx_supervisor_ia_configs_org ON supervisor_ia_configs(organization_id)`);
 }
 
