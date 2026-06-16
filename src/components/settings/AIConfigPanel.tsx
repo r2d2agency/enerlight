@@ -22,9 +22,9 @@ const AI_MODELS = {
     { id: 'gpt-4-turbo', name: 'GPT-4 Turbo', description: 'Alta capacidade' },
   ],
   gemini: [
-    { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash (Recomendado)', description: 'Modelo estável, rápido e poderoso' },
-    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', description: 'Mais recente e equilibrado' },
-    { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', description: 'Alta capacidade e contexto longo' },
+    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash (Recomendado)', description: 'Rápido, estável e equilibrado' },
+    { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite', description: 'Mais econômico e rápido' },
+    { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', description: 'Alta capacidade e contexto longo' },
   ],
 };
 
