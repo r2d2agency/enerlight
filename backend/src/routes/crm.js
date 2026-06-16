@@ -5278,6 +5278,36 @@ async function saveIndicatorAreas(repId, areas) {
   }
 }
 
+// ============== N:N Representative <-> Users (multi-vendor) ==============
+async function ensureRepLinksSchema() {
+  try {
+    await query(`CREATE TABLE IF NOT EXISTS crm_representative_users (
+      representative_id UUID NOT NULL REFERENCES crm_representatives(id) ON DELETE CASCADE,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      PRIMARY KEY (representative_id, user_id)
+    )`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_crm_rep_users_user ON crm_representative_users(user_id)`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_crm_rep_users_rep ON crm_representative_users(representative_id)`);
+  } catch(_) {}
+}
+
+async function saveRepLinks(repId, userIds, primaryUserId) {
+  try { await ensureRepLinksSchema(); } catch(_) {}
+  const ids = Array.isArray(userIds) ? [...new Set(userIds.filter(Boolean))] : [];
+  if (primaryUserId && !ids.includes(primaryUserId)) ids.unshift(primaryUserId);
+  await query(`DELETE FROM crm_representative_users WHERE representative_id = $1`, [repId]);
+  for (const uid of ids) {
+    try {
+      await query(
+        `INSERT INTO crm_representative_users (representative_id, user_id) VALUES ($1, $2)
+         ON CONFLICT DO NOTHING`,
+        [repId, uid]
+      );
+    } catch(_) {}
+  }
+}
+
 // Create representative
 router.post('/representatives', async (req, res) => {
   try {
