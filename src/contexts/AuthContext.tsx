@@ -45,6 +45,7 @@ export interface UserPermissions {
   can_view_tasks: boolean;
   can_view_reports: boolean;
   can_view_revenue_intel: boolean;
+  can_view_supervisor_ia: boolean;
   can_view_ghost: boolean;
   can_view_crm_settings: boolean;
   can_view_projects: boolean;
