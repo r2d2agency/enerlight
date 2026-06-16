@@ -103,7 +103,22 @@ export default function CRMNegociacoes() {
   const { data: teamMembers } = useCRMMyTeam();
   const { data: groups = [] } = useCRMGroups();
   const { data: groupMembers = [] } = useCRMGroupMembers(groupFilter !== "all" ? groupFilter : null);
-  const { updateDeal, bulkDeleteDeals, bulkMoveDeals } = useCRMDealMutations();
+  const { updateDeal, bulkDeleteDeals, bulkMoveDeals, bulkReassignRep, bulkAddNote, bulkAddTask } = useCRMDealMutations();
+
+  // Representative filter from URL (?representative_id=...)
+  const representativeIdFilter = searchParams.get("representative_id");
+  const { data: repsHub = [] } = useRepresentativesHub();
+  const currentRep = useMemo(
+    () => repsHub.find(r => r.id === representativeIdFilter) || null,
+    [repsHub, representativeIdFilter]
+  );
+
+  // Bulk dialogs
+  const [bulkNoteOpen, setBulkNoteOpen] = useState(false);
+  const [bulkNoteText, setBulkNoteText] = useState("");
+  const [bulkTaskOpen, setBulkTaskOpen] = useState(false);
+  const [bulkTaskTitle, setBulkTaskTitle] = useState("");
+  const [bulkTaskDate, setBulkTaskDate] = useState("");
 
   const filteredTeamMembers = useMemo(() => {
     if (groupFilter === "all" || !groupMembers.length) return teamMembers || [];
