@@ -286,7 +286,7 @@ function ConfigDialog({ open, onOpenChange, config, options }: ConfigDialogProps
   };
 
   const set = <K extends keyof SupervisorIAConfig>(key: K, val: SupervisorIAConfig[K]) => {
-    setLocal({ ...(local ?? config!), [key]: val });
+    setLocal({ ...draft, [key]: val });
   };
 
   const toggleId = (key: 'funnel_ids' | 'homologation_board_ids' | 'licitacao_board_ids' | 'group_ids' | 'user_ids' | 'representative_ids', id: string) => {
