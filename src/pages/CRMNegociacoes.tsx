@@ -317,7 +317,7 @@ export default function CRMNegociacoes() {
       acc[stageId] = filtered;
       return acc;
     }, {} as Record<string, CRMDeal[]>);
-  }, [dealsByStage, ownerFilter, groupFilter, sortOrder, user?.id, startDate, endDate, dateFilterType, statusFilter, searchQuery]);
+  }, [dealsByStage, ownerFilter, groupFilter, sortOrder, user?.id, startDate, endDate, dateFilterType, statusFilter, searchQuery, representativeIdFilter]);
 
   const totalVisibleDeals = useMemo(() => {
     return Object.values(filteredDealsByStage).flat().length;
