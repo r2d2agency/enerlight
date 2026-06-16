@@ -4,6 +4,7 @@ import { authenticate } from '../middleware/auth.js';
 import { logError, logInfo } from '../logger.js';
 import { resolveAIConfig, runBrainAnalysis, runBrainChat, formatWhatsappAlert } from '../lib/supervisor-ia-brain.js';
 import { sendMessage as sendWhatsapp } from '../lib/whatsapp-provider.js';
+import { runOrganizer, applyAction, rejectAction, ensureOrganizerSchema } from '../lib/supervisor-ia-organizer.js';
 
 const router = express.Router();
 router.use(authenticate);
@@ -142,6 +143,15 @@ async function loadConfig(orgId, userId) {
       alert_whatsapp_connection_id: null,
       analysis_period_days: 7,
       last_auto_analysis_at: null,
+      organizer_enabled: false,
+      organizer_stale_to_next_enabled: true,
+      organizer_stale_to_next_hours: 72,
+      organizer_dead_to_lost_enabled: true,
+      organizer_dead_to_lost_hours: 720,
+      organizer_round_robin_enabled: true,
+      organizer_notify_missing_enabled: true,
+      organizer_auto_value_threshold: 50000,
+      organizer_last_run_at: null,
     };
   }
   const r = rows[0];
@@ -287,7 +297,8 @@ router.put('/config', async (req, res) => {
         updated_at = NOW()
     `, params);
 
-    // Novos campos: cérebro IA, proatividade e alertas WhatsApp
+    // Novos campos: cérebro IA, proatividade, alertas WhatsApp e organizador
+    await ensureOrganizerSchema();
     await query(`
       UPDATE supervisor_ia_configs SET
         ai_agent_id = $3,
@@ -296,6 +307,14 @@ router.put('/config', async (req, res) => {
         alert_whatsapp_numbers = $6,
         alert_whatsapp_connection_id = $7,
         analysis_period_days = $8,
+        organizer_enabled = $9,
+        organizer_stale_to_next_enabled = $10,
+        organizer_stale_to_next_hours = $11,
+        organizer_dead_to_lost_enabled = $12,
+        organizer_dead_to_lost_hours = $13,
+        organizer_round_robin_enabled = $14,
+        organizer_notify_missing_enabled = $15,
+        organizer_auto_value_threshold = $16,
         updated_at = NOW()
       WHERE organization_id = $1 AND user_id = $2
     `, [
@@ -306,6 +325,14 @@ router.put('/config', async (req, res) => {
       JSON.stringify(safeArray(b.alert_whatsapp_numbers)),
       b.alert_whatsapp_connection_id || null,
       Number.isFinite(Number(b.analysis_period_days)) ? Number(b.analysis_period_days) : 7,
+      b.organizer_enabled === true,
+      b.organizer_stale_to_next_enabled !== false,
+      Number.isFinite(Number(b.organizer_stale_to_next_hours)) ? Number(b.organizer_stale_to_next_hours) : 72,
+      b.organizer_dead_to_lost_enabled !== false,
+      Number.isFinite(Number(b.organizer_dead_to_lost_hours)) ? Number(b.organizer_dead_to_lost_hours) : 720,
+      b.organizer_round_robin_enabled !== false,
+      b.organizer_notify_missing_enabled !== false,
+      Number.isFinite(Number(b.organizer_auto_value_threshold)) ? Number(b.organizer_auto_value_threshold) : 50000,
     ]);
 
     const cfg = await loadConfig(orgId, userId);
@@ -809,6 +836,66 @@ router.post('/chat', async (req, res) => {
     res.json({ id: ins.rows[0].id, created_at: ins.rows[0].created_at, role: 'assistant', content });
   } catch (e) {
     logError('supervisor_ia.chat_post', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// =====================================================================
+// ORGANIZADOR AUTOMÁTICO
+// =====================================================================
+
+router.post('/organize/run', async (req, res) => {
+  try {
+    const orgId = req.user.organization_id;
+    const userId = req.user.id;
+    const cfg = await loadConfig(orgId, userId);
+    // força enabled em execução manual
+    const result = await runOrganizer({ orgId, userId, cfg: { ...cfg, organizer_enabled: true } });
+    res.json(result);
+  } catch (e) {
+    logError('supervisor_ia.organize_run', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.get('/organize/actions', async (req, res) => {
+  try {
+    await ensureOrganizerSchema();
+    const orgId = req.user.organization_id;
+    const userId = req.user.id;
+    const status = req.query.status || 'suggested';
+    const limit = Math.min(Number(req.query.limit) || 200, 500);
+    const params = [orgId, userId];
+    let where = `organization_id = $1 AND user_id = $2`;
+    if (status !== 'all') { params.push(status); where += ` AND status = $${params.length}`; }
+    params.push(limit);
+    const { rows } = await query(
+      `SELECT * FROM supervisor_ia_actions WHERE ${where} ORDER BY created_at DESC LIMIT $${params.length}`,
+      params
+    );
+    res.json(rows);
+  } catch (e) {
+    logError('supervisor_ia.organize_actions_list', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/organize/actions/:id/apply', async (req, res) => {
+  try {
+    await applyAction(req.params.id, req.user.organization_id, req.user.id);
+    res.json({ ok: true });
+  } catch (e) {
+    logError('supervisor_ia.organize_apply', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/organize/actions/:id/reject', async (req, res) => {
+  try {
+    await rejectAction(req.params.id, req.user.organization_id, req.user.id);
+    res.json({ ok: true });
+  } catch (e) {
+    logError('supervisor_ia.organize_reject', e);
     res.status(500).json({ error: e.message });
   }
 });
