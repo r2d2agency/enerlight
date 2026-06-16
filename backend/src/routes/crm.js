@@ -5148,7 +5148,21 @@ router.get('/representatives/:id', async (req, res) => {
       areas = a.rows.map(r => ({ ...r, lat: r.lat ? Number(r.lat) : null, lng: r.lng ? Number(r.lng) : null }));
     } catch (_) {}
 
-    res.json({ ...result.rows[0], areas });
+    let linked_user_ids = [];
+    let linked_user_names = [];
+    try {
+      await ensureRepLinksSchema();
+      const lr = await query(
+        `SELECT ru.user_id, u.name FROM crm_representative_users ru
+         JOIN users u ON u.id = ru.user_id
+         WHERE ru.representative_id = $1 ORDER BY u.name`,
+        [req.params.id]
+      );
+      linked_user_ids = lr.rows.map(x => x.user_id);
+      linked_user_names = lr.rows.map(x => x.name);
+    } catch (_) {}
+
+    res.json({ ...result.rows[0], areas, linked_user_ids, linked_user_names });
   } catch (error) {
     console.error('Error fetching representative:', error);
     res.status(500).json({ error: error.message });
