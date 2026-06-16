@@ -282,6 +282,8 @@ function ConfigDialog({ open, onOpenChange, config, options }: ConfigDialogProps
     funnel_ids: [], homologation_board_ids: [], licitacao_board_ids: [], group_ids: [], user_ids: [], representative_ids: [],
     rule_require_company: true, rule_require_value: true, rule_require_owner: true,
     rule_require_contact: true, rule_require_followup: true, rule_require_history: true,
+    rule_company_stage_ids: [], rule_value_stage_ids: [], rule_owner_stage_ids: [],
+    rule_contact_stage_ids: [], rule_followup_stage_ids: [], rule_history_stage_ids: [],
     stale_hours: 72,
   };
 
@@ -289,7 +291,7 @@ function ConfigDialog({ open, onOpenChange, config, options }: ConfigDialogProps
     setLocal({ ...draft, [key]: val });
   };
 
-  const toggleId = (key: 'funnel_ids' | 'homologation_board_ids' | 'licitacao_board_ids' | 'group_ids' | 'user_ids' | 'representative_ids', id: string) => {
+  const toggleId = (key: 'funnel_ids' | 'homologation_board_ids' | 'licitacao_board_ids' | 'group_ids' | 'user_ids' | 'representative_ids' | 'rule_company_stage_ids' | 'rule_value_stage_ids' | 'rule_owner_stage_ids' | 'rule_contact_stage_ids' | 'rule_followup_stage_ids' | 'rule_history_stage_ids', id: string) => {
     const cur = new Set(draft[key]);
     if (cur.has(id)) cur.delete(id); else cur.add(id);
     set(key, Array.from(cur) as any);
