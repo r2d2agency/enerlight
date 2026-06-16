@@ -318,29 +318,6 @@ router.get('/analysis', async (req, res) => {
         diagnosticParams.push(cfg.representative_ids);
         diagnosticFilters.push(`AND d.representative_id = ANY($${diagnosticParams.length}::uuid[])`);
       }
-      const { rows } = await query(`
-        WITH base AS (
-          SELECT
-            d.id, d.title, d.value, d.owner_id, d.company_id, d.funnel_id, d.stage_id,
-            d.last_activity_at, d.created_at, d.status,
-            f.name AS funnel_name, f.color AS funnel_color,
-            s.name AS stage_name,
-            u.name AS owner_name,
-            c.name AS company_name,
-            (SELECT COUNT(*)::int FROM crm_deal_contacts dc WHERE dc.deal_id = d.id) AS contact_count,
-            (SELECT COUNT(*)::int FROM crm_tasks t WHERE t.deal_id = d.id AND t.status = 'pending' AND t.due_date IS NOT NULL) AS open_tasks,
-            (SELECT COUNT(*)::int FROM crm_deal_history h WHERE h.deal_id = d.id) AS history_count,
-            EXTRACT(EPOCH FROM (NOW() - COALESCE(d.last_activity_at, d.created_at))) / 3600.0 AS hours_idle
-          FROM crm_deals d
-          JOIN crm_funnels f ON f.id = d.funnel_id
-          LEFT JOIN crm_stages s ON s.id = d.stage_id
-          LEFT JOIN users u ON u.id = d.owner_id
-          LEFT JOIN crm_companies c ON c.id = d.company_id
-          WHERE d.organization_id = $1
-            AND d.funnel_id = ANY($2::uuid[])
-            AND d.status = 'open'
-            ${diagnosticFilters.join('\n            ')}
-        )
       const stageGuard = (stageArr) => {
         if (!stageArr || stageArr.length === 0) return 'true';
         diagnosticParams.push(stageArr);
