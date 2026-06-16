@@ -199,6 +199,49 @@ export default function CRMNegociacoes() {
       console.error("Bulk move error:", error);
     }
   }, [selectedDealIds, bulkMoveDeals, exitSelectionMode]);
+
+  // Bulk reassign representative
+  const handleBulkReassignRep = useCallback(async (repId: string | null) => {
+    try {
+      await bulkReassignRep.mutateAsync({ dealIds: Array.from(selectedDealIds), representativeId: repId });
+      exitSelectionMode();
+    } catch (error) {
+      console.error("Bulk reassign error:", error);
+    }
+  }, [selectedDealIds, bulkReassignRep, exitSelectionMode]);
+
+  // Bulk note submit
+  const handleBulkNoteSubmit = useCallback(async () => {
+    if (!bulkNoteText.trim()) return;
+    try {
+      await bulkAddNote.mutateAsync({ dealIds: Array.from(selectedDealIds), content: bulkNoteText.trim() });
+      setBulkNoteText("");
+      setBulkNoteOpen(false);
+      exitSelectionMode();
+    } catch (error) {
+      console.error("Bulk note error:", error);
+    }
+  }, [bulkNoteText, selectedDealIds, bulkAddNote, exitSelectionMode]);
+
+  // Bulk task submit
+  const handleBulkTaskSubmit = useCallback(async () => {
+    if (!bulkTaskTitle.trim()) return;
+    try {
+      await bulkAddTask.mutateAsync({
+        dealIds: Array.from(selectedDealIds),
+        title: bulkTaskTitle.trim(),
+        due_date: bulkTaskDate || undefined,
+      });
+      setBulkTaskTitle("");
+      setBulkTaskDate("");
+      setBulkTaskOpen(false);
+      exitSelectionMode();
+    } catch (error) {
+      console.error("Bulk task error:", error);
+    }
+  }, [bulkTaskTitle, bulkTaskDate, selectedDealIds, bulkAddTask, exitSelectionMode]);
+
+
   
   // Handle status change with celebration
   const handleStatusChange = useCallback((dealId: string, status: 'won' | 'lost' | 'paused' | 'open', dealTitle?: string) => {
