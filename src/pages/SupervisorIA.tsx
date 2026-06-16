@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Layout } from "@/components/layout/Layout";
+import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +20,9 @@ import {
   useSupervisorIAAnalysis,
   type SupervisorIAConfig,
 } from "@/hooks/use-supervisor-ia";
-import { formatCurrency } from "@/lib/utils";
+
+const formatCurrency = (v: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 0 }).format(v || 0);
 
 function todayBR(offsetDays = 0) {
   const d = new Date(Date.now() + offsetDays * 86400000);
