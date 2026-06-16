@@ -485,6 +485,8 @@ function SidebarContentComponent({ isExpanded, isSuperadmin, onNavigate }: Sideb
       <nav className="flex-1 space-y-1 px-2 py-4 overflow-y-auto scrollbar-none hover:scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
         {/* Dashboard - always visible */}
         {renderNavItem({ name: "Dashboard", href: "/dashboard", icon: LayoutDashboard })}
+        {/* Meu Dia - sempre visível, link direto */}
+        {renderNavItem({ name: "Meu Dia", href: "/meu-dia", icon: Sparkles })}
 
         {/* Direct Captador link for captador-only users (mobile quick access) */}
         {modulesEnabled.captador && hasPermission('can_view_captador') && (
