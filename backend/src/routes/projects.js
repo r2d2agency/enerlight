@@ -429,13 +429,33 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Create project (admin/manager/designer only)
+// Create project (admin/manager/designer, OR seller requesting from their own deal)
 router.post('/', async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No org' });
-    if (!(await canEditProject(req.userId, org))) return res.status(403).json({ error: 'Forbidden' });
     const { title, description, deal_id, assigned_to, priority, due_date, template_id, seller_id } = req.body;
+
+    let allowed = await canEditProject(req.userId, org);
+    // Sellers can "Solicitar Projeto" from a deal they own/created/are assigned to
+    if (!allowed && deal_id) {
+      try {
+        const dr = await query(
+          `SELECT owner_id, created_by FROM crm_deals
+           WHERE id = $1 AND organization_id = $2 LIMIT 1`,
+          [deal_id, org.organization_id]
+        );
+        const d = dr.rows[0];
+        if (d && (d.owner_id === req.userId || d.created_by === req.userId)) {
+          allowed = true;
+        }
+      } catch (e) {
+        console.error('[projects] deal ownership check failed:', e.message);
+      }
+    }
+    if (!allowed) {
+      return res.status(403).json({ error: 'Sem permissão para criar projeto. Apenas o dono do negócio ou um gestor pode solicitar projetos.' });
+    }
 
     // Get first stage as default
     let stage_id = null;
