@@ -464,7 +464,7 @@ function RuleRowWithStages({
             <p className="text-[11px] text-muted-foreground mb-1">
               Aplicar somente nas etapas: <span className="font-medium">{selectedStages.length === 0 ? 'todas' : `${selectedStages.length} selecionada(s)`}</span>
             </p>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5 max-h-40 overflow-auto">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5 max-h-40 overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
               {scopedStages.map(s => {
                 const on = selectedStages.includes(s.id);
                 return (
