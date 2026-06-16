@@ -2,12 +2,12 @@
 // Agrega tarefas, reuniões, follow-ups, alertas IA, cards parados e teleatendimento
 // Ordenação por prioridade (score) - "IA prioriza"
 
-const express = require('express');
-const router = express.Router();
-const { query } = require('../db');
-const { authenticate } = require('../middleware/auth');
-const { logError } = require('../lib/logger');
+import express from 'express';
+import { query } from '../db.js';
+import { authenticate } from '../middleware/auth.js';
+import { logError } from '../logger.js';
 
+const router = express.Router();
 router.use(authenticate);
 
 // Score deterministic - simula priorização IA
