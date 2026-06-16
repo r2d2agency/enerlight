@@ -151,6 +151,7 @@ router.put('/config', async (req, res) => {
       JSON.stringify(safeArray(b.licitacao_board_ids)),
       JSON.stringify(safeArray(b.group_ids)),
       JSON.stringify(safeArray(b.user_ids)),
+      JSON.stringify(safeArray(b.representative_ids)),
       b.rule_require_company !== false,
       b.rule_require_value !== false,
       b.rule_require_owner !== false,
@@ -162,15 +163,16 @@ router.put('/config', async (req, res) => {
     await query(`
       INSERT INTO supervisor_ia_configs
         (organization_id, user_id, funnel_ids, homologation_board_ids, licitacao_board_ids,
-         group_ids, user_ids, rule_require_company, rule_require_value, rule_require_owner,
+         group_ids, user_ids, representative_ids, rule_require_company, rule_require_value, rule_require_owner,
          rule_require_contact, rule_require_followup, rule_require_history, stale_hours)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
       ON CONFLICT (organization_id, user_id) DO UPDATE SET
         funnel_ids = EXCLUDED.funnel_ids,
         homologation_board_ids = EXCLUDED.homologation_board_ids,
         licitacao_board_ids = EXCLUDED.licitacao_board_ids,
         group_ids = EXCLUDED.group_ids,
         user_ids = EXCLUDED.user_ids,
+        representative_ids = EXCLUDED.representative_ids,
         rule_require_company = EXCLUDED.rule_require_company,
         rule_require_value = EXCLUDED.rule_require_value,
         rule_require_owner = EXCLUDED.rule_require_owner,
