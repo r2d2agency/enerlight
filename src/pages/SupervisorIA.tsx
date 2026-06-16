@@ -282,6 +282,8 @@ function ConfigDialog({ open, onOpenChange, config, options }: ConfigDialogProps
     funnel_ids: [], homologation_board_ids: [], licitacao_board_ids: [], group_ids: [], user_ids: [], representative_ids: [],
     rule_require_company: true, rule_require_value: true, rule_require_owner: true,
     rule_require_contact: true, rule_require_followup: true, rule_require_history: true,
+    rule_company_stage_ids: [], rule_value_stage_ids: [], rule_owner_stage_ids: [],
+    rule_contact_stage_ids: [], rule_followup_stage_ids: [], rule_history_stage_ids: [],
     stale_hours: 72,
   };
 
@@ -289,7 +291,7 @@ function ConfigDialog({ open, onOpenChange, config, options }: ConfigDialogProps
     setLocal({ ...draft, [key]: val });
   };
 
-  const toggleId = (key: 'funnel_ids' | 'homologation_board_ids' | 'licitacao_board_ids' | 'group_ids' | 'user_ids' | 'representative_ids', id: string) => {
+  const toggleId = (key: 'funnel_ids' | 'homologation_board_ids' | 'licitacao_board_ids' | 'group_ids' | 'user_ids' | 'representative_ids' | 'rule_company_stage_ids' | 'rule_value_stage_ids' | 'rule_owner_stage_ids' | 'rule_contact_stage_ids' | 'rule_followup_stage_ids' | 'rule_history_stage_ids', id: string) => {
     const cur = new Set(draft[key]);
     if (cur.has(id)) cur.delete(id); else cur.add(id);
     set(key, Array.from(cur) as any);
@@ -368,12 +370,15 @@ function ConfigDialog({ open, onOpenChange, config, options }: ConfigDialogProps
             </TabsContent>
 
             <TabsContent value="regras" className="space-y-4">
-              <RuleRow label="Sem empresa vinculada" checked={draft.rule_require_company} onChange={(v) => set('rule_require_company', v)} />
-              <RuleRow label="Sem valor preenchido" checked={draft.rule_require_value} onChange={(v) => set('rule_require_value', v)} />
-              <RuleRow label="Sem responsável" checked={draft.rule_require_owner} onChange={(v) => set('rule_require_owner', v)} />
-              <RuleRow label="Sem contato vinculado" checked={draft.rule_require_contact} onChange={(v) => set('rule_require_contact', v)} />
-              <RuleRow label="Sem follow-up agendado" checked={draft.rule_require_followup} onChange={(v) => set('rule_require_followup', v)} />
-              <RuleRow label="Sem histórico de movimentação" checked={draft.rule_require_history} onChange={(v) => set('rule_require_history', v)} />
+              <p className="text-xs text-muted-foreground">
+                Cada regra pode valer para o kanban inteiro (deixe sem etapa marcada) ou somente para etapas/colunas específicas. Ex.: marque "Negociação" na regra <em>Sem valor</em> para só cobrar valor preenchido nessa etapa.
+              </p>
+              <RuleRowWithStages label="Sem empresa vinculada" checked={draft.rule_require_company} onChange={(v) => set('rule_require_company', v)} stages={options?.stages} funnelIds={draft.funnel_ids} selectedStages={draft.rule_company_stage_ids} onToggleStage={(id) => toggleId('rule_company_stage_ids', id)} />
+              <RuleRowWithStages label="Sem valor preenchido" checked={draft.rule_require_value} onChange={(v) => set('rule_require_value', v)} stages={options?.stages} funnelIds={draft.funnel_ids} selectedStages={draft.rule_value_stage_ids} onToggleStage={(id) => toggleId('rule_value_stage_ids', id)} />
+              <RuleRowWithStages label="Sem responsável" checked={draft.rule_require_owner} onChange={(v) => set('rule_require_owner', v)} stages={options?.stages} funnelIds={draft.funnel_ids} selectedStages={draft.rule_owner_stage_ids} onToggleStage={(id) => toggleId('rule_owner_stage_ids', id)} />
+              <RuleRowWithStages label="Sem contato vinculado" checked={draft.rule_require_contact} onChange={(v) => set('rule_require_contact', v)} stages={options?.stages} funnelIds={draft.funnel_ids} selectedStages={draft.rule_contact_stage_ids} onToggleStage={(id) => toggleId('rule_contact_stage_ids', id)} />
+              <RuleRowWithStages label="Sem follow-up agendado" checked={draft.rule_require_followup} onChange={(v) => set('rule_require_followup', v)} stages={options?.stages} funnelIds={draft.funnel_ids} selectedStages={draft.rule_followup_stage_ids} onToggleStage={(id) => toggleId('rule_followup_stage_ids', id)} />
+              <RuleRowWithStages label="Sem histórico de movimentação" checked={draft.rule_require_history} onChange={(v) => set('rule_require_history', v)} stages={options?.stages} funnelIds={draft.funnel_ids} selectedStages={draft.rule_history_stage_ids} onToggleStage={(id) => toggleId('rule_history_stage_ids', id)} />
               <div className="flex items-center justify-between border rounded-lg p-3">
                 <div>
                   <p className="font-medium text-sm">Horas para considerar "parado"</p>
@@ -429,6 +434,50 @@ function RuleRow({ label, checked, onChange }: { label: string; checked: boolean
     <div className="flex items-center justify-between border rounded-lg p-3">
       <p className="text-sm">{label}</p>
       <Switch checked={checked} onCheckedChange={onChange} />
+    </div>
+  );
+}
+
+function RuleRowWithStages({
+  label, checked, onChange, stages, funnelIds, selectedStages, onToggleStage,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  stages?: { id: string; name: string; funnel_id: string }[];
+  funnelIds: string[];
+  selectedStages: string[];
+  onToggleStage: (id: string) => void;
+}) {
+  const scopedStages = (stages || []).filter(s => funnelIds.includes(s.funnel_id));
+  return (
+    <div className="border rounded-lg p-3 space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium">{label}</p>
+        <Switch checked={checked} onCheckedChange={onChange} />
+      </div>
+      {checked && (
+        scopedStages.length === 0 ? (
+          <p className="text-xs text-muted-foreground">Selecione funis em "Kanbans" para escolher etapas específicas. Sem etapa marcada = aplica em todas.</p>
+        ) : (
+          <div>
+            <p className="text-[11px] text-muted-foreground mb-1">
+              Aplicar somente nas etapas: <span className="font-medium">{selectedStages.length === 0 ? 'todas' : `${selectedStages.length} selecionada(s)`}</span>
+            </p>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5 max-h-40 overflow-auto">
+              {scopedStages.map(s => {
+                const on = selectedStages.includes(s.id);
+                return (
+                  <label key={s.id} className={`flex items-center gap-1.5 border rounded px-2 py-1 cursor-pointer hover:bg-muted/50 ${on ? 'bg-primary/5 border-primary/40' : ''}`}>
+                    <Checkbox checked={on} onCheckedChange={() => onToggleStage(s.id)} />
+                    <span className="text-xs truncate">{s.name}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        )
+      )}
     </div>
   );
 }

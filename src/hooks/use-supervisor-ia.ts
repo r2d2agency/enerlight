@@ -15,11 +15,18 @@ export interface SupervisorIAConfig {
   rule_require_contact: boolean;
   rule_require_followup: boolean;
   rule_require_history: boolean;
+  rule_company_stage_ids: string[];
+  rule_value_stage_ids: string[];
+  rule_owner_stage_ids: string[];
+  rule_contact_stage_ids: string[];
+  rule_followup_stage_ids: string[];
+  rule_history_stage_ids: string[];
   stale_hours: number;
 }
 
 export interface ScopeOptions {
   funnels: { id: string; name: string; color?: string }[];
+  stages: { id: string; name: string; funnel_id: string; position?: number }[];
   groups: { id: string; name: string }[];
   users: { id: string; name: string; email?: string }[];
   representatives: { id: string; name: string }[];

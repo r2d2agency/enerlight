@@ -55,6 +55,12 @@ async function ensureSchema() {
     )
   `);
   await query(`ALTER TABLE supervisor_ia_configs ADD COLUMN IF NOT EXISTS representative_ids JSONB NOT NULL DEFAULT '[]'::jsonb`);
+  for (const col of [
+    'rule_company_stage_ids', 'rule_value_stage_ids', 'rule_owner_stage_ids',
+    'rule_contact_stage_ids', 'rule_followup_stage_ids', 'rule_history_stage_ids',
+  ]) {
+    await query(`ALTER TABLE supervisor_ia_configs ADD COLUMN IF NOT EXISTS ${col} JSONB NOT NULL DEFAULT '[]'::jsonb`);
+  }
   await query(`CREATE INDEX IF NOT EXISTS idx_supervisor_ia_configs_org ON supervisor_ia_configs(organization_id)`);
 }
 
@@ -84,6 +90,8 @@ async function loadConfig(orgId, userId) {
       group_ids: [], user_ids: [], representative_ids: [],
       rule_require_company: true, rule_require_value: true, rule_require_owner: true,
       rule_require_contact: true, rule_require_followup: true, rule_require_history: true,
+      rule_company_stage_ids: [], rule_value_stage_ids: [], rule_owner_stage_ids: [],
+      rule_contact_stage_ids: [], rule_followup_stage_ids: [], rule_history_stage_ids: [],
       stale_hours: 72,
     };
   }
@@ -96,6 +104,12 @@ async function loadConfig(orgId, userId) {
     group_ids: safeArray(r.group_ids),
     user_ids: safeArray(r.user_ids),
     representative_ids: safeArray(r.representative_ids),
+    rule_company_stage_ids: safeArray(r.rule_company_stage_ids),
+    rule_value_stage_ids: safeArray(r.rule_value_stage_ids),
+    rule_owner_stage_ids: safeArray(r.rule_owner_stage_ids),
+    rule_contact_stage_ids: safeArray(r.rule_contact_stage_ids),
+    rule_followup_stage_ids: safeArray(r.rule_followup_stage_ids),
+    rule_history_stage_ids: safeArray(r.rule_history_stage_ids),
   };
 }
 
@@ -103,8 +117,9 @@ async function loadConfig(orgId, userId) {
 router.get('/scope-options', async (req, res) => {
   try {
     const orgId = req.user.organization_id;
-    const [funnels, groups, users, representatives, homBoards, licBoards] = await Promise.all([
+    const [funnels, stages, groups, users, representatives, homBoards, licBoards] = await Promise.all([
       query(`SELECT id, name, color FROM crm_funnels WHERE organization_id = $1 AND is_active = true ORDER BY name`, [orgId]).catch((e) => { logError('supervisor_ia.scope.funnels', e); return { rows: [] }; }),
+      query(`SELECT id, name, funnel_id, position FROM crm_stages WHERE organization_id = $1 ORDER BY funnel_id, position`, [orgId]).catch((e) => { logError('supervisor_ia.scope.stages', e); return { rows: [] }; }),
       query(`SELECT id, name FROM crm_user_groups WHERE organization_id = $1 ORDER BY name`, [orgId]).catch((e) => { logError('supervisor_ia.scope.groups', e); return { rows: [] }; }),
       query(`
         SELECT u.id, u.name, u.email
@@ -120,6 +135,7 @@ router.get('/scope-options', async (req, res) => {
 
     res.json({
       funnels: funnels.rows,
+      stages: stages.rows,
       groups: groups.rows,
       users: users.rows,
       representatives: representatives.rows,
@@ -164,13 +180,21 @@ router.put('/config', async (req, res) => {
       b.rule_require_followup !== false,
       b.rule_require_history !== false,
       Number.isFinite(Number(b.stale_hours)) ? Number(b.stale_hours) : 72,
+      JSON.stringify(safeArray(b.rule_company_stage_ids)),
+      JSON.stringify(safeArray(b.rule_value_stage_ids)),
+      JSON.stringify(safeArray(b.rule_owner_stage_ids)),
+      JSON.stringify(safeArray(b.rule_contact_stage_ids)),
+      JSON.stringify(safeArray(b.rule_followup_stage_ids)),
+      JSON.stringify(safeArray(b.rule_history_stage_ids)),
     ];
     await query(`
       INSERT INTO supervisor_ia_configs
         (organization_id, user_id, funnel_ids, homologation_board_ids, licitacao_board_ids,
          group_ids, user_ids, representative_ids, rule_require_company, rule_require_value, rule_require_owner,
-         rule_require_contact, rule_require_followup, rule_require_history, stale_hours)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+         rule_require_contact, rule_require_followup, rule_require_history, stale_hours,
+         rule_company_stage_ids, rule_value_stage_ids, rule_owner_stage_ids,
+         rule_contact_stage_ids, rule_followup_stage_ids, rule_history_stage_ids)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
       ON CONFLICT (organization_id, user_id) DO UPDATE SET
         funnel_ids = EXCLUDED.funnel_ids,
         homologation_board_ids = EXCLUDED.homologation_board_ids,
@@ -185,6 +209,12 @@ router.put('/config', async (req, res) => {
         rule_require_followup = EXCLUDED.rule_require_followup,
         rule_require_history = EXCLUDED.rule_require_history,
         stale_hours = EXCLUDED.stale_hours,
+        rule_company_stage_ids = EXCLUDED.rule_company_stage_ids,
+        rule_value_stage_ids = EXCLUDED.rule_value_stage_ids,
+        rule_owner_stage_ids = EXCLUDED.rule_owner_stage_ids,
+        rule_contact_stage_ids = EXCLUDED.rule_contact_stage_ids,
+        rule_followup_stage_ids = EXCLUDED.rule_followup_stage_ids,
+        rule_history_stage_ids = EXCLUDED.rule_history_stage_ids,
         updated_at = NOW()
     `, params);
     const cfg = await loadConfig(orgId, userId);
@@ -288,6 +318,18 @@ router.get('/analysis', async (req, res) => {
         diagnosticParams.push(cfg.representative_ids);
         diagnosticFilters.push(`AND d.representative_id = ANY($${diagnosticParams.length}::uuid[])`);
       }
+      const stageGuard = (stageArr) => {
+        if (!stageArr || stageArr.length === 0) return 'true';
+        diagnosticParams.push(stageArr);
+        return `stage_id = ANY($${diagnosticParams.length}::uuid[])`;
+      };
+      const condCompany = cfg.rule_require_company ? `(company_id IS NULL AND ${stageGuard(cfg.rule_company_stage_ids)})` : 'false';
+      const condValue = cfg.rule_require_value ? `((value IS NULL OR value = 0) AND ${stageGuard(cfg.rule_value_stage_ids)})` : 'false';
+      const condOwner = cfg.rule_require_owner ? `(owner_id IS NULL AND ${stageGuard(cfg.rule_owner_stage_ids)})` : 'false';
+      const condContact = cfg.rule_require_contact ? `(contact_count = 0 AND ${stageGuard(cfg.rule_contact_stage_ids)})` : 'false';
+      const condFollowup = cfg.rule_require_followup ? `(open_tasks = 0 AND ${stageGuard(cfg.rule_followup_stage_ids)})` : 'false';
+      const condHistory = cfg.rule_require_history ? `(history_count = 0 AND ${stageGuard(cfg.rule_history_stage_ids)})` : 'false';
+
       const { rows } = await query(`
         WITH base AS (
           SELECT
@@ -312,12 +354,12 @@ router.get('/analysis', async (req, res) => {
             ${diagnosticFilters.join('\n            ')}
         )
         SELECT *,
-          (CASE WHEN ${cfg.rule_require_company ? 'company_id IS NULL' : 'false'} THEN 1 ELSE 0 END) AS miss_company,
-          (CASE WHEN ${cfg.rule_require_value ? '(value IS NULL OR value = 0)' : 'false'} THEN 1 ELSE 0 END) AS miss_value,
-          (CASE WHEN ${cfg.rule_require_owner ? 'owner_id IS NULL' : 'false'} THEN 1 ELSE 0 END) AS miss_owner,
-          (CASE WHEN ${cfg.rule_require_contact ? 'contact_count = 0' : 'false'} THEN 1 ELSE 0 END) AS miss_contact,
-          (CASE WHEN ${cfg.rule_require_followup ? 'open_tasks = 0' : 'false'} THEN 1 ELSE 0 END) AS miss_followup,
-          (CASE WHEN ${cfg.rule_require_history ? 'history_count = 0' : 'false'} THEN 1 ELSE 0 END) AS miss_history,
+          (CASE WHEN ${condCompany} THEN 1 ELSE 0 END) AS miss_company,
+          (CASE WHEN ${condValue} THEN 1 ELSE 0 END) AS miss_value,
+          (CASE WHEN ${condOwner} THEN 1 ELSE 0 END) AS miss_owner,
+          (CASE WHEN ${condContact} THEN 1 ELSE 0 END) AS miss_contact,
+          (CASE WHEN ${condFollowup} THEN 1 ELSE 0 END) AS miss_followup,
+          (CASE WHEN ${condHistory} THEN 1 ELSE 0 END) AS miss_history,
           (CASE WHEN hours_idle >= ${staleHours} THEN 1 ELSE 0 END) AS is_stale
         FROM base
       `, diagnosticParams).catch((e) => {
