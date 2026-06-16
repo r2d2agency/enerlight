@@ -38,6 +38,7 @@ export interface SupervisorIAConfig {
   organizer_notify_missing_enabled: boolean;
   organizer_auto_value_threshold: number;
   organizer_last_run_at: string | null;
+  last_auto_analysis_at: string | null;
 }
 
 export interface OrganizerAction {
@@ -55,6 +56,8 @@ export interface OrganizerAction {
   error: string | null;
   created_at: string;
   applied_at: string | null;
+}
+
 
 export interface ScopeOptions {
   funnels: { id: string; name: string; color?: string }[];
