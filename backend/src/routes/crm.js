@@ -5022,6 +5022,7 @@ router.get('/representatives', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
     try { await ensureIndicatorSourcesSchema(); } catch(_){}
+    try { await ensureRepLinksSchema(); } catch(_){}
 
 
     const { search, type, owner_id, source } = req.query;
@@ -5037,13 +5038,11 @@ router.get('/representatives', async (req, res) => {
       params.push(type);
     }
     if (owner_id && owner_id !== 'all') {
-      if (owner_id === 'mine') {
-        filters += ` AND r.linked_user_id = $${params.length + 1}`;
-        params.push(req.userId);
-      } else {
-        filters += ` AND r.linked_user_id = $${params.length + 1}`;
-        params.push(owner_id);
-      }
+      const targetUserId = owner_id === 'mine' ? req.userId : owner_id;
+      filters += ` AND (r.linked_user_id = $${params.length + 1} OR EXISTS (
+        SELECT 1 FROM crm_representative_users ru WHERE ru.representative_id = r.id AND ru.user_id = $${params.length + 1}
+      ))`;
+      params.push(targetUserId);
     }
     if (source && source !== 'all') {
       filters += ` AND r.source = $${params.length + 1}`;
@@ -5053,6 +5052,13 @@ router.get('/representatives', async (req, res) => {
 
     const result = await query(
       `SELECT r.*, u.name as linked_user_name,
+        COALESCE((
+          SELECT json_agg(ru.user_id) FROM crm_representative_users ru WHERE ru.representative_id = r.id
+        ), '[]'::json) as linked_user_ids,
+        COALESCE((
+          SELECT json_agg(u2.name ORDER BY u2.name) FROM crm_representative_users ru
+          JOIN users u2 ON u2.id = ru.user_id WHERE ru.representative_id = r.id
+        ), '[]'::json) as linked_user_names,
         (SELECT COUNT(*) FROM crm_deals d WHERE d.representative_id = r.id AND d.status = 'open') as open_deals_count,
         (SELECT COALESCE(SUM(d.value), 0) FROM crm_deals d WHERE d.representative_id = r.id AND d.status = 'open') as open_deals_value,
         (SELECT COUNT(*) FROM crm_indicator_areas a WHERE a.representative_id = r.id) as areas_count
