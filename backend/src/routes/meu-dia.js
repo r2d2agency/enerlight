@@ -305,4 +305,4 @@ function emptySummary() {
   return { total: 0, overdue: 0, tasks: 0, followups: 0, meetings: 0, alerts: 0, stale_deals: 0, scheduled: 0, kanban: 0 };
 }
 
-module.exports = router;
+export default router;
