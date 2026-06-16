@@ -207,6 +207,174 @@ function SummaryCard({ icon: Icon, label, value, accent }: { icon: any; label: s
   );
 }
 
+type ProblemCard = SupervisorIAAnalysis['diagnostics'][number]['problem_cards'][number];
+type Diagnostic = SupervisorIAAnalysis['diagnostics'][number];
+type FilterKey = 'all' | 'incomplete' | 'without_followup' | 'without_history' | 'stale';
+
+function cardMatchesFilter(c: ProblemCard, f: FilterKey): boolean {
+  if (f === 'all') return true;
+  if (f === 'incomplete') return c.issues.some(i => ['Sem empresa','Sem valor','Sem responsável','Sem contato','Sem CNPJ','Sem órgão'].includes(i));
+  if (f === 'without_followup') return c.issues.includes('Sem follow-up');
+  if (f === 'without_history') return c.issues.includes('Sem histórico');
+  if (f === 'stale') return c.issues.some(i => i.startsWith('Parado há'));
+  return true;
+}
+
+function KanbanDiagnosticCard({ diagnostic: d }: { diagnostic: Diagnostic }) {
+  const [filter, setFilter] = useState<FilterKey>('all');
+  const [selected, setSelected] = useState<ProblemCard | null>(null);
+
+  const filtered = useMemo(() => d.problem_cards.filter(c => cardMatchesFilter(c, filter)), [d.problem_cards, filter]);
+
+  const chip = (key: FilterKey, count: number, label: string, cls: string) => (
+    <button
+      type="button"
+      onClick={() => setFilter(prev => prev === key ? 'all' : key)}
+      className={`px-2 py-1 rounded-md text-xs font-medium transition ${cls} ${filter === key ? 'ring-2 ring-offset-1 ring-primary' : 'opacity-90 hover:opacity-100'}`}
+    >
+      {count} {label}
+    </button>
+  );
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <ListChecks className="h-4 w-4" style={{ color: d.color || undefined }} />
+            <CardTitle className="text-base">{d.name}</CardTitle>
+            <Badge variant="outline" className="text-[10px]">
+              {d.kind === 'crm_funnel' ? 'CRM' : d.kind === 'homologation_board' ? 'Homologação' : 'Licitação'}
+            </Badge>
+          </div>
+          <div className="flex items-center gap-2 text-xs flex-wrap">
+            <button
+              type="button"
+              onClick={() => setFilter('all')}
+              className={`px-2 py-1 rounded-md text-xs font-medium bg-secondary text-secondary-foreground transition ${filter === 'all' ? 'ring-2 ring-offset-1 ring-primary' : 'opacity-90 hover:opacity-100'}`}
+            >
+              {d.total} cards
+            </button>
+            {chip('incomplete', d.incomplete, 'incompletos', 'bg-amber-100 text-amber-700')}
+            {chip('without_followup', d.without_followup, 'sem follow-up', 'bg-orange-100 text-orange-700')}
+            {chip('without_history', d.without_history, 'sem histórico', 'bg-gray-200 text-gray-700')}
+            {chip('stale', d.stale, 'parados', 'bg-red-100 text-red-700')}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {filtered.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            {d.problem_cards.length === 0 ? 'Sem alertas neste kanban. 👏' : 'Nenhum card neste filtro.'}
+          </p>
+        ) : (
+          <div className="max-h-[420px] overflow-y-auto overflow-x-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent rounded-md border">
+            <Table>
+              <TableHeader className="sticky top-0 bg-background z-10">
+                <TableRow>
+                  <TableHead>Card</TableHead>
+                  <TableHead>Etapa</TableHead>
+                  <TableHead>Responsável</TableHead>
+                  <TableHead>Problemas</TableHead>
+                  <TableHead className="text-right">Parado</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtered.map(c => (
+                  <TableRow
+                    key={c.id}
+                    className="cursor-pointer hover:bg-muted/60"
+                    onClick={() => setSelected(c)}
+                  >
+                    <TableCell className="max-w-[280px]">
+                      <div className="font-medium truncate">{c.title}</div>
+                      <div className="text-xs text-muted-foreground truncate">{c.company_name || '—'}</div>
+                    </TableCell>
+                    <TableCell className="text-xs">{c.stage_name || '—'}</TableCell>
+                    <TableCell className="text-xs">{c.owner_name || <span className="text-red-600">Sem dono</span>}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {c.issues.map(i => (
+                          <Badge key={i} variant="outline" className="text-[10px] gap-1">
+                            <AlertTriangle className="h-2.5 w-2.5" /> {i}
+                          </Badge>
+                        ))}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right text-xs">{c.hours_idle}h</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </CardContent>
+
+      <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
+        <DialogContent className="max-w-lg" aria-describedby="supervisor-card-desc">
+          <DialogHeader>
+            <DialogTitle className="pr-6">{selected?.title || 'Card'}</DialogTitle>
+            <DialogDescription id="supervisor-card-desc">
+              Resumo do card identificado pelo Supervisor IA em <strong>{d.name}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+          {selected && (
+            <div className="space-y-3 text-sm">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-xs text-muted-foreground">Empresa</p>
+                  <p className="font-medium">{selected.company_name || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Etapa</p>
+                  <p className="font-medium">{selected.stage_name || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Responsável</p>
+                  <p className="font-medium">{selected.owner_name || <span className="text-red-600">Sem dono</span>}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Valor</p>
+                  <p className="font-medium">{formatCurrency(selected.value)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Parado há</p>
+                  <p className="font-medium">{selected.hours_idle}h</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Kanban</p>
+                  <p className="font-medium">{d.name}</p>
+                </div>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Problemas detectados</p>
+                <div className="flex flex-wrap gap-1">
+                  {selected.issues.length === 0 ? (
+                    <span className="text-xs text-muted-foreground">Nenhum</span>
+                  ) : selected.issues.map(i => (
+                    <Badge key={i} variant="outline" className="text-[10px] gap-1">
+                      <AlertTriangle className="h-2.5 w-2.5" /> {i}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+              <div className="rounded-md bg-muted/50 p-3 text-xs text-muted-foreground">
+                Este card foi sinalizado porque {selected.issues.length > 0
+                  ? `apresenta: ${selected.issues.join(', ').toLowerCase()}.`
+                  : 'está em alerta no kanban.'} Abra o módulo original para tratá-lo.
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSelected(null)}>Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Card>
+  );
+}
+
+
 // ---------------- CONFIG DIALOG ----------------
 interface ConfigDialogProps {
   open: boolean;
