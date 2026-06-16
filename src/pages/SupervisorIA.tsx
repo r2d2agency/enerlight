@@ -19,6 +19,7 @@ import {
   useSupervisorIAUpdateConfig,
   useSupervisorIAAnalysis,
   type SupervisorIAConfig,
+  type SupervisorIAAnalysis,
 } from "@/hooks/use-supervisor-ia";
 
 const formatCurrency = (v: number) =>
