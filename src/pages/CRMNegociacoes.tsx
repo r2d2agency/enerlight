@@ -277,6 +277,10 @@ export default function CRMNegociacoes() {
       if (groupFilter !== "all") {
         filtered = filtered.filter(d => d.group_id === groupFilter);
       }
+
+      if (representativeIdFilter) {
+        filtered = filtered.filter(d => (d as any).representative_id === representativeIdFilter);
+      }
       
       if (statusFilter !== "all") {
         filtered = filtered.filter(d => d.status === statusFilter);
