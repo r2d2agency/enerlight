@@ -773,20 +773,32 @@ function BrainTab() {
             <CardHeader className="pb-2"><CardTitle className="text-sm">Histórico de análises</CardTitle></CardHeader>
             <CardContent>
               <div className="space-y-1 max-h-60 overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
-                {insights.data.map(i => (
-                  <button
-                    key={i.id}
-                    onClick={() => setOpenId(i.id)}
-                    className={`w-full text-left flex items-center justify-between gap-2 px-2 py-1.5 rounded hover:bg-muted ${(openId ?? latest?.id) === i.id ? 'bg-muted' : ''}`}
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <Badge variant="outline" className="text-[10px]">{i.trigger}</Badge>
-                      <span className="text-xs truncate">{i.insight?.executive_summary?.slice(0, 80) || '—'}</span>
-                    </div>
-                    <span className="text-[10px] text-muted-foreground whitespace-nowrap">{new Date(i.created_at).toLocaleString('pt-BR')}</span>
-                    <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" onClick={(e) => { e.stopPropagation(); del.mutate(i.id); }} />
-                  </button>
-                ))}
+                {insights.data.map(i => {
+                  const summary = i.insight?.executive_summary || '';
+                  const hasDiagnostics = Array.isArray(i.insight?.diagnostics) && i.insight.diagnostics.length > 0;
+                  const isError = /falha|erro|inválid|vazia/i.test(summary) && !hasDiagnostics && (i.insight?.health_score == null);
+                  return (
+                    <button
+                      key={i.id}
+                      onClick={() => setOpenId(i.id)}
+                      className={`w-full text-left flex items-center justify-between gap-2 px-2 py-1.5 rounded hover:bg-muted ${(openId ?? latest?.id) === i.id ? 'bg-muted' : ''}`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Badge variant={isError ? 'destructive' : 'outline'} className="text-[10px]">{isError ? 'erro' : i.trigger}</Badge>
+                        <span className="text-xs truncate">{summary.slice(0, 80) || '—'}</span>
+                      </div>
+                      <span className="text-[10px] text-muted-foreground whitespace-nowrap">{new Date(i.created_at).toLocaleString('pt-BR')}</span>
+                      {isError ? (
+                        <Trash2
+                          className="h-3 w-3 text-muted-foreground hover:text-destructive"
+                          onClick={(e) => { e.stopPropagation(); del.mutate(i.id); }}
+                        />
+                      ) : (
+                        <span className="h-3 w-3" />
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
