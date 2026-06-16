@@ -1,7 +1,9 @@
 import express from 'express';
 import { query } from '../db.js';
 import { authenticate } from '../middleware/auth.js';
-import { logError } from '../logger.js';
+import { logError, logInfo } from '../logger.js';
+import { resolveAIConfig, runBrainAnalysis, runBrainChat, formatWhatsappAlert } from '../lib/supervisor-ia-brain.js';
+import { sendMessage as sendWhatsapp } from '../lib/whatsapp-provider.js';
 
 const router = express.Router();
 router.use(authenticate);
