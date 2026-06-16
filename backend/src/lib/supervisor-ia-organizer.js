@@ -350,7 +350,7 @@ async function ruleNotifyMissing({ orgId, userId, runId, cfg, actions }) {
       AND d.owner_id IS NOT NULL
       AND (d.company_id IS NULL OR d.value IS NULL OR d.value = 0)
       AND u.whatsapp_phone IS NOT NULL
-      AND u.phone <> ''
+      AND u.whatsapp_phone <> ''
     LIMIT 100
   `, [orgId, funnelIds]).catch((e) => { logError('organizer.notify_missing.query', e); return { rows: [] }; });
 
