@@ -518,6 +518,79 @@ function ConfigDialog({ open, onOpenChange, config, options }: ConfigDialogProps
                 />
               </div>
             </TabsContent>
+
+            <TabsContent value="cerebro" className="space-y-4">
+              <div className="border rounded-lg p-3 space-y-3">
+                <div>
+                  <p className="text-sm font-medium">Agente IA usado pelo Supervisor</p>
+                  <p className="text-xs text-muted-foreground">Selecione um agente já configurado. Se nenhum, usa a chave da organização.</p>
+                </div>
+                <select
+                  className="w-full border rounded-md px-2 py-1.5 text-sm bg-background"
+                  value={draft.ai_agent_id ?? ''}
+                  onChange={(e) => set('ai_agent_id', e.target.value || null)}
+                >
+                  <option value="">— Usar chave da organização —</option>
+                  {(options?.ai_agents || []).map((a: any) => (
+                    <option key={a.id} value={a.id}>{a.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="border rounded-lg p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium">Análise proativa automática</p>
+                    <p className="text-xs text-muted-foreground">O cérebro roda sozinho periodicamente e gera diagnósticos.</p>
+                  </div>
+                  <Switch checked={draft.auto_analysis_enabled} onCheckedChange={(v) => set('auto_analysis_enabled', v)} />
+                </div>
+                {draft.auto_analysis_enabled && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs">Intervalo (horas)</Label>
+                      <Input type="number" min={1} max={24}
+                        value={draft.auto_analysis_interval_hours}
+                        onChange={(e) => set('auto_analysis_interval_hours', Number(e.target.value) || 4)} />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Período analisado (dias)</Label>
+                      <Input type="number" min={1} max={90}
+                        value={draft.analysis_period_days}
+                        onChange={(e) => set('analysis_period_days', Number(e.target.value) || 7)} />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="border rounded-lg p-3 space-y-3">
+                <div>
+                  <p className="text-sm font-medium">Alertas por WhatsApp</p>
+                  <p className="text-xs text-muted-foreground">Quando o cérebro detectar problemas críticos ou altos, envia resumo via WhatsApp.</p>
+                </div>
+                <div>
+                  <Label className="text-xs">Conexão WhatsApp</Label>
+                  <select
+                    className="w-full border rounded-md px-2 py-1.5 text-sm bg-background"
+                    value={draft.alert_whatsapp_connection_id ?? ''}
+                    onChange={(e) => set('alert_whatsapp_connection_id', e.target.value || null)}
+                  >
+                    <option value="">— Selecione —</option>
+                    {(options?.connections || []).map((c: any) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <Label className="text-xs">Números de destino (com DDI/DDD, separados por vírgula)</Label>
+                  <Input
+                    placeholder="5511999999999, 5511888888888"
+                    value={(draft.alert_whatsapp_numbers || []).join(', ')}
+                    onChange={(e) => set('alert_whatsapp_numbers', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
+                  />
+                </div>
+              </div>
+            </TabsContent>
           </Tabs>
         </div>
 
