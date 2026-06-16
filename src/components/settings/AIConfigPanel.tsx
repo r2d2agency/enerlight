@@ -136,7 +136,7 @@ export function AIConfigPanel() {
               setConfig(prev => ({
                 ...prev,
                 ai_provider: value,
-                ai_model: value === 'openai' ? 'gpt-4o-mini' : value === 'gemini' ? 'gemini-2.0-flash' : '',
+                ai_model: value === 'openai' ? 'gpt-4o-mini' : value === 'gemini' ? 'gemini-2.5-flash' : '',
               }));
               setTestResult(null);
             }}
