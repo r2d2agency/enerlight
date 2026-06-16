@@ -348,7 +348,7 @@ function KanbanDiagnosticCard({ diagnostic: d }: { diagnostic: Diagnostic }) {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Parado há</p>
-                  <p className="font-medium">{selected.hours_idle}h</p>
+                  <p className="font-medium">{formatIdle(selected.hours_idle)}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Kanban</p>
