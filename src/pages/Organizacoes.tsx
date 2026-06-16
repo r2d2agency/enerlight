@@ -159,6 +159,7 @@ export default function Organizacoes() {
     rh_module: false,
     goals: true,
     representatives: true,
+    supervisor_ia: false,
   });
   const [savingModules, setSavingModules] = useState(false);
 
