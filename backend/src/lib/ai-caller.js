@@ -201,6 +201,13 @@ async function callGemini(config, messages, options) {
     },
   };
 
+  // Gemini 2.5 ativa "thinking" por padrão e consome maxOutputTokens com tokens
+  // de raciocínio invisíveis, frequentemente retornando texto vazio + finishReason MAX_TOKENS.
+  // Desabilita pensamento para garantir saída visível (especialmente em modo JSON).
+  if (/gemini-2\.5/.test(usedModel)) {
+    body.generationConfig.thinkingConfig = { thinkingBudget: 0 };
+  }
+
   if (systemInstruction) {
     body.systemInstruction = { parts: [{ text: systemInstruction }] };
   }
