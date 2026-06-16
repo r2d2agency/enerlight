@@ -424,6 +424,15 @@ function ConfigDialog({ open, onOpenChange, config, options }: ConfigDialogProps
     alert_whatsapp_connection_id: null,
     analysis_period_days: 7,
     last_auto_analysis_at: null,
+    organizer_enabled: false,
+    organizer_stale_to_next_enabled: true,
+    organizer_stale_to_next_hours: 72,
+    organizer_dead_to_lost_enabled: true,
+    organizer_dead_to_lost_hours: 720,
+    organizer_round_robin_enabled: true,
+    organizer_notify_missing_enabled: true,
+    organizer_auto_value_threshold: 50000,
+    organizer_last_run_at: null,
   };
 
   const set = <K extends keyof SupervisorIAConfig>(key: K, val: SupervisorIAConfig[K]) => {
