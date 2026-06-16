@@ -96,19 +96,24 @@ async function resolveRoundRobinPool(orgId, cfg) {
     const { rows } = await query(
       `SELECT om.user_id
        FROM organization_members om
-       JOIN users u ON u.id = om.user_id
        WHERE om.organization_id = $1
-         AND COALESCE(u.is_active, true) = true
+         AND COALESCE(om.is_active, true) = true
          AND om.role IN ('seller', 'manager', 'admin', 'owner')`,
       [orgId]
     ).catch(() => ({ rows: [] }));
     rows.forEach(r => pool.add(r.user_id));
   }
-  // filtra inativos
+  // filtra inativos da organização
   if (pool.size === 0) return [];
   const { rows: actives } = await query(
-    `SELECT id, name FROM users WHERE id = ANY($1::uuid[]) AND COALESCE(is_active, true) = true ORDER BY name`,
-    [Array.from(pool)]
+    `SELECT u.id, u.name
+     FROM users u
+     JOIN organization_members om ON om.user_id = u.id
+     WHERE u.id = ANY($1::uuid[])
+       AND om.organization_id = $2
+       AND COALESCE(om.is_active, true) = true
+     ORDER BY u.name`,
+    [Array.from(pool), orgId]
   ).catch(() => ({ rows: [] }));
   return actives;
 }
