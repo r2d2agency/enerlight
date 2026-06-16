@@ -310,7 +310,7 @@ function KanbanDiagnosticCard({ diagnostic: d }: { diagnostic: Diagnostic }) {
                         ))}
                       </div>
                     </TableCell>
-                    <TableCell className="text-right text-xs">{c.hours_idle}h</TableCell>
+                    <TableCell className="text-right text-xs">{formatIdle(c.hours_idle)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
