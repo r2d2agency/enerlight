@@ -151,69 +151,10 @@ export default function SupervisorIA() {
               {analysis.data.diagnostics.length === 0 ? (
                 <Card><CardContent className="p-6 text-center text-muted-foreground">Nenhum kanban selecionado no escopo.</CardContent></Card>
               ) : analysis.data.diagnostics.map(d => (
-                <Card key={`${d.kind}-${d.id}`}>
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between flex-wrap gap-2">
-                      <div className="flex items-center gap-2">
-                        <ListChecks className="h-4 w-4" style={{ color: d.color || undefined }} />
-                        <CardTitle className="text-base">{d.name}</CardTitle>
-                        <Badge variant="outline" className="text-[10px]">
-                          {d.kind === 'crm_funnel' ? 'CRM' : d.kind === 'homologation_board' ? 'Homologação' : 'Licitação'}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-2 text-xs">
-                        <Badge variant="secondary">{d.total} cards</Badge>
-                        <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100">{d.incomplete} incompletos</Badge>
-                        <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100">{d.without_followup} sem follow-up</Badge>
-                        <Badge className="bg-gray-200 text-gray-700 hover:bg-gray-200">{d.without_history} sem histórico</Badge>
-                        <Badge className="bg-red-100 text-red-700 hover:bg-red-100">{d.stale} parados</Badge>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    {d.problem_cards.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">Sem alertas neste kanban. 👏</p>
-                    ) : (
-                      <ScrollArea className="max-h-[420px]">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Card</TableHead>
-                              <TableHead>Etapa</TableHead>
-                              <TableHead>Responsável</TableHead>
-                              <TableHead>Problemas</TableHead>
-                              <TableHead className="text-right">Parado</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {d.problem_cards.map(c => (
-                              <TableRow key={c.id}>
-                                <TableCell className="max-w-[280px]">
-                                  <div className="font-medium truncate">{c.title}</div>
-                                  <div className="text-xs text-muted-foreground truncate">{c.company_name || '—'}</div>
-                                </TableCell>
-                                <TableCell className="text-xs">{c.stage_name || '—'}</TableCell>
-                                <TableCell className="text-xs">{c.owner_name || <span className="text-red-600">Sem dono</span>}</TableCell>
-                                <TableCell>
-                                  <div className="flex flex-wrap gap-1">
-                                    {c.issues.map(i => (
-                                      <Badge key={i} variant="outline" className="text-[10px] gap-1">
-                                        <AlertTriangle className="h-2.5 w-2.5" /> {i}
-                                      </Badge>
-                                    ))}
-                                  </div>
-                                </TableCell>
-                                <TableCell className="text-right text-xs">{c.hours_idle}h</TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </ScrollArea>
-                    )}
-                  </CardContent>
-                </Card>
+                <KanbanDiagnosticCard key={`${d.kind}-${d.id}`} diagnostic={d} />
               ))}
             </TabsContent>
+
 
             <TabsContent value="empresas">
               <Card>
