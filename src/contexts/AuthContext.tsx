@@ -134,6 +134,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     online_quotes: true,
     goals: true,
     representatives: true,
+    supervisor_ia: false,
   };
 
   const refreshUser = async () => {
