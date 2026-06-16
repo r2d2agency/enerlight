@@ -98,7 +98,7 @@ async function loadConfig(orgId, userId) {
 router.get('/scope-options', async (req, res) => {
   try {
     const orgId = req.user.organization_id;
-    const [funnels, groups, users, homBoards, licBoards] = await Promise.all([
+    const [funnels, groups, users, representatives, homBoards, licBoards] = await Promise.all([
       query(`SELECT id, name, color FROM crm_funnels WHERE organization_id = $1 AND is_active = true ORDER BY name`, [orgId]).catch((e) => { logError('supervisor_ia.scope.funnels', e); return { rows: [] }; }),
       query(`SELECT id, name FROM crm_user_groups WHERE organization_id = $1 ORDER BY name`, [orgId]).catch((e) => { logError('supervisor_ia.scope.groups', e); return { rows: [] }; }),
       query(`
@@ -108,14 +108,16 @@ router.get('/scope-options', async (req, res) => {
         WHERE om.organization_id = $1
         ORDER BY u.name
       `, [orgId]).catch((e) => { logError('supervisor_ia.scope.users', e); return { rows: [] }; }),
-      query(`SELECT id, name FROM homologation_boards WHERE organization_id = $1 AND is_active = true ORDER BY name`, [orgId]).catch(() => ({ rows: [] })),
-      query(`SELECT id, name FROM licitacao_boards WHERE organization_id = $1 AND is_active = true ORDER BY name`, [orgId]).catch(() => ({ rows: [] })),
+      query(`SELECT id, name FROM crm_representatives WHERE organization_id = $1 AND COALESCE(is_active, true) = true ORDER BY name`, [orgId]).catch((e) => { logError('supervisor_ia.scope.representatives', e); return { rows: [] }; }),
+      query(`SELECT id, name FROM homologation_boards WHERE organization_id = $1 AND COALESCE(is_active, true) = true ORDER BY name`, [orgId]).catch((e) => { logError('supervisor_ia.scope.homologation_boards', e); return { rows: [] }; }),
+      query(`SELECT id, name FROM licitacao_boards WHERE organization_id = $1 AND COALESCE(is_active, true) = true ORDER BY name`, [orgId]).catch((e) => { logError('supervisor_ia.scope.licitacao_boards', e); return { rows: [] }; }),
     ]);
 
     res.json({
       funnels: funnels.rows,
       groups: groups.rows,
       users: users.rows,
+      representatives: representatives.rows,
       homologation_boards: homBoards.rows,
       licitacao_boards: licBoards.rows,
     });
