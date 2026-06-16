@@ -66,6 +66,7 @@ const SecretariaGrupos = lazyRetry(() => import("./pages/SecretariaGrupos"));
 const ModuloFantasma = lazyRetry(() => import("./pages/ModuloFantasma"));
 const Projetos = lazyRetry(() => import("./pages/Projetos"));
 const CRMRepresentantes = lazyRetry(() => import("./pages/CRMRepresentantes"));
+const RepresentativesHub = lazyRetry(() => import("./pages/RepresentativesHub"));
 const CRMMetas = lazyRetry(() => import("./pages/CRMMetas"));
 const Reunioes = lazyRetry(() => import("./pages/Reunioes"));
 const ComunicacaoInterna = lazyRetry(() => import("./pages/ComunicacaoInterna"));
