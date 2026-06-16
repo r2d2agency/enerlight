@@ -89,6 +89,7 @@ const CalculadoraLuminotecnica = lazyRetry(() => import("./pages/CalculadoraLumi
 const CalculadoraCategorias = lazyRetry(() => import("./pages/CalculadoraCategorias"));
 const CRMLuminotecnicoProspects = lazyRetry(() => import("./pages/CRMLuminotecnicoProspects"));
 const NotFound = lazyRetry(() => import("./pages/NotFound"));
+const MeuDia = lazyRetry(() => import("./pages/MeuDia"));
 
 const queryClient = new QueryClient();
 (window as any).queryClient = queryClient;
@@ -137,6 +138,7 @@ const App = () => (
               <Route path="/cadastro" element={<Cadastro />} />
               <Route path="/" element={<Login />} />
               <Route path="/dashboard" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+              <Route path="/meu-dia" element={<ProtectedRoute><MeuDia /></ProtectedRoute>} />
               <Route path="/conexao" element={<ProtectedRoute><Conexao /></ProtectedRoute>} />
               <Route path="/meta-templates" element={<ProtectedRoute><MetaTemplates /></ProtectedRoute>} />
               <Route path="/contatos" element={<ProtectedRoute><Contatos /></ProtectedRoute>} />
