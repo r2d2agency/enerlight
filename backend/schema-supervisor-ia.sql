@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS supervisor_ia_configs (
   licitacao_board_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
   group_ids JSONB NOT NULL DEFAULT '[]'::jsonb,            -- crm_user_groups a checar
   user_ids JSONB NOT NULL DEFAULT '[]'::jsonb,             -- usuários (vendedores) a checar
+  representative_ids JSONB NOT NULL DEFAULT '[]'::jsonb,   -- representantes/indicadores a checar
   -- Critérios "card incompleto"
   rule_require_company BOOLEAN DEFAULT true,
   rule_require_value BOOLEAN DEFAULT true,
