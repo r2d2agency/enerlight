@@ -1471,6 +1471,26 @@ export default function Organizacoes() {
                           />
                         </div>
 
+                        {/* Supervisor IA */}
+                        <div className="flex items-center justify-between rounded-lg border p-4">
+                          <div className="flex items-center gap-4">
+                            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                              <Brain className="h-5 w-5 text-primary" />
+                            </div>
+                            <div>
+                              <p className="font-medium">Supervisor IA</p>
+                              <p className="text-sm text-muted-foreground">
+                                Análise automática de Kanbans, cards incompletos e produtividade por vendedor
+                              </p>
+                            </div>
+                          </div>
+                          <Switch
+                            checked={modulesEnabled.supervisor_ia}
+                            onCheckedChange={(checked) => setModulesEnabled(prev => ({ ...prev, supervisor_ia: checked }))}
+                            disabled={!canManageOrg}
+                          />
+                        </div>
+
 
                         {/* Group Secretary */}
                         <div className="flex items-center justify-between rounded-lg border p-4">
