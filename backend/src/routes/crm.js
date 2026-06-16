@@ -5345,15 +5345,18 @@ router.post('/representatives', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
-    const { name, email, phone, cpf_cnpj, city, state, address, zip_code, commission_percent, notes, linked_user_id, indicator_type, segment_ids, areas, source } = req.body;
+    const { name, email, phone, cpf_cnpj, city, state, address, zip_code, commission_percent, notes, linked_user_id, linked_user_ids, indicator_type, segment_ids, areas, source } = req.body;
     if (source !== undefined) { try { await ensureIndicatorSourcesSchema(); } catch(_){} }
+    // Primary: first of linked_user_ids if provided, else linked_user_id
+    const primaryUser = (Array.isArray(linked_user_ids) && linked_user_ids[0]) || linked_user_id || null;
     const result = await query(
       `INSERT INTO crm_representatives (organization_id, name, email, phone, cpf_cnpj, city, state, address, zip_code, commission_percent, notes, linked_user_id, indicator_type, segment_ids, source, created_by)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING *`,
-      [org.organization_id, name, email, phone, cpf_cnpj, city, state, address, zip_code, commission_percent || 0, notes, linked_user_id || null, indicator_type || 'representante', JSON.stringify(segment_ids || []), source || null, req.userId]
+      [org.organization_id, name, email, phone, cpf_cnpj, city, state, address, zip_code, commission_percent || 0, notes, primaryUser, indicator_type || 'representante', JSON.stringify(segment_ids || []), source || null, req.userId]
     );
     const rep = result.rows[0];
     if (areas) await saveIndicatorAreas(rep.id, areas);
+    await saveRepLinks(rep.id, linked_user_ids, primaryUser);
     res.json(rep);
 
   } catch (error) {
