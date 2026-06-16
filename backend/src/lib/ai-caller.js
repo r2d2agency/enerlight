@@ -236,6 +236,8 @@ async function callGemini(config, messages, options) {
       if (response.ok) break outer;
       lastStatus = response.status;
       lastErrText = await response.text().catch(() => '');
+      // 404 = model não existe/deprecado: pula direto pro próximo
+      if (response.status === 404) break;
       if (!RETRYABLE.has(response.status)) break outer;
       // For 503 overload, fast-skip to next fallback model after 1 retry
       if (response.status === 503 && attempt >= 1) break;
