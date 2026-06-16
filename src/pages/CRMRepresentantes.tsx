@@ -1152,9 +1152,16 @@ export default function CRMRepresentantes() {
                         <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground flex-wrap">
                           {rep.city && <span>{rep.city}{rep.state ? `/${rep.state}` : ""}</span>}
                           {rep.phone && <span>{rep.phone}</span>}
-                          {rep.linked_user_name && <span className="text-primary font-medium flex items-center gap-1">
-                            <User className="h-3 w-3" /> {rep.linked_user_name}
-                          </span>}
+                          {(rep.linked_user_names && rep.linked_user_names.length > 0
+                            ? rep.linked_user_names.join(", ")
+                            : rep.linked_user_name) && (
+                            <span className="text-primary font-medium flex items-center gap-1">
+                              <User className="h-3 w-3" />
+                              {rep.linked_user_names && rep.linked_user_names.length > 0
+                                ? rep.linked_user_names.join(", ")
+                                : rep.linked_user_name}
+                            </span>
+                          )}
                         </div>
                         {!!rep.segment_ids?.length && (
                           <div className="flex gap-1 mt-2 flex-wrap">
