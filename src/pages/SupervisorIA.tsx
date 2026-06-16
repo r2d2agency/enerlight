@@ -316,7 +316,7 @@ function ConfigDialog({ open, onOpenChange, config, options }: ConfigDialogProps
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 -mx-6 px-6 overflow-y-auto">
+        <div className="flex-1 -mx-6 px-6 overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
           <Tabs defaultValue="kanbans" className="space-y-4">
             <TabsList>
               <TabsTrigger value="kanbans">Kanbans</TabsTrigger>
