@@ -135,6 +135,13 @@ async function loadConfig(orgId, userId) {
       rule_company_stage_ids: [], rule_value_stage_ids: [], rule_owner_stage_ids: [],
       rule_contact_stage_ids: [], rule_followup_stage_ids: [], rule_history_stage_ids: [],
       stale_hours: 72,
+      ai_agent_id: null,
+      auto_analysis_enabled: false,
+      auto_analysis_interval_hours: 4,
+      alert_whatsapp_numbers: [],
+      alert_whatsapp_connection_id: null,
+      analysis_period_days: 7,
+      last_auto_analysis_at: null,
     };
   }
   const r = rows[0];
@@ -152,6 +159,7 @@ async function loadConfig(orgId, userId) {
     rule_contact_stage_ids: safeArray(r.rule_contact_stage_ids),
     rule_followup_stage_ids: safeArray(r.rule_followup_stage_ids),
     rule_history_stage_ids: safeArray(r.rule_history_stage_ids),
+    alert_whatsapp_numbers: safeArray(r.alert_whatsapp_numbers),
   };
 }
 
