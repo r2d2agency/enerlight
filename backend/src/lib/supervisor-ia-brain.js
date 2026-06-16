@@ -177,23 +177,24 @@ export async function runBrainAnalysis({ aiConfig, analysis, context }) {
     { role: 'user', content: userPrompt },
   ], {
     temperature: aiConfig.temperature ?? 0.4,
-    maxTokens: aiConfig.maxTokens ?? 2500,
+    maxTokens: aiConfig.maxTokens ?? 6000,
     responseFormat: { type: 'json_object' },
   });
 
-  const parsed = extractJSON(result.content) || {
-    executive_summary: 'Falha ao interpretar resposta da IA. Tente novamente.',
-    health_score: 50,
-    trend: 'stable',
-    trend_explanation: '',
-    diagnostics: [],
-    team_insights: [],
-    priority_actions: [],
-    opportunities: [],
-    _raw: (result.content || '').slice(0, 2000),
-  };
-  if (!parsed.executive_summary) {
-    logError('supervisor_ia.brain.parse_failed', new Error('no executive_summary'), { raw: result.content?.slice(0, 500) });
+  const rawContent = result.content || '';
+  const parsed = extractJSON(rawContent);
+
+  if (!parsed || !parsed.executive_summary) {
+    logError('supervisor_ia.brain.parse_failed', new Error('JSON inválido ou vazio'), {
+      raw_preview: rawContent.slice(0, 1000),
+      raw_length: rawContent.length,
+      model: result.model,
+    });
+    const isEmpty = !rawContent.trim();
+    const msg = isEmpty
+      ? `A IA retornou resposta vazia (modelo ${result.model || aiConfig.model}). Pode ser limite de tokens ou filtro de segurança. Tente novamente, reduza o período analisado ou troque para outro modelo.`
+      : `A IA retornou um formato inválido (modelo ${result.model || aiConfig.model}). Resposta parcial: "${rawContent.slice(0, 200)}..."`;
+    throw new Error(msg);
   }
 
   return { insight: parsed, tokensUsed: result.tokensUsed || 0, model: result.model || aiConfig.model };
