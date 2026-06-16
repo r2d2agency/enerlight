@@ -91,6 +91,38 @@ export function buildAnalysisSnapshot(analysis) {
   return lines.join('\n');
 }
 
+/**
+ * Robustly extract a JSON object from raw LLM text. Handles ```json fences,
+ * leading/trailing prose, and finds the largest balanced {...} block.
+ */
+function extractJSON(text) {
+  if (!text) return null;
+  let raw = String(text).trim();
+  raw = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+  try { return JSON.parse(raw); } catch {}
+  const first = raw.indexOf('{');
+  if (first < 0) return null;
+  let depth = 0, inStr = false, esc = false;
+  for (let i = first; i < raw.length; i++) {
+    const c = raw[i];
+    if (esc) { esc = false; continue; }
+    if (c === '\\') { esc = true; continue; }
+    if (c === '"') { inStr = !inStr; continue; }
+    if (inStr) continue;
+    if (c === '{') depth++;
+    else if (c === '}') {
+      depth--;
+      if (depth === 0) {
+        try { return JSON.parse(raw.slice(first, i + 1)); } catch { break; }
+      }
+    }
+  }
+  const last = raw.lastIndexOf('}');
+  if (last > first) { try { return JSON.parse(raw.slice(first, last + 1)); } catch {} }
+  return null;
+}
+
+
 const BRAIN_SYSTEM_PROMPT = `Você é o **Gerente IA da Equipe de Vendas**, atuando como supervisor experiente.
 
 Sua missão: analisar os dados consolidados de kanbans (CRM, Homologação, Licitação), vendedores e cards problemáticos, e produzir um diagnóstico executivo prático e acionável - como um gerente de verdade faria ao revisar a operação.
