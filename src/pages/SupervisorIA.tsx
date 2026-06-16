@@ -694,3 +694,217 @@ function RuleRowWithStages({
     </div>
   );
 }
+
+// ---------------- BRAIN TAB ----------------
+function severityColor(s: string) {
+  if (s === 'critical') return 'bg-red-100 text-red-700 border-red-300';
+  if (s === 'high') return 'bg-orange-100 text-orange-700 border-orange-300';
+  if (s === 'medium') return 'bg-amber-100 text-amber-700 border-amber-300';
+  return 'bg-emerald-100 text-emerald-700 border-emerald-300';
+}
+
+function BrainTab() {
+  const insights = useBrainInsights();
+  const run = useRunBrainAnalysis();
+  const del = useDeleteInsight();
+  const chat = useBrainChatHistory();
+  const send = useBrainChatSend();
+  const clearChat = useClearBrainChat();
+  const [msg, setMsg] = useState('');
+  const [openId, setOpenId] = useState<string | null>(null);
+
+  const latest = insights.data?.[0];
+  const opened = openId ? insights.data?.find(i => i.id === openId) : latest;
+
+  const handleSend = async () => {
+    const t = msg.trim();
+    if (!t) return;
+    setMsg('');
+    await send.mutateAsync(t);
+  };
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      {/* Coluna principal: diagnóstico */}
+      <div className="lg:col-span-2 space-y-4">
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-primary" />
+                <CardTitle className="text-base">Diagnóstico do Gerente IA</CardTitle>
+              </div>
+              <Button size="sm" onClick={() => run.mutate(undefined)} disabled={run.isPending}>
+                <Brain className={`h-4 w-4 mr-2 ${run.isPending ? 'animate-pulse' : ''}`} />
+                {run.isPending ? 'Analisando…' : 'Analisar agora'}
+              </Button>
+            </div>
+            {opened && (
+              <CardDescription className="text-xs">
+                Gerado em {new Date(opened.created_at).toLocaleString('pt-BR')} • Período {opened.period_start} → {opened.period_end} • {opened.trigger === 'auto' ? 'automático' : 'manual'}
+              </CardDescription>
+            )}
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {!opened ? (
+              <div className="text-center py-10 text-sm text-muted-foreground">
+                <Brain className="h-10 w-10 mx-auto mb-3 opacity-40" />
+                <p>O Cérebro IA ainda não rodou nenhuma análise.</p>
+                <p className="text-xs mt-1">Configure o agente IA em "Configurar escopo → Cérebro IA" e clique em <strong>Analisar agora</strong>.</p>
+              </div>
+            ) : (
+              <BrainInsightView insight={opened.insight} />
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Histórico */}
+        {insights.data && insights.data.length > 1 && (
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-sm">Histórico de análises</CardTitle></CardHeader>
+            <CardContent>
+              <div className="space-y-1 max-h-60 overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+                {insights.data.map(i => (
+                  <button
+                    key={i.id}
+                    onClick={() => setOpenId(i.id)}
+                    className={`w-full text-left flex items-center justify-between gap-2 px-2 py-1.5 rounded hover:bg-muted ${(openId ?? latest?.id) === i.id ? 'bg-muted' : ''}`}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Badge variant="outline" className="text-[10px]">{i.trigger}</Badge>
+                      <span className="text-xs truncate">{i.insight?.executive_summary?.slice(0, 80) || '—'}</span>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground whitespace-nowrap">{new Date(i.created_at).toLocaleString('pt-BR')}</span>
+                    <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" onClick={(e) => { e.stopPropagation(); del.mutate(i.id); }} />
+                  </button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/* Chat */}
+      <Card className="lg:row-span-2 flex flex-col h-[600px]">
+        <CardHeader className="pb-3 flex-row items-center justify-between">
+          <div className="flex items-center gap-2">
+            <MessageCircle className="h-4 w-4" />
+            <CardTitle className="text-base">Converse com o Gerente IA</CardTitle>
+          </div>
+          {chat.data && chat.data.length > 0 && (
+            <Button variant="ghost" size="sm" onClick={() => clearChat.mutate()}>
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </CardHeader>
+        <CardContent className="flex-1 flex flex-col min-h-0 gap-3">
+          <div className="flex-1 overflow-y-auto space-y-2 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent pr-1">
+            {(!chat.data || chat.data.length === 0) ? (
+              <div className="text-xs text-muted-foreground text-center py-6">
+                Pergunte algo: "Por que o funil X está travado?", "Qual vendedor precisa de ajuda?", "Sugira ações para esta semana".
+              </div>
+            ) : chat.data.map(m => (
+              <div key={m.id} className={`rounded-lg px-3 py-2 text-sm whitespace-pre-wrap ${m.role === 'user' ? 'bg-primary/10 ml-6' : 'bg-muted mr-6'}`}>
+                <div className="text-[10px] font-medium opacity-70 mb-1">{m.role === 'user' ? 'Você' : 'Gerente IA'}</div>
+                {m.content}
+              </div>
+            ))}
+            {send.isPending && (
+              <div className="bg-muted mr-6 rounded-lg px-3 py-2 text-sm text-muted-foreground italic">Pensando…</div>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <Textarea
+              placeholder="Pergunte ao Gerente IA…"
+              value={msg}
+              onChange={(e) => setMsg(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+              className="min-h-[60px] resize-none"
+            />
+            <Button onClick={handleSend} disabled={send.isPending || !msg.trim()} size="icon">
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function BrainInsightView({ insight }: { insight: BrainInsight }) {
+  return (
+    <div className="space-y-4">
+      <div className="flex items-start gap-3">
+        <div className="flex-1">
+          <p className="text-sm">{insight.executive_summary}</p>
+        </div>
+        <div className="text-center shrink-0">
+          <div className={`text-2xl font-bold ${(insight.health_score ?? 0) >= 70 ? 'text-emerald-600' : (insight.health_score ?? 0) >= 40 ? 'text-amber-600' : 'text-red-600'}`}>
+            {insight.health_score ?? '—'}
+          </div>
+          <div className="text-[10px] uppercase text-muted-foreground">Saúde</div>
+        </div>
+      </div>
+      {insight.trend_explanation && (
+        <div className="text-xs text-muted-foreground border-l-2 border-primary/40 pl-2">
+          <Badge variant="outline" className="mr-2 text-[10px]">{insight.trend}</Badge>
+          {insight.trend_explanation}
+        </div>
+      )}
+
+      {(insight.diagnostics || []).length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase text-muted-foreground">Diagnósticos</p>
+          {insight.diagnostics.map((d, i) => (
+            <div key={i} className={`border rounded-lg p-3 space-y-2 ${severityColor(d.severity)}`}>
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <p className="font-semibold text-sm">{d.title}</p>
+                <Badge variant="outline" className="text-[10px] uppercase">{d.severity}</Badge>
+              </div>
+              <p className="text-xs">{d.description}</p>
+              {d.root_cause && <p className="text-xs"><strong>Causa-raiz:</strong> {d.root_cause}</p>}
+              {d.recommended_actions?.length > 0 && (
+                <ul className="text-xs list-disc list-inside space-y-0.5">
+                  {d.recommended_actions.map((a, j) => <li key={j}>{a}</li>)}
+                </ul>
+              )}
+              {d.expected_impact && <p className="text-xs italic opacity-80">→ {d.expected_impact}</p>}
+              <p className="text-[10px] opacity-70">Kanban: {d.kanban_name}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {(insight.priority_actions || []).length > 0 && (
+        <div className="border rounded-lg p-3 bg-primary/5">
+          <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">🎯 Ações prioritárias</p>
+          <ol className="text-sm list-decimal list-inside space-y-1">
+            {insight.priority_actions.map((a, i) => <li key={i}>{a}</li>)}
+          </ol>
+        </div>
+      )}
+
+      {(insight.team_insights || []).length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase text-muted-foreground">Insights por pessoa</p>
+          {insight.team_insights.map((t, i) => (
+            <div key={i} className="border rounded-lg p-2 text-xs">
+              <p className="font-medium">{t.user_name}</p>
+              <p className="text-muted-foreground">{t.observation}</p>
+              <p className="mt-1">💡 {t.suggestion}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {(insight.opportunities || []).length > 0 && (
+        <div className="border rounded-lg p-3">
+          <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">💎 Oportunidades</p>
+          <ul className="text-sm list-disc list-inside space-y-0.5">
+            {insight.opportunities.map((o, i) => <li key={i}>{o}</li>)}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
