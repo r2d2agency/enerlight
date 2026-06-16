@@ -445,6 +445,17 @@ initDatabase().then((ok) => {
       timezone: 'America/Sao_Paulo'
     });
 
+    // Supervisor IA — proactive brain analysis (every hour, fires per-config based on interval)
+    cron.schedule('0 * * * *', async () => {
+      try {
+        await executeSupervisorIA();
+      } catch (error) {
+        console.error('🧠 [CRON] Error executing Supervisor IA:', error);
+      }
+    }, {
+      timezone: 'America/Sao_Paulo'
+    });
+
     console.log('⏰ Notification scheduler started - checks every hour (timezone: America/Sao_Paulo)');
     console.log('📤 Campaign scheduler started - checks every 30 seconds');
     console.log('📅 Scheduled messages started - checks every minute');
