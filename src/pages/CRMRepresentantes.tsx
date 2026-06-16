@@ -157,6 +157,9 @@ export default function CRMRepresentantes() {
         commission_percent: String(editingRep.commission_percent || 0),
         notes: editingRep.notes || "",
         linked_user_id: editingRep.linked_user_id || "",
+        linked_user_ids: editingRep.linked_user_ids && editingRep.linked_user_ids.length
+          ? editingRep.linked_user_ids
+          : (editingRep.linked_user_id ? [editingRep.linked_user_id] : []),
         indicator_type: (editingRep.indicator_type as IndicatorType) || "representante",
         segment_ids: editingRep.segment_ids || [],
         areas: editingRep.areas || [],
@@ -169,7 +172,7 @@ export default function CRMRepresentantes() {
   const openCreate = () => {
     setEditingRepId(null);
     // Auto-vincula ao vendedor logado (pode trocar antes de salvar)
-    setForm({ ...emptyForm, linked_user_id: user?.id || "" });
+    setForm({ ...emptyForm, linked_user_id: user?.id || "", linked_user_ids: user?.id ? [user.id] : [] });
     setFormOpen(true);
   };
 
@@ -190,6 +193,9 @@ export default function CRMRepresentantes() {
       commission_percent: String(rep.commission_percent || 0),
       notes: rep.notes || "",
       linked_user_id: rep.linked_user_id || "",
+      linked_user_ids: rep.linked_user_ids && rep.linked_user_ids.length
+        ? rep.linked_user_ids
+        : (rep.linked_user_id ? [rep.linked_user_id] : []),
       indicator_type: (rep.indicator_type as IndicatorType) || "representante",
       segment_ids: rep.segment_ids || [],
       source: rep.source || "",
