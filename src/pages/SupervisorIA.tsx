@@ -25,6 +25,14 @@ import {
 const formatCurrency = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 0 }).format(v || 0);
 
+const formatIdle = (hours: number) => {
+  const h = Math.max(0, Math.round(hours || 0));
+  if (h < 24) return `${h}h`;
+  const days = Math.floor(h / 24);
+  const rem = h % 24;
+  return rem === 0 ? `${days}d` : `${days}d ${rem}h`;
+};
+
 function todayBR(offsetDays = 0) {
   const d = new Date(Date.now() + offsetDays * 86400000);
   // YYYY-MM-DD local
