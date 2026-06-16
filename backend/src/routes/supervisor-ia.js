@@ -814,4 +814,64 @@ router.post('/chat', async (req, res) => {
   }
 });
 
+// =====================================================================
+// ORGANIZADOR AUTOMÁTICO
+// =====================================================================
+
+router.post('/organize/run', async (req, res) => {
+  try {
+    const orgId = req.user.organization_id;
+    const userId = req.user.id;
+    const cfg = await loadConfig(orgId, userId);
+    // força enabled em execução manual
+    const result = await runOrganizer({ orgId, userId, cfg: { ...cfg, organizer_enabled: true } });
+    res.json(result);
+  } catch (e) {
+    logError('supervisor_ia.organize_run', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.get('/organize/actions', async (req, res) => {
+  try {
+    await ensureOrganizerSchema();
+    const orgId = req.user.organization_id;
+    const userId = req.user.id;
+    const status = req.query.status || 'suggested';
+    const limit = Math.min(Number(req.query.limit) || 200, 500);
+    const params = [orgId, userId];
+    let where = `organization_id = $1 AND user_id = $2`;
+    if (status !== 'all') { params.push(status); where += ` AND status = $${params.length}`; }
+    params.push(limit);
+    const { rows } = await query(
+      `SELECT * FROM supervisor_ia_actions WHERE ${where} ORDER BY created_at DESC LIMIT $${params.length}`,
+      params
+    );
+    res.json(rows);
+  } catch (e) {
+    logError('supervisor_ia.organize_actions_list', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/organize/actions/:id/apply', async (req, res) => {
+  try {
+    await applyAction(req.params.id, req.user.organization_id, req.user.id);
+    res.json({ ok: true });
+  } catch (e) {
+    logError('supervisor_ia.organize_apply', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/organize/actions/:id/reject', async (req, res) => {
+  try {
+    await rejectAction(req.params.id, req.user.organization_id, req.user.id);
+    res.json({ ok: true });
+  } catch (e) {
+    logError('supervisor_ia.organize_reject', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 export default router;
