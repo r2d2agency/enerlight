@@ -25,6 +25,7 @@ interface ModulesEnabled {
   online_quotes: boolean;
   goals: boolean;
   representatives: boolean;
+  supervisor_ia: boolean;
 }
 
 export interface UserPermissions {
