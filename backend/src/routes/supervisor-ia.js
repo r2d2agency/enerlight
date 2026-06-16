@@ -278,6 +278,16 @@ router.get('/analysis', async (req, res) => {
     const staleHours = cfg.stale_hours || 72;
     const funnelDiagnostics = [];
     if (hasFunnels) {
+      const diagnosticParams = [orgId, cfg.funnel_ids];
+      const diagnosticFilters = [];
+      if (hasUserFilter) {
+        diagnosticParams.push(userIdArr);
+        diagnosticFilters.push(`AND d.owner_id = ANY($${diagnosticParams.length}::uuid[])`);
+      }
+      if (hasRepresentativeFilter) {
+        diagnosticParams.push(cfg.representative_ids);
+        diagnosticFilters.push(`AND d.representative_id = ANY($${diagnosticParams.length}::uuid[])`);
+      }
       const { rows } = await query(`
         WITH base AS (
           SELECT
@@ -299,7 +309,7 @@ router.get('/analysis', async (req, res) => {
           WHERE d.organization_id = $1
             AND d.funnel_id = ANY($2::uuid[])
             AND d.status = 'open'
-            ${hasUserFilter ? 'AND d.owner_id = ANY($3::uuid[])' : ''}
+            ${diagnosticFilters.join('\n            ')}
         )
         SELECT *,
           (CASE WHEN ${cfg.rule_require_company ? 'company_id IS NULL' : 'false'} THEN 1 ELSE 0 END) AS miss_company,
@@ -310,7 +320,10 @@ router.get('/analysis', async (req, res) => {
           (CASE WHEN ${cfg.rule_require_history ? 'history_count = 0' : 'false'} THEN 1 ELSE 0 END) AS miss_history,
           (CASE WHEN hours_idle >= ${staleHours} THEN 1 ELSE 0 END) AS is_stale
         FROM base
-      `, hasUserFilter ? [orgId, cfg.funnel_ids, userIdArr] : [orgId, cfg.funnel_ids]);
+      `, diagnosticParams).catch((e) => {
+        logError('supervisor_ia.funnel_diagnostics', e);
+        return { rows: [] };
+      });
 
       // agrupar por funil
       const byFunnel = new Map();
