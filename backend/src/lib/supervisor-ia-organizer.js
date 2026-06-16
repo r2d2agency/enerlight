@@ -463,17 +463,17 @@ export async function applyAction(actionId, orgId, reviewerId) {
         [a.to_stage_id, a.deal_id, orgId]
       );
       await query(
-        `INSERT INTO crm_deal_history (deal_id, user_id, user_name, action, from_stage, to_stage, description)
+        `INSERT INTO crm_deal_history (deal_id, user_id, user_name_snapshot, action, from_value, to_value, notes)
          VALUES ($1, $2, 'Supervisor IA (aprovado)', 'stage_changed', $3, $4, $5)`,
         [a.deal_id, reviewerId, a.from_stage_name, a.to_stage_name, `Movido após aprovação da sugestão do Supervisor IA`]
       ).catch(() => {});
     } else if (a.rule === 'dead_to_lost' && a.deal_id) {
       await query(
-        `UPDATE crm_deals SET status = 'lost', lost_reason = $1, closed_at = NOW(), updated_at = NOW() WHERE id = $2 AND organization_id = $3`,
+        `UPDATE crm_deals SET status = 'lost', lost_reason = $1, lost_at = NOW(), updated_at = NOW() WHERE id = $2 AND organization_id = $3`,
         ['Marcado como perdido pelo Supervisor IA (inatividade prolongada)', a.deal_id, orgId]
       );
       await query(
-        `INSERT INTO crm_deal_history (deal_id, user_id, user_name, action, from_status, to_status, description)
+        `INSERT INTO crm_deal_history (deal_id, user_id, user_name_snapshot, action, from_value, to_value, notes)
          VALUES ($1, $2, 'Supervisor IA (aprovado)', 'status_changed', 'open', 'lost', $3)`,
         [a.deal_id, reviewerId, a.reason]
       ).catch(() => {});
