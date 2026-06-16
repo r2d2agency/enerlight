@@ -10,7 +10,7 @@ const PERMISSION_COLUMNS = [
   'can_view_schedules', 'can_view_tags', 'can_view_contacts', 'can_view_ai_secretary',
   'can_view_ai_agents', 'can_view_crm', 'can_view_prospects', 'can_view_companies',
   'can_view_map', 'can_view_calendar', 'can_view_tasks', 'can_view_reports',
-  'can_view_revenue_intel', 'can_view_ghost', 'can_view_crm_settings',
+  'can_view_revenue_intel', 'can_view_ghost', 'can_view_crm_settings', 'can_view_supervisor_ia',
   'can_view_online_quotes', 'can_edit_price_lists', 'can_view_goals', 'can_view_representatives',
   'can_view_projects', 'can_view_campaigns', 'can_view_sequences',
   'can_view_external_flows', 'can_view_webhooks', 'can_view_ctwa',
