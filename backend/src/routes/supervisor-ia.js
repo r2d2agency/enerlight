@@ -55,6 +55,12 @@ async function ensureSchema() {
     )
   `);
   await query(`ALTER TABLE supervisor_ia_configs ADD COLUMN IF NOT EXISTS representative_ids JSONB NOT NULL DEFAULT '[]'::jsonb`);
+  for (const col of [
+    'rule_company_stage_ids', 'rule_value_stage_ids', 'rule_owner_stage_ids',
+    'rule_contact_stage_ids', 'rule_followup_stage_ids', 'rule_history_stage_ids',
+  ]) {
+    await query(`ALTER TABLE supervisor_ia_configs ADD COLUMN IF NOT EXISTS ${col} JSONB NOT NULL DEFAULT '[]'::jsonb`);
+  }
   await query(`CREATE INDEX IF NOT EXISTS idx_supervisor_ia_configs_org ON supervisor_ia_configs(organization_id)`);
 }
 
@@ -84,6 +90,8 @@ async function loadConfig(orgId, userId) {
       group_ids: [], user_ids: [], representative_ids: [],
       rule_require_company: true, rule_require_value: true, rule_require_owner: true,
       rule_require_contact: true, rule_require_followup: true, rule_require_history: true,
+      rule_company_stage_ids: [], rule_value_stage_ids: [], rule_owner_stage_ids: [],
+      rule_contact_stage_ids: [], rule_followup_stage_ids: [], rule_history_stage_ids: [],
       stale_hours: 72,
     };
   }
@@ -96,6 +104,12 @@ async function loadConfig(orgId, userId) {
     group_ids: safeArray(r.group_ids),
     user_ids: safeArray(r.user_ids),
     representative_ids: safeArray(r.representative_ids),
+    rule_company_stage_ids: safeArray(r.rule_company_stage_ids),
+    rule_value_stage_ids: safeArray(r.rule_value_stage_ids),
+    rule_owner_stage_ids: safeArray(r.rule_owner_stage_ids),
+    rule_contact_stage_ids: safeArray(r.rule_contact_stage_ids),
+    rule_followup_stage_ids: safeArray(r.rule_followup_stage_ids),
+    rule_history_stage_ids: safeArray(r.rule_history_stage_ids),
   };
 }
 
