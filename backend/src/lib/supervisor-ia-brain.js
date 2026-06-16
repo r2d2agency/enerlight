@@ -136,42 +136,8 @@ export async function runBrainAnalysis({ aiConfig, analysis, context }) {
   const snapshot = buildAnalysisSnapshot(analysis);
   const sysPrompt = (aiConfig.systemPromptBase ? aiConfig.systemPromptBase + '\n\n---\n\n' : '') + BRAIN_SYSTEM_PROMPT;
   const userPrompt = `${context ? `CONTEXTO ADICIONAL: ${context}\n\n` : ''}DADOS CONSOLIDADOS:\n\n${snapshot}\n\nProduza o diagnóstico em JSON estrito conforme o schema definido.`;
-/**
- * Robustly extract a JSON object from raw LLM text. Handles ```json fences,
- * leading/trailing prose, and finds the largest balanced {...} block.
- */
-function extractJSON(text) {
-  if (!text) return null;
-  let raw = String(text).trim();
-  // Strip code fences
-  raw = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
-  // Direct parse
-  try { return JSON.parse(raw); } catch {}
-  // Find first { and last } and try to parse the slice; walk inward if needed
-  const first = raw.indexOf('{');
-  const last = raw.lastIndexOf('}');
-  if (first >= 0 && last > first) {
-    const slice = raw.slice(first, last + 1);
-    try { return JSON.parse(slice); } catch {}
-    // Try to scan balanced braces from `first`
-    let depth = 0, inStr = false, esc = false;
-    for (let i = first; i < raw.length; i++) {
-      const c = raw[i];
-      if (esc) { esc = false; continue; }
-      if (c === '\\') { esc = true; continue; }
-      if (c === '"') { inStr = !inStr; continue; }
-      if (inStr) continue;
-      if (c === '{') depth++;
-      else if (c === '}') {
-        depth--;
-        if (depth === 0) {
-          try { return JSON.parse(raw.slice(first, i + 1)); } catch { break; }
-        }
-      }
-    }
-  }
-  return null;
-}
+
+
 
 
   const result = await callAI(aiConfig, [
