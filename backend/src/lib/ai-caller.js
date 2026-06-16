@@ -157,8 +157,13 @@ async function callOpenAI(config, messages, options) {
 // ==================== Gemini ====================
 
 async function callGemini(config, messages, options) {
-  const model = config.model || 'gemini-1.5-flash';
-  
+  const primaryModel = config.model || 'gemini-1.5-flash';
+  // Fallback chain when primary model is overloaded (503)
+  const fallbackChain = [primaryModel];
+  for (const fb of ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-8b']) {
+    if (!fallbackChain.includes(fb)) fallbackChain.push(fb);
+  }
+
   // Convert messages to Gemini format
   const contents = [];
   let systemInstruction = null;
@@ -168,7 +173,7 @@ async function callGemini(config, messages, options) {
       systemInstruction = msg.content;
       continue;
     }
-    if (msg.role === 'tool') continue; // handled in callAIWithTools by appending as user
+    if (msg.role === 'tool') continue;
 
     contents.push({
       role: msg.role === 'assistant' ? 'model' : 'user',
@@ -192,7 +197,6 @@ async function callGemini(config, messages, options) {
     body.generationConfig.responseMimeType = 'application/json';
   }
 
-  // Gemini tool calling
   if (options.tools) {
     body.tools = [{
       functionDeclarations: options.tools.map(t => ({
@@ -203,36 +207,45 @@ async function callGemini(config, messages, options) {
     }];
   }
 
-  // Retry on transient errors (503/429/500/502/504) with exponential backoff
   const RETRYABLE = new Set([429, 500, 502, 503, 504]);
-  const MAX_ATTEMPTS = 4;
+  const MAX_ATTEMPTS_PER_MODEL = 3;
   let response;
   let lastErrText = '';
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${config.apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      }
-    );
-    if (response.ok) break;
-    lastErrText = await response.text().catch(() => '');
-    if (!RETRYABLE.has(response.status) || attempt === MAX_ATTEMPTS) {
-      // Friendlier message for overload (503)
-      if (response.status === 503) {
-        throw new Error(`O modelo ${model} está sobrecarregado no momento (503). Tente novamente em alguns minutos ou troque o modelo do agente (ex.: gemini-2.5-flash, gemini-1.5-flash ou um modelo OpenAI).`);
-      }
-      if (response.status === 429) {
-        throw new Error(`Limite de requisições do Gemini atingido (429). Aguarde alguns instantes e tente novamente.`);
-      }
-      throw new Error(`Gemini API error ${response.status}: ${lastErrText}`);
+  let lastStatus = 0;
+  let usedModel = primaryModel;
+
+  outer: for (const tryModel of fallbackChain) {
+    usedModel = tryModel;
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS_PER_MODEL; attempt++) {
+      response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${tryModel}:generateContent?key=${config.apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        }
+      );
+      if (response.ok) break outer;
+      lastStatus = response.status;
+      lastErrText = await response.text().catch(() => '');
+      if (!RETRYABLE.has(response.status)) break outer;
+      // For 503 overload, fast-skip to next fallback model after 1 retry
+      if (response.status === 503 && attempt >= 1) break;
+      const delay = 800 * Math.pow(2, attempt - 1);
+      await new Promise(r => setTimeout(r, delay));
     }
-    // Exponential backoff: 1s, 2s, 4s
-    const delay = 1000 * Math.pow(2, attempt - 1);
-    await new Promise(r => setTimeout(r, delay));
   }
+
+  if (!response || !response.ok) {
+    if (lastStatus === 503) {
+      throw new Error(`Todos os modelos Gemini estão sobrecarregados no momento (503). Tente novamente em alguns minutos ou troque o agente para um modelo OpenAI (ex.: gpt-4o-mini).`);
+    }
+    if (lastStatus === 429) {
+      throw new Error(`Limite de requisições do Gemini atingido (429). Aguarde alguns instantes e tente novamente.`);
+    }
+    throw new Error(`Gemini API error ${lastStatus}: ${lastErrText}`);
+  }
+  const model = usedModel;
 
   const data = await response.json();
   const candidate = data.candidates?.[0];
