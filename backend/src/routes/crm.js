@@ -5022,6 +5022,7 @@ router.get('/representatives', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
     try { await ensureIndicatorSourcesSchema(); } catch(_){}
+    try { await ensureRepLinksSchema(); } catch(_){}
 
 
     const { search, type, owner_id, source } = req.query;
@@ -5037,13 +5038,11 @@ router.get('/representatives', async (req, res) => {
       params.push(type);
     }
     if (owner_id && owner_id !== 'all') {
-      if (owner_id === 'mine') {
-        filters += ` AND r.linked_user_id = $${params.length + 1}`;
-        params.push(req.userId);
-      } else {
-        filters += ` AND r.linked_user_id = $${params.length + 1}`;
-        params.push(owner_id);
-      }
+      const targetUserId = owner_id === 'mine' ? req.userId : owner_id;
+      filters += ` AND (r.linked_user_id = $${params.length + 1} OR EXISTS (
+        SELECT 1 FROM crm_representative_users ru WHERE ru.representative_id = r.id AND ru.user_id = $${params.length + 1}
+      ))`;
+      params.push(targetUserId);
     }
     if (source && source !== 'all') {
       filters += ` AND r.source = $${params.length + 1}`;
@@ -5053,6 +5052,13 @@ router.get('/representatives', async (req, res) => {
 
     const result = await query(
       `SELECT r.*, u.name as linked_user_name,
+        COALESCE((
+          SELECT json_agg(ru.user_id) FROM crm_representative_users ru WHERE ru.representative_id = r.id
+        ), '[]'::json) as linked_user_ids,
+        COALESCE((
+          SELECT json_agg(u2.name ORDER BY u2.name) FROM crm_representative_users ru
+          JOIN users u2 ON u2.id = ru.user_id WHERE ru.representative_id = r.id
+        ), '[]'::json) as linked_user_names,
         (SELECT COUNT(*) FROM crm_deals d WHERE d.representative_id = r.id AND d.status = 'open') as open_deals_count,
         (SELECT COALESCE(SUM(d.value), 0) FROM crm_deals d WHERE d.representative_id = r.id AND d.status = 'open') as open_deals_value,
         (SELECT COUNT(*) FROM crm_indicator_areas a WHERE a.representative_id = r.id) as areas_count
@@ -5082,15 +5088,26 @@ router.get('/representatives/for-deal', async (req, res) => {
     if (canManage(org.role)) {
       // Managers/admins see all
     } else {
-      // Regular users see reps linked to them or their team
-      visibilityFilter = ` AND (r.linked_user_id = $2 OR r.linked_user_id IN (
-        SELECT gm2.user_id FROM crm_user_group_members gm
-        JOIN crm_user_group_members gm2 ON gm2.group_id = gm.group_id
-        WHERE gm.user_id = $2
-      ))`;
+      // Regular users see reps linked to them (single or N:N) or via team groups
+      visibilityFilter = ` AND (
+        r.linked_user_id = $2
+        OR EXISTS (SELECT 1 FROM crm_representative_users ru WHERE ru.representative_id = r.id AND ru.user_id = $2)
+        OR r.linked_user_id IN (
+          SELECT gm2.user_id FROM crm_user_group_members gm
+          JOIN crm_user_group_members gm2 ON gm2.group_id = gm.group_id
+          WHERE gm.user_id = $2
+        )
+        OR EXISTS (
+          SELECT 1 FROM crm_representative_users ru2
+          JOIN crm_user_group_members gm3 ON gm3.user_id = ru2.user_id
+          WHERE ru2.representative_id = r.id
+            AND gm3.group_id IN (SELECT group_id FROM crm_user_group_members WHERE user_id = $2)
+        )
+      )`;
       params.push(req.userId);
     }
 
+    try { await ensureRepLinksSchema(); } catch(_){}
     const result = await query(
       `SELECT r.id, r.name, r.commission_percent, u.name as linked_user_name
        FROM crm_representatives r
@@ -5131,7 +5148,21 @@ router.get('/representatives/:id', async (req, res) => {
       areas = a.rows.map(r => ({ ...r, lat: r.lat ? Number(r.lat) : null, lng: r.lng ? Number(r.lng) : null }));
     } catch (_) {}
 
-    res.json({ ...result.rows[0], areas });
+    let linked_user_ids = [];
+    let linked_user_names = [];
+    try {
+      await ensureRepLinksSchema();
+      const lr = await query(
+        `SELECT ru.user_id, u.name FROM crm_representative_users ru
+         JOIN users u ON u.id = ru.user_id
+         WHERE ru.representative_id = $1 ORDER BY u.name`,
+        [req.params.id]
+      );
+      linked_user_ids = lr.rows.map(x => x.user_id);
+      linked_user_names = lr.rows.map(x => x.name);
+    } catch (_) {}
+
+    res.json({ ...result.rows[0], areas, linked_user_ids, linked_user_names });
   } catch (error) {
     console.error('Error fetching representative:', error);
     res.status(500).json({ error: error.message });
@@ -5278,21 +5309,54 @@ async function saveIndicatorAreas(repId, areas) {
   }
 }
 
+// ============== N:N Representative <-> Users (multi-vendor) ==============
+async function ensureRepLinksSchema() {
+  try {
+    await query(`CREATE TABLE IF NOT EXISTS crm_representative_users (
+      representative_id UUID NOT NULL REFERENCES crm_representatives(id) ON DELETE CASCADE,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      PRIMARY KEY (representative_id, user_id)
+    )`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_crm_rep_users_user ON crm_representative_users(user_id)`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_crm_rep_users_rep ON crm_representative_users(representative_id)`);
+  } catch(_) {}
+}
+
+async function saveRepLinks(repId, userIds, primaryUserId) {
+  try { await ensureRepLinksSchema(); } catch(_) {}
+  const ids = Array.isArray(userIds) ? [...new Set(userIds.filter(Boolean))] : [];
+  if (primaryUserId && !ids.includes(primaryUserId)) ids.unshift(primaryUserId);
+  await query(`DELETE FROM crm_representative_users WHERE representative_id = $1`, [repId]);
+  for (const uid of ids) {
+    try {
+      await query(
+        `INSERT INTO crm_representative_users (representative_id, user_id) VALUES ($1, $2)
+         ON CONFLICT DO NOTHING`,
+        [repId, uid]
+      );
+    } catch(_) {}
+  }
+}
+
 // Create representative
 router.post('/representatives', async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
-    const { name, email, phone, cpf_cnpj, city, state, address, zip_code, commission_percent, notes, linked_user_id, indicator_type, segment_ids, areas, source } = req.body;
+    const { name, email, phone, cpf_cnpj, city, state, address, zip_code, commission_percent, notes, linked_user_id, linked_user_ids, indicator_type, segment_ids, areas, source } = req.body;
     if (source !== undefined) { try { await ensureIndicatorSourcesSchema(); } catch(_){} }
+    // Primary: first of linked_user_ids if provided, else linked_user_id
+    const primaryUser = (Array.isArray(linked_user_ids) && linked_user_ids[0]) || linked_user_id || null;
     const result = await query(
       `INSERT INTO crm_representatives (organization_id, name, email, phone, cpf_cnpj, city, state, address, zip_code, commission_percent, notes, linked_user_id, indicator_type, segment_ids, source, created_by)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING *`,
-      [org.organization_id, name, email, phone, cpf_cnpj, city, state, address, zip_code, commission_percent || 0, notes, linked_user_id || null, indicator_type || 'representante', JSON.stringify(segment_ids || []), source || null, req.userId]
+      [org.organization_id, name, email, phone, cpf_cnpj, city, state, address, zip_code, commission_percent || 0, notes, primaryUser, indicator_type || 'representante', JSON.stringify(segment_ids || []), source || null, req.userId]
     );
     const rep = result.rows[0];
     if (areas) await saveIndicatorAreas(rep.id, areas);
+    await saveRepLinks(rep.id, linked_user_ids, primaryUser);
     res.json(rep);
 
   } catch (error) {
@@ -5307,17 +5371,21 @@ router.put('/representatives/:id', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
-    const { name, email, phone, cpf_cnpj, city, state, address, zip_code, commission_percent, notes, linked_user_id, is_active, indicator_type, segment_ids, areas, source } = req.body;
+    const { name, email, phone, cpf_cnpj, city, state, address, zip_code, commission_percent, notes, linked_user_id, linked_user_ids, is_active, indicator_type, segment_ids, areas, source } = req.body;
     if (source !== undefined) { try { await ensureIndicatorSourcesSchema(); } catch(_){} }
+    const primaryUser = (Array.isArray(linked_user_ids) && linked_user_ids[0]) || linked_user_id || null;
     const result = await query(
       `UPDATE crm_representatives SET name=$1, email=$2, phone=$3, cpf_cnpj=$4, city=$5, state=$6, address=$7, zip_code=$8,
        commission_percent=$9, notes=$10, linked_user_id=$11, is_active=COALESCE($12, is_active),
        indicator_type=COALESCE($13, indicator_type), segment_ids=COALESCE($14::jsonb, segment_ids),
        source=$15, updated_at=NOW()
        WHERE id=$16 AND organization_id=$17 RETURNING *`,
-      [name, email, phone, cpf_cnpj, city, state, address, zip_code, commission_percent || 0, notes, linked_user_id || null, is_active, indicator_type || null, segment_ids ? JSON.stringify(segment_ids) : null, source ?? null, req.params.id, org.organization_id]
+      [name, email, phone, cpf_cnpj, city, state, address, zip_code, commission_percent || 0, notes, primaryUser, is_active, indicator_type || null, segment_ids ? JSON.stringify(segment_ids) : null, source ?? null, req.params.id, org.organization_id]
     );
     if (areas !== undefined) await saveIndicatorAreas(req.params.id, areas);
+    if (linked_user_ids !== undefined || linked_user_id !== undefined) {
+      await saveRepLinks(req.params.id, linked_user_ids, primaryUser);
+    }
     res.json(result.rows[0]);
 
   } catch (error) {
@@ -8058,15 +8126,23 @@ async function getVisibleRepresentativeIds(userId, organizationId, role) {
     );
     return r.rows.map((x) => x.id);
   }
+  try { await ensureRepLinksSchema(); } catch(_){}
   const r = await query(
     `SELECT r.id FROM crm_representatives r
      WHERE r.organization_id = $1
        AND (
          r.linked_user_id = $2
+         OR EXISTS (SELECT 1 FROM crm_representative_users ru WHERE ru.representative_id = r.id AND ru.user_id = $2)
          OR r.linked_user_id IN (
            SELECT gm2.user_id FROM crm_user_group_members gm
            JOIN crm_user_group_members gm2 ON gm2.group_id = gm.group_id
            WHERE gm.user_id = $2
+         )
+         OR EXISTS (
+           SELECT 1 FROM crm_representative_users ru2
+           JOIN crm_user_group_members gm3 ON gm3.user_id = ru2.user_id
+           WHERE ru2.representative_id = r.id
+             AND gm3.group_id IN (SELECT group_id FROM crm_user_group_members WHERE user_id = $2)
          )
        )`,
     [organizationId, userId]
@@ -8079,6 +8155,7 @@ router.get('/representatives/hub', async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
+    try { await ensureRepLinksSchema(); } catch(_){}
 
     const visibilityCte = canManage(org.role)
       ? `SELECT id FROM crm_representatives WHERE organization_id = $1`
@@ -8086,10 +8163,17 @@ router.get('/representatives/hub', async (req, res) => {
          WHERE r.organization_id = $1
            AND (
              r.linked_user_id = $2
+             OR EXISTS (SELECT 1 FROM crm_representative_users ru WHERE ru.representative_id = r.id AND ru.user_id = $2)
              OR r.linked_user_id IN (
                SELECT gm2.user_id FROM crm_user_group_members gm
                JOIN crm_user_group_members gm2 ON gm2.group_id = gm.group_id
                WHERE gm.user_id = $2
+             )
+             OR EXISTS (
+               SELECT 1 FROM crm_representative_users ru2
+               JOIN crm_user_group_members gm3 ON gm3.user_id = ru2.user_id
+               WHERE ru2.representative_id = r.id
+                 AND gm3.group_id IN (SELECT group_id FROM crm_user_group_members WHERE user_id = $2)
              )
            )`;
 

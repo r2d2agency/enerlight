@@ -28,6 +28,8 @@ export interface Representative {
   is_active: boolean;
   linked_user_id?: string;
   linked_user_name?: string;
+  linked_user_ids?: string[];
+  linked_user_names?: string[];
   indicator_type?: IndicatorType;
   segment_ids?: string[];
   areas?: IndicatorArea[];
