@@ -915,6 +915,66 @@ export default function CRMNegociacoes() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Bulk note dialog */}
+      <Dialog open={bulkNoteOpen} onOpenChange={setBulkNoteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Adicionar nota em {selectedDealIds.size} negociação(ões)</DialogTitle>
+            <DialogDescription>
+              A mesma nota será registrada no histórico de cada negociação selecionada.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={bulkNoteText}
+            onChange={(e) => setBulkNoteText(e.target.value)}
+            placeholder="Digite a observação..."
+            rows={5}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkNoteOpen(false)}>Cancelar</Button>
+            <Button onClick={handleBulkNoteSubmit} disabled={!bulkNoteText.trim() || bulkAddNote.isPending}>
+              {bulkAddNote.isPending ? "Salvando..." : "Adicionar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk task dialog */}
+      <Dialog open={bulkTaskOpen} onOpenChange={setBulkTaskOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Criar tarefa em {selectedDealIds.size} negociação(ões)</DialogTitle>
+            <DialogDescription>
+              Uma tarefa será criada para cada negociação selecionada, atribuída a você.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Título</Label>
+              <Input
+                value={bulkTaskTitle}
+                onChange={(e) => setBulkTaskTitle(e.target.value)}
+                placeholder="Ex.: Ligar para acompanhar"
+              />
+            </div>
+            <div>
+              <Label>Data/hora (opcional)</Label>
+              <Input
+                type="datetime-local"
+                value={bulkTaskDate}
+                onChange={(e) => setBulkTaskDate(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkTaskOpen(false)}>Cancelar</Button>
+            <Button onClick={handleBulkTaskSubmit} disabled={!bulkTaskTitle.trim() || bulkAddTask.isPending}>
+              {bulkAddTask.isPending ? "Criando..." : "Criar tarefas"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 }
