@@ -370,12 +370,15 @@ function ConfigDialog({ open, onOpenChange, config, options }: ConfigDialogProps
             </TabsContent>
 
             <TabsContent value="regras" className="space-y-4">
-              <RuleRow label="Sem empresa vinculada" checked={draft.rule_require_company} onChange={(v) => set('rule_require_company', v)} />
-              <RuleRow label="Sem valor preenchido" checked={draft.rule_require_value} onChange={(v) => set('rule_require_value', v)} />
-              <RuleRow label="Sem responsável" checked={draft.rule_require_owner} onChange={(v) => set('rule_require_owner', v)} />
-              <RuleRow label="Sem contato vinculado" checked={draft.rule_require_contact} onChange={(v) => set('rule_require_contact', v)} />
-              <RuleRow label="Sem follow-up agendado" checked={draft.rule_require_followup} onChange={(v) => set('rule_require_followup', v)} />
-              <RuleRow label="Sem histórico de movimentação" checked={draft.rule_require_history} onChange={(v) => set('rule_require_history', v)} />
+              <p className="text-xs text-muted-foreground">
+                Cada regra pode valer para o kanban inteiro (deixe sem etapa marcada) ou somente para etapas/colunas específicas. Ex.: marque "Negociação" na regra <em>Sem valor</em> para só cobrar valor preenchido nessa etapa.
+              </p>
+              <RuleRowWithStages label="Sem empresa vinculada" checked={draft.rule_require_company} onChange={(v) => set('rule_require_company', v)} stages={options?.stages} funnelIds={draft.funnel_ids} selectedStages={draft.rule_company_stage_ids} onToggleStage={(id) => toggleId('rule_company_stage_ids', id)} />
+              <RuleRowWithStages label="Sem valor preenchido" checked={draft.rule_require_value} onChange={(v) => set('rule_require_value', v)} stages={options?.stages} funnelIds={draft.funnel_ids} selectedStages={draft.rule_value_stage_ids} onToggleStage={(id) => toggleId('rule_value_stage_ids', id)} />
+              <RuleRowWithStages label="Sem responsável" checked={draft.rule_require_owner} onChange={(v) => set('rule_require_owner', v)} stages={options?.stages} funnelIds={draft.funnel_ids} selectedStages={draft.rule_owner_stage_ids} onToggleStage={(id) => toggleId('rule_owner_stage_ids', id)} />
+              <RuleRowWithStages label="Sem contato vinculado" checked={draft.rule_require_contact} onChange={(v) => set('rule_require_contact', v)} stages={options?.stages} funnelIds={draft.funnel_ids} selectedStages={draft.rule_contact_stage_ids} onToggleStage={(id) => toggleId('rule_contact_stage_ids', id)} />
+              <RuleRowWithStages label="Sem follow-up agendado" checked={draft.rule_require_followup} onChange={(v) => set('rule_require_followup', v)} stages={options?.stages} funnelIds={draft.funnel_ids} selectedStages={draft.rule_followup_stage_ids} onToggleStage={(id) => toggleId('rule_followup_stage_ids', id)} />
+              <RuleRowWithStages label="Sem histórico de movimentação" checked={draft.rule_require_history} onChange={(v) => set('rule_require_history', v)} stages={options?.stages} funnelIds={draft.funnel_ids} selectedStages={draft.rule_history_stage_ids} onToggleStage={(id) => toggleId('rule_history_stage_ids', id)} />
               <div className="flex items-center justify-between border rounded-lg p-3">
                 <div>
                   <p className="font-medium text-sm">Horas para considerar "parado"</p>
