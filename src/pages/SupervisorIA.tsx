@@ -396,13 +396,20 @@ function ConfigDialog({ open, onOpenChange, config, options }: ConfigDialogProps
   const [local, setLocal] = useState<SupervisorIAConfig | null>(null);
 
   // Sincroniza quando abrir
-  const draft = local ?? config ?? {
+  const draft: SupervisorIAConfig = local ?? config ?? {
     funnel_ids: [], homologation_board_ids: [], licitacao_board_ids: [], group_ids: [], user_ids: [], representative_ids: [],
     rule_require_company: true, rule_require_value: true, rule_require_owner: true,
     rule_require_contact: true, rule_require_followup: true, rule_require_history: true,
     rule_company_stage_ids: [], rule_value_stage_ids: [], rule_owner_stage_ids: [],
     rule_contact_stage_ids: [], rule_followup_stage_ids: [], rule_history_stage_ids: [],
     stale_hours: 72,
+    ai_agent_id: null,
+    auto_analysis_enabled: false,
+    auto_analysis_interval_hours: 4,
+    alert_whatsapp_numbers: [],
+    alert_whatsapp_connection_id: null,
+    analysis_period_days: 7,
+    last_auto_analysis_at: null,
   };
 
   const set = <K extends keyof SupervisorIAConfig>(key: K, val: SupervisorIAConfig[K]) => {
