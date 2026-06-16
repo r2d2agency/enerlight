@@ -341,13 +341,48 @@ router.get('/analysis', async (req, res) => {
             AND d.status = 'open'
             ${diagnosticFilters.join('\n            ')}
         )
+      const stageGuard = (stageArr) => {
+        if (!stageArr || stageArr.length === 0) return 'true';
+        diagnosticParams.push(stageArr);
+        return `stage_id = ANY($${diagnosticParams.length}::uuid[])`;
+      };
+      const condCompany = cfg.rule_require_company ? `(company_id IS NULL AND ${stageGuard(cfg.rule_company_stage_ids)})` : 'false';
+      const condValue = cfg.rule_require_value ? `((value IS NULL OR value = 0) AND ${stageGuard(cfg.rule_value_stage_ids)})` : 'false';
+      const condOwner = cfg.rule_require_owner ? `(owner_id IS NULL AND ${stageGuard(cfg.rule_owner_stage_ids)})` : 'false';
+      const condContact = cfg.rule_require_contact ? `(contact_count = 0 AND ${stageGuard(cfg.rule_contact_stage_ids)})` : 'false';
+      const condFollowup = cfg.rule_require_followup ? `(open_tasks = 0 AND ${stageGuard(cfg.rule_followup_stage_ids)})` : 'false';
+      const condHistory = cfg.rule_require_history ? `(history_count = 0 AND ${stageGuard(cfg.rule_history_stage_ids)})` : 'false';
+
+      const { rows } = await query(`
+        WITH base AS (
+          SELECT
+            d.id, d.title, d.value, d.owner_id, d.company_id, d.funnel_id, d.stage_id,
+            d.last_activity_at, d.created_at, d.status,
+            f.name AS funnel_name, f.color AS funnel_color,
+            s.name AS stage_name,
+            u.name AS owner_name,
+            c.name AS company_name,
+            (SELECT COUNT(*)::int FROM crm_deal_contacts dc WHERE dc.deal_id = d.id) AS contact_count,
+            (SELECT COUNT(*)::int FROM crm_tasks t WHERE t.deal_id = d.id AND t.status = 'pending' AND t.due_date IS NOT NULL) AS open_tasks,
+            (SELECT COUNT(*)::int FROM crm_deal_history h WHERE h.deal_id = d.id) AS history_count,
+            EXTRACT(EPOCH FROM (NOW() - COALESCE(d.last_activity_at, d.created_at))) / 3600.0 AS hours_idle
+          FROM crm_deals d
+          JOIN crm_funnels f ON f.id = d.funnel_id
+          LEFT JOIN crm_stages s ON s.id = d.stage_id
+          LEFT JOIN users u ON u.id = d.owner_id
+          LEFT JOIN crm_companies c ON c.id = d.company_id
+          WHERE d.organization_id = $1
+            AND d.funnel_id = ANY($2::uuid[])
+            AND d.status = 'open'
+            ${diagnosticFilters.join('\n            ')}
+        )
         SELECT *,
-          (CASE WHEN ${cfg.rule_require_company ? 'company_id IS NULL' : 'false'} THEN 1 ELSE 0 END) AS miss_company,
-          (CASE WHEN ${cfg.rule_require_value ? '(value IS NULL OR value = 0)' : 'false'} THEN 1 ELSE 0 END) AS miss_value,
-          (CASE WHEN ${cfg.rule_require_owner ? 'owner_id IS NULL' : 'false'} THEN 1 ELSE 0 END) AS miss_owner,
-          (CASE WHEN ${cfg.rule_require_contact ? 'contact_count = 0' : 'false'} THEN 1 ELSE 0 END) AS miss_contact,
-          (CASE WHEN ${cfg.rule_require_followup ? 'open_tasks = 0' : 'false'} THEN 1 ELSE 0 END) AS miss_followup,
-          (CASE WHEN ${cfg.rule_require_history ? 'history_count = 0' : 'false'} THEN 1 ELSE 0 END) AS miss_history,
+          (CASE WHEN ${condCompany} THEN 1 ELSE 0 END) AS miss_company,
+          (CASE WHEN ${condValue} THEN 1 ELSE 0 END) AS miss_value,
+          (CASE WHEN ${condOwner} THEN 1 ELSE 0 END) AS miss_owner,
+          (CASE WHEN ${condContact} THEN 1 ELSE 0 END) AS miss_contact,
+          (CASE WHEN ${condFollowup} THEN 1 ELSE 0 END) AS miss_followup,
+          (CASE WHEN ${condHistory} THEN 1 ELSE 0 END) AS miss_history,
           (CASE WHEN hours_idle >= ${staleHours} THEN 1 ELSE 0 END) AS is_stale
         FROM base
       `, diagnosticParams).catch((e) => {
