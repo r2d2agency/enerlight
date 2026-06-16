@@ -157,10 +157,18 @@ async function callOpenAI(config, messages, options) {
 // ==================== Gemini ====================
 
 async function callGemini(config, messages, options) {
-  const primaryModel = config.model || 'gemini-1.5-flash';
-  // Fallback chain when primary model is overloaded (503)
+  // Map deprecated models to current equivalents
+  const MODEL_ALIASES = {
+    'gemini-1.5-flash': 'gemini-2.0-flash',
+    'gemini-1.5-flash-8b': 'gemini-2.0-flash-lite',
+    'gemini-1.5-pro': 'gemini-2.5-pro',
+    'gemini-pro': 'gemini-2.0-flash',
+  };
+  const rawModel = config.model || 'gemini-2.0-flash';
+  const primaryModel = MODEL_ALIASES[rawModel] || rawModel;
+  // Fallback chain when primary model is overloaded (503) or not found (404)
   const fallbackChain = [primaryModel];
-  for (const fb of ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-8b']) {
+  for (const fb of ['gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-2.0-flash-lite']) {
     if (!fallbackChain.includes(fb)) fallbackChain.push(fb);
   }
 
@@ -228,6 +236,8 @@ async function callGemini(config, messages, options) {
       if (response.ok) break outer;
       lastStatus = response.status;
       lastErrText = await response.text().catch(() => '');
+      // 404 = model não existe/deprecado: pula direto pro próximo
+      if (response.status === 404) break;
       if (!RETRYABLE.has(response.status)) break outer;
       // For 503 overload, fast-skip to next fallback model after 1 retry
       if (response.status === 503 && attempt >= 1) break;
