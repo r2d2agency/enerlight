@@ -447,6 +447,7 @@ function ConfigDialog({ open, onOpenChange, config, options }: ConfigDialogProps
               <TabsTrigger value="kanbans">Kanbans</TabsTrigger>
               <TabsTrigger value="pessoas">Pessoas</TabsTrigger>
               <TabsTrigger value="regras">Regras</TabsTrigger>
+              <TabsTrigger value="cerebro">Cérebro IA</TabsTrigger>
             </TabsList>
 
             <TabsContent value="kanbans" className="space-y-6">
