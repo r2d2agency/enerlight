@@ -1338,19 +1338,89 @@ export default function CRMRepresentantes() {
               </div>
 
               <div className="space-y-2">
-                <Label>Vendedor Vinculado</Label>
-                <Select value={form.linked_user_id || "none"} onValueChange={v => setForm(f => ({ ...f, linked_user_id: v === "none" ? "" : v }))}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Nenhum</SelectItem>
-                    {user && !orgMembers?.some(m => m.user_id === user.id) && (
-                      <SelectItem key={user.id} value={user.id}>{user.name} ({user.email}) — Eu</SelectItem>
-                    )}
-                    {orgMembers?.map(m => (
-                      <SelectItem key={m.user_id} value={m.user_id}>{m.name} ({m.email}){m.user_id === user?.id ? ' — Eu' : ''}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>Vendedores Vinculados</Label>
+                <p className="text-xs text-muted-foreground">
+                  Selecione um ou mais vendedores. Todos eles verão este representante nos seus filtros.
+                </p>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start font-normal h-auto min-h-10 py-2">
+                      {form.linked_user_ids.length === 0 ? (
+                        <span className="text-muted-foreground">Nenhum vendedor selecionado</span>
+                      ) : (
+                        <div className="flex flex-wrap gap-1">
+                          {form.linked_user_ids.map(uid => {
+                            const m = orgMembers?.find(x => x.user_id === uid);
+                            const label = m?.name || (uid === user?.id ? user?.name : uid);
+                            return (
+                              <Badge key={uid} variant="secondary" className="text-xs">
+                                {label}
+                                <button
+                                  type="button"
+                                  className="ml-1 hover:text-destructive"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setForm(f => ({
+                                      ...f,
+                                      linked_user_ids: f.linked_user_ids.filter(id => id !== uid),
+                                      linked_user_id: f.linked_user_id === uid ? "" : f.linked_user_id,
+                                    }));
+                                  }}
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </Badge>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                    <ScrollArea className="max-h-72">
+                      <div className="p-2 space-y-1">
+                        {user && !orgMembers?.some(m => m.user_id === user.id) && (
+                          <label className="flex items-center gap-2 p-2 rounded hover:bg-muted cursor-pointer text-sm">
+                            <input
+                              type="checkbox"
+                              checked={form.linked_user_ids.includes(user.id)}
+                              onChange={(e) => {
+                                const checked = e.target.checked;
+                                setForm(f => ({
+                                  ...f,
+                                  linked_user_ids: checked
+                                    ? [...f.linked_user_ids, user.id]
+                                    : f.linked_user_ids.filter(id => id !== user.id),
+                                  linked_user_id: checked && !f.linked_user_id ? user.id : f.linked_user_id,
+                                }));
+                              }}
+                            />
+                            <span>{user.name} ({user.email}) — Eu</span>
+                          </label>
+                        )}
+                        {orgMembers?.map(m => (
+                          <label key={m.user_id} className="flex items-center gap-2 p-2 rounded hover:bg-muted cursor-pointer text-sm">
+                            <input
+                              type="checkbox"
+                              checked={form.linked_user_ids.includes(m.user_id)}
+                              onChange={(e) => {
+                                const checked = e.target.checked;
+                                setForm(f => ({
+                                  ...f,
+                                  linked_user_ids: checked
+                                    ? [...f.linked_user_ids, m.user_id]
+                                    : f.linked_user_ids.filter(id => id !== m.user_id),
+                                  linked_user_id: checked && !f.linked_user_id ? m.user_id : f.linked_user_id,
+                                }));
+                              }}
+                            />
+                            <span>{m.name} ({m.email}){m.user_id === user?.id ? ' — Eu' : ''}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </PopoverContent>
+                </Popover>
               </div>
               <div className="space-y-2">
                 <Label>Observações</Label>
