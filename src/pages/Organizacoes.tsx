@@ -274,6 +274,7 @@ export default function Organizacoes() {
         rh_module: modules.rh_module ?? false,
         goals: modules.goals ?? true,
         representatives: modules.representatives ?? true,
+        supervisor_ia: modules.supervisor_ia ?? false,
       });
 
     } catch (error) {
