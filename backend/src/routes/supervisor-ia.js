@@ -119,7 +119,14 @@ router.get('/scope-options', async (req, res) => {
     const orgId = req.user.organization_id;
     const [funnels, stages, groups, users, representatives, homBoards, licBoards] = await Promise.all([
       query(`SELECT id, name, color FROM crm_funnels WHERE organization_id = $1 AND is_active = true ORDER BY name`, [orgId]).catch((e) => { logError('supervisor_ia.scope.funnels', e); return { rows: [] }; }),
-      query(`SELECT id, name, funnel_id, position FROM crm_stages WHERE organization_id = $1 ORDER BY funnel_id, position`, [orgId]).catch((e) => { logError('supervisor_ia.scope.stages', e); return { rows: [] }; }),
+      query(`
+        SELECT s.id, s.name, s.funnel_id, s.position
+        FROM crm_stages s
+        JOIN crm_funnels f ON f.id = s.funnel_id
+        WHERE f.organization_id = $1
+          AND COALESCE(f.is_active, true) = true
+        ORDER BY s.funnel_id, s.position
+      `, [orgId]).catch((e) => { logError('supervisor_ia.scope.stages', e); return { rows: [] }; }),
       query(`SELECT id, name FROM crm_user_groups WHERE organization_id = $1 ORDER BY name`, [orgId]).catch((e) => { logError('supervisor_ia.scope.groups', e); return { rows: [] }; }),
       query(`
         SELECT u.id, u.name, u.email
