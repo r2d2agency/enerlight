@@ -203,18 +203,35 @@ async function callGemini(config, messages, options) {
     }];
   }
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${config.apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+  // Retry on transient errors (503/429/500/502/504) with exponential backoff
+  const RETRYABLE = new Set([429, 500, 502, 503, 504]);
+  const MAX_ATTEMPTS = 4;
+  let response;
+  let lastErrText = '';
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${config.apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }
+    );
+    if (response.ok) break;
+    lastErrText = await response.text().catch(() => '');
+    if (!RETRYABLE.has(response.status) || attempt === MAX_ATTEMPTS) {
+      // Friendlier message for overload (503)
+      if (response.status === 503) {
+        throw new Error(`O modelo ${model} está sobrecarregado no momento (503). Tente novamente em alguns minutos ou troque o modelo do agente (ex.: gemini-2.5-flash, gemini-1.5-flash ou um modelo OpenAI).`);
+      }
+      if (response.status === 429) {
+        throw new Error(`Limite de requisições do Gemini atingido (429). Aguarde alguns instantes e tente novamente.`);
+      }
+      throw new Error(`Gemini API error ${response.status}: ${lastErrText}`);
     }
-  );
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Gemini API error ${response.status}: ${errorText}`);
+    // Exponential backoff: 1s, 2s, 4s
+    const delay = 1000 * Math.pow(2, attempt - 1);
+    await new Promise(r => setTimeout(r, delay));
   }
 
   const data = await response.json();
