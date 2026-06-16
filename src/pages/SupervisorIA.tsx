@@ -831,12 +831,33 @@ function BrainTab() {
   );
 }
 
+function tryExtractJSON(s: string): any | null {
+  if (!s) return null;
+  let raw = s.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+  try { return JSON.parse(raw); } catch {}
+  const first = raw.indexOf('{');
+  const last = raw.lastIndexOf('}');
+  if (first >= 0 && last > first) {
+    try { return JSON.parse(raw.slice(first, last + 1)); } catch {}
+  }
+  return null;
+}
+
 function BrainInsightView({ insight }: { insight: BrainInsight }) {
+  // Recover from older insights where the LLM returned a raw JSON string
+  // that was stuffed into executive_summary by the fallback.
+  if (insight?.executive_summary && /^\s*[{`]/.test(insight.executive_summary)) {
+    const recovered = tryExtractJSON(insight.executive_summary);
+    if (recovered && recovered.executive_summary) {
+      insight = { ...recovered, ...Object.fromEntries(Object.entries(insight).filter(([k, v]) => k !== 'executive_summary' && v != null && (Array.isArray(v) ? v.length : true))) } as BrainInsight;
+      insight.executive_summary = recovered.executive_summary;
+    }
+  }
   return (
     <div className="space-y-4">
       <div className="flex items-start gap-3">
         <div className="flex-1">
-          <p className="text-sm">{insight.executive_summary}</p>
+          <p className="text-sm leading-relaxed">{insight.executive_summary}</p>
         </div>
         <div className="text-center shrink-0">
           <div className={`text-2xl font-bold ${(insight.health_score ?? 0) >= 70 ? 'text-emerald-600' : (insight.health_score ?? 0) >= 40 ? 'text-amber-600' : 'text-red-600'}`}>
