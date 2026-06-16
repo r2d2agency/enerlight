@@ -623,24 +623,196 @@ export async function computeAnalysis(orgId, userId, startDate, endDate) {
       }
     }
 
-    res.json({
-      period: { start_date: startDate, end_date: endDate, stale_hours: staleHours },
-      summary: {
-        total_deals_created: dealsByOwner.reduce((s, r) => s + r.deals_created, 0),
-        total_companies_created: newCompaniesTotal,
-        total_incomplete: [...funnelDiagnostics, ...homologationDiagnostics, ...licitacaoDiagnostics].reduce((s, f) => s + f.incomplete, 0),
-        total_stale: [...funnelDiagnostics, ...homologationDiagnostics, ...licitacaoDiagnostics].reduce((s, f) => s + f.stale, 0),
-        total_without_followup: funnelDiagnostics.reduce((s, f) => s + f.without_followup, 0),
-        total_without_history: funnelDiagnostics.reduce((s, f) => s + f.without_history, 0),
-      },
-      deals_by_owner: dealsByOwner,
-      new_companies_by_user: newCompanies,
-      diagnostics: [...funnelDiagnostics, ...homologationDiagnostics, ...licitacaoDiagnostics],
-    });
+  return {
+    period: { start_date: startDate, end_date: endDate, stale_hours: staleHours },
+    summary: {
+      total_deals_created: dealsByOwner.reduce((s, r) => s + r.deals_created, 0),
+      total_companies_created: newCompaniesTotal,
+      total_incomplete: [...funnelDiagnostics, ...homologationDiagnostics, ...licitacaoDiagnostics].reduce((s, f) => s + f.incomplete, 0),
+      total_stale: [...funnelDiagnostics, ...homologationDiagnostics, ...licitacaoDiagnostics].reduce((s, f) => s + f.stale, 0),
+      total_without_followup: funnelDiagnostics.reduce((s, f) => s + f.without_followup, 0),
+      total_without_history: funnelDiagnostics.reduce((s, f) => s + f.without_history, 0),
+    },
+    deals_by_owner: dealsByOwner,
+    new_companies_by_user: newCompanies,
+    diagnostics: [...funnelDiagnostics, ...homologationDiagnostics, ...licitacaoDiagnostics],
+  };
+}
+
+router.get('/analysis', async (req, res) => {
+  try {
+    const data = await computeAnalysis(
+      req.user.organization_id,
+      req.user.id,
+      req.query.start_date,
+      req.query.end_date
+    );
+    res.json(data);
   } catch (e) {
     logError('supervisor_ia.analysis', e);
     res.status(500).json({ error: e.message });
   }
 });
+
+// =====================================================================
+// CÉREBRO IA: análise inteligente, insights, alertas e chat interativo
+// =====================================================================
+
+// Executar análise do cérebro (sob demanda)
+router.post('/brain/analyze', async (req, res) => {
+  try {
+    const orgId = req.user.organization_id;
+    const userId = req.user.id;
+    const cfg = await loadConfig(orgId, userId);
+
+    const periodDays = Number(req.body?.period_days) || cfg.analysis_period_days || 7;
+    const endDate = localDate(0);
+    const startDate = localDate(-periodDays);
+
+    const analysis = await computeAnalysis(orgId, userId, startDate, endDate);
+    const aiConfig = await resolveAIConfig(orgId, cfg.ai_agent_id);
+    const { insight, tokensUsed, model } = await runBrainAnalysis({
+      aiConfig,
+      analysis,
+      context: req.body?.context || null,
+    });
+
+    const ins = await query(`
+      INSERT INTO supervisor_ia_insights
+        (organization_id, user_id, trigger, period_start, period_end, insight, raw_snapshot_summary, tokens_used, model)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+      RETURNING id, created_at
+    `, [
+      orgId, userId, req.body?.trigger || 'manual',
+      startDate, endDate,
+      JSON.stringify(insight),
+      JSON.stringify(analysis.summary),
+      tokensUsed, model,
+    ]);
+
+    res.json({
+      id: ins.rows[0].id,
+      created_at: ins.rows[0].created_at,
+      period: { start_date: startDate, end_date: endDate },
+      insight,
+      tokens_used: tokensUsed,
+      model,
+    });
+  } catch (e) {
+    logError('supervisor_ia.brain_analyze', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Listar histórico de insights
+router.get('/insights', async (req, res) => {
+  try {
+    await ensureSchema();
+    const orgId = req.user.organization_id;
+    const userId = req.user.id;
+    const limit = Math.min(Number(req.query.limit) || 30, 100);
+    const { rows } = await query(`
+      SELECT id, trigger, period_start, period_end, insight, tokens_used, model, alerted_at, created_at
+      FROM supervisor_ia_insights
+      WHERE organization_id = $1 AND user_id = $2
+      ORDER BY created_at DESC
+      LIMIT $3
+    `, [orgId, userId, limit]);
+    res.json(rows);
+  } catch (e) {
+    logError('supervisor_ia.insights_list', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Deletar insight
+router.delete('/insights/:id', async (req, res) => {
+  try {
+    await query(
+      `DELETE FROM supervisor_ia_insights WHERE id = $1 AND organization_id = $2 AND user_id = $3`,
+      [req.params.id, req.user.organization_id, req.user.id]
+    );
+    res.json({ ok: true });
+  } catch (e) {
+    logError('supervisor_ia.insight_delete', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Histórico do chat
+router.get('/chat', async (req, res) => {
+  try {
+    await ensureSchema();
+    const { rows } = await query(`
+      SELECT id, role, content, created_at
+      FROM supervisor_ia_chat_messages
+      WHERE organization_id = $1 AND user_id = $2
+      ORDER BY created_at ASC
+      LIMIT 100
+    `, [req.user.organization_id, req.user.id]);
+    res.json(rows);
+  } catch (e) {
+    logError('supervisor_ia.chat_get', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Limpar chat
+router.delete('/chat', async (req, res) => {
+  try {
+    await query(
+      `DELETE FROM supervisor_ia_chat_messages WHERE organization_id = $1 AND user_id = $2`,
+      [req.user.organization_id, req.user.id]
+    );
+    res.json({ ok: true });
+  } catch (e) {
+    logError('supervisor_ia.chat_clear', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Enviar mensagem no chat
+router.post('/chat', async (req, res) => {
+  try {
+    const orgId = req.user.organization_id;
+    const userId = req.user.id;
+    const message = (req.body?.message || '').trim();
+    if (!message) return res.status(400).json({ error: 'Mensagem vazia' });
+
+    const cfg = await loadConfig(orgId, userId);
+    const periodDays = cfg.analysis_period_days || 7;
+    const [analysis, aiConfig, historyRows] = await Promise.all([
+      computeAnalysis(orgId, userId, localDate(-periodDays), localDate(0)),
+      resolveAIConfig(orgId, cfg.ai_agent_id),
+      query(
+        `SELECT role, content FROM supervisor_ia_chat_messages
+         WHERE organization_id = $1 AND user_id = $2 ORDER BY created_at DESC LIMIT 10`,
+        [orgId, userId]
+      ).then(r => r.rows.reverse()),
+    ]);
+
+    await query(
+      `INSERT INTO supervisor_ia_chat_messages (organization_id, user_id, role, content) VALUES ($1,$2,'user',$3)`,
+      [orgId, userId, message]
+    );
+
+    const { content, tokensUsed, model } = await runBrainChat({
+      aiConfig, analysis, history: historyRows, userMessage: message,
+    });
+
+    const ins = await query(
+      `INSERT INTO supervisor_ia_chat_messages (organization_id, user_id, role, content, tokens_used, model)
+       VALUES ($1,$2,'assistant',$3,$4,$5) RETURNING id, created_at`,
+      [orgId, userId, content, tokensUsed, model]
+    );
+
+    res.json({ id: ins.rows[0].id, created_at: ins.rows[0].created_at, role: 'assistant', content });
+  } catch (e) {
+    logError('supervisor_ia.chat_post', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+export default router;
 
 export default router;
