@@ -5088,15 +5088,26 @@ router.get('/representatives/for-deal', async (req, res) => {
     if (canManage(org.role)) {
       // Managers/admins see all
     } else {
-      // Regular users see reps linked to them or their team
-      visibilityFilter = ` AND (r.linked_user_id = $2 OR r.linked_user_id IN (
-        SELECT gm2.user_id FROM crm_user_group_members gm
-        JOIN crm_user_group_members gm2 ON gm2.group_id = gm.group_id
-        WHERE gm.user_id = $2
-      ))`;
+      // Regular users see reps linked to them (single or N:N) or via team groups
+      visibilityFilter = ` AND (
+        r.linked_user_id = $2
+        OR EXISTS (SELECT 1 FROM crm_representative_users ru WHERE ru.representative_id = r.id AND ru.user_id = $2)
+        OR r.linked_user_id IN (
+          SELECT gm2.user_id FROM crm_user_group_members gm
+          JOIN crm_user_group_members gm2 ON gm2.group_id = gm.group_id
+          WHERE gm.user_id = $2
+        )
+        OR EXISTS (
+          SELECT 1 FROM crm_representative_users ru2
+          JOIN crm_user_group_members gm3 ON gm3.user_id = ru2.user_id
+          WHERE ru2.representative_id = r.id
+            AND gm3.group_id IN (SELECT group_id FROM crm_user_group_members WHERE user_id = $2)
+        )
+      )`;
       params.push(req.userId);
     }
 
+    try { await ensureRepLinksSchema(); } catch(_){}
     const result = await query(
       `SELECT r.id, r.name, r.commission_percent, u.name as linked_user_name
        FROM crm_representatives r
