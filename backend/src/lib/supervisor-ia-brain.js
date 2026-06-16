@@ -146,24 +146,19 @@ export async function runBrainAnalysis({ aiConfig, analysis, context }) {
     responseFormat: { type: 'json_object' },
   });
 
-  let parsed;
-  try {
-    // Some providers wrap JSON inside text/markdown
-    let raw = (result.content || '').trim();
-    raw = raw.replace(/^```json\s*|\s*```$/g, '').replace(/^```\s*|\s*```$/g, '');
-    parsed = JSON.parse(raw);
-  } catch (e) {
-    logError('supervisor_ia.brain.parse_failed', e, { raw: result.content?.slice(0, 500) });
-    parsed = {
-      executive_summary: result.content || 'Falha ao interpretar resposta da IA.',
-      health_score: 50,
-      trend: 'stable',
-      trend_explanation: '',
-      diagnostics: [],
-      team_insights: [],
-      priority_actions: [],
-      opportunities: [],
-    };
+  const parsed = extractJSON(result.content) || {
+    executive_summary: 'Falha ao interpretar resposta da IA. Tente novamente.',
+    health_score: 50,
+    trend: 'stable',
+    trend_explanation: '',
+    diagnostics: [],
+    team_insights: [],
+    priority_actions: [],
+    opportunities: [],
+    _raw: (result.content || '').slice(0, 2000),
+  };
+  if (!parsed.executive_summary) {
+    logError('supervisor_ia.brain.parse_failed', new Error('no executive_summary'), { raw: result.content?.slice(0, 500) });
   }
 
   return { insight: parsed, tokensUsed: result.tokensUsed || 0, model: result.model || aiConfig.model };
