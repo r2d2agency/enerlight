@@ -469,5 +469,6 @@ initDatabase().then((ok) => {
     console.log('📊 Secretary daily digest started - checks every hour');
     console.log('📊 Goals daily report started - checks every minute');
     console.log('⏳ Wait response timeout checker started - checks every 2 minutes');
+    console.log('🧠 Supervisor IA brain started - runs at every hour (per-config interval)');
   });
 });
