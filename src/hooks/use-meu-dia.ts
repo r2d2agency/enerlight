@@ -51,10 +51,7 @@ export interface MeuDiaResponse {
 export function useMeuDia() {
   return useQuery<MeuDiaResponse>({
     queryKey: ["meu-dia"],
-    queryFn: async () => {
-      const { data } = await api.get<MeuDiaResponse>("/meu-dia");
-      return data;
-    },
+    queryFn: () => api<MeuDiaResponse>("/api/meu-dia"),
     refetchInterval: 60_000, // tempo real (refresh a cada 1min)
     refetchOnWindowFocus: true,
     staleTime: 30_000,
