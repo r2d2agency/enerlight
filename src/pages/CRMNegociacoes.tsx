@@ -400,9 +400,29 @@ export default function CRMNegociacoes() {
       <div className="flex flex-col h-full">
         {/* Header */}
         <div className="flex flex-col gap-3 p-3 lg:p-4 border-b">
+          {/* Breadcrumb when viewing a single representative's kanban */}
+          {currentRep && (
+            <div className="flex items-center gap-2 text-sm">
+              <Link to="/crm/representantes-hub" className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
+                <Handshake className="h-3.5 w-3.5" /> Hub
+              </Link>
+              <span className="text-muted-foreground">›</span>
+              <span className="font-medium">Kanban de {currentRep.name}</span>
+              <Badge variant="secondary" className="ml-1">{currentRep.open_deals_count} aberta(s)</Badge>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="ml-auto h-7"
+                onClick={() => { searchParams.delete("representative_id"); setSearchParams(searchParams, { replace: true }); }}
+              >
+                <X className="h-3.5 w-3.5 mr-1" /> Limpar filtro
+              </Button>
+            </div>
+          )}
           {/* Top row: title + main actions */}
           <div className="flex items-center justify-between gap-2">
             <h1 className="text-lg lg:text-2xl font-bold shrink-0">Negociações</h1>
+
 
             <div className="flex items-center gap-2">
               {/* View Toggle */}
