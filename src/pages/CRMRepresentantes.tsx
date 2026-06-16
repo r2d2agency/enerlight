@@ -57,6 +57,7 @@ interface FormState {
   name: string; email: string; phone: string; cpf_cnpj: string;
   city: string; state: string; address: string; zip_code: string;
   commission_percent: string; notes: string; linked_user_id: string;
+  linked_user_ids: string[];
   indicator_type: IndicatorType;
   segment_ids: string[];
   areas: IndicatorArea[];
@@ -66,6 +67,7 @@ interface FormState {
 const emptyForm: FormState = {
   name: "", email: "", phone: "", cpf_cnpj: "", city: "", state: "",
   address: "", zip_code: "", commission_percent: "5", notes: "", linked_user_id: "",
+  linked_user_ids: [],
   indicator_type: "representante", segment_ids: [], areas: [], source: "",
 };
 
