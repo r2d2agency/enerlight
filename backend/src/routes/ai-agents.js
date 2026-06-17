@@ -9,6 +9,17 @@ import { normalizeExpenseContactPhone } from '../lib/expense-contact-authorizati
 const router = Router();
 const MASKED_AI_API_KEY = '••••••••';
 
+// Lazy migration: ensure agent_type column exists (for dedicated expense agent)
+let _agentTypeReady = false;
+async function ensureAgentTypeColumn() {
+  if (_agentTypeReady) return;
+  try {
+    await query(`ALTER TABLE ai_agents ADD COLUMN IF NOT EXISTS agent_type VARCHAR(30) DEFAULT 'general'`);
+    _agentTypeReady = true;
+  } catch (e) { logError('ai_agents.agent_type_migration', e); }
+}
+ensureAgentTypeColumn();
+
 // Helper to get user's organization and info
 async function getUserContext(userId) {
   const result = await query(
@@ -1564,6 +1575,50 @@ router.post('/:id/test', authenticate, async (req, res) => {
       tools.push(buildGenerateContentTool());
     }
 
+    // MANAGE_EXPENSES tools (test mode uses current user as expense owner)
+    if (capabilities.includes('manage_expenses')) {
+      tools.push({
+        type: 'function',
+        function: {
+          name: 'create_expense',
+          description: 'Registra uma despesa/gasto. Categorias: combustivel, alimentacao, transporte, hospedagem, material, servico, outros. Pagamentos: dinheiro, cartao_credito, cartao_debito, pix, outros.',
+          parameters: {
+            type: 'object',
+            properties: {
+              amount: { type: 'number' },
+              category: { type: 'string', enum: ['combustivel','alimentacao','transporte','hospedagem','material','servico','outros'] },
+              description: { type: 'string' },
+              expense_date: { type: 'string', description: 'YYYY-MM-DD' },
+              expense_time: { type: 'string' },
+              payment_type: { type: 'string', enum: ['dinheiro','cartao_credito','cartao_debito','pix','outros'] },
+              establishment: { type: 'string' },
+              cnpj: { type: 'string' },
+              location: { type: 'string' },
+            },
+            required: ['amount', 'category', 'description', 'expense_date'],
+          },
+        },
+      });
+      tools.push({
+        type: 'function',
+        function: {
+          name: 'query_expenses',
+          description: 'Consulta despesas registradas. Ações: list, summary, total.',
+          parameters: {
+            type: 'object',
+            properties: {
+              action: { type: 'string', enum: ['list', 'summary', 'total'] },
+              start_date: { type: 'string' },
+              end_date: { type: 'string' },
+              category: { type: 'string' },
+              limit: { type: 'number' },
+            },
+            required: ['action'],
+          },
+        },
+      });
+    }
+
     let result;
     let toolCallsExecuted = [];
 
@@ -1591,6 +1646,10 @@ router.post('/:id/test', authenticate, async (req, res) => {
             return await executeSuggestActions(args);
           case 'generate_content':
             return await executeGenerateContent(args);
+          case 'create_expense':
+            return await executeTestCreateExpense(userCtx, args);
+          case 'query_expenses':
+            return await executeTestQueryExpenses(userCtx, args);
           default:
             return 'Ferramenta desconhecida';
         }
@@ -1794,5 +1853,85 @@ router.delete('/:id/expense-contacts/:contactId', authenticate, async (req, res)
     res.status(500).json({ error: 'Erro ao remover contato' });
   }
 });
+
+// ==================== TEST EXPENSE EXECUTORS ====================
+// In test mode, the authenticated user IS the expense owner (no phone authorization needed)
+
+async function executeTestCreateExpense(userCtx, args) {
+  try {
+    if (!args.amount || !args.category || !args.description || !args.expense_date) {
+      return '⚠️ Dados incompletos. Necessário: amount, category, description, expense_date.';
+    }
+    let groupId = null;
+    try {
+      const groupResult = await query(
+        `SELECT g.id FROM groups g JOIN group_members gm ON gm.group_id = g.id WHERE gm.user_id = $1 LIMIT 1`,
+        [userCtx.id]
+      );
+      groupId = groupResult.rows[0]?.id || null;
+    } catch (_) {}
+
+    const result = await query(`
+      INSERT INTO expense_items (organization_id, user_id, group_id, category, description, amount, expense_date, expense_time, payment_type, location, establishment, cnpj)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+      RETURNING id, amount, category, description, expense_date
+    `, [
+      userCtx.organization_id, userCtx.id, groupId,
+      args.category, args.description, args.amount,
+      args.expense_date, args.expense_time || null,
+      args.payment_type || null, args.location || null,
+      args.establishment || null, args.cnpj || null,
+    ]);
+    const item = result.rows[0];
+    return `✅ Despesa registrada (TESTE)!\n• Valor: R$ ${parseFloat(item.amount).toFixed(2)}\n• Categoria: ${item.category}\n• Descrição: ${item.description}\n• Data: ${item.expense_date}\n• ID: ${item.id}`;
+  } catch (error) {
+    logError('ai_agents.test_create_expense_error', error);
+    return `Erro ao registrar despesa: ${error.message}`;
+  }
+}
+
+async function executeTestQueryExpenses(userCtx, args) {
+  try {
+    const now = new Date();
+    const startDate = args.start_date || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+    const endDate = args.end_date || now.toISOString().split('T')[0];
+    const limit = args.limit || 20;
+
+    if (args.action === 'summary') {
+      let sql = `SELECT category, COUNT(*) as count, SUM(amount) as total
+        FROM expense_items WHERE organization_id = $1 AND user_id = $2
+        AND expense_date >= $3 AND expense_date <= $4`;
+      const params = [userCtx.organization_id, userCtx.id, startDate, endDate];
+      if (args.category) { sql += ` AND category = $5`; params.push(args.category); }
+      sql += ` GROUP BY category ORDER BY total DESC`;
+      const r = await query(sql, params);
+      if (r.rows.length === 0) return `Nenhuma despesa entre ${startDate} e ${endDate}.`;
+      return r.rows.map(x => `• ${x.category}: R$ ${parseFloat(x.total).toFixed(2)} (${x.count})`).join('\n');
+    }
+
+    if (args.action === 'total') {
+      const r = await query(
+        `SELECT COALESCE(SUM(amount),0) as total, COUNT(*) as count FROM expense_items
+         WHERE organization_id = $1 AND user_id = $2 AND expense_date >= $3 AND expense_date <= $4`,
+        [userCtx.organization_id, userCtx.id, startDate, endDate]
+      );
+      return `Total entre ${startDate} e ${endDate}: R$ ${parseFloat(r.rows[0].total).toFixed(2)} (${r.rows[0].count} lançamentos)`;
+    }
+
+    // list
+    let sql = `SELECT category, description, amount, expense_date, establishment
+      FROM expense_items WHERE organization_id = $1 AND user_id = $2
+      AND expense_date >= $3 AND expense_date <= $4`;
+    const params = [userCtx.organization_id, userCtx.id, startDate, endDate];
+    if (args.category) { sql += ` AND category = $5`; params.push(args.category); }
+    sql += ` ORDER BY expense_date DESC, created_at DESC LIMIT ${parseInt(limit) || 20}`;
+    const r = await query(sql, params);
+    if (r.rows.length === 0) return `Nenhuma despesa encontrada no período.`;
+    return r.rows.map(x => `• ${x.expense_date} | ${x.category} | R$ ${parseFloat(x.amount).toFixed(2)} | ${x.description}${x.establishment ? ` (${x.establishment})` : ''}`).join('\n');
+  } catch (error) {
+    logError('ai_agents.test_query_expenses_error', error);
+    return `Erro ao consultar despesas: ${error.message}`;
+  }
+}
 
 export default router;

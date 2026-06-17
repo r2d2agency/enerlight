@@ -167,8 +167,14 @@ export default function PrestacaoContas() {
   return (
     <MainLayout>
       <div className="space-y-4">
+        <div className="flex justify-end">
+          <Button variant="outline" onClick={() => window.location.assign('/prestacao-contas/agente')}>
+            <Receipt className="h-4 w-4 mr-2" /> Configurar IA de Despesas
+          </Button>
+        </div>
         {/* Summary Cards */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+
           <Card>
             <CardContent className="pt-4 pb-3">
               <div className="flex items-center gap-2">

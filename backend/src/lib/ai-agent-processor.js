@@ -570,7 +570,13 @@ Use SEMPRE a ferramenta "query_expenses". NUNCA diga que não tem acesso a lanç
 - Use o valor TOTAL do documento. Infira a categoria pelo tipo de estabelecimento
 - NÃO peça confirmação. Registre e informe o que foi lançado.
 
-REGRA CRÍTICA: Se o usuário perguntar sobre gastos/despesas/lançamentos, CHAME "query_expenses". Se informar um gasto ou enviar foto de recibo, CHAME "create_expense". NUNCA responda sem usar as ferramentas.`;
+REGRA CRÍTICA: Se o usuário perguntar sobre gastos/despesas/lançamentos, CHAME "query_expenses". Se informar um gasto ou enviar foto de recibo, CHAME "create_expense". NUNCA responda sem usar as ferramentas.
+
+### REGRA ANTI-MENTIRA (OBRIGATÓRIA):
+- NUNCA diga "salvei", "registrei", "feito", "ok", "anotado", "lançado", "✅" ou qualquer confirmação de sucesso A MENOS QUE a ferramenta "create_expense" tenha retornado uma mensagem que COMEÇA com "✅".
+- Se a ferramenta retornar uma mensagem que começa com "⚠️" ou "Erro": REPITA literalmente essa mensagem ao usuário e NÃO afirme que salvou.
+- Se você ainda NÃO chamou "create_expense" nesta resposta, é PROIBIDO dizer que registrou/salvou. Chame a ferramenta primeiro.
+- Após a ferramenta executar, sua resposta deve refletir EXATAMENTE o resultado (sucesso, erro ou aviso) — nunca invente sucesso.`;
   }
 
   // Add language instruction
