@@ -80,6 +80,7 @@ const VisitasExternas = lazyRetry(() => import("./pages/VisitasExternas"));
 const Captador = lazyRetry(() => import("./pages/Captador"));
 const AssinaturasDoc = lazyRetry(() => import("./pages/AssinaturasDoc"));
 const PrestacaoContas = lazyRetry(() => import("./pages/PrestacaoContas"));
+const PrestacaoContasAgente = lazyRetry(() => import("./pages/PrestacaoContasAgente"));
 const Segmentacao = lazyRetry(() => import("./pages/Segmentacao"));
 const Pesquisas = lazyRetry(() => import("./pages/Pesquisas"));
 const PublicSurveyPage = lazyRetry(() => import("./pages/PublicSurveyPage"));
@@ -188,6 +189,7 @@ const App = () => (
               <Route path="/captador" element={<ProtectedRoute><Captador /></ProtectedRoute>} />
               <Route path="/assinaturas" element={<ProtectedRoute><AssinaturasDoc /></ProtectedRoute>} />
               <Route path="/prestacao-contas" element={<ProtectedRoute><PrestacaoContas /></ProtectedRoute>} />
+              <Route path="/prestacao-contas/agente" element={<ProtectedRoute><PrestacaoContasAgente /></ProtectedRoute>} />
               <Route path="/crm/segmentacao" element={<ProtectedRoute><Segmentacao /></ProtectedRoute>} />
               <Route path="/crm/pesquisas" element={<ProtectedRoute><Pesquisas /></ProtectedRoute>} />
               <Route path="/assinar/:token" element={<AssinaturasDoc />} />
