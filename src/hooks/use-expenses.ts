@@ -99,6 +99,12 @@ export function useExpenses(filters?: { status?: string; user_id?: string; group
     queryFn: () => api<ExpenseItem[]>('/api/expenses/items?ungrouped=true'),
   });
 
+  // All items (audit view - includes already grouped)
+  const allItems = useQuery({
+    queryKey: ['expense-items-all'],
+    queryFn: () => api<ExpenseItem[]>('/api/expenses/items'),
+  });
+
   const groupSummary = useQuery({
     queryKey: ['expenses-summary'],
     queryFn: () => api<GroupSummary[]>('/api/expenses/summary/by-group'),
