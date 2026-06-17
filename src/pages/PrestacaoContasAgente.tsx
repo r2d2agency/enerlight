@@ -74,7 +74,16 @@ export default function PrestacaoContasAgente() {
 
   useEffect(() => {
     api<Connection[]>("/api/connections").then(setConnections).catch(() => setConnections([]));
-    api<Member[]>("/api/organizations/members").then((m) => setMembers(Array.isArray(m) ? m : [])).catch(() => setMembers([]));
+    (async () => {
+      try {
+        const orgs = await api<Array<{ id: string }>>("/api/organizations");
+        if (!orgs?.length) { setMembers([]); return; }
+        const m = await api<Member[]>(`/api/organizations/${orgs[0].id}/members`);
+        setMembers(Array.isArray(m) ? m : []);
+      } catch {
+        setMembers([]);
+      }
+    })();
   }, []);
 
   useEffect(() => {
