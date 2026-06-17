@@ -232,6 +232,10 @@ export default function PrestacaoContas() {
                 <Users className="h-4 w-4 mr-1" />
                 Por Grupo
               </TabsTrigger>
+              <TabsTrigger value="audit">
+                <FileText className="h-4 w-4 mr-1" />
+                Auditoria ({allItems.data?.length || 0})
+              </TabsTrigger>
             </TabsList>
             <div className="flex items-center gap-2">
               {activeTab === 'items' && selectedItems.length > 0 && (
