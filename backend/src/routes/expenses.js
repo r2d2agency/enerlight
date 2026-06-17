@@ -81,17 +81,19 @@ async function init() {
 
 // ===================== ITEMS (standalone) =====================
 
-// List standalone items (not in a report, or all)
+// List items (all by default; pass ungrouped=true for unlinked only)
 router.get('/items', async (req, res) => {
   try {
     await init();
     const { organization_id } = req.user;
-    const { ungrouped, user_id, category } = req.query;
+    const { ungrouped, user_id, category, limit } = req.query;
     let sql = `
-      SELECT ei.*, u.name as user_name, g.name as group_name
+      SELECT ei.*, u.name as user_name, g.name as group_name,
+             er.title as report_title, er.status as report_status
       FROM expense_items ei
       LEFT JOIN users u ON u.id = ei.user_id
       LEFT JOIN groups g ON g.id = ei.group_id
+      LEFT JOIN expense_reports er ON er.id = ei.report_id
       WHERE ei.organization_id = $1
     `;
     const params = [organization_id];
@@ -99,7 +101,9 @@ router.get('/items', async (req, res) => {
     if (ungrouped === 'true') { sql += ` AND ei.report_id IS NULL`; }
     if (user_id) { sql += ` AND ei.user_id = $${idx++}`; params.push(user_id); }
     if (category) { sql += ` AND ei.category = $${idx++}`; params.push(category); }
-    sql += ' ORDER BY ei.expense_date DESC, ei.created_at DESC';
+    sql += ' ORDER BY ei.created_at DESC';
+    const lim = Math.min(parseInt(limit) || 500, 2000);
+    sql += ` LIMIT ${lim}`;
     const result = await query(sql, params);
     res.json(result.rows);
   } catch (err) {

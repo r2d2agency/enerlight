@@ -41,7 +41,7 @@ export default function PrestacaoContas() {
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [activeTab, setActiveTab] = useState("items");
   const {
-    reports, ungroupedItems, groupSummary,
+    reports, ungroupedItems, allItems, groupSummary,
     createItem, deleteItem, groupItems,
     submitReport, approveReport, rejectReport, payReport, deleteReport
   } = useExpenses(statusFilter ? { status: statusFilter } : undefined);
@@ -232,6 +232,10 @@ export default function PrestacaoContas() {
                 <Users className="h-4 w-4 mr-1" />
                 Por Grupo
               </TabsTrigger>
+              <TabsTrigger value="audit">
+                <FileText className="h-4 w-4 mr-1" />
+                Auditoria ({allItems.data?.length || 0})
+              </TabsTrigger>
             </TabsList>
             <div className="flex items-center gap-2">
               {activeTab === 'items' && selectedItems.length > 0 && (
@@ -418,6 +422,67 @@ export default function PrestacaoContas() {
                 <p className="text-muted-foreground col-span-full text-center py-8">Nenhum grupo com despesas</p>
               )}
             </div>
+          </TabsContent>
+
+          {/* AUDIT TAB - todos os lançamentos capturados */}
+          <TabsContent value="audit" className="mt-4">
+            <Card>
+              <CardContent className="p-0">
+                <div className="p-3 border-b text-xs text-muted-foreground">
+                  Todos os lançamentos registrados (manuais e via IA/WhatsApp). Mostra os últimos 500.
+                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Criado em</TableHead>
+                      <TableHead>Usuário</TableHead>
+                      <TableHead>Categoria</TableHead>
+                      <TableHead>Descrição</TableHead>
+                      <TableHead>Estabelecimento</TableHead>
+                      <TableHead>Data Gasto</TableHead>
+                      <TableHead className="text-right">Valor</TableHead>
+                      <TableHead>Relatório</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {allItems.data?.map((item: any) => {
+                      const cat = catLabel(item.category);
+                      return (
+                        <TableRow key={item.id}>
+                          <TableCell className="whitespace-nowrap text-xs">
+                            {format(new Date(item.created_at), 'dd/MM/yy HH:mm')}
+                          </TableCell>
+                          <TableCell className="text-sm">{item.user_name || '-'}</TableCell>
+                          <TableCell className="whitespace-nowrap">{cat?.icon} {cat?.label || item.category}</TableCell>
+                          <TableCell className="max-w-[220px] truncate">{item.description || '-'}</TableCell>
+                          <TableCell className="max-w-[150px] truncate">{item.establishment || '-'}</TableCell>
+                          <TableCell className="whitespace-nowrap text-xs">{format(new Date(item.expense_date), 'dd/MM/yyyy')}</TableCell>
+                          <TableCell className="text-right font-mono whitespace-nowrap">
+                            R$ {Number(item.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </TableCell>
+                          <TableCell className="text-xs">{item.report_title || <span className="text-muted-foreground">avulso</span>}</TableCell>
+                          <TableCell>
+                            {item.report_status ? (
+                              <Badge className={statusColors[item.report_status]}>{statusLabels[item.report_status]}</Badge>
+                            ) : (
+                              <Badge variant="outline">não agrupado</Badge>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    {!allItems.data?.length && (
+                      <TableRow>
+                        <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
+                          {allItems.isLoading ? 'Carregando...' : 'Nenhum lançamento registrado.'}
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>

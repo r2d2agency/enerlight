@@ -20,6 +20,8 @@ export interface ExpenseItem {
   created_at: string;
   user_name?: string;
   group_name?: string;
+  report_title?: string;
+  report_status?: string;
 }
 
 export interface ExpenseReport {
@@ -99,6 +101,12 @@ export function useExpenses(filters?: { status?: string; user_id?: string; group
     queryFn: () => api<ExpenseItem[]>('/api/expenses/items?ungrouped=true'),
   });
 
+  // All items (audit view - includes already grouped)
+  const allItems = useQuery({
+    queryKey: ['expense-items-all'],
+    queryFn: () => api<ExpenseItem[]>('/api/expenses/items'),
+  });
+
   const groupSummary = useQuery({
     queryKey: ['expenses-summary'],
     queryFn: () => api<GroupSummary[]>('/api/expenses/summary/by-group'),
@@ -108,6 +116,7 @@ export function useExpenses(filters?: { status?: string; user_id?: string; group
     queryClient.invalidateQueries({ queryKey: ['expenses'] });
     queryClient.invalidateQueries({ queryKey: ['expense'] });
     queryClient.invalidateQueries({ queryKey: ['expense-items-ungrouped'] });
+    queryClient.invalidateQueries({ queryKey: ['expense-items-all'] });
     queryClient.invalidateQueries({ queryKey: ['expenses-summary'] });
   };
 
@@ -161,6 +170,7 @@ export function useExpenses(filters?: { status?: string; user_id?: string; group
     reports,
     report,
     ungroupedItems,
+    allItems,
     groupSummary,
     createItem,
     deleteItem,
