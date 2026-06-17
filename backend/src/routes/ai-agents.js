@@ -9,6 +9,17 @@ import { normalizeExpenseContactPhone } from '../lib/expense-contact-authorizati
 const router = Router();
 const MASKED_AI_API_KEY = '••••••••';
 
+// Lazy migration: ensure agent_type column exists (for dedicated expense agent)
+let _agentTypeReady = false;
+async function ensureAgentTypeColumn() {
+  if (_agentTypeReady) return;
+  try {
+    await query(`ALTER TABLE ai_agents ADD COLUMN IF NOT EXISTS agent_type VARCHAR(30) DEFAULT 'general'`);
+    _agentTypeReady = true;
+  } catch (e) { logError('ai_agents.agent_type_migration', e); }
+}
+ensureAgentTypeColumn();
+
 // Helper to get user's organization and info
 async function getUserContext(userId) {
   const result = await query(
