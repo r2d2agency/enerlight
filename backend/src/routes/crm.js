@@ -187,6 +187,17 @@ async function getUserGroupIds(userId) {
   return result.rows;
 }
 
+// Helper: Get all user ids that belong to the given group ids (for view-all expansion)
+async function getOwnerIdsInGroups(groupIds) {
+  if (!groupIds || groupIds.length === 0) return [];
+  const result = await query(
+    `SELECT DISTINCT user_id FROM crm_user_group_members WHERE group_id = ANY($1)`,
+    [groupIds]
+  );
+  return result.rows.map(r => r.user_id);
+}
+
+
 // ============================================
 // USER GROUPS
 // ============================================
