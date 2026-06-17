@@ -1467,7 +1467,9 @@ router.get('/funnels/:funnelId/deals', async (req, res) => {
     if (!org) return res.status(403).json({ error: 'No organization' });
 
     const userGroups = await getUserGroupIds(req.userId);
-    const supervisorGroupIds = userGroups.filter(g => g.is_supervisor).map(g => g.group_id);
+    const visibilityGroupIds = userGroups
+      .filter(g => g.is_supervisor || g.can_view_all)
+      .map(g => g.group_id);
     const memberGroupIds = userGroups.map(g => g.group_id);
 
     // Check if user is a "projetista" (designer) — they see all deals across all groups
@@ -1490,10 +1492,10 @@ router.get('/funnels/:funnelId/deals', async (req, res) => {
     if (canManage(org.role) || isDesignerUser) {
       // Admins and designers see all
       visibilityFilter = '';
-    } else if (supervisorGroupIds.length > 0) {
-      // Supervisors see their group's deals + their own
+    } else if (visibilityGroupIds.length > 0) {
+      // Supervisors / view-all members see their group's deals + their own
       visibilityFilter = ` AND (d.owner_id = $3 OR d.group_id = ANY($4))`;
-      params.push(req.userId, supervisorGroupIds);
+      params.push(req.userId, visibilityGroupIds);
     } else {
       // Regular users see only their own
       visibilityFilter = ` AND d.owner_id = $3`;
