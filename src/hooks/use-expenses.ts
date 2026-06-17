@@ -20,6 +20,8 @@ export interface ExpenseItem {
   created_at: string;
   user_name?: string;
   group_name?: string;
+  report_title?: string;
+  report_status?: string;
 }
 
 export interface ExpenseReport {
