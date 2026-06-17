@@ -1349,7 +1349,9 @@ router.get('/deals', async (req, res) => {
     }
 
     const userGroups = await getUserGroupIds(req.userId);
-    const supervisorGroupIds = userGroups.filter(g => g.is_supervisor).map(g => g.group_id);
+    const visibilityGroupIds = userGroups
+      .filter(g => g.is_supervisor || g.can_view_all)
+      .map(g => g.group_id);
 
     // Build visibility filter based on role
     let visibilityFilter = '';
@@ -1357,9 +1359,9 @@ router.get('/deals', async (req, res) => {
     
     if (canManage(org.role)) {
       visibilityFilter = '';
-    } else if (supervisorGroupIds.length > 0) {
+    } else if (visibilityGroupIds.length > 0) {
       visibilityFilter = ` AND (d.owner_id = $3 OR d.group_id = ANY($4))`;
-      params.push(req.userId, supervisorGroupIds);
+      params.push(req.userId, visibilityGroupIds);
     } else {
       visibilityFilter = ` AND d.owner_id = $3`;
       params.push(req.userId);
