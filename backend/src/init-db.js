@@ -1386,9 +1386,11 @@ CREATE TABLE IF NOT EXISTS crm_user_group_members (
     group_id UUID REFERENCES crm_user_groups(id) ON DELETE CASCADE NOT NULL,
     user_id UUID REFERENCES users(id) ON DELETE CASCADE NOT NULL,
     is_supervisor BOOLEAN DEFAULT false,
+    can_view_all BOOLEAN DEFAULT false,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE(group_id, user_id)
 );
+ALTER TABLE crm_user_group_members ADD COLUMN IF NOT EXISTS can_view_all BOOLEAN DEFAULT false;
 
 -- CRM Funnels
 CREATE TABLE IF NOT EXISTS crm_funnels (

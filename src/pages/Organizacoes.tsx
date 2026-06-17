@@ -574,9 +574,19 @@ export default function Organizacoes() {
     }
   };
 
-  const handleAddCrmMember = (userId: string, isSupervisor: boolean = false) => {
+  const handleAddCrmMember = (userId: string, isSupervisor: boolean = false, canViewAll: boolean = false) => {
     if (!selectedCrmGroupId) return;
-    addCrmMember.mutate({ groupId: selectedCrmGroupId, userId, isSupervisor });
+    addCrmMember.mutate({ groupId: selectedCrmGroupId, userId, isSupervisor, canViewAll });
+  };
+
+  const handleToggleCrmMemberViewAll = (member: any) => {
+    if (!selectedCrmGroupId) return;
+    addCrmMember.mutate({
+      groupId: selectedCrmGroupId,
+      userId: member.user_id,
+      isSupervisor: !!member.is_supervisor,
+      canViewAll: !member.can_view_all,
+    });
   };
 
   const handleRemoveCrmMember = (userId: string) => {
@@ -1988,10 +1998,23 @@ export default function Organizacoes() {
                           <p className="text-xs text-muted-foreground">{member.email}</p>
                         </div>
                         {member.is_supervisor && <Badge variant="outline" className="ml-2">Gerente</Badge>}
+                        {member.can_view_all && !member.is_supervisor && <Badge variant="secondary" className="ml-2">Visão total</Badge>}
                       </div>
-                      <Button variant="ghost" size="icon" onClick={() => handleRemoveCrmMember(member.user_id)} className="text-destructive hover:text-destructive h-8 w-8">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        {!member.is_supervisor && (
+                          <Button
+                            variant={member.can_view_all ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => handleToggleCrmMemberViewAll(member)}
+                            title="Ver cards de todos os vendedores do grupo"
+                          >
+                            {member.can_view_all ? "Visão total ✓" : "Visão total"}
+                          </Button>
+                        )}
+                        <Button variant="ghost" size="icon" onClick={() => handleRemoveCrmMember(member.user_id)} className="text-destructive hover:text-destructive h-8 w-8">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>

@@ -177,10 +177,11 @@ async function getUserName(userId) {
   return result.rows[0]?.name || null;
 }
 
-// Helper: Get user's group IDs (for supervisor visibility)
+// Helper: Get user's group IDs (for supervisor / view-all visibility)
 async function getUserGroupIds(userId) {
   const result = await query(
-    `SELECT group_id, is_supervisor FROM crm_user_group_members WHERE user_id = $1`,
+    `SELECT group_id, is_supervisor, COALESCE(can_view_all, false) AS can_view_all
+       FROM crm_user_group_members WHERE user_id = $1`,
     [userId]
   );
   return result.rows;
@@ -194,7 +195,7 @@ async function getUserGroupIds(userId) {
 router.get('/groups/me', async (req, res) => {
   try {
     const result = await query(
-      `SELECT g.id, g.name, g.description, m.is_supervisor
+      `SELECT g.id, g.name, g.description, m.is_supervisor, COALESCE(m.can_view_all, false) AS can_view_all
        FROM crm_user_group_members m
        JOIN crm_user_groups g ON g.id = m.group_id
        WHERE m.user_id = $1
@@ -337,13 +338,13 @@ router.post('/groups/:id/members', async (req, res) => {
       return res.status(403).json({ error: 'Permission denied' });
     }
 
-    const { user_id, is_supervisor } = req.body;
+    const { user_id, is_supervisor, can_view_all } = req.body;
     const result = await query(
-      `INSERT INTO crm_user_group_members (group_id, user_id, is_supervisor)
-       VALUES ($1, $2, $3)
-       ON CONFLICT (group_id, user_id) DO UPDATE SET is_supervisor = $3
+      `INSERT INTO crm_user_group_members (group_id, user_id, is_supervisor, can_view_all)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (group_id, user_id) DO UPDATE SET is_supervisor = $3, can_view_all = $4
        RETURNING *`,
-      [req.params.id, user_id, is_supervisor || false]
+      [req.params.id, user_id, is_supervisor || false, can_view_all || false]
     );
     res.json(result.rows[0]);
   } catch (error) {
@@ -1348,7 +1349,9 @@ router.get('/deals', async (req, res) => {
     }
 
     const userGroups = await getUserGroupIds(req.userId);
-    const supervisorGroupIds = userGroups.filter(g => g.is_supervisor).map(g => g.group_id);
+    const visibilityGroupIds = userGroups
+      .filter(g => g.is_supervisor || g.can_view_all)
+      .map(g => g.group_id);
 
     // Build visibility filter based on role
     let visibilityFilter = '';
@@ -1356,9 +1359,9 @@ router.get('/deals', async (req, res) => {
     
     if (canManage(org.role)) {
       visibilityFilter = '';
-    } else if (supervisorGroupIds.length > 0) {
+    } else if (visibilityGroupIds.length > 0) {
       visibilityFilter = ` AND (d.owner_id = $3 OR d.group_id = ANY($4))`;
-      params.push(req.userId, supervisorGroupIds);
+      params.push(req.userId, visibilityGroupIds);
     } else {
       visibilityFilter = ` AND d.owner_id = $3`;
       params.push(req.userId);
@@ -1405,7 +1408,9 @@ router.get('/deals/by-phone/:phone', async (req, res) => {
 
     // Build visibility filter: sellers see only their own deals
     const userGroups = await getUserGroupIds(req.userId);
-    const supervisorGroupIds = userGroups.filter(g => g.is_supervisor).map(g => g.group_id);
+    const visibilityGroupIds = userGroups
+      .filter(g => g.is_supervisor || g.can_view_all)
+      .map(g => g.group_id);
     
     let visibilityFilter = '';
     const params = [org.organization_id, phonePattern];
@@ -1413,9 +1418,9 @@ router.get('/deals/by-phone/:phone', async (req, res) => {
     if (canManage(org.role)) {
       // Admin/Owner sees all deals
       visibilityFilter = '';
-    } else if (supervisorGroupIds.length > 0) {
+    } else if (visibilityGroupIds.length > 0) {
       visibilityFilter = ` AND (d.owner_id = $3 OR d.group_id = ANY($4))`;
-      params.push(req.userId, supervisorGroupIds);
+      params.push(req.userId, visibilityGroupIds);
     } else {
       // Regular seller: only their own deals
       visibilityFilter = ` AND d.owner_id = $3`;
@@ -1462,7 +1467,9 @@ router.get('/funnels/:funnelId/deals', async (req, res) => {
     if (!org) return res.status(403).json({ error: 'No organization' });
 
     const userGroups = await getUserGroupIds(req.userId);
-    const supervisorGroupIds = userGroups.filter(g => g.is_supervisor).map(g => g.group_id);
+    const visibilityGroupIds = userGroups
+      .filter(g => g.is_supervisor || g.can_view_all)
+      .map(g => g.group_id);
     const memberGroupIds = userGroups.map(g => g.group_id);
 
     // Check if user is a "projetista" (designer) — they see all deals across all groups
@@ -1485,10 +1492,10 @@ router.get('/funnels/:funnelId/deals', async (req, res) => {
     if (canManage(org.role) || isDesignerUser) {
       // Admins and designers see all
       visibilityFilter = '';
-    } else if (supervisorGroupIds.length > 0) {
-      // Supervisors see their group's deals + their own
+    } else if (visibilityGroupIds.length > 0) {
+      // Supervisors / view-all members see their group's deals + their own
       visibilityFilter = ` AND (d.owner_id = $3 OR d.group_id = ANY($4))`;
-      params.push(req.userId, supervisorGroupIds);
+      params.push(req.userId, visibilityGroupIds);
     } else {
       // Regular users see only their own
       visibilityFilter = ` AND d.owner_id = $3`;
