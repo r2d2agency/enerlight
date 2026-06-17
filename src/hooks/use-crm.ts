@@ -220,10 +220,10 @@ export function useCRMGroupMutations() {
   });
 
   const addMember = useMutation({
-    mutationFn: async ({ groupId, userId, isSupervisor }: { groupId: string; userId: string; isSupervisor: boolean }) => {
+    mutationFn: async ({ groupId, userId, isSupervisor, canViewAll }: { groupId: string; userId: string; isSupervisor: boolean; canViewAll?: boolean }) => {
       return api<CRMGroupMember>(`/api/crm/groups/${groupId}/members`, { 
         method: "POST", 
-        body: { user_id: userId, is_supervisor: isSupervisor } 
+        body: { user_id: userId, is_supervisor: isSupervisor, can_view_all: canViewAll || false } 
       });
     },
     onSuccess: (_, variables) => {
