@@ -187,6 +187,17 @@ async function getUserGroupIds(userId) {
   return result.rows;
 }
 
+// Helper: Get all user ids that belong to the given group ids (for view-all expansion)
+async function getOwnerIdsInGroups(groupIds) {
+  if (!groupIds || groupIds.length === 0) return [];
+  const result = await query(
+    `SELECT DISTINCT user_id FROM crm_user_group_members WHERE group_id = ANY($1)`,
+    [groupIds]
+  );
+  return result.rows.map(r => r.user_id);
+}
+
+
 // ============================================
 // USER GROUPS
 // ============================================
@@ -1352,6 +1363,7 @@ router.get('/deals', async (req, res) => {
     const visibilityGroupIds = userGroups
       .filter(g => g.is_supervisor || g.can_view_all)
       .map(g => g.group_id);
+    const viewableOwnerIds = await getOwnerIdsInGroups(visibilityGroupIds);
 
     // Build visibility filter based on role
     let visibilityFilter = '';
@@ -1360,8 +1372,8 @@ router.get('/deals', async (req, res) => {
     if (canManage(org.role)) {
       visibilityFilter = '';
     } else if (visibilityGroupIds.length > 0) {
-      visibilityFilter = ` AND (d.owner_id = $3 OR d.group_id = ANY($4))`;
-      params.push(req.userId, visibilityGroupIds);
+      visibilityFilter = ` AND (d.owner_id = $3 OR d.group_id = ANY($4) OR d.owner_id = ANY($5))`;
+      params.push(req.userId, visibilityGroupIds, viewableOwnerIds);
     } else {
       visibilityFilter = ` AND d.owner_id = $3`;
       params.push(req.userId);
@@ -1411,6 +1423,7 @@ router.get('/deals/by-phone/:phone', async (req, res) => {
     const visibilityGroupIds = userGroups
       .filter(g => g.is_supervisor || g.can_view_all)
       .map(g => g.group_id);
+    const viewableOwnerIds = await getOwnerIdsInGroups(visibilityGroupIds);
     
     let visibilityFilter = '';
     const params = [org.organization_id, phonePattern];
@@ -1419,8 +1432,8 @@ router.get('/deals/by-phone/:phone', async (req, res) => {
       // Admin/Owner sees all deals
       visibilityFilter = '';
     } else if (visibilityGroupIds.length > 0) {
-      visibilityFilter = ` AND (d.owner_id = $3 OR d.group_id = ANY($4))`;
-      params.push(req.userId, visibilityGroupIds);
+      visibilityFilter = ` AND (d.owner_id = $3 OR d.group_id = ANY($4) OR d.owner_id = ANY($5))`;
+      params.push(req.userId, visibilityGroupIds, viewableOwnerIds);
     } else {
       // Regular seller: only their own deals
       visibilityFilter = ` AND d.owner_id = $3`;
@@ -1471,6 +1484,7 @@ router.get('/funnels/:funnelId/deals', async (req, res) => {
       .filter(g => g.is_supervisor || g.can_view_all)
       .map(g => g.group_id);
     const memberGroupIds = userGroups.map(g => g.group_id);
+    const viewableOwnerIds = await getOwnerIdsInGroups(visibilityGroupIds);
 
     // Check if user is a "projetista" (designer) — they see all deals across all groups
     let isDesignerUser = false;
@@ -1493,9 +1507,9 @@ router.get('/funnels/:funnelId/deals', async (req, res) => {
       // Admins and designers see all
       visibilityFilter = '';
     } else if (visibilityGroupIds.length > 0) {
-      // Supervisors / view-all members see their group's deals + their own
-      visibilityFilter = ` AND (d.owner_id = $3 OR d.group_id = ANY($4))`;
-      params.push(req.userId, visibilityGroupIds);
+      // Supervisors / view-all members see their group's deals + their own + deals owned by anyone in those groups
+      visibilityFilter = ` AND (d.owner_id = $3 OR d.group_id = ANY($4) OR d.owner_id = ANY($5))`;
+      params.push(req.userId, visibilityGroupIds, viewableOwnerIds);
     } else {
       // Regular users see only their own
       visibilityFilter = ` AND d.owner_id = $3`;
