@@ -114,6 +114,7 @@ export function useExpenses(filters?: { status?: string; user_id?: string; group
     queryClient.invalidateQueries({ queryKey: ['expenses'] });
     queryClient.invalidateQueries({ queryKey: ['expense'] });
     queryClient.invalidateQueries({ queryKey: ['expense-items-ungrouped'] });
+    queryClient.invalidateQueries({ queryKey: ['expense-items-all'] });
     queryClient.invalidateQueries({ queryKey: ['expenses-summary'] });
   };
 
