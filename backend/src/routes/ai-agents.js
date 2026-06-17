@@ -1575,6 +1575,50 @@ router.post('/:id/test', authenticate, async (req, res) => {
       tools.push(buildGenerateContentTool());
     }
 
+    // MANAGE_EXPENSES tools (test mode uses current user as expense owner)
+    if (capabilities.includes('manage_expenses')) {
+      tools.push({
+        type: 'function',
+        function: {
+          name: 'create_expense',
+          description: 'Registra uma despesa/gasto. Categorias: combustivel, alimentacao, transporte, hospedagem, material, servico, outros. Pagamentos: dinheiro, cartao_credito, cartao_debito, pix, outros.',
+          parameters: {
+            type: 'object',
+            properties: {
+              amount: { type: 'number' },
+              category: { type: 'string', enum: ['combustivel','alimentacao','transporte','hospedagem','material','servico','outros'] },
+              description: { type: 'string' },
+              expense_date: { type: 'string', description: 'YYYY-MM-DD' },
+              expense_time: { type: 'string' },
+              payment_type: { type: 'string', enum: ['dinheiro','cartao_credito','cartao_debito','pix','outros'] },
+              establishment: { type: 'string' },
+              cnpj: { type: 'string' },
+              location: { type: 'string' },
+            },
+            required: ['amount', 'category', 'description', 'expense_date'],
+          },
+        },
+      });
+      tools.push({
+        type: 'function',
+        function: {
+          name: 'query_expenses',
+          description: 'Consulta despesas registradas. Ações: list, summary, total.',
+          parameters: {
+            type: 'object',
+            properties: {
+              action: { type: 'string', enum: ['list', 'summary', 'total'] },
+              start_date: { type: 'string' },
+              end_date: { type: 'string' },
+              category: { type: 'string' },
+              limit: { type: 'number' },
+            },
+            required: ['action'],
+          },
+        },
+      });
+    }
+
     let result;
     let toolCallsExecuted = [];
 
@@ -1602,6 +1646,10 @@ router.post('/:id/test', authenticate, async (req, res) => {
             return await executeSuggestActions(args);
           case 'generate_content':
             return await executeGenerateContent(args);
+          case 'create_expense':
+            return await executeTestCreateExpense(userCtx, args);
+          case 'query_expenses':
+            return await executeTestQueryExpenses(userCtx, args);
           default:
             return 'Ferramenta desconhecida';
         }
