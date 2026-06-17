@@ -168,6 +168,7 @@ export function useExpenses(filters?: { status?: string; user_id?: string; group
     reports,
     report,
     ungroupedItems,
+    allItems,
     groupSummary,
     createItem,
     deleteItem,
