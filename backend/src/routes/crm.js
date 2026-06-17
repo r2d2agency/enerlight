@@ -338,13 +338,13 @@ router.post('/groups/:id/members', async (req, res) => {
       return res.status(403).json({ error: 'Permission denied' });
     }
 
-    const { user_id, is_supervisor } = req.body;
+    const { user_id, is_supervisor, can_view_all } = req.body;
     const result = await query(
-      `INSERT INTO crm_user_group_members (group_id, user_id, is_supervisor)
-       VALUES ($1, $2, $3)
-       ON CONFLICT (group_id, user_id) DO UPDATE SET is_supervisor = $3
+      `INSERT INTO crm_user_group_members (group_id, user_id, is_supervisor, can_view_all)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (group_id, user_id) DO UPDATE SET is_supervisor = $3, can_view_all = $4
        RETURNING *`,
-      [req.params.id, user_id, is_supervisor || false]
+      [req.params.id, user_id, is_supervisor || false, can_view_all || false]
     );
     res.json(result.rows[0]);
   } catch (error) {
