@@ -1423,6 +1423,7 @@ router.get('/deals/by-phone/:phone', async (req, res) => {
     const visibilityGroupIds = userGroups
       .filter(g => g.is_supervisor || g.can_view_all)
       .map(g => g.group_id);
+    const viewableOwnerIds = await getOwnerIdsInGroups(visibilityGroupIds);
     
     let visibilityFilter = '';
     const params = [org.organization_id, phonePattern];
@@ -1431,8 +1432,8 @@ router.get('/deals/by-phone/:phone', async (req, res) => {
       // Admin/Owner sees all deals
       visibilityFilter = '';
     } else if (visibilityGroupIds.length > 0) {
-      visibilityFilter = ` AND (d.owner_id = $3 OR d.group_id = ANY($4))`;
-      params.push(req.userId, visibilityGroupIds);
+      visibilityFilter = ` AND (d.owner_id = $3 OR d.group_id = ANY($4) OR d.owner_id = ANY($5))`;
+      params.push(req.userId, visibilityGroupIds, viewableOwnerIds);
     } else {
       // Regular seller: only their own deals
       visibilityFilter = ` AND d.owner_id = $3`;
