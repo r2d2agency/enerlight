@@ -1645,41 +1645,45 @@ async function handleIncomingMessage(connection, payload) {
       }).catch(err => console.error('[W-API][GroupSecretary] Error:', err.message));
     }
 
-    // Check for active flow sessions first (priority over keywords)
+    // Check for active flow sessions first (priority over keywords) — only text
+    let flowHandled = false;
     if (messageType === 'text' && content) {
       console.log('[W-API] Checking for active flow sessions...');
       const continueResult = await continueActiveFlow(connection, conversationId, content);
-      
+
       if (continueResult?.continued) {
         console.log('[W-API] Flow continued successfully');
-        return; // Don't check keywords if we continued a flow
+        flowHandled = true;
+      } else {
+        console.log('[W-API] No active flow, checking keywords...');
+        const flowTriggered = await checkAndTriggerFlow(connection, conversationId, content);
+        if (flowTriggered) flowHandled = true;
       }
-      
-      // If no active flow, check for keyword-triggered flows
-      console.log('[W-API] No active flow, checking keywords...');
-      const flowTriggered = await checkAndTriggerFlow(connection, conversationId, content);
-      
-      // If no flow triggered, check AI agent processing
-      if (!flowTriggered) {
-        console.log('[W-API] No flow triggered, checking AI agent...');
-        processIncomingWithAgent({
-          connection,
-          conversationId,
-          contactPhone: cleanPhone,
-          contactName: payload.sender?.pushName || payload.pushName || payload.name || cleanPhone,
-          messageContent: content,
-          messageType,
-          mediaUrl: effectiveMediaUrl || null,
-          mediaMimetype: effectiveMediaMimetype || null,
-          mediaFilename: payload.msgContent?.documentMessage?.fileName || null,
-        }).then(result => {
-          if (result.handled) {
-            console.log('[W-API] AI Agent handled message, agent:', result.agentId);
-          }
-        }).catch(err => {
-          console.error('[W-API] AI Agent processing error:', err.message);
-        });
-      }
+    }
+
+    // AI agent processing — handles text AND media (so expense agent can read receipt photos/audios)
+    const agentSupportedTypes = ['text', 'image', 'audio', 'video', 'document', 'sticker'];
+    if (!flowHandled && !isGroup && agentSupportedTypes.includes(messageType)) {
+      console.log('[W-API] Dispatching to AI agent. Type:', messageType);
+      processIncomingWithAgent({
+        connection,
+        conversationId,
+        contactPhone: cleanPhone,
+        contactName: payload.sender?.pushName || payload.pushName || payload.name || cleanPhone,
+        messageContent: content,
+        messageType,
+        mediaUrl: effectiveMediaUrl || null,
+        mediaMimetype: effectiveMediaMimetype || null,
+        mediaFilename: payload.msgContent?.documentMessage?.fileName || null,
+      }).then(result => {
+        if (result.handled) {
+          console.log('[W-API] AI Agent handled message, agent:', result.agentId);
+        } else {
+          console.log('[W-API] AI Agent did not handle. Reason:', result.reason || 'no_agent_linked');
+        }
+      }).catch(err => {
+        console.error('[W-API] AI Agent processing error:', err.message);
+      });
     }
 
     // Cache media in background for reliability (CORS/expiração de URL)
