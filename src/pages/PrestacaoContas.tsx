@@ -41,7 +41,7 @@ export default function PrestacaoContas() {
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [activeTab, setActiveTab] = useState("items");
   const {
-    reports, ungroupedItems, groupSummary,
+    reports, ungroupedItems, allItems, groupSummary,
     createItem, deleteItem, groupItems,
     submitReport, approveReport, rejectReport, payReport, deleteReport
   } = useExpenses(statusFilter ? { status: statusFilter } : undefined);
