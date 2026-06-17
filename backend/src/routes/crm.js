@@ -177,10 +177,11 @@ async function getUserName(userId) {
   return result.rows[0]?.name || null;
 }
 
-// Helper: Get user's group IDs (for supervisor visibility)
+// Helper: Get user's group IDs (for supervisor / view-all visibility)
 async function getUserGroupIds(userId) {
   const result = await query(
-    `SELECT group_id, is_supervisor FROM crm_user_group_members WHERE user_id = $1`,
+    `SELECT group_id, is_supervisor, COALESCE(can_view_all, false) AS can_view_all
+       FROM crm_user_group_members WHERE user_id = $1`,
     [userId]
   );
   return result.rows;
