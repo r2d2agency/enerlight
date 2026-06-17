@@ -16,6 +16,7 @@ export interface CRMGroupMember {
   group_id: string;
   user_id: string;
   is_supervisor: boolean;
+  can_view_all?: boolean;
   name: string;
   email: string;
 }
