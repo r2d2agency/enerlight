@@ -574,9 +574,19 @@ export default function Organizacoes() {
     }
   };
 
-  const handleAddCrmMember = (userId: string, isSupervisor: boolean = false) => {
+  const handleAddCrmMember = (userId: string, isSupervisor: boolean = false, canViewAll: boolean = false) => {
     if (!selectedCrmGroupId) return;
-    addCrmMember.mutate({ groupId: selectedCrmGroupId, userId, isSupervisor });
+    addCrmMember.mutate({ groupId: selectedCrmGroupId, userId, isSupervisor, canViewAll });
+  };
+
+  const handleToggleCrmMemberViewAll = (member: any) => {
+    if (!selectedCrmGroupId) return;
+    addCrmMember.mutate({
+      groupId: selectedCrmGroupId,
+      userId: member.user_id,
+      isSupervisor: !!member.is_supervisor,
+      canViewAll: !member.can_view_all,
+    });
   };
 
   const handleRemoveCrmMember = (userId: string) => {
