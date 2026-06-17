@@ -1408,7 +1408,9 @@ router.get('/deals/by-phone/:phone', async (req, res) => {
 
     // Build visibility filter: sellers see only their own deals
     const userGroups = await getUserGroupIds(req.userId);
-    const supervisorGroupIds = userGroups.filter(g => g.is_supervisor).map(g => g.group_id);
+    const visibilityGroupIds = userGroups
+      .filter(g => g.is_supervisor || g.can_view_all)
+      .map(g => g.group_id);
     
     let visibilityFilter = '';
     const params = [org.organization_id, phonePattern];
@@ -1416,9 +1418,9 @@ router.get('/deals/by-phone/:phone', async (req, res) => {
     if (canManage(org.role)) {
       // Admin/Owner sees all deals
       visibilityFilter = '';
-    } else if (supervisorGroupIds.length > 0) {
+    } else if (visibilityGroupIds.length > 0) {
       visibilityFilter = ` AND (d.owner_id = $3 OR d.group_id = ANY($4))`;
-      params.push(req.userId, supervisorGroupIds);
+      params.push(req.userId, visibilityGroupIds);
     } else {
       // Regular seller: only their own deals
       visibilityFilter = ` AND d.owner_id = $3`;
