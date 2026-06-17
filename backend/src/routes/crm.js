@@ -195,7 +195,7 @@ async function getUserGroupIds(userId) {
 router.get('/groups/me', async (req, res) => {
   try {
     const result = await query(
-      `SELECT g.id, g.name, g.description, m.is_supervisor
+      `SELECT g.id, g.name, g.description, m.is_supervisor, COALESCE(m.can_view_all, false) AS can_view_all
        FROM crm_user_group_members m
        JOIN crm_user_groups g ON g.id = m.group_id
        WHERE m.user_id = $1
