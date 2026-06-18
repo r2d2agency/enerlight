@@ -1565,7 +1565,7 @@ async function handleIncomingMessage(connection, payload) {
 
       const contactName = isGroup 
         ? (groupName || 'Grupo')
-        : (payload.sender?.pushName || payload.pushName || payload.name || payload.senderName || cleanPhone);
+        : incomingContactName;
 
       console.log('[W-API] Creating NEW conversation for:', { 
         remoteJid, 
@@ -1580,7 +1580,7 @@ async function handleIncomingMessage(connection, payload) {
           `INSERT INTO conversations (connection_id, remote_jid, contact_name, contact_phone, is_group, group_name, last_message_at, unread_count, attendance_status)
            VALUES ($1, $2, $3, $4, $5, $6, NOW(), 1, 'waiting')
            RETURNING id`,
-          [connection.id, remoteJid, contactName, isGroup ? null : cleanPhone, isGroup, isGroup ? groupName : null]
+          [connection.id, remoteJid, contactName, isGroup ? null : numericCleanPhone, isGroup, isGroup ? groupName : null]
         );
         conversationId = newConv.rows[0].id;
         console.log('[W-API] Created new', isGroup ? 'group' : 'conversation:', conversationId, isGroup ? `name: ${groupName}` : '', 'phone:', cleanPhone);
@@ -1617,18 +1617,23 @@ async function handleIncomingMessage(connection, payload) {
           [conversationId, groupName]
         );
       } else {
-        // For individual chats, update contact_name with sender's pushName
+        // For individual chats, update contact_name with sender's pushName and keep contact_phone numeric when available.
         await query(
           `UPDATE conversations 
            SET last_message_at = NOW(), 
                unread_count = unread_count + 1,
-               contact_name = COALESCE($2, contact_name),
+               contact_name = CASE
+                 WHEN $2 IS NOT NULL AND (contact_name IS NULL OR contact_name = '' OR contact_name = contact_phone OR contact_name = remote_jid OR contact_name LIKE '%@lid')
+                 THEN $2
+                 ELSE contact_name
+               END,
+               contact_phone = COALESCE($3, contact_phone),
                attendance_status = CASE WHEN attendance_status = 'finished' THEN 'waiting' ELSE attendance_status END,
                accepted_by = CASE WHEN attendance_status = 'finished' THEN NULL ELSE accepted_by END,
                accepted_at = CASE WHEN attendance_status = 'finished' THEN NULL ELSE accepted_at END,
                assigned_to = CASE WHEN attendance_status = 'finished' THEN NULL ELSE assigned_to END
            WHERE id = $1`,
-          [conversationId, payload.sender?.pushName || payload.pushName || payload.name]
+          [conversationId, incomingContactName, numericCleanPhone]
         );
       }
     }
