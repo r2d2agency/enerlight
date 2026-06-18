@@ -1484,21 +1484,23 @@ async function handleIncomingMessage(connection, payload) {
 
     // For individual chats, get the sender info
     const senderId = payload.sender?.id || payload.from || chatId;
-    
-    // Normalize to JID format
+
+    // Normalize to JID format while preserving the numeric phone when W-API sends @lid.
+    // This prevents the same person from becoming two conversations: phone + private @lid.
     let remoteJid;
     let cleanPhone = null;
-    
+    const resolvedPhone = !isGroup ? getIndividualPhoneFromPayload(payload, chatId, isLidPrivate) : null;
+
     if (isGroup) {
       // Keep group JID as-is
       remoteJid = String(chatId).includes('@') ? chatId : `${chatId}@g.us`;
     } else if (isLidPrivate) {
-      // @lid is a valid private-chat destination in W-API. Do not strip it.
+      // @lid is the delivery JID, but contact_phone should remain the real number when available.
       remoteJid = chatIdStr;
-      cleanPhone = chatIdStr;
+      cleanPhone = resolvedPhone || chatIdStr;
     } else {
       // Individual chat - normalize phone
-      cleanPhone = String(chatId).replace(/\D/g, '').replace(/@.*$/, '');
+      cleanPhone = resolvedPhone || String(chatId).replace(/@.*$/, '').replace(/\D/g, '');
       remoteJid = cleanPhone ? `${cleanPhone}@s.whatsapp.net` : null;
     }
     
@@ -1525,63 +1527,22 @@ async function handleIncomingMessage(connection, payload) {
       return;
     }
 
-    // Get or create conversation
-    // First try by remote_jid, then fallback to contact_phone for individual chats
-    // This handles cases where remote_jid format changes (@lid vs @s.whatsapp.net)
-    console.log('[W-API] Looking for conversation with remote_jid:', remoteJid, 'connection_id:', connection.id);
-    
-    let conversationResult = await query(
-      `SELECT id, remote_jid, contact_phone FROM conversations WHERE connection_id = $1 AND remote_jid = $2`,
-      [connection.id, remoteJid]
-    );
+    const incomingContactName = getPayloadContactName(payload, cleanPhone);
 
-    console.log('[W-API] JID search result:', conversationResult.rows.length > 0 ? conversationResult.rows[0] : 'NOT FOUND');
-
-    // For individual chats, also try matching by phone number if no exact JID match
-    if (conversationResult.rows.length === 0 && !isGroup && cleanPhone && !isLidPrivate) {
-      console.log('[W-API] No exact JID match, trying by phone:', cleanPhone);
-      conversationResult = await query(
-        `SELECT id, remote_jid, contact_phone FROM conversations 
-         WHERE connection_id = $1 
-           AND contact_phone = $2 
-           AND COALESCE(is_group, false) = false
-         ORDER BY last_message_at DESC
-         LIMIT 1`,
-        [connection.id, cleanPhone]
-      );
-      
-      console.log('[W-API] Phone search result:', conversationResult.rows.length > 0 ? conversationResult.rows[0] : 'NOT FOUND');
-      
-      if (conversationResult.rows.length > 0) {
-        // Update the remote_jid to the new format
-        console.log('[W-API] Found conversation by phone, updating remote_jid from:', conversationResult.rows[0].remote_jid, 'to:', remoteJid);
-        await query(
-          `UPDATE conversations SET remote_jid = $1 WHERE id = $2`,
-          [remoteJid, conversationResult.rows[0].id]
-        );
-      } else {
-        // Also check if there's a conversation with a @lid version of this number
-        console.log('[W-API] Checking for @lid variant of phone...');
-        const lidResult = await query(
-          `SELECT id, remote_jid, contact_phone FROM conversations 
-           WHERE connection_id = $1 
-             AND (remote_jid LIKE $2 OR remote_jid LIKE $3)
-             AND COALESCE(is_group, false) = false
-           ORDER BY last_message_at DESC
+    // Get or create conversation. For private @lid chats, prefer merging by real phone if W-API provides it.
+    console.log('[W-API] Looking for conversation with remote_jid:', remoteJid, 'phone:', cleanPhone, 'connection_id:', connection.id);
+    const numericCleanPhone = normalizePhoneCandidate(cleanPhone);
+    let conversationResult = isGroup
+      ? await query(
+          `SELECT id, remote_jid, contact_phone, contact_name
+           FROM conversations
+           WHERE connection_id = $1 AND remote_jid = $2
            LIMIT 1`,
-          [connection.id, `%${cleanPhone}@%`, `${cleanPhone}@%`]
-        );
-        
-        if (lidResult.rows.length > 0) {
-          console.log('[W-API] Found conversation with alternate JID format:', lidResult.rows[0].remote_jid);
-          conversationResult = lidResult;
-          await query(
-            `UPDATE conversations SET remote_jid = $1, contact_phone = COALESCE(contact_phone, $2) WHERE id = $3`,
-            [remoteJid, cleanPhone, conversationResult.rows[0].id]
-          );
-        }
-      }
-    }
+          [connection.id, remoteJid]
+        )
+      : await findExistingIndividualConversation(connection.id, remoteJid, numericCleanPhone, incomingContactName);
+
+    console.log('[W-API] Conversation search result:', conversationResult.rows.length > 0 ? conversationResult.rows[0] : 'NOT FOUND');
 
     let conversationId;
     if (conversationResult.rows.length === 0) {
