@@ -1688,6 +1688,12 @@ async function handleIncomingMessage(connection, payload) {
       return;
     }
 
+    const incomingDedupeKey = [connection.id, conversationId, messageType, content || '', effectiveMediaUrl || '', messageId].join('|');
+    if (!reserveRecentIncomingKey(incomingDedupeKey)) {
+      console.log('[W-API] Duplicate in-flight incoming message, skipping:', messageId);
+      return;
+    }
+
     // Check for duplicate message in chat_messages table
     const existingMsg = await query(
       `SELECT id FROM chat_messages
