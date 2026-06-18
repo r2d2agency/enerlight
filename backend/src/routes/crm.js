@@ -8241,8 +8241,8 @@ router.get('/representatives/hub', async (req, res) => {
     res.json(result.rows);
   } catch (error) {
     if (isMissingSchemaError(error)) return res.json([]);
-    console.error('Error fetching representatives hub:', error);
-    res.status(500).json({ error: error.message });
+    console.error('Error fetching representatives hub:', error?.code, error?.message, error?.stack);
+    res.status(500).json({ error: error.message, code: error?.code });
   }
 });
 
