@@ -165,7 +165,7 @@ export async function configureWebhooks(instanceId, token, dbQuery) {
         {
           method: 'PUT',
           headers: getHeaders(token),
-          body: JSON.stringify({ url }),
+          body: JSON.stringify({ value: url, url }),
         }
       );
 
@@ -213,6 +213,13 @@ export async function configureWebhooks(instanceId, token, dbQuery) {
     total: webhookTypes.length,
     results,
   };
+}
+
+function normalizeRecipient(phone) {
+  const raw = String(phone || '').trim();
+  if (!raw) return '';
+  if (raw.includes('@g.us') || raw.includes('@lid')) return raw;
+  return raw.replace(/@.*$/, '').replace(/\D/g, '');
 }
 
 /**
@@ -461,9 +468,8 @@ export async function disconnect(instanceId, token) {
  * Send text message
  */
 export async function sendText(instanceId, token, phone, message) {
-  // For groups (@g.us), keep the full JID; for individuals, clean the phone
-  const isGroup = phone.includes('@g.us');
-  const cleanPhone = isGroup ? phone : phone.replace(/\D/g, '');
+  // For groups and @lid private chats, keep the full JID; for normal individuals, send digits only.
+  const cleanPhone = normalizeRecipient(phone);
   const at = new Date().toISOString();
 
   try {
