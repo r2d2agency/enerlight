@@ -1919,7 +1919,7 @@ async function handleIncomingMessage(connection, payload, diagnosticEvent = null
  *   msgContent: { conversation: "..." }
  * }
  */
-async function handleOutgoingMessage(connection, payload) {
+async function handleOutgoingMessage(connection, payload, diagnosticEvent = null) {
   try {
     // W-API format: chat.id is the destination phone/group for outgoing
     const chatId = payload.chat?.id || payload.phone || payload.to || payload.remoteJid;
@@ -1954,6 +1954,7 @@ async function handleOutgoingMessage(connection, payload) {
 
     if (!remoteJid) {
       console.log('[W-API] Invalid chat format for outgoing:', chatId);
+      setWebhookProcessingInfo(diagnosticEvent, { stage: 'outgoing_invalid_chat', chatId: chatIdStr });
       return;
     }
 
@@ -1984,9 +1985,11 @@ async function handleOutgoingMessage(connection, payload) {
       );
       
       var conversationId = newConv.rows[0].id;
+      setWebhookProcessingInfo(diagnosticEvent, { stage: 'outgoing_conversation_created', conversationId, remoteJid, cleanPhone: numericCleanPhone || cleanPhone });
       console.log('[W-API] Created new conversation for outgoing:', conversationId);
     } else {
       var conversationId = convResult.rows[0].id;
+      setWebhookProcessingInfo(diagnosticEvent, { stage: 'outgoing_conversation_found', conversationId, remoteJid, cleanPhone: numericCleanPhone || cleanPhone });
     }
 
     const { messageType, content, mediaUrl: rawMediaUrl, mediaMimetype, waMediaKey } = extractMessageContent(payload);
@@ -2059,6 +2062,7 @@ async function handleOutgoingMessage(connection, payload) {
       const existing = existingMsg.rows[0];
       if (existing.message_id === messageId) {
         console.log('[W-API] Outgoing message already exists:', messageId);
+        setWebhookProcessingInfo(diagnosticEvent, { stage: 'outgoing_skipped_duplicate', conversationId, messageId });
         return;
       }
       // Update the pending/manual AI message with the real provider message ID
@@ -2067,6 +2071,7 @@ async function handleOutgoingMessage(connection, payload) {
         [messageId, existing.id]
       );
       console.log('[W-API] Updated pending message with real ID:', messageId);
+      setWebhookProcessingInfo(diagnosticEvent, { stage: 'outgoing_pending_updated', conversationId, messageId });
       return;
     }
 
@@ -2076,6 +2081,7 @@ async function handleOutgoingMessage(connection, payload) {
        VALUES ($1, $2, $3, $4, $5, $6, true, 'sent', NOW())`,
       [conversationId, messageId, content, messageType, effectiveMediaUrl, effectiveMediaMimetype]
     );
+    setWebhookProcessingInfo(diagnosticEvent, { stage: 'outgoing_message_saved', conversationId, messageId });
 
     // Background cache as a fallback (so even if eager caching times out, the media will appear later)
     if (effectiveMediaUrl && shouldCacheExternally(effectiveMediaUrl)) {
@@ -2111,6 +2117,7 @@ async function handleOutgoingMessage(connection, payload) {
 
     console.log('[W-API] Outgoing message saved:', messageId, 'To:', remoteJid);
   } catch (error) {
+    setWebhookProcessingInfo(diagnosticEvent, { stage: 'outgoing_error', error: error.message });
     console.error('[W-API] Error handling outgoing message:', error);
   }
 }
