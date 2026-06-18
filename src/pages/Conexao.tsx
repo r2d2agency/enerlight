@@ -1184,7 +1184,7 @@ const handleGetQRCode = async (connection: Connection) => {
             <DialogHeader>
               <DialogTitle>Monitor do Webhook</DialogTitle>
               <DialogDescription>
-                Aqui você vê os últimos eventos que o backend recebeu da Evolution para esta instância.
+                Aqui você vê os últimos eventos que o backend recebeu para esta instância.
               </DialogDescription>
             </DialogHeader>
 
@@ -1192,7 +1192,7 @@ const handleGetQRCode = async (connection: Connection) => {
               <div className="text-sm text-muted-foreground">
                 {webhookViewerConnection ? (
                   <span>
-                    Instância: <span className="text-foreground">{webhookViewerConnection.instance_name}</span>
+                    Instância: <span className="text-foreground">{webhookViewerConnection.instance_name || webhookViewerConnection.instance_id || webhookViewerConnection.name}</span>
                   </span>
                 ) : (
                   'Selecione uma conexão.'
@@ -1250,7 +1250,13 @@ const handleGetQRCode = async (connection: Connection) => {
                       </div>
                       <div className="mt-2 text-xs text-muted-foreground">
                         <div>Headers: {ev.headers ? Object.keys(ev.headers).filter(Boolean).join(', ') : '-'}</div>
+                        <div>Conexão usada: {ev.connectionId || '-'}</div>
                       </div>
+                      {ev.processing && (
+                        <pre className="mt-2 whitespace-pre-wrap break-words rounded bg-muted p-2 text-xs text-foreground/90">
+                          {JSON.stringify(ev.processing, null, 2)}
+                        </pre>
+                      )}
                       {ev.preview && (
                         <pre className="mt-2 whitespace-pre-wrap break-words text-xs text-foreground/90">
                           {ev.preview}
