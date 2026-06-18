@@ -5341,6 +5341,10 @@ async function ensureRepLinksSchema() {
     )`);
     await query(`CREATE INDEX IF NOT EXISTS idx_crm_rep_users_user ON crm_representative_users(user_id)`);
     await query(`CREATE INDEX IF NOT EXISTS idx_crm_rep_users_rep ON crm_representative_users(representative_id)`);
+    // Older DBs may be missing the representative link / activity column on crm_deals
+    try { await query(`ALTER TABLE crm_deals ADD COLUMN IF NOT EXISTS representative_id UUID REFERENCES crm_representatives(id) ON DELETE SET NULL`); } catch(_) {}
+    try { await query(`CREATE INDEX IF NOT EXISTS idx_crm_deals_representative ON crm_deals(representative_id)`); } catch(_) {}
+    try { await query(`ALTER TABLE crm_deals ADD COLUMN IF NOT EXISTS last_activity_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()`); } catch(_) {}
   } catch(_) {}
 }
 
@@ -8237,8 +8241,8 @@ router.get('/representatives/hub', async (req, res) => {
     res.json(result.rows);
   } catch (error) {
     if (isMissingSchemaError(error)) return res.json([]);
-    console.error('Error fetching representatives hub:', error);
-    res.status(500).json({ error: error.message });
+    console.error('Error fetching representatives hub:', error?.code, error?.message, error?.stack);
+    res.status(500).json({ error: error.message, code: error?.code });
   }
 });
 
