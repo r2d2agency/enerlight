@@ -132,7 +132,8 @@ router.post('/', authenticate, async (req, res) => {
       lead_scoring_criteria = {},
       auto_create_deal_funnel_id,
       auto_create_deal_stage_id,
-      call_agent_config = {}
+      call_agent_config = {},
+      agent_type = 'general'
     } = req.body;
 
     if (!name) {
