@@ -1967,12 +1967,20 @@ async function handleOutgoingMessage(connection, payload) {
 
     // Check for duplicate or pending message (optimistic UI pattern)
     const existingMsg = await query(
-      `SELECT id, message_id FROM chat_messages WHERE message_id = $1 OR 
-       (message_id LIKE 'temp_%' AND conversation_id = $2 AND from_me = true AND status = 'pending' 
-         AND timestamp > NOW() - INTERVAL '120 seconds')
-       ORDER BY CASE WHEN message_id = $1 THEN 0 ELSE 1 END
+      `SELECT id, message_id FROM chat_messages
+       WHERE message_id = $1 OR 
+       (
+         conversation_id = $2
+         AND from_me = true
+         AND timestamp > NOW() - INTERVAL '120 seconds'
+         AND (
+           (message_id LIKE 'temp_%' AND status = 'pending')
+           OR (message_type = $3 AND COALESCE(content, '') = COALESCE($4, '') AND COALESCE(media_url, '') = COALESCE($5, ''))
+         )
+       )
+       ORDER BY CASE WHEN message_id = $1 THEN 0 WHEN message_id LIKE 'temp_%' THEN 1 ELSE 2 END
        LIMIT 1`,
-      [messageId, conversationId]
+      [messageId, conversationId, messageType, content || '', effectiveMediaUrl || '']
     );
 
     if (existingMsg.rows.length > 0) {
@@ -1981,7 +1989,7 @@ async function handleOutgoingMessage(connection, payload) {
         console.log('[W-API] Outgoing message already exists:', messageId);
         return;
       }
-      // Update the pending message with real message ID
+      // Update the pending/manual AI message with the real provider message ID
       await query(
         `UPDATE chat_messages SET message_id = $1, status = 'sent' WHERE id = $2`,
         [messageId, existing.id]
