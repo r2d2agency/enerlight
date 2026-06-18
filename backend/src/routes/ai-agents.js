@@ -150,12 +150,12 @@ router.post('/', authenticate, async (req, res) => {
         handoff_keywords, auto_handoff_after_failures,
         default_department_id, default_user_id,
         lead_scoring_criteria, auto_create_deal_funnel_id, auto_create_deal_stage_id,
-        call_agent_config,
+        call_agent_config, agent_type,
         created_by
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
          $11, $12, $13, $14::agent_capability[], $15, $16, $17, $18::text[], $19,
-        $20, $21, $22, $23, $24, $25, $26
+        $20, $21, $22, $23, $24, $25, $26, $27
       ) RETURNING *
     `, [
       userCtx.organization_id, name, description, avatar_url,
@@ -167,7 +167,7 @@ router.post('/', authenticate, async (req, res) => {
       handoff_keywords, auto_handoff_after_failures,
       default_department_id, default_user_id,
       JSON.stringify(lead_scoring_criteria), auto_create_deal_funnel_id, auto_create_deal_stage_id,
-      JSON.stringify(call_agent_config),
+      JSON.stringify(call_agent_config), agent_type,
       userCtx.id
     ]);
 
