@@ -165,7 +165,7 @@ export async function configureWebhooks(instanceId, token, dbQuery) {
         {
           method: 'PUT',
           headers: getHeaders(token),
-          body: JSON.stringify({ url }),
+          body: JSON.stringify({ value: url, url }),
         }
       );
 
@@ -213,6 +213,13 @@ export async function configureWebhooks(instanceId, token, dbQuery) {
     total: webhookTypes.length,
     results,
   };
+}
+
+function normalizeRecipient(phone) {
+  const raw = String(phone || '').trim();
+  if (!raw) return '';
+  if (raw.includes('@g.us') || raw.includes('@lid')) return raw;
+  return raw.replace(/@.*$/, '').replace(/\D/g, '');
 }
 
 /**
@@ -461,9 +468,8 @@ export async function disconnect(instanceId, token) {
  * Send text message
  */
 export async function sendText(instanceId, token, phone, message) {
-  // For groups (@g.us), keep the full JID; for individuals, clean the phone
-  const isGroup = phone.includes('@g.us');
-  const cleanPhone = isGroup ? phone : phone.replace(/\D/g, '');
+  // For groups and @lid private chats, keep the full JID; for normal individuals, send digits only.
+  const cleanPhone = normalizeRecipient(phone);
   const at = new Date().toISOString();
 
   try {
@@ -531,8 +537,7 @@ export async function sendText(instanceId, token, phone, message) {
  * Send image message
  */
 export async function sendImage(instanceId, token, phone, imageUrl, caption = '') {
-  const isGroup = phone.includes('@g.us');
-  const cleanPhone = isGroup ? phone : phone.replace(/\D/g, '');
+  const cleanPhone = normalizeRecipient(phone);
   
   try {
     const response = await fetch(
@@ -571,8 +576,7 @@ export async function sendImage(instanceId, token, phone, imageUrl, caption = ''
  * Send audio message
  */
 export async function sendAudio(instanceId, token, phone, audioUrl) {
-  const isGroup = phone.includes('@g.us');
-  const cleanPhone = isGroup ? phone : phone.replace(/\D/g, '');
+  const cleanPhone = normalizeRecipient(phone);
   
   try {
     const response = await fetch(
@@ -610,8 +614,7 @@ export async function sendAudio(instanceId, token, phone, audioUrl) {
  * Send video message
  */
 export async function sendVideo(instanceId, token, phone, videoUrl, caption = '') {
-  const isGroup = phone.includes('@g.us');
-  const cleanPhone = isGroup ? phone : phone.replace(/\D/g, '');
+  const cleanPhone = normalizeRecipient(phone);
   
   try {
     const response = await fetch(
@@ -650,8 +653,7 @@ export async function sendVideo(instanceId, token, phone, videoUrl, caption = ''
  * Send document message
  */
 export async function sendDocument(instanceId, token, phone, documentUrl, filename = 'document') {
-  const isGroup = phone.includes('@g.us');
-  const cleanPhone = isGroup ? phone : phone.replace(/\D/g, '');
+  const cleanPhone = normalizeRecipient(phone);
   const at = new Date().toISOString();
 
   const sanitizeFilenameBase = (name) => {
