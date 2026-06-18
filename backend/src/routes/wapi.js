@@ -630,13 +630,17 @@ router.post('/webhook', async (req, res) => {
 
     // Find connection by instance_id - prefer MOST RECENTLY UPDATED (handles reconnect/duplicates)
     const connResult = await query(
-      `SELECT c.*, om.organization_id
+      `SELECT c.*, COALESCE(c.organization_id, om.organization_id) AS organization_id
        FROM connections c
        LEFT JOIN organization_members om ON om.user_id = c.user_id
        WHERE c.instance_id = $1 AND c.wapi_token IS NOT NULL
-       ORDER BY c.updated_at DESC NULLS LAST, c.created_at DESC NULLS LAST
+       ORDER BY
+         CASE WHEN regexp_replace(COALESCE(c.phone_number, ''), '\\D', '', 'g') = regexp_replace(COALESCE($2, ''), '\\D', '', 'g') THEN 0 ELSE 1 END,
+         CASE WHEN c.status = 'connected' THEN 0 ELSE 1 END,
+         c.updated_at DESC NULLS LAST,
+         c.created_at DESC NULLS LAST
        LIMIT 1`,
-      [instanceId]
+      [instanceId, payload.connectedPhone || payload.phoneNumber || payload.phone || null]
     );
 
     // Diagnostic: detect duplicate connection rows for the same instance_id
@@ -655,9 +659,22 @@ router.post('/webhook', async (req, res) => {
     }
 
     const connection = connResult.rows[0];
-    console.log('[W-API Webhook] Using connection:', connection.id, 'name:', connection.name, 'org:', connection.organization_id);
+    console.log('[W-API Webhook] Using connection:', connection.id, 'name:', connection.name, 'org:', connection.organization_id, 'connectedPhone:', payload.connectedPhone || null);
 
-    pushWebhookEvent({ connectionId: connection.id, instanceId, eventType, req, payload });
+    if (payload.connectedPhone || payload.connectedLid) {
+      await safeQuery(
+        `UPDATE connections
+         SET phone_number = COALESCE(NULLIF($1, ''), phone_number), updated_at = NOW()
+         WHERE id = $2`,
+        [normalizePhoneCandidate(payload.connectedPhone) || payload.connectedPhone || null, connection.id],
+        'update webhook connected phone'
+      );
+      if (payload.connectedPhone && !connection.phone_number) {
+        connection.phone_number = normalizePhoneCandidate(payload.connectedPhone) || payload.connectedPhone;
+      }
+    }
+
+    const diagnosticEvent = pushWebhookEvent({ connectionId: connection.id, instanceId, eventType, req, payload });
 
     console.log('[W-API Webhook] Event type:', eventType, 'Instance:', instanceId, 'fromMe:', payload.fromMe, 'chat.id:', payload.chat?.id);
 
