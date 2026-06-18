@@ -1244,7 +1244,7 @@ const handleGetQRCode = async (connection: Connection) => {
                     <div key={idx} className="rounded-md border border-border p-3">
                       <div className="flex items-center justify-between gap-2">
                         <div className="text-sm font-medium text-foreground">
-                          {ev.normalizedEvent || ev.event || 'evento'}
+                          {ev.eventType || ev.normalizedEvent || ev.event || 'evento'}
                         </div>
                         <div className="text-xs text-muted-foreground">{ev.at}</div>
                       </div>
