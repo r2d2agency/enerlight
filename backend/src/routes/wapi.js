@@ -1318,6 +1318,137 @@ async function continueActiveFlow(connection, conversationId, userInput) {
   }
 }
 
+function normalizePhoneCandidate(value) {
+  if (!value) return null;
+  const raw = String(value).trim();
+  if (!raw || raw.includes('@lid') || raw.includes('@g.us')) return null;
+  const digits = raw.replace(/@.*$/, '').replace(/\D/g, '');
+  return digits.length >= 10 ? digits : null;
+}
+
+function getIndividualPhoneFromPayload(payload, chatId, isLidPrivate) {
+  const candidates = [
+    payload.sender?.phone,
+    payload.sender?.number,
+    payload.sender?.waId,
+    payload.sender?.id,
+    payload.contact?.phone,
+    payload.contact?.number,
+    payload.chat?.phone,
+    payload.chat?.number,
+    payload.phone,
+    payload.from,
+    payload.remoteJid,
+  ];
+  if (!isLidPrivate) candidates.push(chatId);
+
+  for (const candidate of candidates) {
+    const phone = normalizePhoneCandidate(candidate);
+    if (phone) return phone;
+  }
+  return null;
+}
+
+function getPayloadContactName(payload, fallback) {
+  const name = payload.sender?.pushName || payload.pushName || payload.name || payload.senderName || payload.chat?.name || null;
+  return name || fallback;
+}
+
+async function safeQuery(sql, params, label) {
+  try {
+    return await query(sql, params);
+  } catch (err) {
+    console.warn(`[W-API] ${label} skipped:`, err?.message || err);
+    return null;
+  }
+}
+
+async function mergeConversationRecords(keepId, mergeId) {
+  if (!keepId || !mergeId || keepId === mergeId) return;
+
+  await safeQuery(`UPDATE chat_messages SET conversation_id = $1 WHERE conversation_id = $2`, [keepId, mergeId], 'merge chat_messages');
+  await safeQuery(`UPDATE ai_agent_sessions SET conversation_id = $1 WHERE conversation_id = $2`, [keepId, mergeId], 'merge ai_agent_sessions');
+  await safeQuery(`UPDATE chatbot_sessions SET conversation_id = $1 WHERE conversation_id = $2`, [keepId, mergeId], 'merge chatbot_sessions');
+  await safeQuery(`UPDATE scheduled_messages SET conversation_id = $1 WHERE conversation_id = $2`, [keepId, mergeId], 'merge scheduled_messages');
+  await safeQuery(`UPDATE conversation_notes SET conversation_id = $1 WHERE conversation_id = $2`, [keepId, mergeId], 'merge conversation_notes');
+  await safeQuery(`UPDATE nurturing_enrollments SET conversation_id = $1 WHERE conversation_id = $2`, [keepId, mergeId], 'merge nurturing_enrollments');
+  await safeQuery(`UPDATE ctwa_events SET conversation_id = $1 WHERE conversation_id = $2`, [keepId, mergeId], 'merge ctwa_events');
+  await safeQuery(`UPDATE lead_distribution_logs SET conversation_id = $1 WHERE conversation_id = $2`, [keepId, mergeId], 'merge lead_distribution_logs');
+  await safeQuery(
+    `INSERT INTO conversation_tag_links (conversation_id, tag_id)
+     SELECT $1, tag_id FROM conversation_tag_links WHERE conversation_id = $2
+     ON CONFLICT DO NOTHING`,
+    [keepId, mergeId],
+    'merge conversation_tag_links insert'
+  );
+  await safeQuery(`DELETE FROM conversation_tag_links WHERE conversation_id = $1`, [mergeId], 'merge conversation_tag_links delete');
+  await safeQuery(`DELETE FROM conversation_summaries WHERE conversation_id = $1`, [mergeId], 'merge conversation_summaries');
+  await safeQuery(`DELETE FROM conversations WHERE id = $1`, [mergeId], 'delete duplicate conversation');
+}
+
+async function findExistingIndividualConversation(connectionId, remoteJid, cleanPhone, contactName) {
+  let exactResult = await query(
+    `SELECT id, remote_jid, contact_phone, contact_name
+     FROM conversations
+     WHERE connection_id = $1 AND remote_jid = $2
+     LIMIT 1`,
+    [connectionId, remoteJid]
+  );
+
+  if (!cleanPhone) return exactResult;
+
+  const phoneResult = await query(
+    `SELECT id, remote_jid, contact_phone, contact_name
+     FROM conversations
+     WHERE connection_id = $1
+       AND contact_phone = $2
+       AND COALESCE(is_group, false) = false
+       ${exactResult.rows[0] ? 'AND id <> $3' : ''}
+     ORDER BY last_message_at DESC NULLS LAST
+     LIMIT 1`,
+    exactResult.rows[0] ? [connectionId, cleanPhone, exactResult.rows[0].id] : [connectionId, cleanPhone]
+  );
+
+  if (exactResult.rows[0] && phoneResult.rows[0]) {
+    const keep = exactResult.rows[0];
+    const merge = phoneResult.rows[0];
+    await mergeConversationRecords(keep.id, merge.id);
+    await query(
+      `UPDATE conversations
+       SET contact_phone = $2,
+           contact_name = CASE
+             WHEN contact_name IS NULL OR contact_name = '' OR contact_name = remote_jid OR contact_name = contact_phone OR contact_name LIKE '%@lid'
+             THEN COALESCE(NULLIF($3, ''), NULLIF($4, ''), contact_name)
+             ELSE contact_name
+           END,
+           unread_count = GREATEST(COALESCE(unread_count, 0), COALESCE($5::int, 0)),
+           updated_at = NOW()
+       WHERE id = $1`,
+      [keep.id, cleanPhone, merge.contact_name, contactName, merge.unread_count || 0]
+    );
+    exactResult = await query(
+      `SELECT id, remote_jid, contact_phone, contact_name FROM conversations WHERE id = $1`,
+      [keep.id]
+    );
+  } else if (!exactResult.rows[0] && phoneResult.rows[0]) {
+    await query(
+      `UPDATE conversations
+       SET remote_jid = $1,
+           contact_phone = $2,
+           contact_name = COALESCE(NULLIF(contact_name, ''), NULLIF($3, ''), contact_name),
+           updated_at = NOW()
+       WHERE id = $4`,
+      [remoteJid, cleanPhone, contactName, phoneResult.rows[0].id]
+    );
+    exactResult = await query(
+      `SELECT id, remote_jid, contact_phone, contact_name FROM conversations WHERE id = $1`,
+      [phoneResult.rows[0].id]
+    );
+  }
+
+  return exactResult;
+}
+
 /**
  * Handle incoming message from W-API
  * W-API payload structure:
