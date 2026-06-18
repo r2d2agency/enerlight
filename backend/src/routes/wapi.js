@@ -1847,17 +1847,18 @@ async function handleOutgoingMessage(connection, payload) {
     
     let remoteJid;
     let cleanPhone = null;
-    
+    const resolvedPhone = !isGroup ? getIndividualPhoneFromPayload(payload, chatId, isLidPrivate) : null;
+
     if (isGroup) {
       // Keep group JID as-is
       remoteJid = String(chatId).includes('@') ? chatId : `${chatId}@g.us`;
     } else if (isLidPrivate) {
-      // W-API supports @lid as a private-chat destination. Do not strip it.
+      // Keep @lid for delivery, but preserve the numeric phone for contact matching if available.
       remoteJid = chatIdStr;
-      cleanPhone = chatIdStr;
+      cleanPhone = resolvedPhone || chatIdStr;
     } else {
       // Individual chat - normalize phone
-      cleanPhone = String(chatId).replace(/\D/g, '').replace(/@.*$/, '');
+      cleanPhone = resolvedPhone || String(chatId).replace(/@.*$/, '').replace(/\D/g, '');
       remoteJid = cleanPhone ? `${cleanPhone}@s.whatsapp.net` : null;
     }
 
@@ -1866,11 +1867,16 @@ async function handleOutgoingMessage(connection, payload) {
       return;
     }
 
-    // Find conversation
-    const convResult = await query(
-      `SELECT id FROM conversations WHERE connection_id = $1 AND remote_jid = $2`,
-      [connection.id, remoteJid]
-    );
+    const numericCleanPhone = normalizePhoneCandidate(cleanPhone);
+    const outgoingContactName = getPayloadContactName(payload, numericCleanPhone || cleanPhone);
+
+    // Find conversation. For @lid, merge into the existing phone conversation when W-API provides the phone.
+    const convResult = isGroup
+      ? await query(
+          `SELECT id FROM conversations WHERE connection_id = $1 AND remote_jid = $2 LIMIT 1`,
+          [connection.id, remoteJid]
+        )
+      : await findExistingIndividualConversation(connection.id, remoteJid, numericCleanPhone, outgoingContactName);
 
     if (convResult.rows.length === 0) {
       // For outgoing messages from phone, we might need to create the conversation
@@ -1878,13 +1884,13 @@ async function handleOutgoingMessage(connection, payload) {
       
       const contactName = isGroup 
         ? (payload.chat?.name || payload.groupName || 'Grupo')
-        : (payload.chat?.pushName || cleanPhone);
+        : outgoingContactName;
       
       const newConv = await query(
         `INSERT INTO conversations (connection_id, remote_jid, contact_name, contact_phone, is_group, group_name, last_message_at, unread_count)
          VALUES ($1, $2, $3, $4, $5, $6, NOW(), 0)
          RETURNING id`,
-        [connection.id, remoteJid, contactName, isGroup ? null : cleanPhone, isGroup, isGroup ? contactName : null]
+        [connection.id, remoteJid, contactName, isGroup ? null : numericCleanPhone, isGroup, isGroup ? contactName : null]
       );
       
       var conversationId = newConv.rows[0].id;
