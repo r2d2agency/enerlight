@@ -1678,8 +1678,18 @@ async function handleIncomingMessage(connection, payload) {
 
     // Check for duplicate message in chat_messages table
     const existingMsg = await query(
-      `SELECT id FROM chat_messages WHERE message_id = $1`,
-      [messageId]
+      `SELECT id FROM chat_messages
+       WHERE message_id = $1
+          OR (
+            conversation_id = $2
+            AND from_me = false
+            AND message_type = $3
+            AND COALESCE(content, '') = COALESCE($4, '')
+            AND COALESCE(media_url, '') = COALESCE($5, '')
+            AND timestamp > NOW() - INTERVAL '15 seconds'
+          )
+       LIMIT 1`,
+      [messageId, conversationId, messageType, content || '', effectiveMediaUrl || '']
     );
 
     if (existingMsg.rows.length > 0) {
