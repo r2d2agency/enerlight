@@ -1161,7 +1161,7 @@ function detectEventType(payload) {
     }
     return 'message_received';
   }
-  if (event === 'webhookDelivery') return 'message_sent';
+  if (event === 'webhookSend' || event === 'webhookSent' || event === 'webhookDelivery') return 'message_sent';
   if (event === 'webhookStatus') return 'status_update';
   if (event === 'webhookConnected' || event === 'webhookDisconnected') return 'connection_update';
 
@@ -1733,8 +1733,10 @@ async function handleOutgoingMessage(connection, payload) {
       return;
     }
 
-    // Check if this is a group message
-    const isGroup = String(chatId).includes('@g.us') || (String(chatId).includes('-') && !String(chatId).match(/^\d+$/));
+    // Check if this is a group message / @lid private identifier
+    const chatIdStr = String(chatId);
+    const isGroup = chatIdStr.includes('@g.us') || (chatIdStr.includes('-') && !chatIdStr.match(/^\d+$/));
+    const isLidPrivate = !isGroup && chatIdStr.includes('@lid');
     
     let remoteJid;
     let cleanPhone = null;
@@ -1742,6 +1744,10 @@ async function handleOutgoingMessage(connection, payload) {
     if (isGroup) {
       // Keep group JID as-is
       remoteJid = String(chatId).includes('@') ? chatId : `${chatId}@g.us`;
+    } else if (isLidPrivate) {
+      // W-API supports @lid as a private-chat destination. Do not strip it.
+      remoteJid = chatIdStr;
+      cleanPhone = chatIdStr;
     } else {
       // Individual chat - normalize phone
       cleanPhone = String(chatId).replace(/\D/g, '').replace(/@.*$/, '');
