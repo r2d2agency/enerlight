@@ -1386,9 +1386,18 @@ async function getAgentAIConfig(agent, organizationId) {
     throw new Error('Nenhuma chave de API configurada para o agente.');
   }
 
+  // A chave é da organização → SEMPRE usa o provider da organização para casar com a chave.
+  // Só usa o modelo do agente se for compatível com o provider da org (senão cai no modelo da org).
+  const orgProvider = org.ai_provider || agent.ai_provider;
+  const agentModel = agent.ai_model || '';
+  const modelMatchesOrgProvider =
+    (orgProvider === 'openai' && /^gpt-/i.test(agentModel)) ||
+    (orgProvider === 'gemini' && /^gemini/i.test(agentModel)) ||
+    (orgProvider === 'anthropic' && /^claude/i.test(agentModel));
+
   return {
-    provider: org.ai_provider || agent.ai_provider,
-    model: agent.ai_model || org.ai_model || 'gpt-4o-mini',
+    provider: orgProvider,
+    model: modelMatchesOrgProvider ? agentModel : (org.ai_model || 'gpt-4o-mini'),
     apiKey: org.ai_api_key,
   };
 }
