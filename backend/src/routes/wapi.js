@@ -21,7 +21,7 @@ const API_BASE_URL = process.env.API_BASE_URL || '';
 const WEBHOOK_EVENTS_MAX = 200;
 const webhookEvents = []; // { at, connectionId, instanceId, eventType, headers, preview }
 const recentIncomingKeys = new Map();
-const RECENT_INCOMING_TTL_MS = 60_000;
+const RECENT_INCOMING_TTL_MS = 15_000;
 
 function safeHeaders(req) {
   const h = req.headers || {};
@@ -1688,7 +1688,7 @@ async function handleIncomingMessage(connection, payload) {
       return;
     }
 
-    const incomingDedupeKey = [connection.id, conversationId, messageType, content || '', effectiveMediaUrl || '', messageId].join('|');
+    const incomingDedupeKey = [connection.id, conversationId, messageType, content || '', effectiveMediaUrl || ''].join('|');
     if (!reserveRecentIncomingKey(incomingDedupeKey)) {
       console.log('[W-API] Duplicate in-flight incoming message, skipping:', messageId);
       return;
