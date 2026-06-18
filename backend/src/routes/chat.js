@@ -3244,7 +3244,9 @@ router.post('/messages/forward', authenticate, async (req, res) => {
         to = target.remote_jid;
       } else {
         const jid = String(target.remote_jid || '');
-        if (jid.includes('@lid') && target.contact_phone) {
+        if (jid.includes('@lid') && target.provider === 'wapi') {
+          to = jid;
+        } else if (jid.includes('@lid') && target.contact_phone) {
           to = target.contact_phone;
         } else {
           to = jid.replace('@s.whatsapp.net', '').replace('@c.us', '').replace('@lid', '');
