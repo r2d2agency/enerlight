@@ -1527,7 +1527,7 @@ async function findExistingIndividualConversation(connectionId, remoteJid, clean
  *   msgContent: { conversation: "..." } | { imageMessage: {...} } | etc.
  * }
  */
-async function handleIncomingMessage(connection, payload) {
+async function handleIncomingMessage(connection, payload, diagnosticEvent = null) {
   try {
     // W-API format: chat.id is the chat identifier (can be phone or group JID)
     const chatId = payload.chat?.id || payload.phone || payload.from || payload.remoteJid;
@@ -1587,10 +1587,20 @@ async function handleIncomingMessage(connection, payload) {
       mediaMimetype,
       hasMediaKey: Boolean(waMediaKey),
     });
+    setWebhookProcessingInfo(diagnosticEvent, {
+      stage: 'content_extracted',
+      messageId,
+      chatId: chatIdStr,
+      remoteJid,
+      cleanPhone: resolvedPhone || cleanPhone,
+      messageType,
+      contentPreview: content ? String(content).slice(0, 120) : null,
+    });
 
     // Skip if message has no content - don't create empty conversations
     if (!content && !rawMediaUrl) {
       console.log('[W-API] Empty message content, skipping before conversation creation. Full msgContent:', JSON.stringify(payload.msgContent || {}).slice(0, 500));
+      setWebhookProcessingInfo(diagnosticEvent, { stage: 'skipped_empty_content' });
       return;
     }
 
