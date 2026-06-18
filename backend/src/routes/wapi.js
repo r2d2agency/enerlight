@@ -1422,8 +1422,10 @@ async function findExistingIndividualConversation(connectionId, remoteJid, clean
   );
 
   if (exactResult.rows[0] && phoneResult.rows[0]) {
-    const keep = exactResult.rows[0];
-    const merge = phoneResult.rows[0];
+    const exactHasLid = String(exactResult.rows[0].remote_jid || '').includes('@lid');
+    const phoneHasLid = String(phoneResult.rows[0].remote_jid || '').includes('@lid');
+    const keep = phoneHasLid && !exactHasLid ? phoneResult.rows[0] : exactResult.rows[0];
+    const merge = keep.id === exactResult.rows[0].id ? phoneResult.rows[0] : exactResult.rows[0];
     await mergeConversationRecords(keep.id, merge.id);
     await query(
       `UPDATE conversations
@@ -1445,7 +1447,10 @@ async function findExistingIndividualConversation(connectionId, remoteJid, clean
   } else if (!exactResult.rows[0] && phoneResult.rows[0]) {
     await query(
       `UPDATE conversations
-       SET remote_jid = $1,
+       SET remote_jid = CASE
+             WHEN remote_jid LIKE '%@lid' AND $1 NOT LIKE '%@lid' THEN remote_jid
+             ELSE $1
+           END,
            contact_phone = $2,
            contact_name = COALESCE(NULLIF(contact_name, ''), NULLIF($3, ''), contact_name),
            updated_at = NOW()
