@@ -1870,7 +1870,7 @@ async function handleIncomingMessage(connection, payload, diagnosticEvent = null
       processIncomingWithAgent({
         connection,
         conversationId,
-        contactPhone: isLidPrivate ? remoteJid : cleanPhone,
+        contactPhone: numericCleanPhone || cleanPhone || remoteJid,
         contactName: incomingContactName,
         messageContent: content,
         messageType,
