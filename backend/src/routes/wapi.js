@@ -20,6 +20,8 @@ const API_BASE_URL = process.env.API_BASE_URL || '';
 // In-memory webhook event buffer for diagnostics only (not persisted)
 const WEBHOOK_EVENTS_MAX = 200;
 const webhookEvents = []; // { at, connectionId, instanceId, eventType, headers, preview }
+const recentIncomingKeys = new Map();
+const RECENT_INCOMING_TTL_MS = 60_000;
 
 function safeHeaders(req) {
   const h = req.headers || {};
@@ -48,6 +50,16 @@ function pushWebhookEvent({ connectionId, instanceId, eventType, req, payload })
     preview: JSON.stringify(payload).slice(0, 900),
   });
   if (webhookEvents.length > WEBHOOK_EVENTS_MAX) webhookEvents.length = WEBHOOK_EVENTS_MAX;
+}
+
+function reserveRecentIncomingKey(key) {
+  const now = Date.now();
+  for (const [k, expiresAt] of recentIncomingKeys) {
+    if (expiresAt <= now) recentIncomingKeys.delete(k);
+  }
+  if (recentIncomingKeys.has(key)) return false;
+  recentIncomingKeys.set(key, now + RECENT_INCOMING_TTL_MS);
+  return true;
 }
 
 async function getAccessibleConnection(connectionId, userId) {
