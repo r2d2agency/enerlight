@@ -1660,14 +1660,17 @@ async function handleIncomingMessage(connection, payload, diagnosticEvent = null
           [connection.id, remoteJid, contactName, isGroup ? null : numericCleanPhone, isGroup, isGroup ? groupName : null]
         );
         conversationId = newConv.rows[0].id;
+        setWebhookProcessingInfo(diagnosticEvent, { stage: 'conversation_created', conversationId });
         console.log('[W-API] Created new', isGroup ? 'group' : 'conversation:', conversationId, isGroup ? `name: ${groupName}` : '', 'phone:', cleanPhone);
       } catch (insertError) {
+        setWebhookProcessingInfo(diagnosticEvent, { stage: 'conversation_insert_error', error: insertError.message });
         console.error('[W-API] ERROR creating conversation:', insertError.message);
         console.error('[W-API] Insert params:', { connectionId: connection.id, remoteJid, contactName, cleanPhone, isGroup, groupName });
         throw insertError;
       }
       } else {
       conversationId = conversationResult.rows[0].id;
+      setWebhookProcessingInfo(diagnosticEvent, { stage: 'conversation_found', conversationId });
 
       // Update conversation
       if (isGroup) {
@@ -1756,6 +1759,7 @@ async function handleIncomingMessage(connection, payload, diagnosticEvent = null
     const incomingDedupeKey = [connection.id, conversationId, messageType, content || '', effectiveMediaUrl || ''].join('|');
     if (!reserveRecentIncomingKey(incomingDedupeKey)) {
       console.log('[W-API] Duplicate in-flight incoming message, skipping:', messageId);
+      setWebhookProcessingInfo(diagnosticEvent, { stage: 'skipped_in_flight_duplicate', conversationId });
       return;
     }
 
@@ -1777,6 +1781,7 @@ async function handleIncomingMessage(connection, payload, diagnosticEvent = null
 
     if (existingMsg.rows.length > 0) {
       console.log('[W-API] Duplicate message, skipping:', messageId);
+      setWebhookProcessingInfo(diagnosticEvent, { stage: 'skipped_duplicate_db', conversationId, existingMessageId: existingMsg.rows[0]?.id });
       return;
     }
 
@@ -1797,6 +1802,7 @@ async function handleIncomingMessage(connection, payload, diagnosticEvent = null
        VALUES ($1, $2, $3, $4, $5, $6, $7, false, $8, $9, 'received', NOW())`,
       [conversationId, messageId, content, messageType, effectiveMediaUrl, effectiveMediaMimetype, waMediaKey, senderName, senderPhone]
     );
+    setWebhookProcessingInfo(diagnosticEvent, { stage: 'message_saved', conversationId, saved: true });
 
     console.log('[W-API] Message saved. Type:', messageType, 'MediaURL:', effectiveMediaUrl?.slice?.(0, 100));
 
@@ -1898,6 +1904,7 @@ async function handleIncomingMessage(connection, payload, diagnosticEvent = null
     }
     console.log('[W-API] Incoming message saved:', messageId, 'Type:', messageType, 'From:', cleanPhone);
   } catch (error) {
+    setWebhookProcessingInfo(diagnosticEvent, { stage: 'error', error: error.message });
     console.error('[W-API] Error handling incoming message:', error);
   }
 }
