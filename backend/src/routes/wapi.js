@@ -681,11 +681,11 @@ router.post('/webhook', async (req, res) => {
     switch (eventType) {
       case 'message_received':
         console.log('[W-API Webhook] Calling handleIncomingMessage...');
-        await handleIncomingMessage(connection, payload);
+        await handleIncomingMessage(connection, payload, diagnosticEvent);
         console.log('[W-API Webhook] handleIncomingMessage completed');
         break;
       case 'message_sent':
-        await handleOutgoingMessage(connection, payload);
+        await handleOutgoingMessage(connection, payload, diagnosticEvent);
         break;
       case 'status_update':
         await handleStatusUpdate(connection, payload);
