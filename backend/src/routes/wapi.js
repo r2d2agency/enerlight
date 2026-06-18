@@ -626,15 +626,25 @@ router.post('/webhook', async (req, res) => {
     // Detect event type from payload
     const eventType = detectEventType(payload);
 
-    // Find connection by instance_id
+    // Find connection by instance_id - prefer MOST RECENTLY UPDATED (handles reconnect/duplicates)
     const connResult = await query(
       `SELECT c.*, om.organization_id
        FROM connections c
        LEFT JOIN organization_members om ON om.user_id = c.user_id
        WHERE c.instance_id = $1 AND c.wapi_token IS NOT NULL
+       ORDER BY c.updated_at DESC NULLS LAST, c.created_at DESC NULLS LAST
        LIMIT 1`,
       [instanceId]
     );
+
+    // Diagnostic: detect duplicate connection rows for the same instance_id
+    const dupCheck = await query(
+      `SELECT COUNT(*)::int AS cnt FROM connections WHERE instance_id = $1 AND wapi_token IS NOT NULL`,
+      [instanceId]
+    );
+    if ((dupCheck.rows[0]?.cnt || 0) > 1) {
+      console.warn('[W-API Webhook] DUPLICATE connections for instance_id:', instanceId, 'count:', dupCheck.rows[0].cnt);
+    }
 
     if (connResult.rows.length === 0) {
       console.log('[W-API Webhook] Connection not found for instance:', instanceId);
@@ -643,6 +653,7 @@ router.post('/webhook', async (req, res) => {
     }
 
     const connection = connResult.rows[0];
+    console.log('[W-API Webhook] Using connection:', connection.id, 'name:', connection.name, 'org:', connection.organization_id);
 
     pushWebhookEvent({ connectionId: connection.id, instanceId, eventType, req, payload });
 
