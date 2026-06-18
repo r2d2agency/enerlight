@@ -1708,8 +1708,8 @@ async function handleIncomingMessage(connection, payload) {
     console.log('[W-API] Message saved. Type:', messageType, 'MediaURL:', effectiveMediaUrl?.slice?.(0, 100));
 
     // Pause nurturing sequences on incoming message (fromMe is always false here)
-    if (cleanPhone && !isLidPrivate && connection.organization_id) {
-      pauseNurturingOnReply(cleanPhone, connection.organization_id, conversationId)
+    if (numericCleanPhone && connection.organization_id) {
+      pauseNurturingOnReply(numericCleanPhone, connection.organization_id, conversationId)
         .catch(err => console.error('[W-API] Error pausing nurturing:', err.message));
     }
 
@@ -1771,8 +1771,8 @@ async function handleIncomingMessage(connection, payload) {
       processIncomingWithAgent({
         connection,
         conversationId,
-        contactPhone: cleanPhone,
-        contactName: payload.sender?.pushName || payload.pushName || payload.name || cleanPhone,
+        contactPhone: isLidPrivate ? remoteJid : cleanPhone,
+        contactName: incomingContactName,
         messageContent: content,
         messageType,
         mediaUrl: effectiveMediaUrl || null,
