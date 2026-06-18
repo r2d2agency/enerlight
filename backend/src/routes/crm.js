@@ -8224,20 +8224,20 @@ router.get('/representatives/hub', async (req, res) => {
          FROM crm_representatives r
          JOIN visible v ON v.id = r.id
          LEFT JOIN users u ON u.id = r.linked_user_id
-         LEFT JOIN LATERAL (
-           SELECT
-             COUNT(*) FILTER (WHERE d.status = 'open') AS open_count,
-             COALESCE(SUM(CASE WHEN d.status = 'open' THEN d.value END), 0) AS open_value,
-             COUNT(*) FILTER (WHERE d.status = 'won') AS won_count,
-             COUNT(*) FILTER (WHERE d.status = 'lost') AS lost_count,
-             COUNT(*) FILTER (
-               WHERE d.status = 'open'
-                 AND (d.last_activity_at IS NULL OR d.last_activity_at < NOW() - INTERVAL '15 days')
-             ) AS stale_count,
-             MAX(d.last_activity_at) AS last_activity_at
-           FROM crm_deals d
-           WHERE d.representative_id = r.id AND d.organization_id = $1
-         ) stats ON true
+          LEFT JOIN LATERAL (
+            SELECT
+              COUNT(*) FILTER (WHERE d.status = 'open') AS open_count,
+              COALESCE(SUM(CASE WHEN d.status = 'open' THEN d.value END), 0) AS open_value,
+              COUNT(*) FILTER (WHERE d.status = 'won') AS won_count,
+              COUNT(*) FILTER (WHERE d.status = 'lost') AS lost_count,
+              COUNT(*) FILTER (
+                WHERE d.status = 'open'
+                  AND (COALESCE(d.last_activity_at, d.updated_at, d.created_at) < NOW() - INTERVAL '15 days')
+              ) AS stale_count,
+              MAX(COALESCE(d.last_activity_at, d.updated_at, d.created_at)) AS last_activity_at
+            FROM crm_deals d
+            WHERE d.representative_id = r.id AND d.organization_id = $1
+          ) stats ON true
          WHERE r.organization_id = $1
          ORDER BY r.is_active DESC, r.name ASC`,
       params
