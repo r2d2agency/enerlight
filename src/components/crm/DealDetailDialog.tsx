@@ -679,7 +679,7 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-[300px] p-0" align="start">
-                      <Command>
+                      <Command shouldFilter={false}>
                         <div className="p-2 border-b">
                           <Button
                             variant="outline"
