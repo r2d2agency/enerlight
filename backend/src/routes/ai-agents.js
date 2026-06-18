@@ -1462,11 +1462,54 @@ router.post('/:id/test', authenticate, async (req, res) => {
     );
     const knowledgeContext = knowledgeResult.rows.map(k => k.source_content).join('\n\n');
 
-    // Build system prompt
+    // Build system prompt (mirror produção: injeta data atual + instruções de despesas)
     let systemPrompt = agent.system_prompt || 'Você é um assistente virtual profissional e prestativo.';
+
+    // Data/hora atual (timezone Brasil) — crítico para create_expense
+    const _now = new Date();
+    const _brDate = _now.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const _brTime = _now.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
+    const _todayISO = new Date(_now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' })).toISOString().split('T')[0];
+    systemPrompt += `\n\nInformações do momento atual: Hoje é ${_brDate}, ${_brTime} (horário de Brasília). Data ISO: ${_todayISO}.`;
+
     if (knowledgeContext) {
       systemPrompt += `\n\nBase de Conhecimento (use estas informações para responder):\n${knowledgeContext}`;
     }
+
+    // Parse capabilities cedo para condicionar o prompt
+    const capabilitiesEarly = Array.isArray(agent.capabilities)
+      ? agent.capabilities
+      : (typeof agent.capabilities === 'string' ? agent.capabilities.replace(/[{}]/g, '').split(',').map(s => s.trim()).filter(Boolean) : ['respond_messages']);
+
+    if (capabilitiesEarly.includes('manage_expenses')) {
+      systemPrompt += `\n\n## Prestação de Contas (Despesas) - INSTRUÇÕES OBRIGATÓRIAS
+VOCÊ TEM ACESSO ÀS FERRAMENTAS "create_expense" e "query_expenses". USE-AS SEMPRE.
+
+### Para REGISTRAR despesas:
+Use SEMPRE a ferramenta "create_expense". NUNCA peça dados que já foram informados nem responda textualmente que não pode registrar.
+- Extraia da mensagem: valor, categoria, descrição, data, pagamento, estabelecimento
+- Se tiver VALOR + DESCRIÇÃO (mesmo que parcial), chame "create_expense" IMEDIATAMENTE — NÃO peça confirmação, NÃO peça AAAA-MM-DD, NÃO peça CNPJ
+- Inferência: "gasolina"→combustivel, "almoço/jantar/restaurante/lanche"→alimentacao, "uber/taxi/onibus"→transporte, "hotel/pousada"→hospedagem
+- Pagamento: "cartão de crédito"→cartao_credito, "cartão de débito"→cartao_debito, "pix"→pix, "dinheiro"→dinheiro
+- Data padrão (se não informada): hoje (${_todayISO}). "hoje"→${_todayISO}.
+- Estabelecimento: extraia se mencionado (ex: "restaurante abc" → establishment="abc")
+- Campos opcionais ausentes: omita, NÃO pergunte ao usuário
+
+### Para CONSULTAR despesas:
+Use SEMPRE "query_expenses". NUNCA diga que não tem acesso.
+- "este mês"→primeiro dia do mês até hoje; "hoje"=${_todayISO}
+
+### Para IMAGENS (recibos/notas):
+- Extraia valor total, estabelecimento, CNPJ, data; chame "create_expense" SEM pedir confirmação.
+
+REGRA CRÍTICA: Ao informar gasto, CHAME "create_expense" na PRIMEIRA mensagem. NUNCA responda em texto pedindo "Data da despesa", "CNPJ", "Forma de pagamento" se já tem valor + descrição — chame a ferramenta com o que tem.
+
+### REGRA ANTI-MENTIRA (OBRIGATÓRIA):
+- NUNCA diga "salvei", "registrei", "anotado", "✅" a menos que "create_expense" tenha retornado "✅".
+- Se a ferramenta retornar "⚠️"/"Erro": repita a mensagem literalmente.`;
+    }
+
+    systemPrompt += `\n\nResponda sempre em ${agent.language || 'pt-BR'}.`;
 
     // Build messages
     const messages = [
