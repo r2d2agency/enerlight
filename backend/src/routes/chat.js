@@ -1505,9 +1505,11 @@ router.post('/conversations/:id/messages', authenticate, async (req, res) => {
         if (isGroup) {
           to = conversation.remote_jid;
         } else {
-          // For @lid JIDs, use contact_phone instead (the @lid ID is not a real phone number)
+          // W-API supports @lid as a private-chat destination; keep it for W-API.
           const jid = String(conversation.remote_jid || '');
-          if (jid.includes('@lid') && conversation.contact_phone) {
+          if (jid.includes('@lid') && provider === 'wapi') {
+            to = jid;
+          } else if (jid.includes('@lid') && conversation.contact_phone) {
             to = conversation.contact_phone;
           } else {
             to = jid.replace('@s.whatsapp.net', '').replace('@c.us', '').replace('@lid', '');
