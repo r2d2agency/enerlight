@@ -159,11 +159,12 @@ export async function processIncomingWithAgent({
       userMessageForAI = messageContent;
     }
 
-    // 5b. Save user message to history
-    await saveAgentMessage(session.id, 'user', userMessageForHistory, 0);
-
-    // 6. Build conversation history from session
+    // 6. Build conversation history from session before saving the current message,
+    // otherwise the same inbound message is sent twice to the model context.
     const history = await getSessionHistory(session.id, agent.context_window || 10);
+
+    // 6b. Save user message to history
+    await saveAgentMessage(session.id, 'user', userMessageForHistory, 0);
 
     // 7. Build system prompt with RAG knowledge base
     const aiConfig = await getAgentAIConfig(agent, organizationId);
@@ -451,14 +452,32 @@ async function sendAgentMessage(connection, contactPhone, text, sessionId) {
     if (result.success) {
       // Save outgoing message to chat_messages so it appears in the chat
       const conversationResult = await query(
-        `SELECT id FROM conversations WHERE connection_id = $1 AND contact_phone = $2 LIMIT 1`,
-        [connection.id, contactPhone]
+        `SELECT c.id
+         FROM conversations c
+         LEFT JOIN ai_agent_sessions s ON s.conversation_id = c.id AND s.id = $3
+         WHERE c.connection_id = $1
+           AND (
+             c.contact_phone = $2
+             OR c.remote_jid = $2
+             OR s.id IS NOT NULL
+           )
+         ORDER BY CASE WHEN s.id IS NOT NULL THEN 0 ELSE 1 END
+         LIMIT 1`,
+        [connection.id, contactPhone, sessionId]
       );
       
       if (conversationResult.rows[0]) {
         await query(
           `INSERT INTO chat_messages (conversation_id, message_id, content, message_type, from_me, status, timestamp)
-           VALUES ($1, $2, $3, 'text', true, 'sent', NOW())`,
+           SELECT $1, $2, $3, 'text', true, 'sent', NOW()
+           WHERE NOT EXISTS (
+             SELECT 1 FROM chat_messages
+             WHERE conversation_id = $1
+               AND from_me = true
+               AND message_type = 'text'
+               AND COALESCE(content, '') = COALESCE($3, '')
+               AND timestamp > NOW() - INTERVAL '120 seconds'
+           )`,
           [conversationResult.rows[0].id, result.messageId || `ai-agent-${Date.now()}`, text]
         );
       }

@@ -20,6 +20,8 @@ const API_BASE_URL = process.env.API_BASE_URL || '';
 // In-memory webhook event buffer for diagnostics only (not persisted)
 const WEBHOOK_EVENTS_MAX = 200;
 const webhookEvents = []; // { at, connectionId, instanceId, eventType, headers, preview }
+const recentIncomingKeys = new Map();
+const RECENT_INCOMING_TTL_MS = 15_000;
 
 function safeHeaders(req) {
   const h = req.headers || {};
@@ -48,6 +50,16 @@ function pushWebhookEvent({ connectionId, instanceId, eventType, req, payload })
     preview: JSON.stringify(payload).slice(0, 900),
   });
   if (webhookEvents.length > WEBHOOK_EVENTS_MAX) webhookEvents.length = WEBHOOK_EVENTS_MAX;
+}
+
+function reserveRecentIncomingKey(key) {
+  const now = Date.now();
+  for (const [k, expiresAt] of recentIncomingKeys) {
+    if (expiresAt <= now) recentIncomingKeys.delete(k);
+  }
+  if (recentIncomingKeys.has(key)) return false;
+  recentIncomingKeys.set(key, now + RECENT_INCOMING_TTL_MS);
+  return true;
 }
 
 async function getAccessibleConnection(connectionId, userId) {
@@ -1318,6 +1330,142 @@ async function continueActiveFlow(connection, conversationId, userInput) {
   }
 }
 
+function normalizePhoneCandidate(value) {
+  if (!value) return null;
+  const raw = String(value).trim();
+  if (!raw || raw.includes('@lid') || raw.includes('@g.us')) return null;
+  const digits = raw.replace(/@.*$/, '').replace(/\D/g, '');
+  return digits.length >= 10 ? digits : null;
+}
+
+function getIndividualPhoneFromPayload(payload, chatId, isLidPrivate) {
+  const candidates = [
+    payload.sender?.phone,
+    payload.sender?.number,
+    payload.sender?.waId,
+    payload.sender?.id,
+    payload.contact?.phone,
+    payload.contact?.number,
+    payload.chat?.phone,
+    payload.chat?.number,
+    payload.phone,
+    payload.from,
+    payload.remoteJid,
+  ];
+  if (!isLidPrivate) candidates.push(chatId);
+
+  for (const candidate of candidates) {
+    const phone = normalizePhoneCandidate(candidate);
+    if (phone) return phone;
+  }
+  return null;
+}
+
+function getPayloadContactName(payload, fallback) {
+  const name = payload.sender?.pushName || payload.pushName || payload.name || payload.senderName || payload.chat?.name || null;
+  return name || fallback;
+}
+
+async function safeQuery(sql, params, label) {
+  try {
+    return await query(sql, params);
+  } catch (err) {
+    console.warn(`[W-API] ${label} skipped:`, err?.message || err);
+    return null;
+  }
+}
+
+async function mergeConversationRecords(keepId, mergeId) {
+  if (!keepId || !mergeId || keepId === mergeId) return;
+
+  await safeQuery(`UPDATE chat_messages SET conversation_id = $1 WHERE conversation_id = $2`, [keepId, mergeId], 'merge chat_messages');
+  await safeQuery(`UPDATE ai_agent_sessions SET conversation_id = $1 WHERE conversation_id = $2`, [keepId, mergeId], 'merge ai_agent_sessions');
+  await safeQuery(`UPDATE chatbot_sessions SET conversation_id = $1 WHERE conversation_id = $2`, [keepId, mergeId], 'merge chatbot_sessions');
+  await safeQuery(`UPDATE scheduled_messages SET conversation_id = $1 WHERE conversation_id = $2`, [keepId, mergeId], 'merge scheduled_messages');
+  await safeQuery(`UPDATE conversation_notes SET conversation_id = $1 WHERE conversation_id = $2`, [keepId, mergeId], 'merge conversation_notes');
+  await safeQuery(`UPDATE nurturing_enrollments SET conversation_id = $1 WHERE conversation_id = $2`, [keepId, mergeId], 'merge nurturing_enrollments');
+  await safeQuery(`UPDATE ctwa_events SET conversation_id = $1 WHERE conversation_id = $2`, [keepId, mergeId], 'merge ctwa_events');
+  await safeQuery(`UPDATE lead_distribution_logs SET conversation_id = $1 WHERE conversation_id = $2`, [keepId, mergeId], 'merge lead_distribution_logs');
+  await safeQuery(
+    `INSERT INTO conversation_tag_links (conversation_id, tag_id)
+     SELECT $1, tag_id FROM conversation_tag_links WHERE conversation_id = $2
+     ON CONFLICT DO NOTHING`,
+    [keepId, mergeId],
+    'merge conversation_tag_links insert'
+  );
+  await safeQuery(`DELETE FROM conversation_tag_links WHERE conversation_id = $1`, [mergeId], 'merge conversation_tag_links delete');
+  await safeQuery(`DELETE FROM conversation_summaries WHERE conversation_id = $1`, [mergeId], 'merge conversation_summaries');
+  await safeQuery(`DELETE FROM conversations WHERE id = $1`, [mergeId], 'delete duplicate conversation');
+}
+
+async function findExistingIndividualConversation(connectionId, remoteJid, cleanPhone, contactName) {
+  let exactResult = await query(
+    `SELECT id, remote_jid, contact_phone, contact_name
+     FROM conversations
+     WHERE connection_id = $1 AND remote_jid = $2
+     LIMIT 1`,
+    [connectionId, remoteJid]
+  );
+
+  if (!cleanPhone) return exactResult;
+
+  const phoneResult = await query(
+    `SELECT id, remote_jid, contact_phone, contact_name
+     FROM conversations
+     WHERE connection_id = $1
+       AND contact_phone = $2
+       AND COALESCE(is_group, false) = false
+       ${exactResult.rows[0] ? 'AND id <> $3' : ''}
+     ORDER BY last_message_at DESC NULLS LAST
+     LIMIT 1`,
+    exactResult.rows[0] ? [connectionId, cleanPhone, exactResult.rows[0].id] : [connectionId, cleanPhone]
+  );
+
+  if (exactResult.rows[0] && phoneResult.rows[0]) {
+    const exactHasLid = String(exactResult.rows[0].remote_jid || '').includes('@lid');
+    const phoneHasLid = String(phoneResult.rows[0].remote_jid || '').includes('@lid');
+    const keep = phoneHasLid && !exactHasLid ? phoneResult.rows[0] : exactResult.rows[0];
+    const merge = keep.id === exactResult.rows[0].id ? phoneResult.rows[0] : exactResult.rows[0];
+    await mergeConversationRecords(keep.id, merge.id);
+    await query(
+      `UPDATE conversations
+       SET contact_phone = $2,
+           contact_name = CASE
+             WHEN contact_name IS NULL OR contact_name = '' OR contact_name = remote_jid OR contact_name = contact_phone OR contact_name LIKE '%@lid'
+             THEN COALESCE(NULLIF($3, ''), NULLIF($4, ''), contact_name)
+             ELSE contact_name
+           END,
+           unread_count = GREATEST(COALESCE(unread_count, 0), COALESCE($5::int, 0)),
+           updated_at = NOW()
+       WHERE id = $1`,
+      [keep.id, cleanPhone, merge.contact_name, contactName, merge.unread_count || 0]
+    );
+    exactResult = await query(
+      `SELECT id, remote_jid, contact_phone, contact_name FROM conversations WHERE id = $1`,
+      [keep.id]
+    );
+  } else if (!exactResult.rows[0] && phoneResult.rows[0]) {
+    await query(
+      `UPDATE conversations
+       SET remote_jid = CASE
+             WHEN remote_jid LIKE '%@lid' AND $1 NOT LIKE '%@lid' THEN remote_jid
+             ELSE $1
+           END,
+           contact_phone = $2,
+           contact_name = COALESCE(NULLIF(contact_name, ''), NULLIF($3, ''), contact_name),
+           updated_at = NOW()
+       WHERE id = $4`,
+      [remoteJid, cleanPhone, contactName, phoneResult.rows[0].id]
+    );
+    exactResult = await query(
+      `SELECT id, remote_jid, contact_phone, contact_name FROM conversations WHERE id = $1`,
+      [phoneResult.rows[0].id]
+    );
+  }
+
+  return exactResult;
+}
+
 /**
  * Handle incoming message from W-API
  * W-API payload structure:
@@ -1353,21 +1501,23 @@ async function handleIncomingMessage(connection, payload) {
 
     // For individual chats, get the sender info
     const senderId = payload.sender?.id || payload.from || chatId;
-    
-    // Normalize to JID format
+
+    // Normalize to JID format while preserving the numeric phone when W-API sends @lid.
+    // This prevents the same person from becoming two conversations: phone + private @lid.
     let remoteJid;
     let cleanPhone = null;
-    
+    const resolvedPhone = !isGroup ? getIndividualPhoneFromPayload(payload, chatId, isLidPrivate) : null;
+
     if (isGroup) {
       // Keep group JID as-is
       remoteJid = String(chatId).includes('@') ? chatId : `${chatId}@g.us`;
     } else if (isLidPrivate) {
-      // @lid is a valid private-chat destination in W-API. Do not strip it.
+      // @lid is the delivery JID, but contact_phone should remain the real number when available.
       remoteJid = chatIdStr;
-      cleanPhone = chatIdStr;
+      cleanPhone = resolvedPhone || chatIdStr;
     } else {
       // Individual chat - normalize phone
-      cleanPhone = String(chatId).replace(/\D/g, '').replace(/@.*$/, '');
+      cleanPhone = resolvedPhone || String(chatId).replace(/@.*$/, '').replace(/\D/g, '');
       remoteJid = cleanPhone ? `${cleanPhone}@s.whatsapp.net` : null;
     }
     
@@ -1394,63 +1544,22 @@ async function handleIncomingMessage(connection, payload) {
       return;
     }
 
-    // Get or create conversation
-    // First try by remote_jid, then fallback to contact_phone for individual chats
-    // This handles cases where remote_jid format changes (@lid vs @s.whatsapp.net)
-    console.log('[W-API] Looking for conversation with remote_jid:', remoteJid, 'connection_id:', connection.id);
-    
-    let conversationResult = await query(
-      `SELECT id, remote_jid, contact_phone FROM conversations WHERE connection_id = $1 AND remote_jid = $2`,
-      [connection.id, remoteJid]
-    );
+    const incomingContactName = getPayloadContactName(payload, cleanPhone);
 
-    console.log('[W-API] JID search result:', conversationResult.rows.length > 0 ? conversationResult.rows[0] : 'NOT FOUND');
-
-    // For individual chats, also try matching by phone number if no exact JID match
-    if (conversationResult.rows.length === 0 && !isGroup && cleanPhone && !isLidPrivate) {
-      console.log('[W-API] No exact JID match, trying by phone:', cleanPhone);
-      conversationResult = await query(
-        `SELECT id, remote_jid, contact_phone FROM conversations 
-         WHERE connection_id = $1 
-           AND contact_phone = $2 
-           AND COALESCE(is_group, false) = false
-         ORDER BY last_message_at DESC
-         LIMIT 1`,
-        [connection.id, cleanPhone]
-      );
-      
-      console.log('[W-API] Phone search result:', conversationResult.rows.length > 0 ? conversationResult.rows[0] : 'NOT FOUND');
-      
-      if (conversationResult.rows.length > 0) {
-        // Update the remote_jid to the new format
-        console.log('[W-API] Found conversation by phone, updating remote_jid from:', conversationResult.rows[0].remote_jid, 'to:', remoteJid);
-        await query(
-          `UPDATE conversations SET remote_jid = $1 WHERE id = $2`,
-          [remoteJid, conversationResult.rows[0].id]
-        );
-      } else {
-        // Also check if there's a conversation with a @lid version of this number
-        console.log('[W-API] Checking for @lid variant of phone...');
-        const lidResult = await query(
-          `SELECT id, remote_jid, contact_phone FROM conversations 
-           WHERE connection_id = $1 
-             AND (remote_jid LIKE $2 OR remote_jid LIKE $3)
-             AND COALESCE(is_group, false) = false
-           ORDER BY last_message_at DESC
+    // Get or create conversation. For private @lid chats, prefer merging by real phone if W-API provides it.
+    console.log('[W-API] Looking for conversation with remote_jid:', remoteJid, 'phone:', cleanPhone, 'connection_id:', connection.id);
+    const numericCleanPhone = normalizePhoneCandidate(cleanPhone);
+    let conversationResult = isGroup
+      ? await query(
+          `SELECT id, remote_jid, contact_phone, contact_name
+           FROM conversations
+           WHERE connection_id = $1 AND remote_jid = $2
            LIMIT 1`,
-          [connection.id, `%${cleanPhone}@%`, `${cleanPhone}@%`]
-        );
-        
-        if (lidResult.rows.length > 0) {
-          console.log('[W-API] Found conversation with alternate JID format:', lidResult.rows[0].remote_jid);
-          conversationResult = lidResult;
-          await query(
-            `UPDATE conversations SET remote_jid = $1, contact_phone = COALESCE(contact_phone, $2) WHERE id = $3`,
-            [remoteJid, cleanPhone, conversationResult.rows[0].id]
-          );
-        }
-      }
-    }
+          [connection.id, remoteJid]
+        )
+      : await findExistingIndividualConversation(connection.id, remoteJid, numericCleanPhone, incomingContactName);
+
+    console.log('[W-API] Conversation search result:', conversationResult.rows.length > 0 ? conversationResult.rows[0] : 'NOT FOUND');
 
     let conversationId;
     if (conversationResult.rows.length === 0) {
@@ -1473,7 +1582,7 @@ async function handleIncomingMessage(connection, payload) {
 
       const contactName = isGroup 
         ? (groupName || 'Grupo')
-        : (payload.sender?.pushName || payload.pushName || payload.name || payload.senderName || cleanPhone);
+        : incomingContactName;
 
       console.log('[W-API] Creating NEW conversation for:', { 
         remoteJid, 
@@ -1488,7 +1597,7 @@ async function handleIncomingMessage(connection, payload) {
           `INSERT INTO conversations (connection_id, remote_jid, contact_name, contact_phone, is_group, group_name, last_message_at, unread_count, attendance_status)
            VALUES ($1, $2, $3, $4, $5, $6, NOW(), 1, 'waiting')
            RETURNING id`,
-          [connection.id, remoteJid, contactName, isGroup ? null : cleanPhone, isGroup, isGroup ? groupName : null]
+          [connection.id, remoteJid, contactName, isGroup ? null : numericCleanPhone, isGroup, isGroup ? groupName : null]
         );
         conversationId = newConv.rows[0].id;
         console.log('[W-API] Created new', isGroup ? 'group' : 'conversation:', conversationId, isGroup ? `name: ${groupName}` : '', 'phone:', cleanPhone);
@@ -1525,18 +1634,23 @@ async function handleIncomingMessage(connection, payload) {
           [conversationId, groupName]
         );
       } else {
-        // For individual chats, update contact_name with sender's pushName
+        // For individual chats, update contact_name with sender's pushName and keep contact_phone numeric when available.
         await query(
           `UPDATE conversations 
            SET last_message_at = NOW(), 
                unread_count = unread_count + 1,
-               contact_name = COALESCE($2, contact_name),
+               contact_name = CASE
+                 WHEN $2 IS NOT NULL AND (contact_name IS NULL OR contact_name = '' OR contact_name = contact_phone OR contact_name = remote_jid OR contact_name LIKE '%@lid')
+                 THEN $2
+                 ELSE contact_name
+               END,
+               contact_phone = COALESCE($3, contact_phone),
                attendance_status = CASE WHEN attendance_status = 'finished' THEN 'waiting' ELSE attendance_status END,
                accepted_by = CASE WHEN attendance_status = 'finished' THEN NULL ELSE accepted_by END,
                accepted_at = CASE WHEN attendance_status = 'finished' THEN NULL ELSE accepted_at END,
                assigned_to = CASE WHEN attendance_status = 'finished' THEN NULL ELSE assigned_to END
            WHERE id = $1`,
-          [conversationId, payload.sender?.pushName || payload.pushName || payload.name]
+          [conversationId, incomingContactName, numericCleanPhone]
         );
       }
     }
@@ -1579,10 +1693,26 @@ async function handleIncomingMessage(connection, payload) {
       return;
     }
 
+    const incomingDedupeKey = [connection.id, conversationId, messageType, content || '', effectiveMediaUrl || ''].join('|');
+    if (!reserveRecentIncomingKey(incomingDedupeKey)) {
+      console.log('[W-API] Duplicate in-flight incoming message, skipping:', messageId);
+      return;
+    }
+
     // Check for duplicate message in chat_messages table
     const existingMsg = await query(
-      `SELECT id FROM chat_messages WHERE message_id = $1`,
-      [messageId]
+      `SELECT id FROM chat_messages
+       WHERE message_id = $1
+          OR (
+            conversation_id = $2
+            AND from_me = false
+            AND message_type = $3
+            AND COALESCE(content, '') = COALESCE($4, '')
+            AND COALESCE(media_url, '') = COALESCE($5, '')
+            AND timestamp > NOW() - INTERVAL '15 seconds'
+          )
+       LIMIT 1`,
+      [messageId, conversationId, messageType, content || '', effectiveMediaUrl || '']
     );
 
     if (existingMsg.rows.length > 0) {
@@ -1611,8 +1741,8 @@ async function handleIncomingMessage(connection, payload) {
     console.log('[W-API] Message saved. Type:', messageType, 'MediaURL:', effectiveMediaUrl?.slice?.(0, 100));
 
     // Pause nurturing sequences on incoming message (fromMe is always false here)
-    if (cleanPhone && !isLidPrivate && connection.organization_id) {
-      pauseNurturingOnReply(cleanPhone, connection.organization_id, conversationId)
+    if (numericCleanPhone && connection.organization_id) {
+      pauseNurturingOnReply(numericCleanPhone, connection.organization_id, conversationId)
         .catch(err => console.error('[W-API] Error pausing nurturing:', err.message));
     }
 
@@ -1674,8 +1804,8 @@ async function handleIncomingMessage(connection, payload) {
       processIncomingWithAgent({
         connection,
         conversationId,
-        contactPhone: cleanPhone,
-        contactName: payload.sender?.pushName || payload.pushName || payload.name || cleanPhone,
+        contactPhone: isLidPrivate ? remoteJid : cleanPhone,
+        contactName: incomingContactName,
         messageContent: content,
         messageType,
         mediaUrl: effectiveMediaUrl || null,
@@ -1740,17 +1870,18 @@ async function handleOutgoingMessage(connection, payload) {
     
     let remoteJid;
     let cleanPhone = null;
-    
+    const resolvedPhone = !isGroup ? getIndividualPhoneFromPayload(payload, chatId, isLidPrivate) : null;
+
     if (isGroup) {
       // Keep group JID as-is
       remoteJid = String(chatId).includes('@') ? chatId : `${chatId}@g.us`;
     } else if (isLidPrivate) {
-      // W-API supports @lid as a private-chat destination. Do not strip it.
+      // Keep @lid for delivery, but preserve the numeric phone for contact matching if available.
       remoteJid = chatIdStr;
-      cleanPhone = chatIdStr;
+      cleanPhone = resolvedPhone || chatIdStr;
     } else {
       // Individual chat - normalize phone
-      cleanPhone = String(chatId).replace(/\D/g, '').replace(/@.*$/, '');
+      cleanPhone = resolvedPhone || String(chatId).replace(/@.*$/, '').replace(/\D/g, '');
       remoteJid = cleanPhone ? `${cleanPhone}@s.whatsapp.net` : null;
     }
 
@@ -1759,11 +1890,16 @@ async function handleOutgoingMessage(connection, payload) {
       return;
     }
 
-    // Find conversation
-    const convResult = await query(
-      `SELECT id FROM conversations WHERE connection_id = $1 AND remote_jid = $2`,
-      [connection.id, remoteJid]
-    );
+    const numericCleanPhone = normalizePhoneCandidate(cleanPhone);
+    const outgoingContactName = getPayloadContactName(payload, numericCleanPhone || cleanPhone);
+
+    // Find conversation. For @lid, merge into the existing phone conversation when W-API provides the phone.
+    const convResult = isGroup
+      ? await query(
+          `SELECT id FROM conversations WHERE connection_id = $1 AND remote_jid = $2 LIMIT 1`,
+          [connection.id, remoteJid]
+        )
+      : await findExistingIndividualConversation(connection.id, remoteJid, numericCleanPhone, outgoingContactName);
 
     if (convResult.rows.length === 0) {
       // For outgoing messages from phone, we might need to create the conversation
@@ -1771,13 +1907,13 @@ async function handleOutgoingMessage(connection, payload) {
       
       const contactName = isGroup 
         ? (payload.chat?.name || payload.groupName || 'Grupo')
-        : (payload.chat?.pushName || cleanPhone);
+        : outgoingContactName;
       
       const newConv = await query(
         `INSERT INTO conversations (connection_id, remote_jid, contact_name, contact_phone, is_group, group_name, last_message_at, unread_count)
          VALUES ($1, $2, $3, $4, $5, $6, NOW(), 0)
          RETURNING id`,
-        [connection.id, remoteJid, contactName, isGroup ? null : cleanPhone, isGroup, isGroup ? contactName : null]
+        [connection.id, remoteJid, contactName, isGroup ? null : numericCleanPhone, isGroup, isGroup ? contactName : null]
       );
       
       var conversationId = newConv.rows[0].id;
@@ -1836,12 +1972,20 @@ async function handleOutgoingMessage(connection, payload) {
 
     // Check for duplicate or pending message (optimistic UI pattern)
     const existingMsg = await query(
-      `SELECT id, message_id FROM chat_messages WHERE message_id = $1 OR 
-       (message_id LIKE 'temp_%' AND conversation_id = $2 AND from_me = true AND status = 'pending' 
-         AND timestamp > NOW() - INTERVAL '120 seconds')
-       ORDER BY CASE WHEN message_id = $1 THEN 0 ELSE 1 END
+      `SELECT id, message_id FROM chat_messages
+       WHERE message_id = $1 OR 
+       (
+         conversation_id = $2
+         AND from_me = true
+         AND timestamp > NOW() - INTERVAL '120 seconds'
+         AND (
+           (message_id LIKE 'temp_%' AND status = 'pending')
+           OR (message_type = $3 AND COALESCE(content, '') = COALESCE($4, '') AND COALESCE(media_url, '') = COALESCE($5, ''))
+         )
+       )
+       ORDER BY CASE WHEN message_id = $1 THEN 0 WHEN message_id LIKE 'temp_%' THEN 1 ELSE 2 END
        LIMIT 1`,
-      [messageId, conversationId]
+      [messageId, conversationId, messageType, content || '', effectiveMediaUrl || '']
     );
 
     if (existingMsg.rows.length > 0) {
@@ -1850,7 +1994,7 @@ async function handleOutgoingMessage(connection, payload) {
         console.log('[W-API] Outgoing message already exists:', messageId);
         return;
       }
-      // Update the pending message with real message ID
+      // Update the pending/manual AI message with the real provider message ID
       await query(
         `UPDATE chat_messages SET message_id = $1, status = 'sent' WHERE id = $2`,
         [messageId, existing.id]
