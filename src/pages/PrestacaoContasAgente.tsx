@@ -106,13 +106,12 @@ export default function PrestacaoContasAgente() {
       const created = await createAgent({
         name: createName.trim(),
         description: "Agente dedicado à Prestação de Contas via WhatsApp",
-        ai_provider: "gemini",
-        ai_model: "gemini-2.5-flash",
+        // Não forçar provider/modelo: usa o configurado na organização (evita mismatch provider/modelo → silêncio no WhatsApp)
         system_prompt: LOCKED_PROMPT,
         temperature: 0.2,
         max_tokens: 800,
         context_window: 8,
-        capabilities: ["manage_expenses"],
+        capabilities: ["manage_expenses", "respond_messages"],
         greeting_message: "Olá! Sou seu assistente de prestação de contas. Envie a foto do recibo ou descreva o gasto (ex: 'almoço R$45 cartão').",
         fallback_message: "Não consegui processar. Reenvie o recibo ou descreva: valor, categoria e descrição.",
         language: "pt-BR",
