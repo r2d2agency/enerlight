@@ -537,8 +537,7 @@ export async function sendText(instanceId, token, phone, message) {
  * Send image message
  */
 export async function sendImage(instanceId, token, phone, imageUrl, caption = '') {
-  const isGroup = phone.includes('@g.us');
-  const cleanPhone = isGroup ? phone : phone.replace(/\D/g, '');
+  const cleanPhone = normalizeRecipient(phone);
   
   try {
     const response = await fetch(
@@ -577,8 +576,7 @@ export async function sendImage(instanceId, token, phone, imageUrl, caption = ''
  * Send audio message
  */
 export async function sendAudio(instanceId, token, phone, audioUrl) {
-  const isGroup = phone.includes('@g.us');
-  const cleanPhone = isGroup ? phone : phone.replace(/\D/g, '');
+  const cleanPhone = normalizeRecipient(phone);
   
   try {
     const response = await fetch(
@@ -616,8 +614,7 @@ export async function sendAudio(instanceId, token, phone, audioUrl) {
  * Send video message
  */
 export async function sendVideo(instanceId, token, phone, videoUrl, caption = '') {
-  const isGroup = phone.includes('@g.us');
-  const cleanPhone = isGroup ? phone : phone.replace(/\D/g, '');
+  const cleanPhone = normalizeRecipient(phone);
   
   try {
     const response = await fetch(
@@ -656,8 +653,7 @@ export async function sendVideo(instanceId, token, phone, videoUrl, caption = ''
  * Send document message
  */
 export async function sendDocument(instanceId, token, phone, documentUrl, filename = 'document') {
-  const isGroup = phone.includes('@g.us');
-  const cleanPhone = isGroup ? phone : phone.replace(/\D/g, '');
+  const cleanPhone = normalizeRecipient(phone);
   const at = new Date().toISOString();
 
   const sanitizeFilenameBase = (name) => {
