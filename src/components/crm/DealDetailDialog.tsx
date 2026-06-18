@@ -144,7 +144,7 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
   const { data: fullDeal, isLoading } = useCRMDeal(deal?.id || null);
   const { data: funnelData } = useCRMFunnel(deal?.funnel_id || null);
   const { data: allFunnels } = useCRMFunnels();
-  const { data: companies } = useCRMCompanies(companySearch);
+  const { data: companies, isLoading: loadingCompanies } = useCRMCompanies(companySearch || undefined);
   const { data: teamMembers } = useCRMMyTeam();
   const { data: representatives } = useRepresentativesForDeal();
   const { updateDeal, moveDeal, migrateDealToFunnel, addContact, removeContact } = useCRMDealMutations();
@@ -699,10 +699,10 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
                           value={companySearch}
                           onValueChange={setCompanySearch}
                         />
-                        <CommandList>
-                          <CommandEmpty>Nenhuma empresa encontrada.</CommandEmpty>
+                        <CommandList className="max-h-[320px]">
+                          <CommandEmpty>{loadingCompanies ? "Carregando empresas..." : "Nenhuma empresa encontrada."}</CommandEmpty>
                           <CommandGroup>
-                            {companies?.slice(0, 10).map((company) => (
+                            {companies?.map((company) => (
                               <CommandItem
                                 key={company.id}
                                 value={company.name}
@@ -718,6 +718,11 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
                               </CommandItem>
                             ))}
                           </CommandGroup>
+                          {companies?.length ? (
+                            <div className="sticky bottom-0 border-t bg-popover px-3 py-1.5 text-[10px] text-muted-foreground">
+                              {companies.length} empresa{companies.length === 1 ? "" : "s"} encontrada{companies.length === 1 ? "" : "s"}
+                            </div>
+                          ) : null}
                         </CommandList>
                       </Command>
                     </PopoverContent>
