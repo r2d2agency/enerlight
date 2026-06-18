@@ -54,6 +54,11 @@ function pushWebhookEvent({ connectionId, instanceId, eventType, req, payload })
   return event;
 }
 
+function setWebhookProcessingInfo(event, info = {}) {
+  if (!event) return;
+  event.processing = { ...(event.processing || {}), ...info };
+}
+
 function reserveRecentIncomingKey(key) {
   const now = Date.now();
   for (const [k, expiresAt] of recentIncomingKeys) {
