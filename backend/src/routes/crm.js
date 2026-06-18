@@ -5146,10 +5146,15 @@ router.get('/representatives/for-deal', async (req, res) => {
 });
 
 // Get single representative (with areas)
-router.get('/representatives/:id', async (req, res) => {
+router.get('/representatives/:id', async (req, res, next) => {
   try {
+    if (req.params.id === 'hub') return next();
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
+
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(req.params.id)) {
+      return res.status(404).json({ error: 'Representative not found' });
+    }
 
     const result = await query(
       `SELECT r.*, u.name as linked_user_name
