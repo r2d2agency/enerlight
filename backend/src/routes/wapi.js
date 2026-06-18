@@ -41,15 +41,17 @@ function safeHeaders(req) {
 }
 
 function pushWebhookEvent({ connectionId, instanceId, eventType, req, payload }) {
-  webhookEvents.unshift({
+  const event = {
     at: new Date().toISOString(),
     connectionId: connectionId || null,
     instanceId: instanceId || null,
     eventType: eventType || null,
     headers: safeHeaders(req),
     preview: JSON.stringify(payload).slice(0, 900),
-  });
+  };
+  webhookEvents.unshift(event);
   if (webhookEvents.length > WEBHOOK_EVENTS_MAX) webhookEvents.length = WEBHOOK_EVENTS_MAX;
+  return event;
 }
 
 function reserveRecentIncomingKey(key) {
