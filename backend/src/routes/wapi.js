@@ -646,7 +646,7 @@ router.post('/webhook', async (req, res) => {
        LEFT JOIN organization_members om ON om.user_id = c.user_id
        WHERE c.instance_id = $1 AND c.wapi_token IS NOT NULL
        ORDER BY
-         CASE WHEN regexp_replace(COALESCE(c.phone_number, ''), '\\D', '', 'g') = regexp_replace(COALESCE($2, ''), '\\D', '', 'g') THEN 0 ELSE 1 END,
+         CASE WHEN regexp_replace(COALESCE(c.phone_number, ''), '\\D', '', 'g') = regexp_replace(COALESCE($2::text, ''), '\\D', '', 'g') THEN 0 ELSE 1 END,
          CASE WHEN EXISTS (
            SELECT 1 FROM conversations conv
            WHERE conv.connection_id = c.id
