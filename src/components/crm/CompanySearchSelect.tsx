@@ -258,7 +258,7 @@ export function CompanySearchSelect({ value, onSelect }: CompanySearchSelectProp
             />
           </div>
 
-          <ScrollArea className="max-h-[200px]">
+          <ScrollArea className="h-[320px]">
             {companies?.length ? (
               <div className="p-1">
                 {companies.map((company) => (
