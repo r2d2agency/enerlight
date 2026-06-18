@@ -285,6 +285,11 @@ export function CompanySearchSelect({ value, onSelect }: CompanySearchSelectProp
           </ScrollArea>
 
           <div className="border-t p-1">
+            {companies?.length ? (
+              <p className="text-[10px] text-muted-foreground px-2 pt-1">
+                {companies.length} empresa{companies.length === 1 ? "" : "s"} — role para ver mais
+              </p>
+            ) : null}
             <Button
               variant="ghost"
               size="sm"
