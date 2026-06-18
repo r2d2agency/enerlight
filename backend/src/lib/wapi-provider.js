@@ -165,7 +165,7 @@ export async function configureWebhooks(instanceId, token, dbQuery) {
         {
           method: 'PUT',
           headers: getHeaders(token),
-          body: JSON.stringify({ value: url, url }),
+          body: JSON.stringify({ value: url, url, enable: true, enabled: true }),
         }
       );
 
