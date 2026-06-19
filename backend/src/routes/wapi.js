@@ -927,6 +927,11 @@ router.post('/:connectionId/sync-chats', authenticate, async (req, res) => {
         const name = contact.name || phone;
         const profilePicture = contact.profilePicture || null;
 
+        if (isWhatsAppStatusOrUpdatesJid(jid) || isWhatsAppStatusOrUpdatesJid(phone) || isWhatsAppStatusOrUpdatesPayload(contact, jid)) {
+          skipped++;
+          continue;
+        }
+
         if (!phone) { skipped++; continue; }
 
         // Check if conversation already exists
