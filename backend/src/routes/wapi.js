@@ -633,6 +633,13 @@ router.post('/webhook', async (req, res) => {
     // Detect event type from payload
     const eventType = detectEventType(payload);
 
+    if (isWhatsAppStatusOrUpdatesPayload(payload)) {
+      console.log('[W-API Webhook] Skipping WhatsApp status/update event. chat.id:', payload.chat?.id || payload.remoteJid || payload.from || null);
+      const skippedEvent = pushWebhookEvent({ connectionId: null, instanceId, eventType, req, payload });
+      setWebhookProcessingInfo(skippedEvent, { stage: 'skipped_status_or_updates_chat' });
+      return res.status(200).json({ received: true, skipped: 'status_or_updates_chat' });
+    }
+
     const webhookConnectedPhone = normalizePhoneCandidate(payload.connectedPhone || payload.phoneNumber || payload.phone) || null;
     const webhookChatId = payload.chat?.id || payload.phone || payload.from || payload.remoteJid || null;
     const webhookContactPhone = normalizePhoneCandidate(
