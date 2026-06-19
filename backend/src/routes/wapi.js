@@ -1383,9 +1383,56 @@ async function continueActiveFlow(connection, conversationId, userInput) {
 function normalizePhoneCandidate(value) {
   if (!value) return null;
   const raw = String(value).trim();
-  if (!raw || raw.includes('@lid') || raw.includes('@g.us')) return null;
+  if (!raw || raw.includes('@lid') || raw.includes('@g.us') || isWhatsAppStatusOrUpdatesJid(raw)) return null;
   const digits = raw.replace(/@.*$/, '').replace(/\D/g, '');
   return digits.length >= 10 ? digits : null;
+}
+
+function isWhatsAppStatusOrUpdatesJid(value) {
+  if (!value) return false;
+  const raw = typeof value === 'string' ? value : String(value);
+  const normalized = raw.trim().toLowerCase();
+  if (!normalized) return false;
+  return (
+    normalized === 'status' ||
+    normalized === 'status@broadcast' ||
+    normalized.includes('status@broadcast') ||
+    normalized.endsWith('@broadcast') ||
+    normalized.includes('@newsletter')
+  );
+}
+
+function isWhatsAppStatusOrUpdatesPayload(payload, chatId = null) {
+  const candidates = [
+    chatId,
+    payload?.chat?.id,
+    payload?.key?.remoteJid,
+    payload?.message?.key?.remoteJid,
+    payload?.msgContent?.key?.remoteJid,
+    payload?.remoteJid,
+    payload?.from,
+    payload?.to,
+    payload?.participant,
+    payload?.sender?.id,
+  ];
+
+  if (candidates.some(isWhatsAppStatusOrUpdatesJid)) return true;
+
+  const typeCandidates = [
+    payload?.chat?.type,
+    payload?.messageType,
+    payload?.type,
+    payload?.msgContent?.type,
+  ].map((v) => String(v || '').trim().toLowerCase());
+
+  return Boolean(
+    payload?.isStatus === true ||
+    payload?.is_status === true ||
+    payload?.fromStatus === true ||
+    payload?.statusMessage === true ||
+    typeCandidates.includes('status') ||
+    typeCandidates.includes('newsletter')
+  );
 }
 
 function getIndividualPhoneFromPayload(payload, chatId, isLidPrivate) {
