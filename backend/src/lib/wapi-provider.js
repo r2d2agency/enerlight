@@ -1210,6 +1210,8 @@ export async function getChats(instanceId, token, { perPage = 100, maxPages = 50
     // Parse and normalize the chats
     const contacts = [];
     for (const chat of allChats) {
+      if (isWhatsAppStatusOrUpdatesChat(chat)) continue;
+
       // Skip groups
       const jid = chat.jid || chat.id || chat.remoteJid || chat.from || chat.phone || '';
       if (jid.includes('@g.us')) continue;
@@ -1538,7 +1540,9 @@ export async function getAllChatsForSync(instanceId, token) {
 
     logInfo('wapi.get_all_chats_for_sync', { instanceId, count: chatsArray.length });
 
-    return { success: true, chats: chatsArray, total: chatsArray.length };
+    const filteredChats = chatsArray.filter((chat) => !isWhatsAppStatusOrUpdatesChat(chat));
+
+    return { success: true, chats: filteredChats, total: filteredChats.length };
   } catch (error) {
     logError('wapi.get_all_chats_for_sync_error', error, { instanceId });
     return { success: false, error: error.message, chats: [] };
