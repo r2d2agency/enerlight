@@ -18,6 +18,35 @@ async function getUserOrganization(userId) {
   return result.rows[0] || null;
 }
 
+function isWhatsAppStatusOrUpdatesJid(value) {
+  if (!value) return false;
+  const normalized = String(value).trim().toLowerCase();
+  if (!normalized) return false;
+  return (
+    normalized === 'status' ||
+    normalized === 'status@broadcast' ||
+    normalized.includes('status@broadcast') ||
+    normalized.endsWith('@broadcast') ||
+    normalized.includes('@newsletter')
+  );
+}
+
+function isWhatsAppStatusOrUpdatesRecord(record) {
+  if (!record || typeof record !== 'object') return false;
+  const candidates = [
+    record.jid,
+    record.id,
+    record.remoteJid,
+    record.from,
+    record.phone,
+    record.chatId,
+    record.key?.remoteJid,
+  ];
+  if (candidates.some(isWhatsAppStatusOrUpdatesJid)) return true;
+  const type = String(record.type || record.chatType || record.messageType || '').trim().toLowerCase();
+  return Boolean(record.isStatus === true || record.fromStatus === true || type === 'status' || type === 'newsletter');
+}
+
 // List connections (respects connection_members restrictions)
 router.get('/', async (req, res) => {
   try {
