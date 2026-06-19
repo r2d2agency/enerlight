@@ -476,6 +476,9 @@ router.get('/conversations', authenticate, async (req, res) => {
         ${supportsAttendance ? 'LEFT JOIN users ua ON ua.id = conv.accepted_by' : ''}
         ${supportsDepartment ? 'LEFT JOIN departments d ON d.id = conv.department_id' : ''}
         WHERE conv.connection_id = ANY($1::uuid[])
+          AND COALESCE(LOWER(conv.remote_jid), '') NOT IN ('status', 'status@broadcast')
+          AND COALESCE(LOWER(conv.remote_jid), '') NOT LIKE '%@broadcast'
+          AND COALESCE(LOWER(conv.remote_jid), '') NOT LIKE '%@newsletter%'
       `;
 
       const params = [connectionIds];
@@ -814,7 +817,12 @@ router.patch('/conversations/:id', authenticate, async (req, res) => {
 
     // Check if conversation belongs to user
     const check = await query(
-      `SELECT id FROM conversations WHERE id = $1 AND connection_id = ANY($2)`,
+      `SELECT id FROM conversations
+       WHERE id = $1
+         AND connection_id = ANY($2)
+         AND COALESCE(LOWER(remote_jid), '') NOT IN ('status', 'status@broadcast')
+         AND COALESCE(LOWER(remote_jid), '') NOT LIKE '%@broadcast'
+         AND COALESCE(LOWER(remote_jid), '') NOT LIKE '%@newsletter%'`,
       [id, connectionIds]
     );
 

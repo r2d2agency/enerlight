@@ -18,6 +18,35 @@ async function getUserOrganization(userId) {
   return result.rows[0] || null;
 }
 
+function isWhatsAppStatusOrUpdatesJid(value) {
+  if (!value) return false;
+  const normalized = String(value).trim().toLowerCase();
+  if (!normalized) return false;
+  return (
+    normalized === 'status' ||
+    normalized === 'status@broadcast' ||
+    normalized.includes('status@broadcast') ||
+    normalized.endsWith('@broadcast') ||
+    normalized.includes('@newsletter')
+  );
+}
+
+function isWhatsAppStatusOrUpdatesRecord(record) {
+  if (!record || typeof record !== 'object') return false;
+  const candidates = [
+    record.jid,
+    record.id,
+    record.remoteJid,
+    record.from,
+    record.phone,
+    record.chatId,
+    record.key?.remoteJid,
+  ];
+  if (candidates.some(isWhatsAppStatusOrUpdatesJid)) return true;
+  const type = String(record.type || record.chatType || record.messageType || '').trim().toLowerCase();
+  return Boolean(record.isStatus === true || record.fromStatus === true || type === 'status' || type === 'newsletter');
+}
+
 // List connections (respects connection_members restrictions)
 router.get('/', async (req, res) => {
   try {
@@ -431,6 +460,7 @@ router.post('/:id/wapi/sync-conversations', async (req, res) => {
       try {
         const jid = chat.jid || chat.id || chat.remoteJid || chat.from || chat.chatId || '';
         if (!jid) { skipped++; continue; }
+        if (isWhatsAppStatusOrUpdatesRecord(chat) || isWhatsAppStatusOrUpdatesJid(jid)) { skipped++; continue; }
 
         const isGroup = jid.includes('@g.us');
         let phone = jid.replace('@s.whatsapp.net', '').replace('@c.us', '').replace('@g.us', '').replace(/\D/g, '');
@@ -554,6 +584,10 @@ router.post('/:id/wapi/sync-messages', async (req, res) => {
       return res.status(400).json({ error: 'Conversa sem remote_jid' });
     }
 
+    if (isWhatsAppStatusOrUpdatesJid(chatId)) {
+      return res.json({ success: true, imported: 0, skipped: 0, total: 0, message: 'Status/atualizações do WhatsApp são ignorados pelo chat' });
+    }
+
     // Fetch messages from W-API
     const messagesResult = await wapiProvider.getChatMessages(
       connection.instance_id, connection.wapi_token, chatId, 500
@@ -570,6 +604,7 @@ router.post('/:id/wapi/sync-messages', async (req, res) => {
       try {
         const messageId = msg.id || msg.key?.id || msg.messageId || msg._id;
         if (!messageId) { skippedMsgs++; continue; }
+        if (isWhatsAppStatusOrUpdatesRecord(msg)) { skippedMsgs++; continue; }
 
         // Check if already exists
         const existing = await query(`SELECT id FROM chat_messages WHERE message_id = $1`, [messageId]);

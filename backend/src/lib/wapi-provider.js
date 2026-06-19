@@ -222,6 +222,37 @@ function normalizeRecipient(phone) {
   return raw.replace(/@.*$/, '').replace(/\D/g, '');
 }
 
+function isWhatsAppStatusOrUpdatesJid(value) {
+  if (!value) return false;
+  const normalized = String(value).trim().toLowerCase();
+  if (!normalized) return false;
+  return (
+    normalized === 'status' ||
+    normalized === 'status@broadcast' ||
+    normalized.includes('status@broadcast') ||
+    normalized.endsWith('@broadcast') ||
+    normalized.includes('@newsletter')
+  );
+}
+
+function isWhatsAppStatusOrUpdatesChat(chat) {
+  if (!chat || typeof chat !== 'object') return false;
+  const candidates = [
+    chat.jid,
+    chat.id,
+    chat.remoteJid,
+    chat.from,
+    chat.phone,
+    chat.chatId,
+    chat.key?.remoteJid,
+  ];
+
+  if (candidates.some(isWhatsAppStatusOrUpdatesJid)) return true;
+
+  const type = String(chat.type || chat.chatType || chat.messageType || '').trim().toLowerCase();
+  return Boolean(chat.isStatus === true || chat.fromStatus === true || type === 'status' || type === 'newsletter');
+}
+
 /**
  * Check instance status
  * W-API returns different response structures, handle all possibilities
@@ -1179,6 +1210,8 @@ export async function getChats(instanceId, token, { perPage = 100, maxPages = 50
     // Parse and normalize the chats
     const contacts = [];
     for (const chat of allChats) {
+      if (isWhatsAppStatusOrUpdatesChat(chat)) continue;
+
       // Skip groups
       const jid = chat.jid || chat.id || chat.remoteJid || chat.from || chat.phone || '';
       if (jid.includes('@g.us')) continue;
@@ -1507,7 +1540,9 @@ export async function getAllChatsForSync(instanceId, token) {
 
     logInfo('wapi.get_all_chats_for_sync', { instanceId, count: chatsArray.length });
 
-    return { success: true, chats: chatsArray, total: chatsArray.length };
+    const filteredChats = chatsArray.filter((chat) => !isWhatsAppStatusOrUpdatesChat(chat));
+
+    return { success: true, chats: filteredChats, total: filteredChats.length };
   } catch (error) {
     logError('wapi.get_all_chats_for_sync_error', error, { instanceId });
     return { success: false, error: error.message, chats: [] };

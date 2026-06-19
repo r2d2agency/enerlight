@@ -633,6 +633,13 @@ router.post('/webhook', async (req, res) => {
     // Detect event type from payload
     const eventType = detectEventType(payload);
 
+    if (isWhatsAppStatusOrUpdatesPayload(payload)) {
+      console.log('[W-API Webhook] Skipping WhatsApp status/update event. chat.id:', payload.chat?.id || payload.remoteJid || payload.from || null);
+      const skippedEvent = pushWebhookEvent({ connectionId: null, instanceId, eventType, req, payload });
+      setWebhookProcessingInfo(skippedEvent, { stage: 'skipped_status_or_updates_chat' });
+      return res.status(200).json({ received: true, skipped: 'status_or_updates_chat' });
+    }
+
     const webhookConnectedPhone = normalizePhoneCandidate(payload.connectedPhone || payload.phoneNumber || payload.phone) || null;
     const webhookChatId = payload.chat?.id || payload.phone || payload.from || payload.remoteJid || null;
     const webhookContactPhone = normalizePhoneCandidate(
@@ -919,6 +926,11 @@ router.post('/:connectionId/sync-chats', authenticate, async (req, res) => {
         const jid = contact.jid || `${phone}@s.whatsapp.net`;
         const name = contact.name || phone;
         const profilePicture = contact.profilePicture || null;
+
+        if (isWhatsAppStatusOrUpdatesJid(jid) || isWhatsAppStatusOrUpdatesJid(phone) || isWhatsAppStatusOrUpdatesPayload(contact, jid)) {
+          skipped++;
+          continue;
+        }
 
         if (!phone) { skipped++; continue; }
 
@@ -1383,9 +1395,56 @@ async function continueActiveFlow(connection, conversationId, userInput) {
 function normalizePhoneCandidate(value) {
   if (!value) return null;
   const raw = String(value).trim();
-  if (!raw || raw.includes('@lid') || raw.includes('@g.us')) return null;
+  if (!raw || raw.includes('@lid') || raw.includes('@g.us') || isWhatsAppStatusOrUpdatesJid(raw)) return null;
   const digits = raw.replace(/@.*$/, '').replace(/\D/g, '');
   return digits.length >= 10 ? digits : null;
+}
+
+function isWhatsAppStatusOrUpdatesJid(value) {
+  if (!value) return false;
+  const raw = typeof value === 'string' ? value : String(value);
+  const normalized = raw.trim().toLowerCase();
+  if (!normalized) return false;
+  return (
+    normalized === 'status' ||
+    normalized === 'status@broadcast' ||
+    normalized.includes('status@broadcast') ||
+    normalized.endsWith('@broadcast') ||
+    normalized.includes('@newsletter')
+  );
+}
+
+function isWhatsAppStatusOrUpdatesPayload(payload, chatId = null) {
+  const candidates = [
+    chatId,
+    payload?.chat?.id,
+    payload?.key?.remoteJid,
+    payload?.message?.key?.remoteJid,
+    payload?.msgContent?.key?.remoteJid,
+    payload?.remoteJid,
+    payload?.from,
+    payload?.to,
+    payload?.participant,
+    payload?.sender?.id,
+  ];
+
+  if (candidates.some(isWhatsAppStatusOrUpdatesJid)) return true;
+
+  const typeCandidates = [
+    payload?.chat?.type,
+    payload?.messageType,
+    payload?.type,
+    payload?.msgContent?.type,
+  ].map((v) => String(v || '').trim().toLowerCase());
+
+  return Boolean(
+    payload?.isStatus === true ||
+    payload?.is_status === true ||
+    payload?.fromStatus === true ||
+    payload?.statusMessage === true ||
+    typeCandidates.includes('status') ||
+    typeCandidates.includes('newsletter')
+  );
 }
 
 function getIndividualPhoneFromPayload(payload, chatId, isLidPrivate) {
@@ -1535,6 +1594,12 @@ async function handleIncomingMessage(connection, payload, diagnosticEvent = null
 
     if (!chatId) {
       console.log('[W-API] No chatId in incoming message, payload:', JSON.stringify(payload).slice(0, 300));
+      return;
+    }
+
+    if (isWhatsAppStatusOrUpdatesPayload(payload, chatId)) {
+      console.log('[W-API] Skipping incoming WhatsApp status/update chat:', chatId);
+      setWebhookProcessingInfo(diagnosticEvent, { stage: 'skipped_status_or_updates_chat', chatId: String(chatId) });
       return;
     }
 
@@ -1927,6 +1992,12 @@ async function handleOutgoingMessage(connection, payload, diagnosticEvent = null
 
     if (!chatId || !messageId) {
       console.log('[W-API] Missing chatId or messageId in outgoing:', { chatId, messageId });
+      return;
+    }
+
+    if (isWhatsAppStatusOrUpdatesPayload(payload, chatId)) {
+      console.log('[W-API] Skipping outgoing WhatsApp status/update chat:', chatId);
+      setWebhookProcessingInfo(diagnosticEvent, { stage: 'outgoing_skipped_status_or_updates_chat', chatId: String(chatId) });
       return;
     }
 
