@@ -1592,6 +1592,12 @@ async function handleIncomingMessage(connection, payload, diagnosticEvent = null
       return;
     }
 
+    if (isWhatsAppStatusOrUpdatesPayload(payload, chatId)) {
+      console.log('[W-API] Skipping incoming WhatsApp status/update chat:', chatId);
+      setWebhookProcessingInfo(diagnosticEvent, { stage: 'skipped_status_or_updates_chat', chatId: String(chatId) });
+      return;
+    }
+
     // Check if this is a group message / @lid private identifier
     const chatIdStr = String(chatId);
     const isGroup = chatIdStr.includes('@g.us') || (chatIdStr.includes('-') && !chatIdStr.match(/^\d+$/));
@@ -1981,6 +1987,12 @@ async function handleOutgoingMessage(connection, payload, diagnosticEvent = null
 
     if (!chatId || !messageId) {
       console.log('[W-API] Missing chatId or messageId in outgoing:', { chatId, messageId });
+      return;
+    }
+
+    if (isWhatsAppStatusOrUpdatesPayload(payload, chatId)) {
+      console.log('[W-API] Skipping outgoing WhatsApp status/update chat:', chatId);
+      setWebhookProcessingInfo(diagnosticEvent, { stage: 'outgoing_skipped_status_or_updates_chat', chatId: String(chatId) });
       return;
     }
 
