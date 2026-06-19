@@ -460,6 +460,7 @@ router.post('/:id/wapi/sync-conversations', async (req, res) => {
       try {
         const jid = chat.jid || chat.id || chat.remoteJid || chat.from || chat.chatId || '';
         if (!jid) { skipped++; continue; }
+        if (isWhatsAppStatusOrUpdatesRecord(chat) || isWhatsAppStatusOrUpdatesJid(jid)) { skipped++; continue; }
 
         const isGroup = jid.includes('@g.us');
         let phone = jid.replace('@s.whatsapp.net', '').replace('@c.us', '').replace('@g.us', '').replace(/\D/g, '');
@@ -583,6 +584,10 @@ router.post('/:id/wapi/sync-messages', async (req, res) => {
       return res.status(400).json({ error: 'Conversa sem remote_jid' });
     }
 
+    if (isWhatsAppStatusOrUpdatesJid(chatId)) {
+      return res.json({ success: true, imported: 0, skipped: 0, total: 0, message: 'Status/atualizações do WhatsApp são ignorados pelo chat' });
+    }
+
     // Fetch messages from W-API
     const messagesResult = await wapiProvider.getChatMessages(
       connection.instance_id, connection.wapi_token, chatId, 500
@@ -599,6 +604,7 @@ router.post('/:id/wapi/sync-messages', async (req, res) => {
       try {
         const messageId = msg.id || msg.key?.id || msg.messageId || msg._id;
         if (!messageId) { skippedMsgs++; continue; }
+        if (isWhatsAppStatusOrUpdatesRecord(msg)) { skippedMsgs++; continue; }
 
         // Check if already exists
         const existing = await query(`SELECT id FROM chat_messages WHERE message_id = $1`, [messageId]);
