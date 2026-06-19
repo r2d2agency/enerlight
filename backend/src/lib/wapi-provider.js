@@ -222,6 +222,37 @@ function normalizeRecipient(phone) {
   return raw.replace(/@.*$/, '').replace(/\D/g, '');
 }
 
+function isWhatsAppStatusOrUpdatesJid(value) {
+  if (!value) return false;
+  const normalized = String(value).trim().toLowerCase();
+  if (!normalized) return false;
+  return (
+    normalized === 'status' ||
+    normalized === 'status@broadcast' ||
+    normalized.includes('status@broadcast') ||
+    normalized.endsWith('@broadcast') ||
+    normalized.includes('@newsletter')
+  );
+}
+
+function isWhatsAppStatusOrUpdatesChat(chat) {
+  if (!chat || typeof chat !== 'object') return false;
+  const candidates = [
+    chat.jid,
+    chat.id,
+    chat.remoteJid,
+    chat.from,
+    chat.phone,
+    chat.chatId,
+    chat.key?.remoteJid,
+  ];
+
+  if (candidates.some(isWhatsAppStatusOrUpdatesJid)) return true;
+
+  const type = String(chat.type || chat.chatType || chat.messageType || '').trim().toLowerCase();
+  return Boolean(chat.isStatus === true || chat.fromStatus === true || type === 'status' || type === 'newsletter');
+}
+
 /**
  * Check instance status
  * W-API returns different response structures, handle all possibilities
