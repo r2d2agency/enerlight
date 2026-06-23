@@ -27,7 +27,6 @@ interface Props {
   apiBase: string;
   ctaTitle?: string;
   materials?: Material[];
-  categories?: NfcCategory[];
   branding?: BrandingTheme;
 }
 
@@ -38,7 +37,6 @@ export function CatalogLeadModal({
   apiBase,
   ctaTitle,
   materials: propMaterials,
-  categories: propCategories,
   branding,
 }: Props) {
   const [step, setStep] = useState<"form" | "materials">("form");
