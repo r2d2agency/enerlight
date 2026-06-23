@@ -2,6 +2,7 @@ import { Router } from 'express';
 import crypto from 'crypto';
 import { query } from '../db.js';
 import { authenticate } from '../middleware/auth.js';
+import { checkNumber as wapiCheckNumber } from '../lib/wapi-provider.js';
 
 const router = Router();
 
