@@ -41,6 +41,12 @@ export interface NfcProfile {
   instagram?: string | null;
   facebook?: string | null;
   youtube?: string | null;
+  showcase_title?: string | null;
+  showcase_description?: string | null;
+  showcase_image_url?: string | null;
+  catalog_cta_enabled?: boolean | null;
+  catalog_cta_title?: string | null;
+  catalog_cta_subtitle?: string | null;
 }
 
 export interface NfcMaterial {
