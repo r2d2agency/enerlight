@@ -12,6 +12,7 @@ import { isWebNfcSupported, scanNfcTag, writeNfcUrl } from "@/lib/nfc-web-api";
 import { useCreateNfcCard, useSaveNfcProfile, useUpdateNfcCard, useNfcCard, NfcCard } from "@/hooks/use-nfc";
 import { NfcWriteTutorial } from "./NfcWriteTutorial";
 import { api } from "@/lib/api";
+import { ImageDropUpload } from "./ImageDropUpload";
 
 interface Props {
   open: boolean;
@@ -288,7 +289,10 @@ export function NfcCardDialog({ open, onOpenChange, card }: Props) {
               <div className="grid grid-cols-2 gap-3">
                 <div><Label>Nome de exibição</Label><Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Mari Oliveira" /></div>
                 <div><Label>Cargo</Label><Input value={roleTitle} onChange={(e) => setRoleTitle(e.target.value)} placeholder="Gestora Comercial" /></div>
-                <div className="col-span-2"><Label>Foto (URL)</Label><Input value={photoUrl} onChange={(e) => setPhotoUrl(e.target.value)} placeholder="https://..." /></div>
+                <div className="col-span-2">
+                  <Label>Foto do vendedor</Label>
+                  <ImageDropUpload value={photoUrl} onChange={setPhotoUrl} />
+                </div>
                 <div className="col-span-2"><Label>Bio / frase</Label><Input value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Conectando soluções em iluminação a grandes resultados." /></div>
               </div>
             </div>
@@ -310,7 +314,7 @@ export function NfcCardDialog({ open, onOpenChange, card }: Props) {
               <h4 className="text-sm font-semibold mb-2 text-muted-foreground">EMPRESA</h4>
               <div className="grid grid-cols-2 gap-3">
                 <div><Label>Nome da empresa</Label><Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Enerlight" /></div>
-                <div><Label>Logo (URL)</Label><Input value={companyLogo} onChange={(e) => setCompanyLogo(e.target.value)} placeholder="https://..." /></div>
+                <div><Label>Logo da empresa</Label><ImageDropUpload value={companyLogo} onChange={setCompanyLogo} aspect="square" enablePaste={false} /></div>
                 <div className="col-span-2"><Label>Descrição da empresa</Label><Input value={companyDesc} onChange={(e) => setCompanyDesc(e.target.value)} placeholder="Soluções completas em iluminação LED..." /></div>
               </div>
             </div>
