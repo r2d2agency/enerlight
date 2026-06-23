@@ -4,7 +4,6 @@ import {
   Phone, MessageCircle, Mail, Globe, MapPin, UserPlus,
   Linkedin, Instagram, ExternalLink, FileText, Loader2,
 } from "lucide-react";
-import { LeadCaptureModal } from "@/components/nfc/LeadCaptureModal";
 import { CatalogLeadModal } from "@/components/nfc/CatalogLeadModal";
 
 const API_BASE = import.meta.env.VITE_API_URL || "";
@@ -39,10 +38,8 @@ export default function PublicNfcCard() {
   const [data, setData] = useState<CardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [leadOpen, setLeadOpen] = useState(false);
-  const [materialsOpen, setMaterialsOpen] = useState(false);
-  const [activeMat, setActiveMat] = useState<any>(null);
   const [catalogOpen, setCatalogOpen] = useState(false);
+  const [catalogInitialCategory, setCatalogInitialCategory] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     fetch(`${API_BASE}/api/nfc/public/${slug}${window.location.search}`)
@@ -69,17 +66,6 @@ export default function PublicNfcCard() {
   const bgGradient = b.nfc_bg_gradient
     || `radial-gradient(1200px 600px at 20% -10%, ${primary}33 0%, transparent 60%), radial-gradient(900px 500px at 100% 30%, ${primary}22 0%, transparent 60%), ${bgColor}`;
 
-  // Group materials by category
-  const materialsByCategory = useMemo(() => {
-    const map: Record<string, any[]> = {};
-    (data?.materials || []).forEach((m: any) => {
-      const k = m.category || "Geral";
-      (map[k] ||= []).push(m);
-    });
-    return map;
-  }, [data?.materials]);
-  const [matCat, setMatCat] = useState<string>("__all");
-
   useEffect(() => {
     if (name) document.title = `${name} • Ener ID`;
   }, [name]);
@@ -96,15 +82,6 @@ export default function PublicNfcCard() {
         {error || "Erro"}
       </div>
     );
-
-  function handleMaterial(m: any) {
-    if (m.requires_lead) {
-      setActiveMat(m);
-      setLeadOpen(true);
-    } else {
-      window.open(m.file_url, "_blank");
-    }
-  }
 
   return (
     <div
@@ -278,11 +255,8 @@ export default function PublicNfcCard() {
                 <button
                   key={c.id}
                   onClick={() => {
-                    setMaterialsOpen(true);
-                    setMatCat(c.name);
-                    setTimeout(() => {
-                      document.getElementById("nfc-materials")?.scrollIntoView({ behavior: "smooth", block: "start" });
-                    }, 60);
+                    setCatalogInitialCategory(c.name);
+                    setCatalogOpen(true);
                   }}
                   className="group relative aspect-square rounded-xl overflow-hidden ring-1 ring-white/10 bg-white/5 hover:ring-white/30 transition"
                 >
@@ -327,83 +301,6 @@ export default function PublicNfcCard() {
           </SectionCard>
         )}
 
-        {/* Materiais */}
-        {data.materials.length > 0 && (
-          <SectionCard id="nfc-materials">
-            <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-4 items-center">
-              <div className="flex items-start gap-3">
-                <div className="rounded-full bg-[#1e3a8a]/40 ring-1 ring-[#3b82f6]/40 p-3 text-[#60a5fa]">
-                  <FileText className="h-6 w-6" />
-                </div>
-                <div>
-                  <h3 className="text-white font-bold tracking-wide">MATERIAIS E CATÁLOGOS</h3>
-                  <p className="text-white/60 text-sm mt-1">
-                    Acesse catálogos, apresentações e conteúdos técnicos.
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setMaterialsOpen((v) => !v)}
-                className="rounded-xl px-5 py-3 text-white font-semibold transition flex items-center gap-2 justify-center"
-                style={{ background: "linear-gradient(180deg,#1e3a8a,#1e40af)", boxShadow: "0 8px 24px -10px rgba(59,130,246,0.6)" }}
-              >
-                <FileText className="h-4 w-4" /> Ver materiais
-              </button>
-            </div>
-
-            {materialsOpen && (
-              <div className="mt-4 space-y-3">
-                {/* Category navigation */}
-                {Object.keys(materialsByCategory).length > 1 && (
-                  <div className="flex gap-2 overflow-x-auto pb-1">
-                    <button
-                      onClick={() => setMatCat("__all")}
-                      className={`text-xs px-3 py-1.5 rounded-full whitespace-nowrap border transition ${matCat === "__all" ? "bg-white text-black border-white" : "text-white/70 border-white/20 hover:bg-white/10"}`}
-                    >
-                      Todos
-                    </button>
-                    {Object.keys(materialsByCategory).map((cat) => (
-                      <button
-                        key={cat}
-                        onClick={() => setMatCat(cat)}
-                        className={`text-xs px-3 py-1.5 rounded-full whitespace-nowrap border transition ${matCat === cat ? "bg-white text-black border-white" : "text-white/70 border-white/20 hover:bg-white/10"}`}
-                      >
-                        {cat} <span className="opacity-60">({materialsByCategory[cat].length})</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {Object.entries(materialsByCategory)
-                  .filter(([cat]) => matCat === "__all" || matCat === cat)
-                  .map(([cat, list]) => (
-                    <div key={cat}>
-                      {matCat === "__all" && Object.keys(materialsByCategory).length > 1 && (
-                        <h4 className="text-white/80 text-xs font-semibold tracking-widest uppercase mt-3 mb-2">{cat}</h4>
-                      )}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {list.map((m: any) => (
-                          <button
-                            key={m.id}
-                            onClick={() => handleMaterial(m)}
-                            className="text-left bg-white/5 hover:bg-white/10 transition border border-white/10 rounded-xl p-3"
-                          >
-                            <div className="flex items-center gap-2 text-white">
-                              <FileText className="h-4 w-4" style={{ color: primary }} />
-                              <span className="text-sm font-medium line-clamp-2">{m.title}</span>
-                            </div>
-                            {m.description && (
-                              <p className="text-xs text-white/50 mt-1 line-clamp-2">{m.description}</p>
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-              </div>
-            )}
-          </SectionCard>
-        )}
 
         {/* Footer */}
         <div className="mt-6 rounded-2xl border border-white/5 bg-white/[0.02] p-4">
@@ -433,17 +330,6 @@ export default function PublicNfcCard() {
         <p className="text-center text-white/30 text-xs py-4">{b.nfc_footer_text || "Powered by Ener ID"}</p>
       </div>
 
-      {activeMat && (
-        <LeadCaptureModal
-          open={leadOpen}
-          onOpenChange={setLeadOpen}
-          slug={slug}
-          materialId={activeMat.id}
-          materialTitle={activeMat.title}
-          apiBase={API_BASE}
-        />
-      )}
-
       <CatalogLeadModal
         open={catalogOpen}
         onOpenChange={setCatalogOpen}
@@ -452,6 +338,7 @@ export default function PublicNfcCard() {
         ctaTitle={p.catalog_cta_title}
         materials={data?.materials || []}
         branding={data?.branding || {}}
+        initialCategory={catalogInitialCategory}
       />
     </div>
   );

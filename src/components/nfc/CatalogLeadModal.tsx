@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +28,7 @@ interface Props {
   ctaTitle?: string;
   materials?: Material[];
   branding?: BrandingTheme;
+  initialCategory?: string;
 }
 
 export function CatalogLeadModal({
@@ -38,12 +39,19 @@ export function CatalogLeadModal({
   ctaTitle,
   materials: propMaterials,
   branding,
+  initialCategory,
 }: Props) {
   const [step, setStep] = useState<"form" | "materials">("form");
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ name: "", whatsapp: "", company: "" });
   const [fetchedMaterials, setFetchedMaterials] = useState<Material[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>("__all");
+  const [selectedCategory, setSelectedCategory] = useState<string>(initialCategory || "__all");
+
+  useEffect(() => {
+    if (open && initialCategory) {
+      setSelectedCategory(initialCategory);
+    }
+  }, [open, initialCategory]);
 
   const primary = branding?.nfc_primary_color || "#3b82f6";
 
