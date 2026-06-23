@@ -242,11 +242,8 @@ export default function PublicNfcCard() {
                 <button
                   key={c.id}
                   onClick={() => {
-                    setMaterialsOpen(true);
-                    setMatCat(c.name);
-                    setTimeout(() => {
-                      document.getElementById("nfc-materials")?.scrollIntoView({ behavior: "smooth", block: "start" });
-                    }, 60);
+                    setCatalogInitialCategory(c.name);
+                    setCatalogOpen(true);
                   }}
                   className="group relative aspect-square rounded-xl overflow-hidden ring-1 ring-white/10 bg-white/5 hover:ring-white/30 transition"
                 >
