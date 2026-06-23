@@ -112,18 +112,6 @@ export default function PublicNfcCard() {
       style={{ background: bgGradient }}
     >
       <div className="max-w-2xl mx-auto px-4 pt-6">
-        {/* NFC badge */}
-        <div className="flex justify-end mb-2">
-          <div className="text-center">
-            <div className="flex items-center justify-center gap-1 text-[#60a5fa]">
-              <Radio className="h-4 w-4" />
-              <span className="text-xs font-bold tracking-widest">NFC</span>
-              <Radio className="h-4 w-4 scale-x-[-1]" />
-            </div>
-            <p className="text-[10px] text-[#60a5fa]/70 tracking-wider mt-0.5">TOQUE AQUI</p>
-          </div>
-        </div>
-
         {/* Hero */}
         <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] gap-5 items-start">
           <div
@@ -153,13 +141,20 @@ export default function PublicNfcCard() {
               style={{ background: `linear-gradient(90deg, ${accent}, transparent)` }}
             />
             {p.bio && <p className="text-white/70 text-sm leading-relaxed">{p.bio}</p>}
-            {heroLogo ? (
-              <img src={heroLogo} alt={p.company_name || "Logo"} className="h-12 mt-4 object-contain" />
-            ) : p.company_name ? (
-              <p className="text-[#60a5fa] font-semibold mt-3 text-lg">{p.company_name}</p>
-            ) : null}
           </div>
         </div>
+
+        {/* Logo centralizada */}
+        {heroLogo ? (
+          <div className="flex justify-center mt-5">
+            <img src={heroLogo} alt={p.company_name || "Logo"} className="h-14 sm:h-16 object-contain" />
+          </div>
+        ) : p.company_name ? (
+          <div className="text-center mt-5">
+            <p className="text-[#60a5fa] font-semibold text-lg">{p.company_name}</p>
+          </div>
+        ) : null}
+
 
         {/* Action grid 3x2 */}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-6">
