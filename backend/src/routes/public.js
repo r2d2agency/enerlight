@@ -9,7 +9,7 @@ router.get('/branding', async (req, res) => {
   try {
     const result = await query(
       `SELECT key, value FROM system_settings 
-       WHERE key IN ('logo_login', 'logo_sidebar', 'logo_topbar', 'logo_login_light', 'logo_sidebar_light', 'logo_topbar_light', 'favicon', 'company_name')`
+       WHERE key IN ('logo_login', 'logo_sidebar', 'logo_topbar', 'logo_login_light', 'logo_sidebar_light', 'logo_topbar_light', 'favicon', 'company_name', 'nfc_default_logo')`
     );
 
     const branding = {
@@ -21,6 +21,7 @@ router.get('/branding', async (req, res) => {
       logo_topbar_light: null,
       favicon: null,
       company_name: null,
+      nfc_default_logo: null,
     };
     for (const row of result.rows) {
       branding[row.key] = row.value;
