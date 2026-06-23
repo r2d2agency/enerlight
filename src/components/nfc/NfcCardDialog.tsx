@@ -239,16 +239,30 @@ export function NfcCardDialog({ open, onOpenChange, card }: Props) {
             </div>
 
             {created && (
-              <div className="rounded-lg border bg-muted/40 p-4 space-y-2">
+              <div className="rounded-lg border bg-muted/40 p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Status</span>
                   <Badge variant={created.status === "active" ? "default" : "secondary"}>{created.status}</Badge>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">URL Gerada</span>
-                  <code className="text-xs">{created.public_url}</code>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Slug amigável (URL)</Label>
+                  <div className="flex gap-2 mt-1">
+                    <div className="flex items-center bg-background border rounded-md flex-1 overflow-hidden">
+                      <span className="text-xs text-muted-foreground px-2 whitespace-nowrap border-r">/c/</span>
+                      <Input
+                        value={slug}
+                        onChange={(e) => setSlug(e.target.value)}
+                        placeholder="mari-oliveira"
+                        className="border-0 focus-visible:ring-0"
+                      />
+                    </div>
+                    <Button size="sm" onClick={handleSaveSlug} disabled={savingSlug || slug === created.public_slug}>
+                      {savingSlug ? <Loader2 className="h-3 w-3 animate-spin" /> : "Salvar"}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">URL pública: <code>{created.public_url}</code></p>
                 </div>
-                <div className="flex gap-2 pt-2">
+                <div className="flex gap-2 pt-1">
                   <Button size="sm" variant="outline" onClick={() => window.open(created.public_url, "_blank")}>
                     <ExternalLink className="h-4 w-4 mr-1" /> Visualizar
                   </Button>
@@ -258,6 +272,7 @@ export function NfcCardDialog({ open, onOpenChange, card }: Props) {
                 </div>
               </div>
             )}
+
 
             {!created && (
               <Button onClick={handleCreate} disabled={createCard.isPending} className="w-full">
