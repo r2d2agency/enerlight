@@ -143,6 +143,7 @@ export default function CartoesNFC() {
       </div>
 
       <NfcCardDialog open={open} onOpenChange={setOpen} card={editing} />
+      <NfcBrandingDialog open={brandingOpen} onOpenChange={setBrandingOpen} />
     </MainLayout>
   );
 }
