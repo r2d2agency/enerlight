@@ -70,17 +70,23 @@ export default function Devolucoes() {
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
               <RotateCcw className="h-6 w-6 text-primary" />
-              Devoluções
+              {simplified ? 'Minhas Devoluções' : 'Devoluções'}
             </h1>
-            <p className="text-muted-foreground text-sm">Controle de RMA: solicitação, análise, troca/conserto e fretes</p>
+            <p className="text-muted-foreground text-sm">
+              {simplified
+                ? 'Abra solicitações de RMA e acompanhe o andamento das suas devoluções'
+                : 'Controle de RMA: solicitação, análise, troca/conserto e fretes'}
+            </p>
           </div>
-          <Button onClick={() => { setEditing(null); setShowForm(true); }}>
-            <Plus className="h-4 w-4 mr-2" /> Nova devolução
-          </Button>
+          {canCreate && (
+            <Button onClick={() => { setEditing(null); setShowForm(true); }}>
+              <Plus className="h-4 w-4 mr-2" /> Nova devolução
+            </Button>
+          )}
         </div>
 
         {/* Stats */}
-        {stats && (
+        {stats && !simplified && (
           <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
             <StatCard icon={AlertCircle} label="Em aberto" value={stats.open_count} color="text-amber-600" />
             <StatCard
@@ -102,6 +108,14 @@ export default function Devolucoes() {
             <StatCard icon={Wrench} label="Em análise" value={stats.in_analysis} color="text-purple-600" />
             <StatCard icon={CheckCircle2} label="Concluídas (mês)" value={stats.closed_this_month} color="text-green-600" />
             <StatCard icon={Truck} label="Frete (mês)" value={`R$ ${Number(stats.freight_cost_month || 0).toFixed(2)}`} color="text-blue-600" />
+          </div>
+        )}
+        {simplified && stats && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <StatCard icon={AlertCircle} label="Em aberto" value={stats.open_count} color="text-amber-600" />
+            <StatCard icon={Wrench} label="Em análise" value={stats.in_analysis} color="text-purple-600" />
+            <StatCard icon={CheckCircle2} label="Concluídas (mês)" value={stats.closed_this_month} color="text-green-600" />
+            <StatCard icon={Clock} label="Atrasadas" value={overdueCount} color={overdueCount > 0 ? 'text-red-600' : 'text-muted-foreground'} />
           </div>
         )}
 
