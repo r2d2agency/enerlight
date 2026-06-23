@@ -13,6 +13,7 @@ import { useCreateNfcCard, useSaveNfcProfile, useUpdateNfcCard, useNfcCard, NfcC
 import { NfcWriteTutorial } from "./NfcWriteTutorial";
 import { api } from "@/lib/api";
 import { ImageDropUpload } from "./ImageDropUpload";
+import { NfcMaterialsTab } from "./NfcMaterialsTab";
 
 interface Props {
   open: boolean;
