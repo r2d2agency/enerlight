@@ -93,6 +93,7 @@ const NotFound = lazyRetry(() => import("./pages/NotFound"));
 const MeuDia = lazyRetry(() => import("./pages/MeuDia"));
 const CartoesNFC = lazyRetry(() => import("./pages/CartoesNFC"));
 const PublicNfcCard = lazyRetry(() => import("./pages/PublicNfcCard"));
+const Devolucoes = lazyRetry(() => import("./pages/Devolucoes"));
 
 
 const queryClient = new QueryClient();
@@ -205,6 +206,7 @@ const App = () => (
               <Route path="/politica-privacidade" element={<PoliticaPrivacidade />} />
               <Route path="/cartoes-nfc" element={<ProtectedRoute><CartoesNFC /></ProtectedRoute>} />
               <Route path="/c/:slug" element={<PublicNfcCard />} />
+              <Route path="/devolucoes" element={<ProtectedRoute><Devolucoes /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
 
             </Routes>
