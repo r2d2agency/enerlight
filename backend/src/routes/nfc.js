@@ -85,7 +85,27 @@ function buildVCard(p = {}) {
 // ADMIN ROUTES (auth)
 // ===========================================
 
+// List users in current org (for assignment dropdown)
+router.get('/users', authenticate, async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.json([]);
+    const r = await query(
+      `SELECT u.id, u.name, u.email
+       FROM users u
+       JOIN organization_members om ON om.user_id = u.id
+       WHERE om.organization_id = $1 AND COALESCE(om.is_active, true) = true
+       ORDER BY u.name`,
+      [org.organization_id]
+    );
+    res.json(r.rows);
+  } catch (e) {
+    console.error(e); res.status(500).json({ error: e.message });
+  }
+});
+
 // Dashboard summary
+
 router.get('/dashboard', authenticate, async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
