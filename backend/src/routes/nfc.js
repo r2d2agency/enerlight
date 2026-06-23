@@ -407,6 +407,61 @@ router.get('/cards/:id/leads', authenticate, async (req, res) => {
   res.json(r.rows);
 });
 
+// NFC visual branding (org-level settings stored in system_settings)
+const NFC_BRANDING_KEYS = [
+  'nfc_default_logo',
+  'nfc_primary_color',
+  'nfc_accent_color',
+  'nfc_bg_color',
+  'nfc_bg_gradient',
+  'nfc_brand_name',
+  'nfc_footer_text',
+];
+
+router.get('/branding', authenticate, async (req, res) => {
+  try {
+    const r = await query(
+      `SELECT key, value FROM system_settings WHERE key = ANY($1::text[])`,
+      [NFC_BRANDING_KEYS]
+    );
+    const out = {};
+    NFC_BRANDING_KEYS.forEach(k => out[k] = null);
+    r.rows.forEach(row => out[row.key] = row.value);
+    res.json(out);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.put('/branding', authenticate, async (req, res) => {
+  try {
+    const body = req.body || {};
+    for (const key of NFC_BRANDING_KEYS) {
+      if (!(key in body)) continue;
+      const value = body[key];
+      await query(
+        `INSERT INTO system_settings (key, value, updated_by)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_by = EXCLUDED.updated_by, updated_at = NOW()`,
+        [key, value, req.userId]
+      );
+    }
+    res.json({ ok: true });
+  } catch (e) { console.error('nfc branding put', e); res.status(500).json({ error: e.message }); }
+});
+
+// Material categories (distinct list for the org)
+router.get('/material-categories', authenticate, async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    const r = await query(
+      `SELECT DISTINCT category FROM nfc_materials
+        WHERE organization_id = $1 AND category IS NOT NULL AND category <> ''
+        ORDER BY category`,
+      [org.organization_id]
+    );
+    res.json(r.rows.map(x => x.category));
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // Materials CRUD
 router.get('/materials', authenticate, async (req, res) => {
   const org = await getUserOrg(req.userId);
@@ -414,19 +469,40 @@ router.get('/materials', authenticate, async (req, res) => {
   const params = [org.organization_id];
   let sql = `SELECT * FROM nfc_materials WHERE organization_id = $1`;
   if (card_id) { sql += ` AND (card_id = $2 OR card_id IS NULL)`; params.push(card_id); }
-  sql += ` ORDER BY position, created_at`;
+  sql += ` ORDER BY category NULLS LAST, position, created_at`;
   const r = await query(sql, params);
   res.json(r.rows);
 });
 
 router.post('/materials', authenticate, async (req, res) => {
   const org = await getUserOrg(req.userId);
-  const { card_id, title, description, material_type, file_url, thumbnail_url, requires_lead, position } = req.body;
+  const { card_id, title, description, material_type, file_url, thumbnail_url, requires_lead, position, category } = req.body;
   const r = await query(
-    `INSERT INTO nfc_materials (organization_id, card_id, title, description, material_type, file_url, thumbnail_url, requires_lead, position)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
-    [org.organization_id, card_id || null, title, description || null, material_type || 'pdf', file_url, thumbnail_url || null, requires_lead !== false, position || 0]
+    `INSERT INTO nfc_materials (organization_id, card_id, title, description, material_type, file_url, thumbnail_url, requires_lead, position, category)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+    [org.organization_id, card_id || null, title, description || null, material_type || 'pdf', file_url, thumbnail_url || null, requires_lead !== false, position || 0, (category || '').trim() || null]
   );
+  res.json(r.rows[0]);
+});
+
+router.patch('/materials/:id', authenticate, async (req, res) => {
+  const org = await getUserOrg(req.userId);
+  const allowed = ['title','description','material_type','file_url','thumbnail_url','requires_lead','position','category','card_id'];
+  const fields = []; const params = []; let i = 1;
+  for (const k of allowed) {
+    if (k in req.body) {
+      fields.push(`${k} = $${i++}`);
+      params.push(k === 'category' ? ((req.body[k] || '').toString().trim() || null) : req.body[k]);
+    }
+  }
+  if (!fields.length) return res.json({ ok: true });
+  fields.push(`updated_at = NOW()`);
+  params.push(req.params.id, org.organization_id);
+  const r = await query(
+    `UPDATE nfc_materials SET ${fields.join(', ')} WHERE id = $${i++} AND organization_id = $${i} RETURNING *`,
+    params
+  );
+  if (!r.rows[0]) return res.status(404).json({ error: 'Material não encontrado' });
   res.json(r.rows[0]);
 });
 
@@ -453,17 +529,20 @@ router.get('/public/:slug', async (req, res) => {
     const card = c.rows[0];
     const p = await query('SELECT * FROM nfc_card_profiles WHERE card_id = $1', [card.id]);
     const m = await query(
-      `SELECT id, title, description, material_type, file_url, thumbnail_url, requires_lead
+      `SELECT id, title, description, material_type, file_url, thumbnail_url, requires_lead, category, position
        FROM nfc_materials WHERE card_id = $1 OR (card_id IS NULL AND organization_id = (SELECT organization_id FROM nfc_cards WHERE id = $1))
-       ORDER BY position, created_at`,
+       ORDER BY category NULLS LAST, position, created_at`,
       [card.id]
     );
 
-    // Org-level default NFC logo (from system_settings)
-    const sysLogo = await query(
-      `SELECT value FROM system_settings WHERE key = 'nfc_default_logo' LIMIT 1`
+    // Org-level NFC branding (logo + colors) from system_settings
+    const brandRows = await query(
+      `SELECT key, value FROM system_settings WHERE key = ANY($1::text[])`,
+      [['nfc_default_logo','nfc_primary_color','nfc_accent_color','nfc_bg_color','nfc_bg_gradient','nfc_brand_name','nfc_footer_text']]
     );
-    const orgLogo = sysLogo.rows[0]?.value || null;
+    const branding = {};
+    brandRows.rows.forEach(r => branding[r.key] = r.value);
+    const orgLogo = branding.nfc_default_logo || null;
 
     // Register read (async, do not block response)
     const ip = (req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || '').trim();
@@ -488,7 +567,7 @@ router.get('/public/:slug', async (req, res) => {
       } catch (err) { console.error('Read log error', err.message); }
     })();
 
-    res.json({ card, profile: p.rows[0] || null, materials: m.rows, org_logo: orgLogo });
+    res.json({ card, profile: p.rows[0] || null, materials: m.rows, org_logo: orgLogo, branding });
   } catch (e) {
     console.error(e); res.status(500).json({ error: e.message });
   }
@@ -653,11 +732,11 @@ router.post('/public/:slug/catalog-lead', async (req, res) => {
 
     // Return all materials available for this card
     const m = await query(
-      `SELECT id, title, description, material_type, file_url, thumbnail_url
+      `SELECT id, title, description, material_type, file_url, thumbnail_url, category
          FROM nfc_materials
         WHERE card_id = $1
            OR (card_id IS NULL AND organization_id = $2)
-        ORDER BY position, created_at`,
+        ORDER BY category NULLS LAST, position, created_at`,
       [card.id, card.organization_id]
     );
 

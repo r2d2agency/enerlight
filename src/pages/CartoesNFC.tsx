@@ -5,14 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Nfc, Plus, ExternalLink, QrCode, Trash2, Search, CreditCard, Users, Link2, Activity } from "lucide-react";
+import { Nfc, Plus, ExternalLink, QrCode, Trash2, Search, CreditCard, Users, Link2, Activity, Palette } from "lucide-react";
 import { useNfcCards, useNfcDashboard, useDeleteNfcCard, NfcCard } from "@/hooks/use-nfc";
 import { NfcCardDialog } from "@/components/nfc/NfcCardDialog";
+import { NfcBrandingDialog } from "@/components/nfc/NfcBrandingDialog";
 import { toast } from "sonner";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 
 export default function CartoesNFC() {
   const [open, setOpen] = useState(false);
+  const [brandingOpen, setBrandingOpen] = useState(false);
   const [editing, setEditing] = useState<NfcCard | null>(null);
   const [search, setSearch] = useState("");
   const { data: dash } = useNfcDashboard();
@@ -38,9 +40,14 @@ export default function CartoesNFC() {
             </h1>
             <p className="text-muted-foreground">Gerencie cartões NFC físicos vinculados aos seus vendedores.</p>
           </div>
-          <Button onClick={() => { setEditing(null); setOpen(true); }}>
-            <Plus className="h-4 w-4 mr-2" /> Novo Cartão
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => setBrandingOpen(true)}>
+              <Palette className="h-4 w-4 mr-2" /> Branding visual
+            </Button>
+            <Button onClick={() => { setEditing(null); setOpen(true); }}>
+              <Plus className="h-4 w-4 mr-2" /> Novo Cartão
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
@@ -136,6 +143,7 @@ export default function CartoesNFC() {
       </div>
 
       <NfcCardDialog open={open} onOpenChange={setOpen} card={editing} />
+      <NfcBrandingDialog open={brandingOpen} onOpenChange={setBrandingOpen} />
     </MainLayout>
   );
 }

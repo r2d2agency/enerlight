@@ -9,11 +9,22 @@ import { CatalogLeadModal } from "@/components/nfc/CatalogLeadModal";
 
 const API_BASE = import.meta.env.VITE_API_URL || "";
 
+interface BrandingTheme {
+  nfc_default_logo?: string | null;
+  nfc_primary_color?: string | null;
+  nfc_accent_color?: string | null;
+  nfc_bg_color?: string | null;
+  nfc_bg_gradient?: string | null;
+  nfc_brand_name?: string | null;
+  nfc_footer_text?: string | null;
+}
+
 interface CardData {
   card: { id: string; public_slug: string; public_url: string; qr_code_url: string };
   profile: any;
   materials: any[];
   org_logo?: string | null;
+  branding?: BrandingTheme;
 }
 
 export default function PublicNfcCard() {
@@ -38,11 +49,29 @@ export default function PublicNfcCard() {
   }, [slug]);
 
   const p = data?.profile || {};
+  const b = data?.branding || {};
   const name = p.display_name || data?.card.public_slug;
   const heroLogo = p.company_logo_url || data?.org_logo || null;
   const wppDigits = useMemo(() => (p.whatsapp || "").replace(/\D/g, ""), [p.whatsapp]);
   const wppHuman = p.whatsapp;
   const siteShort = (p.website || "").replace(/^https?:\/\//, "").replace(/\/$/, "");
+
+  const primary = b.nfc_primary_color || "#3b82f6";
+  const accent = b.nfc_accent_color || "#fbbf24";
+  const bgColor = b.nfc_bg_color || "#020617";
+  const bgGradient = b.nfc_bg_gradient
+    || `radial-gradient(1200px 600px at 20% -10%, ${primary}33 0%, transparent 60%), radial-gradient(900px 500px at 100% 30%, ${primary}22 0%, transparent 60%), ${bgColor}`;
+
+  // Group materials by category
+  const materialsByCategory = useMemo(() => {
+    const map: Record<string, any[]> = {};
+    (data?.materials || []).forEach((m: any) => {
+      const k = m.category || "Geral";
+      (map[k] ||= []).push(m);
+    });
+    return map;
+  }, [data?.materials]);
+  const [matCat, setMatCat] = useState<string>("__all");
 
   useEffect(() => {
     if (name) document.title = `${name} • Ener ID`;
@@ -73,10 +102,7 @@ export default function PublicNfcCard() {
   return (
     <div
       className="min-h-screen pb-10"
-      style={{
-        background:
-          "radial-gradient(1200px 600px at 20% -10%, #0b1a3a 0%, transparent 60%), radial-gradient(900px 500px at 100% 30%, #0a1f4d 0%, transparent 60%), #020617",
-      }}
+      style={{ background: bgGradient }}
     >
       <div className="max-w-2xl mx-auto px-4 pt-6">
         {/* NFC badge */}
@@ -113,11 +139,11 @@ export default function PublicNfcCard() {
           <div className="text-white">
             <h1 className="text-3xl sm:text-4xl font-bold leading-tight">{name}</h1>
             {p.role_title && (
-              <p className="text-[#fbbf24] text-lg font-medium mt-1">{p.role_title}</p>
+              <p className="text-lg font-medium mt-1" style={{ color: accent }}>{p.role_title}</p>
             )}
             <div
               className="my-3 h-px w-24"
-              style={{ background: "linear-gradient(90deg,#fbbf24,transparent)" }}
+              style={{ background: `linear-gradient(90deg, ${accent}, transparent)` }}
             />
             {p.bio && <p className="text-white/70 text-sm leading-relaxed">{p.bio}</p>}
             {heroLogo ? (
@@ -289,22 +315,54 @@ export default function PublicNfcCard() {
             </div>
 
             {materialsOpen && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">
-                {data.materials.map((m) => (
-                  <button
-                    key={m.id}
-                    onClick={() => handleMaterial(m)}
-                    className="text-left bg-white/5 hover:bg-white/10 transition border border-white/10 rounded-xl p-3"
-                  >
-                    <div className="flex items-center gap-2 text-white">
-                      <FileText className="h-4 w-4 text-[#60a5fa]" />
-                      <span className="text-sm font-medium line-clamp-2">{m.title}</span>
+              <div className="mt-4 space-y-3">
+                {/* Category navigation */}
+                {Object.keys(materialsByCategory).length > 1 && (
+                  <div className="flex gap-2 overflow-x-auto pb-1">
+                    <button
+                      onClick={() => setMatCat("__all")}
+                      className={`text-xs px-3 py-1.5 rounded-full whitespace-nowrap border transition ${matCat === "__all" ? "bg-white text-black border-white" : "text-white/70 border-white/20 hover:bg-white/10"}`}
+                    >
+                      Todos
+                    </button>
+                    {Object.keys(materialsByCategory).map((cat) => (
+                      <button
+                        key={cat}
+                        onClick={() => setMatCat(cat)}
+                        className={`text-xs px-3 py-1.5 rounded-full whitespace-nowrap border transition ${matCat === cat ? "bg-white text-black border-white" : "text-white/70 border-white/20 hover:bg-white/10"}`}
+                      >
+                        {cat} <span className="opacity-60">({materialsByCategory[cat].length})</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {Object.entries(materialsByCategory)
+                  .filter(([cat]) => matCat === "__all" || matCat === cat)
+                  .map(([cat, list]) => (
+                    <div key={cat}>
+                      {matCat === "__all" && Object.keys(materialsByCategory).length > 1 && (
+                        <h4 className="text-white/80 text-xs font-semibold tracking-widest uppercase mt-3 mb-2">{cat}</h4>
+                      )}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {list.map((m: any) => (
+                          <button
+                            key={m.id}
+                            onClick={() => handleMaterial(m)}
+                            className="text-left bg-white/5 hover:bg-white/10 transition border border-white/10 rounded-xl p-3"
+                          >
+                            <div className="flex items-center gap-2 text-white">
+                              <FileText className="h-4 w-4" style={{ color: primary }} />
+                              <span className="text-sm font-medium line-clamp-2">{m.title}</span>
+                            </div>
+                            {m.description && (
+                              <p className="text-xs text-white/50 mt-1 line-clamp-2">{m.description}</p>
+                            )}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                    {m.description && (
-                      <p className="text-xs text-white/50 mt-1 line-clamp-2">{m.description}</p>
-                    )}
-                  </button>
-                ))}
+                  ))}
               </div>
             )}
           </SectionCard>
@@ -335,7 +393,7 @@ export default function PublicNfcCard() {
           </div>
         </div>
 
-        <p className="text-center text-white/30 text-xs py-4">Powered by Ener ID</p>
+        <p className="text-center text-white/30 text-xs py-4">{b.nfc_footer_text || "Powered by Ener ID"}</p>
       </div>
 
       {activeMat && (

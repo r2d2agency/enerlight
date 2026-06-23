@@ -5088,7 +5088,7 @@ CREATE INDEX IF NOT EXISTS idx_nfc_leads_org ON nfc_leads(organization_id);
 CREATE INDEX IF NOT EXISTS idx_nfc_materials_card ON nfc_materials(card_id);
 CREATE INDEX IF NOT EXISTS idx_nfc_materials_org ON nfc_materials(organization_id);
 
--- Showcase & catalog CTA fields (added later)
+-- Showcase, catalog CTA & material categories (added later)
 DO $$ BEGIN
   ALTER TABLE nfc_card_profiles ADD COLUMN IF NOT EXISTS showcase_title VARCHAR(255);
   ALTER TABLE nfc_card_profiles ADD COLUMN IF NOT EXISTS showcase_description TEXT;
@@ -5096,7 +5096,9 @@ DO $$ BEGIN
   ALTER TABLE nfc_card_profiles ADD COLUMN IF NOT EXISTS catalog_cta_enabled BOOLEAN DEFAULT true;
   ALTER TABLE nfc_card_profiles ADD COLUMN IF NOT EXISTS catalog_cta_title VARCHAR(255);
   ALTER TABLE nfc_card_profiles ADD COLUMN IF NOT EXISTS catalog_cta_subtitle TEXT;
+  ALTER TABLE nfc_materials ADD COLUMN IF NOT EXISTS category VARCHAR(120);
 EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+CREATE INDEX IF NOT EXISTS idx_nfc_materials_category ON nfc_materials(category);
 `;
 
 const migrationSteps = [
