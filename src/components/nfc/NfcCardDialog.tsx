@@ -384,8 +384,12 @@ export function NfcCardDialog({ open, onOpenChange, card }: Props) {
             </Button>
           </TabsContent>
 
+          <TabsContent value="materials">
+            {created && <NfcMaterialsTab cardId={created.id} />}
+          </TabsContent>
 
           <TabsContent value="write" className="space-y-4 pt-4">
+
             {supported ? (
               <>
                 <p className="text-sm text-muted-foreground">
