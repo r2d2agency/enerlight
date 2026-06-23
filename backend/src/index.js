@@ -65,6 +65,8 @@ import rhRoutes from './routes/rh.js';
 import calcCategoriesRoutes from './routes/calc-categories.js';
 import supervisorIaRoutes from './routes/supervisor-ia.js';
 import meuDiaRoutes from './routes/meu-dia.js';
+import nfcRoutes from './routes/nfc.js';
+
 import { initDatabase } from './init-db.js';
 import { executeNotifications } from './scheduler.js';
 import { executeCampaignMessages } from './campaign-scheduler.js';
