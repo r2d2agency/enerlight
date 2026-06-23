@@ -7,6 +7,7 @@ import { Loader2, Save, Palette } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { ImageDropUpload } from "./ImageDropUpload";
+import { NfcCategoriesManager } from "./NfcCategoriesManager";
 
 interface Props {
   open: boolean;
@@ -129,6 +130,13 @@ export function NfcBrandingDialog({ open, onOpenChange }: Props) {
                 onChange={(e) => set("nfc_footer_text", e.target.value)}
                 placeholder="Powered by Ener ID"
               />
+            </div>
+
+            <div className="border-t pt-5">
+              <NfcCategoriesManager />
+              <p className="text-xs text-muted-foreground mt-2">
+                As categorias aparecem como cards visuais no cartão público. Cada vendedor escolhe (na aba <b>Perfil</b>) quais categorias devem aparecer no seu cartão.
+              </p>
             </div>
 
             <Button onClick={handleSave} disabled={saving} className="w-full">

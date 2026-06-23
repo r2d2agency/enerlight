@@ -5096,9 +5096,24 @@ DO $$ BEGIN
   ALTER TABLE nfc_card_profiles ADD COLUMN IF NOT EXISTS catalog_cta_enabled BOOLEAN DEFAULT true;
   ALTER TABLE nfc_card_profiles ADD COLUMN IF NOT EXISTS catalog_cta_title VARCHAR(255);
   ALTER TABLE nfc_card_profiles ADD COLUMN IF NOT EXISTS catalog_cta_subtitle TEXT;
+  ALTER TABLE nfc_card_profiles ADD COLUMN IF NOT EXISTS selected_categories JSONB DEFAULT '[]'::jsonb;
   ALTER TABLE nfc_materials ADD COLUMN IF NOT EXISTS category VARCHAR(120);
 EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 CREATE INDEX IF NOT EXISTS idx_nfc_materials_category ON nfc_materials(category);
+
+-- Visual categories per organization (image + name shown on public card)
+CREATE TABLE IF NOT EXISTS nfc_categories (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  name VARCHAR(120) NOT NULL,
+  image_url TEXT,
+  position INT DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (organization_id, name)
+);
+CREATE INDEX IF NOT EXISTS idx_nfc_categories_org ON nfc_categories(organization_id);
+
 `;
 
 const migrationSteps = [

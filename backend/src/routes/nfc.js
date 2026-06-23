@@ -354,8 +354,11 @@ router.put('/cards/:id/profile', authenticate, async (req, res) => {
     if (!own.rows[0]) return res.status(404).json({ error: 'Cartão não encontrado' });
 
     const p = req.body || {};
-    const cols = ['display_name','role_title','company_name','company_logo_url','company_description','photo_url','bio','phone','whatsapp','email','website','address','linkedin','instagram','facebook','youtube','meta_pixel_id','ga_id','showcase_title','showcase_description','showcase_image_url','catalog_cta_enabled','catalog_cta_title','catalog_cta_subtitle'];
-    const vals = cols.map(c => p[c] ?? null);
+    const cols = ['display_name','role_title','company_name','company_logo_url','company_description','photo_url','bio','phone','whatsapp','email','website','address','linkedin','instagram','facebook','youtube','meta_pixel_id','ga_id','showcase_title','showcase_description','showcase_image_url','catalog_cta_enabled','catalog_cta_title','catalog_cta_subtitle','selected_categories'];
+    const vals = cols.map(c => {
+      if (c === 'selected_categories') return JSON.stringify(Array.isArray(p[c]) ? p[c] : []);
+      return p[c] ?? null;
+    });
 
     const upsert = await query(
       `INSERT INTO nfc_card_profiles (card_id, ${cols.join(', ')})
@@ -513,6 +516,66 @@ router.delete('/materials/:id', authenticate, async (req, res) => {
 });
 
 // ===========================================
+// VISUAL CATEGORIES (org-level)
+// ===========================================
+router.get('/categories', authenticate, async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.json([]);
+    const r = await query(
+      `SELECT * FROM nfc_categories WHERE organization_id = $1 ORDER BY position, created_at`,
+      [org.organization_id]
+    );
+    res.json(r.rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/categories', authenticate, async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    const { name, image_url, position } = req.body || {};
+    if (!name) return res.status(400).json({ error: 'Nome obrigatório' });
+    const r = await query(
+      `INSERT INTO nfc_categories (organization_id, name, image_url, position)
+       VALUES ($1,$2,$3,$4)
+       ON CONFLICT (organization_id, name) DO UPDATE SET
+         image_url = EXCLUDED.image_url, position = EXCLUDED.position, updated_at = NOW()
+       RETURNING *`,
+      [org.organization_id, String(name).trim(), image_url || null, position || 0]
+    );
+    res.json(r.rows[0]);
+  } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
+});
+
+router.patch('/categories/:id', authenticate, async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    const { name, image_url, position } = req.body || {};
+    const fields = []; const params = []; let i = 1;
+    if (name !== undefined) { fields.push(`name = $${i++}`); params.push(String(name).trim()); }
+    if (image_url !== undefined) { fields.push(`image_url = $${i++}`); params.push(image_url); }
+    if (position !== undefined) { fields.push(`position = $${i++}`); params.push(position); }
+    if (!fields.length) return res.json({ ok: true });
+    fields.push(`updated_at = NOW()`);
+    params.push(req.params.id, org.organization_id);
+    const r = await query(
+      `UPDATE nfc_categories SET ${fields.join(', ')} WHERE id = $${i++} AND organization_id = $${i} RETURNING *`,
+      params
+    );
+    res.json(r.rows[0] || null);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.delete('/categories/:id', authenticate, async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    await query('DELETE FROM nfc_categories WHERE id = $1 AND organization_id = $2', [req.params.id, org.organization_id]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+
+// ===========================================
 // PUBLIC ROUTES (no auth)
 // ===========================================
 
@@ -544,6 +607,24 @@ router.get('/public/:slug', async (req, res) => {
     brandRows.rows.forEach(r => branding[r.key] = r.value);
     const orgLogo = branding.nfc_default_logo || null;
 
+    // Visual categories filtered by profile.selected_categories
+    const profile = p.rows[0] || {};
+    const sel = Array.isArray(profile.selected_categories) ? profile.selected_categories : [];
+    let cats = [];
+    const orgIdRow = await query('SELECT organization_id FROM nfc_cards WHERE id = $1', [card.id]);
+    const orgId = orgIdRow.rows[0]?.organization_id;
+    if (orgId) {
+      if (sel.length) {
+        const catRows = await query(
+          `SELECT id, name, image_url, position FROM nfc_categories
+            WHERE organization_id = $1 AND name = ANY($2::text[])
+            ORDER BY position, created_at`,
+          [orgId, sel]
+        );
+        cats = catRows.rows;
+      }
+    }
+
     // Register read (async, do not block response)
     const ip = (req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || '').trim();
     const ua = req.headers['user-agent'] || '';
@@ -567,7 +648,7 @@ router.get('/public/:slug', async (req, res) => {
       } catch (err) { console.error('Read log error', err.message); }
     })();
 
-    res.json({ card, profile: p.rows[0] || null, materials: m.rows, org_logo: orgLogo, branding });
+    res.json({ card, profile, materials: m.rows, org_logo: orgLogo, branding, categories: cats });
   } catch (e) {
     console.error(e); res.status(500).json({ error: e.message });
   }

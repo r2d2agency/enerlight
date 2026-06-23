@@ -47,6 +47,7 @@ export interface NfcProfile {
   catalog_cta_enabled?: boolean | null;
   catalog_cta_title?: string | null;
   catalog_cta_subtitle?: string | null;
+  selected_categories?: string[] | null;
 }
 
 export interface NfcMaterial {

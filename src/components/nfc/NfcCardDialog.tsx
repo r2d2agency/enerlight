@@ -14,6 +14,7 @@ import { NfcWriteTutorial } from "./NfcWriteTutorial";
 import { api } from "@/lib/api";
 import { ImageDropUpload } from "./ImageDropUpload";
 import { NfcMaterialsTab } from "./NfcMaterialsTab";
+import { useNfcCategories } from "./NfcCategoriesManager";
 
 interface Props {
   open: boolean;
@@ -54,6 +55,8 @@ export function NfcCardDialog({ open, onOpenChange, card }: Props) {
   const [catalogEnabled, setCatalogEnabled] = useState(true);
   const [catalogTitle, setCatalogTitle] = useState("");
   const [catalogSubtitle, setCatalogSubtitle] = useState("");
+  const [selectedCats, setSelectedCats] = useState<string[]>([]);
+  const orgCategories = useNfcCategories();
 
   const createCard = useCreateNfcCard();
   const saveProfile = useSaveNfcProfile();
@@ -104,6 +107,7 @@ export function NfcCardDialog({ open, onOpenChange, card }: Props) {
       setCatalogEnabled(p.catalog_cta_enabled !== false);
       setCatalogTitle(p.catalog_cta_title || "");
       setCatalogSubtitle(p.catalog_cta_subtitle || "");
+      setSelectedCats(Array.isArray(p.selected_categories) ? p.selected_categories : []);
     }
   }, [cardDetail.data]);
 
@@ -163,6 +167,7 @@ export function NfcCardDialog({ open, onOpenChange, card }: Props) {
           catalog_cta_enabled: catalogEnabled,
           catalog_cta_title: catalogTitle || null,
           catalog_cta_subtitle: catalogSubtitle || null,
+          selected_categories: selectedCats,
         },
       });
       toast.success("Perfil salvo");
@@ -374,6 +379,41 @@ export function NfcCardDialog({ open, onOpenChange, card }: Props) {
               </div>
               <p className="text-xs text-muted-foreground mt-2">
                 Ao clicar, o visitante informa nome + WhatsApp. Após validação real do WhatsApp, os materiais são liberados e o lead é salvo em <b>Prospects</b> com origem <code>NFC: {slug || "slug"}</code>.
+              </p>
+            </div>
+
+            <div>
+              <h4 className="text-sm font-semibold mb-2 text-muted-foreground">CATEGORIAS VISUAIS DESTE CARTÃO</h4>
+              {orgCategories.items.length === 0 ? (
+                <p className="text-xs text-muted-foreground border rounded-md p-3">
+                  Nenhuma categoria cadastrada ainda. Cadastre em <b>Branding visual</b> &gt; Categorias visuais.
+                </p>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {orgCategories.items.map((c) => {
+                    const active = selectedCats.includes(c.name);
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => setSelectedCats((s) => active ? s.filter(x => x !== c.name) : [...s, c.name])}
+                        className={`relative aspect-square rounded-lg overflow-hidden border-2 transition ${active ? "border-primary ring-2 ring-primary/30" : "border-transparent opacity-70 hover:opacity-100"}`}
+                      >
+                        {c.image_url ? (
+                          <img src={c.image_url} alt={c.name} className="absolute inset-0 w-full h-full object-cover" />
+                        ) : (
+                          <div className="absolute inset-0 bg-muted" />
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+                        <span className="absolute bottom-1 left-2 right-2 text-white text-xs font-semibold truncate text-left">{c.name}</span>
+                        {active && <span className="absolute top-1 right-1 bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 rounded">✓</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground mt-2">
+                Marque as categorias que devem aparecer no cartão deste vendedor. Os visitantes clicam para abrir os materiais filtrados.
               </p>
             </div>
 

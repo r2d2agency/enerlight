@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import {
   Phone, MessageCircle, Mail, Globe, MapPin, UserPlus,
-  Linkedin, Instagram, ExternalLink, FileText, Loader2, Radio,
+  Linkedin, Instagram, ExternalLink, FileText, Loader2,
 } from "lucide-react";
 import { LeadCaptureModal } from "@/components/nfc/LeadCaptureModal";
 import { CatalogLeadModal } from "@/components/nfc/CatalogLeadModal";
@@ -19,12 +19,19 @@ interface BrandingTheme {
   nfc_footer_text?: string | null;
 }
 
+interface NfcCategory {
+  id: string;
+  name: string;
+  image_url: string | null;
+}
+
 interface CardData {
   card: { id: string; public_slug: string; public_url: string; qr_code_url: string };
   profile: any;
   materials: any[];
   org_logo?: string | null;
   branding?: BrandingTheme;
+  categories?: NfcCategory[];
 }
 
 export default function PublicNfcCard() {
@@ -105,18 +112,6 @@ export default function PublicNfcCard() {
       style={{ background: bgGradient }}
     >
       <div className="max-w-2xl mx-auto px-4 pt-6">
-        {/* NFC badge */}
-        <div className="flex justify-end mb-2">
-          <div className="text-center">
-            <div className="flex items-center justify-center gap-1 text-[#60a5fa]">
-              <Radio className="h-4 w-4" />
-              <span className="text-xs font-bold tracking-widest">NFC</span>
-              <Radio className="h-4 w-4 scale-x-[-1]" />
-            </div>
-            <p className="text-[10px] text-[#60a5fa]/70 tracking-wider mt-0.5">TOQUE AQUI</p>
-          </div>
-        </div>
-
         {/* Hero */}
         <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] gap-5 items-start">
           <div
@@ -146,13 +141,20 @@ export default function PublicNfcCard() {
               style={{ background: `linear-gradient(90deg, ${accent}, transparent)` }}
             />
             {p.bio && <p className="text-white/70 text-sm leading-relaxed">{p.bio}</p>}
-            {heroLogo ? (
-              <img src={heroLogo} alt={p.company_name || "Logo"} className="h-12 mt-4 object-contain" />
-            ) : p.company_name ? (
-              <p className="text-[#60a5fa] font-semibold mt-3 text-lg">{p.company_name}</p>
-            ) : null}
           </div>
         </div>
+
+        {/* Logo centralizada */}
+        {heroLogo ? (
+          <div className="flex justify-center mt-5">
+            <img src={heroLogo} alt={p.company_name || "Logo"} className="h-14 sm:h-16 object-contain" />
+          </div>
+        ) : p.company_name ? (
+          <div className="text-center mt-5">
+            <p className="text-[#60a5fa] font-semibold text-lg">{p.company_name}</p>
+          </div>
+        ) : null}
+
 
         {/* Action grid 3x2 */}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-6">
@@ -267,6 +269,41 @@ export default function PublicNfcCard() {
           </SectionCard>
         )}
 
+        {/* Categorias visuais (seleção por vendedor) */}
+        {data.categories && data.categories.length > 0 && (
+          <SectionCard>
+            <SectionTitle>CATEGORIAS</SectionTitle>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3">
+              {data.categories.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => {
+                    setMaterialsOpen(true);
+                    setMatCat(c.name);
+                    setTimeout(() => {
+                      document.getElementById("nfc-materials")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }, 60);
+                  }}
+                  className="group relative aspect-square rounded-xl overflow-hidden ring-1 ring-white/10 bg-white/5 hover:ring-white/30 transition"
+                >
+                  {c.image_url ? (
+                    <img src={c.image_url} alt={c.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center text-white/30">
+                      <FileText className="h-8 w-8" />
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
+                  <div className="absolute bottom-0 left-0 right-0 p-3 text-left">
+                    <p className="text-white font-semibold text-sm leading-tight drop-shadow line-clamp-2">{c.name}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </SectionCard>
+        )}
+
+
         {/* Empresa */}
         {(p.company_description || heroLogo || p.company_name) && (
           <SectionCard>
@@ -292,7 +329,7 @@ export default function PublicNfcCard() {
 
         {/* Materiais */}
         {data.materials.length > 0 && (
-          <SectionCard>
+          <SectionCard id="nfc-materials">
             <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-4 items-center">
               <div className="flex items-start gap-3">
                 <div className="rounded-full bg-[#1e3a8a]/40 ring-1 ring-[#3b82f6]/40 p-3 text-[#60a5fa]">
@@ -440,9 +477,10 @@ function PrimaryAction({ href, icon, label, sub, variant, download }: any) {
   );
 }
 
-function SectionCard({ children }: any) {
+function SectionCard({ children, id }: any) {
   return (
     <div
+      id={id}
       className="mt-5 rounded-2xl border border-white/5 p-5"
       style={{
         background: "linear-gradient(180deg, rgba(15,36,84,0.55), rgba(10,28,68,0.55))",
