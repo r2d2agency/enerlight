@@ -125,7 +125,7 @@ export function DevolucaoDetailDialog({ open, onOpenChange, devolucaoId }: Props
 
               {/* RESUMO */}
               <TabsContent value="resumo" className="space-y-3 pt-3">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <InfoRow label="Cliente" value={dev.customer_name} />
                   <InfoRow label="CPF/CNPJ" value={dev.customer_document} />
                   <InfoRow label="WhatsApp" value={dev.customer_whatsapp} />
@@ -134,26 +134,84 @@ export function DevolucaoDetailDialog({ open, onOpenChange, devolucaoId }: Props
                   <InfoRow label="Canal" value={dev.opened_channel?.toUpperCase()} />
                   <InfoRow label="Pedido original" value={dev.original_order_number} />
                   <InfoRow label="NF original" value={dev.original_invoice_number} />
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Vendedor responsável</Label>
+                    <Select value={dev.seller_user_id || ''} onValueChange={v => save({ seller_user_id: v })}>
+                      <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                      <SelectContent>
+                        {members.map(m => <SelectItem key={m.user_id} value={m.user_id}>{m.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <div>
                   <Label>Descrição</Label>
-                  <Textarea value={dev.description || ''} onChange={e => save({ description: e.target.value })} rows={3} />
+                  <Textarea defaultValue={dev.description || ''} onBlur={e => save({ description: e.target.value })} rows={3} />
                 </div>
                 <div className="border rounded-lg">
                   <div className="px-3 py-2 border-b font-medium text-sm flex items-center gap-2"><FileText className="h-4 w-4" />Produtos ({dev.itens?.length || 0})</div>
                   <div className="divide-y">
                     {dev.itens?.map(it => (
-                      <div key={it.id} className="px-3 py-2 grid grid-cols-12 gap-2 text-sm">
-                        <div className="col-span-6 font-medium">{it.product_name}</div>
-                        <div className="col-span-2 text-muted-foreground">{it.sku || '—'}</div>
-                        <div className="col-span-1">Qtd: {it.quantity}</div>
-                        <div className="col-span-3 text-muted-foreground">{it.serial_number || ''}</div>
+                      <div key={it.id} className="px-3 py-2 grid grid-cols-12 gap-2 text-sm items-center">
+                        <div className="col-span-12 md:col-span-5">
+                          <Label className="text-[10px] text-muted-foreground">Produto</Label>
+                          <Input defaultValue={it.product_name} onBlur={e => e.target.value !== it.product_name && itemMut.create.mutate({ devolucaoId: dev.id, _replace: it.id, product_name: e.target.value, sku: it.sku, quantity: it.quantity, serial_number: it.serial_number }) /* fallback: usar update se existir */ } />
+                        </div>
+                        <div className="col-span-4 md:col-span-2">
+                          <Label className="text-[10px] text-muted-foreground">SKU</Label>
+                          <Input defaultValue={it.sku || ''} disabled />
+                        </div>
+                        <div className="col-span-3 md:col-span-1">
+                          <Label className="text-[10px] text-muted-foreground">Qtd</Label>
+                          <Input type="number" defaultValue={it.quantity} disabled />
+                        </div>
+                        <div className="col-span-4 md:col-span-3">
+                          <Label className="text-[10px] text-muted-foreground">Nº Série</Label>
+                          <Input defaultValue={it.serial_number || ''} disabled />
+                        </div>
+                        <div className="col-span-1 flex justify-end">
+                          <Button size="icon" variant="ghost" onClick={() => itemMut.remove.mutate({ itemId: it.id, devolucaoId: dev.id })}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
                       </div>
                     ))}
                     {!dev.itens?.length && <div className="px-3 py-4 text-sm text-muted-foreground">Nenhum item.</div>}
                   </div>
+                  <div className="border-t bg-muted/30 px-3 py-2 grid grid-cols-12 gap-2 items-end">
+                    <div className="col-span-12 md:col-span-5">
+                      <Label className="text-[10px] text-muted-foreground">Novo produto</Label>
+                      <Input value={newItem.product_name} onChange={e => setNewItem(p => ({ ...p, product_name: e.target.value }))} placeholder="Nome do produto" />
+                    </div>
+                    <div className="col-span-4 md:col-span-2">
+                      <Label className="text-[10px] text-muted-foreground">SKU</Label>
+                      <Input value={newItem.sku} onChange={e => setNewItem(p => ({ ...p, sku: e.target.value }))} />
+                    </div>
+                    <div className="col-span-3 md:col-span-1">
+                      <Label className="text-[10px] text-muted-foreground">Qtd</Label>
+                      <Input type="number" min={1} value={newItem.quantity} onChange={e => setNewItem(p => ({ ...p, quantity: Number(e.target.value) || 1 }))} />
+                    </div>
+                    <div className="col-span-4 md:col-span-3">
+                      <Label className="text-[10px] text-muted-foreground">Nº Série</Label>
+                      <Input value={newItem.serial_number} onChange={e => setNewItem(p => ({ ...p, serial_number: e.target.value }))} />
+                    </div>
+                    <div className="col-span-1 flex justify-end">
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        disabled={!newItem.product_name.trim() || itemMut.create.isPending}
+                        onClick={async () => {
+                          await itemMut.create.mutateAsync({ devolucaoId: dev.id, ...newItem });
+                          setNewItem({ product_name: '', sku: '', quantity: 1, serial_number: '' });
+                        }}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </TabsContent>
+
 
               {/* RECEBIMENTO */}
               <TabsContent value="recebimento" className="space-y-3 pt-3">
