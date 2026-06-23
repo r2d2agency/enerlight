@@ -23,6 +23,7 @@ export default function PublicNfcCard() {
   const [leadOpen, setLeadOpen] = useState(false);
   const [materialsOpen, setMaterialsOpen] = useState(false);
   const [activeMat, setActiveMat] = useState<any>(null);
+  const [catalogOpen, setCatalogOpen] = useState(false);
 
   useEffect(() => {
     fetch(`${API_BASE}/api/nfc/public/${slug}${window.location.search}`)
