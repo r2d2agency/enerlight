@@ -338,6 +338,44 @@ export function NfcCardDialog({ open, onOpenChange, card }: Props) {
               </div>
             </div>
 
+            <div>
+              <h4 className="text-sm font-semibold mb-2 text-muted-foreground">SEÇÃO DE DESTAQUE (abaixo dos contatos)</h4>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2">
+                  <Label>Imagem de destaque</Label>
+                  <ImageDropUpload value={showcaseImage} onChange={setShowcaseImage} aspect="wide" enablePaste={false} />
+                </div>
+                <div className="col-span-2"><Label>Título do destaque</Label><Input value={showcaseTitle} onChange={(e) => setShowcaseTitle(e.target.value)} placeholder="Soluções em iluminação LED" /></div>
+                <div className="col-span-2">
+                  <Label>Texto / descrição</Label>
+                  <textarea
+                    className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={showcaseDesc}
+                    onChange={(e) => setShowcaseDesc(e.target.value)}
+                    placeholder="Desenvolvemos soluções completas para indústrias, postos, condomínios..."
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-sm font-semibold text-muted-foreground">CTA — BAIXAR CATÁLOGOS</h4>
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input type="checkbox" checked={catalogEnabled} onChange={(e) => setCatalogEnabled(e.target.checked)} />
+                  Ativo
+                </label>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2"><Label>Título do CTA</Label><Input value={catalogTitle} onChange={(e) => setCatalogTitle(e.target.value)} placeholder="BAIXE NOSSOS CATÁLOGOS" /></div>
+                <div className="col-span-2"><Label>Subtítulo / chamada</Label><Input value={catalogSubtitle} onChange={(e) => setCatalogSubtitle(e.target.value)} placeholder="Informe seu WhatsApp e libere acesso..." /></div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                Ao clicar, o visitante informa nome + WhatsApp. Após validação real do WhatsApp, os materiais são liberados e o lead é salvo em <b>Prospects</b> com origem <code>NFC: {slug || "slug"}</code>.
+              </p>
+            </div>
+
+
             <Button onClick={handleSaveProfile} disabled={saveProfile.isPending} className="w-full">
               {saveProfile.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
               Salvar perfil
