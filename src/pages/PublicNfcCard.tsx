@@ -477,9 +477,10 @@ function PrimaryAction({ href, icon, label, sub, variant, download }: any) {
   );
 }
 
-function SectionCard({ children }: any) {
+function SectionCard({ children, id }: any) {
   return (
     <div
+      id={id}
       className="mt-5 rounded-2xl border border-white/5 p-5"
       style={{
         background: "linear-gradient(180deg, rgba(15,36,84,0.55), rgba(10,28,68,0.55))",
