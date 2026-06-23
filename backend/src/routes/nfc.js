@@ -539,4 +539,127 @@ router.post('/public/:slug/lead', async (req, res) => {
   }
 });
 
+// Normalize Brazilian phone to E.164 digits (5511987654321)
+function normalizeBR(raw) {
+  let d = String(raw || '').replace(/\D/g, '');
+  if (!d) return null;
+  if (d.length === 10 || d.length === 11) d = '55' + d;
+  if (d.length < 12 || d.length > 13) return null;
+  return d;
+}
+
+// Find a connected WAPI instance for an org (for number validation)
+async function getOrgWapi(organizationId) {
+  const r = await query(
+    `SELECT instance_id, wapi_token FROM connections
+     WHERE organization_id = $1 AND provider = 'wapi'
+       AND instance_id IS NOT NULL AND wapi_token IS NOT NULL
+       AND status = 'connected'
+     ORDER BY updated_at DESC LIMIT 1`,
+    [organizationId]
+  );
+  return r.rows[0] || null;
+}
+
+// Validate WhatsApp number (no auth)
+router.post('/public/:slug/verify-whatsapp', async (req, res) => {
+  try {
+    const phone = normalizeBR(req.body?.whatsapp);
+    if (!phone) return res.status(400).json({ valid: false, error: 'Número inválido' });
+
+    const c = await query(
+      'SELECT organization_id FROM nfc_cards WHERE public_slug = $1',
+      [req.params.slug]
+    );
+    if (!c.rows[0]) return res.status(404).json({ valid: false, error: 'Cartão não encontrado' });
+
+    const wapi = await getOrgWapi(c.rows[0].organization_id);
+    if (!wapi) {
+      // Fallback: accept format-valid numbers if no W-API connected
+      return res.json({ valid: true, fallback: true });
+    }
+
+    const ok = await wapiCheckNumber(wapi.instance_id, wapi.wapi_token, phone);
+    if (!ok) return res.status(400).json({ valid: false, error: 'Esse número não está no WhatsApp' });
+    res.json({ valid: true, phone });
+  } catch (e) {
+    console.error('verify-whatsapp error', e);
+    res.status(500).json({ valid: false, error: e.message });
+  }
+});
+
+// Catalog lead: stores in nfc_leads AND crm_prospects, then returns materials
+router.post('/public/:slug/catalog-lead', async (req, res) => {
+  try {
+    const c = await query(
+      `SELECT id, organization_id, user_id, public_slug
+         FROM nfc_cards WHERE public_slug = $1`,
+      [req.params.slug]
+    );
+    if (!c.rows[0]) return res.status(404).json({ error: 'Cartão não encontrado' });
+    const card = c.rows[0];
+
+    const { name, whatsapp, email, company } = req.body || {};
+    if (!name) return res.status(400).json({ error: 'Nome obrigatório' });
+    const phone = normalizeBR(whatsapp);
+    if (!phone) return res.status(400).json({ error: 'WhatsApp inválido' });
+
+    // Re-validate phone (defense in depth)
+    const wapi = await getOrgWapi(card.organization_id);
+    if (wapi) {
+      const ok = await wapiCheckNumber(wapi.instance_id, wapi.wapi_token, phone);
+      if (!ok) return res.status(400).json({ error: 'WhatsApp não verificado' });
+    }
+
+    const ip = (req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || '').trim();
+
+    // Save NFC lead
+    await query(
+      `INSERT INTO nfc_leads
+       (card_id, organization_id, user_id, name, whatsapp, email, company, ip)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+      [card.id, card.organization_id, card.user_id, name, phone, email || null, company || null, ip]
+    );
+
+    // Upsert as CRM prospect (source identifies origin + seller)
+    const sellerSuffix = card.user_id ? '' : '';
+    const source = `NFC: ${card.public_slug}`;
+    try {
+      await query(
+        `INSERT INTO crm_prospects
+           (organization_id, name, phone, email, source, assigned_to, created_by, custom_fields)
+         VALUES ($1,$2,$3,$4,$5,$6,$6,$7)
+         ON CONFLICT (organization_id, phone) DO UPDATE SET
+           name = COALESCE(NULLIF(EXCLUDED.name,''), crm_prospects.name),
+           email = COALESCE(EXCLUDED.email, crm_prospects.email),
+           source = EXCLUDED.source,
+           assigned_to = COALESCE(crm_prospects.assigned_to, EXCLUDED.assigned_to),
+           updated_at = NOW()`,
+        [
+          card.organization_id, name, phone, email || null, source,
+          card.user_id || null,
+          JSON.stringify({ nfc_card_id: card.id, nfc_slug: card.public_slug, company: company || null }),
+        ]
+      );
+    } catch (err) {
+      console.error('NFC->prospect insert failed:', err.message);
+    }
+
+    // Return all materials available for this card
+    const m = await query(
+      `SELECT id, title, description, material_type, file_url, thumbnail_url
+         FROM nfc_materials
+        WHERE card_id = $1
+           OR (card_id IS NULL AND organization_id = $2)
+        ORDER BY position, created_at`,
+      [card.id, card.organization_id]
+    );
+
+    res.json({ ok: true, materials: m.rows });
+  } catch (e) {
+    console.error('catalog-lead error', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 export default router;
