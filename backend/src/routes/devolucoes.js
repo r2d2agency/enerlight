@@ -315,6 +315,9 @@ router.post('/:id/eventos', async (req, res) => {
     const b = req.body || {};
     await logEvent(req.params.id, req.userId, b.event_type || 'note', { message: b.message, metadata: b.metadata || {} });
     res.status(201).json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ============================================ SLA CONFIG
 router.get('/sla-config', async (req, res) => {
   try {
