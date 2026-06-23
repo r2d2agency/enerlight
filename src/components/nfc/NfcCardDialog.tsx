@@ -212,10 +212,11 @@ export function NfcCardDialog({ open, onOpenChange, card }: Props) {
         </DialogHeader>
 
         <Tabs defaultValue="card" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="card">Cartão</TabsTrigger>
             <TabsTrigger value="profile" disabled={!created}>Perfil</TabsTrigger>
-            <TabsTrigger value="write" disabled={!created}>Gravação NFC</TabsTrigger>
+            <TabsTrigger value="materials" disabled={!created}>Materiais</TabsTrigger>
+            <TabsTrigger value="write" disabled={!created}>Gravação</TabsTrigger>
           </TabsList>
 
           <TabsContent value="card" className="space-y-4 pt-4">
