@@ -139,11 +139,11 @@ export default function PublicNfcCard() {
           <div className="text-white">
             <h1 className="text-3xl sm:text-4xl font-bold leading-tight">{name}</h1>
             {p.role_title && (
-              <p className="text-[#fbbf24] text-lg font-medium mt-1">{p.role_title}</p>
+              <p className="text-lg font-medium mt-1" style={{ color: accent }}>{p.role_title}</p>
             )}
             <div
               className="my-3 h-px w-24"
-              style={{ background: "linear-gradient(90deg,#fbbf24,transparent)" }}
+              style={{ background: `linear-gradient(90deg, ${accent}, transparent)` }}
             />
             {p.bio && <p className="text-white/70 text-sm leading-relaxed">{p.bio}</p>}
             {heroLogo ? (
