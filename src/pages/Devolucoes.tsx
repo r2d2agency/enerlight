@@ -143,7 +143,7 @@ export default function Devolucoes() {
             <p className="text-muted-foreground mt-1 text-sm">Clique em "Nova devolução" para começar</p>
           </CardContent></Card>
         ) : view === 'kanban' ? (
-          <DevolucaoKanban devolucoes={devolucoes} onSelect={setSelectedId} />
+          <DevolucaoKanban devolucoes={devolucoes} onSelect={setSelectedId} slaConfig={slaConfig} />
         ) : (
           <Card>
             <CardContent className="p-0 overflow-x-auto">
