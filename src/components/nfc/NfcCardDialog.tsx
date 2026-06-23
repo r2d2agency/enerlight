@@ -14,6 +14,7 @@ import { NfcWriteTutorial } from "./NfcWriteTutorial";
 import { api } from "@/lib/api";
 import { ImageDropUpload } from "./ImageDropUpload";
 import { NfcMaterialsTab } from "./NfcMaterialsTab";
+import { useNfcCategories } from "./NfcCategoriesManager";
 
 interface Props {
   open: boolean;
