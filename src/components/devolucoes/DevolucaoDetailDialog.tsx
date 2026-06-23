@@ -13,7 +13,9 @@ import {
 } from "@/hooks/use-devolucoes";
 import { useUpload } from "@/hooks/use-upload";
 import { safeFormatDate } from "@/lib/utils";
-import { Loader2, Upload, FileText, Image as ImageIcon, Truck, Wrench, MessageCircle, Trash2, Send, History } from "lucide-react";
+import { Loader2, Upload, FileText, Image as ImageIcon, Truck, Wrench, MessageCircle, Trash2, Send, History, ChevronRight, Check, X, Ban, ArrowRight, CheckCircle2, MoreHorizontal } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
 
 const STATUS_COLORS: Record<string, string> = {
   solicitado: 'bg-slate-100 text-slate-700',
@@ -77,9 +79,9 @@ export function DevolucaoDetailDialog({ open, onOpenChange, devolucaoId }: Props
           <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
         ) : (
           <>
-            <DialogHeader>
+            <DialogHeader className="space-y-2">
               <div className="flex flex-wrap items-center gap-2">
-                <DialogTitle>Devolução #{dev.numero}</DialogTitle>
+                <DialogTitle className="text-xl">Devolução #{dev.numero}</DialogTitle>
                 <Badge className={STATUS_COLORS[dev.status]}>{STATUS_LABELS[dev.status]}</Badge>
                 <Badge variant="outline">{REASON_LABELS[dev.reason] || dev.reason}</Badge>
                 {dev.priority === 'urgent' && <Badge variant="destructive">URGENTE</Badge>}
@@ -89,23 +91,13 @@ export function DevolucaoDetailDialog({ open, onOpenChange, devolucaoId }: Props
               </DialogDescription>
             </DialogHeader>
 
-            {/* Status quick-move bar */}
-            <div className="flex flex-wrap gap-1 border-y py-2">
-              {STATUS_ORDER.map(s => (
-                <Button
-                  key={s}
-                  size="sm"
-                  variant={dev.status === s ? 'default' : 'outline'}
-                  className="text-xs h-7"
-                  onClick={() => moveStatus(s)}
-                  disabled={changeStatus.isPending}
-                >
-                  {STATUS_LABELS[s]}
-                </Button>
-              ))}
-              <Button size="sm" variant="ghost" className="text-xs h-7 text-destructive" onClick={() => moveStatus('cancelado')}>Cancelar</Button>
-              <Button size="sm" variant="ghost" className="text-xs h-7 text-destructive" onClick={() => moveStatus('recusado')}>Recusar</Button>
-            </div>
+            {/* Workflow header: stepper + grouped actions */}
+            <StatusWorkflow
+              status={dev.status}
+              onMove={moveStatus}
+              isPending={changeStatus.isPending}
+            />
+
 
             <Tabs defaultValue="resumo" className="w-full">
               <TabsList className="grid grid-cols-2 md:grid-cols-6">
