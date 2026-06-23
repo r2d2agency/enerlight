@@ -39,12 +39,19 @@ export function CatalogLeadModal({
   ctaTitle,
   materials: propMaterials,
   branding,
+  initialCategory,
 }: Props) {
   const [step, setStep] = useState<"form" | "materials">("form");
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ name: "", whatsapp: "", company: "" });
   const [fetchedMaterials, setFetchedMaterials] = useState<Material[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>("__all");
+  const [selectedCategory, setSelectedCategory] = useState<string>(initialCategory || "__all");
+
+  useEffect(() => {
+    if (open && initialCategory) {
+      setSelectedCategory(initialCategory);
+    }
+  }, [open, initialCategory]);
 
   const primary = branding?.nfc_primary_color || "#3b82f6";
 
