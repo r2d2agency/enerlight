@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Nfc, ExternalLink, Smartphone, QrCode, Save, Loader2 } from "lucide-react";
 import { isWebNfcSupported, scanNfcTag, writeNfcUrl } from "@/lib/nfc-web-api";
-import { useCreateNfcCard, useSaveNfcProfile, NfcCard } from "@/hooks/use-nfc";
+import { useCreateNfcCard, useSaveNfcProfile, useUpdateNfcCard, useNfcCard, NfcCard } from "@/hooks/use-nfc";
 import { NfcWriteTutorial } from "./NfcWriteTutorial";
 import { api } from "@/lib/api";
 
@@ -40,10 +40,17 @@ export function NfcCardDialog({ open, onOpenChange, card }: Props) {
   const [linkedin, setLinkedin] = useState("");
   const [instagram, setInstagram] = useState("");
   const [bio, setBio] = useState("");
+  const [companyLogo, setCompanyLogo] = useState("");
+  const [companyDesc, setCompanyDesc] = useState("");
+  const [address, setAddress] = useState("");
+  const [slug, setSlug] = useState("");
+  const [savingSlug, setSavingSlug] = useState(false);
 
   const createCard = useCreateNfcCard();
   const saveProfile = useSaveNfcProfile();
+  const updateCard = useUpdateNfcCard();
   const supported = isWebNfcSupported();
+  const cardDetail = useNfcCard(created?.id);
 
   useEffect(() => {
     if (open) {
@@ -54,12 +61,37 @@ export function NfcCardDialog({ open, onOpenChange, card }: Props) {
         setChipType(card.chip_type);
         setUserId(card.user_id || "");
         setCompanyName(card.company_name || "");
+        setSlug(card.public_slug || "");
       } else {
         setCreated(null);
-        setUid(""); setChipType("NTAG215"); setUserId(""); setCompanyName("");
+        setUid(""); setChipType("NTAG215"); setUserId(""); setCompanyName(""); setSlug("");
+        setDisplayName(""); setRoleTitle(""); setPhone(""); setWhatsapp(""); setEmail("");
+        setWebsite(""); setPhotoUrl(""); setLinkedin(""); setInstagram(""); setBio("");
+        setCompanyLogo(""); setCompanyDesc(""); setAddress("");
       }
     }
   }, [open, card]);
+
+  // When card detail loads, hydrate profile fields
+  useEffect(() => {
+    const p = cardDetail.data?.profile;
+    if (p) {
+      setDisplayName(p.display_name || "");
+      setRoleTitle(p.role_title || "");
+      setPhone(p.phone || "");
+      setWhatsapp(p.whatsapp || "");
+      setEmail(p.email || "");
+      setWebsite(p.website || "");
+      setPhotoUrl(p.photo_url || "");
+      setLinkedin(p.linkedin || "");
+      setInstagram(p.instagram || "");
+      setBio(p.bio || "");
+      setCompanyLogo(p.company_logo_url || "");
+      setCompanyDesc(p.company_description || "");
+      setAddress(p.address || "");
+    }
+  }, [cardDetail.data]);
+
 
   async function handleScan() {
     setScanning(true);
@@ -99,6 +131,8 @@ export function NfcCardDialog({ open, onOpenChange, card }: Props) {
           display_name: displayName || null,
           role_title: roleTitle || null,
           company_name: companyName || null,
+          company_logo_url: companyLogo || null,
+          company_description: companyDesc || null,
           phone: phone || null,
           whatsapp: whatsapp || null,
           email: email || null,
@@ -107,6 +141,7 @@ export function NfcCardDialog({ open, onOpenChange, card }: Props) {
           linkedin: linkedin || null,
           instagram: instagram || null,
           bio: bio || null,
+          address: address || null,
         },
       });
       toast.success("Perfil salvo");
@@ -114,6 +149,20 @@ export function NfcCardDialog({ open, onOpenChange, card }: Props) {
       toast.error(e.message);
     }
   }
+
+  async function handleSaveSlug() {
+    if (!created) return;
+    setSavingSlug(true);
+    try {
+      const updated = await updateCard.mutateAsync({ id: created.id, public_slug: slug });
+      setCreated(updated);
+      setSlug(updated.public_slug);
+      toast.success("Slug atualizado!");
+    } catch (e: any) {
+      toast.error(e.message || "Erro ao salvar slug");
+    } finally { setSavingSlug(false); }
+  }
+
 
   async function handleWrite() {
     if (!created) return toast.error("Crie o cartão primeiro");
@@ -190,16 +239,30 @@ export function NfcCardDialog({ open, onOpenChange, card }: Props) {
             </div>
 
             {created && (
-              <div className="rounded-lg border bg-muted/40 p-4 space-y-2">
+              <div className="rounded-lg border bg-muted/40 p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Status</span>
                   <Badge variant={created.status === "active" ? "default" : "secondary"}>{created.status}</Badge>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">URL Gerada</span>
-                  <code className="text-xs">{created.public_url}</code>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Slug amigável (URL)</Label>
+                  <div className="flex gap-2 mt-1">
+                    <div className="flex items-center bg-background border rounded-md flex-1 overflow-hidden">
+                      <span className="text-xs text-muted-foreground px-2 whitespace-nowrap border-r">/c/</span>
+                      <Input
+                        value={slug}
+                        onChange={(e) => setSlug(e.target.value)}
+                        placeholder="mari-oliveira"
+                        className="border-0 focus-visible:ring-0"
+                      />
+                    </div>
+                    <Button size="sm" onClick={handleSaveSlug} disabled={savingSlug || slug === created.public_slug}>
+                      {savingSlug ? <Loader2 className="h-3 w-3 animate-spin" /> : "Salvar"}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">URL pública: <code>{created.public_url}</code></p>
                 </div>
-                <div className="flex gap-2 pt-2">
+                <div className="flex gap-2 pt-1">
                   <Button size="sm" variant="outline" onClick={() => window.open(created.public_url, "_blank")}>
                     <ExternalLink className="h-4 w-4 mr-1" /> Visualizar
                   </Button>
@@ -210,6 +273,7 @@ export function NfcCardDialog({ open, onOpenChange, card }: Props) {
               </div>
             )}
 
+
             {!created && (
               <Button onClick={handleCreate} disabled={createCard.isPending} className="w-full">
                 {createCard.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
@@ -218,24 +282,45 @@ export function NfcCardDialog({ open, onOpenChange, card }: Props) {
             )}
           </TabsContent>
 
-          <TabsContent value="profile" className="space-y-3 pt-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div><Label>Nome de exibição</Label><Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} /></div>
-              <div><Label>Cargo</Label><Input value={roleTitle} onChange={(e) => setRoleTitle(e.target.value)} /></div>
-              <div><Label>Telefone</Label><Input value={phone} onChange={(e) => setPhone(e.target.value)} /></div>
-              <div><Label>WhatsApp</Label><Input value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} /></div>
-              <div><Label>E-mail</Label><Input value={email} onChange={(e) => setEmail(e.target.value)} /></div>
-              <div><Label>Site</Label><Input value={website} onChange={(e) => setWebsite(e.target.value)} /></div>
-              <div className="col-span-2"><Label>Foto (URL)</Label><Input value={photoUrl} onChange={(e) => setPhotoUrl(e.target.value)} /></div>
-              <div><Label>LinkedIn</Label><Input value={linkedin} onChange={(e) => setLinkedin(e.target.value)} /></div>
-              <div><Label>Instagram</Label><Input value={instagram} onChange={(e) => setInstagram(e.target.value)} /></div>
-              <div className="col-span-2"><Label>Bio</Label><Input value={bio} onChange={(e) => setBio(e.target.value)} /></div>
+          <TabsContent value="profile" className="space-y-4 pt-4">
+            <div>
+              <h4 className="text-sm font-semibold mb-2 text-muted-foreground">DADOS PESSOAIS</h4>
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label>Nome de exibição</Label><Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Mari Oliveira" /></div>
+                <div><Label>Cargo</Label><Input value={roleTitle} onChange={(e) => setRoleTitle(e.target.value)} placeholder="Gestora Comercial" /></div>
+                <div className="col-span-2"><Label>Foto (URL)</Label><Input value={photoUrl} onChange={(e) => setPhotoUrl(e.target.value)} placeholder="https://..." /></div>
+                <div className="col-span-2"><Label>Bio / frase</Label><Input value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Conectando soluções em iluminação a grandes resultados." /></div>
+              </div>
             </div>
+
+            <div>
+              <h4 className="text-sm font-semibold mb-2 text-muted-foreground">CONTATOS</h4>
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label>Telefone</Label><Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(11) 98765-4321" /></div>
+                <div><Label>WhatsApp</Label><Input value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="(11) 98765-4321" /></div>
+                <div><Label>E-mail</Label><Input value={email} onChange={(e) => setEmail(e.target.value)} /></div>
+                <div><Label>Site</Label><Input value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://..." /></div>
+                <div><Label>LinkedIn</Label><Input value={linkedin} onChange={(e) => setLinkedin(e.target.value)} /></div>
+                <div><Label>Instagram</Label><Input value={instagram} onChange={(e) => setInstagram(e.target.value)} /></div>
+                <div className="col-span-2"><Label>Endereço</Label><Input value={address} onChange={(e) => setAddress(e.target.value)} /></div>
+              </div>
+            </div>
+
+            <div>
+              <h4 className="text-sm font-semibold mb-2 text-muted-foreground">EMPRESA</h4>
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label>Nome da empresa</Label><Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Enerlight" /></div>
+                <div><Label>Logo (URL)</Label><Input value={companyLogo} onChange={(e) => setCompanyLogo(e.target.value)} placeholder="https://..." /></div>
+                <div className="col-span-2"><Label>Descrição da empresa</Label><Input value={companyDesc} onChange={(e) => setCompanyDesc(e.target.value)} placeholder="Soluções completas em iluminação LED..." /></div>
+              </div>
+            </div>
+
             <Button onClick={handleSaveProfile} disabled={saveProfile.isPending} className="w-full">
               {saveProfile.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
               Salvar perfil
             </Button>
           </TabsContent>
+
 
           <TabsContent value="write" className="space-y-4 pt-4">
             {supported ? (
