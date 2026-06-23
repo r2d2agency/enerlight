@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import { Plus, Trash2 } from "lucide-react";
+import { ClientSearchField } from "./ClientSearchField";
 
 interface Props {
   open: boolean;
@@ -86,10 +87,17 @@ export function DevolucaoFormDialog({ open, onOpenChange, devolucao }: Props) {
 
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div className="md:col-span-2">
-              <Label>Cliente *</Label>
-              <Input value={form.customer_name || ''} onChange={e => set('customer_name', e.target.value)} />
-            </div>
+            <ClientSearchField
+              currentName={form.customer_name}
+              onSelect={(c) => setForm((f: any) => ({
+                ...f,
+                customer_name: c.name,
+                ...(c.document !== undefined ? { customer_document: c.document } : {}),
+                ...(c.email !== undefined ? { customer_email: c.email } : {}),
+                ...(c.phone !== undefined ? { customer_whatsapp: c.phone } : {}),
+                ...(c.address !== undefined ? { customer_address: c.address } : {}),
+              }))}
+            />
             <div><Label>CPF/CNPJ</Label><Input value={form.customer_document || ''} onChange={e => set('customer_document', e.target.value)} /></div>
             <div><Label>WhatsApp</Label><Input value={form.customer_whatsapp || ''} onChange={e => set('customer_whatsapp', e.target.value)} /></div>
             <div><Label>E-mail</Label><Input value={form.customer_email || ''} onChange={e => set('customer_email', e.target.value)} /></div>
