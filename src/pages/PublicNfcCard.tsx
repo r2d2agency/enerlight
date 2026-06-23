@@ -451,7 +451,6 @@ export default function PublicNfcCard() {
         apiBase={API_BASE}
         ctaTitle={p.catalog_cta_title}
         materials={data?.materials || []}
-        categories={data?.categories || []}
         branding={data?.branding || {}}
       />
     </div>
