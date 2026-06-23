@@ -329,7 +329,7 @@ export default function PublicNfcCard() {
 
         {/* Materiais */}
         {data.materials.length > 0 && (
-          <SectionCard>
+          <SectionCard id="nfc-materials">
             <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-4 items-center">
               <div className="flex items-start gap-3">
                 <div className="rounded-full bg-[#1e3a8a]/40 ring-1 ring-[#3b82f6]/40 p-3 text-[#60a5fa]">
