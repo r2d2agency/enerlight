@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Nfc, Plus, ExternalLink, QrCode, Trash2, Search, CreditCard, Users, Link2, Activity } from "lucide-react";
+import { Nfc, Plus, ExternalLink, QrCode, Trash2, Search, CreditCard, Users, Link2, Activity, Palette } from "lucide-react";
 import { useNfcCards, useNfcDashboard, useDeleteNfcCard, NfcCard } from "@/hooks/use-nfc";
 import { NfcCardDialog } from "@/components/nfc/NfcCardDialog";
+import { NfcBrandingDialog } from "@/components/nfc/NfcBrandingDialog";
 import { toast } from "sonner";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 
