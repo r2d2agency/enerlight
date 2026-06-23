@@ -162,7 +162,7 @@ export default function Devolucoes() {
                 </thead>
                 <tbody className="divide-y">
                   {devolucoes.map(d => {
-                    const s = computeSla(d.status, d.updated_at, d.created_at);
+                    const s = computeSla(d.status, d.updated_at, d.created_at, slaConfig);
                     return (
                       <tr key={d.id} className="hover:bg-muted/30 cursor-pointer" onClick={() => setSelectedId(d.id)}>
                         <td className="px-3 py-2 font-mono">#{d.numero}</td>
