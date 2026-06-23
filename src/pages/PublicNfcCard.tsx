@@ -346,6 +346,14 @@ export default function PublicNfcCard() {
           apiBase={API_BASE}
         />
       )}
+
+      <CatalogLeadModal
+        open={catalogOpen}
+        onOpenChange={setCatalogOpen}
+        slug={slug}
+        apiBase={API_BASE}
+        ctaTitle={p.catalog_cta_title}
+      />
     </div>
   );
 }
