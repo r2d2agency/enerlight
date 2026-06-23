@@ -348,3 +348,162 @@ function InfoRow({ label, value }: { label: string; value?: string | null }) {
     </div>
   );
 }
+
+/* ----------------------------------------------------------------
+   Workflow header: visual stepper + grouped primary actions
+   ---------------------------------------------------------------- */
+const STEPS: { key: DevolucaoStatus; label: string; short: string }[] = [
+  { key: 'solicitado',            label: 'Solicitado',            short: 'Aberto' },
+  { key: 'aguardando_nf_produto', label: 'Aguardando NF/Produto', short: 'NF/Produto' },
+  { key: 'recebido',              label: 'Recebido',              short: 'Recebido' },
+  { key: 'em_analise',            label: 'Em Análise',            short: 'Análise' },
+  { key: 'cliente_notificado',    label: 'Cliente Notificado',    short: 'Notificado' },
+  { key: 'aguardando_nf_retorno', label: 'Aguardando NF Retorno', short: 'NF Retorno' },
+  { key: 'troca_conserto',        label: 'Troca/Conserto',        short: 'Troca' },
+  { key: 'enviado',               label: 'Enviado',               short: 'Enviado' },
+  { key: 'concluido',             label: 'Concluído',             short: 'OK' },
+];
+
+function StatusWorkflow({
+  status, onMove, isPending,
+}: { status: DevolucaoStatus; onMove: (s: DevolucaoStatus) => void; isPending: boolean }) {
+  const isTerminal = status === 'cancelado' || status === 'recusado';
+  const currentIdx = STEPS.findIndex(s => s.key === status);
+  const nextStep = currentIdx >= 0 && currentIdx < STEPS.length - 1 ? STEPS[currentIdx + 1] : null;
+  const canConclude = currentIdx === STEPS.length - 2; // próximo = concluido
+
+  return (
+    <div className="rounded-lg border bg-card">
+      {/* Stepper */}
+      <div className="px-4 pt-3 pb-2 overflow-x-auto">
+        {isTerminal ? (
+          <div className="flex items-center gap-2 py-1">
+            <span className={cn(
+              "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium",
+              status === 'cancelado' ? "bg-muted text-muted-foreground" : "bg-destructive/10 text-destructive"
+            )}>
+              {status === 'cancelado' ? <Ban className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
+              {STATUS_LABELS[status]}
+            </span>
+            <span className="text-xs text-muted-foreground">RMA encerrado</span>
+          </div>
+        ) : (
+          <ol className="flex items-center gap-1 min-w-max">
+            {STEPS.map((s, i) => {
+              const done = i < currentIdx;
+              const active = i === currentIdx;
+              return (
+                <li key={s.key} className="flex items-center">
+                  <button
+                    type="button"
+                    onClick={() => onMove(s.key)}
+                    disabled={isPending}
+                    title={`Ir para: ${s.label}`}
+                    className={cn(
+                      "group flex items-center gap-2 rounded-md px-2 py-1.5 text-xs transition",
+                      active && "bg-primary/10 text-primary font-semibold",
+                      done && "text-foreground hover:bg-muted",
+                      !done && !active && "text-muted-foreground hover:bg-muted",
+                      isPending && "opacity-60 cursor-not-allowed"
+                    )}
+                  >
+                    <span className={cn(
+                      "flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold border",
+                      active && "bg-primary text-primary-foreground border-primary",
+                      done && "bg-emerald-500 text-white border-emerald-500",
+                      !done && !active && "bg-background border-border"
+                    )}>
+                      {done ? <Check className="h-3 w-3" /> : i + 1}
+                    </span>
+                    <span className="whitespace-nowrap">{s.short}</span>
+                  </button>
+                  {i < STEPS.length - 1 && (
+                    <ChevronRight className={cn(
+                      "h-3.5 w-3.5 mx-0.5 shrink-0",
+                      i < currentIdx ? "text-emerald-500" : "text-muted-foreground/40"
+                    )} />
+                  )}
+                </li>
+              );
+            })}
+          </ol>
+        )}
+      </div>
+
+      {/* Action bar */}
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t bg-muted/30 px-3 py-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {!isTerminal && nextStep && (
+            <Button
+              size="sm"
+              onClick={() => onMove(nextStep.key)}
+              disabled={isPending}
+              className="gap-1.5"
+            >
+              {canConclude ? <><CheckCircle2 className="h-4 w-4" /> Concluir RMA</> : <>Avançar para "{nextStep.label}" <ArrowRight className="h-4 w-4" /></>}
+            </Button>
+          )}
+          {isTerminal && (
+            <Button size="sm" variant="outline" onClick={() => onMove('solicitado')} disabled={isPending}>
+              Reabrir devolução
+            </Button>
+          )}
+
+          {!isTerminal && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" variant="outline" className="gap-1.5">
+                  <MoreHorizontal className="h-4 w-4" /> Ir para etapa
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56">
+                <DropdownMenuLabel className="text-xs">Selecione a etapa</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {STEPS.map(s => (
+                  <DropdownMenuItem
+                    key={s.key}
+                    disabled={s.key === status || isPending}
+                    onClick={() => onMove(s.key)}
+                    className="text-sm"
+                  >
+                    <span className={cn(
+                      "mr-2 inline-flex h-4 w-4 items-center justify-center rounded-full border text-[10px]",
+                      s.key === status && "bg-primary text-primary-foreground border-primary"
+                    )}>
+                      {s.key === status ? <Check className="h-2.5 w-2.5" /> : ''}
+                    </span>
+                    {s.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
+
+        {!isTerminal && (
+          <div className="flex items-center gap-1">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => onMove('recusado')}
+              disabled={isPending}
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive gap-1.5"
+            >
+              <X className="h-4 w-4" /> Recusar
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => onMove('cancelado')}
+              disabled={isPending}
+              className="text-muted-foreground hover:text-foreground gap-1.5"
+            >
+              <Ban className="h-4 w-4" /> Cancelar
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
