@@ -317,17 +317,6 @@ export default function PublicNfcCard() {
         <p className="text-center text-white/30 text-xs py-4">{b.nfc_footer_text || "Powered by Ener ID"}</p>
       </div>
 
-      {activeMat && (
-        <LeadCaptureModal
-          open={leadOpen}
-          onOpenChange={setLeadOpen}
-          slug={slug}
-          materialId={activeMat.id}
-          materialTitle={activeMat.title}
-          apiBase={API_BASE}
-        />
-      )}
-
       <CatalogLeadModal
         open={catalogOpen}
         onOpenChange={setCatalogOpen}
@@ -336,6 +325,7 @@ export default function PublicNfcCard() {
         ctaTitle={p.catalog_cta_title}
         materials={data?.materials || []}
         branding={data?.branding || {}}
+        initialCategory={catalogInitialCategory}
       />
     </div>
   );
