@@ -120,8 +120,8 @@ export default function PublicNfcCard() {
               style={{ background: "linear-gradient(90deg,#fbbf24,transparent)" }}
             />
             {p.bio && <p className="text-white/70 text-sm leading-relaxed">{p.bio}</p>}
-            {p.company_logo_url ? (
-              <img src={p.company_logo_url} alt={p.company_name} className="h-10 mt-4 object-contain" />
+            {heroLogo ? (
+              <img src={heroLogo} alt={p.company_name || "Logo"} className="h-12 mt-4 object-contain" />
             ) : p.company_name ? (
               <p className="text-[#60a5fa] font-semibold mt-3 text-lg">{p.company_name}</p>
             ) : null}
