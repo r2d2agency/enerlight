@@ -314,7 +314,7 @@ export function NfcCardDialog({ open, onOpenChange, card }: Props) {
               <h4 className="text-sm font-semibold mb-2 text-muted-foreground">EMPRESA</h4>
               <div className="grid grid-cols-2 gap-3">
                 <div><Label>Nome da empresa</Label><Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Enerlight" /></div>
-                <div><Label>Logo (URL)</Label><Input value={companyLogo} onChange={(e) => setCompanyLogo(e.target.value)} placeholder="https://..." /></div>
+                <div><Label>Logo da empresa</Label><ImageDropUpload value={companyLogo} onChange={setCompanyLogo} aspect="square" enablePaste={false} /></div>
                 <div className="col-span-2"><Label>Descrição da empresa</Label><Input value={companyDesc} onChange={(e) => setCompanyDesc(e.target.value)} placeholder="Soluções completas em iluminação LED..." /></div>
               </div>
             </div>
