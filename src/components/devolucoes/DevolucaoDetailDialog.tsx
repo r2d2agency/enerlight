@@ -153,22 +153,10 @@ export function DevolucaoDetailDialog({ open, onOpenChange, devolucaoId }: Props
                   <div className="divide-y">
                     {dev.itens?.map(it => (
                       <div key={it.id} className="px-3 py-2 grid grid-cols-12 gap-2 text-sm items-center">
-                        <div className="col-span-12 md:col-span-5">
-                          <Label className="text-[10px] text-muted-foreground">Produto</Label>
-                          <Input defaultValue={it.product_name} onBlur={e => e.target.value !== it.product_name && itemMut.create.mutate({ devolucaoId: dev.id, _replace: it.id, product_name: e.target.value, sku: it.sku, quantity: it.quantity, serial_number: it.serial_number }) /* fallback: usar update se existir */ } />
-                        </div>
-                        <div className="col-span-4 md:col-span-2">
-                          <Label className="text-[10px] text-muted-foreground">SKU</Label>
-                          <Input defaultValue={it.sku || ''} disabled />
-                        </div>
-                        <div className="col-span-3 md:col-span-1">
-                          <Label className="text-[10px] text-muted-foreground">Qtd</Label>
-                          <Input type="number" defaultValue={it.quantity} disabled />
-                        </div>
-                        <div className="col-span-4 md:col-span-3">
-                          <Label className="text-[10px] text-muted-foreground">Nº Série</Label>
-                          <Input defaultValue={it.serial_number || ''} disabled />
-                        </div>
+                        <div className="col-span-12 md:col-span-5 font-medium">{it.product_name}</div>
+                        <div className="col-span-4 md:col-span-2 text-muted-foreground">{it.sku || '—'}</div>
+                        <div className="col-span-2 md:col-span-1">Qtd: {it.quantity}</div>
+                        <div className="col-span-5 md:col-span-3 text-muted-foreground text-xs">{it.serial_number || ''}</div>
                         <div className="col-span-1 flex justify-end">
                           <Button size="icon" variant="ghost" onClick={() => itemMut.remove.mutate({ itemId: it.id, devolucaoId: dev.id })}>
                             <Trash2 className="h-4 w-4 text-destructive" />
