@@ -9,11 +9,15 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   useDevolucao, useDevolucaoMutations, useDevolucaoAnexoMutations, useDevolucaoEventoMutations,
+  useDevolucaoItemMutations,
   STATUS_LABELS, STATUS_ORDER, REASON_LABELS, DevolucaoStatus
 } from "@/hooks/use-devolucoes";
 import { useUpload } from "@/hooks/use-upload";
+import { useAuth } from "@/contexts/AuthContext";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import { safeFormatDate } from "@/lib/utils";
-import { Loader2, Upload, FileText, Image as ImageIcon, Truck, Wrench, MessageCircle, Trash2, Send, History, ChevronRight, Check, X, Ban, ArrowRight, CheckCircle2, MoreHorizontal } from "lucide-react";
+import { Loader2, Upload, FileText, Image as ImageIcon, Truck, Wrench, MessageCircle, Trash2, Send, History, ChevronRight, Check, X, Ban, ArrowRight, CheckCircle2, MoreHorizontal, Plus } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
@@ -38,14 +42,23 @@ interface Props {
 }
 
 export function DevolucaoDetailDialog({ open, onOpenChange, devolucaoId }: Props) {
+  const { user } = useAuth();
   const { data: dev, isLoading } = useDevolucao(devolucaoId);
   const { update, changeStatus } = useDevolucaoMutations();
   const anexoMut = useDevolucaoAnexoMutations();
   const eventoMut = useDevolucaoEventoMutations();
+  const itemMut = useDevolucaoItemMutations();
   const { uploadFile, isUploading, progress } = useUpload();
+
+  const { data: members = [] } = useQuery<Array<{ user_id: string; name: string }>>({
+    queryKey: ["org-members", user?.organization_id],
+    queryFn: () => api(`/api/organizations/${user?.organization_id}/members`),
+    enabled: !!user?.organization_id && open,
+  });
 
   const [noteText, setNoteText] = useState("");
   const [anexoCat, setAnexoCat] = useState<'foto' | 'nf_entrada' | 'nf_saida' | 'laudo' | 'outro'>('foto');
+  const [newItem, setNewItem] = useState<{ product_name: string; sku: string; quantity: number; serial_number: string }>({ product_name: '', sku: '', quantity: 1, serial_number: '' });
 
   if (!devolucaoId) return null;
 
@@ -74,7 +87,8 @@ export function DevolucaoDetailDialog({ open, onOpenChange, devolucaoId }: Props
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[92vh] overflow-y-auto">
+      <DialogContent className="max-w-[98vw] xl:max-w-[1400px] w-[98vw] h-[95vh] max-h-[95vh] flex flex-col overflow-hidden p-0">
+        <div className="flex-1 overflow-y-auto px-6 py-4">
         {isLoading || !dev ? (
           <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
         ) : (
