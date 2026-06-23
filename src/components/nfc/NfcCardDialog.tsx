@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Nfc, ExternalLink, Smartphone, QrCode, Save, Loader2 } from "lucide-react";
 import { isWebNfcSupported, scanNfcTag, writeNfcUrl } from "@/lib/nfc-web-api";
-import { useCreateNfcCard, useSaveNfcProfile, NfcCard } from "@/hooks/use-nfc";
+import { useCreateNfcCard, useSaveNfcProfile, useUpdateNfcCard, useNfcCard, NfcCard } from "@/hooks/use-nfc";
 import { NfcWriteTutorial } from "./NfcWriteTutorial";
 import { api } from "@/lib/api";
 
