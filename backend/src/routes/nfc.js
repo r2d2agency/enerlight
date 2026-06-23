@@ -516,6 +516,66 @@ router.delete('/materials/:id', authenticate, async (req, res) => {
 });
 
 // ===========================================
+// VISUAL CATEGORIES (org-level)
+// ===========================================
+router.get('/categories', authenticate, async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.json([]);
+    const r = await query(
+      `SELECT * FROM nfc_categories WHERE organization_id = $1 ORDER BY position, created_at`,
+      [org.organization_id]
+    );
+    res.json(r.rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/categories', authenticate, async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    const { name, image_url, position } = req.body || {};
+    if (!name) return res.status(400).json({ error: 'Nome obrigatório' });
+    const r = await query(
+      `INSERT INTO nfc_categories (organization_id, name, image_url, position)
+       VALUES ($1,$2,$3,$4)
+       ON CONFLICT (organization_id, name) DO UPDATE SET
+         image_url = EXCLUDED.image_url, position = EXCLUDED.position, updated_at = NOW()
+       RETURNING *`,
+      [org.organization_id, String(name).trim(), image_url || null, position || 0]
+    );
+    res.json(r.rows[0]);
+  } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
+});
+
+router.patch('/categories/:id', authenticate, async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    const { name, image_url, position } = req.body || {};
+    const fields = []; const params = []; let i = 1;
+    if (name !== undefined) { fields.push(`name = $${i++}`); params.push(String(name).trim()); }
+    if (image_url !== undefined) { fields.push(`image_url = $${i++}`); params.push(image_url); }
+    if (position !== undefined) { fields.push(`position = $${i++}`); params.push(position); }
+    if (!fields.length) return res.json({ ok: true });
+    fields.push(`updated_at = NOW()`);
+    params.push(req.params.id, org.organization_id);
+    const r = await query(
+      `UPDATE nfc_categories SET ${fields.join(', ')} WHERE id = $${i++} AND organization_id = $${i} RETURNING *`,
+      params
+    );
+    res.json(r.rows[0] || null);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.delete('/categories/:id', authenticate, async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    await query('DELETE FROM nfc_categories WHERE id = $1 AND organization_id = $2', [req.params.id, org.organization_id]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+
+// ===========================================
 // PUBLIC ROUTES (no auth)
 // ===========================================
 
