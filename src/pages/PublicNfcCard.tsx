@@ -70,6 +70,19 @@ export default function PublicNfcCard() {
     if (name) document.title = `${name} • Ener ID`;
   }, [name]);
 
+  if (loading)
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "#020617" }}>
+        <Loader2 className="animate-spin text-white" />
+      </div>
+    );
+  if (error || !data)
+    return (
+      <div className="min-h-screen flex items-center justify-center text-white" style={{ background: "#020617" }}>
+        {error || "Erro"}
+      </div>
+    );
+
   return (
     <div
       className="min-h-screen pb-10"
