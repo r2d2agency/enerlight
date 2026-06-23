@@ -19,8 +19,10 @@ const PERMISSION_COLUMNS = [
   'can_view_licitacao', 'can_view_logistics', 'can_view_document_signatures',
   'can_view_rh', 'can_approve_rh',
   'can_view_devolucoes', 'can_create_devolucoes', 'can_manage_devolucoes', 'can_delete_devolucoes',
+  'can_edit_devolucoes', 'can_accept_devolucoes', 'can_refuse_devolucoes', 'can_manage_devolucao_sla',
   'can_delete_deals', 'can_delete_projects', 'can_delete_tasks', 'can_delete_homologation', 'can_delete_licitacao',
   'can_edit_logistics', 'can_delete_logistics',
+
 ];
 
 // Default permissions for each role

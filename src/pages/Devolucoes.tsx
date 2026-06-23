@@ -11,9 +11,12 @@ import { useDevolucoes, useDevolucoesStats, useDevolucaoSlaConfig, STATUS_LABELS
 import { DevolucaoKanban } from "@/components/devolucoes/DevolucaoKanban";
 import { DevolucaoFormDialog } from "@/components/devolucoes/DevolucaoFormDialog";
 import { DevolucaoDetailDialog } from "@/components/devolucoes/DevolucaoDetailDialog";
-import { Plus, Search, RotateCcw, Truck, Wrench, Loader2, AlertCircle, CheckCircle2, Clock } from "lucide-react";
+import { DevolucaoSLAConfigPanel } from "@/components/settings/DevolucaoSLAConfigPanel";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Plus, Search, RotateCcw, Truck, Wrench, Loader2, AlertCircle, CheckCircle2, Clock, Settings } from "lucide-react";
 import { safeFormatDate } from "@/lib/utils";
 import { computeSla } from "@/lib/devolucao-sla";
+
 
 const STATUS_COLORS: Record<string, string> = {
   solicitado: 'bg-slate-100 text-slate-700',
@@ -35,6 +38,7 @@ export default function Devolucoes() {
   const isElevated = ['owner', 'admin', 'manager', 'supervisor'].includes(role);
   const canCreate = isElevated || userPermissions?.can_create_devolucoes !== false;
   const canSeeAll = isElevated || userPermissions?.can_manage_devolucoes === true;
+  const canManageSla = isElevated || userPermissions?.can_manage_devolucao_sla === true;
   const simplified = !canSeeAll;
 
   const [view, setView] = useState<'kanban' | 'lista'>(simplified ? 'lista' : 'kanban');
@@ -45,6 +49,8 @@ export default function Devolucoes() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [showSlaConfig, setShowSlaConfig] = useState(false);
+
 
   const filters = {
     search: search || undefined,
@@ -78,12 +84,27 @@ export default function Devolucoes() {
                 : 'Controle de RMA: solicitação, análise, troca/conserto e fretes'}
             </p>
           </div>
-          {canCreate && (
-            <Button onClick={() => { setEditing(null); setShowForm(true); }}>
-              <Plus className="h-4 w-4 mr-2" /> Nova devolução
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {canManageSla && (
+              <Button
+                variant="outline"
+                size="icon"
+                title="Configurar SLA das devoluções"
+                onClick={() => setShowSlaConfig(true)}
+              >
+                <Settings className="h-4 w-4" />
+              </Button>
+            )}
+            {canCreate && (
+              <Button onClick={() => { setEditing(null); setShowForm(true); }}>
+                <Plus className="h-4 w-4 mr-2" /> Nova devolução
+              </Button>
+            )}
+          </div>
         </div>
+
+
+
 
         {/* Stats */}
         {stats && !simplified && (
@@ -209,7 +230,20 @@ export default function Devolucoes() {
 
       <DevolucaoFormDialog open={showForm} onOpenChange={(o) => { setShowForm(o); if (!o) setEditing(null); }} devolucao={editing} />
       <DevolucaoDetailDialog open={!!selectedId} onOpenChange={(o) => { if (!o) setSelectedId(null); }} devolucaoId={selectedId} />
+
+      <Dialog open={showSlaConfig} onOpenChange={setShowSlaConfig}>
+        <DialogContent className="max-w-[95vw] lg:max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Configurar SLA das Devoluções</DialogTitle>
+            <DialogDescription>
+              Defina o tempo máximo (em horas) de cada etapa do processo de RMA. As alterações entram em vigor imediatamente.
+            </DialogDescription>
+          </DialogHeader>
+          <DevolucaoSLAConfigPanel />
+        </DialogContent>
+      </Dialog>
     </MainLayout>
+
   );
 }
 
