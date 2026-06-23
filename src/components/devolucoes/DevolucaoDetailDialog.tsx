@@ -47,7 +47,7 @@ export function DevolucaoDetailDialog({ open, onOpenChange, devolucaoId }: Props
 
   if (!devolucaoId) return null;
 
-  const save = (patch: any) => dev && update.mutate({ id: dev.id, ...patch });
+  const save = (patch: any) => dev && update.mutate({ id: dev.id, _silent: true, ...patch });
   const moveStatus = (status: DevolucaoStatus) => dev && changeStatus.mutate({ id: dev.id, status });
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
