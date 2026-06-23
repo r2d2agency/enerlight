@@ -732,11 +732,11 @@ router.post('/public/:slug/catalog-lead', async (req, res) => {
 
     // Return all materials available for this card
     const m = await query(
-      `SELECT id, title, description, material_type, file_url, thumbnail_url
+      `SELECT id, title, description, material_type, file_url, thumbnail_url, category
          FROM nfc_materials
         WHERE card_id = $1
            OR (card_id IS NULL AND organization_id = $2)
-        ORDER BY position, created_at`,
+        ORDER BY category NULLS LAST, position, created_at`,
       [card.id, card.organization_id]
     );
 
