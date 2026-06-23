@@ -91,6 +91,9 @@ const CalculadoraCategorias = lazyRetry(() => import("./pages/CalculadoraCategor
 const CRMLuminotecnicoProspects = lazyRetry(() => import("./pages/CRMLuminotecnicoProspects"));
 const NotFound = lazyRetry(() => import("./pages/NotFound"));
 const MeuDia = lazyRetry(() => import("./pages/MeuDia"));
+const CartoesNFC = lazyRetry(() => import("./pages/CartoesNFC"));
+const PublicNfcCard = lazyRetry(() => import("./pages/PublicNfcCard"));
+
 
 const queryClient = new QueryClient();
 (window as any).queryClient = queryClient;
@@ -200,7 +203,10 @@ const App = () => (
               <Route path="/calculadora-luminotecnica" element={<CalculadoraLuminotecnica />} />
               <Route path="/admin/calculadora-categorias" element={<ProtectedRoute><CalculadoraCategorias /></ProtectedRoute>} />
               <Route path="/politica-privacidade" element={<PoliticaPrivacidade />} />
+              <Route path="/cartoes-nfc" element={<ProtectedRoute><CartoesNFC /></ProtectedRoute>} />
+              <Route path="/c/:slug" element={<PublicNfcCard />} />
               <Route path="*" element={<NotFound />} />
+
             </Routes>
           </Suspense>
         </AuthProvider>

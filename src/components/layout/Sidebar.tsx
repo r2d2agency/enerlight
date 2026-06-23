@@ -48,7 +48,9 @@ import {
   Wallet,
   Filter,
   Calculator,
+  Nfc,
 } from "lucide-react";
+
 import { API_URL, getAuthToken } from "@/lib/api";
 import gleegoLogo from "@/assets/gleego-logo.png";
 import { useAuth } from "@/contexts/AuthContext";
@@ -246,6 +248,13 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
     ],
   },
   {
+    title: "Cartões NFC",
+    icon: Nfc,
+    items: [
+      { name: "Gerenciar", href: "/cartoes-nfc", icon: Nfc },
+    ],
+  },
+  {
     title: "Administração",
     icon: Shield,
     adminOnly: true,
@@ -256,6 +265,7 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
       { name: "Organizações", href: "/organizacoes", icon: Building2, permissionKey: 'can_view_organizations' },
     ],
   },
+
 ];
 
 interface SidebarContentProps {
