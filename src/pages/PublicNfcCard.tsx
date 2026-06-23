@@ -5,6 +5,7 @@ import {
   Linkedin, Instagram, ExternalLink, FileText, Loader2, Radio,
 } from "lucide-react";
 import { LeadCaptureModal } from "@/components/nfc/LeadCaptureModal";
+import { CatalogLeadModal } from "@/components/nfc/CatalogLeadModal";
 
 const API_BASE = import.meta.env.VITE_API_URL || "";
 
