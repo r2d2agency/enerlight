@@ -149,9 +149,11 @@ export default function Devolucoes() {
                 <SelectItem value="on_time">No prazo</SelectItem>
               </SelectContent>
             </Select>
-            <Tabs value={view} onValueChange={(v: any) => setView(v)}>
-              <TabsList><TabsTrigger value="kanban">Kanban</TabsTrigger><TabsTrigger value="lista">Lista</TabsTrigger></TabsList>
-            </Tabs>
+            {!simplified && (
+              <Tabs value={view} onValueChange={(v: any) => setView(v)}>
+                <TabsList><TabsTrigger value="kanban">Kanban</TabsTrigger><TabsTrigger value="lista">Lista</TabsTrigger></TabsList>
+              </Tabs>
+            )}
           </CardContent>
         </Card>
 
@@ -179,7 +181,7 @@ export default function Devolucoes() {
                     <th className="px-3 py-2">SLA</th>
                     <th className="px-3 py-2">Vendedor</th>
                     <th className="px-3 py-2">Aberto</th>
-                    <th className="px-3 py-2 text-right">Frete (R$)</th>
+                    {!simplified && <th className="px-3 py-2 text-right">Frete (R$)</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -194,7 +196,7 @@ export default function Devolucoes() {
                         <td className="px-3 py-2">{s.level === 'none' ? <span className="text-muted-foreground text-xs">—</span> : <Badge variant="outline" className={`text-[10px] ${s.color}`}>{s.label}</Badge>}</td>
                         <td className="px-3 py-2">{d.seller_name || '—'}</td>
                         <td className="px-3 py-2">{safeFormatDate(d.created_at, 'dd/MM/yyyy')}</td>
-                        <td className="px-3 py-2 text-right">{Number(d.total_freight_cost || 0).toFixed(2)}</td>
+                        {!simplified && <td className="px-3 py-2 text-right">{Number(d.total_freight_cost || 0).toFixed(2)}</td>}
                       </tr>
                     );
                   })}
