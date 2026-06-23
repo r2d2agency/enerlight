@@ -23,7 +23,7 @@ const COL_COLORS: Record<string, string> = {
   concluido: 'border-t-green-500',
 };
 
-export function DevolucaoKanban({ devolucoes, onSelect }: Props) {
+export function DevolucaoKanban({ devolucoes, onSelect, slaConfig }: Props) {
   const grouped = STATUS_ORDER.reduce((acc, s) => {
     acc[s] = devolucoes.filter(d => d.status === s);
     return acc;
