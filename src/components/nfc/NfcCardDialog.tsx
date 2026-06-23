@@ -55,6 +55,8 @@ export function NfcCardDialog({ open, onOpenChange, card }: Props) {
   const [catalogEnabled, setCatalogEnabled] = useState(true);
   const [catalogTitle, setCatalogTitle] = useState("");
   const [catalogSubtitle, setCatalogSubtitle] = useState("");
+  const [selectedCats, setSelectedCats] = useState<string[]>([]);
+  const orgCategories = useNfcCategories();
 
   const createCard = useCreateNfcCard();
   const saveProfile = useSaveNfcProfile();
