@@ -156,6 +156,12 @@ export function NfcCardDialog({ open, onOpenChange, card }: Props) {
           instagram: instagram || null,
           bio: bio || null,
           address: address || null,
+          showcase_title: showcaseTitle || null,
+          showcase_description: showcaseDesc || null,
+          showcase_image_url: showcaseImage || null,
+          catalog_cta_enabled: catalogEnabled,
+          catalog_cta_title: catalogTitle || null,
+          catalog_cta_subtitle: catalogSubtitle || null,
         },
       });
       toast.success("Perfil salvo");
