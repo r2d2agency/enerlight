@@ -107,6 +107,7 @@ export function NfcCardDialog({ open, onOpenChange, card }: Props) {
       setCatalogEnabled(p.catalog_cta_enabled !== false);
       setCatalogTitle(p.catalog_cta_title || "");
       setCatalogSubtitle(p.catalog_cta_subtitle || "");
+      setSelectedCats(Array.isArray(p.selected_categories) ? p.selected_categories : []);
     }
   }, [cardDetail.data]);
 
