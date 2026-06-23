@@ -13,6 +13,7 @@ interface CardData {
   card: { id: string; public_slug: string; public_url: string; qr_code_url: string };
   profile: any;
   materials: any[];
+  org_logo?: string | null;
 }
 
 export default function PublicNfcCard() {
