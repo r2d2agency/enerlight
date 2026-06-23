@@ -186,8 +186,9 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
   {
     title: "Devoluções",
     icon: RotateCcw,
+    permissionKey: 'can_view_devolucoes',
     items: [
-      { name: "Controle de RMA", href: "/devolucoes", icon: RotateCcw },
+      { name: "Controle de RMA", href: "/devolucoes", icon: RotateCcw, permissionKey: 'can_view_devolucoes' },
     ],
   },
   {

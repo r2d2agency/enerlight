@@ -138,6 +138,15 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
     ],
   },
   {
+    title: 'Devoluções (RMA)',
+    items: [
+      { key: 'can_view_devolucoes', label: 'Ver Devoluções', description: 'Visualizar quadro de RMA (vendedor vê apenas as próprias)' },
+      { key: 'can_create_devolucoes', label: 'Abrir RMA', description: 'Permite criar novas solicitações de devolução' },
+      { key: 'can_manage_devolucoes', label: 'Gerenciar RMA', description: 'Análise técnica, recebimento, envio e mudança de status' },
+      { key: 'can_delete_devolucoes', label: 'Excluir RMA', description: 'Permite excluir devoluções' },
+    ],
+  },
+  {
     title: 'RH / Ponto',
     items: [
       { key: 'can_view_rh', label: 'RH / Ponto', description: 'Registro de ponto e gestão de RH' },
