@@ -529,17 +529,20 @@ router.get('/public/:slug', async (req, res) => {
     const card = c.rows[0];
     const p = await query('SELECT * FROM nfc_card_profiles WHERE card_id = $1', [card.id]);
     const m = await query(
-      `SELECT id, title, description, material_type, file_url, thumbnail_url, requires_lead
+      `SELECT id, title, description, material_type, file_url, thumbnail_url, requires_lead, category, position
        FROM nfc_materials WHERE card_id = $1 OR (card_id IS NULL AND organization_id = (SELECT organization_id FROM nfc_cards WHERE id = $1))
-       ORDER BY position, created_at`,
+       ORDER BY category NULLS LAST, position, created_at`,
       [card.id]
     );
 
-    // Org-level default NFC logo (from system_settings)
-    const sysLogo = await query(
-      `SELECT value FROM system_settings WHERE key = 'nfc_default_logo' LIMIT 1`
+    // Org-level NFC branding (logo + colors) from system_settings
+    const brandRows = await query(
+      `SELECT key, value FROM system_settings WHERE key = ANY($1::text[])`,
+      [['nfc_default_logo','nfc_primary_color','nfc_accent_color','nfc_bg_color','nfc_bg_gradient','nfc_brand_name','nfc_footer_text']]
     );
-    const orgLogo = sysLogo.rows[0]?.value || null;
+    const branding = {};
+    brandRows.rows.forEach(r => branding[r.key] = r.value);
+    const orgLogo = branding.nfc_default_logo || null;
 
     // Register read (async, do not block response)
     const ip = (req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || '').trim();
@@ -564,7 +567,7 @@ router.get('/public/:slug', async (req, res) => {
       } catch (err) { console.error('Read log error', err.message); }
     })();
 
-    res.json({ card, profile: p.rows[0] || null, materials: m.rows, org_logo: orgLogo });
+    res.json({ card, profile: p.rows[0] || null, materials: m.rows, org_logo: orgLogo, branding });
   } catch (e) {
     console.error(e); res.status(500).json({ error: e.message });
   }
