@@ -47,7 +47,7 @@ export function NfcCardDialog({ open, onOpenChange, card }: Props) {
 
   useEffect(() => {
     if (open) {
-      api<any[]>("/api/organizations/members").then(setUsers).catch(() => setUsers([]));
+      api<any[]>("/api/nfc/users").then(setUsers).catch(() => setUsers([]));
       if (card) {
         setCreated(card);
         setUid(card.uid);
