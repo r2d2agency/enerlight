@@ -15,12 +15,6 @@ interface Material {
   category?: string | null;
 }
 
-interface NfcCategory {
-  id: string;
-  name: string;
-  image_url?: string | null;
-}
-
 interface BrandingTheme {
   nfc_primary_color?: string | null;
   nfc_accent_color?: string | null;
