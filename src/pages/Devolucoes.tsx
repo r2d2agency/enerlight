@@ -11,9 +11,12 @@ import { useDevolucoes, useDevolucoesStats, useDevolucaoSlaConfig, STATUS_LABELS
 import { DevolucaoKanban } from "@/components/devolucoes/DevolucaoKanban";
 import { DevolucaoFormDialog } from "@/components/devolucoes/DevolucaoFormDialog";
 import { DevolucaoDetailDialog } from "@/components/devolucoes/DevolucaoDetailDialog";
-import { Plus, Search, RotateCcw, Truck, Wrench, Loader2, AlertCircle, CheckCircle2, Clock } from "lucide-react";
+import { DevolucaoSLAConfigPanel } from "@/components/settings/DevolucaoSLAConfigPanel";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Plus, Search, RotateCcw, Truck, Wrench, Loader2, AlertCircle, CheckCircle2, Clock, Settings } from "lucide-react";
 import { safeFormatDate } from "@/lib/utils";
 import { computeSla } from "@/lib/devolucao-sla";
+
 
 const STATUS_COLORS: Record<string, string> = {
   solicitado: 'bg-slate-100 text-slate-700',
