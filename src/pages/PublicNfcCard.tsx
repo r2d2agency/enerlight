@@ -315,22 +315,54 @@ export default function PublicNfcCard() {
             </div>
 
             {materialsOpen && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">
-                {data.materials.map((m) => (
-                  <button
-                    key={m.id}
-                    onClick={() => handleMaterial(m)}
-                    className="text-left bg-white/5 hover:bg-white/10 transition border border-white/10 rounded-xl p-3"
-                  >
-                    <div className="flex items-center gap-2 text-white">
-                      <FileText className="h-4 w-4 text-[#60a5fa]" />
-                      <span className="text-sm font-medium line-clamp-2">{m.title}</span>
+              <div className="mt-4 space-y-3">
+                {/* Category navigation */}
+                {Object.keys(materialsByCategory).length > 1 && (
+                  <div className="flex gap-2 overflow-x-auto pb-1">
+                    <button
+                      onClick={() => setMatCat("__all")}
+                      className={`text-xs px-3 py-1.5 rounded-full whitespace-nowrap border transition ${matCat === "__all" ? "bg-white text-black border-white" : "text-white/70 border-white/20 hover:bg-white/10"}`}
+                    >
+                      Todos
+                    </button>
+                    {Object.keys(materialsByCategory).map((cat) => (
+                      <button
+                        key={cat}
+                        onClick={() => setMatCat(cat)}
+                        className={`text-xs px-3 py-1.5 rounded-full whitespace-nowrap border transition ${matCat === cat ? "bg-white text-black border-white" : "text-white/70 border-white/20 hover:bg-white/10"}`}
+                      >
+                        {cat} <span className="opacity-60">({materialsByCategory[cat].length})</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {Object.entries(materialsByCategory)
+                  .filter(([cat]) => matCat === "__all" || matCat === cat)
+                  .map(([cat, list]) => (
+                    <div key={cat}>
+                      {matCat === "__all" && Object.keys(materialsByCategory).length > 1 && (
+                        <h4 className="text-white/80 text-xs font-semibold tracking-widest uppercase mt-3 mb-2">{cat}</h4>
+                      )}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {list.map((m: any) => (
+                          <button
+                            key={m.id}
+                            onClick={() => handleMaterial(m)}
+                            className="text-left bg-white/5 hover:bg-white/10 transition border border-white/10 rounded-xl p-3"
+                          >
+                            <div className="flex items-center gap-2 text-white">
+                              <FileText className="h-4 w-4" style={{ color: primary }} />
+                              <span className="text-sm font-medium line-clamp-2">{m.title}</span>
+                            </div>
+                            {m.description && (
+                              <p className="text-xs text-white/50 mt-1 line-clamp-2">{m.description}</p>
+                            )}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                    {m.description && (
-                      <p className="text-xs text-white/50 mt-1 line-clamp-2">{m.description}</p>
-                    )}
-                  </button>
-                ))}
+                  ))}
               </div>
             )}
           </SectionCard>
