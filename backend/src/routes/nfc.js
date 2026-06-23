@@ -293,13 +293,28 @@ router.post('/cards', authenticate, async (req, res) => {
 router.patch('/cards/:id', authenticate, async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
-    const { status, user_id, company_name, chip_type, plan } = req.body;
+    const { status, user_id, company_name, chip_type, plan, public_slug } = req.body;
     const fields = []; const params = []; let i = 1;
     if (status !== undefined) { fields.push(`status = $${i++}`); params.push(status); }
     if (user_id !== undefined) { fields.push(`user_id = $${i++}`); params.push(user_id || null); }
     if (company_name !== undefined) { fields.push(`company_name = $${i++}`); params.push(company_name); }
     if (chip_type !== undefined) { fields.push(`chip_type = $${i++}`); params.push(chip_type); }
     if (plan !== undefined) { fields.push(`plan = $${i++}`); params.push(plan); }
+
+    if (public_slug !== undefined) {
+      const clean = String(public_slug).toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9-]+/g, '-')
+        .replace(/^-+|-+$/g, '').slice(0, 40);
+      if (clean.length < 3) return res.status(400).json({ error: 'Slug muito curto (mín. 3 caracteres)' });
+      const dup = await query('SELECT id FROM nfc_cards WHERE public_slug = $1 AND id <> $2', [clean, req.params.id]);
+      if (dup.rows[0]) return res.status(409).json({ error: 'Slug já em uso' });
+      const publicUrl = buildPublicUrl(clean);
+      fields.push(`public_slug = $${i++}`); params.push(clean);
+      fields.push(`public_url = $${i++}`); params.push(publicUrl);
+      fields.push(`qr_code_url = $${i++}`); params.push(buildQrUrl(publicUrl));
+    }
+
     fields.push(`updated_at = NOW()`);
     params.push(req.params.id, org.organization_id);
     const r = await query(
@@ -312,6 +327,7 @@ router.patch('/cards/:id', authenticate, async (req, res) => {
     console.error(e); res.status(500).json({ error: e.message });
   }
 });
+
 
 // Update profile
 router.put('/cards/:id/profile', authenticate, async (req, res) => {
