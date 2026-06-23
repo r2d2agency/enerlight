@@ -393,7 +393,7 @@ export default function PublicNfcCard() {
           </div>
         </div>
 
-        <p className="text-center text-white/30 text-xs py-4">Powered by Ener ID</p>
+        <p className="text-center text-white/30 text-xs py-4">{b.nfc_footer_text || "Powered by Ener ID"}</p>
       </div>
 
       {activeMat && (
