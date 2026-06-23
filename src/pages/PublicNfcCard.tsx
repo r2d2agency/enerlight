@@ -19,12 +19,19 @@ interface BrandingTheme {
   nfc_footer_text?: string | null;
 }
 
+interface NfcCategory {
+  id: string;
+  name: string;
+  image_url: string | null;
+}
+
 interface CardData {
   card: { id: string; public_slug: string; public_url: string; qr_code_url: string };
   profile: any;
   materials: any[];
   org_logo?: string | null;
   branding?: BrandingTheme;
+  categories?: NfcCategory[];
 }
 
 export default function PublicNfcCard() {
