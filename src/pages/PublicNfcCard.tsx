@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import {
   Phone, MessageCircle, Mail, Globe, MapPin, UserPlus,
-  Linkedin, Instagram, ExternalLink, FileText, Loader2, Radio,
+  Linkedin, Instagram, ExternalLink, FileText, Loader2,
 } from "lucide-react";
 import { LeadCaptureModal } from "@/components/nfc/LeadCaptureModal";
 import { CatalogLeadModal } from "@/components/nfc/CatalogLeadModal";
