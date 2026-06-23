@@ -148,6 +148,27 @@ export function useDevolucoesStats() {
   });
 }
 
+export function useDevolucaoSlaConfig() {
+  return useQuery<Record<string, number>>({
+    queryKey: ['devolucao-sla-config'],
+    queryFn: () => api('/api/devolucoes/sla-config'),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useDevolucaoSlaConfigMutations() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Record<string, number>) =>
+      api('/api/devolucoes/sla-config', { method: 'PUT', body: data }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['devolucao-sla-config'] });
+      toast.success('SLA atualizado!');
+    },
+    onError: (error: any) => toast.error(error.message || 'Erro ao salvar SLA'),
+  });
+}
+
 export function useDevolucaoMutations() {
   const qc = useQueryClient();
   const inv = () => {

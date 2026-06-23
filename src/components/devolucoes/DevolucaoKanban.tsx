@@ -8,6 +8,7 @@ import { computeSla } from "@/lib/devolucao-sla";
 interface Props {
   devolucoes: Devolucao[];
   onSelect: (id: string) => void;
+  slaConfig?: Record<string, number>;
 }
 
 const COL_COLORS: Record<string, string> = {
@@ -22,7 +23,7 @@ const COL_COLORS: Record<string, string> = {
   concluido: 'border-t-green-500',
 };
 
-export function DevolucaoKanban({ devolucoes, onSelect }: Props) {
+export function DevolucaoKanban({ devolucoes, onSelect, slaConfig }: Props) {
   const grouped = STATUS_ORDER.reduce((acc, s) => {
     acc[s] = devolucoes.filter(d => d.status === s);
     return acc;
@@ -31,7 +32,7 @@ export function DevolucaoKanban({ devolucoes, onSelect }: Props) {
   return (
     <div className="flex gap-3 overflow-x-auto pb-3" style={{ minHeight: '60vh' }}>
       {STATUS_ORDER.map(status => {
-        const overdueCount = grouped[status].filter(d => computeSla(d.status, d.updated_at, d.created_at).level === 'overdue').length;
+        const overdueCount = grouped[status].filter(d => computeSla(d.status, d.updated_at, d.created_at, slaConfig).level === 'overdue').length;
         return (
           <div key={status} className="flex-shrink-0 w-72">
             <div className={`bg-muted/40 rounded-lg border-t-4 ${COL_COLORS[status]} p-2 h-full flex flex-col`}>
@@ -46,7 +47,7 @@ export function DevolucaoKanban({ devolucoes, onSelect }: Props) {
               </div>
               <div className="space-y-2 overflow-y-auto flex-1">
                 {grouped[status].map(d => {
-                  const sla = computeSla(d.status, d.updated_at, d.created_at);
+                  const sla = computeSla(d.status, d.updated_at, d.created_at, slaConfig);
                   return (
                     <Card
                       key={d.id}

@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings, Shield, Bell, Save, Sun, Moon, Monitor, Volume2, VolumeX, BellRing, Smartphone, User, Lock, Loader2, Mail, FileText, Sparkles, Zap } from "lucide-react";
+import { Settings, Shield, Bell, Save, Sun, Moon, Monitor, Volume2, VolumeX, BellRing, Smartphone, User, Lock, Loader2, Mail, FileText, Sparkles, Zap, RotateCcw } from "lucide-react";
 import { useTheme, Theme } from "@/hooks/use-theme";
 import { useNotificationSound, NOTIFICATION_SOUNDS, NotificationSoundId } from "@/hooks/use-notification-sound";
 import { toast } from "sonner";
@@ -19,6 +19,7 @@ import { EmailTemplatesPanel } from "@/components/email/EmailTemplatesPanel";
 import { FeaturesDocumentation } from "@/components/admin/FeaturesDocumentation";
 import { AIConfigPanel } from "@/components/settings/AIConfigPanel";
 import { WorkSchedulePanel } from "@/components/settings/WorkSchedulePanel";
+import { DevolucaoSLAConfigPanel } from "@/components/settings/DevolucaoSLAConfigPanel";
 
 const Configuracoes = () => {
   const { user, modulesEnabled } = useAuth();
@@ -150,7 +151,7 @@ const Configuracoes = () => {
         </div>
 
         <Tabs defaultValue="geral" className="w-full">
-          <TabsList className={`grid w-full ${showLeadGleegoTab ? 'grid-cols-5' : 'grid-cols-4'} lg:w-[${showLeadGleegoTab ? '750' : '600'}px]`}>
+          <TabsList className={`grid w-full ${showLeadGleegoTab ? 'grid-cols-6' : 'grid-cols-5'} lg:w-[${showLeadGleegoTab ? '900' : '750'}px]`}>
             <TabsTrigger value="geral" className="flex items-center gap-2">
               <Settings className="h-4 w-4" />
               Geral
@@ -163,6 +164,12 @@ const Configuracoes = () => {
               <Mail className="h-4 w-4" />
               E-mail
             </TabsTrigger>
+            {isAdminRole && (
+              <TabsTrigger value="devolucoes" className="flex items-center gap-2">
+                <RotateCcw className="h-4 w-4" />
+                Devoluções
+              </TabsTrigger>
+            )}
             {showLeadGleegoTab && (
               <TabsTrigger value="lead-gleego" className="flex items-center gap-2">
                 <Zap className="h-4 w-4" />
@@ -696,6 +703,13 @@ const Configuracoes = () => {
                   </Button>
                 </CardContent>
               </Card>
+            </TabsContent>
+          )}
+
+          {/* Devoluções SLA Tab */}
+          {isAdminRole && (
+            <TabsContent value="devolucoes" className="mt-6">
+              <DevolucaoSLAConfigPanel />
             </TabsContent>
           )}
 

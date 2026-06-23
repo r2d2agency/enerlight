@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useDevolucoes, useDevolucoesStats, STATUS_LABELS, REASON_LABELS, DevolucaoStatus } from "@/hooks/use-devolucoes";
+import { useDevolucoes, useDevolucoesStats, useDevolucaoSlaConfig, STATUS_LABELS, REASON_LABELS, DevolucaoStatus } from "@/hooks/use-devolucoes";
 import { DevolucaoKanban } from "@/components/devolucoes/DevolucaoKanban";
 import { DevolucaoFormDialog } from "@/components/devolucoes/DevolucaoFormDialog";
 import { DevolucaoDetailDialog } from "@/components/devolucoes/DevolucaoDetailDialog";
@@ -45,13 +45,14 @@ export default function Devolucoes() {
   };
   const { data: allDevolucoes = [], isLoading } = useDevolucoes(filters);
   const { data: stats } = useDevolucoesStats();
+  const { data: slaConfig } = useDevolucaoSlaConfig();
 
   const devolucoes = sla === 'all'
     ? allDevolucoes
-    : allDevolucoes.filter(d => computeSla(d.status, d.updated_at, d.created_at).level === sla);
+    : allDevolucoes.filter(d => computeSla(d.status, d.updated_at, d.created_at, slaConfig).level === sla);
 
-  const overdueCount = allDevolucoes.filter(d => computeSla(d.status, d.updated_at, d.created_at).level === 'overdue').length;
-  const warningCount = allDevolucoes.filter(d => computeSla(d.status, d.updated_at, d.created_at).level === 'warning').length;
+  const overdueCount = allDevolucoes.filter(d => computeSla(d.status, d.updated_at, d.created_at, slaConfig).level === 'overdue').length;
+  const warningCount = allDevolucoes.filter(d => computeSla(d.status, d.updated_at, d.created_at, slaConfig).level === 'warning').length;
 
   return (
     <MainLayout>
@@ -142,7 +143,7 @@ export default function Devolucoes() {
             <p className="text-muted-foreground mt-1 text-sm">Clique em "Nova devolução" para começar</p>
           </CardContent></Card>
         ) : view === 'kanban' ? (
-          <DevolucaoKanban devolucoes={devolucoes} onSelect={setSelectedId} />
+          <DevolucaoKanban devolucoes={devolucoes} onSelect={setSelectedId} slaConfig={slaConfig} />
         ) : (
           <Card>
             <CardContent className="p-0 overflow-x-auto">
@@ -161,7 +162,7 @@ export default function Devolucoes() {
                 </thead>
                 <tbody className="divide-y">
                   {devolucoes.map(d => {
-                    const s = computeSla(d.status, d.updated_at, d.created_at);
+                    const s = computeSla(d.status, d.updated_at, d.created_at, slaConfig);
                     return (
                       <tr key={d.id} className="hover:bg-muted/30 cursor-pointer" onClick={() => setSelectedId(d.id)}>
                         <td className="px-3 py-2 font-mono">#{d.numero}</td>

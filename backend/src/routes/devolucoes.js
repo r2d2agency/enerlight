@@ -18,6 +18,17 @@ const ALLOWED_STATUS = [
   'aguardando_nf_retorno', 'troca_conserto', 'enviado', 'concluido', 'recusado', 'cancelado'
 ];
 
+const DEFAULT_SLA_HOURS = {
+  solicitado: 24,
+  aguardando_nf_produto: 72,
+  recebido: 24,
+  em_analise: 72,
+  cliente_notificado: 48,
+  aguardando_nf_retorno: 120,
+  troca_conserto: 96,
+  enviado: 72,
+};
+
 async function logEvent(devolucao_id, user_id, event_type, payload = {}) {
   try {
     await query(
@@ -88,6 +99,45 @@ router.get('/stats', async (req, res) => {
     `, [org.organization_id]);
     res.json(r.rows[0]);
   } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============================================ SLA CONFIG
+router.get('/sla-config', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+    const r = await query('SELECT status, hours FROM devolucao_sla_configs WHERE organization_id = $1', [org.organization_id]);
+    const saved = {};
+    for (const row of r.rows) saved[row.status] = row.hours;
+    res.json({ ...DEFAULT_SLA_HOURS, ...saved });
+  } catch (e) { console.error('get sla config', e); res.status(500).json({ error: e.message }); }
+});
+
+router.put('/sla-config', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+    if (!['owner','admin','superadmin'].includes(org.role)) {
+      return res.status(403).json({ error: 'Apenas administradores podem configurar o SLA' });
+    }
+    const b = req.body || {};
+    for (const [status, rawHours] of Object.entries(b)) {
+      if (!(status in DEFAULT_SLA_HOURS)) continue;
+      const hours = parseInt(String(rawHours), 10);
+      if (Number.isNaN(hours) || hours < 1) continue;
+      await query(
+        `INSERT INTO devolucao_sla_configs (organization_id, status, hours)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (organization_id, status)
+         DO UPDATE SET hours = EXCLUDED.hours, updated_at = NOW()`,
+        [org.organization_id, status, hours]
+      );
+    }
+    const r = await query('SELECT status, hours FROM devolucao_sla_configs WHERE organization_id = $1', [org.organization_id]);
+    const saved = {};
+    for (const row of r.rows) saved[row.status] = row.hours;
+    res.json({ ...DEFAULT_SLA_HOURS, ...saved });
+  } catch (e) { console.error('put sla config', e); res.status(500).json({ error: e.message }); }
 });
 
 // ============================================ GET
