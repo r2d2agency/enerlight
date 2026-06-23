@@ -282,24 +282,45 @@ export function NfcCardDialog({ open, onOpenChange, card }: Props) {
             )}
           </TabsContent>
 
-          <TabsContent value="profile" className="space-y-3 pt-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div><Label>Nome de exibição</Label><Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} /></div>
-              <div><Label>Cargo</Label><Input value={roleTitle} onChange={(e) => setRoleTitle(e.target.value)} /></div>
-              <div><Label>Telefone</Label><Input value={phone} onChange={(e) => setPhone(e.target.value)} /></div>
-              <div><Label>WhatsApp</Label><Input value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} /></div>
-              <div><Label>E-mail</Label><Input value={email} onChange={(e) => setEmail(e.target.value)} /></div>
-              <div><Label>Site</Label><Input value={website} onChange={(e) => setWebsite(e.target.value)} /></div>
-              <div className="col-span-2"><Label>Foto (URL)</Label><Input value={photoUrl} onChange={(e) => setPhotoUrl(e.target.value)} /></div>
-              <div><Label>LinkedIn</Label><Input value={linkedin} onChange={(e) => setLinkedin(e.target.value)} /></div>
-              <div><Label>Instagram</Label><Input value={instagram} onChange={(e) => setInstagram(e.target.value)} /></div>
-              <div className="col-span-2"><Label>Bio</Label><Input value={bio} onChange={(e) => setBio(e.target.value)} /></div>
+          <TabsContent value="profile" className="space-y-4 pt-4">
+            <div>
+              <h4 className="text-sm font-semibold mb-2 text-muted-foreground">DADOS PESSOAIS</h4>
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label>Nome de exibição</Label><Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Mari Oliveira" /></div>
+                <div><Label>Cargo</Label><Input value={roleTitle} onChange={(e) => setRoleTitle(e.target.value)} placeholder="Gestora Comercial" /></div>
+                <div className="col-span-2"><Label>Foto (URL)</Label><Input value={photoUrl} onChange={(e) => setPhotoUrl(e.target.value)} placeholder="https://..." /></div>
+                <div className="col-span-2"><Label>Bio / frase</Label><Input value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Conectando soluções em iluminação a grandes resultados." /></div>
+              </div>
             </div>
+
+            <div>
+              <h4 className="text-sm font-semibold mb-2 text-muted-foreground">CONTATOS</h4>
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label>Telefone</Label><Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(11) 98765-4321" /></div>
+                <div><Label>WhatsApp</Label><Input value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="(11) 98765-4321" /></div>
+                <div><Label>E-mail</Label><Input value={email} onChange={(e) => setEmail(e.target.value)} /></div>
+                <div><Label>Site</Label><Input value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://..." /></div>
+                <div><Label>LinkedIn</Label><Input value={linkedin} onChange={(e) => setLinkedin(e.target.value)} /></div>
+                <div><Label>Instagram</Label><Input value={instagram} onChange={(e) => setInstagram(e.target.value)} /></div>
+                <div className="col-span-2"><Label>Endereço</Label><Input value={address} onChange={(e) => setAddress(e.target.value)} /></div>
+              </div>
+            </div>
+
+            <div>
+              <h4 className="text-sm font-semibold mb-2 text-muted-foreground">EMPRESA</h4>
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label>Nome da empresa</Label><Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Enerlight" /></div>
+                <div><Label>Logo (URL)</Label><Input value={companyLogo} onChange={(e) => setCompanyLogo(e.target.value)} placeholder="https://..." /></div>
+                <div className="col-span-2"><Label>Descrição da empresa</Label><Input value={companyDesc} onChange={(e) => setCompanyDesc(e.target.value)} placeholder="Soluções completas em iluminação LED..." /></div>
+              </div>
+            </div>
+
             <Button onClick={handleSaveProfile} disabled={saveProfile.isPending} className="w-full">
               {saveProfile.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
               Salvar perfil
             </Button>
           </TabsContent>
+
 
           <TabsContent value="write" className="space-y-4 pt-4">
             {supported ? (
