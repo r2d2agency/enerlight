@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,12 @@ interface Material {
   description?: string;
   file_url: string;
   material_type?: string;
+  category?: string | null;
+}
+
+interface BrandingTheme {
+  nfc_primary_color?: string | null;
+  nfc_accent_color?: string | null;
 }
 
 interface Props {
@@ -20,18 +26,47 @@ interface Props {
   slug: string;
   apiBase: string;
   ctaTitle?: string;
+  materials?: Material[];
+  branding?: BrandingTheme;
 }
 
-export function CatalogLeadModal({ open, onOpenChange, slug, apiBase, ctaTitle }: Props) {
+export function CatalogLeadModal({
+  open,
+  onOpenChange,
+  slug,
+  apiBase,
+  ctaTitle,
+  materials: propMaterials,
+  branding,
+}: Props) {
   const [step, setStep] = useState<"form" | "materials">("form");
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ name: "", whatsapp: "", company: "" });
-  const [materials, setMaterials] = useState<Material[]>([]);
+  const [fetchedMaterials, setFetchedMaterials] = useState<Material[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>("__all");
+
+  const primary = branding?.nfc_primary_color || "#3b82f6";
+
+  const materials = useMemo(() => {
+    return fetchedMaterials.length > 0 ? fetchedMaterials : (propMaterials || []);
+  }, [fetchedMaterials, propMaterials]);
+
+  const materialsByCategory = useMemo(() => {
+    const map: Record<string, Material[]> = {};
+    materials.forEach((m) => {
+      const k = m.category || "Geral";
+      (map[k] ||= []).push(m);
+    });
+    return map;
+  }, [materials]);
+
+  const categoryNames = useMemo(() => Object.keys(materialsByCategory), [materialsByCategory]);
 
   function reset() {
     setStep("form");
     setForm({ name: "", whatsapp: "", company: "" });
-    setMaterials([]);
+    setFetchedMaterials([]);
+    setSelectedCategory("__all");
   }
 
   function handleOpenChange(v: boolean) {
@@ -53,7 +88,6 @@ export function CatalogLeadModal({ open, onOpenChange, slug, apiBase, ctaTitle }
 
     setLoading(true);
     try {
-      // Step 1: validate WhatsApp
       const v = await fetch(`${apiBase}/api/nfc/public/${slug}/verify-whatsapp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -64,7 +98,6 @@ export function CatalogLeadModal({ open, onOpenChange, slug, apiBase, ctaTitle }
         throw new Error(vData.error || "Esse número não está no WhatsApp");
       }
 
-      // Step 2: register lead + fetch materials
       const r = await fetch(`${apiBase}/api/nfc/public/${slug}/catalog-lead`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -73,7 +106,7 @@ export function CatalogLeadModal({ open, onOpenChange, slug, apiBase, ctaTitle }
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || "Erro");
 
-      setMaterials(data.materials || []);
+      setFetchedMaterials(data.materials || []);
       setStep("materials");
       toast.success("Acesso liberado!");
     } catch (e: any) {
@@ -83,18 +116,27 @@ export function CatalogLeadModal({ open, onOpenChange, slug, apiBase, ctaTitle }
     }
   }
 
+  const visibleMaterials = useMemo(() => {
+    if (selectedCategory === "__all") return materialsByCategory;
+    const filtered: Record<string, Material[]> = {};
+    if (materialsByCategory[selectedCategory]) {
+      filtered[selectedCategory] = materialsByCategory[selectedCategory];
+    }
+    return filtered;
+  }, [materialsByCategory, selectedCategory]);
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         {step === "form" ? (
           <>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5" />
-                {ctaTitle || "Baixe nossos catálogos"}
+                {ctaTitle || "Catálogos e materiais"}
               </DialogTitle>
               <DialogDescription>
-                Preencha seus dados. Verificaremos o seu WhatsApp e liberaremos o acesso.
+                Preencha seus dados. Verificaremos o seu WhatsApp e liberaremos o acesso aos catálogos e materiais.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-3 pt-2">
@@ -120,15 +162,16 @@ export function CatalogLeadModal({ open, onOpenChange, slug, apiBase, ctaTitle }
                 <Input
                   value={form.company}
                   onChange={(e) => setForm({ ...form, company: e.target.value })}
+                  placeholder="Sua empresa"
                 />
               </div>
               <p className="text-xs text-muted-foreground flex items-center gap-1.5">
                 <ShieldCheck className="h-3.5 w-3.5" />
                 Validamos seu número junto ao WhatsApp para liberar o material.
               </p>
-              <Button onClick={submit} disabled={loading} className="w-full">
+              <Button onClick={submit} disabled={loading} className="w-full" style={{ background: primary }}>
                 {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
-                Verificar e Liberar
+                Verificar e liberar
               </Button>
             </div>
           </>
@@ -136,38 +179,80 @@ export function CatalogLeadModal({ open, onOpenChange, slug, apiBase, ctaTitle }
           <>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-green-600">
-                <CheckCircle2 className="h-5 w-5" /> Acesso Liberado
+                <CheckCircle2 className="h-5 w-5" /> Acesso liberado
               </DialogTitle>
               <DialogDescription>
                 Clique no material que deseja baixar.
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-2 pt-2 max-h-[60vh] overflow-y-auto">
-              {materials.length === 0 && (
+
+            <div className="space-y-4 pt-2">
+              {categoryNames.length > 1 && (
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  <button
+                    onClick={() => setSelectedCategory("__all")}
+                    className={`text-xs px-3 py-1.5 rounded-full whitespace-nowrap border transition ${
+                      selectedCategory === "__all"
+                        ? "bg-white text-black border-white"
+                        : "text-white/70 border-white/20 hover:bg-white/10"
+                    }`}
+                  >
+                    Todos
+                  </button>
+                  {categoryNames.map((cat) => (
+                    <button
+                      key={cat}
+                      onClick={() => setSelectedCategory(cat)}
+                      className={`text-xs px-3 py-1.5 rounded-full whitespace-nowrap border transition ${
+                        selectedCategory === cat
+                          ? "bg-white text-black border-white"
+                          : "text-white/70 border-white/20 hover:bg-white/10"
+                      }`}
+                    >
+                      {cat} <span className="opacity-60">({materialsByCategory[cat].length})</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {Object.keys(visibleMaterials).length === 0 && (
                 <p className="text-sm text-muted-foreground text-center py-6">
                   Nenhum material disponível ainda.
                 </p>
               )}
-              {materials.map((m) => (
-                <a
-                  key={m.id}
-                  href={m.file_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="block border rounded-lg p-3 hover:bg-muted/50 transition"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-lg bg-primary/10 p-2 text-primary">
-                      <FileText className="h-5 w-5" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium truncate">{m.title}</div>
-                      {m.description && (
-                        <div className="text-xs text-muted-foreground truncate">{m.description}</div>
-                      )}
-                    </div>
+
+              {Object.entries(visibleMaterials).map(([cat, list]) => (
+                <div key={cat}>
+                  {categoryNames.length > 1 && (
+                    <h4 className="text-white/80 text-xs font-semibold tracking-widest uppercase mb-2">{cat}</h4>
+                  )}
+                  <div className="grid grid-cols-1 gap-2">
+                    {list.map((m) => (
+                      <a
+                        key={m.id}
+                        href={m.file_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="block border border-white/10 rounded-xl p-3 hover:bg-white/10 transition"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="rounded-lg p-2 text-white"
+                            style={{ background: `${primary}22` }}
+                          >
+                            <FileText className="h-5 w-5" style={{ color: primary }} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-white truncate">{m.title}</div>
+                            {m.description && (
+                              <div className="text-xs text-white/60 truncate">{m.description}</div>
+                            )}
+                          </div>
+                        </div>
+                      </a>
+                    ))}
                   </div>
-                </a>
+                </div>
               ))}
             </div>
           </>

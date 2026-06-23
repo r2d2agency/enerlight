@@ -241,17 +241,17 @@ export default function PublicNfcCard() {
           </SectionCard>
         )}
 
-        {/* CTA Baixar Catálogos (gera lead com verificação WhatsApp) */}
+        {/* CTA Catálogos e materiais (gera lead com verificação WhatsApp) */}
         {(p.catalog_cta_enabled !== false) && (
           <SectionCard>
             <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-4 items-center">
               <div className="flex items-start gap-3">
-                <div className="rounded-full bg-[#16a34a]/20 ring-1 ring-[#22c55e]/40 p-3 text-[#22c55e]">
+                <div className="rounded-full bg-[#1e3a8a]/40 ring-1 ring-[#3b82f6]/40 p-3 text-[#60a5fa]">
                   <FileText className="h-6 w-6" />
                 </div>
                 <div>
                   <h3 className="text-white font-bold tracking-wide">
-                    {p.catalog_cta_title || "BAIXE NOSSOS CATÁLOGOS"}
+                    {p.catalog_cta_title || "CATÁLOGOS E MATERIAIS"}
                   </h3>
                   <p className="text-white/60 text-sm mt-1">
                     {p.catalog_cta_subtitle || "Informe seu WhatsApp e libere acesso aos catálogos e materiais."}
@@ -261,9 +261,9 @@ export default function PublicNfcCard() {
               <button
                 onClick={() => setCatalogOpen(true)}
                 className="rounded-xl px-5 py-3 text-white font-semibold transition flex items-center gap-2 justify-center active:scale-[0.98]"
-                style={{ background: "linear-gradient(180deg,#22c55e,#16a34a)", boxShadow: "0 10px 24px -10px rgba(34,197,94,0.6)" }}
+                style={{ background: "linear-gradient(180deg,#1e3a8a,#1e40af)", boxShadow: "0 8px 24px -10px rgba(59,130,246,0.6)" }}
               >
-                <FileText className="h-4 w-4" /> Quero receber
+                <FileText className="h-4 w-4" /> Ver materiais
               </button>
             </div>
           </SectionCard>
@@ -450,6 +450,8 @@ export default function PublicNfcCard() {
         slug={slug}
         apiBase={API_BASE}
         ctaTitle={p.catalog_cta_title}
+        materials={data?.materials || []}
+        branding={data?.branding || {}}
       />
     </div>
   );
