@@ -1,7 +1,7 @@
 import { DevolucaoStatus } from "@/hooks/use-devolucoes";
 
 // SLA em horas por etapa (tempo máximo esperado para sair desse status)
-export const SLA_HOURS: Record<string, number> = {
+export const DEFAULT_SLA_HOURS: Record<string, number> = {
   solicitado: 24,
   aguardando_nf_produto: 72,
   recebido: 24,
@@ -25,19 +25,25 @@ export interface SlaInfo {
 
 const FINAL_STATUSES: DevolucaoStatus[] = ['concluido', 'recusado', 'cancelado'];
 
-export function computeSla(status: DevolucaoStatus, updatedAt?: string, createdAt?: string): SlaInfo {
-  if (FINAL_STATUSES.includes(status) || !SLA_HOURS[status]) {
+export function computeSla(
+  status: DevolucaoStatus,
+  updatedAt?: string,
+  createdAt?: string,
+  config?: Record<string, number>
+): SlaInfo {
+  const slaHours = config || DEFAULT_SLA_HOURS;
+  if (FINAL_STATUSES.includes(status) || !slaHours[status]) {
     return { level: 'none', hoursInStage: 0, hoursRemaining: 0, slaHours: 0, label: '—', color: '' };
   }
   const ref = new Date(updatedAt || createdAt || Date.now()).getTime();
   const now = Date.now();
   const hoursInStage = Math.max(0, (now - ref) / 36e5);
-  const slaHours = SLA_HOURS[status];
-  const hoursRemaining = slaHours - hoursInStage;
+  const statusSlaHours = slaHours[status];
+  const hoursRemaining = statusSlaHours - hoursInStage;
 
   let level: SlaLevel = 'on_time';
   if (hoursRemaining < 0) level = 'overdue';
-  else if (hoursRemaining < slaHours * 0.25) level = 'warning';
+  else if (hoursRemaining < statusSlaHours * 0.25) level = 'warning';
 
   const label =
     level === 'overdue'
@@ -53,7 +59,7 @@ export function computeSla(status: DevolucaoStatus, updatedAt?: string, createdA
       ? 'bg-amber-100 text-amber-700 border-amber-300'
       : 'bg-emerald-100 text-emerald-700 border-emerald-300';
 
-  return { level, hoursInStage, hoursRemaining, slaHours, label, color };
+  return { level, hoursInStage, hoursRemaining, slaHours: statusSlaHours, label, color };
 }
 
 function formatDur(hours: number): string {
