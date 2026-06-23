@@ -289,7 +289,10 @@ export function NfcCardDialog({ open, onOpenChange, card }: Props) {
               <div className="grid grid-cols-2 gap-3">
                 <div><Label>Nome de exibição</Label><Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Mari Oliveira" /></div>
                 <div><Label>Cargo</Label><Input value={roleTitle} onChange={(e) => setRoleTitle(e.target.value)} placeholder="Gestora Comercial" /></div>
-                <div className="col-span-2"><Label>Foto (URL)</Label><Input value={photoUrl} onChange={(e) => setPhotoUrl(e.target.value)} placeholder="https://..." /></div>
+                <div className="col-span-2">
+                  <Label>Foto do vendedor</Label>
+                  <ImageDropUpload value={photoUrl} onChange={setPhotoUrl} />
+                </div>
                 <div className="col-span-2"><Label>Bio / frase</Label><Input value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Conectando soluções em iluminação a grandes resultados." /></div>
               </div>
             </div>
