@@ -132,6 +132,13 @@ export function NfcBrandingDialog({ open, onOpenChange }: Props) {
               />
             </div>
 
+            <div className="border-t pt-5">
+              <NfcCategoriesManager />
+              <p className="text-xs text-muted-foreground mt-2">
+                As categorias aparecem como cards visuais no cartão público. Cada vendedor escolhe (na aba <b>Perfil</b>) quais categorias devem aparecer no seu cartão.
+              </p>
+            </div>
+
             <Button onClick={handleSave} disabled={saving} className="w-full">
               {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
               Salvar branding
