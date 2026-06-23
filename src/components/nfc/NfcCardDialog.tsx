@@ -46,6 +46,13 @@ export function NfcCardDialog({ open, onOpenChange, card }: Props) {
   const [address, setAddress] = useState("");
   const [slug, setSlug] = useState("");
   const [savingSlug, setSavingSlug] = useState(false);
+  // showcase + cta
+  const [showcaseTitle, setShowcaseTitle] = useState("");
+  const [showcaseDesc, setShowcaseDesc] = useState("");
+  const [showcaseImage, setShowcaseImage] = useState("");
+  const [catalogEnabled, setCatalogEnabled] = useState(true);
+  const [catalogTitle, setCatalogTitle] = useState("");
+  const [catalogSubtitle, setCatalogSubtitle] = useState("");
 
   const createCard = useCreateNfcCard();
   const saveProfile = useSaveNfcProfile();
