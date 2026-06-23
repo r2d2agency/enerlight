@@ -39,6 +39,7 @@ export default function PublicNfcCard() {
 
   const p = data?.profile || {};
   const name = p.display_name || data?.card.public_slug;
+  const heroLogo = p.company_logo_url || data?.org_logo || null;
   const wppDigits = useMemo(() => (p.whatsapp || "").replace(/\D/g, ""), [p.whatsapp]);
   const wppHuman = p.whatsapp;
   const siteShort = (p.website || "").replace(/^https?:\/\//, "").replace(/\/$/, "");
