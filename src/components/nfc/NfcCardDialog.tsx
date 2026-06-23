@@ -12,6 +12,7 @@ import { isWebNfcSupported, scanNfcTag, writeNfcUrl } from "@/lib/nfc-web-api";
 import { useCreateNfcCard, useSaveNfcProfile, useUpdateNfcCard, useNfcCard, NfcCard } from "@/hooks/use-nfc";
 import { NfcWriteTutorial } from "./NfcWriteTutorial";
 import { api } from "@/lib/api";
+import { ImageDropUpload } from "./ImageDropUpload";
 
 interface Props {
   open: boolean;
