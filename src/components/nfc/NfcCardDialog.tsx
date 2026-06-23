@@ -167,6 +167,7 @@ export function NfcCardDialog({ open, onOpenChange, card }: Props) {
           catalog_cta_enabled: catalogEnabled,
           catalog_cta_title: catalogTitle || null,
           catalog_cta_subtitle: catalogSubtitle || null,
+          selected_categories: selectedCats,
         },
       });
       toast.success("Perfil salvo");
