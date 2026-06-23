@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useDevolucoes, useDevolucoesStats, STATUS_LABELS, REASON_LABELS, DevolucaoStatus } from "@/hooks/use-devolucoes";
+import { useDevolucoes, useDevolucoesStats, useDevolucaoSlaConfig, STATUS_LABELS, REASON_LABELS, DevolucaoStatus } from "@/hooks/use-devolucoes";
 import { DevolucaoKanban } from "@/components/devolucoes/DevolucaoKanban";
 import { DevolucaoFormDialog } from "@/components/devolucoes/DevolucaoFormDialog";
 import { DevolucaoDetailDialog } from "@/components/devolucoes/DevolucaoDetailDialog";
