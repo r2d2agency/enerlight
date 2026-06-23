@@ -354,8 +354,7 @@ export function DevolucaoDetailDialog({ open, onOpenChange, devolucaoId }: Props
     </Dialog>
   );
 }
-  );
-}
+
 
 function InfoRow({ label, value }: { label: string; value?: string | null }) {
   return (
