@@ -84,12 +84,24 @@ export default function Devolucoes() {
                 : 'Controle de RMA: solicitação, análise, troca/conserto e fretes'}
             </p>
           </div>
-          {canCreate && (
-            <Button onClick={() => { setEditing(null); setShowForm(true); }}>
-              <Plus className="h-4 w-4 mr-2" /> Nova devolução
-            </Button>
-          )}
-        </div>
+          <div className="flex items-center gap-2">
+            {canManageSla && (
+              <Button
+                variant="outline"
+                size="icon"
+                title="Configurar SLA das devoluções"
+                onClick={() => setShowSlaConfig(true)}
+              >
+                <Settings className="h-4 w-4" />
+              </Button>
+            )}
+            {canCreate && (
+              <Button onClick={() => { setEditing(null); setShowForm(true); }}>
+                <Plus className="h-4 w-4 mr-2" /> Nova devolução
+              </Button>
+            )}
+          </div>
+
 
         {/* Stats */}
         {stats && !simplified && (
