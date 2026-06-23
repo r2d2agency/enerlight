@@ -269,6 +269,41 @@ export default function PublicNfcCard() {
           </SectionCard>
         )}
 
+        {/* Categorias visuais (seleção por vendedor) */}
+        {data.categories && data.categories.length > 0 && (
+          <SectionCard>
+            <SectionTitle>CATEGORIAS</SectionTitle>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3">
+              {data.categories.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => {
+                    setMaterialsOpen(true);
+                    setMatCat(c.name);
+                    setTimeout(() => {
+                      document.getElementById("nfc-materials")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }, 60);
+                  }}
+                  className="group relative aspect-square rounded-xl overflow-hidden ring-1 ring-white/10 bg-white/5 hover:ring-white/30 transition"
+                >
+                  {c.image_url ? (
+                    <img src={c.image_url} alt={c.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center text-white/30">
+                      <FileText className="h-8 w-8" />
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
+                  <div className="absolute bottom-0 left-0 right-0 p-3 text-left">
+                    <p className="text-white font-semibold text-sm leading-tight drop-shadow line-clamp-2">{c.name}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </SectionCard>
+        )}
+
+
         {/* Empresa */}
         {(p.company_description || heroLogo || p.company_name) && (
           <SectionCard>
