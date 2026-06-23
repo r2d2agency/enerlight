@@ -131,6 +131,8 @@ export function NfcCardDialog({ open, onOpenChange, card }: Props) {
           display_name: displayName || null,
           role_title: roleTitle || null,
           company_name: companyName || null,
+          company_logo_url: companyLogo || null,
+          company_description: companyDesc || null,
           phone: phone || null,
           whatsapp: whatsapp || null,
           email: email || null,
@@ -139,6 +141,7 @@ export function NfcCardDialog({ open, onOpenChange, card }: Props) {
           linkedin: linkedin || null,
           instagram: instagram || null,
           bio: bio || null,
+          address: address || null,
         },
       });
       toast.success("Perfil salvo");
@@ -146,6 +149,20 @@ export function NfcCardDialog({ open, onOpenChange, card }: Props) {
       toast.error(e.message);
     }
   }
+
+  async function handleSaveSlug() {
+    if (!created) return;
+    setSavingSlug(true);
+    try {
+      const updated = await updateCard.mutateAsync({ id: created.id, public_slug: slug });
+      setCreated(updated);
+      setSlug(updated.public_slug);
+      toast.success("Slug atualizado!");
+    } catch (e: any) {
+      toast.error(e.message || "Erro ao salvar slug");
+    } finally { setSavingSlug(false); }
+  }
+
 
   async function handleWrite() {
     if (!created) return toast.error("Crie o cartão primeiro");
