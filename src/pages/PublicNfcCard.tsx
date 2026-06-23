@@ -458,7 +458,7 @@ function SectionTitle({ children }: any) {
   return (
     <div className="flex items-center gap-3">
       <h2 className="text-white font-bold tracking-widest text-sm">{children}</h2>
-      <div className="flex-1 h-px" style={{ background: `linear-gradient(90deg, ${accent || "#fbbf24"}, transparent)` }} />
+      <div className="flex-1 h-px" style={{ background: "linear-gradient(90deg,#fbbf24,transparent)" }} />
     </div>
   );
 }
