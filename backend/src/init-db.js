@@ -5159,7 +5159,9 @@ const migrationSteps = [
   { name: 'Online Quote Templates', sql: step65OnlineQuoteTemplates, critical: false },
   { name: 'Online Quote Items Discount', sql: step66OnlineQuoteItemsDiscount, critical: false },
   { name: 'Calculator Categories', sql: step67CalcCategories, critical: false },
+  { name: 'NFC Cards Module', sql: step68NFC, critical: false },
 ];
+
 
 
 export async function initDatabase() {
