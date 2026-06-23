@@ -151,7 +151,7 @@ const Configuracoes = () => {
         </div>
 
         <Tabs defaultValue="geral" className="w-full">
-          <TabsList className={`grid w-full ${showLeadGleegoTab ? 'grid-cols-5' : 'grid-cols-4'} lg:w-[${showLeadGleegoTab ? '750' : '600'}px]`}>
+          <TabsList className={`grid w-full ${showLeadGleegoTab ? 'grid-cols-6' : 'grid-cols-5'} lg:w-[${showLeadGleegoTab ? '900' : '750'}px]`}>
             <TabsTrigger value="geral" className="flex items-center gap-2">
               <Settings className="h-4 w-4" />
               Geral
@@ -164,6 +164,12 @@ const Configuracoes = () => {
               <Mail className="h-4 w-4" />
               E-mail
             </TabsTrigger>
+            {isAdminRole && (
+              <TabsTrigger value="devolucoes" className="flex items-center gap-2">
+                <RotateCcw className="h-4 w-4" />
+                Devoluções
+              </TabsTrigger>
+            )}
             {showLeadGleegoTab && (
               <TabsTrigger value="lead-gleego" className="flex items-center gap-2">
                 <Zap className="h-4 w-4" />
