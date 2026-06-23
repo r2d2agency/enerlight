@@ -459,6 +459,12 @@ router.get('/public/:slug', async (req, res) => {
       [card.id]
     );
 
+    // Org-level default NFC logo (from system_settings)
+    const sysLogo = await query(
+      `SELECT value FROM system_settings WHERE key = 'nfc_default_logo' LIMIT 1`
+    );
+    const orgLogo = sysLogo.rows[0]?.value || null;
+
     // Register read (async, do not block response)
     const ip = (req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || '').trim();
     const ua = req.headers['user-agent'] || '';
