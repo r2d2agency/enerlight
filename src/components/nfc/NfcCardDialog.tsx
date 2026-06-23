@@ -382,6 +382,41 @@ export function NfcCardDialog({ open, onOpenChange, card }: Props) {
               </p>
             </div>
 
+            <div>
+              <h4 className="text-sm font-semibold mb-2 text-muted-foreground">CATEGORIAS VISUAIS DESTE CARTÃO</h4>
+              {orgCategories.items.length === 0 ? (
+                <p className="text-xs text-muted-foreground border rounded-md p-3">
+                  Nenhuma categoria cadastrada ainda. Cadastre em <b>Branding visual</b> &gt; Categorias visuais.
+                </p>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {orgCategories.items.map((c) => {
+                    const active = selectedCats.includes(c.name);
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => setSelectedCats((s) => active ? s.filter(x => x !== c.name) : [...s, c.name])}
+                        className={`relative aspect-square rounded-lg overflow-hidden border-2 transition ${active ? "border-primary ring-2 ring-primary/30" : "border-transparent opacity-70 hover:opacity-100"}`}
+                      >
+                        {c.image_url ? (
+                          <img src={c.image_url} alt={c.name} className="absolute inset-0 w-full h-full object-cover" />
+                        ) : (
+                          <div className="absolute inset-0 bg-muted" />
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+                        <span className="absolute bottom-1 left-2 right-2 text-white text-xs font-semibold truncate text-left">{c.name}</span>
+                        {active && <span className="absolute top-1 right-1 bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 rounded">✓</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground mt-2">
+                Marque as categorias que devem aparecer no cartão deste vendedor. Os visitantes clicam para abrir os materiais filtrados.
+              </p>
+            </div>
+
 
             <Button onClick={handleSaveProfile} disabled={saveProfile.isPending} className="w-full">
               {saveProfile.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
