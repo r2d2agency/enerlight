@@ -14,6 +14,7 @@ import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianG
 
 export default function CartoesNFC() {
   const [open, setOpen] = useState(false);
+  const [brandingOpen, setBrandingOpen] = useState(false);
   const [editing, setEditing] = useState<NfcCard | null>(null);
   const [search, setSearch] = useState("");
   const { data: dash } = useNfcDashboard();
