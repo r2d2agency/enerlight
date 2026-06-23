@@ -30,7 +30,14 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function Devolucoes() {
-  const [view, setView] = useState<'kanban' | 'lista'>('kanban');
+  const { user, userPermissions } = useAuth();
+  const role = user?.role || '';
+  const isElevated = ['owner', 'admin', 'manager', 'supervisor'].includes(role);
+  const canCreate = isElevated || userPermissions?.can_create_devolucoes !== false;
+  const canSeeAll = isElevated || userPermissions?.can_manage_devolucoes === true;
+  const simplified = !canSeeAll;
+
+  const [view, setView] = useState<'kanban' | 'lista'>(simplified ? 'lista' : 'kanban');
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<string>('all');
   const [reason, setReason] = useState<string>('all');
