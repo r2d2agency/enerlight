@@ -353,7 +353,7 @@ router.put('/cards/:id/profile', authenticate, async (req, res) => {
     if (!own.rows[0]) return res.status(404).json({ error: 'Cartão não encontrado' });
 
     const p = req.body || {};
-    const cols = ['display_name','role_title','company_name','company_logo_url','company_description','photo_url','bio','phone','whatsapp','email','website','address','linkedin','instagram','facebook','youtube','meta_pixel_id','ga_id'];
+    const cols = ['display_name','role_title','company_name','company_logo_url','company_description','photo_url','bio','phone','whatsapp','email','website','address','linkedin','instagram','facebook','youtube','meta_pixel_id','ga_id','showcase_title','showcase_description','showcase_image_url','catalog_cta_enabled','catalog_cta_title','catalog_cta_subtitle'];
     const vals = cols.map(c => p[c] ?? null);
 
     const upsert = await query(
