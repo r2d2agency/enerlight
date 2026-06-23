@@ -624,9 +624,6 @@ router.get('/public/:slug', async (req, res) => {
         cats = catRows.rows;
       }
     }
-    const branding = {};
-    brandRows.rows.forEach(r => branding[r.key] = r.value);
-    const orgLogo = branding.nfc_default_logo || null;
 
     // Register read (async, do not block response)
     const ip = (req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || '').trim();
