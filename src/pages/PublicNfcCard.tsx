@@ -5,6 +5,7 @@ import {
   Linkedin, Instagram, ExternalLink, FileText, Loader2, Radio,
 } from "lucide-react";
 import { LeadCaptureModal } from "@/components/nfc/LeadCaptureModal";
+import { CatalogLeadModal } from "@/components/nfc/CatalogLeadModal";
 
 const API_BASE = import.meta.env.VITE_API_URL || "";
 
@@ -22,6 +23,7 @@ export default function PublicNfcCard() {
   const [leadOpen, setLeadOpen] = useState(false);
   const [materialsOpen, setMaterialsOpen] = useState(false);
   const [activeMat, setActiveMat] = useState<any>(null);
+  const [catalogOpen, setCatalogOpen] = useState(false);
 
   useEffect(() => {
     fetch(`${API_BASE}/api/nfc/public/${slug}${window.location.search}`)
@@ -186,6 +188,57 @@ export default function PublicNfcCard() {
           </div>
         </SectionCard>
 
+        {/* Showcase configurável */}
+        {(p.showcase_title || p.showcase_description || p.showcase_image_url) && (
+          <SectionCard>
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr] gap-5 items-center">
+              {p.showcase_image_url && (
+                <div className="rounded-xl overflow-hidden ring-1 ring-white/10 aspect-video sm:aspect-square bg-black/30">
+                  <img src={p.showcase_image_url} alt={p.showcase_title || "Destaque"} className="w-full h-full object-cover" />
+                </div>
+              )}
+              <div className={p.showcase_image_url ? "" : "sm:col-span-2"}>
+                {p.showcase_title && (
+                  <h3 className="text-white font-bold text-xl leading-tight">{p.showcase_title}</h3>
+                )}
+                {p.showcase_description && (
+                  <p className="text-white/70 text-sm leading-relaxed mt-2 whitespace-pre-line">
+                    {p.showcase_description}
+                  </p>
+                )}
+              </div>
+            </div>
+          </SectionCard>
+        )}
+
+        {/* CTA Baixar Catálogos (gera lead com verificação WhatsApp) */}
+        {(p.catalog_cta_enabled !== false) && (
+          <SectionCard>
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-4 items-center">
+              <div className="flex items-start gap-3">
+                <div className="rounded-full bg-[#16a34a]/20 ring-1 ring-[#22c55e]/40 p-3 text-[#22c55e]">
+                  <FileText className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className="text-white font-bold tracking-wide">
+                    {p.catalog_cta_title || "BAIXE NOSSOS CATÁLOGOS"}
+                  </h3>
+                  <p className="text-white/60 text-sm mt-1">
+                    {p.catalog_cta_subtitle || "Informe seu WhatsApp e libere acesso aos catálogos e materiais."}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setCatalogOpen(true)}
+                className="rounded-xl px-5 py-3 text-white font-semibold transition flex items-center gap-2 justify-center active:scale-[0.98]"
+                style={{ background: "linear-gradient(180deg,#22c55e,#16a34a)", boxShadow: "0 10px 24px -10px rgba(34,197,94,0.6)" }}
+              >
+                <FileText className="h-4 w-4" /> Quero receber
+              </button>
+            </div>
+          </SectionCard>
+        )}
+
         {/* Empresa */}
         {(p.company_description || p.company_logo_url || p.company_name) && (
           <SectionCard>
@@ -293,6 +346,14 @@ export default function PublicNfcCard() {
           apiBase={API_BASE}
         />
       )}
+
+      <CatalogLeadModal
+        open={catalogOpen}
+        onOpenChange={setCatalogOpen}
+        slug={slug}
+        apiBase={API_BASE}
+        ctaTitle={p.catalog_cta_title}
+      />
     </div>
   );
 }

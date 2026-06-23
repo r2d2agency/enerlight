@@ -46,6 +46,13 @@ export function NfcCardDialog({ open, onOpenChange, card }: Props) {
   const [address, setAddress] = useState("");
   const [slug, setSlug] = useState("");
   const [savingSlug, setSavingSlug] = useState(false);
+  // showcase + cta
+  const [showcaseTitle, setShowcaseTitle] = useState("");
+  const [showcaseDesc, setShowcaseDesc] = useState("");
+  const [showcaseImage, setShowcaseImage] = useState("");
+  const [catalogEnabled, setCatalogEnabled] = useState(true);
+  const [catalogTitle, setCatalogTitle] = useState("");
+  const [catalogSubtitle, setCatalogSubtitle] = useState("");
 
   const createCard = useCreateNfcCard();
   const saveProfile = useSaveNfcProfile();
@@ -90,6 +97,12 @@ export function NfcCardDialog({ open, onOpenChange, card }: Props) {
       setCompanyLogo(p.company_logo_url || "");
       setCompanyDesc(p.company_description || "");
       setAddress(p.address || "");
+      setShowcaseTitle(p.showcase_title || "");
+      setShowcaseDesc(p.showcase_description || "");
+      setShowcaseImage(p.showcase_image_url || "");
+      setCatalogEnabled(p.catalog_cta_enabled !== false);
+      setCatalogTitle(p.catalog_cta_title || "");
+      setCatalogSubtitle(p.catalog_cta_subtitle || "");
     }
   }, [cardDetail.data]);
 
@@ -143,6 +156,12 @@ export function NfcCardDialog({ open, onOpenChange, card }: Props) {
           instagram: instagram || null,
           bio: bio || null,
           address: address || null,
+          showcase_title: showcaseTitle || null,
+          showcase_description: showcaseDesc || null,
+          showcase_image_url: showcaseImage || null,
+          catalog_cta_enabled: catalogEnabled,
+          catalog_cta_title: catalogTitle || null,
+          catalog_cta_subtitle: catalogSubtitle || null,
         },
       });
       toast.success("Perfil salvo");
@@ -318,6 +337,44 @@ export function NfcCardDialog({ open, onOpenChange, card }: Props) {
                 <div className="col-span-2"><Label>Descrição da empresa</Label><Input value={companyDesc} onChange={(e) => setCompanyDesc(e.target.value)} placeholder="Soluções completas em iluminação LED..." /></div>
               </div>
             </div>
+
+            <div>
+              <h4 className="text-sm font-semibold mb-2 text-muted-foreground">SEÇÃO DE DESTAQUE (abaixo dos contatos)</h4>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2">
+                  <Label>Imagem de destaque</Label>
+                  <ImageDropUpload value={showcaseImage} onChange={setShowcaseImage} aspect="wide" enablePaste={false} />
+                </div>
+                <div className="col-span-2"><Label>Título do destaque</Label><Input value={showcaseTitle} onChange={(e) => setShowcaseTitle(e.target.value)} placeholder="Soluções em iluminação LED" /></div>
+                <div className="col-span-2">
+                  <Label>Texto / descrição</Label>
+                  <textarea
+                    className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={showcaseDesc}
+                    onChange={(e) => setShowcaseDesc(e.target.value)}
+                    placeholder="Desenvolvemos soluções completas para indústrias, postos, condomínios..."
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-sm font-semibold text-muted-foreground">CTA — BAIXAR CATÁLOGOS</h4>
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input type="checkbox" checked={catalogEnabled} onChange={(e) => setCatalogEnabled(e.target.checked)} />
+                  Ativo
+                </label>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2"><Label>Título do CTA</Label><Input value={catalogTitle} onChange={(e) => setCatalogTitle(e.target.value)} placeholder="BAIXE NOSSOS CATÁLOGOS" /></div>
+                <div className="col-span-2"><Label>Subtítulo / chamada</Label><Input value={catalogSubtitle} onChange={(e) => setCatalogSubtitle(e.target.value)} placeholder="Informe seu WhatsApp e libere acesso..." /></div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                Ao clicar, o visitante informa nome + WhatsApp. Após validação real do WhatsApp, os materiais são liberados e o lead é salvo em <b>Prospects</b> com origem <code>NFC: {slug || "slug"}</code>.
+              </p>
+            </div>
+
 
             <Button onClick={handleSaveProfile} disabled={saveProfile.isPending} className="w-full">
               {saveProfile.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
