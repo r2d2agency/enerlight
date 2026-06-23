@@ -102,15 +102,41 @@ router.get('/stats', async (req, res) => {
 });
 
 // ============================================ SLA CONFIG
+async function ensureSlaTable() {
+  await query(`
+    CREATE TABLE IF NOT EXISTS devolucao_sla_configs (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL,
+      status TEXT NOT NULL,
+      hours INTEGER NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE (organization_id, status)
+    )
+  `);
+  await query(`CREATE INDEX IF NOT EXISTS idx_devolucao_sla_configs_org ON devolucao_sla_configs(organization_id)`);
+}
+
 router.get('/sla-config', async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'Sem organização' });
-    const r = await query('SELECT status, hours FROM devolucao_sla_configs WHERE organization_id = $1', [org.organization_id]);
-    const saved = {};
-    for (const row of r.rows) saved[row.status] = row.hours;
-    res.json({ ...DEFAULT_SLA_HOURS, ...saved });
-  } catch (e) { console.error('get sla config', e); res.status(500).json({ error: e.message }); }
+    try {
+      const r = await query('SELECT status, hours FROM devolucao_sla_configs WHERE organization_id = $1', [org.organization_id]);
+      const saved = {};
+      for (const row of r.rows) saved[row.status] = row.hours;
+      return res.json({ ...DEFAULT_SLA_HOURS, ...saved });
+    } catch (innerErr) {
+      if (innerErr && (innerErr.code === '42P01' || /does not exist/i.test(innerErr.message || ''))) {
+        await ensureSlaTable();
+        return res.json({ ...DEFAULT_SLA_HOURS });
+      }
+      throw innerErr;
+    }
+  } catch (e) {
+    console.error('get sla config', e);
+    res.json({ ...DEFAULT_SLA_HOURS });
+  }
 });
 
 router.put('/sla-config', async (req, res) => {
@@ -120,6 +146,7 @@ router.put('/sla-config', async (req, res) => {
     if (!['owner','admin','superadmin'].includes(org.role)) {
       return res.status(403).json({ error: 'Apenas administradores podem configurar o SLA' });
     }
+    await ensureSlaTable();
     const b = req.body || {};
     for (const [status, rawHours] of Object.entries(b)) {
       if (!(status in DEFAULT_SLA_HOURS)) continue;
@@ -139,6 +166,7 @@ router.put('/sla-config', async (req, res) => {
     res.json({ ...DEFAULT_SLA_HOURS, ...saved });
   } catch (e) { console.error('put sla config', e); res.status(500).json({ error: e.message }); }
 });
+
 
 // ============================================ GET
 router.get('/:id', async (req, res) => {
