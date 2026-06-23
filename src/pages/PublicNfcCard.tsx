@@ -9,11 +9,22 @@ import { CatalogLeadModal } from "@/components/nfc/CatalogLeadModal";
 
 const API_BASE = import.meta.env.VITE_API_URL || "";
 
+interface BrandingTheme {
+  nfc_default_logo?: string | null;
+  nfc_primary_color?: string | null;
+  nfc_accent_color?: string | null;
+  nfc_bg_color?: string | null;
+  nfc_bg_gradient?: string | null;
+  nfc_brand_name?: string | null;
+  nfc_footer_text?: string | null;
+}
+
 interface CardData {
   card: { id: string; public_slug: string; public_url: string; qr_code_url: string };
   profile: any;
   materials: any[];
   org_logo?: string | null;
+  branding?: BrandingTheme;
 }
 
 export default function PublicNfcCard() {
