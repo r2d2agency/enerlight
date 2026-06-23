@@ -249,6 +249,8 @@ app.use('/api/rh', rhRoutes);
 app.use('/api/calc-categories', calcCategoriesRoutes);
 app.use('/api/supervisor-ia', supervisorIaRoutes);
 app.use('/api/meu-dia', meuDiaRoutes);
+app.use('/api/nfc', nfcRoutes);
+
 
 
 app.get('/health', (req, res) => {
