@@ -45,6 +45,7 @@ interface Props {
 export function DevolucaoDetailDialog({ open, onOpenChange, devolucaoId }: Props) {
   const { user } = useAuth();
   const { data: dev, isLoading } = useDevolucao(devolucaoId);
+  const { data: carriers = [] } = useLogisticsCarriers();
   const { update, changeStatus } = useDevolucaoMutations();
   const anexoMut = useDevolucaoAnexoMutations();
   const eventoMut = useDevolucaoEventoMutations();
