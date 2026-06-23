@@ -18,6 +18,17 @@ const ALLOWED_STATUS = [
   'aguardando_nf_retorno', 'troca_conserto', 'enviado', 'concluido', 'recusado', 'cancelado'
 ];
 
+const DEFAULT_SLA_HOURS = {
+  solicitado: 24,
+  aguardando_nf_produto: 72,
+  recebido: 24,
+  em_analise: 72,
+  cliente_notificado: 48,
+  aguardando_nf_retorno: 120,
+  troca_conserto: 96,
+  enviado: 72,
+};
+
 async function logEvent(devolucao_id, user_id, event_type, payload = {}) {
   try {
     await query(
