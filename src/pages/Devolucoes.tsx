@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth } from "@/contexts/AuthContext";
 import { useDevolucoes, useDevolucoesStats, useDevolucaoSlaConfig, STATUS_LABELS, REASON_LABELS, DevolucaoStatus } from "@/hooks/use-devolucoes";
 import { DevolucaoKanban } from "@/components/devolucoes/DevolucaoKanban";
 import { DevolucaoFormDialog } from "@/components/devolucoes/DevolucaoFormDialog";
@@ -29,7 +30,14 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function Devolucoes() {
-  const [view, setView] = useState<'kanban' | 'lista'>('kanban');
+  const { user, userPermissions } = useAuth();
+  const role = user?.role || '';
+  const isElevated = ['owner', 'admin', 'manager', 'supervisor'].includes(role);
+  const canCreate = isElevated || userPermissions?.can_create_devolucoes !== false;
+  const canSeeAll = isElevated || userPermissions?.can_manage_devolucoes === true;
+  const simplified = !canSeeAll;
+
+  const [view, setView] = useState<'kanban' | 'lista'>(simplified ? 'lista' : 'kanban');
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<string>('all');
   const [reason, setReason] = useState<string>('all');
@@ -62,17 +70,23 @@ export default function Devolucoes() {
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
               <RotateCcw className="h-6 w-6 text-primary" />
-              Devoluções
+              {simplified ? 'Minhas Devoluções' : 'Devoluções'}
             </h1>
-            <p className="text-muted-foreground text-sm">Controle de RMA: solicitação, análise, troca/conserto e fretes</p>
+            <p className="text-muted-foreground text-sm">
+              {simplified
+                ? 'Abra solicitações de RMA e acompanhe o andamento das suas devoluções'
+                : 'Controle de RMA: solicitação, análise, troca/conserto e fretes'}
+            </p>
           </div>
-          <Button onClick={() => { setEditing(null); setShowForm(true); }}>
-            <Plus className="h-4 w-4 mr-2" /> Nova devolução
-          </Button>
+          {canCreate && (
+            <Button onClick={() => { setEditing(null); setShowForm(true); }}>
+              <Plus className="h-4 w-4 mr-2" /> Nova devolução
+            </Button>
+          )}
         </div>
 
         {/* Stats */}
-        {stats && (
+        {stats && !simplified && (
           <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
             <StatCard icon={AlertCircle} label="Em aberto" value={stats.open_count} color="text-amber-600" />
             <StatCard
@@ -94,6 +108,14 @@ export default function Devolucoes() {
             <StatCard icon={Wrench} label="Em análise" value={stats.in_analysis} color="text-purple-600" />
             <StatCard icon={CheckCircle2} label="Concluídas (mês)" value={stats.closed_this_month} color="text-green-600" />
             <StatCard icon={Truck} label="Frete (mês)" value={`R$ ${Number(stats.freight_cost_month || 0).toFixed(2)}`} color="text-blue-600" />
+          </div>
+        )}
+        {simplified && stats && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <StatCard icon={AlertCircle} label="Em aberto" value={stats.open_count} color="text-amber-600" />
+            <StatCard icon={Wrench} label="Em análise" value={stats.in_analysis} color="text-purple-600" />
+            <StatCard icon={CheckCircle2} label="Concluídas (mês)" value={stats.closed_this_month} color="text-green-600" />
+            <StatCard icon={Clock} label="Atrasadas" value={overdueCount} color={overdueCount > 0 ? 'text-red-600' : 'text-muted-foreground'} />
           </div>
         )}
 
@@ -127,9 +149,11 @@ export default function Devolucoes() {
                 <SelectItem value="on_time">No prazo</SelectItem>
               </SelectContent>
             </Select>
-            <Tabs value={view} onValueChange={(v: any) => setView(v)}>
-              <TabsList><TabsTrigger value="kanban">Kanban</TabsTrigger><TabsTrigger value="lista">Lista</TabsTrigger></TabsList>
-            </Tabs>
+            {!simplified && (
+              <Tabs value={view} onValueChange={(v: any) => setView(v)}>
+                <TabsList><TabsTrigger value="kanban">Kanban</TabsTrigger><TabsTrigger value="lista">Lista</TabsTrigger></TabsList>
+              </Tabs>
+            )}
           </CardContent>
         </Card>
 
@@ -157,7 +181,7 @@ export default function Devolucoes() {
                     <th className="px-3 py-2">SLA</th>
                     <th className="px-3 py-2">Vendedor</th>
                     <th className="px-3 py-2">Aberto</th>
-                    <th className="px-3 py-2 text-right">Frete (R$)</th>
+                    {!simplified && <th className="px-3 py-2 text-right">Frete (R$)</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -172,7 +196,7 @@ export default function Devolucoes() {
                         <td className="px-3 py-2">{s.level === 'none' ? <span className="text-muted-foreground text-xs">—</span> : <Badge variant="outline" className={`text-[10px] ${s.color}`}>{s.label}</Badge>}</td>
                         <td className="px-3 py-2">{d.seller_name || '—'}</td>
                         <td className="px-3 py-2">{safeFormatDate(d.created_at, 'dd/MM/yyyy')}</td>
-                        <td className="px-3 py-2 text-right">{Number(d.total_freight_cost || 0).toFixed(2)}</td>
+                        {!simplified && <td className="px-3 py-2 text-right">{Number(d.total_freight_cost || 0).toFixed(2)}</td>}
                       </tr>
                     );
                   })}

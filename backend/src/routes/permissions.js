@@ -18,6 +18,7 @@ const PERMISSION_COLUMNS = [
   'can_view_internal_chat', 'can_view_lead_gleego', 'can_view_homologation', 'can_view_captador',
   'can_view_licitacao', 'can_view_logistics', 'can_view_document_signatures',
   'can_view_rh', 'can_approve_rh',
+  'can_view_devolucoes', 'can_create_devolucoes', 'can_manage_devolucoes', 'can_delete_devolucoes',
   'can_delete_deals', 'can_delete_projects', 'can_delete_tasks', 'can_delete_homologation', 'can_delete_licitacao',
   'can_edit_logistics', 'can_delete_logistics',
 ];
@@ -43,6 +44,7 @@ const ROLE_DEFAULTS = {
     can_view_document_signatures: false, can_view_rh: false, can_approve_rh: false,
     can_delete_deals: true, can_delete_projects: true, can_delete_tasks: true, can_delete_homologation: true, can_delete_licitacao: false,
     can_edit_logistics: false, can_delete_logistics: false,
+    can_view_devolucoes: true, can_create_devolucoes: true, can_manage_devolucoes: true, can_delete_devolucoes: false,
   },
   supervisor: {
     can_view_chat: true, can_view_chatbots: true, can_view_flows: false,
@@ -61,6 +63,7 @@ const ROLE_DEFAULTS = {
     can_view_document_signatures: false, can_view_rh: false, can_approve_rh: false,
     can_delete_deals: true, can_delete_projects: true, can_delete_tasks: true, can_delete_homologation: true, can_delete_licitacao: false,
     can_edit_logistics: false, can_delete_logistics: false,
+    can_view_devolucoes: true, can_create_devolucoes: true, can_manage_devolucoes: true, can_delete_devolucoes: false,
   },
   designer: {
     can_view_chat: true, can_view_chatbots: false, can_view_flows: false,
@@ -79,6 +82,7 @@ const ROLE_DEFAULTS = {
     can_view_document_signatures: false, can_view_rh: false, can_approve_rh: false,
     can_delete_deals: false, can_delete_projects: true, can_delete_tasks: true, can_delete_homologation: false, can_delete_licitacao: false,
     can_edit_logistics: false, can_delete_logistics: false,
+    can_view_devolucoes: true, can_create_devolucoes: false, can_manage_devolucoes: false, can_delete_devolucoes: false,
   },
   agent: {
     can_view_chat: true, can_view_chatbots: false, can_view_flows: false,
@@ -97,6 +101,7 @@ const ROLE_DEFAULTS = {
     can_view_document_signatures: false, can_view_rh: false, can_approve_rh: false,
     can_delete_deals: false, can_delete_projects: false, can_delete_tasks: false, can_delete_homologation: false, can_delete_licitacao: false,
     can_edit_logistics: false, can_delete_logistics: false,
+    can_view_devolucoes: true, can_create_devolucoes: true, can_manage_devolucoes: false, can_delete_devolucoes: false,
   },
 };
 

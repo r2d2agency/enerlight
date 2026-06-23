@@ -79,6 +79,10 @@ export interface UserPermissions {
   can_view_representatives: boolean;
   can_view_rh: boolean;
   can_approve_rh: boolean;
+  can_view_devolucoes: boolean;
+  can_create_devolucoes: boolean;
+  can_manage_devolucoes: boolean;
+  can_delete_devolucoes: boolean;
 }
 
 interface User {
