@@ -459,6 +459,12 @@ router.get('/public/:slug', async (req, res) => {
       [card.id]
     );
 
+    // Org-level default NFC logo (from system_settings)
+    const sysLogo = await query(
+      `SELECT value FROM system_settings WHERE key = 'nfc_default_logo' LIMIT 1`
+    );
+    const orgLogo = sysLogo.rows[0]?.value || null;
+
     // Register read (async, do not block response)
     const ip = (req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || '').trim();
     const ua = req.headers['user-agent'] || '';
@@ -482,7 +488,7 @@ router.get('/public/:slug', async (req, res) => {
       } catch (err) { console.error('Read log error', err.message); }
     })();
 
-    res.json({ card, profile: p.rows[0] || null, materials: m.rows });
+    res.json({ card, profile: p.rows[0] || null, materials: m.rows, org_logo: orgLogo });
   } catch (e) {
     console.error(e); res.status(500).json({ error: e.message });
   }

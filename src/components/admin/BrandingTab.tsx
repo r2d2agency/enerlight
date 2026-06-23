@@ -280,6 +280,26 @@ export function BrandingTab() {
         </div>
       </div>
 
+      {/* NFC Cards */}
+      <div>
+        <h3 className="text-sm font-medium text-muted-foreground mb-3">Cartões NFC (Vitrine Digital)</h3>
+        <p className="text-xs text-muted-foreground mb-3">
+          Logo padrão exibido em todos os cartões NFC públicos, abaixo do nome do vendedor.
+          Pode ser sobrescrito por cartão individualmente.
+        </p>
+        <div className="grid gap-4 md:grid-cols-2">
+          <LogoUploader
+            label="Logo padrão dos Cartões NFC"
+            description="Aparece abaixo do nome do vendedor em todos os cartões NFC"
+            settingKey="nfc_default_logo"
+            currentValue={getSetting('nfc_default_logo')}
+            onUpdate={handleUpdate}
+            aspectHint="Recomendado: PNG transparente, 400x120px"
+          />
+        </div>
+      </div>
+
+
       <Card className="border-amber-500/30 bg-amber-500/5">
         <CardContent className="flex items-start gap-3 py-4">
           <Star className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />

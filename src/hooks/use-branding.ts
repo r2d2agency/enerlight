@@ -11,6 +11,7 @@ export interface BrandingSettings {
   logo_topbar_light: string | null;
   favicon: string | null;
   company_name: string | null;
+  nfc_default_logo: string | null;
 }
 
 export function useBranding() {
@@ -23,6 +24,7 @@ export function useBranding() {
     logo_topbar_light: null,
     favicon: null,
     company_name: null,
+    nfc_default_logo: null,
   });
   const [loading, setLoading] = useState(true);
 

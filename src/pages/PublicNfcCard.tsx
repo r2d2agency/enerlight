@@ -13,6 +13,7 @@ interface CardData {
   card: { id: string; public_slug: string; public_url: string; qr_code_url: string };
   profile: any;
   materials: any[];
+  org_logo?: string | null;
 }
 
 export default function PublicNfcCard() {
@@ -38,6 +39,7 @@ export default function PublicNfcCard() {
 
   const p = data?.profile || {};
   const name = p.display_name || data?.card.public_slug;
+  const heroLogo = p.company_logo_url || data?.org_logo || null;
   const wppDigits = useMemo(() => (p.whatsapp || "").replace(/\D/g, ""), [p.whatsapp]);
   const wppHuman = p.whatsapp;
   const siteShort = (p.website || "").replace(/^https?:\/\//, "").replace(/\/$/, "");
@@ -118,8 +120,8 @@ export default function PublicNfcCard() {
               style={{ background: "linear-gradient(90deg,#fbbf24,transparent)" }}
             />
             {p.bio && <p className="text-white/70 text-sm leading-relaxed">{p.bio}</p>}
-            {p.company_logo_url ? (
-              <img src={p.company_logo_url} alt={p.company_name} className="h-10 mt-4 object-contain" />
+            {heroLogo ? (
+              <img src={heroLogo} alt={p.company_name || "Logo"} className="h-12 mt-4 object-contain" />
             ) : p.company_name ? (
               <p className="text-[#60a5fa] font-semibold mt-3 text-lg">{p.company_name}</p>
             ) : null}
@@ -240,12 +242,12 @@ export default function PublicNfcCard() {
         )}
 
         {/* Empresa */}
-        {(p.company_description || p.company_logo_url || p.company_name) && (
+        {(p.company_description || heroLogo || p.company_name) && (
           <SectionCard>
             <div className="grid grid-cols-1 sm:grid-cols-[200px_1fr] gap-5 items-center">
               <div className="flex items-center justify-center">
-                {p.company_logo_url ? (
-                  <img src={p.company_logo_url} alt={p.company_name} className="h-16 object-contain" />
+                {heroLogo ? (
+                  <img src={heroLogo} alt={p.company_name || "Logo"} className="h-16 object-contain" />
                 ) : (
                   <div className="text-2xl font-bold text-white">{p.company_name}</div>
                 )}
