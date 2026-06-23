@@ -242,12 +242,12 @@ export default function PublicNfcCard() {
         )}
 
         {/* Empresa */}
-        {(p.company_description || p.company_logo_url || p.company_name) && (
+        {(p.company_description || heroLogo || p.company_name) && (
           <SectionCard>
             <div className="grid grid-cols-1 sm:grid-cols-[200px_1fr] gap-5 items-center">
               <div className="flex items-center justify-center">
-                {p.company_logo_url ? (
-                  <img src={p.company_logo_url} alt={p.company_name} className="h-16 object-contain" />
+                {heroLogo ? (
+                  <img src={heroLogo} alt={p.company_name || "Logo"} className="h-16 object-contain" />
                 ) : (
                   <div className="text-2xl font-bold text-white">{p.company_name}</div>
                 )}
