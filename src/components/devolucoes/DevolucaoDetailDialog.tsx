@@ -9,11 +9,15 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   useDevolucao, useDevolucaoMutations, useDevolucaoAnexoMutations, useDevolucaoEventoMutations,
+  useDevolucaoItemMutations,
   STATUS_LABELS, STATUS_ORDER, REASON_LABELS, DevolucaoStatus
 } from "@/hooks/use-devolucoes";
 import { useUpload } from "@/hooks/use-upload";
+import { useAuth } from "@/contexts/AuthContext";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import { safeFormatDate } from "@/lib/utils";
-import { Loader2, Upload, FileText, Image as ImageIcon, Truck, Wrench, MessageCircle, Trash2, Send, History, ChevronRight, Check, X, Ban, ArrowRight, CheckCircle2, MoreHorizontal } from "lucide-react";
+import { Loader2, Upload, FileText, Image as ImageIcon, Truck, Wrench, MessageCircle, Trash2, Send, History, ChevronRight, Check, X, Ban, ArrowRight, CheckCircle2, MoreHorizontal, Plus } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
@@ -38,14 +42,23 @@ interface Props {
 }
 
 export function DevolucaoDetailDialog({ open, onOpenChange, devolucaoId }: Props) {
+  const { user } = useAuth();
   const { data: dev, isLoading } = useDevolucao(devolucaoId);
   const { update, changeStatus } = useDevolucaoMutations();
   const anexoMut = useDevolucaoAnexoMutations();
   const eventoMut = useDevolucaoEventoMutations();
+  const itemMut = useDevolucaoItemMutations();
   const { uploadFile, isUploading, progress } = useUpload();
+
+  const { data: members = [] } = useQuery<Array<{ user_id: string; name: string }>>({
+    queryKey: ["org-members", user?.organization_id],
+    queryFn: () => api(`/api/organizations/${user?.organization_id}/members`),
+    enabled: !!user?.organization_id && open,
+  });
 
   const [noteText, setNoteText] = useState("");
   const [anexoCat, setAnexoCat] = useState<'foto' | 'nf_entrada' | 'nf_saida' | 'laudo' | 'outro'>('foto');
+  const [newItem, setNewItem] = useState<{ product_name: string; sku: string; quantity: number; serial_number: string }>({ product_name: '', sku: '', quantity: 1, serial_number: '' });
 
   if (!devolucaoId) return null;
 
@@ -74,7 +87,8 @@ export function DevolucaoDetailDialog({ open, onOpenChange, devolucaoId }: Props
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[92vh] overflow-y-auto">
+      <DialogContent className="max-w-[98vw] xl:max-w-[1400px] w-[98vw] h-[95vh] max-h-[95vh] flex flex-col overflow-hidden p-0">
+        <div className="flex-1 overflow-y-auto px-6 py-4">
         {isLoading || !dev ? (
           <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
         ) : (
@@ -111,7 +125,7 @@ export function DevolucaoDetailDialog({ open, onOpenChange, devolucaoId }: Props
 
               {/* RESUMO */}
               <TabsContent value="resumo" className="space-y-3 pt-3">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <InfoRow label="Cliente" value={dev.customer_name} />
                   <InfoRow label="CPF/CNPJ" value={dev.customer_document} />
                   <InfoRow label="WhatsApp" value={dev.customer_whatsapp} />
@@ -120,26 +134,72 @@ export function DevolucaoDetailDialog({ open, onOpenChange, devolucaoId }: Props
                   <InfoRow label="Canal" value={dev.opened_channel?.toUpperCase()} />
                   <InfoRow label="Pedido original" value={dev.original_order_number} />
                   <InfoRow label="NF original" value={dev.original_invoice_number} />
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Vendedor responsável</Label>
+                    <Select value={dev.seller_user_id || ''} onValueChange={v => save({ seller_user_id: v })}>
+                      <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                      <SelectContent>
+                        {members.map(m => <SelectItem key={m.user_id} value={m.user_id}>{m.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <div>
                   <Label>Descrição</Label>
-                  <Textarea value={dev.description || ''} onChange={e => save({ description: e.target.value })} rows={3} />
+                  <Textarea defaultValue={dev.description || ''} onBlur={e => save({ description: e.target.value })} rows={3} />
                 </div>
                 <div className="border rounded-lg">
                   <div className="px-3 py-2 border-b font-medium text-sm flex items-center gap-2"><FileText className="h-4 w-4" />Produtos ({dev.itens?.length || 0})</div>
                   <div className="divide-y">
                     {dev.itens?.map(it => (
-                      <div key={it.id} className="px-3 py-2 grid grid-cols-12 gap-2 text-sm">
-                        <div className="col-span-6 font-medium">{it.product_name}</div>
-                        <div className="col-span-2 text-muted-foreground">{it.sku || '—'}</div>
-                        <div className="col-span-1">Qtd: {it.quantity}</div>
-                        <div className="col-span-3 text-muted-foreground">{it.serial_number || ''}</div>
+                      <div key={it.id} className="px-3 py-2 grid grid-cols-12 gap-2 text-sm items-center">
+                        <div className="col-span-12 md:col-span-5 font-medium">{it.product_name}</div>
+                        <div className="col-span-4 md:col-span-2 text-muted-foreground">{it.sku || '—'}</div>
+                        <div className="col-span-2 md:col-span-1">Qtd: {it.quantity}</div>
+                        <div className="col-span-5 md:col-span-3 text-muted-foreground text-xs">{it.serial_number || ''}</div>
+                        <div className="col-span-1 flex justify-end">
+                          <Button size="icon" variant="ghost" onClick={() => itemMut.remove.mutate({ itemId: it.id, devolucaoId: dev.id })}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
                       </div>
                     ))}
                     {!dev.itens?.length && <div className="px-3 py-4 text-sm text-muted-foreground">Nenhum item.</div>}
                   </div>
+                  <div className="border-t bg-muted/30 px-3 py-2 grid grid-cols-12 gap-2 items-end">
+                    <div className="col-span-12 md:col-span-5">
+                      <Label className="text-[10px] text-muted-foreground">Novo produto</Label>
+                      <Input value={newItem.product_name} onChange={e => setNewItem(p => ({ ...p, product_name: e.target.value }))} placeholder="Nome do produto" />
+                    </div>
+                    <div className="col-span-4 md:col-span-2">
+                      <Label className="text-[10px] text-muted-foreground">SKU</Label>
+                      <Input value={newItem.sku} onChange={e => setNewItem(p => ({ ...p, sku: e.target.value }))} />
+                    </div>
+                    <div className="col-span-3 md:col-span-1">
+                      <Label className="text-[10px] text-muted-foreground">Qtd</Label>
+                      <Input type="number" min={1} value={newItem.quantity} onChange={e => setNewItem(p => ({ ...p, quantity: Number(e.target.value) || 1 }))} />
+                    </div>
+                    <div className="col-span-4 md:col-span-3">
+                      <Label className="text-[10px] text-muted-foreground">Nº Série</Label>
+                      <Input value={newItem.serial_number} onChange={e => setNewItem(p => ({ ...p, serial_number: e.target.value }))} />
+                    </div>
+                    <div className="col-span-1 flex justify-end">
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        disabled={!newItem.product_name.trim() || itemMut.create.isPending}
+                        onClick={async () => {
+                          await itemMut.create.mutateAsync({ devolucaoId: dev.id, ...newItem });
+                          setNewItem({ product_name: '', sku: '', quantity: 1, serial_number: '' });
+                        }}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </TabsContent>
+
 
               {/* RECEBIMENTO */}
               <TabsContent value="recebimento" className="space-y-3 pt-3">
@@ -335,10 +395,12 @@ export function DevolucaoDetailDialog({ open, onOpenChange, devolucaoId }: Props
             </Tabs>
           </>
         )}
+        </div>
       </DialogContent>
     </Dialog>
   );
 }
+
 
 function InfoRow({ label, value }: { label: string; value?: string | null }) {
   return (
