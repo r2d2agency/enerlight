@@ -5,7 +5,7 @@ import { authenticate } from '../middleware/auth.js';
 
 const router = Router();
 
-const FRONTEND_URL = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
+const FRONTEND_URL = (process.env.PUBLIC_FRONTEND_URL || process.env.FRONTEND_URL || 'https://app.enerlight.com.br').replace(/\/$/, '');
 
 // ---------- helpers ----------
 async function getUserOrg(userId) {
