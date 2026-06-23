@@ -45,13 +45,14 @@ export default function Devolucoes() {
   };
   const { data: allDevolucoes = [], isLoading } = useDevolucoes(filters);
   const { data: stats } = useDevolucoesStats();
+  const { data: slaConfig } = useDevolucaoSlaConfig();
 
   const devolucoes = sla === 'all'
     ? allDevolucoes
-    : allDevolucoes.filter(d => computeSla(d.status, d.updated_at, d.created_at).level === sla);
+    : allDevolucoes.filter(d => computeSla(d.status, d.updated_at, d.created_at, slaConfig).level === sla);
 
-  const overdueCount = allDevolucoes.filter(d => computeSla(d.status, d.updated_at, d.created_at).level === 'overdue').length;
-  const warningCount = allDevolucoes.filter(d => computeSla(d.status, d.updated_at, d.created_at).level === 'warning').length;
+  const overdueCount = allDevolucoes.filter(d => computeSla(d.status, d.updated_at, d.created_at, slaConfig).level === 'overdue').length;
+  const warningCount = allDevolucoes.filter(d => computeSla(d.status, d.updated_at, d.created_at, slaConfig).level === 'warning').length;
 
   return (
     <MainLayout>
