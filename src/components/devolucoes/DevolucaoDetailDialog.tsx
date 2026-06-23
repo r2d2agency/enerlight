@@ -12,6 +12,7 @@ import {
   useDevolucaoItemMutations,
   STATUS_LABELS, STATUS_ORDER, REASON_LABELS, DevolucaoStatus
 } from "@/hooks/use-devolucoes";
+import { useLogisticsCarriers } from "@/hooks/use-logistics";
 import { useUpload } from "@/hooks/use-upload";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
@@ -44,6 +45,7 @@ interface Props {
 export function DevolucaoDetailDialog({ open, onOpenChange, devolucaoId }: Props) {
   const { user } = useAuth();
   const { data: dev, isLoading } = useDevolucao(devolucaoId);
+  const { data: carriers = [] } = useLogisticsCarriers();
   const { update, changeStatus } = useDevolucaoMutations();
   const anexoMut = useDevolucaoAnexoMutations();
   const eventoMut = useDevolucaoEventoMutations();
@@ -88,6 +90,9 @@ export function DevolucaoDetailDialog({ open, onOpenChange, devolucaoId }: Props
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[98vw] xl:max-w-[1400px] w-[98vw] h-[95vh] max-h-[95vh] flex flex-col overflow-hidden p-0">
+        <datalist id="devolucao-carriers-list">
+          {carriers.map((c) => (<option key={c} value={c} />))}
+        </datalist>
         <div className="flex-1 overflow-y-auto px-6 py-4">
         {isLoading || !dev ? (
           <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
@@ -213,7 +218,7 @@ export function DevolucaoDetailDialog({ open, onOpenChange, devolucaoId }: Props
                 <div className="border rounded-lg p-3 space-y-3">
                   <div className="font-medium text-sm flex items-center gap-2"><Truck className="h-4 w-4" />Frete de entrada</div>
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                    <div><Label>Transportadora</Label><Input defaultValue={dev.inbound_carrier || ''} onBlur={e => save({ inbound_carrier: e.target.value })} /></div>
+                    <div><Label>Transportadora</Label><Input list="devolucao-carriers-list" placeholder="Selecione ou cadastre uma nova" defaultValue={dev.inbound_carrier || ''} onBlur={e => save({ inbound_carrier: e.target.value })} /></div>
                     <div><Label>Código rastreio</Label><Input defaultValue={dev.inbound_tracking_code || ''} onBlur={e => save({ inbound_tracking_code: e.target.value })} /></div>
                     <div><Label>Custo (R$)</Label><Input type="number" step="0.01" defaultValue={dev.inbound_freight_cost || ''} onBlur={e => save({ inbound_freight_cost: Number(e.target.value) || 0 })} /></div>
                     <div>
@@ -296,7 +301,7 @@ export function DevolucaoDetailDialog({ open, onOpenChange, devolucaoId }: Props
                 <div className="border rounded-lg p-3 space-y-3">
                   <div className="font-medium text-sm flex items-center gap-2"><Truck className="h-4 w-4" />Frete de saída</div>
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                    <div><Label>Transportadora</Label><Input defaultValue={dev.outbound_carrier || ''} onBlur={e => save({ outbound_carrier: e.target.value })} /></div>
+                    <div><Label>Transportadora</Label><Input list="devolucao-carriers-list" placeholder="Selecione ou cadastre uma nova" defaultValue={dev.outbound_carrier || ''} onBlur={e => save({ outbound_carrier: e.target.value })} /></div>
                     <div><Label>Código rastreio</Label><Input defaultValue={dev.outbound_tracking_code || ''} onBlur={e => save({ outbound_tracking_code: e.target.value })} /></div>
                     <div><Label>Custo (R$)</Label><Input type="number" step="0.01" defaultValue={dev.outbound_freight_cost || ''} onBlur={e => save({ outbound_freight_cost: Number(e.target.value) || 0 })} /></div>
                     <div>
