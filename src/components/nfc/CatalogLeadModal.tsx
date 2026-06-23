@@ -28,6 +28,7 @@ interface Props {
   ctaTitle?: string;
   materials?: Material[];
   branding?: BrandingTheme;
+  initialCategory?: string;
 }
 
 export function CatalogLeadModal({
