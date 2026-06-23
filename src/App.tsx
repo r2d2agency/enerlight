@@ -203,7 +203,10 @@ const App = () => (
               <Route path="/calculadora-luminotecnica" element={<CalculadoraLuminotecnica />} />
               <Route path="/admin/calculadora-categorias" element={<ProtectedRoute><CalculadoraCategorias /></ProtectedRoute>} />
               <Route path="/politica-privacidade" element={<PoliticaPrivacidade />} />
+              <Route path="/cartoes-nfc" element={<ProtectedRoute><CartoesNFC /></ProtectedRoute>} />
+              <Route path="/c/:slug" element={<PublicNfcCard />} />
               <Route path="*" element={<NotFound />} />
+
             </Routes>
           </Suspense>
         </AuthProvider>
