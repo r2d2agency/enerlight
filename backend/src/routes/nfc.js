@@ -5,7 +5,7 @@ import { authenticate } from '../middleware/auth.js';
 
 const router = Router();
 
-const FRONTEND_URL = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
+const FRONTEND_URL = (process.env.PUBLIC_FRONTEND_URL || process.env.FRONTEND_URL || 'https://app.enerlight.com.br').replace(/\/$/, '');
 
 // ---------- helpers ----------
 async function getUserOrg(userId) {
@@ -32,6 +32,22 @@ function buildPublicUrl(slug) {
 function buildQrUrl(publicUrl) {
   return `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(publicUrl)}`;
 }
+
+// Backfill stored URLs to match current FRONTEND_URL (runs once on boot)
+(async () => {
+  try {
+    await query(
+      `UPDATE nfc_cards
+         SET public_url = $1 || '/c/' || public_slug,
+             qr_code_url = 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=' || replace($1 || '/c/' || public_slug, ':', '%3A')
+       WHERE public_slug IS NOT NULL
+         AND (public_url IS NULL OR public_url NOT LIKE $1 || '%')`,
+      [FRONTEND_URL]
+    );
+  } catch (e) {
+    // table may not exist yet on first boot - safe to ignore
+  }
+})();
 
 function parseUA(ua = '') {
   const u = String(ua).toLowerCase();
