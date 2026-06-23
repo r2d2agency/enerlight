@@ -38,6 +38,7 @@ export default function Devolucoes() {
   const isElevated = ['owner', 'admin', 'manager', 'supervisor'].includes(role);
   const canCreate = isElevated || userPermissions?.can_create_devolucoes !== false;
   const canSeeAll = isElevated || userPermissions?.can_manage_devolucoes === true;
+  const canManageSla = isElevated || userPermissions?.can_manage_devolucao_sla === true;
   const simplified = !canSeeAll;
 
   const [view, setView] = useState<'kanban' | 'lista'>(simplified ? 'lista' : 'kanban');
@@ -48,6 +49,8 @@ export default function Devolucoes() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [showSlaConfig, setShowSlaConfig] = useState(false);
+
 
   const filters = {
     search: search || undefined,
