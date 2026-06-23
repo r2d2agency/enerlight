@@ -97,6 +97,12 @@ export function NfcCardDialog({ open, onOpenChange, card }: Props) {
       setCompanyLogo(p.company_logo_url || "");
       setCompanyDesc(p.company_description || "");
       setAddress(p.address || "");
+      setShowcaseTitle(p.showcase_title || "");
+      setShowcaseDesc(p.showcase_description || "");
+      setShowcaseImage(p.showcase_image_url || "");
+      setCatalogEnabled(p.catalog_cta_enabled !== false);
+      setCatalogTitle(p.catalog_cta_title || "");
+      setCatalogSubtitle(p.catalog_cta_subtitle || "");
     }
   }, [cardDetail.data]);
 
