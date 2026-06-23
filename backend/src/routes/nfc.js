@@ -607,6 +607,27 @@ router.get('/public/:slug', async (req, res) => {
     brandRows.rows.forEach(r => branding[r.key] = r.value);
     const orgLogo = branding.nfc_default_logo || null;
 
+    // Visual categories filtered by profile.selected_categories
+    const profile = p.rows[0] || {};
+    const sel = Array.isArray(profile.selected_categories) ? profile.selected_categories : [];
+    let cats = [];
+    const orgIdRow = await query('SELECT organization_id FROM nfc_cards WHERE id = $1', [card.id]);
+    const orgId = orgIdRow.rows[0]?.organization_id;
+    if (orgId) {
+      if (sel.length) {
+        const catRows = await query(
+          `SELECT id, name, image_url, position FROM nfc_categories
+            WHERE organization_id = $1 AND name = ANY($2::text[])
+            ORDER BY position, created_at`,
+          [orgId, sel]
+        );
+        cats = catRows.rows;
+      }
+    }
+    const branding = {};
+    brandRows.rows.forEach(r => branding[r.key] = r.value);
+    const orgLogo = branding.nfc_default_logo || null;
+
     // Register read (async, do not block response)
     const ip = (req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || '').trim();
     const ua = req.headers['user-agent'] || '';
