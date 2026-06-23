@@ -488,7 +488,7 @@ router.get('/public/:slug', async (req, res) => {
       } catch (err) { console.error('Read log error', err.message); }
     })();
 
-    res.json({ card, profile: p.rows[0] || null, materials: m.rows });
+    res.json({ card, profile: p.rows[0] || null, materials: m.rows, org_logo: orgLogo });
   } catch (e) {
     console.error(e); res.status(500).json({ error: e.message });
   }
