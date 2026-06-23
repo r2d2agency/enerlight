@@ -38,10 +38,8 @@ export default function PublicNfcCard() {
   const [data, setData] = useState<CardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [leadOpen, setLeadOpen] = useState(false);
-  const [materialsOpen, setMaterialsOpen] = useState(false);
-  const [activeMat, setActiveMat] = useState<any>(null);
   const [catalogOpen, setCatalogOpen] = useState(false);
+  const [catalogInitialCategory, setCatalogInitialCategory] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     fetch(`${API_BASE}/api/nfc/public/${slug}${window.location.search}`)
@@ -68,42 +66,9 @@ export default function PublicNfcCard() {
   const bgGradient = b.nfc_bg_gradient
     || `radial-gradient(1200px 600px at 20% -10%, ${primary}33 0%, transparent 60%), radial-gradient(900px 500px at 100% 30%, ${primary}22 0%, transparent 60%), ${bgColor}`;
 
-  // Group materials by category
-  const materialsByCategory = useMemo(() => {
-    const map: Record<string, any[]> = {};
-    (data?.materials || []).forEach((m: any) => {
-      const k = m.category || "Geral";
-      (map[k] ||= []).push(m);
-    });
-    return map;
-  }, [data?.materials]);
-  const [matCat, setMatCat] = useState<string>("__all");
-
   useEffect(() => {
     if (name) document.title = `${name} • Ener ID`;
   }, [name]);
-
-  if (loading)
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "#020617" }}>
-        <Loader2 className="animate-spin text-white" />
-      </div>
-    );
-  if (error || !data)
-    return (
-      <div className="min-h-screen flex items-center justify-center text-white" style={{ background: "#020617" }}>
-        {error || "Erro"}
-      </div>
-    );
-
-  function handleMaterial(m: any) {
-    if (m.requires_lead) {
-      setActiveMat(m);
-      setLeadOpen(true);
-    } else {
-      window.open(m.file_url, "_blank");
-    }
-  }
 
   return (
     <div
