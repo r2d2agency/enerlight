@@ -40,9 +40,14 @@ export default function CartoesNFC() {
             </h1>
             <p className="text-muted-foreground">Gerencie cartões NFC físicos vinculados aos seus vendedores.</p>
           </div>
-          <Button onClick={() => { setEditing(null); setOpen(true); }}>
-            <Plus className="h-4 w-4 mr-2" /> Novo Cartão
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => setBrandingOpen(true)}>
+              <Palette className="h-4 w-4 mr-2" /> Branding visual
+            </Button>
+            <Button onClick={() => { setEditing(null); setOpen(true); }}>
+              <Plus className="h-4 w-4 mr-2" /> Novo Cartão
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
