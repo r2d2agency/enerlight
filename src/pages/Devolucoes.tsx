@@ -10,8 +10,9 @@ import { useDevolucoes, useDevolucoesStats, STATUS_LABELS, REASON_LABELS, Devolu
 import { DevolucaoKanban } from "@/components/devolucoes/DevolucaoKanban";
 import { DevolucaoFormDialog } from "@/components/devolucoes/DevolucaoFormDialog";
 import { DevolucaoDetailDialog } from "@/components/devolucoes/DevolucaoDetailDialog";
-import { Plus, Search, RotateCcw, Truck, Wrench, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Plus, Search, RotateCcw, Truck, Wrench, Loader2, AlertCircle, CheckCircle2, Clock } from "lucide-react";
 import { safeFormatDate } from "@/lib/utils";
+import { computeSla } from "@/lib/devolucao-sla";
 
 const STATUS_COLORS: Record<string, string> = {
   solicitado: 'bg-slate-100 text-slate-700',
@@ -32,6 +33,7 @@ export default function Devolucoes() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<string>('all');
   const [reason, setReason] = useState<string>('all');
+  const [sla, setSla] = useState<string>('all');
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -41,8 +43,15 @@ export default function Devolucoes() {
     status: status !== 'all' ? status : undefined,
     reason: reason !== 'all' ? reason : undefined,
   };
-  const { data: devolucoes = [], isLoading } = useDevolucoes(filters);
+  const { data: allDevolucoes = [], isLoading } = useDevolucoes(filters);
   const { data: stats } = useDevolucoesStats();
+
+  const devolucoes = sla === 'all'
+    ? allDevolucoes
+    : allDevolucoes.filter(d => computeSla(d.status, d.updated_at, d.created_at).level === sla);
+
+  const overdueCount = allDevolucoes.filter(d => computeSla(d.status, d.updated_at, d.created_at).level === 'overdue').length;
+  const warningCount = allDevolucoes.filter(d => computeSla(d.status, d.updated_at, d.created_at).level === 'warning').length;
 
   return (
     <MainLayout>
@@ -63,12 +72,27 @@ export default function Devolucoes() {
 
         {/* Stats */}
         {stats && (
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
             <StatCard icon={AlertCircle} label="Em aberto" value={stats.open_count} color="text-amber-600" />
+            <StatCard
+              icon={Clock}
+              label="Atrasadas (SLA)"
+              value={overdueCount}
+              color={overdueCount > 0 ? 'text-red-600' : 'text-muted-foreground'}
+              onClick={() => setSla(sla === 'overdue' ? 'all' : 'overdue')}
+              active={sla === 'overdue'}
+            />
+            <StatCard
+              icon={Clock}
+              label="Vencendo"
+              value={warningCount}
+              color={warningCount > 0 ? 'text-amber-600' : 'text-muted-foreground'}
+              onClick={() => setSla(sla === 'warning' ? 'all' : 'warning')}
+              active={sla === 'warning'}
+            />
             <StatCard icon={Wrench} label="Em análise" value={stats.in_analysis} color="text-purple-600" />
-            <StatCard icon={Truck} label="Aguardando NF" value={stats.waiting_nf} color="text-orange-600" />
             <StatCard icon={CheckCircle2} label="Concluídas (mês)" value={stats.closed_this_month} color="text-green-600" />
-            <StatCard icon={Truck} label="Frete total (mês)" value={`R$ ${Number(stats.freight_cost_month || 0).toFixed(2)}`} color="text-blue-600" />
+            <StatCard icon={Truck} label="Frete (mês)" value={`R$ ${Number(stats.freight_cost_month || 0).toFixed(2)}`} color="text-blue-600" />
           </div>
         )}
 
