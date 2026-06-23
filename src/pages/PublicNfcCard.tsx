@@ -49,11 +49,29 @@ export default function PublicNfcCard() {
   }, [slug]);
 
   const p = data?.profile || {};
+  const b = data?.branding || {};
   const name = p.display_name || data?.card.public_slug;
   const heroLogo = p.company_logo_url || data?.org_logo || null;
   const wppDigits = useMemo(() => (p.whatsapp || "").replace(/\D/g, ""), [p.whatsapp]);
   const wppHuman = p.whatsapp;
   const siteShort = (p.website || "").replace(/^https?:\/\//, "").replace(/\/$/, "");
+
+  const primary = b.nfc_primary_color || "#3b82f6";
+  const accent = b.nfc_accent_color || "#fbbf24";
+  const bgColor = b.nfc_bg_color || "#020617";
+  const bgGradient = b.nfc_bg_gradient
+    || `radial-gradient(1200px 600px at 20% -10%, ${primary}33 0%, transparent 60%), radial-gradient(900px 500px at 100% 30%, ${primary}22 0%, transparent 60%), ${bgColor}`;
+
+  // Group materials by category
+  const materialsByCategory = useMemo(() => {
+    const map: Record<string, any[]> = {};
+    (data?.materials || []).forEach((m: any) => {
+      const k = m.category || "Geral";
+      (map[k] ||= []).push(m);
+    });
+    return map;
+  }, [data?.materials]);
+  const [matCat, setMatCat] = useState<string>("__all");
 
   useEffect(() => {
     if (name) document.title = `${name} • Ener ID`;
