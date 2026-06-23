@@ -152,7 +152,7 @@ export function DevolucaoDetailDialog({ open, onOpenChange, devolucaoId }: Props
               {/* RECEBIMENTO */}
               <TabsContent value="recebimento" className="space-y-3 pt-3">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div><Label>NF de devolução (cliente → Enerlight)</Label><Input value={dev.inbound_invoice_number || ''} onBlur={e => save({ inbound_invoice_number: e.target.value })} onChange={e => (dev.inbound_invoice_number = e.target.value)} defaultValue={dev.inbound_invoice_number || ''} /></div>
+                  <div><Label>NF de devolução (cliente → Enerlight)</Label><Input key={`inb-num-${dev.id}`} defaultValue={dev.inbound_invoice_number || ''} onBlur={e => save({ inbound_invoice_number: e.target.value })} /></div>
                   <div><Label>Chave de acesso (44 dígitos)</Label><Input defaultValue={dev.inbound_invoice_key || ''} onBlur={e => save({ inbound_invoice_key: e.target.value })} /></div>
                   <div><Label>Data da NF</Label><Input type="date" defaultValue={dev.inbound_invoice_date?.slice(0,10) || ''} onBlur={e => save({ inbound_invoice_date: e.target.value || null })} /></div>
                   <div><Label>Valor (R$)</Label><Input type="number" step="0.01" defaultValue={dev.inbound_invoice_value || ''} onBlur={e => save({ inbound_invoice_value: Number(e.target.value) || null })} /></div>
