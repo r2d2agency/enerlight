@@ -44,6 +44,7 @@ const ROLE_DEFAULTS = {
     can_view_document_signatures: false, can_view_rh: false, can_approve_rh: false,
     can_delete_deals: true, can_delete_projects: true, can_delete_tasks: true, can_delete_homologation: true, can_delete_licitacao: false,
     can_edit_logistics: false, can_delete_logistics: false,
+    can_view_devolucoes: true, can_create_devolucoes: true, can_manage_devolucoes: true, can_delete_devolucoes: false,
   },
   supervisor: {
     can_view_chat: true, can_view_chatbots: true, can_view_flows: false,
@@ -62,6 +63,7 @@ const ROLE_DEFAULTS = {
     can_view_document_signatures: false, can_view_rh: false, can_approve_rh: false,
     can_delete_deals: true, can_delete_projects: true, can_delete_tasks: true, can_delete_homologation: true, can_delete_licitacao: false,
     can_edit_logistics: false, can_delete_logistics: false,
+    can_view_devolucoes: true, can_create_devolucoes: true, can_manage_devolucoes: true, can_delete_devolucoes: false,
   },
   designer: {
     can_view_chat: true, can_view_chatbots: false, can_view_flows: false,
@@ -80,6 +82,7 @@ const ROLE_DEFAULTS = {
     can_view_document_signatures: false, can_view_rh: false, can_approve_rh: false,
     can_delete_deals: false, can_delete_projects: true, can_delete_tasks: true, can_delete_homologation: false, can_delete_licitacao: false,
     can_edit_logistics: false, can_delete_logistics: false,
+    can_view_devolucoes: true, can_create_devolucoes: false, can_manage_devolucoes: false, can_delete_devolucoes: false,
   },
   agent: {
     can_view_chat: true, can_view_chatbots: false, can_view_flows: false,
@@ -98,6 +101,7 @@ const ROLE_DEFAULTS = {
     can_view_document_signatures: false, can_view_rh: false, can_approve_rh: false,
     can_delete_deals: false, can_delete_projects: false, can_delete_tasks: false, can_delete_homologation: false, can_delete_licitacao: false,
     can_edit_logistics: false, can_delete_logistics: false,
+    can_view_devolucoes: true, can_create_devolucoes: true, can_manage_devolucoes: false, can_delete_devolucoes: false,
   },
 };
 
