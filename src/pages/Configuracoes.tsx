@@ -706,6 +706,13 @@ const Configuracoes = () => {
             </TabsContent>
           )}
 
+          {/* Devoluções SLA Tab */}
+          {isAdminRole && (
+            <TabsContent value="devolucoes" className="mt-6">
+              <DevolucaoSLAConfigPanel />
+            </TabsContent>
+          )}
+
           {/* Features Documentation Tab */}
           <TabsContent value="docs" className="mt-6">
             <FeaturesDocumentation />
