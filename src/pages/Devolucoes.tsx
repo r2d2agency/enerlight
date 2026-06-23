@@ -230,7 +230,20 @@ export default function Devolucoes() {
 
       <DevolucaoFormDialog open={showForm} onOpenChange={(o) => { setShowForm(o); if (!o) setEditing(null); }} devolucao={editing} />
       <DevolucaoDetailDialog open={!!selectedId} onOpenChange={(o) => { if (!o) setSelectedId(null); }} devolucaoId={selectedId} />
+
+      <Dialog open={showSlaConfig} onOpenChange={setShowSlaConfig}>
+        <DialogContent className="max-w-[95vw] lg:max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Configurar SLA das Devoluções</DialogTitle>
+            <DialogDescription>
+              Defina o tempo máximo (em horas) de cada etapa do processo de RMA. As alterações entram em vigor imediatamente.
+            </DialogDescription>
+          </DialogHeader>
+          <DevolucaoSLAConfigPanel />
+        </DialogContent>
+      </Dialog>
     </MainLayout>
+
   );
 }
 
