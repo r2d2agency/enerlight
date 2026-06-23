@@ -102,10 +102,7 @@ export default function PublicNfcCard() {
   return (
     <div
       className="min-h-screen pb-10"
-      style={{
-        background:
-          "radial-gradient(1200px 600px at 20% -10%, #0b1a3a 0%, transparent 60%), radial-gradient(900px 500px at 100% 30%, #0a1f4d 0%, transparent 60%), #020617",
-      }}
+      style={{ background: bgGradient }}
     >
       <div className="max-w-2xl mx-auto px-4 pt-6">
         {/* NFC badge */}
