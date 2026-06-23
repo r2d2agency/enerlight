@@ -49,6 +49,7 @@ import {
   Filter,
   Calculator,
   Nfc,
+  RotateCcw,
 } from "lucide-react";
 
 import { API_URL, getAuthToken } from "@/lib/api";
@@ -180,6 +181,13 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
     permissionKey: 'can_view_logistics',
     items: [
       { name: "Remessas", href: "/logistica", icon: Truck, permissionKey: 'can_view_logistics' },
+    ],
+  },
+  {
+    title: "Devoluções",
+    icon: RotateCcw,
+    items: [
+      { name: "Controle de RMA", href: "/devolucoes", icon: RotateCcw },
     ],
   },
   {

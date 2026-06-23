@@ -5116,6 +5116,107 @@ CREATE INDEX IF NOT EXISTS idx_nfc_categories_org ON nfc_categories(organization
 
 `;
 
+const step69Devolucoes = `
+CREATE TABLE IF NOT EXISTS devolucoes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  numero SERIAL,
+  contact_id UUID,
+  deal_id UUID,
+  customer_name VARCHAR(255) NOT NULL,
+  customer_document VARCHAR(40),
+  customer_whatsapp VARCHAR(50),
+  customer_email VARCHAR(255),
+  customer_address TEXT,
+  opened_channel VARCHAR(20) DEFAULT 'sac',
+  seller_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  status VARCHAR(40) DEFAULT 'solicitado',
+  priority VARCHAR(10) DEFAULT 'normal',
+  reason VARCHAR(40) DEFAULT 'defeito',
+  description TEXT,
+  original_order_number VARCHAR(80),
+  original_invoice_number VARCHAR(80),
+  original_invoice_date DATE,
+  inbound_invoice_number VARCHAR(80),
+  inbound_invoice_key VARCHAR(80),
+  inbound_invoice_date DATE,
+  inbound_invoice_value NUMERIC(14,2),
+  received_at TIMESTAMPTZ,
+  received_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  analysis_status VARCHAR(40),
+  analysis_decision VARCHAR(40),
+  analysis_report TEXT,
+  analyzed_at TIMESTAMPTZ,
+  analyzed_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  customer_notified_at TIMESTAMPTZ,
+  customer_notification_channel VARCHAR(20),
+  customer_notification_notes TEXT,
+  outbound_invoice_number VARCHAR(80),
+  outbound_invoice_date DATE,
+  outbound_invoice_value NUMERIC(14,2),
+  outbound_tracking_code VARCHAR(80),
+  outbound_carrier VARCHAR(120),
+  outbound_sent_at TIMESTAMPTZ,
+  inbound_carrier VARCHAR(120),
+  inbound_tracking_code VARCHAR(80),
+  inbound_freight_cost NUMERIC(12,2) DEFAULT 0,
+  inbound_freight_status VARCHAR(40),
+  outbound_freight_cost NUMERIC(12,2) DEFAULT 0,
+  outbound_freight_status VARCHAR(40),
+  resolution_summary TEXT,
+  closed_at TIMESTAMPTZ,
+  closed_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_devolucoes_org ON devolucoes(organization_id);
+CREATE INDEX IF NOT EXISTS idx_devolucoes_status ON devolucoes(status);
+CREATE INDEX IF NOT EXISTS idx_devolucoes_seller ON devolucoes(seller_user_id);
+CREATE INDEX IF NOT EXISTS idx_devolucoes_contact ON devolucoes(contact_id);
+CREATE INDEX IF NOT EXISTS idx_devolucoes_created_at ON devolucoes(created_at);
+
+CREATE TABLE IF NOT EXISTS devolucao_itens (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  devolucao_id UUID NOT NULL REFERENCES devolucoes(id) ON DELETE CASCADE,
+  sku VARCHAR(80),
+  product_name VARCHAR(255) NOT NULL,
+  quantity NUMERIC(12,2) DEFAULT 1,
+  serial_number VARCHAR(120),
+  unit_value NUMERIC(12,2),
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_devolucao_itens_dev ON devolucao_itens(devolucao_id);
+
+CREATE TABLE IF NOT EXISTS devolucao_eventos (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  devolucao_id UUID NOT NULL REFERENCES devolucoes(id) ON DELETE CASCADE,
+  event_type VARCHAR(40) NOT NULL,
+  from_status VARCHAR(40),
+  to_status VARCHAR(40),
+  message TEXT,
+  metadata JSONB DEFAULT '{}'::jsonb,
+  user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_devolucao_eventos_dev ON devolucao_eventos(devolucao_id);
+CREATE INDEX IF NOT EXISTS idx_devolucao_eventos_created ON devolucao_eventos(created_at);
+
+CREATE TABLE IF NOT EXISTS devolucao_anexos (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  devolucao_id UUID NOT NULL REFERENCES devolucoes(id) ON DELETE CASCADE,
+  category VARCHAR(40) DEFAULT 'foto',
+  name VARCHAR(255),
+  url TEXT NOT NULL,
+  mimetype VARCHAR(100),
+  size INTEGER,
+  uploaded_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_devolucao_anexos_dev ON devolucao_anexos(devolucao_id);
+`;
+
 const migrationSteps = [
 
   { name: 'Enums', sql: step1Enums, critical: true },
@@ -5187,6 +5288,7 @@ const migrationSteps = [
   { name: 'Online Quote Items Discount', sql: step66OnlineQuoteItemsDiscount, critical: false },
   { name: 'Calculator Categories', sql: step67CalcCategories, critical: false },
   { name: 'NFC Cards Module', sql: step68NFC, critical: false },
+  { name: 'Devoluções (RMA)', sql: step69Devolucoes, critical: false },
 ];
 
 
