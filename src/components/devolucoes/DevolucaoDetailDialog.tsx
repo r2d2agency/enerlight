@@ -90,6 +90,9 @@ export function DevolucaoDetailDialog({ open, onOpenChange, devolucaoId }: Props
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[98vw] xl:max-w-[1400px] w-[98vw] h-[95vh] max-h-[95vh] flex flex-col overflow-hidden p-0">
+        <datalist id="devolucao-carriers-list">
+          {carriers.map((c) => (<option key={c} value={c} />))}
+        </datalist>
         <div className="flex-1 overflow-y-auto px-6 py-4">
         {isLoading || !dev ? (
           <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
