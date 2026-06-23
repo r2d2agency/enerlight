@@ -12,6 +12,7 @@ import {
   useDevolucaoItemMutations,
   STATUS_LABELS, STATUS_ORDER, REASON_LABELS, DevolucaoStatus
 } from "@/hooks/use-devolucoes";
+import { useLogisticsCarriers } from "@/hooks/use-logistics";
 import { useUpload } from "@/hooks/use-upload";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
