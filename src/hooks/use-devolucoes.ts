@@ -160,8 +160,16 @@ export function useDevolucaoMutations() {
     onSuccess: () => { inv(); toast.success('Devolução aberta!'); },
   });
   const update = useMutation({
-    mutationFn: ({ id, ...data }: any) => api(`/api/devolucoes/${id}`, { method: 'PUT', body: data }),
-    onSuccess: () => { inv(); toast.success('Devolução atualizada!'); },
+    mutationFn: ({ id, _silent, ...data }: any) => api(`/api/devolucoes/${id}`, { method: 'PUT', body: data }),
+    onSuccess: (resp: any, vars: any) => {
+      // Atualiza cache do detalhe sem refetch (evita "piscar" durante digitação)
+      if (resp && vars?.id) {
+        qc.setQueryData(['devolucao', vars.id], (old: any) => ({ ...(old || {}), ...resp }));
+      }
+      qc.invalidateQueries({ queryKey: ['devolucoes'] });
+      qc.invalidateQueries({ queryKey: ['devolucoes-stats'] });
+      if (!vars?._silent) toast.success('Devolução atualizada!');
+    },
   });
   const changeStatus = useMutation({
     mutationFn: ({ id, status, note }: { id: string; status: DevolucaoStatus; note?: string }) =>
