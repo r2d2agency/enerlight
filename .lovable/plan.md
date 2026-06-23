@@ -1,86 +1,121 @@
-# Hub da Vendedora — gestão de múltiplos Representantes
+# Módulo NFC — Ener ID
 
-Criar uma área onde a Vendedora vê todos os Representantes que ela gerencia (via Grupos existentes), entra no Kanban de cada um e executa ações em lote sem precisar abrir deal por deal.
+Plataforma completa para vincular cartões NFC físicos a vendedores, com landing page pública de contato, captura de leads em materiais e analytics de leituras.
 
-## 1. Visibilidade via Grupos (sem schema novo)
+## Escopo
 
-Aproveita o vínculo já existente:
-- `crm_representatives.linked_user_id` → usuário (vendedor) responsável pelo representante
-- Tabela `group_members` já existe
+### 1. Backend — Banco de dados
+Novo schema `backend/schema-nfc.sql` com tabelas:
 
-Regra de acesso ao "Hub de Representantes":
-- **Owner / Superadmin / Admin**: vê todos os representantes da org
-- **Manager / Vendedora com grupo**: vê representantes cujo `linked_user_id` pertença a algum dos seus grupos
-- **Representante (usuário comum)**: vê só o próprio (já é o comportamento atual)
+- **nfc_cards**: `id`, `uid` (único), `chip_type` (NTAG213/215/216), `status` (active/inactive/blocked), `user_id`, `organization_id`, `company_id` (opcional, p/ multiempresa interna), `public_slug` (curto, ex `ABC123`), `public_url`, `qr_code_url`, `activated_at`, `created_at`, `updated_at`. GRANTs + RLS por organização.
+- **nfc_card_profiles**: dados do vCard/landing por cartão (foto, cargo, telefone, whatsapp, email, site, linkedin, instagram, endereço, bio, theme). 1:1 com `nfc_cards`. Permite personalização sem mexer no usuário.
+- **nfc_materials**: materiais por organização/cartão (`title`, `type` catalogo/pdf/video/case, `file_url`, `thumbnail`, `requires_lead` bool default true).
+- **nfc_reads** (analytics): `card_id`, `read_at`, `ip`, `city`, `state`, `country`, `device`, `browser`, `os`, `utm_source`, `utm_medium`, `utm_campaign`, `referrer`.
+- **nfc_leads**: lead capturado em download de material — `card_id`, `material_id`, `name`, `whatsapp`, `email`, `company`, `role`, `utm_*`, `created_at`. Vínculo automático ao vendedor (`user_id` do cartão).
 
-Implementado no backend em `routes/representatives.js` (novo endpoint `GET /representatives/hub`) e reaproveitando a lógica de `manager-team-view` (mem://features/crm/manager-team-view).
+### 2. Backend — Rotas (`backend/src/routes/nfc.js`)
+Autenticadas (admin/owner):
+- `GET /api/nfc/cards` — listagem com filtros (status, user_id, organization, período).
+- `POST /api/nfc/cards` — cria cartão (gera `public_slug`, `public_url`, `qr_code_url`).
+- `PATCH /api/nfc/cards/:id` — atualiza status, vínculo de usuário, perfil.
+- `DELETE /api/nfc/cards/:id`.
+- `GET /api/nfc/dashboard` — agregados (ativos, inativos, vinculados, leituras totais/hoje/mês, top vendedores).
+- `GET /api/nfc/cards/:id/reads` — analytics detalhados.
+- `GET /api/nfc/cards/:id/leads`.
+- `POST /api/nfc/materials`, `GET/PATCH/DELETE` correspondentes.
 
-## 2. Nova página: Hub de Representantes
+Públicas (sem auth):
+- `GET /api/nfc/public/:slug` — dados do cartão + perfil + materiais (registra read com geo via IP + UA parse).
+- `GET /api/nfc/public/:slug/vcard` — retorna `.vcf` (Content-Type `text/vcard`).
+- `POST /api/nfc/public/:slug/lead` — registra lead e devolve URL assinada do material.
 
-Rota: `/crm/representantes-hub` (item novo na sidebar dentro do grupo CRM, visível só se `can_view_representatives` e o usuário tiver >1 representante acessível).
+Registrar em `backend/src/index.js`.
 
-Layout — lista/grid de cards, um por Representante:
+### 3. Frontend — Admin
+
+**Página `src/pages/CartoesNFC.tsx`** (rota `/cartoes-nfc`, no menu lateral com ícone `CreditCard`/`Nfc`):
+- Dashboard topo: 5 cards de métricas + gráfico de leituras (recharts) + top vendedores.
+- Tabela de cartões com filtros (Empresa, Usuário, Status, Período).
+- Botão "Novo Cartão" abre `NfcCardDialog`.
+
+**`src/components/nfc/NfcCardDialog.tsx`** — tela "Associar Cartão":
+- Detecção via Web NFC (`NDEFReader`) quando disponível: ao aproximar, preenche UID e chip_type automaticamente. Fallback campo manual.
+- Mostra UID, chip, status, empresa, usuário, URL gerada.
+- Botões: **Associar Cartão**, **Gravar URL NFC**, **Testar Cartão** (abre landing em nova aba), **Visualizar Landing Page**.
+- "Gravar URL NFC": `await new NDEFReader().write({ records:[{ recordType:'url', data: public_url }] })` com toast de sucesso/erro. Quando não suportado, exibe `NfcWriteTutorial` com passos do NFC Tools.
+
+**`src/components/nfc/NfcAnalyticsPanel.tsx`** — drawer com leituras (data/hora, IP, cidade, dispositivo) e leads do cartão.
+
+**`src/hooks/use-nfc.ts`** — React Query: `useNfcCards`, `useNfcDashboard`, `useCreateNfcCard`, `useUpdateNfcCard`, `useWriteNfcTag` etc.
+
+### 4. Frontend — Landing pública
+
+**Rota pública** `/c/:slug` em `src/pages/PublicNfcCard.tsx` (registrada em `App.tsx` fora do `ProtectedRoute`):
+
+Estrutura mobile-first, premium (azul petróleo `#0c2340`, azul elétrico `#3b82f6`, branco, verde WhatsApp `#25D366`):
+- **Hero**: foto, nome, cargo, empresa, logo.
+- **Botões rápidos**: WhatsApp (verde), Ligar, E-mail, Site, Localização (maps), **Salvar Contato** (baixa `.vcf`).
+- **Meus Contatos**: lista clicável com ícones.
+- **Empresa**: logo + descrição.
+- **Materiais**: grid de cards. Click em material com `requires_lead=true` abre `LeadCaptureModal` (nome, whatsapp, empresa, cargo). Após submit: libera download + registra lead + UTM da URL.
+- SEO: title/description dinâmicos, OG image com foto, JSON-LD `Person`.
+
+Contatos **sempre públicos**, sem bloqueio. Lead capture só em materiais.
+
+### 5. vCard
+Geração server-side em `backend/src/routes/nfc.js`:
+```
+BEGIN:VCARD
+VERSION:3.0
+FN:{nome}
+ORG:{empresa}
+TITLE:{cargo}
+TEL;TYPE=CELL:{telefone}
+TEL;TYPE=WORK:{whatsapp}
+EMAIL:{email}
+URL:{site}
+ADR:;;{endereço}
+END:VCARD
+```
+Compatível iOS/Android.
+
+### 6. Tracking
+- Middleware na rota pública parseia `User-Agent` (lib `ua-parser-js`) e resolve geo por IP (usar `req.ip` + serviço gratuito tipo `ipapi.co` com cache). UTMs lidos do query string.
+- Pixel/Analytics avançados ficam para o Plano Pro (placeholder de config).
+
+## Diferenciação por plano
+Flag `nfc_plan` em `nfc_cards` (`card` | `pro`). Pro libera: leads/UTM/SEO/pixel/forms/materiais avançados. Card mostra só landing + vCard + redes. UI esconde recursos conforme plano.
+
+## Estrutura de arquivos
 
 ```text
-┌─────────────────────────────────────────┐
-│ João Silva                    [Abrir →] │
-│ 12 deals abertos · R$ 145.000 em pipe   │
-│ Lead 3 · Qualificação 4 · Proposta 5    │
-│ ⚠ 2 deals parados há +15 dias           │
-└─────────────────────────────────────────┘
+backend/
+  schema-nfc.sql
+  src/routes/nfc.js
+src/
+  pages/
+    CartoesNFC.tsx            # admin
+    PublicNfcCard.tsx         # /c/:slug
+  components/nfc/
+    NfcCardDialog.tsx
+    NfcWriteTutorial.tsx
+    NfcAnalyticsPanel.tsx
+    LeadCaptureModal.tsx
+    VCardButton.tsx
+  hooks/use-nfc.ts
+  lib/nfc-web-api.ts          # wrapper NDEFReader
 ```
 
-- Busca por nome
-- Ordenação: nome, valor em pipe, qtd. deals, deals parados
-- Filtro: "com deals parados", "sem atividade nos últimos 7 dias"
-- Clicar em "Abrir" → navega para `/crm/negociacoes?representative_id=<id>` (CRMNegociacoes já tem filtro de representante, só garantir leitura do query param)
+## Pontos de atenção
+- Web NFC só funciona em Chrome Android via HTTPS. UI deve detectar (`'NDEFReader' in window`) e ocultar/explicar.
+- `public_slug` gerado com nanoid (6-8 chars, base58, sem ambiguidade).
+- Rate limit na rota pública de lead (já há padrão no projeto).
+- RLS: leitura pública liberada via rota backend (service_role), não via PostgREST direto.
+- Memória do projeto: timezone America/Sao_Paulo nas datas; respeitar limite 100MB upload de materiais.
 
-## 3. Kanban por Representante + barra de seleção em lote
+## Fora do escopo desta entrega
+- Editor visual do tema da landing (cores customizadas por cartão) — fica para iteração 2.
+- Integração com Meta Pixel / GA4 — preparar campos no schema, UI fica para Pro v2.
+- Impressão/pedido físico de cartões.
 
-Em `CRMNegociacoes`, quando `?representative_id` está presente:
-- Mostra breadcrumb "← Hub › Kanban de João Silva"
-- Ativa um botão **"Modo seleção"** que liga `selectionMode` no `KanbanBoard` (já existe `selectionMode`, `selectedDealIds`, `onToggleSelect`)
-- Aparece uma **barra de ações em lote** fixada no rodapé enquanto houver seleção:
-  - **Mover para etapa…** (dropdown com as etapas do funil → PATCH em massa)
-  - **Reatribuir a representante…** (dropdown com os representantes do hub → atualiza `representative_id`)
-  - **Adicionar tarefa em massa** (abre dialog leve: título, tipo, prazo → cria 1 tarefa por deal selecionado)
-  - **Comentar em massa** (textarea → insere a mesma nota no histórico de cada deal)
-  - Botão "Limpar seleção"
-
-## 4. Endpoints novos (backend)
-
-Em `backend/src/routes/representatives.js`:
-- `GET /representatives/hub` → retorna representantes acessíveis + agregados (qtd deals por etapa, valor total em pipe, qtd parados, último movimento)
-
-Em `backend/src/routes/crm.js` (ou similar):
-- `PATCH /deals/bulk/stage` → `{ deal_ids[], stage_id }`
-- `PATCH /deals/bulk/representative` → `{ deal_ids[], representative_id }`
-- `POST /deals/bulk/note` → `{ deal_ids[], content }`
-- `POST /deals/bulk/task` → `{ deal_ids[], title, type, due_date }`
-
-Todas validam que cada `deal_id` pertence a um representante visível ao usuário (mesma regra do Hub) e gravam snapshot de auditoria (mem://features/crm/audit-history-snapshots).
-
-## 5. Frontend — novos arquivos
-
-- `src/pages/RepresentativesHub.tsx` — página com cards/lista
-- `src/components/crm/BulkActionsBar.tsx` — barra fixa de ações em lote
-- `src/components/crm/BulkTaskDialog.tsx` + `BulkNoteDialog.tsx`
-- `src/components/crm/BulkReassignRepDialog.tsx`
-- `src/hooks/use-representatives-hub.ts` — fetch do hub + mutations em lote
-- Edits em `src/pages/CRMNegociacoes.tsx` (breadcrumb, modo seleção, barra), `src/components/layout/Sidebar.tsx` (item Hub), `src/App.tsx` (rota)
-
-## 6. Permissões e segurança
-
-- Toda mutação em lote chama a mesma função de autorização que filtra os deals visíveis — se algum `deal_id` não passar, é descartado silenciosamente e retorna `{ updated: N, skipped: M }`.
-- Logs por deal no histórico (`crm_indicator_history` / histórico de deal) com `user_name` snapshot.
-- Inativos continuam ocultos das listas de reatribuição (mem://features/organization-management/user-status-and-deactivation).
-
-## 7. O que NÃO entra agora (pode virar follow-up)
-
-- Swimlanes por representante no mesmo Kanban
-- Dashboard consolidado com gráficos (já existe metas)
-- Vínculo N:N (vários gestores por representante) — fica para depois se precisar
-
----
-
-**Quer que eu siga com essa implementação?** Se sim, começo pelos endpoints + Hub e depois ligo a barra de ações em lote no Kanban existente.
+Confirma para eu implementar?
