@@ -40,10 +40,17 @@ export function NfcCardDialog({ open, onOpenChange, card }: Props) {
   const [linkedin, setLinkedin] = useState("");
   const [instagram, setInstagram] = useState("");
   const [bio, setBio] = useState("");
+  const [companyLogo, setCompanyLogo] = useState("");
+  const [companyDesc, setCompanyDesc] = useState("");
+  const [address, setAddress] = useState("");
+  const [slug, setSlug] = useState("");
+  const [savingSlug, setSavingSlug] = useState(false);
 
   const createCard = useCreateNfcCard();
   const saveProfile = useSaveNfcProfile();
+  const updateCard = useUpdateNfcCard();
   const supported = isWebNfcSupported();
+  const cardDetail = useNfcCard(created?.id);
 
   useEffect(() => {
     if (open) {
@@ -54,12 +61,37 @@ export function NfcCardDialog({ open, onOpenChange, card }: Props) {
         setChipType(card.chip_type);
         setUserId(card.user_id || "");
         setCompanyName(card.company_name || "");
+        setSlug(card.public_slug || "");
       } else {
         setCreated(null);
-        setUid(""); setChipType("NTAG215"); setUserId(""); setCompanyName("");
+        setUid(""); setChipType("NTAG215"); setUserId(""); setCompanyName(""); setSlug("");
+        setDisplayName(""); setRoleTitle(""); setPhone(""); setWhatsapp(""); setEmail("");
+        setWebsite(""); setPhotoUrl(""); setLinkedin(""); setInstagram(""); setBio("");
+        setCompanyLogo(""); setCompanyDesc(""); setAddress("");
       }
     }
   }, [open, card]);
+
+  // When card detail loads, hydrate profile fields
+  useEffect(() => {
+    const p = cardDetail.data?.profile;
+    if (p) {
+      setDisplayName(p.display_name || "");
+      setRoleTitle(p.role_title || "");
+      setPhone(p.phone || "");
+      setWhatsapp(p.whatsapp || "");
+      setEmail(p.email || "");
+      setWebsite(p.website || "");
+      setPhotoUrl(p.photo_url || "");
+      setLinkedin(p.linkedin || "");
+      setInstagram(p.instagram || "");
+      setBio(p.bio || "");
+      setCompanyLogo(p.company_logo_url || "");
+      setCompanyDesc(p.company_description || "");
+      setAddress(p.address || "");
+    }
+  }, [cardDetail.data]);
+
 
   async function handleScan() {
     setScanning(true);
