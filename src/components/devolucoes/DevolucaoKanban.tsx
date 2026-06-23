@@ -8,6 +8,7 @@ import { computeSla } from "@/lib/devolucao-sla";
 interface Props {
   devolucoes: Devolucao[];
   onSelect: (id: string) => void;
+  slaConfig?: Record<string, number>;
 }
 
 const COL_COLORS: Record<string, string> = {
