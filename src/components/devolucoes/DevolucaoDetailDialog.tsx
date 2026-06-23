@@ -349,8 +349,11 @@ export function DevolucaoDetailDialog({ open, onOpenChange, devolucaoId }: Props
             </Tabs>
           </>
         )}
+        </div>
       </DialogContent>
     </Dialog>
+  );
+}
   );
 }
 
