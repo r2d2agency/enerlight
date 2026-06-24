@@ -195,13 +195,15 @@ router.get('/courses', studentAuth, async (req, res) => {
   try {
     const s = await query('SELECT brand_id FROM ead_students WHERE id = $1', [req.studentId]);
     const brandId = s.rows[0]?.brand_id || null;
+    // Strict brand isolation: student only sees courses of their own brand.
+    if (!brandId) return res.json([]);
     const r = await query(
       `SELECT c.id, c.title, c.description, c.cover_url, c.created_at, c.brand_id,
               b.name AS brand_name, b.slug AS brand_slug,
               (SELECT COUNT(*)::int FROM ead_lessons l WHERE l.course_id = c.id) AS lesson_count,
               (SELECT COUNT(*)::int FROM ead_quiz_questions q WHERE q.course_id = c.id) AS question_count
        FROM ead_courses c LEFT JOIN ead_brands b ON b.id = c.brand_id
-       WHERE c.published = true AND (c.brand_id IS NULL OR c.brand_id = $1)
+       WHERE c.published = true AND c.brand_id = $1
        ORDER BY c.created_at DESC`,
       [brandId]
     );
@@ -216,7 +218,7 @@ router.get('/courses/:id', studentAuth, async (req, res) => {
     const course = c.rows[0];
     const s = await query('SELECT brand_id FROM ead_students WHERE id = $1', [req.studentId]);
     const studentBrand = s.rows[0]?.brand_id || null;
-    if (course.brand_id && course.brand_id !== studentBrand) {
+    if (!studentBrand || !course.brand_id || course.brand_id !== studentBrand) {
       return res.status(403).json({ error: 'Este curso não está disponível para sua marca.' });
     }
     const modules = await query('SELECT id, title, description, order_index FROM ead_modules WHERE course_id = $1 ORDER BY order_index, created_at', [req.params.id]);
@@ -363,17 +365,18 @@ router.get('/my/certificates', studentAuth, async (req, res) => {
   res.json(r.rows);
 });
 
-// All manuals available to the logged student (global + same brand)
+// All manuals available to the logged student (strict same brand)
 router.get('/my/manuals', studentAuth, async (req, res) => {
   try {
     const s = await query('SELECT brand_id FROM ead_students WHERE id = $1', [req.studentId]);
     const brandId = s.rows[0]?.brand_id || null;
+    if (!brandId) return res.json([]);
     const r = await query(
       `SELECT m.id, m.title, m.description, m.cover_url, m.file_url, m.order_index,
               c.id AS course_id, c.title AS course_title, c.brand_id
          FROM ead_manuals m
          JOIN ead_courses c ON c.id = m.course_id
-        WHERE c.published = true AND (c.brand_id IS NULL OR c.brand_id = $1)
+        WHERE c.published = true AND c.brand_id = $1
         ORDER BY c.title, m.order_index, m.created_at`,
       [brandId]
     );
