@@ -52,13 +52,21 @@ export default function EadAdmin() {
       </div>
 
       {loading ? <div className="flex justify-center py-12"><Loader2 className="animate-spin h-6 w-6" /></div> : (
-        <Tabs defaultValue="courses">
+        <Tabs defaultValue="brands">
           <TabsList className="h-auto flex-wrap justify-start">
+            <TabsTrigger value="brands">Marcas</TabsTrigger>
+            <TabsTrigger value="approvals">Aprovações</TabsTrigger>
             <TabsTrigger value="courses">Cursos</TabsTrigger>
             <TabsTrigger value="students">Alunos</TabsTrigger>
             <TabsTrigger value="certs">Certificados emitidos</TabsTrigger>
           </TabsList>
 
+          <TabsContent value="brands" className="mt-4">
+            <BrandsTab canManage={!!canManage} />
+          </TabsContent>
+          <TabsContent value="approvals" className="mt-4">
+            <ApprovalsTab canManage={!!canManage} />
+          </TabsContent>
           <TabsContent value="courses" className="mt-4">
             <CoursesTab courses={courses} canManage={!!canManage} reload={reload} onOpen={setActiveCourse} />
           </TabsContent>
@@ -643,3 +651,271 @@ function CertsTab({ certs }: { certs: any[] }) {
     </CardContent></Card>
   );
 }
+
+// =========================================================================
+// BRANDS TAB
+// =========================================================================
+const DEFAULT_FIELDS = [
+  { key: 'name', label: 'Nome completo', type: 'text', required: true },
+  { key: 'cpf', label: 'CPF', type: 'cpf', required: true },
+  { key: 'email', label: 'E-mail', type: 'email', required: true },
+  { key: 'phone', label: 'WhatsApp', type: 'phone', required: true },
+  { key: 'password', label: 'Senha', type: 'password', required: true },
+  { key: 'company', label: 'Empresa', type: 'text', required: false },
+  { key: 'city', label: 'Cidade', type: 'text', required: false },
+  { key: 'state', label: 'Estado', type: 'uf', required: false },
+];
+
+function BrandsTab({ canManage }: { canManage: boolean }) {
+  const [brands, setBrands] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState<any>(null);
+
+  async function load() {
+    setLoading(true);
+    try { setBrands(await eadAdminApi.brands()); }
+    catch (e: any) { toast.error(e.message); }
+    finally { setLoading(false); }
+  }
+  useEffect(() => { load(); }, []);
+
+  async function remove(id: string) {
+    if (!confirm('Excluir marca? Os alunos vinculados manterão seus cadastros.')) return;
+    try { await eadAdminApi.deleteBrand(id); toast.success('Marca excluída'); load(); }
+    catch (e: any) { toast.error(e.message); }
+  }
+
+  const origin = window.location.origin;
+
+  return (
+    <Card><CardHeader className="flex flex-row items-center justify-between">
+      <CardTitle>Marcas / Programas</CardTitle>
+      {canManage && <Button onClick={() => setEditing({ _new: true, signup_fields: DEFAULT_FIELDS, primary_color: '#0ea5e9', accent_color: '#0284c7', active: true })}><Plus className="h-4 w-4 mr-1" />Nova marca</Button>}
+    </CardHeader><CardContent>
+      {loading ? <div className="flex justify-center py-8"><Loader2 className="animate-spin h-5 w-5" /></div> : (
+        <Table>
+          <TableHeader><TableRow>
+            <TableHead>Marca</TableHead><TableHead>Link público</TableHead><TableHead>Alunos</TableHead><TableHead>Pendentes</TableHead><TableHead>Status</TableHead><TableHead></TableHead>
+          </TableRow></TableHeader>
+          <TableBody>
+            {brands.map(b => (
+              <TableRow key={b.id}>
+                <TableCell>
+                  <div className="flex items-center gap-3">
+                    {b.logo_url ? <img src={resolveMediaUrl(b.logo_url)} alt={b.name} className="h-10 w-10 object-contain rounded" style={{ background: b.primary_color + '20' }} /> : <div className="h-10 w-10 rounded" style={{ background: b.primary_color || '#0ea5e9' }} />}
+                    <div>
+                      <div className="font-medium">{b.name}</div>
+                      <div className="text-xs text-muted-foreground">/{b.slug}</div>
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <button onClick={() => { navigator.clipboard.writeText(`${origin}/marca/${b.slug}`); toast.success('Link copiado!'); }} className="text-xs text-primary hover:underline">
+                    {origin}/marca/{b.slug}
+                  </button>
+                </TableCell>
+                <TableCell>{b.total_students || 0}</TableCell>
+                <TableCell>{b.pending_students > 0 ? <Badge variant="destructive">{b.pending_students}</Badge> : <span className="text-muted-foreground">0</span>}</TableCell>
+                <TableCell>{b.active ? <Badge>Ativa</Badge> : <Badge variant="secondary">Inativa</Badge>}</TableCell>
+                <TableCell className="text-right">
+                  {canManage && <>
+                    <Button size="sm" variant="ghost" onClick={() => setEditing(b)}><Pencil className="h-4 w-4" /></Button>
+                    <Button size="sm" variant="ghost" onClick={() => remove(b.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                  </>}
+                </TableCell>
+              </TableRow>
+            ))}
+            {!brands.length && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nenhuma marca cadastrada. Crie a primeira para gerar o link público de cadastro.</TableCell></TableRow>}
+          </TableBody>
+        </Table>
+      )}
+      {editing && <BrandEditor brand={editing} onClose={() => { setEditing(null); load(); }} />}
+    </CardContent></Card>
+  );
+}
+
+function BrandEditor({ brand, onClose }: { brand: any; onClose: () => void }) {
+  const [data, setData] = useState<any>({ ...brand, signup_fields: Array.isArray(brand.signup_fields) ? brand.signup_fields : DEFAULT_FIELDS });
+  const [connections, setConnections] = useState<any[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => { eadAdminApi.brandConnections().then(setConnections).catch(() => {}); }, []);
+
+  function set(k: string, v: any) { setData((d: any) => ({ ...d, [k]: v })); }
+  function setField(i: number, k: string, v: any) {
+    setData((d: any) => {
+      const arr = [...(d.signup_fields || [])];
+      arr[i] = { ...arr[i], [k]: v };
+      return { ...d, signup_fields: arr };
+    });
+  }
+  function addField() { set('signup_fields', [...(data.signup_fields || []), { key: `extra_${Date.now()}`, label: 'Novo campo', type: 'text', required: false }]); }
+  function removeField(i: number) { const arr = [...data.signup_fields]; arr.splice(i, 1); set('signup_fields', arr); }
+
+  async function save() {
+    if (!data.slug || !data.name) { toast.error('Slug e nome são obrigatórios'); return; }
+    setSaving(true);
+    try {
+      const body = {
+        slug: data.slug, name: data.name, logo_url: data.logo_url, cover_url: data.cover_url,
+        primary_color: data.primary_color, accent_color: data.accent_color,
+        welcome_title: data.welcome_title, welcome_text: data.welcome_text,
+        signup_fields: data.signup_fields,
+        notify_connection_id: data.notify_connection_id || null,
+        approval_message: data.approval_message,
+        active: data.active,
+      };
+      if (data._new) await eadAdminApi.createBrand(body);
+      else await eadAdminApi.updateBrand(data.id, body);
+      toast.success('Marca salva!');
+      onClose();
+    } catch (e: any) { toast.error(e.message); }
+    finally { setSaving(false); }
+  }
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader><DialogTitle>{data._new ? 'Nova marca' : `Editar: ${data.name}`}</DialogTitle></DialogHeader>
+        <Tabs defaultValue="info">
+          <TabsList>
+            <TabsTrigger value="info">Informações</TabsTrigger>
+            <TabsTrigger value="brand">Identidade</TabsTrigger>
+            <TabsTrigger value="fields">Campos do cadastro</TabsTrigger>
+            <TabsTrigger value="notify">Notificações</TabsTrigger>
+          </TabsList>
+          <TabsContent value="info" className="space-y-3 pt-4">
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div><Label>Nome</Label><Input value={data.name || ''} onChange={e => set('name', e.target.value)} /></div>
+              <div><Label>Slug (URL)</Label><Input value={data.slug || ''} onChange={e => set('slug', e.target.value)} placeholder="shell" /></div>
+            </div>
+            <div><Label>Título de boas-vindas</Label><Input value={data.welcome_title || ''} onChange={e => set('welcome_title', e.target.value)} placeholder="Área do Instalador Shell" /></div>
+            <div><Label>Texto introdutório</Label><Textarea rows={3} value={data.welcome_text || ''} onChange={e => set('welcome_text', e.target.value)} /></div>
+            <div className="flex items-center gap-2"><Switch checked={!!data.active} onCheckedChange={v => set('active', v)} /><Label>Marca ativa (link público acessível)</Label></div>
+          </TabsContent>
+          <TabsContent value="brand" className="space-y-3 pt-4">
+            <div><Label>Logo</Label><FileUploadInput value={data.logo_url || ''} onChange={v => set('logo_url', v)} accept="image/*" /></div>
+            <div><Label>Imagem de capa (banner)</Label><FileUploadInput value={data.cover_url || ''} onChange={v => set('cover_url', v)} accept="image/*" /></div>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div><Label>Cor primária</Label><Input type="color" value={data.primary_color || '#0ea5e9'} onChange={e => set('primary_color', e.target.value)} /></div>
+              <div><Label>Cor de destaque</Label><Input type="color" value={data.accent_color || '#0284c7'} onChange={e => set('accent_color', e.target.value)} /></div>
+            </div>
+          </TabsContent>
+          <TabsContent value="fields" className="space-y-3 pt-4">
+            <p className="text-sm text-muted-foreground">Defina quais campos o instalador deve preencher. Campos com chaves <code>name, cpf, email, password, phone, company, city, state</code> são salvos nas colunas padrão; demais entram em "extra".</p>
+            <div className="space-y-2">
+              {(data.signup_fields || []).map((f: any, i: number) => (
+                <div key={i} className="grid grid-cols-12 gap-2 items-end border p-2 rounded">
+                  <div className="col-span-3"><Label className="text-xs">Chave</Label><Input value={f.key} onChange={e => setField(i, 'key', e.target.value)} /></div>
+                  <div className="col-span-4"><Label className="text-xs">Rótulo</Label><Input value={f.label} onChange={e => setField(i, 'label', e.target.value)} /></div>
+                  <div className="col-span-3"><Label className="text-xs">Tipo</Label>
+                    <Select value={f.type} onValueChange={v => setField(i, 'type', v)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {['text','email','password','cpf','phone','uf'].map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="col-span-1 flex items-center pb-2"><Switch checked={!!f.required} onCheckedChange={v => setField(i, 'required', v)} /></div>
+                  <div className="col-span-1"><Button size="sm" variant="ghost" onClick={() => removeField(i)}><Trash2 className="h-4 w-4 text-destructive" /></Button></div>
+                </div>
+              ))}
+            </div>
+            <Button variant="outline" size="sm" onClick={addField}><Plus className="h-4 w-4 mr-1" />Adicionar campo</Button>
+          </TabsContent>
+          <TabsContent value="notify" className="space-y-3 pt-4">
+            <div>
+              <Label>Conexão WhatsApp (para enviar o aviso de aprovação)</Label>
+              <Select value={data.notify_connection_id || 'none'} onValueChange={v => set('notify_connection_id', v === 'none' ? null : v)}>
+                <SelectTrigger><SelectValue placeholder="Selecionar conexão" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sem WhatsApp</SelectItem>
+                  {connections.map(c => <SelectItem key={c.id} value={c.id}>{c.instance_name} ({c.status})</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">O e-mail usa o SMTP configurado na sua organização.</p>
+            </div>
+            <div>
+              <Label>Mensagem de aprovação</Label>
+              <Textarea rows={4} value={data.approval_message || ''} onChange={e => set('approval_message', e.target.value)} placeholder="Olá {nome}! Seu cadastro na área {marca} foi aprovado. Acesse: {link}" />
+              <p className="text-xs text-muted-foreground mt-1">Variáveis: <code>{'{nome}'}</code> <code>{'{marca}'}</code> <code>{'{link}'}</code> <code>{'{email}'}</code></p>
+            </div>
+          </TabsContent>
+        </Tabs>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          <Button onClick={save} disabled={saving}>{saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Salvar</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// =========================================================================
+// APPROVALS TAB
+// =========================================================================
+function ApprovalsTab({ canManage }: { canManage: boolean }) {
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  async function load() {
+    setLoading(true);
+    try { setItems(await eadAdminApi.pendingStudents()); }
+    catch (e: any) { toast.error(e.message); }
+    finally { setLoading(false); }
+  }
+  useEffect(() => { load(); }, []);
+
+  async function approve(id: string) {
+    setBusy(id);
+    try {
+      const r = await eadAdminApi.approveStudent(id);
+      const w = r.notify?.whatsapp;
+      const e = r.notify?.email;
+      toast.success(`Aprovado! WhatsApp: ${w?.success ? 'enviado' : (w?.error || 'falhou')} • E-mail: ${e?.success ? 'enviado' : (e?.error || 'falhou')}`);
+      load();
+    } catch (e: any) { toast.error(e.message); }
+    finally { setBusy(null); }
+  }
+  async function reject(id: string) {
+    const reason = prompt('Motivo da rejeição (opcional):') || '';
+    setBusy(id);
+    try { await eadAdminApi.rejectStudent(id, reason); toast.success('Rejeitado'); load(); }
+    catch (e: any) { toast.error(e.message); }
+    finally { setBusy(null); }
+  }
+
+  return (
+    <Card><CardHeader><CardTitle>Cadastros aguardando aprovação ({items.length})</CardTitle></CardHeader><CardContent>
+      {loading ? <div className="flex justify-center py-8"><Loader2 className="animate-spin h-5 w-5" /></div> : (
+        <Table>
+          <TableHeader><TableRow>
+            <TableHead>Instalador</TableHead><TableHead>Marca</TableHead><TableHead>Contato</TableHead><TableHead>Empresa</TableHead><TableHead>Solicitado</TableHead><TableHead></TableHead>
+          </TableRow></TableHeader>
+          <TableBody>
+            {items.map(s => (
+              <TableRow key={s.id}>
+                <TableCell><div className="font-medium">{s.name}</div><div className="text-xs text-muted-foreground">CPF: {s.cpf}</div></TableCell>
+                <TableCell>{s.brand_name ? <Badge variant="outline">{s.brand_name}</Badge> : <span className="text-muted-foreground">-</span>}</TableCell>
+                <TableCell><div className="text-xs">{s.email}</div><div className="text-xs text-muted-foreground">{s.phone || 'sem telefone'}</div></TableCell>
+                <TableCell><div className="text-xs">{s.company || '-'}</div><div className="text-xs text-muted-foreground">{[s.city, s.state].filter(Boolean).join('/')}</div></TableCell>
+                <TableCell className="text-xs">{new Date(s.created_at).toLocaleString('pt-BR')}</TableCell>
+                <TableCell className="text-right whitespace-nowrap">
+                  {canManage && <>
+                    <Button size="sm" variant="default" disabled={busy === s.id} onClick={() => approve(s.id)} className="mr-1">
+                      {busy === s.id ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Aprovar'}
+                    </Button>
+                    <Button size="sm" variant="outline" disabled={busy === s.id} onClick={() => reject(s.id)}>Rejeitar</Button>
+                  </>}
+                </TableCell>
+              </TableRow>
+            ))}
+            {!items.length && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nenhum cadastro pendente.</TableCell></TableRow>}
+          </TableBody>
+        </Table>
+      )}
+    </CardContent></Card>
+  );
+}
+

@@ -5243,6 +5243,46 @@ CREATE TABLE IF NOT EXISTS ead_certificates (
   UNIQUE(student_id, course_id)
 );
 CREATE INDEX IF NOT EXISTS idx_ead_certificates_student ON ead_certificates(student_id);
+
+-- ===== EAD BRANDS (marcas / programas de instalador) =====
+CREATE TABLE IF NOT EXISTS ead_brands (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  slug VARCHAR(80) UNIQUE NOT NULL,
+  name VARCHAR(160) NOT NULL,
+  logo_url TEXT,
+  cover_url TEXT,
+  primary_color VARCHAR(20) DEFAULT '#0ea5e9',
+  accent_color VARCHAR(20) DEFAULT '#0284c7',
+  welcome_title VARCHAR(200),
+  welcome_text TEXT,
+  signup_fields JSONB DEFAULT '[
+    {"key":"name","label":"Nome completo","type":"text","required":true},
+    {"key":"cpf","label":"CPF","type":"cpf","required":true},
+    {"key":"email","label":"E-mail","type":"email","required":true},
+    {"key":"phone","label":"WhatsApp","type":"phone","required":true},
+    {"key":"password","label":"Senha","type":"password","required":true},
+    {"key":"company","label":"Empresa","type":"text","required":false},
+    {"key":"city","label":"Cidade","type":"text","required":false},
+    {"key":"state","label":"Estado","type":"uf","required":false}
+  ]'::jsonb,
+  organization_id UUID REFERENCES organizations(id) ON DELETE SET NULL,
+  notify_connection_id UUID REFERENCES connections(id) ON DELETE SET NULL,
+  approval_message TEXT DEFAULT 'Ola {nome}! Seu cadastro na area {marca} foi aprovado. Acesse: {link}',
+  active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_ead_brands_slug ON ead_brands(slug);
+
+ALTER TABLE ead_students ADD COLUMN IF NOT EXISTS brand_id UUID REFERENCES ead_brands(id) ON DELETE SET NULL;
+ALTER TABLE ead_students ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'approved';
+ALTER TABLE ead_students ADD COLUMN IF NOT EXISTS phone VARCHAR(30);
+ALTER TABLE ead_students ADD COLUMN IF NOT EXISTS extra_fields JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE ead_students ADD COLUMN IF NOT EXISTS approved_at TIMESTAMPTZ;
+ALTER TABLE ead_students ADD COLUMN IF NOT EXISTS approved_by UUID REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE ead_students ADD COLUMN IF NOT EXISTS rejected_reason TEXT;
+CREATE INDEX IF NOT EXISTS idx_ead_students_brand ON ead_students(brand_id);
+CREATE INDEX IF NOT EXISTS idx_ead_students_status ON ead_students(status);
 `;
 
 const step69Devolucoes = `

@@ -56,6 +56,11 @@ export const eadApi = {
       `/api/ead/courses/${id}/attempt`, { method: 'POST', body: { answers } }
     ),
   myCertificates: () => call<any[]>('/api/ead/my/certificates'),
+
+  // Brand public endpoints
+  getBrand: (slug: string) => call<any>(`/api/ead/brand/${slug}`, { auth: false }),
+  brandSignup: (slug: string, body: any) =>
+    call<{ ok: boolean; message: string }>(`/api/ead/brand/${slug}/signup`, { method: 'POST', body, auth: false }),
 };
 
 // Admin (uses regular auth_token via fetch)
@@ -105,6 +110,19 @@ export const eadAdminApi = {
   students: () => adminCall<any[]>('/api/ead/admin/students'),
   student: (id: string) => adminCall<any>(`/api/ead/admin/students/${id}`),
   certificates: () => adminCall<any[]>('/api/ead/admin/certificates'),
+
+  // Brands
+  brands: () => adminCall<any[]>('/api/ead/admin/brands'),
+  createBrand: (b: any) => adminCall<any>('/api/ead/admin/brands', { method: 'POST', body: b }),
+  updateBrand: (id: string, b: any) => adminCall<any>(`/api/ead/admin/brands/${id}`, { method: 'PATCH', body: b }),
+  deleteBrand: (id: string) => adminCall<any>(`/api/ead/admin/brands/${id}`, { method: 'DELETE' }),
+  brandConnections: () => adminCall<any[]>('/api/ead/admin/brands-meta/connections'),
+
+  // Approvals
+  pendingStudents: () => adminCall<any[]>('/api/ead/admin/students/pending'),
+  approveStudent: (id: string) => adminCall<any>(`/api/ead/admin/students/${id}/approve`, { method: 'POST' }),
+  rejectStudent: (id: string, reason?: string) => adminCall<any>(`/api/ead/admin/students/${id}/reject`, { method: 'POST', body: { reason } }),
+  resendNotification: (id: string) => adminCall<any>(`/api/ead/admin/students/${id}/resend-notification`, { method: 'POST' }),
 };
 
 export function ytEmbedUrl(url: string): string {
