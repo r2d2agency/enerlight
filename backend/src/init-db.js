@@ -5283,6 +5283,10 @@ ALTER TABLE ead_students ADD COLUMN IF NOT EXISTS approved_by UUID REFERENCES us
 ALTER TABLE ead_students ADD COLUMN IF NOT EXISTS rejected_reason TEXT;
 CREATE INDEX IF NOT EXISTS idx_ead_students_brand ON ead_students(brand_id);
 CREATE INDEX IF NOT EXISTS idx_ead_students_status ON ead_students(status);
+
+-- Cursos vinculados a marca (NULL = global, visivel a todos)
+ALTER TABLE ead_courses ADD COLUMN IF NOT EXISTS brand_id UUID REFERENCES ead_brands(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_ead_courses_brand ON ead_courses(brand_id);
 `;
 
 const step69Devolucoes = `
