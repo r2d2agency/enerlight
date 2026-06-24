@@ -4,9 +4,11 @@ import jwt from 'jsonwebtoken';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import nodemailer from 'nodemailer';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { query } from '../db.js';
 import { authenticate } from '../middleware/auth.js';
+import { sendMessage as sendWhatsapp } from '../lib/whatsapp-provider.js';
 
 const router = Router();
 
