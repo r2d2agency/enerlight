@@ -708,7 +708,7 @@ admin.post('/brands', gate('can_manage_ead'), async (req, res) => {
     const orgId = await getAdminOrgId(req.userId);
     const r = await query(
       `INSERT INTO ead_brands (slug, name, logo_url, cover_url, primary_color, accent_color, welcome_title, welcome_text, signup_fields, organization_id, notify_connection_id, approval_message, active)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,COALESCE($9::jsonb, (SELECT signup_fields FROM ead_brands LIMIT 0)),$10,$11,$12,COALESCE($13,true))
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10,$11,$12,COALESCE($13,true))
        RETURNING *`,
       [cleanSlug, name, logo_url || null, cover_url || null, primary_color || '#0ea5e9', accent_color || '#0284c7',
        welcome_title || null, welcome_text || null,
