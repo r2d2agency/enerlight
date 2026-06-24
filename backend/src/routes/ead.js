@@ -174,7 +174,11 @@ router.post('/courses/:id/attempt', studentAuth, async (req, res) => {
     }
     const total = qs.rows.length;
     const score = total ? (correct / total) * 100 : 0;
-    const passed = correct === total;
+    // load passing threshold and certificate toggle
+    const cfg = await query('SELECT COALESCE(passing_score,100) AS passing_score, COALESCE(has_certificate,true) AS has_certificate FROM ead_courses WHERE id=$1', [courseId]);
+    const passingScore = Number(cfg.rows[0]?.passing_score ?? 100);
+    const hasCert = !!cfg.rows[0]?.has_certificate;
+    const passed = score >= passingScore;
 
     await query(
       `INSERT INTO ead_attempts (student_id, course_id, score, total, correct, passed, answers)
@@ -193,11 +197,11 @@ router.post('/courses/:id/attempt', studentAuth, async (req, res) => {
     );
 
     let certificate = null;
-    if (passed) {
+    if (passed && hasCert) {
       certificate = await generateCertificate(req.studentId, courseId);
     }
 
-    res.json({ score, correct, total, passed, review, certificate });
+    res.json({ score, correct, total, passed, passing_score: passingScore, has_certificate: hasCert, review, certificate });
   } catch (e) {
     console.error('attempt error', e);
     res.status(500).json({ error: 'Erro ao corrigir prova' });
