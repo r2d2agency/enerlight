@@ -7,13 +7,7 @@ const resolveApiUrl = () => {
     return configuredUrl.replace(/\/$/, '');
   }
 
-  if (typeof window !== 'undefined') {
-    const isLocalhost = ['localhost', '127.0.0.1', ''].includes(window.location.hostname);
-    if (!isLocalhost) {
-      return PRODUCTION_API_URL;
-    }
-  }
-
+  // Same-origin (proxied by nginx via /api) - avoids CORS in production
   return '';
 };
 
