@@ -38,8 +38,18 @@ export default function EadCourse() {
   if (loading) return <EadLayout><div className="flex justify-center py-12"><Loader2 className="animate-spin h-6 w-6" /></div></EadLayout>;
   if (!data) return <EadLayout><p>Curso não encontrado</p></EadLayout>;
 
-  const { course, lessons, certificate } = data;
+  const { course, lessons, modules = [], certificate } = data;
   const approved = !!certificate;
+  const hasCert = course.has_certificate !== false;
+  const passingScore = course.passing_score ?? 100;
+
+  // group lessons by module
+  const grouped: { id: string | null; title: string; description?: string; lessons: any[] }[] = [];
+  for (const m of modules) grouped.push({ id: m.id, title: m.title, description: m.description, lessons: lessons.filter((l: any) => l.module_id === m.id) });
+  const orphan = lessons.filter((l: any) => !l.module_id);
+  if (orphan.length) grouped.push({ id: null, title: modules.length ? 'Outras aulas' : 'Aulas', lessons: orphan });
+
+  let counter = 0;
 
   return (
     <EadLayout>
@@ -67,7 +77,10 @@ export default function EadCourse() {
           </div>
           {activeLesson && (
             <div className="flex items-center justify-between">
-              <h2 className="font-semibold">{activeLesson.title}</h2>
+              <div>
+                <h2 className="font-semibold">{activeLesson.title}</h2>
+                {activeLesson.description && <p className="text-sm text-muted-foreground">{activeLesson.description}</p>}
+              </div>
               <Button size="sm" variant={watched.has(activeLesson.id) ? 'secondary' : 'default'} onClick={() => markWatched(activeLesson.id)}>
                 <CheckCircle2 className="h-4 w-4 mr-1" />{watched.has(activeLesson.id) ? 'Aula concluída' : 'Marcar como assistida'}
               </Button>
@@ -79,35 +92,49 @@ export default function EadCourse() {
             <CardContent>
               {approved ? (
                 <div className="flex items-center justify-between gap-4">
-                  <p className="text-sm text-muted-foreground">Você já foi aprovado! Baixe seu certificado.</p>
-                  <a href={certificate.pdf_url} target="_blank" rel="noreferrer">
-                    <Button><Download className="h-4 w-4 mr-1" />Baixar certificado</Button>
-                  </a>
+                  <p className="text-sm text-muted-foreground">Você já foi aprovado!{hasCert ? ' Baixe seu certificado.' : ''}</p>
+                  {hasCert && certificate && (
+                    <a href={certificate.pdf_url} target="_blank" rel="noreferrer">
+                      <Button><Download className="h-4 w-4 mr-1" />Baixar certificado</Button>
+                    </a>
+                  )}
                 </div>
               ) : (
-                <Button onClick={() => nav(`/ead/curso/${id}/prova`)}>Fazer prova</Button>
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">Acerte ao menos <strong>{passingScore}%</strong> para ser aprovado{hasCert ? ' e receber o certificado' : ''}.</p>
+                  <Button onClick={() => nav(`/ead/curso/${id}/prova`)}>Fazer prova</Button>
+                </div>
               )}
             </CardContent>
           </Card>
         </div>
 
         <Card className="lg:col-span-1">
-          <CardHeader><CardTitle className="text-base">Aulas</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">Conteúdo</CardTitle></CardHeader>
           <CardContent className="p-0">
-            <ul>
-              {lessons.map((l: any, i: number) => (
-                <li key={l.id}>
-                  <button
-                    onClick={() => setActiveLesson(l)}
-                    className={`w-full text-left px-4 py-3 border-t flex items-center gap-3 hover:bg-muted/50 ${activeLesson?.id === l.id ? 'bg-muted' : ''}`}
-                  >
-                    {watched.has(l.id) ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <PlayCircle className="h-4 w-4 text-muted-foreground" />}
-                    <span className="text-sm font-medium flex-1">{i + 1}. {l.title}</span>
-                  </button>
-                </li>
-              ))}
-              {!lessons.length && <li className="p-4 text-sm text-muted-foreground">Sem aulas cadastradas.</li>}
-            </ul>
+            {grouped.length === 0 && <p className="p-4 text-sm text-muted-foreground">Sem aulas cadastradas.</p>}
+            {grouped.map((g) => (
+              <div key={g.id ?? 'none'}>
+                <div className="px-4 py-2 bg-muted/30 border-t text-xs font-semibold uppercase tracking-wider text-muted-foreground">{g.title}</div>
+                <ul>
+                  {g.lessons.map((l: any) => {
+                    counter += 1;
+                    const idx = counter;
+                    return (
+                      <li key={l.id}>
+                        <button
+                          onClick={() => setActiveLesson(l)}
+                          className={`w-full text-left px-4 py-3 border-t flex items-center gap-3 hover:bg-muted/50 ${activeLesson?.id === l.id ? 'bg-muted' : ''}`}
+                        >
+                          {watched.has(l.id) ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <PlayCircle className="h-4 w-4 text-muted-foreground" />}
+                          <span className="text-sm font-medium flex-1">{idx}. {l.title}</span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ))}
           </CardContent>
         </Card>
       </div>

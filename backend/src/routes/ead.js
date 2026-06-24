@@ -121,10 +121,11 @@ router.get('/courses/:id', studentAuth, async (req, res) => {
   try {
     const c = await query('SELECT * FROM ead_courses WHERE id = $1', [req.params.id]);
     if (!c.rows.length) return res.status(404).json({ error: 'Curso não encontrado' });
-    const lessons = await query('SELECT id, title, youtube_url, order_index FROM ead_lessons WHERE course_id = $1 ORDER BY order_index, created_at', [req.params.id]);
+    const modules = await query('SELECT id, title, description, order_index FROM ead_modules WHERE course_id = $1 ORDER BY order_index, created_at', [req.params.id]);
+    const lessons = await query('SELECT id, module_id, title, youtube_url, description, order_index FROM ead_lessons WHERE course_id = $1 ORDER BY order_index, created_at', [req.params.id]);
     const enr = await query('SELECT status, approved_at FROM ead_enrollments WHERE student_id = $1 AND course_id = $2', [req.studentId, req.params.id]);
     const cert = await query('SELECT id, pdf_url, issued_at FROM ead_certificates WHERE student_id = $1 AND course_id = $2', [req.studentId, req.params.id]);
-    res.json({ course: c.rows[0], lessons: lessons.rows, enrollment: enr.rows[0] || null, certificate: cert.rows[0] || null });
+    res.json({ course: c.rows[0], modules: modules.rows, lessons: lessons.rows, enrollment: enr.rows[0] || null, certificate: cert.rows[0] || null });
   } catch (e) { console.error(e); res.status(500).json({ error: 'Erro' }); }
 });
 
@@ -174,7 +175,11 @@ router.post('/courses/:id/attempt', studentAuth, async (req, res) => {
     }
     const total = qs.rows.length;
     const score = total ? (correct / total) * 100 : 0;
-    const passed = correct === total;
+    // load passing threshold and certificate toggle
+    const cfg = await query('SELECT COALESCE(passing_score,100) AS passing_score, COALESCE(has_certificate,true) AS has_certificate FROM ead_courses WHERE id=$1', [courseId]);
+    const passingScore = Number(cfg.rows[0]?.passing_score ?? 100);
+    const hasCert = !!cfg.rows[0]?.has_certificate;
+    const passed = score >= passingScore;
 
     await query(
       `INSERT INTO ead_attempts (student_id, course_id, score, total, correct, passed, answers)
@@ -193,11 +198,11 @@ router.post('/courses/:id/attempt', studentAuth, async (req, res) => {
     );
 
     let certificate = null;
-    if (passed) {
+    if (passed && hasCert) {
       certificate = await generateCertificate(req.studentId, courseId);
     }
 
-    res.json({ score, correct, total, passed, review, certificate });
+    res.json({ score, correct, total, passed, passing_score: passingScore, has_certificate: hasCert, review, certificate });
   } catch (e) {
     console.error('attempt error', e);
     res.status(500).json({ error: 'Erro ao corrigir prova' });
@@ -349,27 +354,36 @@ admin.get('/courses', gate('can_view_ead'), async (req, res) => {
 });
 
 admin.post('/courses', gate('can_manage_ead'), async (req, res) => {
-  const { title, description, cover_url, published } = req.body || {};
+  const { title, description, cover_url, published, has_certificate, passing_score } = req.body || {};
   if (!title) return res.status(400).json({ error: 'Título obrigatório' });
   const r = await query(
-    `INSERT INTO ead_courses (title, description, cover_url, published, created_by)
-     VALUES ($1,$2,$3,$4,$5) RETURNING *`,
-    [title, description || null, cover_url || null, !!published, req.userId]
+    `INSERT INTO ead_courses (title, description, cover_url, published, has_certificate, passing_score, created_by)
+     VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+    [title, description || null, cover_url || null, !!published,
+     typeof has_certificate === 'boolean' ? has_certificate : true,
+     Number.isFinite(+passing_score) ? +passing_score : 100,
+     req.userId]
   );
   res.status(201).json(r.rows[0]);
 });
 
 admin.patch('/courses/:id', gate('can_manage_ead'), async (req, res) => {
-  const { title, description, cover_url, published } = req.body || {};
+  const { title, description, cover_url, published, has_certificate, passing_score } = req.body || {};
   const r = await query(
     `UPDATE ead_courses SET
        title = COALESCE($1,title),
        description = COALESCE($2,description),
        cover_url = COALESCE($3,cover_url),
        published = COALESCE($4,published),
+       has_certificate = COALESCE($5,has_certificate),
+       passing_score = COALESCE($6,passing_score),
        updated_at = NOW()
-     WHERE id = $5 RETURNING *`,
-    [title ?? null, description ?? null, cover_url ?? null, typeof published === 'boolean' ? published : null, req.params.id]
+     WHERE id = $7 RETURNING *`,
+    [title ?? null, description ?? null, cover_url ?? null,
+     typeof published === 'boolean' ? published : null,
+     typeof has_certificate === 'boolean' ? has_certificate : null,
+     Number.isFinite(+passing_score) ? +passing_score : null,
+     req.params.id]
   );
   res.json(r.rows[0]);
 });
@@ -379,25 +393,53 @@ admin.delete('/courses/:id', gate('can_manage_ead'), async (req, res) => {
   res.json({ ok: true });
 });
 
+// Modules
+admin.get('/courses/:id/modules', gate('can_view_ead'), async (req, res) => {
+  const r = await query('SELECT * FROM ead_modules WHERE course_id=$1 ORDER BY order_index, created_at', [req.params.id]);
+  res.json(r.rows);
+});
+admin.post('/courses/:id/modules', gate('can_manage_ead'), async (req, res) => {
+  const { title, description, order_index } = req.body || {};
+  if (!title) return res.status(400).json({ error: 'Título obrigatório' });
+  const r = await query(
+    `INSERT INTO ead_modules (course_id, title, description, order_index) VALUES ($1,$2,$3,$4) RETURNING *`,
+    [req.params.id, title, description || null, order_index || 0]
+  );
+  res.status(201).json(r.rows[0]);
+});
+admin.patch('/modules/:id', gate('can_manage_ead'), async (req, res) => {
+  const { title, description, order_index } = req.body || {};
+  const r = await query(
+    `UPDATE ead_modules SET title=COALESCE($1,title), description=COALESCE($2,description), order_index=COALESCE($3,order_index) WHERE id=$4 RETURNING *`,
+    [title ?? null, description ?? null, order_index ?? null, req.params.id]
+  );
+  res.json(r.rows[0]);
+});
+admin.delete('/modules/:id', gate('can_manage_ead'), async (req, res) => {
+  await query('DELETE FROM ead_modules WHERE id=$1', [req.params.id]);
+  res.json({ ok: true });
+});
+
 // Lessons
 admin.get('/courses/:id/lessons', gate('can_view_ead'), async (req, res) => {
   const r = await query('SELECT * FROM ead_lessons WHERE course_id = $1 ORDER BY order_index, created_at', [req.params.id]);
   res.json(r.rows);
 });
 admin.post('/courses/:id/lessons', gate('can_manage_ead'), async (req, res) => {
-  const { title, youtube_url, order_index } = req.body || {};
+  const { title, youtube_url, order_index, module_id, description } = req.body || {};
   if (!title || !youtube_url) return res.status(400).json({ error: 'Título e URL obrigatórios' });
   const r = await query(
-    `INSERT INTO ead_lessons (course_id, title, youtube_url, order_index) VALUES ($1,$2,$3,$4) RETURNING *`,
-    [req.params.id, title, youtube_url, order_index || 0]
+    `INSERT INTO ead_lessons (course_id, module_id, title, youtube_url, description, order_index) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+    [req.params.id, module_id || null, title, youtube_url, description || null, order_index || 0]
   );
   res.status(201).json(r.rows[0]);
 });
 admin.patch('/lessons/:id', gate('can_manage_ead'), async (req, res) => {
-  const { title, youtube_url, order_index } = req.body || {};
+  const { title, youtube_url, order_index, module_id, description } = req.body || {};
   const r = await query(
-    `UPDATE ead_lessons SET title=COALESCE($1,title), youtube_url=COALESCE($2,youtube_url), order_index=COALESCE($3,order_index) WHERE id=$4 RETURNING *`,
-    [title ?? null, youtube_url ?? null, order_index ?? null, req.params.id]
+    `UPDATE ead_lessons SET title=COALESCE($1,title), youtube_url=COALESCE($2,youtube_url), order_index=COALESCE($3,order_index),
+       module_id=$4, description=COALESCE($5,description) WHERE id=$6 RETURNING *`,
+    [title ?? null, youtube_url ?? null, order_index ?? null, module_id ?? null, description ?? null, req.params.id]
   );
   res.json(r.rows[0]);
 });
