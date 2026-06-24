@@ -56,6 +56,10 @@ export const eadApi = {
       `/api/ead/courses/${id}/attempt`, { method: 'POST', body: { answers } }
     ),
   myCertificates: () => call<any[]>('/api/ead/my/certificates'),
+  lessonProgress: (lessonId: string, b: { watched_seconds: number; last_position: number; total_seconds?: number | null }) =>
+    call<any>(`/api/ead/lessons/${lessonId}/progress`, { method: 'POST', body: b }),
+  lessonComplete: (lessonId: string) =>
+    call<any>(`/api/ead/lessons/${lessonId}/complete`, { method: 'POST' }),
 
   // Brand public endpoints
   getBrand: (slug: string) => call<any>(`/api/ead/brand/${slug}`, { auth: false }),
