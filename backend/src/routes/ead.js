@@ -123,9 +123,10 @@ router.get('/courses/:id', studentAuth, async (req, res) => {
     if (!c.rows.length) return res.status(404).json({ error: 'Curso não encontrado' });
     const modules = await query('SELECT id, title, description, order_index FROM ead_modules WHERE course_id = $1 ORDER BY order_index, created_at', [req.params.id]);
     const lessons = await query('SELECT id, module_id, title, youtube_url, description, order_index FROM ead_lessons WHERE course_id = $1 ORDER BY order_index, created_at', [req.params.id]);
+    const manuals = await query('SELECT id, title, description, cover_url, file_url, order_index FROM ead_manuals WHERE course_id = $1 ORDER BY order_index, created_at', [req.params.id]);
     const enr = await query('SELECT status, approved_at FROM ead_enrollments WHERE student_id = $1 AND course_id = $2', [req.studentId, req.params.id]);
     const cert = await query('SELECT id, pdf_url, issued_at FROM ead_certificates WHERE student_id = $1 AND course_id = $2', [req.studentId, req.params.id]);
-    res.json({ course: c.rows[0], modules: modules.rows, lessons: lessons.rows, enrollment: enr.rows[0] || null, certificate: cert.rows[0] || null });
+    res.json({ course: c.rows[0], modules: modules.rows, lessons: lessons.rows, manuals: manuals.rows, enrollment: enr.rows[0] || null, certificate: cert.rows[0] || null });
   } catch (e) { console.error(e); res.status(500).json({ error: 'Erro' }); }
 });
 
@@ -346,6 +347,7 @@ admin.get('/courses', gate('can_view_ead'), async (req, res) => {
   const r = await query(
     `SELECT c.*,
        (SELECT COUNT(*)::int FROM ead_lessons l WHERE l.course_id = c.id) AS lesson_count,
+       (SELECT COUNT(*)::int FROM ead_manuals m WHERE m.course_id = c.id) AS manual_count,
        (SELECT COUNT(*)::int FROM ead_quiz_questions q WHERE q.course_id = c.id) AS question_count,
        (SELECT COUNT(*)::int FROM ead_certificates ce WHERE ce.course_id = c.id) AS certificate_count
      FROM ead_courses c ORDER BY c.created_at DESC`
@@ -445,6 +447,36 @@ admin.patch('/lessons/:id', gate('can_manage_ead'), async (req, res) => {
 });
 admin.delete('/lessons/:id', gate('can_manage_ead'), async (req, res) => {
   await query('DELETE FROM ead_lessons WHERE id=$1', [req.params.id]); res.json({ ok: true });
+});
+
+// Manuals
+admin.get('/courses/:id/manuals', gate('can_view_ead'), async (req, res) => {
+  const r = await query('SELECT * FROM ead_manuals WHERE course_id = $1 ORDER BY order_index, created_at', [req.params.id]);
+  res.json(r.rows);
+});
+admin.post('/courses/:id/manuals', gate('can_manage_ead'), async (req, res) => {
+  const { title, description, cover_url, file_url, order_index } = req.body || {};
+  if (!title || !file_url) return res.status(400).json({ error: 'Título e arquivo do manual são obrigatórios' });
+  const r = await query(
+    `INSERT INTO ead_manuals (course_id, title, description, cover_url, file_url, order_index)
+     VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+    [req.params.id, title, description || null, cover_url || null, file_url, order_index || 0]
+  );
+  res.status(201).json(r.rows[0]);
+});
+admin.patch('/manuals/:id', gate('can_manage_ead'), async (req, res) => {
+  const { title, description, cover_url, file_url, order_index } = req.body || {};
+  const r = await query(
+    `UPDATE ead_manuals SET
+       title=COALESCE($1,title), description=COALESCE($2,description), cover_url=COALESCE($3,cover_url),
+       file_url=COALESCE($4,file_url), order_index=COALESCE($5,order_index)
+     WHERE id=$6 RETURNING *`,
+    [title ?? null, description ?? null, cover_url ?? null, file_url ?? null, order_index ?? null, req.params.id]
+  );
+  res.json(r.rows[0]);
+});
+admin.delete('/manuals/:id', gate('can_manage_ead'), async (req, res) => {
+  await query('DELETE FROM ead_manuals WHERE id=$1', [req.params.id]); res.json({ ok: true });
 });
 
 // Quiz
