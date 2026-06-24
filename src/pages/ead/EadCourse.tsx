@@ -43,8 +43,9 @@ function extractYouTubeId(url: string): string {
 }
 
 export default function EadCourse() {
-  const { id } = useParams<{ id: string }>();
+  const { id, slug } = useParams<{ id: string; slug?: string }>();
   const nav = useNavigate();
+  const brandBase = slug ? `/marca/${slug}` : '/ead';
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activeLesson, setActiveLesson] = useState<any>(null);
@@ -209,10 +210,8 @@ export default function EadCourse() {
   let counter = 0;
 
   return (
-    <EadLayout>
-      <div className="mb-4">
-        <Link to="/ead" className="text-sm text-muted-foreground hover:underline">← Voltar</Link>
-      </div>
+    <EadLayout breadcrumbs={[{ label: 'Cursos', to: `${brandBase}/cursos` }, { label: course.title }]}>
+
       <div className="flex items-start justify-between gap-4 mb-4">
         <div>
           <h1 className="text-2xl font-bold">{course.title}</h1>
@@ -317,7 +316,7 @@ export default function EadCourse() {
               ) : (
                 <div className="space-y-2">
                   <p className="text-sm text-muted-foreground">Acerte ao menos <strong>{passingScore}%</strong> para ser aprovado{hasCert ? ' e receber o certificado' : ''}.</p>
-                  <Button onClick={() => nav(`/ead/curso/${id}/prova`)}>Fazer prova</Button>
+                  <Button onClick={() => nav(`${brandBase}/curso/${id}/prova`)}>Fazer prova</Button>
                 </div>
               )}
             </CardContent>

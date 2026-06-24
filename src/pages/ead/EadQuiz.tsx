@@ -8,8 +8,9 @@ import { Loader2, Award, RotateCcw, Download } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function EadQuiz() {
-  const { id } = useParams<{ id: string }>();
+  const { id, slug } = useParams<{ id: string; slug?: string }>();
   const nav = useNavigate();
+  const brandBase = slug ? `/marca/${slug}` : '/ead';
   const [questions, setQuestions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -20,9 +21,9 @@ export default function EadQuiz() {
     if (!id) return;
     eadApi.quiz(id).then(d => setQuestions(d.questions)).catch(e => {
       toast.error(e.message);
-      nav(`/ead/curso/${id}`);
+      nav(`${brandBase}/curso/${id}`);
     }).finally(() => setLoading(false));
-  }, [id, nav]);
+  }, [id, nav, brandBase]);
 
   async function submit() {
     if (Object.keys(answers).length < questions.length) {
@@ -48,7 +49,7 @@ export default function EadQuiz() {
 
   if (result?.passed) {
     return (
-      <EadLayout>
+      <EadLayout breadcrumbs={[{ label: 'Cursos', to: `${brandBase}/cursos` }, { label: 'Curso', to: `${brandBase}/curso/${id}` }, { label: 'Prova' }]}>
         <Card className="max-w-lg mx-auto text-center">
           <CardContent className="p-8 space-y-4">
             <Award className="h-16 w-16 text-yellow-500 mx-auto" />
@@ -59,7 +60,7 @@ export default function EadQuiz() {
                 <Button size="lg"><Download className="h-4 w-4 mr-2" />Baixar Certificado</Button>
               </a>
             )}
-            <div><Link to="/ead" className="text-sm text-muted-foreground hover:underline">Voltar ao catálogo</Link></div>
+            <div><Link to={`${brandBase}/cursos`} className="text-sm text-muted-foreground hover:underline">Voltar ao catálogo</Link></div>
           </CardContent>
         </Card>
       </EadLayout>
@@ -67,8 +68,7 @@ export default function EadQuiz() {
   }
 
   return (
-    <EadLayout>
-      <div className="mb-4"><Link to={`/ead/curso/${id}`} className="text-sm text-muted-foreground hover:underline">← Voltar ao curso</Link></div>
+    <EadLayout breadcrumbs={[{ label: 'Cursos', to: `${brandBase}/cursos` }, { label: 'Curso', to: `${brandBase}/curso/${id}` }, { label: 'Prova' }]}>
       <h1 className="text-2xl font-bold mb-1">Prova</h1>
       <p className="text-muted-foreground mb-6">Você precisa acertar 100% para ser aprovado. Pode tentar quantas vezes precisar.</p>
 

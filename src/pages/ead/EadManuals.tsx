@@ -38,7 +38,7 @@ export default function EadManuals() {
   }, [filtered]);
 
   return (
-    <EadLayout>
+    <EadLayout breadcrumbs={[{ label: 'Manuais' }]}>
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold mb-1">Manuais e Apostilas</h1>
