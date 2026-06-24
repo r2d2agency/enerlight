@@ -833,15 +833,13 @@ async function notifyApproval(student, brand, baseUrl) {
       const cfg = await query('SELECT * FROM email_smtp_configs WHERE organization_id = $1 LIMIT 1', [brand.organization_id]);
       const smtp = cfg.rows[0];
       if (smtp) {
-        const { default: nodemailerLib } = await import('nodemailer');
-        const cryptoLib = await import('crypto');
         const ENC = process.env.EMAIL_ENCRYPTION_KEY || 'whatsale-email-key-32chars!!';
         const [ivHex, enc] = String(smtp.password_encrypted).split(':');
         const iv = Buffer.from(ivHex, 'hex');
-        const key = cryptoLib.scryptSync(ENC, 'salt', 32);
-        const decipher = cryptoLib.createDecipheriv('aes-256-cbc', key, iv);
+        const key = crypto.scryptSync(ENC, 'salt', 32);
+        const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
         let pass = decipher.update(enc, 'hex', 'utf8'); pass += decipher.final('utf8');
-        const transporter = nodemailerLib.createTransport({
+        const transporter = nodemailer.createTransport({
           host: smtp.host, port: smtp.port, secure: smtp.secure,
           auth: { user: smtp.username, pass },
           tls: { rejectUnauthorized: false },
