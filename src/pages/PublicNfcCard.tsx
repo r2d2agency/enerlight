@@ -92,13 +92,13 @@ export default function PublicNfcCard() {
         {/* Hero */}
         <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] gap-5 items-start">
           <div
-            className="relative aspect-[3/4] sm:aspect-square sm:w-40 rounded-2xl overflow-hidden ring-1 ring-[#1e3a8a]/60"
+            className="relative w-32 sm:w-40 aspect-square mx-auto sm:mx-0 rounded-2xl overflow-hidden ring-1 ring-[#1e3a8a]/60"
             style={{ background: "linear-gradient(135deg,#0b1a3a,#0a1f4d)" }}
           >
             {p.photo_url ? (
               <img src={p.photo_url} alt={name} className="w-full h-full object-cover" />
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-5xl text-white/40 font-bold">
+              <div className="w-full h-full flex items-center justify-center text-4xl sm:text-5xl text-white/40 font-bold">
                 {(name || "?")[0]}
               </div>
             )}
