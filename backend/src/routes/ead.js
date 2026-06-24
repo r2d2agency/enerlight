@@ -363,6 +363,24 @@ router.get('/my/certificates', studentAuth, async (req, res) => {
   res.json(r.rows);
 });
 
+// All manuals available to the logged student (global + same brand)
+router.get('/my/manuals', studentAuth, async (req, res) => {
+  try {
+    const s = await query('SELECT brand_id FROM ead_students WHERE id = $1', [req.studentId]);
+    const brandId = s.rows[0]?.brand_id || null;
+    const r = await query(
+      `SELECT m.id, m.title, m.description, m.cover_url, m.file_url, m.order_index,
+              c.id AS course_id, c.title AS course_title, c.brand_id
+         FROM ead_manuals m
+         JOIN ead_courses c ON c.id = m.course_id
+        WHERE c.published = true AND (c.brand_id IS NULL OR c.brand_id = $1)
+        ORDER BY c.title, m.order_index, m.created_at`,
+      [brandId]
+    );
+    res.json(r.rows);
+  } catch (e) { console.error(e); res.status(500).json({ error: 'Erro' }); }
+});
+
 // =========================================================================
 // CERTIFICATE GENERATION (PDF from PNG template + fields)
 // =========================================================================
