@@ -121,10 +121,11 @@ router.get('/courses/:id', studentAuth, async (req, res) => {
   try {
     const c = await query('SELECT * FROM ead_courses WHERE id = $1', [req.params.id]);
     if (!c.rows.length) return res.status(404).json({ error: 'Curso não encontrado' });
-    const lessons = await query('SELECT id, title, youtube_url, order_index FROM ead_lessons WHERE course_id = $1 ORDER BY order_index, created_at', [req.params.id]);
+    const modules = await query('SELECT id, title, description, order_index FROM ead_modules WHERE course_id = $1 ORDER BY order_index, created_at', [req.params.id]);
+    const lessons = await query('SELECT id, module_id, title, youtube_url, description, order_index FROM ead_lessons WHERE course_id = $1 ORDER BY order_index, created_at', [req.params.id]);
     const enr = await query('SELECT status, approved_at FROM ead_enrollments WHERE student_id = $1 AND course_id = $2', [req.studentId, req.params.id]);
     const cert = await query('SELECT id, pdf_url, issued_at FROM ead_certificates WHERE student_id = $1 AND course_id = $2', [req.studentId, req.params.id]);
-    res.json({ course: c.rows[0], lessons: lessons.rows, enrollment: enr.rows[0] || null, certificate: cert.rows[0] || null });
+    res.json({ course: c.rows[0], modules: modules.rows, lessons: lessons.rows, enrollment: enr.rows[0] || null, certificate: cert.rows[0] || null });
   } catch (e) { console.error(e); res.status(500).json({ error: 'Erro' }); }
 });
 
