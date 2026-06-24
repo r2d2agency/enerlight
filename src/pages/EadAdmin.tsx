@@ -29,6 +29,7 @@ export default function EadAdmin() {
   const [certs, setCerts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCourse, setActiveCourse] = useState<any>(null);
+  const [tab, setTab] = useState('brands');
 
   async function reload() {
     setLoading(true);
@@ -52,7 +53,7 @@ export default function EadAdmin() {
       </div>
 
       {loading ? <div className="flex justify-center py-12"><Loader2 className="animate-spin h-6 w-6" /></div> : (
-        <Tabs defaultValue="brands">
+        <Tabs value={tab} onValueChange={setTab}>
           <TabsList className="h-auto flex-wrap justify-start">
             <TabsTrigger value="brands">Marcas</TabsTrigger>
             <TabsTrigger value="approvals">Aprovações</TabsTrigger>
@@ -62,19 +63,19 @@ export default function EadAdmin() {
           </TabsList>
 
           <TabsContent value="brands" className="mt-4">
-            <BrandsTab canManage={!!canManage} />
+            {tab === 'brands' && <BrandsTab canManage={!!canManage} />}
           </TabsContent>
           <TabsContent value="approvals" className="mt-4">
-            <ApprovalsTab canManage={!!canManage} />
+            {tab === 'approvals' && <ApprovalsTab canManage={!!canManage} />}
           </TabsContent>
           <TabsContent value="courses" className="mt-4">
-            <CoursesTab courses={courses} canManage={!!canManage} reload={reload} onOpen={setActiveCourse} />
+            {tab === 'courses' && <CoursesTab courses={courses} canManage={!!canManage} reload={reload} onOpen={setActiveCourse} />}
           </TabsContent>
           <TabsContent value="students" className="mt-4">
-            <StudentsTab students={students} />
+            {tab === 'students' && <StudentsTab students={students} />}
           </TabsContent>
           <TabsContent value="certs" className="mt-4">
-            <CertsTab certs={certs} />
+            {tab === 'certs' && <CertsTab certs={certs} />}
           </TabsContent>
         </Tabs>
       )}
