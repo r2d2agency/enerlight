@@ -100,21 +100,24 @@ export default function EadBrandSignup() {
   }
 
   return (
-    <div className="min-h-screen" style={{ background: `linear-gradient(135deg, ${primary}10, ${accent}20)` }}>
+    <div className="min-h-screen flex flex-col" style={{ background: `linear-gradient(135deg, ${primary}10, ${accent}20)` }}>
+      {/* Thin brand header strip */}
       <div
-        className="relative overflow-hidden"
+        className="relative overflow-hidden shrink-0"
         style={cover ? { backgroundImage: `linear-gradient(135deg, ${primary}cc, ${accent}dd), url(${cover})`, backgroundSize: 'cover', backgroundPosition: 'center' } : { background: `linear-gradient(135deg, ${primary}, ${accent})` }}
       >
-        <div className="max-w-5xl mx-auto px-4 py-12 sm:py-20 text-white text-center">
-          {logo ? <img src={logo} alt={brand.name} className="h-20 sm:h-24 mx-auto mb-6 object-contain drop-shadow-lg" /> : <GraduationCap className="h-16 w-16 mx-auto mb-4" />}
-          <h1 className="text-3xl sm:text-5xl font-bold tracking-tight">{brand.welcome_title || `Área do Instalador ${brand.name}`}</h1>
-          {brand.welcome_text && <p className="mt-4 text-base sm:text-lg opacity-90 max-w-2xl mx-auto whitespace-pre-line">{brand.welcome_text}</p>}
+        <div className="max-w-5xl mx-auto px-4 py-4 sm:py-5 text-white text-center">
+          {logo ? (
+            <img src={logo} alt={brand.name} className="h-12 sm:h-14 mx-auto object-contain drop-shadow-md" />
+          ) : (
+            <GraduationCap className="h-10 w-10 mx-auto" />
+          )}
         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto px-4 -mt-8 sm:-mt-12 pb-12">
+      <div className="flex-1 max-w-2xl mx-auto w-full px-4 py-4 sm:py-6">
         <Card className="shadow-xl border-0">
-          <CardContent className="p-6 sm:p-8">
+          <CardContent className="p-5 sm:p-8">
             <h2 className="text-xl font-semibold mb-1">Solicitar cadastro</h2>
             <p className="text-sm text-muted-foreground mb-6">Após o envio, seu acesso será analisado e liberado manualmente. Você receberá um aviso por WhatsApp/e-mail.</p>
             <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
