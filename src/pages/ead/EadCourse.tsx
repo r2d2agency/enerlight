@@ -316,7 +316,7 @@ export default function EadCourse() {
               ) : (
                 <div className="space-y-2">
                   <p className="text-sm text-muted-foreground">Acerte ao menos <strong>{passingScore}%</strong> para ser aprovado{hasCert ? ' e receber o certificado' : ''}.</p>
-                  <Button onClick={() => nav(`/ead/curso/${id}/prova`)}>Fazer prova</Button>
+                  <Button onClick={() => nav(`${brandBase}/curso/${id}/prova`)}>Fazer prova</Button>
                 </div>
               )}
             </CardContent>
