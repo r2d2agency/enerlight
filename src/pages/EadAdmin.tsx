@@ -398,21 +398,125 @@ function LessonsManager({ courseId, canManage }: { courseId: string; canManage: 
   );
 }
 
-function QuestionForm({ value, onChange }: { value: any; onChange: (v: any) => void }) {
+function ManualsManager({ courseId, canManage }: { courseId: string; canManage: boolean }) {
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [form, setForm] = useState<any>({ title: '', description: '', cover_url: '', file_url: '' });
+  const [editing, setEditing] = useState<any>(null);
+
+  async function load() { setLoading(true); try { setItems(await eadAdminApi.manuals(courseId)); } finally { setLoading(false); } }
+  useEffect(() => { load(); }, [courseId]);
+
+  async function add() {
+    if (!form.title || !form.file_url) { toast.error('Preencha título e arquivo do manual'); return; }
+    try {
+      await eadAdminApi.createManual(courseId, { ...form, order_index: items.length });
+      setForm({ title: '', description: '', cover_url: '', file_url: '' }); load();
+    } catch (e: any) { toast.error(e.message); }
+  }
+  async function saveEdit() {
+    if (!editing.title || !editing.file_url) { toast.error('Preencha título e arquivo do manual'); return; }
+    try {
+      await eadAdminApi.updateManual(editing.id, {
+        title: editing.title,
+        description: editing.description,
+        cover_url: editing.cover_url,
+        file_url: editing.file_url,
+      });
+      setEditing(null); load();
+    } catch (e: any) { toast.error(e.message); }
+  }
+  async function del(id: string) {
+    if (!confirm('Excluir manual?')) return;
+    try { await eadAdminApi.deleteManual(id); load(); } catch (e: any) { toast.error(e.message); }
+  }
+
+  if (loading) return <Loader2 className="animate-spin h-5 w-5 mx-auto" />;
+  return (
+    <div className="space-y-4">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {items.map((m) => (
+          <Card key={m.id} className="overflow-hidden">
+            <div className="aspect-video bg-muted flex items-center justify-center">
+              {m.cover_url ? <img src={resolveMediaUrl(m.cover_url)} alt={m.title} className="w-full h-full object-cover" /> : <BookOpen className="h-10 w-10 text-muted-foreground" />}
+            </div>
+            <CardContent className="p-3 space-y-3">
+              <div>
+                <h3 className="text-sm font-medium line-clamp-2">{m.title}</h3>
+                {m.description && <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{m.description}</p>}
+              </div>
+              <div className="flex justify-between gap-2">
+                <a href={resolveMediaUrl(m.file_url)} target="_blank" rel="noreferrer">
+                  <Button size="sm" variant="outline"><Download className="h-4 w-4 mr-1" />Abrir</Button>
+                </a>
+                {canManage && <div className="flex gap-1">
+                  <Button size="icon" variant="ghost" onClick={() => setEditing({ ...m })}><Pencil className="h-4 w-4" /></Button>
+                  <Button size="icon" variant="ghost" onClick={() => del(m.id)}><Trash2 className="h-4 w-4" /></Button>
+                </div>}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      {!items.length && <p className="text-sm text-muted-foreground text-center py-4">Nenhum manual cadastrado.</p>}
+
+      {canManage && (
+        <div className="border-t pt-4 space-y-3">
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div><Label>Título do manual</Label><Input value={form.title} onChange={e => setForm((f: any) => ({ ...f, title: e.target.value }))} /></div>
+            <div><Label>Capa do manual</Label><FileUploadInput value={form.cover_url} onChange={v => setForm((f: any) => ({ ...f, cover_url: v }))} accept="image/*" /></div>
+          </div>
+          <div><Label>Descrição</Label><Textarea value={form.description} onChange={e => setForm((f: any) => ({ ...f, description: e.target.value }))} /></div>
+          <div><Label>Arquivo do manual</Label><FileUploadInput value={form.file_url} onChange={v => setForm((f: any) => ({ ...f, file_url: v }))} accept="application/pdf,image/*,.pdf,.png,.jpg,.jpeg" previewType="file" placeholder="PDF/imagem ou link do manual" /></div>
+          <div className="flex justify-end"><Button onClick={add}><Plus className="h-4 w-4 mr-1" />Adicionar manual</Button></div>
+        </div>
+      )}
+
+      <Dialog open={!!editing} onOpenChange={(v) => !v && setEditing(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Editar manual</DialogTitle></DialogHeader>
+          {editing && (
+            <div className="space-y-3">
+              <div><Label>Título</Label><Input value={editing.title} onChange={e => setEditing({ ...editing, title: e.target.value })} /></div>
+              <div><Label>Descrição</Label><Textarea value={editing.description || ''} onChange={e => setEditing({ ...editing, description: e.target.value })} /></div>
+              <div><Label>Capa</Label><FileUploadInput value={editing.cover_url || ''} onChange={v => setEditing({ ...editing, cover_url: v })} accept="image/*" /></div>
+              <div><Label>Arquivo</Label><FileUploadInput value={editing.file_url || ''} onChange={v => setEditing({ ...editing, file_url: v })} accept="application/pdf,image/*,.pdf,.png,.jpg,.jpeg" previewType="file" /></div>
+            </div>
+          )}
+          <DialogFooter><Button onClick={saveEdit}>Salvar</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function QuestionForm({ initialValue, onCancel, onSubmit, submitLabel }: { initialValue: any; onCancel: () => void; onSubmit: (value: any) => void; submitLabel: string }) {
+  const [value, setValue] = useState<any>(() => ({
+    ...initialValue,
+    options: (initialValue.options || []).map((o: any) => ({ ...o })),
+  }));
+
+  function submit() {
+    if (!value.question || value.options.some((o: any) => !o.text)) { toast.error('Preencha pergunta e alternativas'); return; }
+    if (!value.options.some((o: any) => o.is_correct)) { toast.error('Marque a alternativa correta'); return; }
+    onSubmit(value);
+  }
+
   return (
     <div className="space-y-3">
-      <div><Label>Pergunta</Label><Textarea value={value.question} onChange={e => onChange({ ...value, question: e.target.value })} /></div>
+      <div><Label>Pergunta</Label><Textarea value={value.question} onChange={e => setValue((v: any) => ({ ...v, question: e.target.value }))} /></div>
       <div className="space-y-2">
         <Label>Alternativas (marque a correta)</Label>
         {value.options.map((o: any, i: number) => (
           <div key={i} className="flex items-center gap-2">
-            <input type="radio" name={`correct-${value.id || 'new'}`} checked={!!o.is_correct} onChange={() => onChange({ ...value, options: value.options.map((x: any, j: number) => ({ ...x, is_correct: i === j })) })} />
-            <Input value={o.text} onChange={e => onChange({ ...value, options: value.options.map((x: any, j: number) => i === j ? { ...x, text: e.target.value } : x) })} placeholder={`Alternativa ${i + 1}`} />
-            {value.options.length > 2 && <Button size="icon" variant="ghost" onClick={() => onChange({ ...value, options: value.options.filter((_: any, j: number) => j !== i) })}><Trash2 className="h-4 w-4" /></Button>}
+            <input type="radio" name={`correct-${value.id || 'new-question'}`} checked={!!o.is_correct} onChange={() => setValue((v: any) => ({ ...v, options: v.options.map((x: any, j: number) => ({ ...x, is_correct: i === j })) }))} />
+            <Input value={o.text} onChange={e => setValue((v: any) => ({ ...v, options: v.options.map((x: any, j: number) => i === j ? { ...x, text: e.target.value } : x) }))} placeholder={`Alternativa ${i + 1}`} />
+            {value.options.length > 2 && <Button size="icon" variant="ghost" onClick={() => setValue((v: any) => ({ ...v, options: v.options.filter((_: any, j: number) => j !== i) }))}><Trash2 className="h-4 w-4" /></Button>}
           </div>
         ))}
-        <Button variant="outline" size="sm" onClick={() => onChange({ ...value, options: [...value.options, { text: '', is_correct: false }] })}><Plus className="h-3 w-3 mr-1" />Alternativa</Button>
+        <Button variant="outline" size="sm" onClick={() => setValue((v: any) => ({ ...v, options: [...v.options, { text: '', is_correct: false }] }))}><Plus className="h-3 w-3 mr-1" />Alternativa</Button>
       </div>
+      <div className="flex justify-end gap-2"><Button variant="outline" onClick={onCancel}>Cancelar</Button><Button onClick={submit}>{submitLabel}</Button></div>
     </div>
   );
 }
@@ -423,24 +527,19 @@ function QuestionsManager({ courseId, canManage }: { courseId: string; canManage
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const empty = { question: '', options: [{ text: '', is_correct: true }, { text: '', is_correct: false }] };
-  const [draft, setDraft] = useState<{ question: string; options: { text: string; is_correct: boolean }[] }>(empty);
 
   async function load() { setLoading(true); try { setItems(await eadAdminApi.questions(courseId)); } finally { setLoading(false); } }
   useEffect(() => { load(); }, [courseId]);
 
-  async function create() {
-    if (!draft.question || draft.options.some(o => !o.text)) { toast.error('Preencha pergunta e alternativas'); return; }
-    if (!draft.options.some(o => o.is_correct)) { toast.error('Marque a alternativa correta'); return; }
+  async function create(value: any) {
     try {
-      await eadAdminApi.createQuestion(courseId, { question: draft.question, order_index: items.length, options: draft.options });
-      setDraft(empty); setCreating(false); load();
+      await eadAdminApi.createQuestion(courseId, { question: value.question, order_index: items.length, options: value.options });
+      setCreating(false); load();
     } catch (e: any) { toast.error(e.message); }
   }
-  async function saveEdit() {
-    if (!editing.question || editing.options.some((o: any) => !o.text)) { toast.error('Preencha pergunta e alternativas'); return; }
-    if (!editing.options.some((o: any) => o.is_correct)) { toast.error('Marque a alternativa correta'); return; }
+  async function saveEdit(value: any) {
     try {
-      await eadAdminApi.updateQuestion(editing.id, { question: editing.question, options: editing.options.map((o: any) => ({ text: o.text, is_correct: !!o.is_correct })) });
+      await eadAdminApi.updateQuestion(editing.id, { question: value.question, options: value.options.map((o: any) => ({ text: o.text, is_correct: !!o.is_correct })) });
       setEditing(null); load();
     } catch (e: any) { toast.error(e.message); }
   }
@@ -485,16 +584,14 @@ function QuestionsManager({ courseId, canManage }: { courseId: string; canManage
 
       {canManage && creating && (
         <Card><CardContent className="p-4 space-y-3">
-          <QuestionForm value={draft} onChange={setDraft} />
-          <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => { setCreating(false); setDraft(empty); }}>Cancelar</Button><Button onClick={create}>Salvar pergunta</Button></div>
+          <QuestionForm initialValue={empty} onCancel={() => setCreating(false)} onSubmit={create} submitLabel="Salvar pergunta" />
         </CardContent></Card>
       )}
 
       <Dialog open={!!editing} onOpenChange={(v) => !v && setEditing(null)}>
         <DialogContent>
           <DialogHeader><DialogTitle>Editar pergunta</DialogTitle></DialogHeader>
-          {editing && <QuestionForm value={editing} onChange={setEditing} />}
-          <DialogFooter><Button onClick={saveEdit}>Salvar</Button></DialogFooter>
+          {editing && <QuestionForm initialValue={editing} onCancel={() => setEditing(null)} onSubmit={saveEdit} submitLabel="Salvar" />}
         </DialogContent>
       </Dialog>
     </div>
