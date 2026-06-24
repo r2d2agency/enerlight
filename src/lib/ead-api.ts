@@ -48,7 +48,7 @@ export const eadApi = {
     call<{ student: EadStudent; token: string }>('/api/ead/auth/login', { method: 'POST', body: { email, password }, auth: false }),
   me: () => call<{ student: EadStudent }>('/api/ead/auth/me'),
 
-  courses: () => call<any[]>('/api/ead/courses', { auth: false }),
+  courses: () => call<any[]>('/api/ead/courses'),
   course: (id: string) => call<any>(`/api/ead/courses/${id}`),
   quiz: (id: string) => call<{ questions: any[] }>(`/api/ead/courses/${id}/quiz`),
   attempt: (id: string, answers: Record<string, string>) =>

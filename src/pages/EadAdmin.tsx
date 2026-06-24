@@ -86,12 +86,26 @@ export default function EadAdmin() {
   );
 }
 
-function CourseForm({ value, onChange }: { value: any; onChange: (v: any) => void }) {
+function CourseForm({ value, onChange, brands }: { value: any; onChange: (v: any) => void; brands: any[] }) {
   return (
     <div className="space-y-3">
       <div><Label>Título</Label><Input value={value.title || ''} onChange={e => onChange({ ...value, title: e.target.value })} placeholder="Ex: RedBar" /></div>
       <div><Label>Descrição</Label><Textarea value={value.description || ''} onChange={e => onChange({ ...value, description: e.target.value })} /></div>
       <div><Label>Capa</Label><FileUploadInput value={value.cover_url || ''} onChange={v => onChange({ ...value, cover_url: v })} accept="image/*" /></div>
+      <div>
+        <Label>Marca (visibilidade)</Label>
+        <Select
+          value={value.brand_id || '__global__'}
+          onValueChange={v => onChange({ ...value, brand_id: v === '__global__' ? null : v })}
+        >
+          <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__global__">Global (visível a todas as marcas)</SelectItem>
+            {brands.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground mt-1">Cursos vinculados a uma marca só aparecem para alunos cadastrados nela.</p>
+      </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="flex items-center gap-2 border rounded-md p-3">
           <Switch checked={!!value.has_certificate} onCheckedChange={v => onChange({ ...value, has_certificate: v })} />
@@ -109,14 +123,22 @@ function CourseForm({ value, onChange }: { value: any; onChange: (v: any) => voi
 
 function CoursesTab({ courses, canManage, reload, onOpen }: { courses: any[]; canManage: boolean; reload: () => void; onOpen: (c: any) => void }) {
   const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState<any>({ title: '', description: '', cover_url: '', published: false, has_certificate: true, passing_score: 100 });
+  const [form, setForm] = useState<any>({ title: '', description: '', cover_url: '', published: false, has_certificate: true, passing_score: 100, brand_id: null });
+  const [brands, setBrands] = useState<any[]>([]);
+  const [filter, setFilter] = useState<string>('__all__');
+
+  useEffect(() => { eadAdminApi.brands().then(setBrands).catch(() => {}); }, []);
+
+  const filtered = filter === '__all__' ? courses
+    : filter === '__global__' ? courses.filter(c => !c.brand_id)
+    : courses.filter(c => c.brand_id === filter);
 
   async function create() {
     if (!form.title) { toast.error('Título obrigatório'); return; }
     try {
       await eadAdminApi.createCourse(form);
       toast.success('Curso criado');
-      setCreating(false); setForm({ title: '', description: '', cover_url: '', published: false, has_certificate: true, passing_score: 100 });
+      setCreating(false); setForm({ title: '', description: '', cover_url: '', published: false, has_certificate: true, passing_score: 100, brand_id: null });
       reload();
     } catch (e: any) { toast.error(e.message); }
   }
@@ -130,21 +152,33 @@ function CoursesTab({ courses, canManage, reload, onOpen }: { courses: any[]; ca
 
   return (
     <div className="space-y-4">
-      {canManage && (
-        <div className="flex justify-end">
-          <Button onClick={() => setCreating(true)}><Plus className="h-4 w-4 mr-1" />Novo curso</Button>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2">
+          <Label className="text-xs text-muted-foreground">Marca:</Label>
+          <Select value={filter} onValueChange={setFilter}>
+            <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Todas</SelectItem>
+              <SelectItem value="__global__">Global (sem marca)</SelectItem>
+              {brands.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </div>
-      )}
+        {canManage && (
+          <Button onClick={() => setCreating(true)}><Plus className="h-4 w-4 mr-1" />Novo curso</Button>
+        )}
+      </div>
       <Card>
         <CardContent className="p-0">
           <Table>
             <TableHeader><TableRow>
-              <TableHead>Curso</TableHead><TableHead>Aulas</TableHead><TableHead>Manuais</TableHead><TableHead>Perguntas</TableHead><TableHead>Aprov.</TableHead><TableHead>Cert.</TableHead><TableHead>Emitidos</TableHead><TableHead>Status</TableHead><TableHead></TableHead>
+              <TableHead>Curso</TableHead><TableHead>Marca</TableHead><TableHead>Aulas</TableHead><TableHead>Manuais</TableHead><TableHead>Perguntas</TableHead><TableHead>Aprov.</TableHead><TableHead>Cert.</TableHead><TableHead>Emitidos</TableHead><TableHead>Status</TableHead><TableHead></TableHead>
             </TableRow></TableHeader>
             <TableBody>
-              {courses.map(c => (
+              {filtered.map(c => (
                 <TableRow key={c.id}>
                   <TableCell><div className="font-medium">{c.title}</div><div className="text-xs text-muted-foreground line-clamp-1">{c.description}</div></TableCell>
+                  <TableCell>{c.brand_name ? <Badge variant="outline">{c.brand_name}</Badge> : <Badge variant="secondary">Global</Badge>}</TableCell>
                   <TableCell>{c.lesson_count}</TableCell>
                   <TableCell>{c.manual_count || 0}</TableCell>
                   <TableCell>{c.question_count}</TableCell>
@@ -161,7 +195,7 @@ function CoursesTab({ courses, canManage, reload, onOpen }: { courses: any[]; ca
                   </TableCell>
                 </TableRow>
               ))}
-              {!courses.length && <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Nenhum curso criado.</TableCell></TableRow>}
+              {!filtered.length && <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">Nenhum curso encontrado.</TableCell></TableRow>}
             </TableBody>
           </Table>
         </CardContent>
@@ -170,7 +204,7 @@ function CoursesTab({ courses, canManage, reload, onOpen }: { courses: any[]; ca
       <Dialog open={creating} onOpenChange={setCreating}>
         <DialogContent>
           <DialogHeader><DialogTitle>Novo curso</DialogTitle></DialogHeader>
-          <CourseForm value={form} onChange={setForm} />
+          <CourseForm value={form} onChange={setForm} brands={brands} />
           <DialogFooter><Button onClick={create}>Criar</Button></DialogFooter>
         </DialogContent>
       </Dialog>
@@ -213,8 +247,11 @@ function SettingsManager({ course, canManage }: { course: any; canManage: boolea
     published: !!course.published,
     has_certificate: course.has_certificate ?? true,
     passing_score: course.passing_score ?? 100,
+    brand_id: course.brand_id || null,
   });
   const [saving, setSaving] = useState(false);
+  const [brands, setBrands] = useState<any[]>([]);
+  useEffect(() => { eadAdminApi.brands().then(setBrands).catch(() => {}); }, []);
   async function save() {
     setSaving(true);
     try { await eadAdminApi.updateCourse(course.id, form); toast.success('Salvo'); }
@@ -223,7 +260,7 @@ function SettingsManager({ course, canManage }: { course: any; canManage: boolea
   }
   return (
     <div className="space-y-4">
-      <CourseForm value={form} onChange={setForm} />
+      <CourseForm value={form} onChange={setForm} brands={brands} />
       {canManage && <div className="flex justify-end"><Button onClick={save} disabled={saving}>{saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Salvar alterações</Button></div>}
     </div>
   );

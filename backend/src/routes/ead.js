@@ -191,13 +191,19 @@ router.post('/brand/:slug/signup', async (req, res) => {
 // =========================================================================
 // PUBLIC / STUDENT: courses, lessons, quiz
 // =========================================================================
-router.get('/courses', async (req, res) => {
+router.get('/courses', studentAuth, async (req, res) => {
   try {
+    const s = await query('SELECT brand_id FROM ead_students WHERE id = $1', [req.studentId]);
+    const brandId = s.rows[0]?.brand_id || null;
     const r = await query(
-      `SELECT c.id, c.title, c.description, c.cover_url, c.created_at,
+      `SELECT c.id, c.title, c.description, c.cover_url, c.created_at, c.brand_id,
+              b.name AS brand_name, b.slug AS brand_slug,
               (SELECT COUNT(*)::int FROM ead_lessons l WHERE l.course_id = c.id) AS lesson_count,
               (SELECT COUNT(*)::int FROM ead_quiz_questions q WHERE q.course_id = c.id) AS question_count
-       FROM ead_courses c WHERE c.published = true ORDER BY c.created_at DESC`
+       FROM ead_courses c LEFT JOIN ead_brands b ON b.id = c.brand_id
+       WHERE c.published = true AND (c.brand_id IS NULL OR c.brand_id = $1)
+       ORDER BY c.created_at DESC`,
+      [brandId]
     );
     res.json(r.rows);
   } catch (e) { console.error(e); res.status(500).json({ error: 'Erro' }); }
@@ -207,12 +213,18 @@ router.get('/courses/:id', studentAuth, async (req, res) => {
   try {
     const c = await query('SELECT * FROM ead_courses WHERE id = $1', [req.params.id]);
     if (!c.rows.length) return res.status(404).json({ error: 'Curso não encontrado' });
+    const course = c.rows[0];
+    const s = await query('SELECT brand_id FROM ead_students WHERE id = $1', [req.studentId]);
+    const studentBrand = s.rows[0]?.brand_id || null;
+    if (course.brand_id && course.brand_id !== studentBrand) {
+      return res.status(403).json({ error: 'Este curso não está disponível para sua marca.' });
+    }
     const modules = await query('SELECT id, title, description, order_index FROM ead_modules WHERE course_id = $1 ORDER BY order_index, created_at', [req.params.id]);
     const lessons = await query('SELECT id, module_id, title, youtube_url, description, order_index FROM ead_lessons WHERE course_id = $1 ORDER BY order_index, created_at', [req.params.id]);
     const manuals = await query('SELECT id, title, description, cover_url, file_url, order_index FROM ead_manuals WHERE course_id = $1 ORDER BY order_index, created_at', [req.params.id]);
     const enr = await query('SELECT status, approved_at FROM ead_enrollments WHERE student_id = $1 AND course_id = $2', [req.studentId, req.params.id]);
     const cert = await query('SELECT id, pdf_url, issued_at FROM ead_certificates WHERE student_id = $1 AND course_id = $2', [req.studentId, req.params.id]);
-    res.json({ course: c.rows[0], modules: modules.rows, lessons: lessons.rows, manuals: manuals.rows, enrollment: enr.rows[0] || null, certificate: cert.rows[0] || null });
+    res.json({ course, modules: modules.rows, lessons: lessons.rows, manuals: manuals.rows, enrollment: enr.rows[0] || null, certificate: cert.rows[0] || null });
   } catch (e) { console.error(e); res.status(500).json({ error: 'Erro' }); }
 });
 
@@ -430,33 +442,43 @@ function gate(key) {
 
 // Courses
 admin.get('/courses', gate('can_view_ead'), async (req, res) => {
+  const { brand_id } = req.query;
+  const params = [];
+  let where = '';
+  if (brand_id === 'null') { where = 'WHERE c.brand_id IS NULL'; }
+  else if (brand_id) { params.push(brand_id); where = `WHERE c.brand_id = $${params.length}`; }
   const r = await query(
-    `SELECT c.*,
+    `SELECT c.*, b.name AS brand_name, b.slug AS brand_slug,
        (SELECT COUNT(*)::int FROM ead_lessons l WHERE l.course_id = c.id) AS lesson_count,
        (SELECT COUNT(*)::int FROM ead_manuals m WHERE m.course_id = c.id) AS manual_count,
        (SELECT COUNT(*)::int FROM ead_quiz_questions q WHERE q.course_id = c.id) AS question_count,
        (SELECT COUNT(*)::int FROM ead_certificates ce WHERE ce.course_id = c.id) AS certificate_count
-     FROM ead_courses c ORDER BY c.created_at DESC`
+     FROM ead_courses c LEFT JOIN ead_brands b ON b.id = c.brand_id
+     ${where}
+     ORDER BY c.created_at DESC`,
+    params
   );
   res.json(r.rows);
 });
 
 admin.post('/courses', gate('can_manage_ead'), async (req, res) => {
-  const { title, description, cover_url, published, has_certificate, passing_score } = req.body || {};
+  const { title, description, cover_url, published, has_certificate, passing_score, brand_id } = req.body || {};
   if (!title) return res.status(400).json({ error: 'Título obrigatório' });
   const r = await query(
-    `INSERT INTO ead_courses (title, description, cover_url, published, has_certificate, passing_score, created_by)
-     VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+    `INSERT INTO ead_courses (title, description, cover_url, published, has_certificate, passing_score, brand_id, created_by)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
     [title, description || null, cover_url || null, !!published,
      typeof has_certificate === 'boolean' ? has_certificate : true,
      Number.isFinite(+passing_score) ? +passing_score : 100,
+     brand_id || null,
      req.userId]
   );
   res.status(201).json(r.rows[0]);
 });
 
 admin.patch('/courses/:id', gate('can_manage_ead'), async (req, res) => {
-  const { title, description, cover_url, published, has_certificate, passing_score } = req.body || {};
+  const { title, description, cover_url, published, has_certificate, passing_score, brand_id } = req.body || {};
+  const hasBrand = Object.prototype.hasOwnProperty.call(req.body || {}, 'brand_id');
   const r = await query(
     `UPDATE ead_courses SET
        title = COALESCE($1,title),
@@ -465,12 +487,14 @@ admin.patch('/courses/:id', gate('can_manage_ead'), async (req, res) => {
        published = COALESCE($4,published),
        has_certificate = COALESCE($5,has_certificate),
        passing_score = COALESCE($6,passing_score),
+       brand_id = CASE WHEN $8::boolean THEN $7 ELSE brand_id END,
        updated_at = NOW()
-     WHERE id = $7 RETURNING *`,
+     WHERE id = $9 RETURNING *`,
     [title ?? null, description ?? null, cover_url ?? null,
      typeof published === 'boolean' ? published : null,
      typeof has_certificate === 'boolean' ? has_certificate : null,
      Number.isFinite(+passing_score) ? +passing_score : null,
+     brand_id || null, hasBrand,
      req.params.id]
   );
   res.json(r.rows[0]);
