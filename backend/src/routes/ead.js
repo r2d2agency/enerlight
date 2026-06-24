@@ -10,6 +10,17 @@ import { query } from '../db.js';
 import { authenticate } from '../middleware/auth.js';
 import { sendMessage as sendWhatsapp } from '../lib/whatsapp-provider.js';
 
+const DEFAULT_SIGNUP_FIELDS = [
+  { key: 'name', label: 'Nome completo', type: 'text', required: true },
+  { key: 'cpf', label: 'CPF', type: 'cpf', required: true },
+  { key: 'email', label: 'E-mail', type: 'email', required: true },
+  { key: 'phone', label: 'WhatsApp', type: 'phone', required: true },
+  { key: 'password', label: 'Senha', type: 'password', required: true },
+  { key: 'company', label: 'Empresa', type: 'text', required: false },
+  { key: 'city', label: 'Cidade', type: 'text', required: false },
+  { key: 'state', label: 'Estado', type: 'uf', required: false },
+];
+
 const router = Router();
 
 const SECRET = () => process.env.JWT_SECRET || 'dev-secret';
