@@ -47,13 +47,13 @@ export default function EadAdmin() {
         <GraduationCap className="h-7 w-7 text-primary" />
         <div>
           <h1 className="text-2xl font-bold">Academia (EAD)</h1>
-          <p className="text-muted-foreground text-sm">Gerencie cursos, módulos, aulas, provas e certificados.</p>
+          <p className="text-muted-foreground text-sm">Gerencie cursos, módulos, aulas, manuais, provas e certificados.</p>
         </div>
       </div>
 
       {loading ? <div className="flex justify-center py-12"><Loader2 className="animate-spin h-6 w-6" /></div> : (
         <Tabs defaultValue="courses">
-          <TabsList>
+          <TabsList className="h-auto flex-wrap justify-start">
             <TabsTrigger value="courses">Cursos</TabsTrigger>
             <TabsTrigger value="students">Alunos</TabsTrigger>
             <TabsTrigger value="certs">Certificados emitidos</TabsTrigger>
