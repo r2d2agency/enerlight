@@ -195,13 +195,15 @@ router.get('/courses', studentAuth, async (req, res) => {
   try {
     const s = await query('SELECT brand_id FROM ead_students WHERE id = $1', [req.studentId]);
     const brandId = s.rows[0]?.brand_id || null;
+    // Strict brand isolation: student only sees courses of their own brand.
+    if (!brandId) return res.json([]);
     const r = await query(
       `SELECT c.id, c.title, c.description, c.cover_url, c.created_at, c.brand_id,
               b.name AS brand_name, b.slug AS brand_slug,
               (SELECT COUNT(*)::int FROM ead_lessons l WHERE l.course_id = c.id) AS lesson_count,
               (SELECT COUNT(*)::int FROM ead_quiz_questions q WHERE q.course_id = c.id) AS question_count
        FROM ead_courses c LEFT JOIN ead_brands b ON b.id = c.brand_id
-       WHERE c.published = true AND (c.brand_id IS NULL OR c.brand_id = $1)
+       WHERE c.published = true AND c.brand_id = $1
        ORDER BY c.created_at DESC`,
       [brandId]
     );
