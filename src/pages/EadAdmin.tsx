@@ -13,8 +13,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { FileUploadInput } from '@/components/ui/file-upload-input';
 import { eadAdminApi } from '@/lib/ead-api';
+import { resolveMediaUrl } from '@/lib/media';
 import { toast } from 'sonner';
-import { Loader2, Plus, Pencil, Trash2, GraduationCap, Download, Award, FileQuestion, Video, Layers, Settings } from 'lucide-react';
+import { Loader2, Plus, Pencil, Trash2, GraduationCap, Download, Award, FileQuestion, Video, Layers, Settings, BookOpen } from 'lucide-react';
 import { CertificateEditor } from '@/components/ead/CertificateEditor';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -130,13 +131,14 @@ function CoursesTab({ courses, canManage, reload, onOpen }: { courses: any[]; ca
         <CardContent className="p-0">
           <Table>
             <TableHeader><TableRow>
-              <TableHead>Curso</TableHead><TableHead>Aulas</TableHead><TableHead>Perguntas</TableHead><TableHead>Aprov.</TableHead><TableHead>Cert.</TableHead><TableHead>Emitidos</TableHead><TableHead>Status</TableHead><TableHead></TableHead>
+              <TableHead>Curso</TableHead><TableHead>Aulas</TableHead><TableHead>Manuais</TableHead><TableHead>Perguntas</TableHead><TableHead>Aprov.</TableHead><TableHead>Cert.</TableHead><TableHead>Emitidos</TableHead><TableHead>Status</TableHead><TableHead></TableHead>
             </TableRow></TableHeader>
             <TableBody>
               {courses.map(c => (
                 <TableRow key={c.id}>
                   <TableCell><div className="font-medium">{c.title}</div><div className="text-xs text-muted-foreground line-clamp-1">{c.description}</div></TableCell>
                   <TableCell>{c.lesson_count}</TableCell>
+                  <TableCell>{c.manual_count || 0}</TableCell>
                   <TableCell>{c.question_count}</TableCell>
                   <TableCell>{c.passing_score ?? 100}%</TableCell>
                   <TableCell>{c.has_certificate ? <Badge variant="default">Sim</Badge> : <Badge variant="secondary">Não</Badge>}</TableCell>
@@ -151,7 +153,7 @@ function CoursesTab({ courses, canManage, reload, onOpen }: { courses: any[]; ca
                   </TableCell>
                 </TableRow>
               ))}
-              {!courses.length && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Nenhum curso criado.</TableCell></TableRow>}
+              {!courses.length && <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Nenhum curso criado.</TableCell></TableRow>}
             </TableBody>
           </Table>
         </CardContent>
@@ -179,12 +181,14 @@ function CourseEditor({ course, canManage, onClose }: { course: any; canManage: 
             <TabsTrigger value="settings"><Settings className="h-4 w-4 mr-1" />Geral</TabsTrigger>
             <TabsTrigger value="modules"><Layers className="h-4 w-4 mr-1" />Módulos</TabsTrigger>
             <TabsTrigger value="lessons"><Video className="h-4 w-4 mr-1" />Aulas</TabsTrigger>
+            <TabsTrigger value="manuals"><BookOpen className="h-4 w-4 mr-1" />Manuais</TabsTrigger>
             <TabsTrigger value="quiz"><FileQuestion className="h-4 w-4 mr-1" />Prova</TabsTrigger>
             <TabsTrigger value="cert"><Award className="h-4 w-4 mr-1" />Certificado</TabsTrigger>
           </TabsList>
           <TabsContent value="settings" className="mt-4"><SettingsManager course={course} canManage={canManage} /></TabsContent>
           <TabsContent value="modules" className="mt-4"><ModulesManager courseId={course.id} canManage={canManage} /></TabsContent>
           <TabsContent value="lessons" className="mt-4"><LessonsManager courseId={course.id} canManage={canManage} /></TabsContent>
+          <TabsContent value="manuals" className="mt-4"><ManualsManager courseId={course.id} canManage={canManage} /></TabsContent>
           <TabsContent value="quiz" className="mt-4"><QuestionsManager courseId={course.id} canManage={canManage} /></TabsContent>
           <TabsContent value="cert" className="mt-4">{canManage ? <CertificateEditor courseId={course.id} /> : <p className="text-muted-foreground text-sm">Sem permissão.</p>}</TabsContent>
         </Tabs>
