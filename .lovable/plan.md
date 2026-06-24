@@ -1,110 +1,104 @@
+## Sistema EAD - Cursos, Provas e Certificados
 
-# Módulo de Devoluções (RMA)
+Plataforma de ensino para instaladores/empresas com cursos em vídeo (YouTube embed), quiz de avaliação e geração automática de certificado em PDF.
 
-Vou criar um módulo completo para organizar todo o processo de devolução da Enerlight, desde a solicitação do cliente até a resolução final (troca, conserto ou reembolso), incluindo controle de notas fiscais e fretes (entrada e saída).
+---
 
-## Fluxo do processo (Kanban)
+### 1. Fluxo do Instalador (área pública/autenticada)
 
-Cada devolução passa por etapas claras, visualizadas em um Kanban:
+**Cadastro/Login dedicado** (`/ead/login` e `/ead/cadastro`):
+- Campos obrigatórios: CPF, Nome, Email, Senha, Empresa, Cidade, Estado
+- Validação de CPF (algoritmo) e email
+- Login separado dos usuários internos do sistema
 
-```text
-Solicitado → Aguardando NF/Produto → Recebido → Em Análise/Teste →
-Cliente Notificado → Aguardando NF Retorno → Troca/Conserto em Andamento →
-Enviado ao Cliente → Concluído  (ou Recusado / Cancelado)
-```
+**Catálogo de Cursos** (`/ead`):
+- Lista de cursos publicados (ex: "RedBar", "Curso X")
+- Cada card mostra: capa, título, descrição, nº de aulas, status (não iniciado / em andamento / aprovado com selo)
 
-## Dados de cada devolução
+**Página do Curso** (`/ead/curso/:id`):
+- Lista de aulas em ordem; player embed do YouTube (assistido dentro da plataforma, sem sair)
+- Marcação de aula concluída
+- Botão "Fazer Prova" liberado após assistir todas (ou sempre, conforme config do curso)
 
-**Identificação**
-- Número sequencial (DEV-0001)
-- Cliente (vinculado ao contato/empresa do CRM)
-- Vendedor responsável + canal de abertura (SAC ou Vendedor)
-- Data da solicitação, prioridade, motivo (defeito, arrependimento, erro de envio, garantia, outro)
+**Prova/Quiz** (`/ead/curso/:id/prova`):
+- Perguntas com alternativas (múltipla escolha, 1 correta)
+- Tentativas ilimitadas até atingir 100%
+- Resultado imediato com gabarito
+- Ao acertar 100%: selo "Aprovado", prova desabilitada, certificado gerado automaticamente
 
-**Produto**
-- Descrição, código/SKU, quantidade, número de série
-- Pedido/NF de venda original (opcional)
-- Fotos e anexos
+**Meus Certificados** (`/ead/certificados`):
+- Lista de certificados aprovados
+- Download em PDF
 
-**Recebimento**
-- NF de devolução do cliente (número, chave, data, valor)
-- Data de recebimento físico
-- Quem recebeu
+---
 
-**Análise técnica**
-- Status do teste (com defeito / sem defeito / fora de garantia)
-- Laudo técnico (texto + fotos)
-- Decisão: troca, conserto, reembolso, descarte, devolver ao cliente
+### 2. Geração de Certificado
 
-**Saída (envio de volta)**
-- NF de saída (número e data) quando houver troca/conserto
-- Rastreio e transportadora
+**Admin faz upload de template PNG** do certificado.
+**Editor visual** (admin): arrasta os campos sobre a imagem para posicionar:
+- `{{nome}}`, `{{cpf}}`, `{{empresa}}`, `{{curso}}`, `{{data_conclusao}}`, `{{cidade_estado}}`
+- Define fonte, tamanho, cor e coordenadas (x,y) de cada campo
 
-**Fretes (controle financeiro)**
-- Frete de entrada (recebimento) — transportadora, valor, código de rastreio, status
-- Frete de saída (envio) — idem
-- Total de custo do caso
+**Geração**: quando aluno é aprovado, backend monta o PDF usando o template + posições + dados do aluno (pdf-lib ou pdfkit no Node, ou jspdf no front). Salva o PDF em `/uploads/certificates/` e referencia em `ead_certificates`.
 
-**Comunicação**
-- Histórico/timeline de eventos
-- Notas internas
-- Notificação ao cliente (registro de quando e como foi avisado)
+---
 
-## Telas
+### 3. Admin EAD (`/admin/ead`)
 
-1. **Lista / Kanban** (`/devolucoes`) — alternar entre visão Kanban (por status) e lista/tabela com filtros (cliente, vendedor, motivo, período, status do frete).
-2. **Dashboard** — cards de KPIs: abertas, em teste, aguardando NF, concluídas no mês, custo total de fretes, tempo médio de resolução, top motivos.
-3. **Detalhe da devolução** (dialog/drawer) com abas:
-   - Resumo (cliente, produto, status, timeline)
-   - Recebimento (NF de entrada + frete de entrada)
-   - Análise técnica (laudo, fotos, decisão)
-   - Envio (NF de saída + frete de saída)
-   - Anexos
-   - Histórico
-4. **Nova devolução** — formulário guiado (cliente → produto → motivo → fotos).
+Visível para perfis com permissão "EAD - Gerenciar":
 
-## Permissões (RBAC)
+**Aba Cursos**: CRUD de cursos + aulas (título, descrição, link YouTube, ordem)
+**Aba Provas**: CRUD de perguntas e alternativas por curso (marca a correta)
+**Aba Certificados (template)**: upload do PNG, posicionar campos no editor visual
+**Aba Alunos**: lista de instaladores cadastrados (filtros por curso, status, empresa, cidade)
+**Aba Certificados emitidos**: lista global de quem foi aprovado, com link para baixar o PDF
 
-- **Vendedor / SAC**: cria devolução, vê as suas e do seu grupo, edita até a etapa "Recebido".
-- **Logística / Almoxarifado**: confirma recebimento, lança NF de entrada e frete de entrada.
-- **Técnico**: preenche laudo e decisão.
-- **Gestor / Owner / Superadmin**: vê tudo, edita tudo, gera relatórios.
-- Segue o padrão `has_role` e isolamento por `organization_id` já usado no sistema.
+---
 
-## Backend
+### 4. Permissões
 
-- Nova migration `backend/schema-devolucoes.sql` com tabelas:
-  - `devolucoes` (caso principal, status, vínculos, datas, totais de frete)
-  - `devolucao_itens` (produtos)
-  - `devolucao_eventos` (timeline/histórico automático a cada mudança)
-  - `devolucao_anexos` (fotos, NFs em PDF, laudos)
-- Rota `backend/src/routes/devolucoes.js` com CRUD, mudança de status, upload de anexos, registro de NFs e fretes.
-- Registrada em `backend/src/index.js` como `/api/devolucoes`.
-- GRANTs e RLS conforme o padrão do projeto.
+Novo grupo de permissões "EAD":
+- `ead_view` (ver área admin), `ead_manage_courses`, `ead_manage_quiz`, `ead_manage_template`, `ead_view_students`, `ead_view_certificates`
 
-## Frontend
+Adicionado em `PermissionTemplatesTab.tsx` e backend `permissions.js`.
 
-- Página `src/pages/Devolucoes.tsx` (Kanban + lista + dashboard).
-- Componentes em `src/components/devolucoes/`:
-  - `DevolucaoKanban.tsx`
-  - `DevolucaoList.tsx`
-  - `DevolucaoFormDialog.tsx` (criar/editar)
-  - `DevolucaoDetailDialog.tsx` (abas)
-  - `DevolucaoTimeline.tsx`
-  - `FreteFormSection.tsx`
-- Hook `src/hooks/use-devolucoes.ts` (React Query: listar, criar, atualizar, mover status, anexar).
-- Item de menu no `MainLayout` + rota protegida em `App.tsx`.
+---
 
-## Notificações
+### Detalhes técnicos
 
-- Notificação interna ao vendedor quando o produto for recebido e quando o laudo for concluído.
-- (Futuro/opcional) envio automático de WhatsApp ao cliente nos momentos chave usando a integração existente — deixarei o gancho pronto, mas sem disparo automático nesta entrega para evitar mensagens indevidas.
+**Banco** (`backend/schema-ead.sql` + migration):
+- `ead_students` (id, cpf UNIQUE, name, email UNIQUE, password_hash, company, city, state, created_at)
+- `ead_courses` (id, org_id, title, slug, description, cover_url, published, created_at)
+- `ead_lessons` (id, course_id, title, youtube_url, order_index)
+- `ead_quiz_questions` (id, course_id, question, order_index)
+- `ead_quiz_options` (id, question_id, text, is_correct)
+- `ead_attempts` (id, student_id, course_id, score, passed, answers JSONB, created_at)
+- `ead_enrollments` (id, student_id, course_id, status, approved_at)
+- `ead_certificate_templates` (id, course_id, image_url, fields JSONB) — fields = `[{key, x, y, fontSize, color, fontFamily}]`
+- `ead_certificates` (id, student_id, course_id, pdf_url, issued_at)
+- GRANTs + RLS conforme padrão do projeto
 
-## Entregáveis
+**Backend** (`backend/src/routes/ead.js`):
+- `POST /ead/auth/register`, `POST /ead/auth/login` (JWT separado para alunos)
+- `GET /ead/courses`, `GET /ead/courses/:id`
+- `POST /ead/courses/:id/attempt` → corrige, se 100% gera certificado
+- `GET /ead/students/:id/certificates`
+- Admin: `CRUD /admin/ead/courses`, `/admin/ead/lessons`, `/admin/ead/questions`, `/admin/ead/templates`, `GET /admin/ead/students`, `GET /admin/ead/certificates`
+- Geração de PDF com `pdf-lib` carregando o PNG como background
 
-- Migration SQL pronta para rodar no deploy.
-- API completa com isolamento por organização.
-- UI Kanban + detalhe + criação, alinhada ao restante do sistema (mesmos componentes shadcn, mesma identidade visual).
-- Item de menu "Devoluções" na navegação.
+**Frontend**:
+- Páginas: `src/pages/ead/Login.tsx`, `Cadastro.tsx`, `Catalogo.tsx`, `Curso.tsx`, `Prova.tsx`, `MeusCertificados.tsx`
+- Admin: `src/pages/admin/EadAdmin.tsx` com abas (Cursos, Aulas, Quiz, Template Editor, Alunos, Certificados)
+- Hook `src/hooks/use-ead.ts` + contexto `EadAuthContext` para sessão do aluno
+- Editor de template: canvas/div absoluta sobre `<img>`, campos draggable com `react-draggable` ou mousedown manual
+- PDF download direto via URL do backend
 
-Posso seguir com a implementação?
+**Permissões e rotas**: adicionar entrada no menu lateral (`Sidebar`), proteger admin com `ProtectedRoute` + check de permissão.
+
+---
+
+### O que vou implementar nesta entrega
+
+Tudo acima de ponta a ponta: schema + migration, rotas backend, geração de PDF, autenticação separada de alunos, todas as páginas do aluno, painel admin completo com editor visual de template, permissões. Sem pagamento, sem emissão de e-mail (posso adicionar depois).
+
+Confirma para eu seguir?

@@ -87,7 +87,8 @@ export interface UserPermissions {
   can_refuse_devolucoes: boolean;
   can_manage_devolucao_sla: boolean;
   can_delete_devolucoes: boolean;
-
+  can_view_ead: boolean;
+  can_manage_ead: boolean;
 }
 
 interface User {
@@ -95,6 +96,7 @@ interface User {
   email: string;
   name: string;
   role?: string;
+  is_superadmin?: boolean;
   organization_id?: string;
   modules_enabled?: ModulesEnabled;
   has_connections?: boolean;
