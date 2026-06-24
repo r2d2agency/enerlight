@@ -210,10 +210,8 @@ export default function EadCourse() {
   let counter = 0;
 
   return (
-    <EadLayout>
-      <div className="mb-4">
-        <Link to="/ead" className="text-sm text-muted-foreground hover:underline">← Voltar</Link>
-      </div>
+    <EadLayout breadcrumbs={[{ label: 'Cursos', to: `${brandBase}/cursos` }, { label: course.title }]}>
+
       <div className="flex items-start justify-between gap-4 mb-4">
         <div>
           <h1 className="text-2xl font-bold">{course.title}</h1>
