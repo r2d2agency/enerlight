@@ -52,19 +52,10 @@ export const api = async <T>(endpoint: string, options: ApiOptions = {}): Promis
 
   let isHtmlResponse = rawText.trim().startsWith('<!') || rawText.includes('<html');
 
-  const shouldRetryFallback =
-    !response.ok &&
-    response.status >= 500 &&
-    isHtmlResponse &&
-    API_URL !== PRODUCTION_API_URL &&
-    typeof window !== 'undefined' &&
-    !['localhost', '127.0.0.1', ''].includes(window.location.hostname);
+  const shouldRetryFallback = false;
 
   if (shouldRetryFallback) {
-    response = await fetchFrom(PRODUCTION_API_URL);
-    contentType = response.headers.get('content-type') || '';
-    rawText = await response.text().catch(() => '');
-    isHtmlResponse = rawText.trim().startsWith('<!') || rawText.includes('<html');
+    // disabled: cross-origin fallback causes CORS errors
   }
 
   if (contentType.includes('application/json') || rawText.trim().startsWith('{') || rawText.trim().startsWith('[')) {
