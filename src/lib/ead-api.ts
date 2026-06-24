@@ -16,7 +16,14 @@ export interface EadStudent {
   company?: string | null;
   city?: string | null;
   state?: string | null;
+  status?: string;
   created_at?: string;
+  brand_id?: string | null;
+  brand_slug?: string | null;
+  brand_name?: string | null;
+  brand_logo?: string | null;
+  brand_primary?: string | null;
+  brand_accent?: string | null;
 }
 
 async function call<T>(endpoint: string, opts: { method?: string; body?: any; auth?: boolean } = {}): Promise<T> {
