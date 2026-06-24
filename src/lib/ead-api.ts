@@ -83,6 +83,11 @@ export const eadAdminApi = {
   updateLesson: (id: string, b: any) => adminCall<any>(`/api/ead/admin/lessons/${id}`, { method: 'PATCH', body: b }),
   deleteLesson: (id: string) => adminCall<any>(`/api/ead/admin/lessons/${id}`, { method: 'DELETE' }),
 
+  manuals: (cid: string) => adminCall<any[]>(`/api/ead/admin/courses/${cid}/manuals`),
+  createManual: (cid: string, b: any) => adminCall<any>(`/api/ead/admin/courses/${cid}/manuals`, { method: 'POST', body: b }),
+  updateManual: (id: string, b: any) => adminCall<any>(`/api/ead/admin/manuals/${id}`, { method: 'PATCH', body: b }),
+  deleteManual: (id: string) => adminCall<any>(`/api/ead/admin/manuals/${id}`, { method: 'DELETE' }),
+
   modules: (cid: string) => adminCall<any[]>(`/api/ead/admin/courses/${cid}/modules`),
   createModule: (cid: string, b: any) => adminCall<any>(`/api/ead/admin/courses/${cid}/modules`, { method: 'POST', body: b }),
   updateModule: (id: string, b: any) => adminCall<any>(`/api/ead/admin/modules/${id}`, { method: 'PATCH', body: b }),

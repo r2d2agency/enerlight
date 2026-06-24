@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { eadApi, ytEmbedUrl } from '@/lib/ead-api';
+import { resolveMediaUrl } from '@/lib/media';
 import { EadLayout } from './EadLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, PlayCircle, CheckCircle2, Award, Download } from 'lucide-react';
+import { Loader2, PlayCircle, CheckCircle2, Award, Download, BookOpen } from 'lucide-react';
 
 export default function EadCourse() {
   const { id } = useParams<{ id: string }>();
@@ -38,7 +39,7 @@ export default function EadCourse() {
   if (loading) return <EadLayout><div className="flex justify-center py-12"><Loader2 className="animate-spin h-6 w-6" /></div></EadLayout>;
   if (!data) return <EadLayout><p>Curso não encontrado</p></EadLayout>;
 
-  const { course, lessons, modules = [], certificate } = data;
+  const { course, lessons, modules = [], manuals = [], certificate } = data;
   const approved = !!certificate;
   const hasCert = course.has_certificate !== false;
   const passingScore = course.passing_score ?? 100;
@@ -86,6 +87,32 @@ export default function EadCourse() {
               </Button>
             </div>
           )}
+
+          <Card className="mt-4">
+            <CardHeader><CardTitle className="text-base">Manuais</CardTitle></CardHeader>
+            <CardContent>
+              {manuals.length ? (
+                <div className="grid sm:grid-cols-2 gap-3">
+                  {manuals.map((manual: any) => (
+                    <a key={manual.id} href={resolveMediaUrl(manual.file_url)} target="_blank" rel="noreferrer" className="group rounded-md border overflow-hidden hover:bg-muted/40 transition">
+                      <div className="aspect-video bg-muted flex items-center justify-center">
+                        {manual.cover_url ? <img src={resolveMediaUrl(manual.cover_url)} alt={manual.title} className="w-full h-full object-cover" /> : <BookOpen className="h-8 w-8 text-muted-foreground" />}
+                      </div>
+                      <div className="p-3 flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <h3 className="text-sm font-medium line-clamp-2">{manual.title}</h3>
+                          {manual.description && <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{manual.description}</p>}
+                        </div>
+                        <Download className="h-4 w-4 text-muted-foreground group-hover:text-primary flex-shrink-0 mt-0.5" />
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Nenhum manual cadastrado.</p>
+              )}
+            </CardContent>
+          </Card>
 
           <Card className="mt-4">
             <CardHeader><CardTitle className="text-base">Prova final</CardTitle></CardHeader>
