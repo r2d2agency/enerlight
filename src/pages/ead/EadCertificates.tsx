@@ -10,7 +10,7 @@ export default function EadCertificates() {
   const [loading, setLoading] = useState(true);
   useEffect(() => { eadApi.myCertificates().then(setItems).finally(() => setLoading(false)); }, []);
   return (
-    <EadLayout>
+    <EadLayout breadcrumbs={[{ label: 'Certificados' }]}>
       <h1 className="text-2xl font-bold mb-6">Meus Certificados</h1>
       {loading ? <Loader2 className="animate-spin h-6 w-6 mx-auto" /> : items.length === 0 ? (
         <Card><CardContent className="p-10 text-center text-muted-foreground">Você ainda não conquistou nenhum certificado.</CardContent></Card>
