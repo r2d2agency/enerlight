@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { eadApi, ytEmbedUrl } from '@/lib/ead-api';
 import { resolveMediaUrl } from '@/lib/media';
