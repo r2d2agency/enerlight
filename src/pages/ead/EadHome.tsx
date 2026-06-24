@@ -33,27 +33,37 @@ function HomeInner() {
 
   return (
     <>
-      <div
-        className="rounded-2xl p-6 md:p-10 mb-8 relative overflow-hidden border"
-        style={{
-          background: student?.brand_primary
-            ? `linear-gradient(135deg, ${student.brand_primary}22, ${student.brand_accent || student.brand_primary}11)`
-            : undefined,
-        }}
-      >
-        <div className="flex flex-col md:flex-row items-start md:items-center gap-4 justify-between">
-          <div className="min-w-0">
-            <Badge variant="secondary" className="mb-3">{student?.brand_name || 'Academia'}</Badge>
-            <h1 className="text-2xl md:text-3xl font-bold mb-2">Olá, {student?.name?.split(' ')[0] || 'instalador'} 👋</h1>
-            <p className="text-muted-foreground max-w-2xl">
-              Aqui você acessa cursos, manuais offline, faz a prova e baixa seu certificado oficial.
-            </p>
-          </div>
-          {student?.brand_logo && (
-            <img src={student.brand_logo} alt={student.brand_name || ''} className="h-16 md:h-20 max-w-[200px] object-contain" />
-          )}
+      {student?.brand_cover_url ? (
+        <div className="rounded-2xl overflow-hidden border bg-card mb-8 shadow-sm">
+          <img
+            src={resolveMediaUrl(student.brand_cover_url)!}
+            alt={`Destaque ${student.brand_name || ''}`}
+            className="w-full h-auto object-contain max-h-[520px] md:max-h-[620px]"
+          />
         </div>
-      </div>
+      ) : (
+        <div
+          className="rounded-2xl p-6 md:p-10 mb-8 relative overflow-hidden border"
+          style={{
+            background: student?.brand_primary
+              ? `linear-gradient(135deg, ${student.brand_primary}22, ${student.brand_accent || student.brand_primary}11)`
+              : undefined,
+          }}
+        >
+          <div className="flex flex-col md:flex-row items-start md:items-center gap-4 justify-between">
+            <div className="min-w-0">
+              <Badge variant="secondary" className="mb-3">{student?.brand_name || 'Academia'}</Badge>
+              <h1 className="text-2xl md:text-3xl font-bold mb-2">Olá, {student?.name?.split(' ')[0] || 'instalador'} 👋</h1>
+              <p className="text-muted-foreground max-w-2xl">
+                Aqui você acessa cursos, manuais offline, faz a prova e baixa seu certificado oficial.
+              </p>
+            </div>
+            {student?.brand_logo && (
+              <img src={student.brand_logo} alt={student.brand_name || ''} className="h-16 md:h-20 max-w-[200px] object-contain" />
+            )}
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex justify-center py-12"><Loader2 className="animate-spin h-6 w-6" /></div>
