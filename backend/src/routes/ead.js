@@ -712,7 +712,7 @@ admin.post('/brands', gate('can_manage_ead'), async (req, res) => {
        RETURNING *`,
       [cleanSlug, name, logo_url || null, cover_url || null, primary_color || '#0ea5e9', accent_color || '#0284c7',
        welcome_title || null, welcome_text || null,
-       signup_fields ? JSON.stringify(signup_fields) : null,
+       JSON.stringify(Array.isArray(signup_fields) && signup_fields.length ? signup_fields : DEFAULT_SIGNUP_FIELDS),
        orgId, notify_connection_id || null, approval_message || null,
        typeof active === 'boolean' ? active : null]
     );
