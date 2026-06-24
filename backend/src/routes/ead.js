@@ -583,20 +583,32 @@ admin.get('/courses/:id/lessons', gate('can_view_ead'), async (req, res) => {
   res.json(r.rows);
 });
 admin.post('/courses/:id/lessons', gate('can_manage_ead'), async (req, res) => {
-  const { title, youtube_url, order_index, module_id, description } = req.body || {};
-  if (!title || !youtube_url) return res.status(400).json({ error: 'Título e URL obrigatórios' });
+  const { title, youtube_url, video_url, video_type, duration_seconds, order_index, module_id, description } = req.body || {};
+  const vt = video_type === 'upload' ? 'upload' : 'youtube';
+  if (!title) return res.status(400).json({ error: 'Título obrigatório' });
+  if (vt === 'youtube' && !youtube_url) return res.status(400).json({ error: 'URL do YouTube obrigatória' });
+  if (vt === 'upload' && !video_url) return res.status(400).json({ error: 'Arquivo de vídeo obrigatório' });
   const r = await query(
-    `INSERT INTO ead_lessons (course_id, module_id, title, youtube_url, description, order_index) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
-    [req.params.id, module_id || null, title, youtube_url, description || null, order_index || 0]
+    `INSERT INTO ead_lessons (course_id, module_id, title, youtube_url, video_url, video_type, duration_seconds, description, order_index)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+    [req.params.id, module_id || null, title, youtube_url || null, video_url || null, vt, duration_seconds || null, description || null, order_index || 0]
   );
   res.status(201).json(r.rows[0]);
 });
 admin.patch('/lessons/:id', gate('can_manage_ead'), async (req, res) => {
-  const { title, youtube_url, order_index, module_id, description } = req.body || {};
+  const { title, youtube_url, video_url, video_type, duration_seconds, order_index, module_id, description } = req.body || {};
   const r = await query(
-    `UPDATE ead_lessons SET title=COALESCE($1,title), youtube_url=COALESCE($2,youtube_url), order_index=COALESCE($3,order_index),
-       module_id=$4, description=COALESCE($5,description) WHERE id=$6 RETURNING *`,
-    [title ?? null, youtube_url ?? null, order_index ?? null, module_id ?? null, description ?? null, req.params.id]
+    `UPDATE ead_lessons SET
+       title=COALESCE($1,title),
+       youtube_url=$2,
+       video_url=$3,
+       video_type=COALESCE($4,video_type),
+       duration_seconds=COALESCE($5,duration_seconds),
+       order_index=COALESCE($6,order_index),
+       module_id=$7,
+       description=COALESCE($8,description)
+     WHERE id=$9 RETURNING *`,
+    [title ?? null, youtube_url ?? null, video_url ?? null, video_type ?? null, duration_seconds ?? null, order_index ?? null, module_id ?? null, description ?? null, req.params.id]
   );
   res.json(r.rows[0]);
 });
