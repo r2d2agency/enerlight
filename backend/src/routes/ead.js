@@ -218,7 +218,7 @@ router.get('/courses/:id', studentAuth, async (req, res) => {
     const course = c.rows[0];
     const s = await query('SELECT brand_id FROM ead_students WHERE id = $1', [req.studentId]);
     const studentBrand = s.rows[0]?.brand_id || null;
-    if (course.brand_id && course.brand_id !== studentBrand) {
+    if (!studentBrand || !course.brand_id || course.brand_id !== studentBrand) {
       return res.status(403).json({ error: 'Este curso não está disponível para sua marca.' });
     }
     const modules = await query('SELECT id, title, description, order_index FROM ead_modules WHERE course_id = $1 ORDER BY order_index, created_at', [req.params.id]);
