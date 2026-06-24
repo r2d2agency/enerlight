@@ -5287,7 +5287,31 @@ CREATE INDEX IF NOT EXISTS idx_ead_students_status ON ead_students(status);
 -- Cursos vinculados a marca (NULL = global, visivel a todos)
 ALTER TABLE ead_courses ADD COLUMN IF NOT EXISTS brand_id UUID REFERENCES ead_brands(id) ON DELETE SET NULL;
 CREATE INDEX IF NOT EXISTS idx_ead_courses_brand ON ead_courses(brand_id);
+
+-- Aulas: suporte a vídeo próprio (upload) ou YouTube
+ALTER TABLE ead_lessons ADD COLUMN IF NOT EXISTS video_type VARCHAR(20) DEFAULT 'youtube';
+ALTER TABLE ead_lessons ADD COLUMN IF NOT EXISTS video_url TEXT;
+ALTER TABLE ead_lessons ADD COLUMN IF NOT EXISTS duration_seconds INT;
+ALTER TABLE ead_lessons ALTER COLUMN youtube_url DROP NOT NULL;
+
+-- Progresso de aulas por aluno
+CREATE TABLE IF NOT EXISTS ead_lesson_progress (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  student_id UUID NOT NULL REFERENCES ead_students(id) ON DELETE CASCADE,
+  lesson_id UUID NOT NULL REFERENCES ead_lessons(id) ON DELETE CASCADE,
+  course_id UUID NOT NULL REFERENCES ead_courses(id) ON DELETE CASCADE,
+  watched_seconds INT DEFAULT 0,
+  last_position INT DEFAULT 0,
+  total_seconds INT,
+  completed BOOLEAN DEFAULT false,
+  completed_at TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(student_id, lesson_id)
+);
+CREATE INDEX IF NOT EXISTS idx_ead_lesson_progress_student ON ead_lesson_progress(student_id);
+CREATE INDEX IF NOT EXISTS idx_ead_lesson_progress_course ON ead_lesson_progress(course_id);
 `;
+
 
 const step69Devolucoes = `
 CREATE TABLE IF NOT EXISTS devolucoes (
