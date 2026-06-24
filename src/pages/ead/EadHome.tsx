@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { eadApi, eadToken, EadStudent } from '@/lib/ead-api';
-import { EadLayout } from './EadLayout';
+import { eadApi, eadToken } from '@/lib/ead-api';
+import { EadLayout, useBrand } from './EadLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { BookOpen, FileText, Award, ShoppingBag, ArrowRight, Loader2 } from 'lucide-react';
 
-export default function EadHome() {
-  const [student, setStudent] = useState<EadStudent | null>(null);
+function HomeInner() {
+  const { student, link } = useBrand();
   const [stats, setStats] = useState({ courses: 0, manuals: 0, certificates: 0 });
   const [loading, setLoading] = useState(true);
 
@@ -15,24 +15,23 @@ export default function EadHome() {
     if (!eadToken.get()) return;
     (async () => {
       try {
-        const [me, courses, manuals, certs] = await Promise.all([
-          eadApi.me(), eadApi.courses(), eadApi.myManuals().catch(() => []), eadApi.myCertificates().catch(() => []),
+        const [courses, manuals, certs] = await Promise.all([
+          eadApi.courses(), eadApi.myManuals().catch(() => []), eadApi.myCertificates().catch(() => []),
         ]);
-        setStudent(me.student);
         setStats({ courses: courses.length, manuals: manuals.length, certificates: certs.length });
       } finally { setLoading(false); }
     })();
   }, []);
 
   const tiles = [
-    { to: '/ead/cursos', icon: BookOpen, title: 'Cursos', desc: 'Assista às aulas e marque seu progresso.', count: stats.courses, color: 'bg-primary/10 text-primary' },
-    { to: '/ead/manuais', icon: FileText, title: 'Manuais', desc: 'Apostilas e materiais para download.', count: stats.manuals, color: 'bg-amber-500/10 text-amber-600' },
-    { to: '/ead/certificados', icon: Award, title: 'Certificados', desc: 'Seus certificados emitidos em PDF.', count: stats.certificates, color: 'bg-emerald-500/10 text-emerald-600' },
+    { to: link('cursos'), icon: BookOpen, title: 'Cursos', desc: 'Assista às aulas e marque seu progresso.', count: stats.courses, color: 'bg-primary/10 text-primary' },
+    { to: link('manuais'), icon: FileText, title: 'Manuais', desc: 'Apostilas e materiais para download.', count: stats.manuals, color: 'bg-amber-500/10 text-amber-600' },
+    { to: link('certificados'), icon: Award, title: 'Certificados', desc: 'Seus certificados emitidos em PDF.', count: stats.certificates, color: 'bg-emerald-500/10 text-emerald-600' },
     { to: '#', icon: ShoppingBag, title: 'Catálogo de Produtos', desc: 'Em breve: catálogo oficial da marca.', count: 0, color: 'bg-muted text-muted-foreground', disabled: true },
   ];
 
   return (
-    <EadLayout>
+    <>
       <div
         className="rounded-2xl p-6 md:p-10 mb-8 relative overflow-hidden border"
         style={{
@@ -86,6 +85,10 @@ export default function EadHome() {
           })}
         </div>
       )}
-    </EadLayout>
+    </>
   );
+}
+
+export default function EadHome() {
+  return <EadLayout><HomeInner /></EadLayout>;
 }
