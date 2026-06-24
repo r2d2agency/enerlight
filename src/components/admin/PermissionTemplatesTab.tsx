@@ -162,6 +162,13 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
     ],
   },
   {
+    title: 'Academia (EAD)',
+    items: [
+      { key: 'can_view_ead', label: 'Ver Academia (EAD)', description: 'Acessar painel de cursos, alunos e certificados' },
+      { key: 'can_manage_ead', label: 'Gerenciar EAD', description: 'Criar/editar cursos, aulas, provas e templates de certificado' },
+    ],
+  },
+  {
     title: 'RH / Ponto',
     items: [
       { key: 'can_view_rh', label: 'RH / Ponto', description: 'Registro de ponto e gestão de RH' },

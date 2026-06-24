@@ -94,6 +94,13 @@ const MeuDia = lazyRetry(() => import("./pages/MeuDia"));
 const CartoesNFC = lazyRetry(() => import("./pages/CartoesNFC"));
 const PublicNfcCard = lazyRetry(() => import("./pages/PublicNfcCard"));
 const Devolucoes = lazyRetry(() => import("./pages/Devolucoes"));
+const EadLogin = lazyRetry(() => import("./pages/ead/EadLogin"));
+const EadSignup = lazyRetry(() => import("./pages/ead/EadSignup"));
+const EadCatalog = lazyRetry(() => import("./pages/ead/EadCatalog"));
+const EadCourse = lazyRetry(() => import("./pages/ead/EadCourse"));
+const EadQuiz = lazyRetry(() => import("./pages/ead/EadQuiz"));
+const EadCertificates = lazyRetry(() => import("./pages/ead/EadCertificates"));
+const EadAdmin = lazyRetry(() => import("./pages/EadAdmin"));
 
 
 const queryClient = new QueryClient();
@@ -207,6 +214,13 @@ const App = () => (
               <Route path="/cartoes-nfc" element={<ProtectedRoute><CartoesNFC /></ProtectedRoute>} />
               <Route path="/c/:slug" element={<PublicNfcCard />} />
               <Route path="/devolucoes" element={<ProtectedRoute><Devolucoes /></ProtectedRoute>} />
+              <Route path="/ead/login" element={<EadLogin />} />
+              <Route path="/ead/cadastro" element={<EadSignup />} />
+              <Route path="/ead" element={<EadCatalog />} />
+              <Route path="/ead/curso/:id" element={<EadCourse />} />
+              <Route path="/ead/curso/:id/prova" element={<EadQuiz />} />
+              <Route path="/ead/certificados" element={<EadCertificates />} />
+              <Route path="/admin/ead" element={<ProtectedRoute><EadAdmin /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
 
             </Routes>

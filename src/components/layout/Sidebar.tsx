@@ -50,6 +50,7 @@ import {
   Calculator,
   Nfc,
   RotateCcw,
+  GraduationCap,
 } from "lucide-react";
 
 import { API_URL, getAuthToken } from "@/lib/api";
@@ -189,6 +190,14 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
     permissionKey: 'can_view_devolucoes',
     items: [
       { name: "Controle de RMA", href: "/devolucoes", icon: RotateCcw, permissionKey: 'can_view_devolucoes' },
+    ],
+  },
+  {
+    title: "Academia (EAD)",
+    icon: GraduationCap,
+    permissionKey: 'can_view_ead',
+    items: [
+      { name: "Cursos e Alunos", href: "/admin/ead", icon: GraduationCap, permissionKey: 'can_view_ead' },
     ],
   },
   {
