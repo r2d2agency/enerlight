@@ -94,7 +94,7 @@ export default function EadCourse() {
               {manuals.length ? (
                 <div className="grid sm:grid-cols-2 gap-3">
                   {manuals.map((manual: any) => (
-                    <a key={manual.id} href={resolveMediaUrl(manual.file_url)} target="_blank" rel="noreferrer" className="group rounded-md border overflow-hidden hover:bg-muted/40 transition">
+                    <a key={manual.id} href={resolveMediaUrl(manual.file_url) || '#'} target="_blank" rel="noreferrer" className="group rounded-md border overflow-hidden hover:bg-muted/40 transition">
                       <div className="aspect-video bg-muted flex items-center justify-center">
                         {manual.cover_url ? <img src={resolveMediaUrl(manual.cover_url)} alt={manual.title} className="w-full h-full object-cover" /> : <BookOpen className="h-8 w-8 text-muted-foreground" />}
                       </div>

@@ -446,7 +446,7 @@ function ManualsManager({ courseId, canManage }: { courseId: string; canManage: 
                 {m.description && <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{m.description}</p>}
               </div>
               <div className="flex justify-between gap-2">
-                <a href={resolveMediaUrl(m.file_url)} target="_blank" rel="noreferrer">
+                <a href={resolveMediaUrl(m.file_url) || '#'} target="_blank" rel="noreferrer">
                   <Button size="sm" variant="outline"><Download className="h-4 w-4 mr-1" />Abrir</Button>
                 </a>
                 {canManage && <div className="flex gap-1">
