@@ -56,6 +56,11 @@ export const eadApi = {
       `/api/ead/courses/${id}/attempt`, { method: 'POST', body: { answers } }
     ),
   myCertificates: () => call<any[]>('/api/ead/my/certificates'),
+
+  // Brand public endpoints
+  getBrand: (slug: string) => call<any>(`/api/ead/brand/${slug}`, { auth: false }),
+  brandSignup: (slug: string, body: any) =>
+    call<{ ok: boolean; message: string }>(`/api/ead/brand/${slug}/signup`, { method: 'POST', body, auth: false }),
 };
 
 // Admin (uses regular auth_token via fetch)
