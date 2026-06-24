@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { eadApi } from '@/lib/ead-api';
+import { eadApi, eadToken } from '@/lib/ead-api';
 import { resolveMediaUrl } from '@/lib/media';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
