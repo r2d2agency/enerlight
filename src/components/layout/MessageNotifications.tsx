@@ -46,6 +46,8 @@ export function MessageNotifications() {
   const [activeTab, setActiveTab] = useState("messages");
   const previousUnreadRef = useRef<number>(0);
   const previousConversationIdsRef = useRef<Set<string>>(new Set());
+  const unreadPollingDelayRef = useRef(10000);
+  const unreadPollingTimeoutRef = useRef<number | null>(null);
   
   const { playSound, playNewConversationSound, settings } = useNotificationSound();
 
@@ -131,8 +133,9 @@ export function MessageNotifications() {
   // Fetch unread conversations
   const fetchUnreadConversations = useCallback(async (emitEvent = false) => {
     try {
-      const data = await api<UnreadConversation[]>("/api/chat/conversations/unread");
+      const data = await api<UnreadConversation[]>("/api/chat/conversations/unread", { silent: true });
       setUnreadConversations(data);
+      unreadPollingDelayRef.current = 10000;
       
       const newTotal = data.reduce((sum, c) => sum + c.unread_count, 0);
       const currentIds = new Set(data.map(c => c.id));
@@ -165,19 +168,42 @@ export function MessageNotifications() {
       previousUnreadRef.current = newTotal;
       setTotalUnread(newTotal);
     } catch (error) {
-      // Avoid spamming error toast for background polling issues (like 502)
-      // but log to console for debugging
-      console.warn("Error fetching unread conversations (polling):", error);
+      const status = (error as { status?: number })?.status;
+
+      if (status === 401 || status === 403) {
+        setUnreadConversations([]);
+        setTotalUnread(0);
+        return;
+      }
+
+      unreadPollingDelayRef.current = Math.min(unreadPollingDelayRef.current * 2, 60000);
+
+      if (status && status < 500) {
+        console.warn("Error fetching unread conversations:", error);
+      }
     }
   }, [soundEnabled, settings.soundEnabled, playSound, playNewConversationSound]);
 
-  // Poll for unread messages - faster polling (every 3 seconds)
+  // Poll for unread messages with backoff to avoid flooding the API during outages
   useEffect(() => {
-    fetchUnreadConversations(false); // Initial fetch without event
-    
-    const interval = setInterval(() => fetchUnreadConversations(true), 3000);
-    
-    return () => clearInterval(interval);
+    let isMounted = true;
+
+    const scheduleNextFetch = () => {
+      if (!isMounted) return;
+      unreadPollingTimeoutRef.current = window.setTimeout(async () => {
+        await fetchUnreadConversations(true);
+        scheduleNextFetch();
+      }, unreadPollingDelayRef.current);
+    };
+
+    fetchUnreadConversations(false).finally(scheduleNextFetch);
+
+    return () => {
+      isMounted = false;
+      if (unreadPollingTimeoutRef.current) {
+        window.clearTimeout(unreadPollingTimeoutRef.current);
+      }
+    };
   }, [fetchUnreadConversations]);
 
   // Clear notification for a conversation
