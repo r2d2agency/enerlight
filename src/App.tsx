@@ -96,7 +96,9 @@ const PublicNfcCard = lazyRetry(() => import("./pages/PublicNfcCard"));
 const Devolucoes = lazyRetry(() => import("./pages/Devolucoes"));
 const EadLogin = lazyRetry(() => import("./pages/ead/EadLogin"));
 const EadSignup = lazyRetry(() => import("./pages/ead/EadSignup"));
+const EadHome = lazyRetry(() => import("./pages/ead/EadHome"));
 const EadCatalog = lazyRetry(() => import("./pages/ead/EadCatalog"));
+const EadManuals = lazyRetry(() => import("./pages/ead/EadManuals"));
 const EadCourse = lazyRetry(() => import("./pages/ead/EadCourse"));
 const EadQuiz = lazyRetry(() => import("./pages/ead/EadQuiz"));
 const EadCertificates = lazyRetry(() => import("./pages/ead/EadCertificates"));
@@ -218,7 +220,9 @@ const App = () => (
               <Route path="/ead/login" element={<EadLogin />} />
               <Route path="/ead/cadastro" element={<EadSignup />} />
               <Route path="/marca/:slug" element={<EadBrandSignup />} />
-              <Route path="/ead" element={<EadCatalog />} />
+              <Route path="/ead" element={<EadHome />} />
+              <Route path="/ead/cursos" element={<EadCatalog />} />
+              <Route path="/ead/manuais" element={<EadManuals />} />
               <Route path="/ead/curso/:id" element={<EadCourse />} />
               <Route path="/ead/curso/:id/prova" element={<EadQuiz />} />
               <Route path="/ead/certificados" element={<EadCertificates />} />

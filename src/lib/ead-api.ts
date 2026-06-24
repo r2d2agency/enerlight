@@ -16,7 +16,14 @@ export interface EadStudent {
   company?: string | null;
   city?: string | null;
   state?: string | null;
+  status?: string;
   created_at?: string;
+  brand_id?: string | null;
+  brand_slug?: string | null;
+  brand_name?: string | null;
+  brand_logo?: string | null;
+  brand_primary?: string | null;
+  brand_accent?: string | null;
 }
 
 async function call<T>(endpoint: string, opts: { method?: string; body?: any; auth?: boolean } = {}): Promise<T> {
@@ -56,6 +63,7 @@ export const eadApi = {
       `/api/ead/courses/${id}/attempt`, { method: 'POST', body: { answers } }
     ),
   myCertificates: () => call<any[]>('/api/ead/my/certificates'),
+  myManuals: () => call<any[]>('/api/ead/my/manuals'),
   lessonProgress: (lessonId: string, b: { watched_seconds: number; last_position: number; total_seconds?: number | null }) =>
     call<any>(`/api/ead/lessons/${lessonId}/progress`, { method: 'POST', body: b }),
   lessonComplete: (lessonId: string) =>
