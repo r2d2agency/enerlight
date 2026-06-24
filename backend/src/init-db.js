@@ -5136,20 +5136,39 @@ CREATE TABLE IF NOT EXISTS ead_courses (
   description TEXT,
   cover_url TEXT,
   published BOOLEAN DEFAULT false,
+  has_certificate BOOLEAN DEFAULT true,
+  passing_score INT DEFAULT 100,
   created_by UUID REFERENCES users(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+ALTER TABLE ead_courses ADD COLUMN IF NOT EXISTS has_certificate BOOLEAN DEFAULT true;
+ALTER TABLE ead_courses ADD COLUMN IF NOT EXISTS passing_score INT DEFAULT 100;
+
+CREATE TABLE IF NOT EXISTS ead_modules (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  course_id UUID NOT NULL REFERENCES ead_courses(id) ON DELETE CASCADE,
+  title VARCHAR(200) NOT NULL,
+  description TEXT,
+  order_index INT DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_ead_modules_course ON ead_modules(course_id);
 
 CREATE TABLE IF NOT EXISTS ead_lessons (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   course_id UUID NOT NULL REFERENCES ead_courses(id) ON DELETE CASCADE,
+  module_id UUID REFERENCES ead_modules(id) ON DELETE SET NULL,
   title VARCHAR(200) NOT NULL,
   youtube_url TEXT NOT NULL,
+  description TEXT,
   order_index INT DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+ALTER TABLE ead_lessons ADD COLUMN IF NOT EXISTS module_id UUID REFERENCES ead_modules(id) ON DELETE SET NULL;
+ALTER TABLE ead_lessons ADD COLUMN IF NOT EXISTS description TEXT;
 CREATE INDEX IF NOT EXISTS idx_ead_lessons_course ON ead_lessons(course_id);
+CREATE INDEX IF NOT EXISTS idx_ead_lessons_module ON ead_lessons(module_id);
 
 CREATE TABLE IF NOT EXISTS ead_quiz_questions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
