@@ -110,6 +110,19 @@ export const eadAdminApi = {
   students: () => adminCall<any[]>('/api/ead/admin/students'),
   student: (id: string) => adminCall<any>(`/api/ead/admin/students/${id}`),
   certificates: () => adminCall<any[]>('/api/ead/admin/certificates'),
+
+  // Brands
+  brands: () => adminCall<any[]>('/api/ead/admin/brands'),
+  createBrand: (b: any) => adminCall<any>('/api/ead/admin/brands', { method: 'POST', body: b }),
+  updateBrand: (id: string, b: any) => adminCall<any>(`/api/ead/admin/brands/${id}`, { method: 'PATCH', body: b }),
+  deleteBrand: (id: string) => adminCall<any>(`/api/ead/admin/brands/${id}`, { method: 'DELETE' }),
+  brandConnections: () => adminCall<any[]>('/api/ead/admin/brands-meta/connections'),
+
+  // Approvals
+  pendingStudents: () => adminCall<any[]>('/api/ead/admin/students/pending'),
+  approveStudent: (id: string) => adminCall<any>(`/api/ead/admin/students/${id}/approve`, { method: 'POST' }),
+  rejectStudent: (id: string, reason?: string) => adminCall<any>(`/api/ead/admin/students/${id}/reject`, { method: 'POST', body: { reason } }),
+  resendNotification: (id: string) => adminCall<any>(`/api/ead/admin/students/${id}/resend-notification`, { method: 'POST' }),
 };
 
 export function ytEmbedUrl(url: string): string {
