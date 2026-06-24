@@ -22,6 +22,7 @@ export interface EadStudent {
   brand_slug?: string | null;
   brand_name?: string | null;
   brand_logo?: string | null;
+  brand_cover_url?: string | null;
   brand_primary?: string | null;
   brand_accent?: string | null;
 }
