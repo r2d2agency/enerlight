@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { eadApi, ytEmbedUrl } from '@/lib/ead-api';
 import { resolveMediaUrl } from '@/lib/media';
-import { EadLayout } from './EadLayout';
+import { EadLayout, useBrand } from './EadLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
