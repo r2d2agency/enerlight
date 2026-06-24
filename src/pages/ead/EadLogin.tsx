@@ -21,7 +21,8 @@ export default function EadLogin() {
       const r = await eadApi.login(email, password);
       eadToken.set(r.token);
       toast.success(`Bem-vindo(a), ${r.student.name}!`);
-      nav('/ead');
+      const slug = (r.student as any).brand_slug;
+      nav(slug ? `/marca/${slug}/inicio` : '/ead');
     } catch (e: any) {
       toast.error(e.message || 'Erro ao entrar');
     } finally { setLoading(false); }
