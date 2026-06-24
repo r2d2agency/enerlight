@@ -192,6 +192,14 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
     ],
   },
   {
+    title: "Academia (EAD)",
+    icon: GraduationCap,
+    permissionKey: 'can_view_ead',
+    items: [
+      { name: "Cursos e Alunos", href: "/admin/ead", icon: GraduationCap, permissionKey: 'can_view_ead' },
+    ],
+  },
+  {
     title: "Prestação de Contas",
     icon: Wallet,
     items: [
