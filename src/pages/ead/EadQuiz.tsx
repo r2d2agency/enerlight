@@ -8,8 +8,9 @@ import { Loader2, Award, RotateCcw, Download } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function EadQuiz() {
-  const { id } = useParams<{ id: string }>();
+  const { id, slug } = useParams<{ id: string; slug?: string }>();
   const nav = useNavigate();
+  const brandBase = slug ? `/marca/${slug}` : '/ead';
   const [questions, setQuestions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -20,9 +21,9 @@ export default function EadQuiz() {
     if (!id) return;
     eadApi.quiz(id).then(d => setQuestions(d.questions)).catch(e => {
       toast.error(e.message);
-      nav(`/ead/curso/${id}`);
+      nav(`${brandBase}/curso/${id}`);
     }).finally(() => setLoading(false));
-  }, [id, nav]);
+  }, [id, nav, brandBase]);
 
   async function submit() {
     if (Object.keys(answers).length < questions.length) {
