@@ -678,6 +678,216 @@ admin.get('/certificates', gate('can_view_ead'), async (req, res) => {
   res.json(r.rows);
 });
 
+// =========================================================================
+// ADMIN: BRANDS (marcas / programas)
+// =========================================================================
+async function getAdminOrgId(userId) {
+  const r = await query(
+    `SELECT om.organization_id FROM organization_members om WHERE om.user_id = $1 ORDER BY om.created_at LIMIT 1`,
+    [userId]
+  );
+  return r.rows[0]?.organization_id || null;
+}
+
+admin.get('/brands', gate('can_view_ead'), async (req, res) => {
+  const r = await query(
+    `SELECT b.*, c.instance_name AS connection_name,
+       (SELECT COUNT(*)::int FROM ead_students s WHERE s.brand_id = b.id) AS total_students,
+       (SELECT COUNT(*)::int FROM ead_students s WHERE s.brand_id = b.id AND s.status = 'pending') AS pending_students
+     FROM ead_brands b LEFT JOIN connections c ON c.id = b.notify_connection_id
+     ORDER BY b.created_at DESC`
+  );
+  res.json(r.rows);
+});
+
+admin.post('/brands', gate('can_manage_ead'), async (req, res) => {
+  try {
+    const { slug, name, logo_url, cover_url, primary_color, accent_color, welcome_title, welcome_text, signup_fields, notify_connection_id, approval_message, active } = req.body || {};
+    const cleanSlug = String(slug || '').trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    if (!cleanSlug || !name) return res.status(400).json({ error: 'Slug e nome são obrigatórios' });
+    const orgId = await getAdminOrgId(req.userId);
+    const r = await query(
+      `INSERT INTO ead_brands (slug, name, logo_url, cover_url, primary_color, accent_color, welcome_title, welcome_text, signup_fields, organization_id, notify_connection_id, approval_message, active)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,COALESCE($9::jsonb, (SELECT signup_fields FROM ead_brands LIMIT 0)),$10,$11,$12,COALESCE($13,true))
+       RETURNING *`,
+      [cleanSlug, name, logo_url || null, cover_url || null, primary_color || '#0ea5e9', accent_color || '#0284c7',
+       welcome_title || null, welcome_text || null,
+       signup_fields ? JSON.stringify(signup_fields) : null,
+       orgId, notify_connection_id || null, approval_message || null,
+       typeof active === 'boolean' ? active : null]
+    );
+    res.status(201).json(r.rows[0]);
+  } catch (e) {
+    if (e.code === '23505') return res.status(400).json({ error: 'Slug já em uso' });
+    console.error('create brand', e); res.status(500).json({ error: 'Erro ao criar marca' });
+  }
+});
+
+admin.patch('/brands/:id', gate('can_manage_ead'), async (req, res) => {
+  try {
+    const { slug, name, logo_url, cover_url, primary_color, accent_color, welcome_title, welcome_text, signup_fields, notify_connection_id, approval_message, active } = req.body || {};
+    const cleanSlug = slug !== undefined ? String(slug).trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') : null;
+    const r = await query(
+      `UPDATE ead_brands SET
+         slug = COALESCE($1, slug),
+         name = COALESCE($2, name),
+         logo_url = COALESCE($3, logo_url),
+         cover_url = COALESCE($4, cover_url),
+         primary_color = COALESCE($5, primary_color),
+         accent_color = COALESCE($6, accent_color),
+         welcome_title = COALESCE($7, welcome_title),
+         welcome_text = COALESCE($8, welcome_text),
+         signup_fields = COALESCE($9::jsonb, signup_fields),
+         notify_connection_id = $10,
+         approval_message = COALESCE($11, approval_message),
+         active = COALESCE($12, active),
+         updated_at = NOW()
+       WHERE id = $13 RETURNING *`,
+      [cleanSlug, name ?? null, logo_url ?? null, cover_url ?? null, primary_color ?? null, accent_color ?? null,
+       welcome_title ?? null, welcome_text ?? null,
+       signup_fields ? JSON.stringify(signup_fields) : null,
+       notify_connection_id ?? null,
+       approval_message ?? null,
+       typeof active === 'boolean' ? active : null,
+       req.params.id]
+    );
+    res.json(r.rows[0]);
+  } catch (e) {
+    if (e.code === '23505') return res.status(400).json({ error: 'Slug já em uso' });
+    console.error(e); res.status(500).json({ error: 'Erro ao atualizar' });
+  }
+});
+
+admin.delete('/brands/:id', gate('can_manage_ead'), async (req, res) => {
+  await query('DELETE FROM ead_brands WHERE id = $1', [req.params.id]);
+  res.json({ ok: true });
+});
+
+// Connections available for notification (current user's org)
+admin.get('/brands-meta/connections', gate('can_view_ead'), async (req, res) => {
+  const orgId = await getAdminOrgId(req.userId);
+  if (!orgId) return res.json([]);
+  const r = await query(
+    `SELECT id, instance_name, provider, status FROM connections WHERE organization_id = $1 ORDER BY instance_name`,
+    [orgId]
+  );
+  res.json(r.rows);
+});
+
+// =========================================================================
+// ADMIN: STUDENT APPROVALS
+// =========================================================================
+admin.get('/students/pending', gate('can_view_ead'), async (req, res) => {
+  const { brand_id } = req.query;
+  const params = [];
+  let where = "s.status = 'pending'";
+  if (brand_id) { params.push(brand_id); where += ` AND s.brand_id = $${params.length}`; }
+  const r = await query(
+    `SELECT s.id, s.name, s.cpf, s.email, s.phone, s.company, s.city, s.state, s.extra_fields, s.created_at,
+            b.id AS brand_id, b.name AS brand_name, b.slug AS brand_slug
+     FROM ead_students s LEFT JOIN ead_brands b ON b.id = s.brand_id
+     WHERE ${where} ORDER BY s.created_at DESC`,
+    params
+  );
+  res.json(r.rows);
+});
+
+function appBaseUrl(req) {
+  return process.env.APP_BASE_URL || process.env.FRONTEND_URL || `${req.protocol}://${req.get('host')}`;
+}
+
+async function notifyApproval(student, brand, baseUrl) {
+  const link = brand?.slug ? `${baseUrl}/ead/login` : `${baseUrl}/ead/login`;
+  const tpl = brand?.approval_message || 'Olá {nome}! Seu cadastro foi aprovado. Acesse: {link}';
+  const vars = { nome: student.name, marca: brand?.name || '', link, email: student.email };
+  const message = tpl.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? '');
+  const result = { whatsapp: null, email: null };
+
+  // WhatsApp
+  if (brand?.notify_connection_id && student.phone) {
+    try {
+      const c = await query('SELECT * FROM connections WHERE id = $1', [brand.notify_connection_id]);
+      if (c.rows[0]) {
+        const r = await sendWhatsapp(c.rows[0], student.phone, message, 'text');
+        result.whatsapp = r;
+      } else result.whatsapp = { success: false, error: 'Conexão não encontrada' };
+    } catch (e) { result.whatsapp = { success: false, error: e.message }; }
+  } else {
+    result.whatsapp = { success: false, error: !brand?.notify_connection_id ? 'Sem conexão configurada' : 'Aluno sem telefone' };
+  }
+
+  // E-mail (via org SMTP)
+  if (student.email && brand?.organization_id) {
+    try {
+      const cfg = await query('SELECT * FROM email_smtp_configs WHERE organization_id = $1 LIMIT 1', [brand.organization_id]);
+      const smtp = cfg.rows[0];
+      if (smtp) {
+        const { default: nodemailerLib } = await import('nodemailer');
+        const cryptoLib = await import('crypto');
+        const ENC = process.env.EMAIL_ENCRYPTION_KEY || 'whatsale-email-key-32chars!!';
+        const [ivHex, enc] = String(smtp.password_encrypted).split(':');
+        const iv = Buffer.from(ivHex, 'hex');
+        const key = cryptoLib.scryptSync(ENC, 'salt', 32);
+        const decipher = cryptoLib.createDecipheriv('aes-256-cbc', key, iv);
+        let pass = decipher.update(enc, 'hex', 'utf8'); pass += decipher.final('utf8');
+        const transporter = nodemailerLib.createTransport({
+          host: smtp.host, port: smtp.port, secure: smtp.secure,
+          auth: { user: smtp.username, pass },
+          tls: { rejectUnauthorized: false },
+        });
+        await transporter.sendMail({
+          from: `"${smtp.from_name || brand.name}" <${smtp.from_email}>`,
+          to: student.email,
+          subject: `Cadastro aprovado - ${brand.name}`,
+          html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:24px;border:1px solid #eee;border-radius:8px">
+            ${brand.logo_url ? `<div style="text-align:center;margin-bottom:16px"><img src="${brand.logo_url}" alt="${brand.name}" style="max-height:80px"/></div>` : ''}
+            <h2 style="color:${brand.primary_color || '#0ea5e9'}">Olá, ${student.name}!</h2>
+            <p>${message.replace(/\n/g, '<br>')}</p>
+            <p style="margin-top:24px"><a href="${link}" style="background:${brand.primary_color || '#0ea5e9'};color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;display:inline-block">Acessar plataforma</a></p>
+          </div>`,
+        });
+        result.email = { success: true };
+      } else result.email = { success: false, error: 'Sem SMTP configurado' };
+    } catch (e) { result.email = { success: false, error: e.message }; }
+  } else {
+    result.email = { success: false, error: 'Sem e-mail ou organização' };
+  }
+  return result;
+}
+
+admin.post('/students/:id/approve', gate('can_manage_ead'), async (req, res) => {
+  try {
+    const s = await query('SELECT * FROM ead_students WHERE id = $1', [req.params.id]);
+    if (!s.rows.length) return res.status(404).json({ error: 'Aluno não encontrado' });
+    const student = s.rows[0];
+    if (student.status === 'approved') return res.status(400).json({ error: 'Já aprovado' });
+    const b = student.brand_id ? (await query('SELECT * FROM ead_brands WHERE id = $1', [student.brand_id])).rows[0] : null;
+    await query(`UPDATE ead_students SET status='approved', approved_at=NOW(), approved_by=$1 WHERE id=$2`, [req.userId, student.id]);
+    const notify = await notifyApproval(student, b, appBaseUrl(req));
+    res.json({ ok: true, notify });
+  } catch (e) { console.error('approve', e); res.status(500).json({ error: 'Erro ao aprovar' }); }
+});
+
+admin.post('/students/:id/reject', gate('can_manage_ead'), async (req, res) => {
+  try {
+    const { reason } = req.body || {};
+    const r = await query(`UPDATE ead_students SET status='rejected', rejected_reason=$1 WHERE id=$2 RETURNING id`, [reason || null, req.params.id]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Aluno não encontrado' });
+    res.json({ ok: true });
+  } catch (e) { console.error(e); res.status(500).json({ error: 'Erro ao rejeitar' }); }
+});
+
+admin.post('/students/:id/resend-notification', gate('can_manage_ead'), async (req, res) => {
+  try {
+    const s = await query('SELECT * FROM ead_students WHERE id = $1', [req.params.id]);
+    if (!s.rows.length) return res.status(404).json({ error: 'Não encontrado' });
+    const student = s.rows[0];
+    const b = student.brand_id ? (await query('SELECT * FROM ead_brands WHERE id = $1', [student.brand_id])).rows[0] : null;
+    const notify = await notifyApproval(student, b, appBaseUrl(req));
+    res.json({ ok: true, notify });
+  } catch (e) { console.error(e); res.status(500).json({ error: 'Erro ao reenviar' }); }
+});
+
 router.use('/admin', admin);
 
 export default router;
