@@ -197,11 +197,9 @@ export default function EadCourse() {
   const orphan = lessons.filter((l: any) => !l.module_id);
   if (orphan.length) grouped.push({ id: null, title: modules.length ? 'Outras aulas' : 'Aulas', lessons: orphan });
 
-  const overallPct = useMemo(() => {
-    if (!lessons.length) return 0;
-    const done = lessons.filter((l: any) => progressMap[l.id]?.completed).length;
-    return Math.round((done / lessons.length) * 100);
-  }, [lessons, progressMap]);
+  const doneCount = lessons.filter((l: any) => progressMap[l.id]?.completed).length;
+  const overallPct = lessons.length ? Math.round((doneCount / lessons.length) * 100) : 0;
+
 
   const activeProg = activeLesson ? progressMap[activeLesson.id] : null;
   const watchedPct = activeProg && activeProg.total_seconds
