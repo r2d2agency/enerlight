@@ -247,8 +247,11 @@ function SettingsManager({ course, canManage }: { course: any; canManage: boolea
     published: !!course.published,
     has_certificate: course.has_certificate ?? true,
     passing_score: course.passing_score ?? 100,
+    brand_id: course.brand_id || null,
   });
   const [saving, setSaving] = useState(false);
+  const [brands, setBrands] = useState<any[]>([]);
+  useEffect(() => { eadAdminApi.brands().then(setBrands).catch(() => {}); }, []);
   async function save() {
     setSaving(true);
     try { await eadAdminApi.updateCourse(course.id, form); toast.success('Salvo'); }
@@ -257,7 +260,7 @@ function SettingsManager({ course, canManage }: { course: any; canManage: boolea
   }
   return (
     <div className="space-y-4">
-      <CourseForm value={form} onChange={setForm} />
+      <CourseForm value={form} onChange={setForm} brands={brands} />
       {canManage && <div className="flex justify-end"><Button onClick={save} disabled={saving}>{saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Salvar alterações</Button></div>}
     </div>
   );
