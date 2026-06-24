@@ -217,6 +217,7 @@ const App = () => (
               <Route path="/devolucoes" element={<ProtectedRoute><Devolucoes /></ProtectedRoute>} />
               <Route path="/ead/login" element={<EadLogin />} />
               <Route path="/ead/cadastro" element={<EadSignup />} />
+              <Route path="/marca/:slug" element={<EadBrandSignup />} />
               <Route path="/ead" element={<EadCatalog />} />
               <Route path="/ead/curso/:id" element={<EadCourse />} />
               <Route path="/ead/curso/:id/prova" element={<EadQuiz />} />
