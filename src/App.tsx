@@ -219,7 +219,15 @@ const App = () => (
               <Route path="/devolucoes" element={<ProtectedRoute><Devolucoes /></ProtectedRoute>} />
               <Route path="/ead/login" element={<EadLogin />} />
               <Route path="/ead/cadastro" element={<EadSignup />} />
+              {/* Brand-scoped portal (slug = brand) */}
               <Route path="/marca/:slug" element={<EadBrandSignup />} />
+              <Route path="/marca/:slug/inicio" element={<EadHome />} />
+              <Route path="/marca/:slug/cursos" element={<EadCatalog />} />
+              <Route path="/marca/:slug/manuais" element={<EadManuals />} />
+              <Route path="/marca/:slug/certificados" element={<EadCertificates />} />
+              <Route path="/marca/:slug/curso/:id" element={<EadCourse />} />
+              <Route path="/marca/:slug/curso/:id/prova" element={<EadQuiz />} />
+              {/* Legacy fallbacks (no slug) — render same pages and rely on layout redirect */}
               <Route path="/ead" element={<EadHome />} />
               <Route path="/ead/cursos" element={<EadCatalog />} />
               <Route path="/ead/manuais" element={<EadManuals />} />
