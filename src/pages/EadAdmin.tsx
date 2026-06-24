@@ -52,13 +52,21 @@ export default function EadAdmin() {
       </div>
 
       {loading ? <div className="flex justify-center py-12"><Loader2 className="animate-spin h-6 w-6" /></div> : (
-        <Tabs defaultValue="courses">
+        <Tabs defaultValue="brands">
           <TabsList className="h-auto flex-wrap justify-start">
+            <TabsTrigger value="brands">Marcas</TabsTrigger>
+            <TabsTrigger value="approvals">Aprovações</TabsTrigger>
             <TabsTrigger value="courses">Cursos</TabsTrigger>
             <TabsTrigger value="students">Alunos</TabsTrigger>
             <TabsTrigger value="certs">Certificados emitidos</TabsTrigger>
           </TabsList>
 
+          <TabsContent value="brands" className="mt-4">
+            <BrandsTab canManage={!!canManage} />
+          </TabsContent>
+          <TabsContent value="approvals" className="mt-4">
+            <ApprovalsTab canManage={!!canManage} />
+          </TabsContent>
           <TabsContent value="courses" className="mt-4">
             <CoursesTab courses={courses} canManage={!!canManage} reload={reload} onOpen={setActiveCourse} />
           </TabsContent>
