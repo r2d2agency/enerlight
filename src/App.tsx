@@ -220,7 +220,9 @@ const App = () => (
               <Route path="/ead/login" element={<EadLogin />} />
               <Route path="/ead/cadastro" element={<EadSignup />} />
               <Route path="/marca/:slug" element={<EadBrandSignup />} />
-              <Route path="/ead" element={<EadCatalog />} />
+              <Route path="/ead" element={<EadHome />} />
+              <Route path="/ead/cursos" element={<EadCatalog />} />
+              <Route path="/ead/manuais" element={<EadManuals />} />
               <Route path="/ead/curso/:id" element={<EadCourse />} />
               <Route path="/ead/curso/:id/prova" element={<EadQuiz />} />
               <Route path="/ead/certificados" element={<EadCertificates />} />
