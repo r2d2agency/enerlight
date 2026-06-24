@@ -426,22 +426,8 @@ function QuestionsManager({ courseId, canManage }: { courseId: string; canManage
     try { await eadAdminApi.deleteQuestion(id); load(); } catch (e: any) { toast.error(e.message); }
   }
 
-  const QuestionForm = ({ value, onChange }: { value: any; onChange: (v: any) => void }) => (
-    <div className="space-y-3">
-      <div><Label>Pergunta</Label><Textarea value={value.question} onChange={e => onChange({ ...value, question: e.target.value })} /></div>
-      <div className="space-y-2">
-        <Label>Alternativas (marque a correta)</Label>
-        {value.options.map((o: any, i: number) => (
-          <div key={i} className="flex items-center gap-2">
-            <input type="radio" name={`correct-${value.id || 'new'}`} checked={!!o.is_correct} onChange={() => onChange({ ...value, options: value.options.map((x: any, j: number) => ({ ...x, is_correct: i === j })) })} />
-            <Input value={o.text} onChange={e => onChange({ ...value, options: value.options.map((x: any, j: number) => i === j ? { ...x, text: e.target.value } : x) })} placeholder={`Alternativa ${i + 1}`} />
-            {value.options.length > 2 && <Button size="icon" variant="ghost" onClick={() => onChange({ ...value, options: value.options.filter((_: any, j: number) => j !== i) })}><Trash2 className="h-4 w-4" /></Button>}
-          </div>
-        ))}
-        <Button variant="outline" size="sm" onClick={() => onChange({ ...value, options: [...value.options, { text: '', is_correct: false }] })}><Plus className="h-3 w-3 mr-1" />Alternativa</Button>
-      </div>
-    </div>
-  );
+
+
 
   if (loading) return <Loader2 className="animate-spin h-5 w-5 mx-auto" />;
 
