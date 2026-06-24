@@ -34,11 +34,17 @@ export default function EadBrandSignup() {
 
   useEffect(() => {
     if (!slug) return;
+    // If already logged in to this brand, jump straight to the portal home
+    if (eadToken.get()) {
+      eadApi.me().then(r => {
+        if (r.student.brand_slug === slug) nav(`/marca/${slug}/inicio`, { replace: true });
+      }).catch(() => {});
+    }
     eadApi.getBrand(slug)
       .then(b => setBrand(b))
       .catch(() => setBrand(null))
       .finally(() => setLoading(false));
-  }, [slug]);
+  }, [slug, nav]);
 
   function setField(k: string, v: any) { setData(d => ({ ...d, [k]: v })); }
 
