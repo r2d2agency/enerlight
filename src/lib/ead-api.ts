@@ -28,16 +28,7 @@ export interface EadStudent {
 }
 
 async function fetchEad(endpoint: string, init: RequestInit): Promise<Response> {
-  let res = await fetch(`${API_URL}${endpoint}`, init);
-  if (res.ok || res.status < 500 || API_URL === PRODUCTION_API_URL || typeof window === 'undefined' || ['localhost', '127.0.0.1', ''].includes(window.location.hostname)) {
-    return res;
-  }
-
-  const clone = res.clone();
-  const text = await clone.text().catch(() => '');
-  const contentType = clone.headers.get('content-type') || '';
-  const gotHtml = contentType.includes('text/html') || text.trim().startsWith('<!') || text.includes('<html');
-  return gotHtml ? fetch(`${PRODUCTION_API_URL}${endpoint}`, init) : res;
+  return fetch(`${API_URL}${endpoint}`, init);
 }
 
 async function call<T>(endpoint: string, opts: { method?: string; body?: any; auth?: boolean } = {}): Promise<T> {
