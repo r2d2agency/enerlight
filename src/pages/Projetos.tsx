@@ -1324,34 +1324,36 @@ function ProjectDetailDialog({ project, open, onOpenChange, stages, canEdit, can
 
             {/* Notes */}
             <TabsContent value="notes" className="mt-0 space-y-3">
-              <div className="space-y-3">
-                {rootNotes.map(note => (
-                  <div key={note.id} className="space-y-2">
-                    <div className="rounded-lg bg-muted/50 p-3">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-semibold">{note.user_name || "Usuário"}</span>
-                        <span className="text-[10px] text-muted-foreground">{safeFormatDate(note.created_at, "dd/MM HH:mm", { locale: ptBR })}</span>
-                      </div>
-                      <p className="text-sm whitespace-pre-wrap">{note.content}</p>
-                      <Button variant="ghost" size="sm" className="mt-1 h-6 text-xs" onClick={() => setReplyTo(note.id)}>
-                        <Reply className="h-3 w-3 mr-1" /> Responder
-                      </Button>
-                    </div>
-                    {repliesMap[note.id]?.map(reply => (
-                      <div key={reply.id} className="ml-6 rounded-lg bg-accent/30 p-3">
+              <ScrollArea className="h-[300px] pr-2">
+                <div className="space-y-3">
+                  {rootNotes.map(note => (
+                    <div key={note.id} className="space-y-2">
+                      <div className="rounded-lg bg-muted/50 p-3">
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-semibold">{reply.user_name || "Usuário"}</span>
-                          <span className="text-[10px] text-muted-foreground">{safeFormatDate(reply.created_at, "dd/MM HH:mm", { locale: ptBR })}</span>
+                          <span className="text-xs font-semibold">{note.user_name || "Usuário"}</span>
+                          <span className="text-[10px] text-muted-foreground">{safeFormatDate(note.created_at, "dd/MM HH:mm", { locale: ptBR })}</span>
                         </div>
-                        <p className="text-sm whitespace-pre-wrap">{reply.content}</p>
+                        <p className="text-sm whitespace-pre-wrap">{note.content}</p>
+                        <Button variant="ghost" size="sm" className="mt-1 h-6 text-xs" onClick={() => setReplyTo(note.id)}>
+                          <Reply className="h-3 w-3 mr-1" /> Responder
+                        </Button>
                       </div>
-                    ))}
-                  </div>
-                ))}
-                {notes.length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-4">Nenhuma nota ainda</p>
-                )}
-              </div>
+                      {repliesMap[note.id]?.map(reply => (
+                        <div key={reply.id} className="ml-6 rounded-lg bg-accent/30 p-3">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs font-semibold">{reply.user_name || "Usuário"}</span>
+                            <span className="text-[10px] text-muted-foreground">{safeFormatDate(reply.created_at, "dd/MM HH:mm", { locale: ptBR })}</span>
+                          </div>
+                          <p className="text-sm whitespace-pre-wrap">{reply.content}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                  {notes.length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-4">Nenhuma nota ainda</p>
+                  )}
+                </div>
+              </ScrollArea>
               <div className="border-t pt-3">
                 {replyTo && (
                   <div className="flex items-center gap-2 mb-2 text-xs text-muted-foreground">
