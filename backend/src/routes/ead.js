@@ -114,7 +114,8 @@ router.post('/auth/login', async (req, res) => {
 router.get('/auth/me', studentAuth, async (req, res) => {
   const r = await query(
     `SELECT s.id, s.cpf, s.name, s.email, s.company, s.city, s.state, s.phone, s.status, s.created_at,
-            b.id AS brand_id, b.slug AS brand_slug, b.name AS brand_name, b.logo_url AS brand_logo, b.primary_color AS brand_primary, b.accent_color AS brand_accent
+            b.id AS brand_id, b.slug AS brand_slug, b.name AS brand_name, b.logo_url AS brand_logo, b.cover_url AS brand_cover_url,
+            b.primary_color AS brand_primary, b.accent_color AS brand_accent
      FROM ead_students s LEFT JOIN ead_brands b ON b.id = s.brand_id WHERE s.id = $1`, [req.studentId]);
   if (!r.rows.length) return res.status(404).json({ error: 'Não encontrado' });
   res.json({ student: r.rows[0] });
