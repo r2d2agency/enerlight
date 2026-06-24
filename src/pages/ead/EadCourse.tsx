@@ -43,12 +43,9 @@ function extractYouTubeId(url: string): string {
 }
 
 export default function EadCourse() {
-  const { id } = useParams<{ id: string }>();
+  const { id, slug } = useParams<{ id: string; slug?: string }>();
   const nav = useNavigate();
-  return <EadCourseInner key={id} id={id} nav={nav} />;
-}
-
-function EadCourseInner({ id, nav }: { id?: string; nav: ReturnType<typeof useNavigate> }) {
+  const brandBase = slug ? `/marca/${slug}` : '/ead';
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activeLesson, setActiveLesson] = useState<any>(null);
