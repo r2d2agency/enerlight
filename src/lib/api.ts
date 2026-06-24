@@ -1,14 +1,34 @@
-export const API_URL = import.meta.env.VITE_API_URL || '';
+const PRODUCTION_API_URL = 'https://blaster-ener-backend.isyhhh.easypanel.host';
+
+const resolveApiUrl = () => {
+  const configuredUrl = import.meta.env.VITE_API_URL?.trim();
+
+  if (configuredUrl) {
+    return configuredUrl.replace(/\/$/, '');
+  }
+
+  if (typeof window !== 'undefined') {
+    const isLocalhost = ['localhost', '127.0.0.1', ''].includes(window.location.hostname);
+    if (!isLocalhost) {
+      return PRODUCTION_API_URL;
+    }
+  }
+
+  return '';
+};
+
+export const API_URL = resolveApiUrl();
 
 interface ApiOptions {
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE' | 'PUT';
   body?: unknown;
   auth?: boolean;
   isFormData?: boolean;
+  silent?: boolean;
 }
 
 export const api = async <T>(endpoint: string, options: ApiOptions = {}): Promise<T> => {
-  const { method = 'GET', body, auth = true, isFormData = false } = options;
+  const { method = 'GET', body, auth = true, isFormData = false, silent = false } = options;
   const headers: Record<string, string> = {};
 
   if (!isFormData) {
@@ -44,7 +64,7 @@ export const api = async <T>(endpoint: string, options: ApiOptions = {}): Promis
     }
   } else {
     // Got HTML or unexpected format – log for debugging
-    if (isHtmlResponse) {
+    if (isHtmlResponse && !silent) {
       console.error('[api] Got HTML instead of JSON', {
         url: `${API_URL}${endpoint}`,
         status: response.status,
@@ -64,14 +84,16 @@ export const api = async <T>(endpoint: string, options: ApiOptions = {}): Promis
     }
 
     const details = data?.details ? `: ${data.details}` : '';
-    // eslint-disable-next-line no-console
-    console.error('[api] request failed', {
-      url: `${API_URL}${endpoint}`,
-      status: response.status,
-      contentType,
-      body,
-      response: data,
-    });
+    if (!silent) {
+      // eslint-disable-next-line no-console
+      console.error('[api] request failed', {
+        url: `${API_URL}${endpoint}`,
+        status: response.status,
+        contentType,
+        body,
+        response: data,
+      });
+    }
 
     const error = new Error(`${baseMsg}${details}`) as Error & { status?: number; endpoint?: string; data?: any };
     error.status = response.status;
