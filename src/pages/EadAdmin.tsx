@@ -336,7 +336,7 @@ function LessonsManager({ courseId, canManage }: { courseId: string; canManage: 
   const [items, setItems] = useState<any[]>([]);
   const [modules, setModules] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState<any>({ title: '', youtube_url: '', module_id: '', description: '' });
+  const [form, setForm] = useState<any>({ title: '', youtube_url: '', video_url: '', video_type: 'youtube', module_id: '', description: '' });
   const [editing, setEditing] = useState<any>(null);
 
   async function load() {
@@ -349,15 +349,27 @@ function LessonsManager({ courseId, canManage }: { courseId: string; canManage: 
   useEffect(() => { load(); }, [courseId]);
 
   async function add() {
-    if (!form.title || !form.youtube_url) { toast.error('Preencha título e URL'); return; }
+    if (!form.title) { toast.error('Informe o título'); return; }
+    if (form.video_type === 'youtube' && !form.youtube_url) { toast.error('Informe a URL do YouTube'); return; }
+    if (form.video_type === 'upload' && !form.video_url) { toast.error('Envie o arquivo de vídeo'); return; }
     try {
       await eadAdminApi.createLesson(courseId, { ...form, module_id: form.module_id || null, order_index: items.length });
-      setForm({ title: '', youtube_url: '', module_id: form.module_id, description: '' }); load();
+      setForm({ title: '', youtube_url: '', video_url: '', video_type: form.video_type, module_id: form.module_id, description: '' });
+      load();
     } catch (e: any) { toast.error(e.message); }
   }
   async function saveEdit() {
-    try { await eadAdminApi.updateLesson(editing.id, { title: editing.title, youtube_url: editing.youtube_url, description: editing.description, module_id: editing.module_id || null }); setEditing(null); load(); }
-    catch (e: any) { toast.error(e.message); }
+    try {
+      await eadAdminApi.updateLesson(editing.id, {
+        title: editing.title,
+        youtube_url: editing.video_type === 'youtube' ? editing.youtube_url : null,
+        video_url: editing.video_type === 'upload' ? editing.video_url : null,
+        video_type: editing.video_type,
+        description: editing.description,
+        module_id: editing.module_id || null,
+      });
+      setEditing(null); load();
+    } catch (e: any) { toast.error(e.message); }
   }
   async function del(id: string) {
     if (!confirm('Excluir aula?')) return;
@@ -366,7 +378,6 @@ function LessonsManager({ courseId, canManage }: { courseId: string; canManage: 
 
   if (loading) return <Loader2 className="animate-spin h-5 w-5 mx-auto" />;
 
-  // group by module
   const grouped: Record<string, any[]> = { __none: [] };
   for (const m of modules) grouped[m.id] = [];
   for (const l of items) (grouped[l.module_id || '__none'] ||= []).push(l);
@@ -378,11 +389,14 @@ function LessonsManager({ courseId, canManage }: { courseId: string; canManage: 
         <div key={l.id} className="flex items-center gap-2 p-2 border rounded-md">
           <span className="text-sm text-muted-foreground w-6">{i + 1}.</span>
           <div className="flex-1 min-w-0">
-            <div className="font-medium text-sm truncate">{l.title}</div>
-            <div className="text-xs text-muted-foreground truncate">{l.youtube_url}</div>
+            <div className="font-medium text-sm truncate flex items-center gap-2">
+              {l.title}
+              <Badge variant="outline" className="text-[10px] py-0">{l.video_type === 'upload' ? 'Vídeo' : 'YouTube'}</Badge>
+            </div>
+            <div className="text-xs text-muted-foreground truncate">{l.video_type === 'upload' ? l.video_url : l.youtube_url}</div>
           </div>
           {canManage && <>
-            <Button size="icon" variant="ghost" onClick={() => setEditing({ ...l })}><Pencil className="h-4 w-4" /></Button>
+            <Button size="icon" variant="ghost" onClick={() => setEditing({ ...l, video_type: l.video_type || 'youtube' })}><Pencil className="h-4 w-4" /></Button>
             <Button size="icon" variant="ghost" onClick={() => del(l.id)}><Trash2 className="h-4 w-4" /></Button>
           </>}
         </div>
@@ -397,11 +411,20 @@ function LessonsManager({ courseId, canManage }: { courseId: string; canManage: 
       {renderGroup('Sem módulo', grouped.__none || [])}
 
       {canManage && (
-        <div className="border-t pt-3 space-y-2">
+        <div className="border-t pt-3 space-y-3">
           <div className="grid sm:grid-cols-12 gap-2">
-            <div className="sm:col-span-4"><Label>Título</Label><Input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} /></div>
-            <div className="sm:col-span-5"><Label>URL do YouTube</Label><Input value={form.youtube_url} onChange={e => setForm({ ...form, youtube_url: e.target.value })} placeholder="https://youtu.be/..." /></div>
-            <div className="sm:col-span-2">
+            <div className="sm:col-span-5"><Label>Título</Label><Input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} /></div>
+            <div className="sm:col-span-3">
+              <Label>Tipo de vídeo</Label>
+              <Select value={form.video_type} onValueChange={v => setForm({ ...form, video_type: v, youtube_url: '', video_url: '' })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="youtube">YouTube (link)</SelectItem>
+                  <SelectItem value="upload">Upload (mp4/webm)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="sm:col-span-3">
               <Label>Módulo</Label>
               <Select value={form.module_id || 'none'} onValueChange={v => setForm({ ...form, module_id: v === 'none' ? '' : v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -413,6 +436,14 @@ function LessonsManager({ courseId, canManage }: { courseId: string; canManage: 
             </div>
             <div className="sm:col-span-1 flex items-end"><Button onClick={add} className="w-full"><Plus className="h-4 w-4" /></Button></div>
           </div>
+          {form.video_type === 'youtube' ? (
+            <div><Label>URL do YouTube</Label><Input value={form.youtube_url} onChange={e => setForm({ ...form, youtube_url: e.target.value })} placeholder="https://youtu.be/..." /></div>
+          ) : (
+            <div>
+              <Label>Arquivo de vídeo (mp4/webm)</Label>
+              <FileUploadInput value={form.video_url} onChange={(url) => setForm({ ...form, video_url: url })} accept="video/mp4,video/webm,video/quicktime" previewType="file" placeholder="Faça upload do vídeo" />
+            </div>
+          )}
         </div>
       )}
 
@@ -422,7 +453,24 @@ function LessonsManager({ courseId, canManage }: { courseId: string; canManage: 
           {editing && (
             <div className="space-y-3">
               <div><Label>Título</Label><Input value={editing.title} onChange={e => setEditing({ ...editing, title: e.target.value })} /></div>
-              <div><Label>URL do YouTube</Label><Input value={editing.youtube_url} onChange={e => setEditing({ ...editing, youtube_url: e.target.value })} /></div>
+              <div>
+                <Label>Tipo de vídeo</Label>
+                <Select value={editing.video_type} onValueChange={v => setEditing({ ...editing, video_type: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="youtube">YouTube (link)</SelectItem>
+                    <SelectItem value="upload">Upload (mp4/webm)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {editing.video_type === 'youtube' ? (
+                <div><Label>URL do YouTube</Label><Input value={editing.youtube_url || ''} onChange={e => setEditing({ ...editing, youtube_url: e.target.value })} /></div>
+              ) : (
+                <div>
+                  <Label>Arquivo de vídeo (mp4/webm)</Label>
+                  <FileUploadInput value={editing.video_url || ''} onChange={(url) => setEditing({ ...editing, video_url: url })} accept="video/mp4,video/webm,video/quicktime" previewType="file" />
+                </div>
+              )}
               <div><Label>Descrição</Label><Textarea value={editing.description || ''} onChange={e => setEditing({ ...editing, description: e.target.value })} /></div>
               <div>
                 <Label>Módulo</Label>
@@ -442,6 +490,7 @@ function LessonsManager({ courseId, canManage }: { courseId: string; canManage: 
     </div>
   );
 }
+
 
 function ManualsManager({ courseId, canManage }: { courseId: string; canManage: boolean }) {
   const [items, setItems] = useState<any[]>([]);
