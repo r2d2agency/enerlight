@@ -1,4 +1,4 @@
-import { API_URL } from './api';
+import { API_URL, PRODUCTION_API_URL } from './api';
 
 const TOKEN_KEY = 'ead_token';
 
@@ -27,6 +27,19 @@ export interface EadStudent {
   brand_accent?: string | null;
 }
 
+async function fetchEad(endpoint: string, init: RequestInit): Promise<Response> {
+  let res = await fetch(`${API_URL}${endpoint}`, init);
+  if (res.ok || res.status < 500 || API_URL === PRODUCTION_API_URL || typeof window === 'undefined' || ['localhost', '127.0.0.1', ''].includes(window.location.hostname)) {
+    return res;
+  }
+
+  const clone = res.clone();
+  const text = await clone.text().catch(() => '');
+  const contentType = clone.headers.get('content-type') || '';
+  const gotHtml = contentType.includes('text/html') || text.trim().startsWith('<!') || text.includes('<html');
+  return gotHtml ? fetch(`${PRODUCTION_API_URL}${endpoint}`, init) : res;
+}
+
 async function call<T>(endpoint: string, opts: { method?: string; body?: any; auth?: boolean } = {}): Promise<T> {
   const { method = 'GET', body, auth = true } = opts;
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -34,7 +47,7 @@ async function call<T>(endpoint: string, opts: { method?: string; body?: any; au
     const t = eadToken.get();
     if (t) headers['Authorization'] = `Bearer ${t}`;
   }
-  const res = await fetch(`${API_URL}${endpoint}`, {
+  const res = await fetchEad(endpoint, {
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
@@ -82,7 +95,7 @@ async function adminCall<T>(endpoint: string, opts: { method?: string; body?: an
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   const t = localStorage.getItem('auth_token');
   if (t) headers['Authorization'] = `Bearer ${t}`;
-  const res = await fetch(`${API_URL}${endpoint}`, { method, headers, body: body ? JSON.stringify(body) : undefined });
+  const res = await fetchEad(endpoint, { method, headers, body: body ? JSON.stringify(body) : undefined });
   const text = await res.text();
   let data: any = null;
   try { data = text ? JSON.parse(text) : null; } catch { data = { raw: text }; }

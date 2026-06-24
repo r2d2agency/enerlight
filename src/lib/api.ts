@@ -1,4 +1,4 @@
-const PRODUCTION_API_URL = 'https://blaster-ener-backend.isyhhh.easypanel.host';
+export const PRODUCTION_API_URL = 'https://blaster-ener-backend.isyhhh.easypanel.host';
 
 const resolveApiUrl = () => {
   const configuredUrl = import.meta.env.VITE_API_URL?.trim();
@@ -42,19 +42,36 @@ export const api = async <T>(endpoint: string, options: ApiOptions = {}): Promis
     }
   }
 
-  const response = await fetch(`${API_URL}${endpoint}`, {
+  const requestBody = isFormData ? (body as FormData) : (body ? JSON.stringify(body) : undefined);
+  const fetchFrom = (baseUrl: string) => fetch(`${baseUrl}${endpoint}`, {
     method,
     headers,
-    body: isFormData ? (body as FormData) : (body ? JSON.stringify(body) : undefined),
+    body: requestBody,
   });
 
-  const contentType = response.headers.get('content-type') || '';
+  let response = await fetchFrom(API_URL);
+  let contentType = response.headers.get('content-type') || '';
   let data: any = null;
 
   // Read body as text first for safer parsing
-  const rawText = await response.text().catch(() => '');
+  let rawText = await response.text().catch(() => '');
 
-  const isHtmlResponse = rawText.trim().startsWith('<!') || rawText.includes('<html');
+  let isHtmlResponse = rawText.trim().startsWith('<!') || rawText.includes('<html');
+
+  const shouldRetryFallback =
+    !response.ok &&
+    response.status >= 500 &&
+    isHtmlResponse &&
+    API_URL !== PRODUCTION_API_URL &&
+    typeof window !== 'undefined' &&
+    !['localhost', '127.0.0.1', ''].includes(window.location.hostname);
+
+  if (shouldRetryFallback) {
+    response = await fetchFrom(PRODUCTION_API_URL);
+    contentType = response.headers.get('content-type') || '';
+    rawText = await response.text().catch(() => '');
+    isHtmlResponse = rawText.trim().startsWith('<!') || rawText.includes('<html');
+  }
 
   if (contentType.includes('application/json') || rawText.trim().startsWith('{') || rawText.trim().startsWith('[')) {
     try {

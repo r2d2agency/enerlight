@@ -484,6 +484,78 @@ function hexToRgb(hex) {
 const admin = Router();
 admin.use(authenticate);
 
+let eadApprovalSchemaReady = false;
+
+async function ensureEadApprovalSchema() {
+  if (eadApprovalSchemaReady) return;
+  await query(`
+    CREATE TABLE IF NOT EXISTS ead_students (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      cpf VARCHAR(11) UNIQUE NOT NULL,
+      name VARCHAR(200) NOT NULL,
+      email VARCHAR(200) UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      company VARCHAR(200),
+      city VARCHAR(120),
+      state VARCHAR(40),
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS ead_brands (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      slug VARCHAR(80) UNIQUE NOT NULL,
+      name VARCHAR(160) NOT NULL,
+      logo_url TEXT,
+      cover_url TEXT,
+      primary_color VARCHAR(20) DEFAULT '#0ea5e9',
+      accent_color VARCHAR(20) DEFAULT '#0284c7',
+      welcome_title VARCHAR(200),
+      welcome_text TEXT,
+      signup_fields JSONB DEFAULT '[]'::jsonb,
+      organization_id UUID REFERENCES organizations(id) ON DELETE SET NULL,
+      notify_connection_id UUID REFERENCES connections(id) ON DELETE SET NULL,
+      approval_message TEXT DEFAULT 'Olá {nome}! Seu cadastro na área {marca} foi aprovado. Acesse: {link}',
+      active BOOLEAN DEFAULT true,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    ALTER TABLE ead_students ADD COLUMN IF NOT EXISTS brand_id UUID REFERENCES ead_brands(id) ON DELETE SET NULL;
+    ALTER TABLE ead_students ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'approved';
+    ALTER TABLE ead_students ADD COLUMN IF NOT EXISTS phone VARCHAR(30);
+    ALTER TABLE ead_students ADD COLUMN IF NOT EXISTS extra_fields JSONB DEFAULT '{}'::jsonb;
+    ALTER TABLE ead_students ADD COLUMN IF NOT EXISTS approved_at TIMESTAMPTZ;
+    ALTER TABLE ead_students ADD COLUMN IF NOT EXISTS approved_by UUID REFERENCES users(id) ON DELETE SET NULL;
+    ALTER TABLE ead_students ADD COLUMN IF NOT EXISTS rejected_reason TEXT;
+    CREATE INDEX IF NOT EXISTS idx_ead_students_brand ON ead_students(brand_id);
+    CREATE INDEX IF NOT EXISTS idx_ead_students_status ON ead_students(status);
+    CREATE INDEX IF NOT EXISTS idx_ead_brands_slug ON ead_brands(slug);
+  `);
+  eadApprovalSchemaReady = true;
+}
+
+async function runWithEadSchemaRetry(fn) {
+  try {
+    return await fn();
+  } catch (error) {
+    const message = String(error?.message || '');
+    if (!/(ead_students|ead_brands|status|brand_id|phone|extra_fields|approved_at|approved_by|rejected_reason)/i.test(message)) {
+      throw error;
+    }
+    eadApprovalSchemaReady = false;
+    await ensureEadApprovalSchema();
+    return fn();
+  }
+}
+
+function withTimeout(promise, ms, label) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} excedeu ${Math.round(ms / 1000)}s`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 async function hasPerm(userId, key) {
   const u = await query('SELECT is_superadmin FROM users WHERE id = $1', [userId]);
   if (u.rows[0]?.is_superadmin) return true;
@@ -892,18 +964,24 @@ admin.get('/brands-meta/connections', gate('can_view_ead'), async (req, res) => 
 // ADMIN: STUDENT APPROVALS
 // =========================================================================
 admin.get('/students/pending', gate('can_view_ead'), async (req, res) => {
-  const { brand_id } = req.query;
-  const params = [];
-  let where = "s.status = 'pending'";
-  if (brand_id) { params.push(brand_id); where += ` AND s.brand_id = $${params.length}`; }
-  const r = await query(
-    `SELECT s.id, s.name, s.cpf, s.email, s.phone, s.company, s.city, s.state, s.extra_fields, s.created_at,
-            b.id AS brand_id, b.name AS brand_name, b.slug AS brand_slug
-     FROM ead_students s LEFT JOIN ead_brands b ON b.id = s.brand_id
-     WHERE ${where} ORDER BY s.created_at DESC`,
-    params
-  );
-  res.json(r.rows);
+  try {
+    await ensureEadApprovalSchema();
+    const { brand_id } = req.query;
+    const params = [];
+    let where = "s.status = 'pending'";
+    if (brand_id) { params.push(brand_id); where += ` AND s.brand_id = $${params.length}`; }
+    const r = await runWithEadSchemaRetry(() => query(
+      `SELECT s.id, s.name, s.cpf, s.email, s.phone, s.company, s.city, s.state, s.extra_fields, s.created_at,
+              b.id AS brand_id, b.name AS brand_name, b.slug AS brand_slug
+       FROM ead_students s LEFT JOIN ead_brands b ON b.id = s.brand_id
+       WHERE ${where} ORDER BY s.created_at DESC`,
+      params
+    ));
+    res.json(r.rows);
+  } catch (e) {
+    console.error('pending students', e);
+    res.status(500).json({ error: 'Erro ao buscar aprovações pendentes' });
+  }
 });
 
 function appBaseUrl(req) {
@@ -946,6 +1024,9 @@ async function notifyApproval(student, brand, baseUrl) {
           host: smtp.host, port: smtp.port, secure: smtp.secure,
           auth: { user: smtp.username, pass },
           tls: { rejectUnauthorized: false },
+          connectionTimeout: 8000,
+          greetingTimeout: 8000,
+          socketTimeout: 8000,
         });
         await transporter.sendMail({
           from: `"${smtp.from_name || brand.name}" <${smtp.from_email}>`,
@@ -969,21 +1050,31 @@ async function notifyApproval(student, brand, baseUrl) {
 
 admin.post('/students/:id/approve', gate('can_manage_ead'), async (req, res) => {
   try {
-    const s = await query('SELECT * FROM ead_students WHERE id = $1', [req.params.id]);
+    await ensureEadApprovalSchema();
+    const s = await runWithEadSchemaRetry(() => query('SELECT * FROM ead_students WHERE id = $1', [req.params.id]));
     if (!s.rows.length) return res.status(404).json({ error: 'Aluno não encontrado' });
     const student = s.rows[0];
     if (student.status === 'approved') return res.status(400).json({ error: 'Já aprovado' });
-    const b = student.brand_id ? (await query('SELECT * FROM ead_brands WHERE id = $1', [student.brand_id])).rows[0] : null;
-    await query(`UPDATE ead_students SET status='approved', approved_at=NOW(), approved_by=$1 WHERE id=$2`, [req.userId, student.id]);
-    const notify = await notifyApproval(student, b, appBaseUrl(req));
+    const b = student.brand_id ? (await runWithEadSchemaRetry(() => query('SELECT * FROM ead_brands WHERE id = $1', [student.brand_id]))).rows[0] : null;
+    await runWithEadSchemaRetry(() => query(`UPDATE ead_students SET status='approved', approved_at=NOW(), approved_by=$1 WHERE id=$2`, [req.userId, student.id]));
+    let notify;
+    try {
+      notify = await withTimeout(notifyApproval(student, b, appBaseUrl(req)), 9000, 'Notificação de aprovação');
+    } catch (notifyError) {
+      notify = {
+        whatsapp: { success: false, error: notifyError.message || 'Notificação não concluída' },
+        email: { success: false, error: notifyError.message || 'Notificação não concluída' },
+      };
+    }
     res.json({ ok: true, notify });
   } catch (e) { console.error('approve', e); res.status(500).json({ error: 'Erro ao aprovar' }); }
 });
 
 admin.post('/students/:id/reject', gate('can_manage_ead'), async (req, res) => {
   try {
+    await ensureEadApprovalSchema();
     const { reason } = req.body || {};
-    const r = await query(`UPDATE ead_students SET status='rejected', rejected_reason=$1 WHERE id=$2 RETURNING id`, [reason || null, req.params.id]);
+    const r = await runWithEadSchemaRetry(() => query(`UPDATE ead_students SET status='rejected', rejected_reason=$1 WHERE id=$2 RETURNING id`, [reason || null, req.params.id]));
     if (!r.rows.length) return res.status(404).json({ error: 'Aluno não encontrado' });
     res.json({ ok: true });
   } catch (e) { console.error(e); res.status(500).json({ error: 'Erro ao rejeitar' }); }
@@ -991,11 +1082,15 @@ admin.post('/students/:id/reject', gate('can_manage_ead'), async (req, res) => {
 
 admin.post('/students/:id/resend-notification', gate('can_manage_ead'), async (req, res) => {
   try {
-    const s = await query('SELECT * FROM ead_students WHERE id = $1', [req.params.id]);
+    await ensureEadApprovalSchema();
+    const s = await runWithEadSchemaRetry(() => query('SELECT * FROM ead_students WHERE id = $1', [req.params.id]));
     if (!s.rows.length) return res.status(404).json({ error: 'Não encontrado' });
     const student = s.rows[0];
-    const b = student.brand_id ? (await query('SELECT * FROM ead_brands WHERE id = $1', [student.brand_id])).rows[0] : null;
-    const notify = await notifyApproval(student, b, appBaseUrl(req));
+    const b = student.brand_id ? (await runWithEadSchemaRetry(() => query('SELECT * FROM ead_brands WHERE id = $1', [student.brand_id]))).rows[0] : null;
+    const notify = await withTimeout(notifyApproval(student, b, appBaseUrl(req)), 9000, 'Notificação de aprovação').catch((e) => ({
+      whatsapp: { success: false, error: e.message || 'Notificação não concluída' },
+      email: { success: false, error: e.message || 'Notificação não concluída' },
+    }));
     res.json({ ok: true, notify });
   } catch (e) { console.error(e); res.status(500).json({ error: 'Erro ao reenviar' }); }
 });
