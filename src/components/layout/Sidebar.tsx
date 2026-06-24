@@ -50,6 +50,7 @@ import {
   Calculator,
   Nfc,
   RotateCcw,
+  GraduationCap,
 } from "lucide-react";
 
 import { API_URL, getAuthToken } from "@/lib/api";
