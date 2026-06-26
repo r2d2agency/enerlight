@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { query } from '../db.js';
-import { authenticate } from '../middleware/auth.js';
+import { authenticate, invalidatePasswordChangedCache } from '../middleware/auth.js';
 import { PERMISSION_COLUMNS } from './permissions.js';
 
 const router = Router();
@@ -706,12 +706,13 @@ router.patch('/:id([0-9a-fA-F-]{36})/members/:userId([0-9a-fA-F-]{36})/password'
       return res.status(400).json({ error: 'Senha deve ter pelo menos 6 caracteres' });
     }
 
-    // Hash and update password
+    // Hash and update password; stamp password_changed_at to kill existing sessions
     const hashedPassword = await bcrypt.hash(password, 10);
     await query(
-      `UPDATE users SET password_hash = $1 WHERE id = $2`,
+      `UPDATE users SET password_hash = $1, password_changed_at = NOW() WHERE id = $2`,
       [hashedPassword, userId]
     );
+    invalidatePasswordChangedCache(userId);
 
     res.json({ success: true, message: 'Senha atualizada com sucesso' });
   } catch (error) {
@@ -719,6 +720,31 @@ router.patch('/:id([0-9a-fA-F-]{36})/members/:userId([0-9a-fA-F-]{36})/password'
     res.status(500).json({ error: 'Erro ao atualizar senha' });
   }
 });
+
+// Force logout a user (admin only) - invalidates all existing JWT sessions
+router.post('/:id([0-9a-fA-F-]{36})/members/:userId([0-9a-fA-F-]{36})/force-logout', async (req, res) => {
+  try {
+    const { id, userId } = req.params;
+    const memberCheck = await query(
+      `SELECT role FROM organization_members
+       WHERE organization_id = $1 AND user_id = $2 AND role IN ('owner', 'admin')`,
+      [id, req.userId]
+    );
+    if (memberCheck.rows.length === 0) {
+      return res.status(403).json({ error: 'Apenas admins podem encerrar sessões' });
+    }
+    await query(
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMPTZ`
+    );
+    await query(`UPDATE users SET password_changed_at = NOW() WHERE id = $1`, [userId]);
+    invalidatePasswordChangedCache(userId);
+    res.json({ success: true, message: 'Sessões encerradas' });
+  } catch (error) {
+    console.error('Force logout error:', error);
+    res.status(500).json({ error: 'Erro ao encerrar sessões' });
+  }
+});
+
 
 // Remove member from organization
 router.delete('/:id([0-9a-fA-F-]{36})/members/:userId([0-9a-fA-F-]{36})', async (req, res) => {

@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { query } from '../db.js';
 import { ROLE_DEFAULTS } from './permissions.js';
+import { invalidatePasswordChangedCache } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -603,11 +604,12 @@ router.put('/password', async (req, res) => {
     // Hash new password
     const passwordHash = await bcrypt.hash(newPassword, 10);
     
-    // Update password
+    // Update password and invalidate existing sessions
     await query(
-      'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2',
+      'UPDATE users SET password_hash = $1, password_changed_at = NOW(), updated_at = NOW() WHERE id = $2',
       [passwordHash, decoded.userId]
     );
+    invalidatePasswordChangedCache(decoded.userId);
 
     res.json({ message: 'Senha alterada com sucesso' });
   } catch (error) {
