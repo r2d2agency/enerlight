@@ -706,12 +706,13 @@ router.patch('/:id([0-9a-fA-F-]{36})/members/:userId([0-9a-fA-F-]{36})/password'
       return res.status(400).json({ error: 'Senha deve ter pelo menos 6 caracteres' });
     }
 
-    // Hash and update password
+    // Hash and update password; stamp password_changed_at to kill existing sessions
     const hashedPassword = await bcrypt.hash(password, 10);
     await query(
-      `UPDATE users SET password_hash = $1 WHERE id = $2`,
+      `UPDATE users SET password_hash = $1, password_changed_at = NOW() WHERE id = $2`,
       [hashedPassword, userId]
     );
+    invalidatePasswordChangedCache(userId);
 
     res.json({ success: true, message: 'Senha atualizada com sucesso' });
   } catch (error) {
