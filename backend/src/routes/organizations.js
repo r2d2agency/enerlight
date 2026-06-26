@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { query } from '../db.js';
-import { authenticate } from '../middleware/auth.js';
+import { authenticate, invalidatePasswordChangedCache } from '../middleware/auth.js';
 import { PERMISSION_COLUMNS } from './permissions.js';
 
 const router = Router();
