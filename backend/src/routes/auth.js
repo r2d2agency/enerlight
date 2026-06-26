@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { query } from '../db.js';
 import { ROLE_DEFAULTS } from './permissions.js';
+import { invalidatePasswordChangedCache } from '../middleware/auth.js';
 
 const router = Router();
 
