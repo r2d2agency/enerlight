@@ -4,6 +4,19 @@ import { authenticate } from '../middleware/auth.js';
 
 const router = express.Router();
 router.use(authenticate);
+router.use(async (req, res, next) => {
+  try {
+    const { rows } = await query(
+      'SELECT id, email, name, role, organization_id FROM users WHERE id = $1',
+      [req.userId]
+    );
+    if (!rows[0]) return res.status(401).json({ error: 'Usuário não encontrado' });
+    req.user = rows[0];
+    next();
+  } catch (e) {
+    next(e);
+  }
+});
 
 async function ensureExpensesSchema() {
   // Items table - independent, report_id is optional
