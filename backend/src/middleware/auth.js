@@ -4,7 +4,7 @@ import { query } from '../db.js';
 
 // Small in-memory cache: userId -> { ts: epochMs, value: passwordChangedAtMs|null }
 const pwdChangedCache = new Map();
-const CACHE_TTL_MS = 30 * 1000; // 30s
+const CACHE_TTL_MS = 5 * 1000; // 5s for fast forced logout across instances
 
 async function getPasswordChangedAt(userId) {
   const cached = pwdChangedCache.get(userId);
