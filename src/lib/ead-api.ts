@@ -28,7 +28,16 @@ export interface EadStudent {
 }
 
 async function fetchEad(endpoint: string, init: RequestInit): Promise<Response> {
-  return fetch(`${API_URL}${endpoint}`, init);
+  const res = await fetch(`${API_URL}${endpoint}`, init);
+
+  const canTryDirectBackend = !API_URL && typeof window !== 'undefined' &&
+    window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+
+  if (canTryDirectBackend && [502, 503, 504].includes(res.status)) {
+    return fetch(`${PRODUCTION_API_URL}${endpoint}`, init);
+  }
+
+  return res;
 }
 
 async function call<T>(endpoint: string, opts: { method?: string; body?: any; auth?: boolean } = {}): Promise<T> {

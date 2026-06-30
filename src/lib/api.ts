@@ -13,6 +13,12 @@ const resolveApiUrl = () => {
 
 export const API_URL = resolveApiUrl();
 
+const shouldTryDirectBackendFallback = () => {
+  if (API_URL) return false;
+  if (typeof window === 'undefined') return false;
+  return window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+};
+
 interface ApiOptions {
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE' | 'PUT';
   body?: unknown;
@@ -52,10 +58,24 @@ export const api = async <T>(endpoint: string, options: ApiOptions = {}): Promis
 
   let isHtmlResponse = rawText.trim().startsWith('<!') || rawText.includes('<html');
 
-  const shouldRetryFallback = false;
+  const shouldRetryFallback = shouldTryDirectBackendFallback() && (
+    response.status === 502 ||
+    response.status === 503 ||
+    response.status === 504 ||
+    (response.status >= 500 && isHtmlResponse)
+  );
 
   if (shouldRetryFallback) {
-    // disabled: cross-origin fallback causes CORS errors
+    try {
+      response = await fetchFrom(PRODUCTION_API_URL);
+      contentType = response.headers.get('content-type') || '';
+      rawText = await response.text().catch(() => '');
+      isHtmlResponse = rawText.trim().startsWith('<!') || rawText.includes('<html');
+    } catch (fallbackError) {
+      if (!silent) {
+        console.error('[api] direct backend fallback failed', fallbackError);
+      }
+    }
   }
 
   if (contentType.includes('application/json') || rawText.trim().startsWith('{') || rawText.trim().startsWith('[')) {
