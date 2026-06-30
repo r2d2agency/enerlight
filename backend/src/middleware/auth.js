@@ -35,7 +35,7 @@ export async function isTokenInvalidated(userId, issuedAtSeconds) {
   return Boolean(
     pwdChangedAt &&
     issuedAtSeconds &&
-    issuedAtSeconds < Math.floor(pwdChangedAt / 1000)
+    (issuedAtSeconds * 1000) < pwdChangedAt
   );
 }
 
