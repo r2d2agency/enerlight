@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { query } from '../db.js';
 import { ROLE_DEFAULTS } from './permissions.js';
-import { invalidatePasswordChangedCache } from '../middleware/auth.js';
+import { invalidatePasswordChangedCache, isTokenInvalidated } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -378,6 +378,10 @@ router.get('/me', async (req, res) => {
   try {
     const token = authHeader.replace('Bearer ', '');
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    if (await isTokenInvalidated(decoded.userId, decoded.iat)) {
+      return res.status(401).json({ error: 'Sessão expirada. Faça login novamente.' });
+    }
     
     const result = await query(
       'SELECT id, email, name, is_superadmin, created_at FROM users WHERE id = $1',
@@ -531,6 +535,10 @@ router.put('/profile', async (req, res) => {
   try {
     const token = authHeader.replace('Bearer ', '');
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    if (await isTokenInvalidated(decoded.userId, decoded.iat)) {
+      return res.status(401).json({ error: 'Sessão expirada. Faça login novamente.' });
+    }
     
     let { name } = req.body;
     
@@ -574,6 +582,10 @@ router.put('/password', async (req, res) => {
   try {
     const token = authHeader.replace('Bearer ', '');
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    if (await isTokenInvalidated(decoded.userId, decoded.iat)) {
+      return res.status(401).json({ error: 'Sessão expirada. Faça login novamente.' });
+    }
     
     const { currentPassword, newPassword } = req.body;
     
