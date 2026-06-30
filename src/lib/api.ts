@@ -79,6 +79,13 @@ export const api = async <T>(endpoint: string, options: ApiOptions = {}): Promis
   if (!response.ok) {
     let baseMsg = data?.error || data?.message || `Erro na requisição (${response.status})`;
 
+    if (response.status === 401 && auth && !endpoint.includes('/api/auth/login') && !endpoint.includes('/api/auth/register')) {
+      clearAuthToken();
+      if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
+    }
+
     if (response.status === 502) {
       baseMsg = 'Servidor temporariamente indisponível (502). Tente novamente em instantes.';
     } else if (isHtmlResponse && response.status >= 500) {

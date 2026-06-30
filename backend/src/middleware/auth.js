@@ -6,20 +6,6 @@ import { query } from '../db.js';
 const pwdChangedCache = new Map();
 const CACHE_TTL_MS = 30 * 1000; // 30s
 
-let schemaEnsured = false;
-async function ensureSchema() {
-  if (schemaEnsured) return;
-  try {
-    await query(
-      `ALTER TABLE users ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMPTZ`
-    );
-    schemaEnsured = true;
-  } catch (e) {
-    // Don't block auth if migration fails; will retry next request
-    console.error('[auth] ensureSchema error:', e.message);
-  }
-}
-
 async function getPasswordChangedAt(userId) {
   const cached = pwdChangedCache.get(userId);
   if (cached && Date.now() - cached.ts < CACHE_TTL_MS) {
@@ -44,6 +30,15 @@ export function invalidatePasswordChangedCache(userId) {
   pwdChangedCache.delete(userId);
 }
 
+export async function isTokenInvalidated(userId, issuedAtSeconds) {
+  const pwdChangedAt = await getPasswordChangedAt(userId);
+  return Boolean(
+    pwdChangedAt &&
+    issuedAtSeconds &&
+    issuedAtSeconds < Math.floor(pwdChangedAt / 1000)
+  );
+}
+
 export const authenticate = async (req, res, next) => {
   const authHeader = req.headers.authorization;
 
@@ -60,10 +55,9 @@ export const authenticate = async (req, res, next) => {
     return res.status(401).json({ error: 'Token inválido' });
   }
 
-  // Reject tokens issued before the user's last password change
-  await ensureSchema();
-  const pwdChangedAt = await getPasswordChangedAt(decoded.userId);
-  if (pwdChangedAt && decoded.iat && decoded.iat * 1000 < pwdChangedAt) {
+  // Reject tokens issued before the user's last password change.
+  // Schema is created during app startup; never run DDL inside auth middleware.
+  if (await isTokenInvalidated(decoded.userId, decoded.iat)) {
     return res.status(401).json({ error: 'Sessão expirada. Faça login novamente.' });
   }
 

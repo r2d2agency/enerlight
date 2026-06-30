@@ -709,7 +709,7 @@ router.patch('/:id([0-9a-fA-F-]{36})/members/:userId([0-9a-fA-F-]{36})/password'
     // Hash and update password; stamp password_changed_at to kill existing sessions
     const hashedPassword = await bcrypt.hash(password, 10);
     await query(
-      `UPDATE users SET password_hash = $1, password_changed_at = NOW() WHERE id = $2`,
+      `UPDATE users SET password_hash = $1, password_changed_at = NOW(), updated_at = NOW() WHERE id = $2`,
       [hashedPassword, userId]
     );
     invalidatePasswordChangedCache(userId);
@@ -733,10 +733,7 @@ router.post('/:id([0-9a-fA-F-]{36})/members/:userId([0-9a-fA-F-]{36})/force-logo
     if (memberCheck.rows.length === 0) {
       return res.status(403).json({ error: 'Apenas admins podem encerrar sessões' });
     }
-    await query(
-      `ALTER TABLE users ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMPTZ`
-    );
-    await query(`UPDATE users SET password_changed_at = NOW() WHERE id = $1`, [userId]);
+    await query(`UPDATE users SET password_changed_at = NOW(), updated_at = NOW() WHERE id = $1`, [userId]);
     invalidatePasswordChangedCache(userId);
     res.json({ success: true, message: 'Sessões encerradas' });
   } catch (error) {
