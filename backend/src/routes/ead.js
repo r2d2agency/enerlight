@@ -1036,16 +1036,18 @@ admin.get('/students/pending', gate('can_view_ead'), async (req, res) => {
 });
 
 function appBaseUrl(req) {
-  // Prioriza domínio público do app (não o host da API). Origin/Referer do painel admin
-  // costuma ser o domínio correto do frontend.
-  const fromHeader = (() => {
-    const origin = req.get('origin') || req.get('referer') || '';
-    try { return origin ? new URL(origin).origin : ''; } catch { return ''; }
-  })();
-  const raw = process.env.APP_BASE_URL
-    || process.env.FRONTEND_URL
+  // Sempre usa o domínio público do app. Descarta hosts internos (easypanel, backend, api, localhost).
+  const PUBLIC_DEFAULT = 'https://app.enerlight.com.br';
+  const isInternal = (u) => /easypanel|localhost|127\.0\.0\.1|whastsale-backend|backend\./i.test(String(u || ''));
+  const clean = (u) => {
+    if (!u || isInternal(u)) return '';
+    try { return new URL(u).origin; } catch { return ''; }
+  };
+  const fromHeader = clean(req.get('origin') || req.get('referer') || '');
+  const raw = clean(process.env.APP_BASE_URL)
+    || clean(process.env.FRONTEND_URL)
     || fromHeader
-    || 'https://app.enerlight.com.br';
+    || PUBLIC_DEFAULT;
   return String(raw).replace(/\/+$/, '');
 }
 
