@@ -892,7 +892,10 @@ function StudentsTab({ students, onReload }: { students: any[]; onReload: () => 
                   ) : s.status === 'rejected' ? (
                     <Button size="sm" variant="default" disabled={savingId === s.id} onClick={() => approve(s.id)}>Aprovar</Button>
                   ) : (
-                    <Button size="sm" variant="outline" disabled={savingId === s.id} onClick={() => resend(s.id)}>Notificar</Button>
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="outline" disabled={savingId === s.id} onClick={() => resend(s.id)}>Notificar</Button>
+                      <Button size="sm" variant="outline" disabled={savingId === s.id} onClick={() => resetPassword(s.id)}>Resetar senha</Button>
+                    </div>
                   )}
                 </TableCell>
               </TableRow>
