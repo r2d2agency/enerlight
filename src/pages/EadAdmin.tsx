@@ -1218,8 +1218,8 @@ function BrandEditor({ brand, onClose }: { brand: any; onClose: () => void }) {
             </div>
             <div>
               <Label>Mensagem de aprovação</Label>
-              <Textarea rows={4} value={data.approval_message || ''} onChange={e => set('approval_message', e.target.value)} placeholder="Olá {nome}! Seu cadastro na área {marca} foi aprovado. Acesse: {link}" />
-              <p className="text-xs text-muted-foreground mt-1">Variáveis: <code>{'{nome}'}</code> <code>{'{marca}'}</code> <code>{'{link}'}</code> <code>{'{email}'}</code></p>
+              <Textarea rows={6} value={data.approval_message || ''} onChange={e => set('approval_message', e.target.value)} placeholder={"Olá {nome}! 🎉\n\nSeu cadastro na área *{marca}* foi aprovado.\n\nAcesse: {link}\nUse seu e-mail ({email}) e a senha cadastrada."} />
+              <p className="text-xs text-muted-foreground mt-1">Variáveis: <code>{'{nome}'}</code> <code>{'{marca}'}</code> <code>{'{link}'}</code> <code>{'{email}'}</code> <code>{'{empresa}'}</code>. Deixe em branco para usar a mensagem padrão personalizada com a marca.</p>
             </div>
           </TabsContent>
         </Tabs>
