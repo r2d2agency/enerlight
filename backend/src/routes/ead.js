@@ -566,7 +566,7 @@ async function runWithEadSchemaRetry(fn) {
     return await fn();
   } catch (error) {
     const message = String(error?.message || '');
-    if (!/(ead_students|ead_brands|status|brand_id|phone|extra_fields|approved_at|approved_by|rejected_reason)/i.test(message)) {
+    if (!/(ead_students|ead_brands|status|brand_id|phone|extra_fields|approved_at|approved_by|rejected_reason|must_change_password|password_hash)/i.test(message)) {
       throw error;
     }
     eadApprovalSchemaReady = false;
