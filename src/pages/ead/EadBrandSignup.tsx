@@ -97,7 +97,7 @@ export default function EadBrandSignup() {
             <CheckCircle2 className="h-14 w-14 mx-auto text-green-500" />
             <h2 className="text-2xl font-bold">Cadastro recebido!</h2>
             <p className="text-muted-foreground">{success}</p>
-            <Button onClick={() => nav('/ead/login')} style={{ background: primary }}>Ir para o login</Button>
+            <Button onClick={() => nav(`/marca/${slug}/login`)} style={{ background: primary }}>Ir para o login</Button>
           </CardContent>
         </Card>
       </div>
