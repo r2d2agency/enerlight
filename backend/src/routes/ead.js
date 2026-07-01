@@ -173,16 +173,16 @@ router.post('/brand/:slug/signup', async (req, res) => {
     let cpf = String(body.cpf || '').replace(/\D/g, '');
     const email = String(body.email || '').trim().toLowerCase();
     const name = String(body.name || '').trim();
-    const password = String(body.password || '');
     const phone = String(body.phone || '').replace(/\D/g, '') || null;
     const company = body.company || null;
     const city = body.city || null;
     const state = body.state || null;
 
-    // basic validation against brand-declared required fields
+    // basic validation against brand-declared required fields (senha é gerada na aprovação)
     const known = new Set(['name','cpf','email','password','phone','company','city','state']);
     const extra = {};
     for (const f of fields) {
+      if (f.key === 'password') continue; // ignorado - senha é gerada automaticamente
       const val = body[f.key];
       if (f.required && (val === undefined || val === null || String(val).trim() === '')) {
         return res.status(400).json({ error: `Campo obrigatório: ${f.label || f.key}` });
@@ -190,9 +190,8 @@ router.post('/brand/:slug/signup', async (req, res) => {
       if (!known.has(f.key) && val !== undefined) extra[f.key] = val;
     }
 
-    if (!cpf || !name || !email || !password) return res.status(400).json({ error: 'Preencha nome, CPF, e-mail e senha' });
+    if (!cpf || !name || !email) return res.status(400).json({ error: 'Preencha nome, CPF e e-mail' });
     if (!isValidCPF(cpf)) return res.status(400).json({ error: 'CPF inválido' });
-    if (password.length < 6) return res.status(400).json({ error: 'Senha deve ter ao menos 6 caracteres' });
 
     const dup = await query('SELECT id, status FROM ead_students WHERE cpf = $1 OR lower(email) = $2 LIMIT 1', [cpf, email]);
     if (dup.rows.length) {
@@ -201,14 +200,14 @@ router.post('/brand/:slug/signup', async (req, res) => {
       return res.status(400).json({ error: 'CPF ou e-mail já cadastrados' });
     }
 
-    const hash = await bcrypt.hash(password, 10);
     const r = await query(
       `INSERT INTO ead_students (cpf, name, email, password_hash, company, city, state, phone, brand_id, status, extra_fields)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'pending',$10)
+       VALUES ($1,$2,$3,NULL,$4,$5,$6,$7,$8,'pending',$9)
        RETURNING id, name, email`,
-      [cpf, name, email, hash, company, city, state, phone, brand.id, JSON.stringify(extra)]
+      [cpf, name, email, company, city, state, phone, brand.id, JSON.stringify(extra)]
     );
-    res.status(201).json({ ok: true, student: r.rows[0], message: 'Cadastro enviado! Você receberá um aviso por WhatsApp/e-mail assim que for aprovado.' });
+    res.status(201).json({ ok: true, student: r.rows[0], message: 'Cadastro enviado! Assim que aprovado, você receberá sua senha temporária por WhatsApp/e-mail.' });
+
   } catch (e) {
     console.error('brand signup error', e);
     res.status(500).json({ error: 'Erro ao cadastrar' });
