@@ -111,12 +111,15 @@ export default function EadBrandSignup() {
         className="relative overflow-hidden shrink-0"
         style={cover ? { backgroundImage: `linear-gradient(135deg, ${primary}cc, ${accent}dd), url(${cover})`, backgroundSize: 'cover', backgroundPosition: 'center' } : { background: `linear-gradient(135deg, ${primary}, ${accent})` }}
       >
-        <div className="max-w-5xl mx-auto px-4 py-4 sm:py-5 text-white text-center">
+        <div className="max-w-5xl mx-auto px-4 py-5 sm:py-6 flex items-center justify-center gap-3">
           {logo ? (
-            <img src={logo} alt={brand.name} className="h-12 sm:h-14 mx-auto object-contain drop-shadow-md" />
+            <div className="bg-white rounded-xl px-4 py-2 shadow-md flex items-center justify-center">
+              <img src={logo} alt={brand.name} className="h-10 sm:h-12 object-contain" />
+            </div>
           ) : (
-            <GraduationCap className="h-10 w-10 mx-auto" />
+            <GraduationCap className="h-10 w-10 text-white" />
           )}
+          <span className="text-white font-semibold text-lg sm:text-xl drop-shadow-sm">{brand.name}</span>
         </div>
       </div>
 
