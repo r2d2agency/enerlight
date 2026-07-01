@@ -80,12 +80,12 @@ router.post('/auth/register', async (req, res) => {
 
     const hash = await bcrypt.hash(password, 10);
     const r = await query(
-      `INSERT INTO ead_students (cpf, name, email, password_hash, company, city, state)
-       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id, cpf, name, email, company, city, state, created_at`,
+      `INSERT INTO ead_students (cpf, name, email, password_hash, company, city, state, status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,'pending') RETURNING id, cpf, name, email, company, city, state, status, created_at`,
       [cpf, name, email, hash, company || null, city || null, state || null]
     );
     const student = r.rows[0];
-    res.status(201).json({ student, token: signStudent(student) });
+    res.status(201).json({ student, pending: true, message: 'Cadastro recebido! Aguarde a liberação do administrador — você receberá um aviso por WhatsApp/e-mail.' });
   } catch (e) {
     console.error('ead register error', e);
     res.status(500).json({ error: 'Erro ao cadastrar' });
