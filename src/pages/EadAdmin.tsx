@@ -740,6 +740,16 @@ function StudentsTab({ students, onReload }: { students: any[]; onReload: () => 
     catch (e: any) { toast.error(e.message || 'Erro ao notificar'); }
     finally { setSavingId(null); }
   }
+  async function resetPassword(id: string) {
+    if (!window.confirm('Gerar nova senha temporária e enviar por WhatsApp/e-mail?')) return;
+    setSavingId(id);
+    try {
+      const r = await eadAdminApi.resetPassword(id);
+      toast.success(`Nova senha: ${r?.temp_password || 'enviada'}`);
+    }
+    catch (e: any) { toast.error(e.message || 'Erro ao resetar senha'); }
+    finally { setSavingId(null); }
+  }
 
   async function openDetail(id: string) {
     setDetailLoading(true);
