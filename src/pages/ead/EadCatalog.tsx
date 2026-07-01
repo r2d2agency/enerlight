@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { eadApi } from '@/lib/ead-api';
+import { resolveMediaUrl } from '@/lib/media';
 import { EadLayout, useBrand } from './EadLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
