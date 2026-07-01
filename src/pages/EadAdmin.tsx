@@ -768,8 +768,9 @@ function StudentsTab({ students, onReload }: { students: any[]; onReload: () => 
                 ) : s.status === 'rejected' ? (
                   <Button size="sm" variant="default" disabled={savingId === s.id} onClick={() => approve(s.id)}>Aprovar</Button>
                 ) : (
-                  <span className="text-xs text-muted-foreground">-</span>
+                  <Button size="sm" variant="outline" disabled={savingId === s.id} onClick={() => resend(s.id)}>Notificar</Button>
                 )}
+
               </TableCell>
             </TableRow>
           ))}
