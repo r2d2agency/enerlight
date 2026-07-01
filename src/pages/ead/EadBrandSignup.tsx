@@ -130,7 +130,7 @@ export default function EadBrandSignup() {
             <p className="text-sm text-muted-foreground mb-6">Após o envio, seu acesso será analisado e liberado manualmente. Você receberá um aviso por WhatsApp/e-mail.</p>
             <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
               {fields.map((f: any) => (
-                <>
+                <div key={f.key} className="contents">
                   <div key={f.key} className={f.type === 'password' || f.key === 'email' || f.key === 'name' ? 'sm:col-span-2' : ''}>
                     <Label>{f.label}{f.required && ' *'}</Label>
                     {f.type === 'uf' ? (
