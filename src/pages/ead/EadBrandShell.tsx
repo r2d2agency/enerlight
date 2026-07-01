@@ -92,6 +92,11 @@ export default function EadBrandShell({ brand, children, eyebrow, title, subtitl
             </li>
           ))}
         </ul>
+
+        <div className="relative z-10 flex items-center gap-2 text-white/70 text-xs">
+          <span className="uppercase tracking-[0.2em]">Powered by</span>
+          <img src={enerlightLogo} alt="Enerlight" className="h-6 w-auto object-contain" />
+        </div>
       </aside>
 
       {/* RIGHT — form panel */}
