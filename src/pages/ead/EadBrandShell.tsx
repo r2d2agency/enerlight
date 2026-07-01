@@ -1,6 +1,7 @@
 import { ReactNode, useState } from 'react';
 import { resolveMediaUrl } from '@/lib/media';
 import { GraduationCap, ShieldCheck, Award, BookOpen } from 'lucide-react';
+import enerlightLogo from '@/assets/enerlight-logo.png';
 
 interface Props {
   brand: any;
