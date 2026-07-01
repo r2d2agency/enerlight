@@ -1036,7 +1036,16 @@ admin.get('/students/pending', gate('can_view_ead'), async (req, res) => {
 });
 
 function appBaseUrl(req) {
-  const raw = process.env.APP_BASE_URL || process.env.FRONTEND_URL || `${req.protocol}://${req.get('host')}`;
+  // Prioriza domínio público do app (não o host da API). Origin/Referer do painel admin
+  // costuma ser o domínio correto do frontend.
+  const fromHeader = (() => {
+    const origin = req.get('origin') || req.get('referer') || '';
+    try { return origin ? new URL(origin).origin : ''; } catch { return ''; }
+  })();
+  const raw = process.env.APP_BASE_URL
+    || process.env.FRONTEND_URL
+    || fromHeader
+    || 'https://app.enerlight.com.br';
   return String(raw).replace(/\/+$/, '');
 }
 
