@@ -1,14 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { eadApi, eadToken } from '@/lib/ead-api';
-import { resolveMediaUrl } from '@/lib/media';
-import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { Loader2, GraduationCap } from 'lucide-react';
+import { Loader2, Mail, Lock, ArrowRight } from 'lucide-react';
 import EadChangePasswordDialog from './EadChangePasswordDialog';
+import EadBrandShell from './EadBrandShell';
 
 export default function EadBrandLogin() {
   const { slug } = useParams<{ slug: string }>();
@@ -45,57 +44,86 @@ export default function EadBrandLogin() {
     } finally { setLoading(false); }
   }
 
-
   if (loadingBrand) {
-    return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+    return <div className="min-h-screen flex items-center justify-center bg-slate-950"><Loader2 className="h-8 w-8 animate-spin text-white" /></div>;
   }
 
   const primary = brand?.primary_color || '#0ea5e9';
-  const accent = brand?.accent_color || '#0284c7';
-  const logo = resolveMediaUrl(brand?.logo_url);
-  const cover = resolveMediaUrl(brand?.cover_url);
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: `linear-gradient(135deg, ${primary}10, ${accent}20)` }}>
-      <div
-        className="relative overflow-hidden shrink-0"
-        style={cover
-          ? { backgroundImage: `linear-gradient(135deg, ${primary}cc, ${accent}dd), url(${cover})`, backgroundSize: 'cover', backgroundPosition: 'center' }
-          : { background: `linear-gradient(135deg, ${primary}, ${accent})` }}
+    <>
+      <EadBrandShell
+        brand={brand}
+        eyebrow="Acesso do instalador"
+        title="Bem-vindo de volta"
+        subtitle="Entre com seu e-mail e senha para continuar seus treinamentos."
       >
-        <div className="max-w-5xl mx-auto px-4 py-5 sm:py-6 flex items-center justify-center gap-3">
-          {logo ? (
-            <div className="bg-white rounded-xl px-4 py-2 shadow-md flex items-center justify-center">
-              <img src={logo} alt={brand?.name} className="h-10 sm:h-12 object-contain" />
+        <form onSubmit={submit} className="space-y-5">
+          <div className="space-y-2">
+            <Label htmlFor="email" className="text-slate-700 text-sm font-medium">E-mail</Label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Input
+                id="email"
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
+                placeholder="voce@empresa.com"
+                className="pl-10 h-12 bg-white border-slate-200 focus-visible:ring-2"
+                style={{ ['--tw-ring-color' as any]: primary }}
+              />
             </div>
-          ) : (
-            <GraduationCap className="h-10 w-10 text-white" />
-          )}
-          <span className="text-white font-semibold text-lg sm:text-xl drop-shadow-sm">{brand?.name || 'Academia do Instalador'}</span>
-        </div>
-      </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="password" className="text-slate-700 text-sm font-medium">Senha</Label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+                placeholder="••••••••"
+                className="pl-10 h-12 bg-white border-slate-200"
+              />
+            </div>
+          </div>
 
-      <div className="flex-1 flex items-center justify-center px-4 py-8">
-        <Card className="w-full max-w-md shadow-xl border-0">
-          <CardContent className="p-6 sm:p-8">
-            <h2 className="text-xl font-semibold mb-1">Entrar na área {brand?.name || ''}</h2>
-            <p className="text-sm text-muted-foreground mb-6">Use seu e-mail e senha cadastrados.</p>
-            <form onSubmit={submit} className="space-y-4">
-              <div><Label>E-mail</Label><Input type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} required /></div>
-              <div><Label>Senha</Label><Input type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} required /></div>
-              <Button type="submit" className="w-full text-white" disabled={loading} style={{ background: primary }}>
-                {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />} Entrar
-              </Button>
-              {slug && (
-                <p className="text-sm text-center text-muted-foreground">
-                  Ainda não tem cadastro?{' '}
-                  <Link to={`/marca/${slug}`} className="font-medium" style={{ color: primary }}>Cadastre-se</Link>
-                </p>
-              )}
-            </form>
-          </CardContent>
-        </Card>
-      </div>
+          <Button
+            type="submit"
+            className="w-full h-12 text-white font-semibold text-base rounded-xl shadow-lg hover:opacity-95 transition group"
+            disabled={loading}
+            style={{ background: `linear-gradient(135deg, ${primary}, ${brand?.accent_color || primary})`, boxShadow: `0 10px 30px -10px ${primary}80` }}
+          >
+            {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+            Entrar
+            {!loading && <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-0.5 transition" />}
+          </Button>
+
+          {slug && (
+            <div className="relative py-2">
+              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200" /></div>
+              <div className="relative flex justify-center text-xs uppercase tracking-wider">
+                <span className="bg-white px-3 text-slate-400">Primeiro acesso?</span>
+              </div>
+            </div>
+          )}
+          {slug && (
+            <Link
+              to={`/marca/${slug}`}
+              className="block w-full text-center h-12 leading-[3rem] rounded-xl border-2 font-semibold hover:bg-slate-50 transition"
+              style={{ borderColor: primary, color: primary }}
+            >
+              Criar meu cadastro
+            </Link>
+          )}
+        </form>
+      </EadBrandShell>
+
       <EadChangePasswordDialog
         open={mustChange}
         forced
@@ -106,7 +134,6 @@ export default function EadBrandLogin() {
           nav(pendingSlug ? `/marca/${pendingSlug}/inicio` : '/ead');
         }}
       />
-    </div>
+    </>
   );
 }
-
