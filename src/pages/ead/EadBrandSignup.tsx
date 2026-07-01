@@ -7,7 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { Loader2, CheckCircle2, GraduationCap } from 'lucide-react';
+import { Loader2, CheckCircle2, GraduationCap, ArrowRight } from 'lucide-react';
+import EadBrandShell from './EadBrandShell';
+
 
 const UF = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
 
