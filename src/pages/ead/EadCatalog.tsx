@@ -25,7 +25,7 @@ function CatalogInner() {
             <Link key={c.id} to={link(`curso/${c.id}`)}>
               <Card className="overflow-hidden hover:shadow-md transition cursor-pointer h-full">
                 <div className="aspect-video bg-muted flex items-center justify-center">
-                  {c.cover_url ? <img src={c.cover_url} alt={c.title} className="w-full h-full object-cover" /> : <BookOpen className="h-12 w-12 text-muted-foreground" />}
+                  {c.cover_url ? <img src={resolveMediaUrl(c.cover_url) || ''} alt={c.title} className="w-full h-full object-cover" /> : <BookOpen className="h-12 w-12 text-muted-foreground" />}
                 </div>
                 <CardContent className="p-4">
                   <h3 className="font-semibold mb-1 line-clamp-2">{c.title}</h3>
