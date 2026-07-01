@@ -1040,15 +1040,17 @@ function appBaseUrl(req) {
   return String(raw).replace(/\/+$/, '');
 }
 
-async function notifyApproval(student, brand, baseUrl) {
+async function notifyApproval(student, brand, baseUrl, tempPassword) {
   const base = String(baseUrl || '').replace(/\/+$/, '');
   const link = brand?.slug ? `${base}/marca/${brand.slug}/login` : `${base}/ead/login`;
   const defaultTpl = brand?.name
-    ? `Olá {nome}! 🎉\n\nSeu cadastro na área *{marca}* foi aprovado com sucesso.\n\nAcesse agora seus cursos, manuais e a prova de certificação:\n{link}\n\nUse seu e-mail ({email}) e a senha cadastrada para entrar.`
-    : `Olá {nome}! Seu cadastro foi aprovado. Acesse: {link}`;
+    ? `Olá {nome}! 🎉\n\nSeu cadastro na área *{marca}* foi aprovado.\n\n🔐 *Suas credenciais de acesso:*\nE-mail: {email}\nSenha temporária: *{senha}*\n\nAcesse: {link}\n\nAo entrar pela primeira vez você será solicitado a criar uma nova senha.`
+    : `Olá {nome}! Cadastro aprovado.\nE-mail: {email}\nSenha temporária: {senha}\nAcesse: {link}`;
   const tpl = brand?.approval_message || defaultTpl;
-  const vars = { nome: student.name, marca: brand?.name || '', link, email: student.email, empresa: student.company || '' };
+  const senhaTxt = tempPassword || '(já definida)';
+  const vars = { nome: student.name, marca: brand?.name || '', link, email: student.email, empresa: student.company || '', senha: senhaTxt };
   const message = tpl.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? '');
+
 
   const result = { whatsapp: null, email: null };
 
