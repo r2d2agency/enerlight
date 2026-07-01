@@ -1042,7 +1042,7 @@ function appBaseUrl(req) {
 
 async function notifyApproval(student, brand, baseUrl, tempPassword) {
   const base = String(baseUrl || '').replace(/\/+$/, '');
-  const link = brand?.slug ? `${base}/marca/${brand.slug}/login` : `${base}/ead/login`;
+  const link = brand?.slug ? `${base}/marca/${brand.slug}` : `${base}/ead/login`;
   const defaultTpl = brand?.name
     ? `Olá {nome}! 🎉\n\nSeu cadastro na área *{marca}* foi aprovado.\n\n🔐 *Suas credenciais de acesso:*\nE-mail: {email}\nSenha temporária: *{senha}*\n\nAcesse: {link}\n\nAo entrar pela primeira vez você será solicitado a criar uma nova senha.`
     : `Olá {nome}! Cadastro aprovado.\nE-mail: {email}\nSenha temporária: {senha}\nAcesse: {link}`;
