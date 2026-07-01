@@ -64,7 +64,7 @@ export default function EadManuals() {
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {g.items.map(m => (
                   <Card key={m.id} className="overflow-hidden flex flex-col">
-                    <div className="aspect-[4/3] bg-muted flex items-center justify-center">
+                    <div className="aspect-video bg-muted flex items-center justify-center">
                       {m.cover_url
                         ? <img src={m.cover_url} alt={m.title} className="w-full h-full object-cover" />
                         : <FileText className="h-14 w-14 text-muted-foreground" />}
