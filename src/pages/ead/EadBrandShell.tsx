@@ -69,15 +69,6 @@ export default function EadBrandShell({ brand, children, eyebrow, title, subtitl
           </div>
         </header>
 
-        <div className="relative z-10 space-y-6 max-w-md">
-          <h2 className="text-4xl xl:text-5xl font-bold leading-[1.05] tracking-tight drop-shadow">
-            Treinamento oficial para instaladores <span className="text-white/80">{name}</span>.
-          </h2>
-          <p className="text-white/85 text-lg leading-relaxed">
-            Cursos, manuais técnicos e certificação em um só lugar. Aprenda no seu ritmo, comprove sua expertise.
-          </p>
-        </div>
-
         <ul className="relative z-10 grid grid-cols-1 gap-3 max-w-md">
           {[
             { icon: BookOpen, label: 'Módulos e aulas em vídeo' },
@@ -132,6 +123,11 @@ export default function EadBrandShell({ brand, children, eyebrow, title, subtitl
 
         <div className="flex-1 flex items-center justify-center px-5 sm:px-8 py-10 lg:py-16">
           <div className="w-full max-w-md">
+            <div className="flex flex-col items-center mb-8">
+              <img src={enerlightLogo} alt="Enerlight" className="h-10 w-auto object-contain" />
+              <span className="text-[10px] uppercase tracking-[0.2em] text-slate-400 mt-1">Academia do Instalador</span>
+            </div>
+
             {eyebrow && (
               <p className="text-xs uppercase tracking-[0.22em] font-semibold mb-3" style={{ color: primary }}>
                 {eyebrow}
