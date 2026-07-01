@@ -1174,13 +1174,26 @@ admin.post('/students/:id/resend-notification', gate('can_manage_ead'), async (r
     if (!s.rows.length) return res.status(404).json({ error: 'Não encontrado' });
     const student = s.rows[0];
     const b = student.brand_id ? (await runWithEadSchemaRetry(() => query('SELECT * FROM ead_brands WHERE id = $1', [student.brand_id]))).rows[0] : null;
-    const notify = await withTimeout(notifyApproval(student, b, appBaseUrl(req)), 9000, 'Notificação de aprovação').catch((e) => ({
+
+    // Se ainda não trocou a senha (ou nunca teve uma), regera uma temporária para reenviar
+    let tempPassword = null;
+    if (!student.password_hash || student.must_change_password) {
+      tempPassword = genTempPassword(8);
+      const hash = await bcrypt.hash(tempPassword, 10);
+      await runWithEadSchemaRetry(() => query(
+        `UPDATE ead_students SET password_hash=$1, must_change_password=true WHERE id=$2`,
+        [hash, student.id]
+      ));
+    }
+
+    const notify = await withTimeout(notifyApproval(student, b, appBaseUrl(req), tempPassword), 9000, 'Notificação de aprovação').catch((e) => ({
       whatsapp: { success: false, error: e.message || 'Notificação não concluída' },
       email: { success: false, error: e.message || 'Notificação não concluída' },
     }));
-    res.json({ ok: true, notify });
+    res.json({ ok: true, temp_password: tempPassword, notify });
   } catch (e) { console.error(e); res.status(500).json({ error: 'Erro ao reenviar' }); }
 });
+
 
 admin.patch('/students/:id', gate('can_manage_ead'), async (req, res) => {
   try {
