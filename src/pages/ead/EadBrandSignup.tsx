@@ -29,7 +29,7 @@ export default function EadBrandSignup() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [data, setData] = useState<Record<string, any>>({});
-  const [passwordConfirm, setPasswordConfirm] = useState('');
+  // senha temporária é gerada e enviada após aprovação — sem campos de senha no cadastro
   const [success, setSuccess] = useState<string | null>(null);
   const nav = useNavigate();
 
