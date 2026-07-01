@@ -29,6 +29,7 @@ export default function EadBrandSignup() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [data, setData] = useState<Record<string, any>>({});
+  const [passwordConfirm, setPasswordConfirm] = useState('');
   const [success, setSuccess] = useState<string | null>(null);
   const nav = useNavigate();
 
@@ -51,6 +52,10 @@ export default function EadBrandSignup() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!slug) return;
+    if (data.password && data.password !== passwordConfirm) {
+      toast.error('As senhas não conferem');
+      return;
+    }
     setSubmitting(true);
     try {
       const payload: any = { ...data };
@@ -106,12 +111,15 @@ export default function EadBrandSignup() {
         className="relative overflow-hidden shrink-0"
         style={cover ? { backgroundImage: `linear-gradient(135deg, ${primary}cc, ${accent}dd), url(${cover})`, backgroundSize: 'cover', backgroundPosition: 'center' } : { background: `linear-gradient(135deg, ${primary}, ${accent})` }}
       >
-        <div className="max-w-5xl mx-auto px-4 py-4 sm:py-5 text-white text-center">
+        <div className="max-w-5xl mx-auto px-4 py-5 sm:py-6 flex items-center justify-center gap-3">
           {logo ? (
-            <img src={logo} alt={brand.name} className="h-12 sm:h-14 mx-auto object-contain drop-shadow-md" />
+            <div className="bg-white rounded-xl px-4 py-2 shadow-md flex items-center justify-center">
+              <img src={logo} alt={brand.name} className="h-10 sm:h-12 object-contain" />
+            </div>
           ) : (
-            <GraduationCap className="h-10 w-10 mx-auto" />
+            <GraduationCap className="h-10 w-10 text-white" />
           )}
+          <span className="text-white font-semibold text-lg sm:text-xl drop-shadow-sm">{brand.name}</span>
         </div>
       </div>
 
@@ -122,25 +130,47 @@ export default function EadBrandSignup() {
             <p className="text-sm text-muted-foreground mb-6">Após o envio, seu acesso será analisado e liberado manualmente. Você receberá um aviso por WhatsApp/e-mail.</p>
             <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
               {fields.map((f: any) => (
-                <div key={f.key} className={f.type === 'password' || f.key === 'email' || f.key === 'name' ? 'sm:col-span-2' : ''}>
-                  <Label>{f.label}{f.required && ' *'}</Label>
-                  {f.type === 'uf' ? (
-                    <select className="w-full h-10 px-3 border rounded-md bg-background" value={data[f.key] || ''} onChange={e => setField(f.key, e.target.value)} required={f.required}>
-                      <option value="">UF</option>
-                      {UF.map(u => <option key={u} value={u}>{u}</option>)}
-                    </select>
-                  ) : f.type === 'cpf' ? (
-                    <Input value={data[f.key] || ''} onChange={e => setField(f.key, maskCpf(e.target.value))} required={f.required} placeholder="000.000.000-00" inputMode="numeric" />
-                  ) : f.type === 'phone' ? (
-                    <Input value={data[f.key] || ''} onChange={e => setField(f.key, maskPhone(e.target.value))} required={f.required} placeholder="(11) 99999-9999" inputMode="tel" />
-                  ) : (
-                    <Input
-                      type={f.type === 'email' ? 'email' : f.type === 'password' ? 'password' : 'text'}
-                      value={data[f.key] || ''}
-                      onChange={e => setField(f.key, e.target.value)}
-                      required={f.required}
-                      minLength={f.type === 'password' ? 6 : undefined}
-                    />
+                <div key={f.key} className="contents">
+                  <div key={f.key} className={f.type === 'password' || f.key === 'email' || f.key === 'name' ? 'sm:col-span-2' : ''}>
+                    <Label>{f.label}{f.required && ' *'}</Label>
+                    {f.type === 'uf' ? (
+                      <select className="w-full h-10 px-3 border rounded-md bg-background" value={data[f.key] || ''} onChange={e => setField(f.key, e.target.value)} required={f.required}>
+                        <option value="">UF</option>
+                        {UF.map(u => <option key={u} value={u}>{u}</option>)}
+                      </select>
+                    ) : f.type === 'cpf' ? (
+                      <Input value={data[f.key] || ''} onChange={e => setField(f.key, maskCpf(e.target.value))} required={f.required} placeholder="000.000.000-00" inputMode="numeric" />
+                    ) : f.type === 'phone' ? (
+                      <Input value={data[f.key] || ''} onChange={e => setField(f.key, maskPhone(e.target.value))} required={f.required} placeholder="(11) 99999-9999" inputMode="tel" />
+                    ) : (
+                      <Input
+                        type={f.type === 'email' ? 'email' : f.type === 'password' ? 'password' : 'text'}
+                        value={data[f.key] || ''}
+                        onChange={e => setField(f.key, e.target.value)}
+                        required={f.required}
+                        minLength={f.type === 'password' ? 6 : undefined}
+                        autoComplete={f.type === 'email' ? 'email' : f.type === 'password' ? 'new-password' : undefined}
+                      />
+                    )}
+                    {f.key === 'email' && (
+                      <p className="text-xs text-muted-foreground mt-1">Este e-mail será usado para login.</p>
+                    )}
+                  </div>
+                  {f.type === 'password' && (
+                    <div key={f.key + '_confirm'} className="sm:col-span-2">
+                      <Label>Confirmar senha *</Label>
+                      <Input
+                        type="password"
+                        value={passwordConfirm}
+                        onChange={e => setPasswordConfirm(e.target.value)}
+                        required
+                        minLength={6}
+                        autoComplete="new-password"
+                      />
+                      {passwordConfirm && data[f.key] && passwordConfirm !== data[f.key] && (
+                        <p className="text-xs text-destructive mt-1">As senhas não conferem</p>
+                      )}
+                    </div>
                   )}
                 </div>
               ))}
