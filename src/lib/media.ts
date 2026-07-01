@@ -10,7 +10,16 @@ export function resolveMediaUrl(url?: string | null): string | null {
   const u = String(url).trim();
   if (!u) return null;
 
-  if (/^(https?:|data:|blob:)/i.test(u)) return u;
+  if (/^(data:|blob:)/i.test(u)) return u;
+  if (/^https?:/i.test(u)) {
+    try {
+      const parsed = new URL(u);
+      parsed.pathname = parsed.pathname.replace(/\/+/g, '/');
+      return parsed.toString();
+    } catch {
+      return u;
+    }
+  }
   if (u.startsWith("//")) return `https:${u}`;
 
   if (u.startsWith("/")) return `${API_URL}${u}`;
