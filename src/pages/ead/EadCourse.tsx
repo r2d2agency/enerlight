@@ -212,6 +212,12 @@ export default function EadCourse() {
   return (
     <EadLayout breadcrumbs={[{ label: 'Cursos', to: `${brandBase}/cursos` }, { label: course.title }]}>
 
+      {course.cover_url && (
+        <div className="aspect-video w-full overflow-hidden rounded-lg bg-muted mb-4">
+          <img src={resolveMediaUrl(course.cover_url) || ''} alt={course.title} className="w-full h-full object-cover" />
+        </div>
+      )}
+
       <div className="flex items-start justify-between gap-4 mb-4">
         <div>
           <h1 className="text-2xl font-bold">{course.title}</h1>
