@@ -222,6 +222,8 @@ const App = () => (
               <Route path="/ead/cadastro" element={<EadSignup />} />
               {/* Brand-scoped portal (slug = brand) */}
               <Route path="/marca/:slug" element={<EadBrandSignup />} />
+              <Route path="/marca/:slug/login" element={<EadBrandLogin />} />
+              <Route path="/marca/:slug/cadastro" element={<EadBrandSignup />} />
               <Route path="/marca/:slug/inicio" element={<EadHome />} />
               <Route path="/marca/:slug/cursos" element={<EadCatalog />} />
               <Route path="/marca/:slug/manuais" element={<EadManuals />} />
