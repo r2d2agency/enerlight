@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { eadApi } from '@/lib/ead-api';
+import { resolveMediaUrl } from '@/lib/media';
 import { EadLayout } from './EadLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
