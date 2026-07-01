@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 import { resolveMediaUrl } from '@/lib/media';
 import { GraduationCap, ShieldCheck, Award, BookOpen } from 'lucide-react';
 
@@ -16,6 +16,8 @@ export default function EadBrandShell({ brand, children, eyebrow, title, subtitl
   const logo = resolveMediaUrl(brand?.logo_url);
   const cover = resolveMediaUrl(brand?.cover_url);
   const name = brand?.name || 'Academia do Instalador';
+  const [logoFailed, setLogoFailed] = useState(false);
+  const showLogo = !!logo && !logoFailed;
 
   return (
     <div className="min-h-screen w-full bg-slate-950 text-white lg:grid lg:grid-cols-[1.05fr_1fr] xl:grid-cols-[1.15fr_1fr]">
@@ -45,9 +47,15 @@ export default function EadBrandShell({ brand, children, eyebrow, title, subtitl
         />
 
         <header className="relative z-10 flex items-center gap-4">
-          {logo ? (
-            <div className="bg-white rounded-2xl px-5 py-4 shadow-2xl ring-1 ring-black/5 flex items-center justify-center">
-              <img src={logo} alt={name} className="h-14 w-auto max-w-[160px] object-contain" />
+          {showLogo ? (
+            <div className="w-[120px] flex items-center justify-center shrink-0">
+              <img
+                src={logo}
+                alt={name}
+                className="block object-contain"
+                style={{ width: '100px', height: 'auto' }}
+                onError={() => setLogoFailed(true)}
+              />
             </div>
           ) : (
             <div className="h-16 w-16 rounded-2xl bg-white/10 backdrop-blur flex items-center justify-center">
@@ -99,9 +107,15 @@ export default function EadBrandShell({ brand, children, eyebrow, title, subtitl
           }}
         >
           <div className="flex flex-col items-center gap-3">
-            {logo ? (
-              <div className="bg-white rounded-2xl px-5 py-3 shadow-xl">
-                <img src={logo} alt={name} className="h-12 w-auto max-w-[140px] object-contain" />
+            {showLogo ? (
+              <div className="w-[120px] flex items-center justify-center">
+                <img
+                  src={logo}
+                  alt={name}
+                  className="block object-contain"
+                  style={{ width: '100px', height: 'auto' }}
+                  onError={() => setLogoFailed(true)}
+                />
               </div>
             ) : (
               <GraduationCap className="h-10 w-10" />
