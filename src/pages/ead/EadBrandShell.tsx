@@ -123,6 +123,11 @@ export default function EadBrandShell({ brand, children, eyebrow, title, subtitl
 
         <div className="flex-1 flex items-center justify-center px-5 sm:px-8 py-10 lg:py-16">
           <div className="w-full max-w-md">
+            <div className="flex flex-col items-center mb-8">
+              <img src={enerlightLogo} alt="Enerlight" className="h-10 w-auto object-contain" />
+              <span className="text-[10px] uppercase tracking-[0.2em] text-slate-400 mt-1">Academia do Instalador</span>
+            </div>
+
             {eyebrow && (
               <p className="text-xs uppercase tracking-[0.22em] font-semibold mb-3" style={{ color: primary }}>
                 {eyebrow}
