@@ -103,6 +103,7 @@ const EadCourse = lazyRetry(() => import("./pages/ead/EadCourse"));
 const EadQuiz = lazyRetry(() => import("./pages/ead/EadQuiz"));
 const EadCertificates = lazyRetry(() => import("./pages/ead/EadCertificates"));
 const EadBrandSignup = lazyRetry(() => import("./pages/ead/EadBrandSignup"));
+const EadBrandLogin = lazyRetry(() => import("./pages/ead/EadBrandLogin"));
 const EadAdmin = lazyRetry(() => import("./pages/EadAdmin"));
 
 
