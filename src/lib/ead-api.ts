@@ -154,6 +154,7 @@ export const eadAdminApi = {
   approveStudent: (id: string) => adminCall<any>(`/api/ead/admin/students/${id}/approve`, { method: 'POST' }),
   rejectStudent: (id: string, reason?: string) => adminCall<any>(`/api/ead/admin/students/${id}/reject`, { method: 'POST', body: { reason } }),
   resendNotification: (id: string) => adminCall<any>(`/api/ead/admin/students/${id}/resend-notification`, { method: 'POST' }),
+  resetPassword: (id: string) => adminCall<any>(`/api/ead/admin/students/${id}/reset-password`, { method: 'POST' }),
 };
 
 export function ytEmbedUrl(url: string): string {
