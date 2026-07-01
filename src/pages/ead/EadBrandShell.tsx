@@ -143,8 +143,12 @@ export default function EadBrandShell({ brand, children, eyebrow, title, subtitl
           </div>
         </div>
 
-        <footer className="px-5 sm:px-8 py-5 text-xs text-slate-400 text-center border-t border-slate-100">
-          © {new Date().getFullYear()} {name} · Academia do Instalador
+        <footer className="px-5 sm:px-8 py-5 text-xs text-slate-400 text-center border-t border-slate-100 flex flex-col items-center gap-2">
+          <div className="flex items-center gap-2">
+            <span>Powered by</span>
+            <img src={enerlightLogo} alt="Enerlight" className="h-5 w-auto object-contain opacity-80" />
+          </div>
+          <span>© {new Date().getFullYear()} {name} · Academia do Instalador</span>
         </footer>
       </main>
     </div>
