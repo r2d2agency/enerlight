@@ -1103,6 +1103,19 @@ admin.post('/students/:id/resend-notification', gate('can_manage_ead'), async (r
   } catch (e) { console.error(e); res.status(500).json({ error: 'Erro ao reenviar' }); }
 });
 
+admin.patch('/students/:id', gate('can_manage_ead'), async (req, res) => {
+  try {
+    await ensureEadApprovalSchema();
+    const { brand_id } = req.body || {};
+    const r = await runWithEadSchemaRetry(() => query(
+      `UPDATE ead_students SET brand_id=$1 WHERE id=$2 RETURNING id`,
+      [brand_id || null, req.params.id]
+    ));
+    if (!r.rows.length) return res.status(404).json({ error: 'Aluno não encontrado' });
+    res.json({ ok: true });
+  } catch (e) { console.error('update student', e); res.status(500).json({ error: 'Erro ao atualizar' }); }
+});
+
 router.use('/admin', admin);
 
 export default router;

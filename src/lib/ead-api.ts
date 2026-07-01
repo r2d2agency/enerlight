@@ -135,6 +135,7 @@ export const eadAdminApi = {
 
   students: () => adminCall<any[]>('/api/ead/admin/students'),
   student: (id: string) => adminCall<any>(`/api/ead/admin/students/${id}`),
+  updateStudent: (id: string, b: { brand_id?: string | null }) => adminCall<any>(`/api/ead/admin/students/${id}`, { method: 'PATCH', body: b }),
   certificates: () => adminCall<any[]>('/api/ead/admin/certificates'),
 
   // Brands
