@@ -694,23 +694,30 @@ function QuestionsManager({ courseId, canManage }: { courseId: string; canManage
 }
 
 function StudentsTab({ students }: { students: any[] }) {
+  const statusBadge = (s: string) => {
+    if (s === 'pending') return <Badge variant="destructive">Pendente</Badge>;
+    if (s === 'rejected') return <Badge variant="outline">Rejeitado</Badge>;
+    return <Badge variant="secondary">Aprovado</Badge>;
+  };
   return (
     <Card><CardContent className="p-0">
       <Table>
-        <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>CPF</TableHead><TableHead>Email</TableHead><TableHead>Empresa</TableHead><TableHead>Cidade/UF</TableHead><TableHead>Inscrições</TableHead><TableHead>Certificados</TableHead></TableRow></TableHeader>
+        <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>CPF</TableHead><TableHead>Email</TableHead><TableHead>Marca</TableHead><TableHead>Status</TableHead><TableHead>Empresa</TableHead><TableHead>Cidade/UF</TableHead><TableHead>Inscrições</TableHead><TableHead>Certificados</TableHead></TableRow></TableHeader>
         <TableBody>
           {students.map(s => (
             <TableRow key={s.id}>
               <TableCell className="font-medium">{s.name}</TableCell>
               <TableCell className="font-mono text-xs">{s.cpf}</TableCell>
               <TableCell>{s.email}</TableCell>
+              <TableCell>{s.brand_name ? <Badge variant="outline">{s.brand_name}</Badge> : <span className="text-muted-foreground text-xs">Sem marca</span>}</TableCell>
+              <TableCell>{statusBadge(s.status || 'approved')}</TableCell>
               <TableCell>{s.company || '-'}</TableCell>
               <TableCell>{[s.city, s.state].filter(Boolean).join(' / ') || '-'}</TableCell>
               <TableCell>{s.enrollment_count}</TableCell>
               <TableCell><Badge>{s.certificate_count}</Badge></TableCell>
             </TableRow>
           ))}
-          {!students.length && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Nenhum aluno cadastrado.</TableCell></TableRow>}
+          {!students.length && <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Nenhum aluno cadastrado.</TableCell></TableRow>}
         </TableBody>
       </Table>
     </CardContent></Card>
