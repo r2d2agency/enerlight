@@ -18,7 +18,7 @@ function maskCpf(v: string) {
 }
 
 export default function EadSignup() {
-  const [form, setForm] = useState({ cpf: '', name: '', email: '', password: '', company: '', city: '', state: '' });
+  const [form, setForm] = useState({ cpf: '', name: '', email: '', company: '', city: '', state: '' });
   const [loading, setLoading] = useState(false);
   const nav = useNavigate();
 
