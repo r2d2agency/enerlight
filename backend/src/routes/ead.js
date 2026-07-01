@@ -1205,7 +1205,7 @@ admin.post('/students/:id/reset-password', gate('can_manage_ead'), async (req, r
     const tempPassword = genTempPassword(8);
     const hash = await bcrypt.hash(tempPassword, 10);
     await runWithEadSchemaRetry(() => query(
-      `UPDATE ead_students SET password_hash=$1, must_change_password=true, password_changed_at=NOW() WHERE id=$2`,
+      `UPDATE ead_students SET password_hash=$1, must_change_password=true WHERE id=$2`,
       [hash, student.id]
     ));
 
