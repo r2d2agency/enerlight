@@ -824,13 +824,21 @@ admin.post('/courses/:id/template/preview', gate('can_manage_ead'), async (req, 
 
 // Students list
 admin.get('/students', gate('can_view_ead'), async (req, res) => {
-  const r = await query(
-    `SELECT s.id, s.name, s.cpf, s.email, s.company, s.city, s.state, s.created_at,
-       (SELECT COUNT(*)::int FROM ead_certificates c WHERE c.student_id = s.id) AS certificate_count,
-       (SELECT COUNT(*)::int FROM ead_enrollments e WHERE e.student_id = s.id) AS enrollment_count
-     FROM ead_students s WHERE s.email <> 'preview@ead.local' ORDER BY s.created_at DESC`
-  );
-  res.json(r.rows);
+  try {
+    await ensureEadApprovalSchema();
+    const r = await runWithEadSchemaRetry(() => query(
+      `SELECT s.id, s.name, s.cpf, s.email, s.phone, s.company, s.city, s.state, s.status, s.created_at,
+         s.brand_id, b.name AS brand_name, b.slug AS brand_slug,
+         (SELECT COUNT(*)::int FROM ead_certificates c WHERE c.student_id = s.id) AS certificate_count,
+         (SELECT COUNT(*)::int FROM ead_enrollments e WHERE e.student_id = s.id) AS enrollment_count
+       FROM ead_students s LEFT JOIN ead_brands b ON b.id = s.brand_id
+       WHERE s.email <> 'preview@ead.local' ORDER BY s.created_at DESC`
+    ));
+    res.json(r.rows);
+  } catch (e) {
+    console.error('list students', e);
+    res.status(500).json({ error: 'Erro ao carregar alunos' });
+  }
 });
 
 admin.get('/students/:id', gate('can_view_ead'), async (req, res) => {
