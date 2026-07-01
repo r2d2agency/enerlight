@@ -15,11 +15,18 @@ const DEFAULT_SIGNUP_FIELDS = [
   { key: 'cpf', label: 'CPF', type: 'cpf', required: true },
   { key: 'email', label: 'E-mail', type: 'email', required: true },
   { key: 'phone', label: 'WhatsApp', type: 'phone', required: true },
-  { key: 'password', label: 'Senha', type: 'password', required: true },
   { key: 'company', label: 'Empresa', type: 'text', required: false },
   { key: 'city', label: 'Cidade', type: 'text', required: false },
   { key: 'state', label: 'Estado', type: 'uf', required: false },
 ];
+
+function genTempPassword(len = 8) {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  let s = '';
+  for (let i = 0; i < len; i++) s += chars[Math.floor(Math.random() * chars.length)];
+  return s;
+}
+
 
 const router = Router();
 
