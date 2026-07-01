@@ -65,10 +65,12 @@ async function call<T>(endpoint: string, opts: { method?: string; body?: any; au
 }
 
 export const eadApi = {
-  register: (b: { cpf: string; name: string; email: string; password: string; company?: string; city?: string; state?: string }) =>
-    call<{ student: EadStudent; token: string }>('/api/ead/auth/register', { method: 'POST', body: b, auth: false }),
+  register: (b: { cpf: string; name: string; email: string; company?: string; city?: string; state?: string }) =>
+    call<{ student: EadStudent; token?: string; pending?: boolean; message?: string }>('/api/ead/auth/register', { method: 'POST', body: b, auth: false }),
   login: (email: string, password: string) =>
     call<{ student: EadStudent; token: string }>('/api/ead/auth/login', { method: 'POST', body: { email, password }, auth: false }),
+  changePassword: (new_password: string, current_password?: string) =>
+    call<{ ok: boolean }>('/api/ead/auth/change-password', { method: 'POST', body: { new_password, current_password } }),
   me: () => call<{ student: EadStudent }>('/api/ead/auth/me'),
 
   courses: () => call<any[]>('/api/ead/courses'),
