@@ -727,6 +727,13 @@ function StudentsTab({ students, onReload }: { students: any[]; onReload: () => 
     catch (e: any) { toast.error(e.message || 'Erro ao rejeitar'); }
     finally { setSavingId(null); }
   }
+  async function resend(id: string) {
+    setSavingId(id);
+    try { await eadAdminApi.resendNotification(id); toast.success('Notificação enviada (WhatsApp/e-mail)'); }
+    catch (e: any) { toast.error(e.message || 'Erro ao notificar'); }
+    finally { setSavingId(null); }
+  }
+
 
   return (
     <Card><CardContent className="p-0">
