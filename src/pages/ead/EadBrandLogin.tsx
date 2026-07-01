@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Loader2, GraduationCap } from 'lucide-react';
+import EadChangePasswordDialog from './EadChangePasswordDialog';
 
 export default function EadBrandLogin() {
   const { slug } = useParams<{ slug: string }>();
@@ -17,6 +18,8 @@ export default function EadBrandLogin() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [mustChange, setMustChange] = useState(false);
+  const [pendingSlug, setPendingSlug] = useState<string | null>(null);
 
   useEffect(() => {
     if (!slug) return;
@@ -30,12 +33,18 @@ export default function EadBrandLogin() {
       const r = await eadApi.login(email, password);
       eadToken.set(r.token);
       const targetSlug = (r.student as any).brand_slug || slug;
-      toast.success(`Bem-vindo(a), ${r.student.name}!`);
-      nav(targetSlug ? `/marca/${targetSlug}/inicio` : '/ead');
+      setPendingSlug(targetSlug || null);
+      if (r.student.must_change_password) {
+        setMustChange(true);
+      } else {
+        toast.success(`Bem-vindo(a), ${r.student.name}!`);
+        nav(targetSlug ? `/marca/${targetSlug}/inicio` : '/ead');
+      }
     } catch (e: any) {
       toast.error(e.message || 'Erro ao entrar');
     } finally { setLoading(false); }
   }
+
 
   if (loadingBrand) {
     return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
