@@ -134,7 +134,7 @@ export const eadAdminApi = {
   previewTemplate: (cid: string) => adminCall<any>(`/api/ead/admin/courses/${cid}/template/preview`, { method: 'POST' }),
 
   students: () => adminCall<any[]>('/api/ead/admin/students'),
-  student: (id: string) => adminCall<any>(`/api/ead/admin/students/${id}`),
+  student: (id: string) => adminCall<{ student: any; certificates: any[]; attempts: any[]; enrollments: any[] }>(`/api/ead/admin/students/${id}`),
   updateStudent: (id: string, b: { brand_id?: string | null }) => adminCall<any>(`/api/ead/admin/students/${id}`, { method: 'PATCH', body: b }),
   certificates: () => adminCall<any[]>('/api/ead/admin/certificates'),
 
