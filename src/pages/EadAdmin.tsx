@@ -714,10 +714,24 @@ function StudentsTab({ students, onReload }: { students: any[]; onReload: () => 
     finally { setSavingId(null); }
   }
 
+  async function approve(id: string) {
+    setSavingId(id);
+    try { await eadAdminApi.approveStudent(id); toast.success('Aluno aprovado'); onReload(); }
+    catch (e: any) { toast.error(e.message || 'Erro ao aprovar'); }
+    finally { setSavingId(null); }
+  }
+  async function reject(id: string) {
+    const reason = window.prompt('Motivo da rejeição (opcional):') ?? undefined;
+    setSavingId(id);
+    try { await eadAdminApi.rejectStudent(id, reason); toast.success('Aluno rejeitado'); onReload(); }
+    catch (e: any) { toast.error(e.message || 'Erro ao rejeitar'); }
+    finally { setSavingId(null); }
+  }
+
   return (
     <Card><CardContent className="p-0">
       <Table>
-        <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>CPF</TableHead><TableHead>Email</TableHead><TableHead>Marca</TableHead><TableHead>Status</TableHead><TableHead>Empresa</TableHead><TableHead>Cidade/UF</TableHead><TableHead>Inscrições</TableHead><TableHead>Certificados</TableHead></TableRow></TableHeader>
+        <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>CPF</TableHead><TableHead>Email</TableHead><TableHead>Marca</TableHead><TableHead>Status</TableHead><TableHead>Empresa</TableHead><TableHead>Cidade/UF</TableHead><TableHead>Inscrições</TableHead><TableHead>Certificados</TableHead><TableHead>Ações</TableHead></TableRow></TableHeader>
         <TableBody>
           {students.map(s => (
             <TableRow key={s.id}>
@@ -738,12 +752,25 @@ function StudentsTab({ students, onReload }: { students: any[]; onReload: () => 
               <TableCell>{[s.city, s.state].filter(Boolean).join(' / ') || '-'}</TableCell>
               <TableCell>{s.enrollment_count}</TableCell>
               <TableCell><Badge>{s.certificate_count}</Badge></TableCell>
+              <TableCell>
+                {s.status === 'pending' ? (
+                  <div className="flex gap-1">
+                    <Button size="sm" variant="default" disabled={savingId === s.id} onClick={() => approve(s.id)}>Aprovar</Button>
+                    <Button size="sm" variant="outline" disabled={savingId === s.id} onClick={() => reject(s.id)}>Rejeitar</Button>
+                  </div>
+                ) : s.status === 'rejected' ? (
+                  <Button size="sm" variant="default" disabled={savingId === s.id} onClick={() => approve(s.id)}>Aprovar</Button>
+                ) : (
+                  <span className="text-xs text-muted-foreground">-</span>
+                )}
+              </TableCell>
             </TableRow>
           ))}
-          {!students.length && <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Nenhum aluno cadastrado.</TableCell></TableRow>}
+          {!students.length && <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">Nenhum aluno cadastrado.</TableCell></TableRow>}
         </TableBody>
       </Table>
     </CardContent></Card>
+
   );
 }
 
