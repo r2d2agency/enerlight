@@ -29,7 +29,7 @@ export default function EadBrandSignup() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [data, setData] = useState<Record<string, any>>({});
-  const [passwordConfirm, setPasswordConfirm] = useState('');
+  // senha temporária é gerada e enviada após aprovação — sem campos de senha no cadastro
   const [success, setSuccess] = useState<string | null>(null);
   const nav = useNavigate();
 
@@ -52,13 +52,10 @@ export default function EadBrandSignup() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!slug) return;
-    if (data.password && data.password !== passwordConfirm) {
-      toast.error('As senhas não conferem');
-      return;
-    }
     setSubmitting(true);
     try {
       const payload: any = { ...data };
+      delete payload.password;
       if (payload.cpf) payload.cpf = String(payload.cpf).replace(/\D/g, '');
       if (payload.phone) payload.phone = String(payload.phone).replace(/\D/g, '');
       const r = await eadApi.brandSignup(slug, payload);
@@ -67,6 +64,7 @@ export default function EadBrandSignup() {
       toast.error(e.message || 'Erro ao cadastrar');
     } finally { setSubmitting(false); }
   }
+
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -129,51 +127,36 @@ export default function EadBrandSignup() {
             <h2 className="text-xl font-semibold mb-1">Solicitar cadastro</h2>
             <p className="text-sm text-muted-foreground mb-6">Após o envio, seu acesso será analisado e liberado manualmente. Você receberá um aviso por WhatsApp/e-mail.</p>
             <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
-              {fields.map((f: any) => (
-                <div key={f.key} className="contents">
-                  <div key={f.key} className={f.type === 'password' || f.key === 'email' || f.key === 'name' ? 'sm:col-span-2' : ''}>
-                    <Label>{f.label}{f.required && ' *'}</Label>
-                    {f.type === 'uf' ? (
-                      <select className="w-full h-10 px-3 border rounded-md bg-background" value={data[f.key] || ''} onChange={e => setField(f.key, e.target.value)} required={f.required}>
-                        <option value="">UF</option>
-                        {UF.map(u => <option key={u} value={u}>{u}</option>)}
-                      </select>
-                    ) : f.type === 'cpf' ? (
-                      <Input value={data[f.key] || ''} onChange={e => setField(f.key, maskCpf(e.target.value))} required={f.required} placeholder="000.000.000-00" inputMode="numeric" />
-                    ) : f.type === 'phone' ? (
-                      <Input value={data[f.key] || ''} onChange={e => setField(f.key, maskPhone(e.target.value))} required={f.required} placeholder="(11) 99999-9999" inputMode="tel" />
-                    ) : (
-                      <Input
-                        type={f.type === 'email' ? 'email' : f.type === 'password' ? 'password' : 'text'}
-                        value={data[f.key] || ''}
-                        onChange={e => setField(f.key, e.target.value)}
-                        required={f.required}
-                        minLength={f.type === 'password' ? 6 : undefined}
-                        autoComplete={f.type === 'email' ? 'email' : f.type === 'password' ? 'new-password' : undefined}
-                      />
-                    )}
-                    {f.key === 'email' && (
-                      <p className="text-xs text-muted-foreground mt-1">Este e-mail será usado para login.</p>
-                    )}
-                  </div>
-                  {f.type === 'password' && (
-                    <div key={f.key + '_confirm'} className="sm:col-span-2">
-                      <Label>Confirmar senha *</Label>
-                      <Input
-                        type="password"
-                        value={passwordConfirm}
-                        onChange={e => setPasswordConfirm(e.target.value)}
-                        required
-                        minLength={6}
-                        autoComplete="new-password"
-                      />
-                      {passwordConfirm && data[f.key] && passwordConfirm !== data[f.key] && (
-                        <p className="text-xs text-destructive mt-1">As senhas não conferem</p>
-                      )}
-                    </div>
+              {fields.filter((f: any) => f.type !== 'password').map((f: any) => (
+                <div key={f.key} className={f.key === 'email' || f.key === 'name' ? 'sm:col-span-2' : ''}>
+                  <Label>{f.label}{f.required && ' *'}</Label>
+                  {f.type === 'uf' ? (
+                    <select className="w-full h-10 px-3 border rounded-md bg-background" value={data[f.key] || ''} onChange={e => setField(f.key, e.target.value)} required={f.required}>
+                      <option value="">UF</option>
+                      {UF.map(u => <option key={u} value={u}>{u}</option>)}
+                    </select>
+                  ) : f.type === 'cpf' ? (
+                    <Input value={data[f.key] || ''} onChange={e => setField(f.key, maskCpf(e.target.value))} required={f.required} placeholder="000.000.000-00" inputMode="numeric" />
+                  ) : f.type === 'phone' ? (
+                    <Input value={data[f.key] || ''} onChange={e => setField(f.key, maskPhone(e.target.value))} required={f.required} placeholder="(11) 99999-9999" inputMode="tel" />
+                  ) : (
+                    <Input
+                      type={f.type === 'email' ? 'email' : 'text'}
+                      value={data[f.key] || ''}
+                      onChange={e => setField(f.key, e.target.value)}
+                      required={f.required}
+                      autoComplete={f.type === 'email' ? 'email' : undefined}
+                    />
+                  )}
+                  {f.key === 'email' && (
+                    <p className="text-xs text-muted-foreground mt-1">Este e-mail será usado para login.</p>
                   )}
                 </div>
               ))}
+              <div className="sm:col-span-2 rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground">
+                🔐 Após a aprovação, você receberá uma <strong>senha temporária</strong> por WhatsApp/e-mail. No primeiro acesso será solicitado que você crie sua própria senha.
+              </div>
+
               <div className="sm:col-span-2 mt-2">
                 <Button type="submit" className="w-full text-white" disabled={submitting} style={{ background: primary }}>
                   {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}

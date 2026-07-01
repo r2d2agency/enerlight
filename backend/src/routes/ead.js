@@ -15,11 +15,18 @@ const DEFAULT_SIGNUP_FIELDS = [
   { key: 'cpf', label: 'CPF', type: 'cpf', required: true },
   { key: 'email', label: 'E-mail', type: 'email', required: true },
   { key: 'phone', label: 'WhatsApp', type: 'phone', required: true },
-  { key: 'password', label: 'Senha', type: 'password', required: true },
   { key: 'company', label: 'Empresa', type: 'text', required: false },
   { key: 'city', label: 'Cidade', type: 'text', required: false },
   { key: 'state', label: 'Estado', type: 'uf', required: false },
 ];
+
+function genTempPassword(len = 8) {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  let s = '';
+  for (let i = 0; i < len; i++) s += chars[Math.floor(Math.random() * chars.length)];
+  return s;
+}
+
 
 const router = Router();
 
@@ -67,25 +74,23 @@ function isValidCPF(cpf) {
 
 router.post('/auth/register', async (req, res) => {
   try {
-    let { cpf, name, email, password, company, city, state } = req.body || {};
+    let { cpf, name, email, company, city, state } = req.body || {};
     cpf = String(cpf || '').replace(/\D/g, '');
     email = String(email || '').trim().toLowerCase();
     name = String(name || '').trim();
-    if (!cpf || !name || !email || !password) return res.status(400).json({ error: 'Preencha CPF, nome, email e senha' });
+    if (!cpf || !name || !email) return res.status(400).json({ error: 'Preencha CPF, nome e e-mail' });
     if (!isValidCPF(cpf)) return res.status(400).json({ error: 'CPF inválido' });
-    if (password.length < 6) return res.status(400).json({ error: 'Senha deve ter ao menos 6 caracteres' });
 
     const dup = await query('SELECT id FROM ead_students WHERE cpf = $1 OR lower(email) = $2 LIMIT 1', [cpf, email]);
     if (dup.rows.length) return res.status(400).json({ error: 'CPF ou email já cadastrados' });
 
-    const hash = await bcrypt.hash(password, 10);
     const r = await query(
       `INSERT INTO ead_students (cpf, name, email, password_hash, company, city, state, status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,'pending') RETURNING id, cpf, name, email, company, city, state, status, created_at`,
-      [cpf, name, email, hash, company || null, city || null, state || null]
+       VALUES ($1,$2,$3,NULL,$4,$5,$6,'pending') RETURNING id, cpf, name, email, company, city, state, status, created_at`,
+      [cpf, name, email, company || null, city || null, state || null]
     );
     const student = r.rows[0];
-    res.status(201).json({ student, pending: true, message: 'Cadastro recebido! Aguarde a liberação do administrador — você receberá um aviso por WhatsApp/e-mail.' });
+    res.status(201).json({ student, pending: true, message: 'Cadastro recebido! Aguarde a liberação — você receberá sua senha temporária por WhatsApp/e-mail.' });
   } catch (e) {
     console.error('ead register error', e);
     res.status(500).json({ error: 'Erro ao cadastrar' });
@@ -100,26 +105,47 @@ router.post('/auth/login', async (req, res) => {
     const r = await query('SELECT * FROM ead_students WHERE lower(email) = $1 LIMIT 1', [email]);
     if (!r.rows.length) return res.status(401).json({ error: 'Credenciais inválidas' });
     const s = r.rows[0];
+    if (!s.password_hash) return res.status(403).json({ error: 'Seu cadastro ainda não foi aprovado. Aguarde a liberação e o envio da senha temporária.', status: s.status || 'pending' });
     const ok = await bcrypt.compare(password, s.password_hash);
     if (!ok) return res.status(401).json({ error: 'Credenciais inválidas' });
     if (s.status === 'pending') return res.status(403).json({ error: 'Seu cadastro está em análise. Você receberá um aviso por WhatsApp/e-mail quando for liberado.', status: 'pending' });
     if (s.status === 'rejected') return res.status(403).json({ error: 'Cadastro não aprovado. Entre em contato com o administrador.', status: 'rejected' });
     const { password_hash, ...student } = s;
-    res.json({ student, token: signStudent(s) });
+    res.json({ student: { ...student, must_change_password: !!s.must_change_password }, token: signStudent(s) });
   } catch (e) {
     console.error(e); res.status(500).json({ error: 'Erro ao entrar' });
   }
 });
 
+router.post('/auth/change-password', studentAuth, async (req, res) => {
+  try {
+    const { current_password, new_password } = req.body || {};
+    if (!new_password || String(new_password).length < 6) return res.status(400).json({ error: 'A nova senha deve ter ao menos 6 caracteres' });
+    const r = await query('SELECT id, password_hash, must_change_password FROM ead_students WHERE id = $1', [req.studentId]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Não encontrado' });
+    const s = r.rows[0];
+    // If not forced change, require current password
+    if (!s.must_change_password) {
+      if (!current_password) return res.status(400).json({ error: 'Informe a senha atual' });
+      const ok = await bcrypt.compare(current_password, s.password_hash || '');
+      if (!ok) return res.status(401).json({ error: 'Senha atual incorreta' });
+    }
+    const hash = await bcrypt.hash(String(new_password), 10);
+    await query('UPDATE ead_students SET password_hash=$1, must_change_password=false WHERE id=$2', [hash, req.studentId]);
+    res.json({ ok: true });
+  } catch (e) { console.error('change-password', e); res.status(500).json({ error: 'Erro ao trocar senha' }); }
+});
+
 router.get('/auth/me', studentAuth, async (req, res) => {
   const r = await query(
-    `SELECT s.id, s.cpf, s.name, s.email, s.company, s.city, s.state, s.phone, s.status, s.created_at,
+    `SELECT s.id, s.cpf, s.name, s.email, s.company, s.city, s.state, s.phone, s.status, s.created_at, s.must_change_password,
             b.id AS brand_id, b.slug AS brand_slug, b.name AS brand_name, b.logo_url AS brand_logo, b.cover_url AS brand_cover_url,
             b.primary_color AS brand_primary, b.accent_color AS brand_accent
      FROM ead_students s LEFT JOIN ead_brands b ON b.id = s.brand_id WHERE s.id = $1`, [req.studentId]);
   if (!r.rows.length) return res.status(404).json({ error: 'Não encontrado' });
   res.json({ student: r.rows[0] });
 });
+
 
 // =========================================================================
 // PUBLIC BRAND ENDPOINTS (per-brand signup link)
@@ -147,16 +173,16 @@ router.post('/brand/:slug/signup', async (req, res) => {
     let cpf = String(body.cpf || '').replace(/\D/g, '');
     const email = String(body.email || '').trim().toLowerCase();
     const name = String(body.name || '').trim();
-    const password = String(body.password || '');
     const phone = String(body.phone || '').replace(/\D/g, '') || null;
     const company = body.company || null;
     const city = body.city || null;
     const state = body.state || null;
 
-    // basic validation against brand-declared required fields
+    // basic validation against brand-declared required fields (senha é gerada na aprovação)
     const known = new Set(['name','cpf','email','password','phone','company','city','state']);
     const extra = {};
     for (const f of fields) {
+      if (f.key === 'password') continue; // ignorado - senha é gerada automaticamente
       const val = body[f.key];
       if (f.required && (val === undefined || val === null || String(val).trim() === '')) {
         return res.status(400).json({ error: `Campo obrigatório: ${f.label || f.key}` });
@@ -164,9 +190,8 @@ router.post('/brand/:slug/signup', async (req, res) => {
       if (!known.has(f.key) && val !== undefined) extra[f.key] = val;
     }
 
-    if (!cpf || !name || !email || !password) return res.status(400).json({ error: 'Preencha nome, CPF, e-mail e senha' });
+    if (!cpf || !name || !email) return res.status(400).json({ error: 'Preencha nome, CPF e e-mail' });
     if (!isValidCPF(cpf)) return res.status(400).json({ error: 'CPF inválido' });
-    if (password.length < 6) return res.status(400).json({ error: 'Senha deve ter ao menos 6 caracteres' });
 
     const dup = await query('SELECT id, status FROM ead_students WHERE cpf = $1 OR lower(email) = $2 LIMIT 1', [cpf, email]);
     if (dup.rows.length) {
@@ -175,14 +200,14 @@ router.post('/brand/:slug/signup', async (req, res) => {
       return res.status(400).json({ error: 'CPF ou e-mail já cadastrados' });
     }
 
-    const hash = await bcrypt.hash(password, 10);
     const r = await query(
       `INSERT INTO ead_students (cpf, name, email, password_hash, company, city, state, phone, brand_id, status, extra_fields)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'pending',$10)
+       VALUES ($1,$2,$3,NULL,$4,$5,$6,$7,$8,'pending',$9)
        RETURNING id, name, email`,
-      [cpf, name, email, hash, company, city, state, phone, brand.id, JSON.stringify(extra)]
+      [cpf, name, email, company, city, state, phone, brand.id, JSON.stringify(extra)]
     );
-    res.status(201).json({ ok: true, student: r.rows[0], message: 'Cadastro enviado! Você receberá um aviso por WhatsApp/e-mail assim que for aprovado.' });
+    res.status(201).json({ ok: true, student: r.rows[0], message: 'Cadastro enviado! Assim que aprovado, você receberá sua senha temporária por WhatsApp/e-mail.' });
+
   } catch (e) {
     console.error('brand signup error', e);
     res.status(500).json({ error: 'Erro ao cadastrar' });
@@ -527,6 +552,8 @@ async function ensureEadApprovalSchema() {
     ALTER TABLE ead_students ADD COLUMN IF NOT EXISTS approved_at TIMESTAMPTZ;
     ALTER TABLE ead_students ADD COLUMN IF NOT EXISTS approved_by UUID REFERENCES users(id) ON DELETE SET NULL;
     ALTER TABLE ead_students ADD COLUMN IF NOT EXISTS rejected_reason TEXT;
+    ALTER TABLE ead_students ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN DEFAULT false;
+    ALTER TABLE ead_students ALTER COLUMN password_hash DROP NOT NULL;
     CREATE INDEX IF NOT EXISTS idx_ead_students_brand ON ead_students(brand_id);
     CREATE INDEX IF NOT EXISTS idx_ead_students_status ON ead_students(status);
     CREATE INDEX IF NOT EXISTS idx_ead_brands_slug ON ead_brands(slug);
@@ -539,7 +566,7 @@ async function runWithEadSchemaRetry(fn) {
     return await fn();
   } catch (error) {
     const message = String(error?.message || '');
-    if (!/(ead_students|ead_brands|status|brand_id|phone|extra_fields|approved_at|approved_by|rejected_reason)/i.test(message)) {
+    if (!/(ead_students|ead_brands|status|brand_id|phone|extra_fields|approved_at|approved_by|rejected_reason|must_change_password|password_hash)/i.test(message)) {
       throw error;
     }
     eadApprovalSchemaReady = false;
@@ -1013,15 +1040,17 @@ function appBaseUrl(req) {
   return String(raw).replace(/\/+$/, '');
 }
 
-async function notifyApproval(student, brand, baseUrl) {
+async function notifyApproval(student, brand, baseUrl, tempPassword) {
   const base = String(baseUrl || '').replace(/\/+$/, '');
   const link = brand?.slug ? `${base}/marca/${brand.slug}/login` : `${base}/ead/login`;
   const defaultTpl = brand?.name
-    ? `Olá {nome}! 🎉\n\nSeu cadastro na área *{marca}* foi aprovado com sucesso.\n\nAcesse agora seus cursos, manuais e a prova de certificação:\n{link}\n\nUse seu e-mail ({email}) e a senha cadastrada para entrar.`
-    : `Olá {nome}! Seu cadastro foi aprovado. Acesse: {link}`;
+    ? `Olá {nome}! 🎉\n\nSeu cadastro na área *{marca}* foi aprovado.\n\n🔐 *Suas credenciais de acesso:*\nE-mail: {email}\nSenha temporária: *{senha}*\n\nAcesse: {link}\n\nAo entrar pela primeira vez você será solicitado a criar uma nova senha.`
+    : `Olá {nome}! Cadastro aprovado.\nE-mail: {email}\nSenha temporária: {senha}\nAcesse: {link}`;
   const tpl = brand?.approval_message || defaultTpl;
-  const vars = { nome: student.name, marca: brand?.name || '', link, email: student.email, empresa: student.company || '' };
+  const senhaTxt = tempPassword || '(já definida)';
+  const vars = { nome: student.name, marca: brand?.name || '', link, email: student.email, empresa: student.company || '', senha: senhaTxt };
   const message = tpl.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? '');
+
 
   const result = { whatsapp: null, email: null };
 
@@ -1107,17 +1136,26 @@ admin.post('/students/:id/approve', gate('can_manage_ead'), async (req, res) => 
     const student = s.rows[0];
     if (student.status === 'approved') return res.status(400).json({ error: 'Já aprovado' });
     const b = student.brand_id ? (await runWithEadSchemaRetry(() => query('SELECT * FROM ead_brands WHERE id = $1', [student.brand_id]))).rows[0] : null;
-    await runWithEadSchemaRetry(() => query(`UPDATE ead_students SET status='approved', approved_at=NOW(), approved_by=$1 WHERE id=$2`, [req.userId, student.id]));
+
+    // Gera senha temporária
+    const tempPassword = genTempPassword(8);
+    const hash = await bcrypt.hash(tempPassword, 10);
+    await runWithEadSchemaRetry(() => query(
+      `UPDATE ead_students SET status='approved', approved_at=NOW(), approved_by=$1, password_hash=$2, must_change_password=true WHERE id=$3`,
+      [req.userId, hash, student.id]
+    ));
+
     // Fire-and-forget notification — never block the approve response
     const baseUrl = appBaseUrl(req);
     setImmediate(() => {
-      withTimeout(notifyApproval(student, b, baseUrl), 9000, 'Notificação de aprovação')
+      withTimeout(notifyApproval(student, b, baseUrl, tempPassword), 9000, 'Notificação de aprovação')
         .catch((err) => console.error('notifyApproval failed', err?.message || err));
     });
-    res.json({ ok: true, notify: { queued: true } });
+    res.json({ ok: true, temp_password: tempPassword, notify: { queued: true } });
 
   } catch (e) { console.error('approve', e); res.status(500).json({ error: 'Erro ao aprovar' }); }
 });
+
 
 admin.post('/students/:id/reject', gate('can_manage_ead'), async (req, res) => {
   try {
@@ -1136,13 +1174,26 @@ admin.post('/students/:id/resend-notification', gate('can_manage_ead'), async (r
     if (!s.rows.length) return res.status(404).json({ error: 'Não encontrado' });
     const student = s.rows[0];
     const b = student.brand_id ? (await runWithEadSchemaRetry(() => query('SELECT * FROM ead_brands WHERE id = $1', [student.brand_id]))).rows[0] : null;
-    const notify = await withTimeout(notifyApproval(student, b, appBaseUrl(req)), 9000, 'Notificação de aprovação').catch((e) => ({
+
+    // Se ainda não trocou a senha (ou nunca teve uma), regera uma temporária para reenviar
+    let tempPassword = null;
+    if (!student.password_hash || student.must_change_password) {
+      tempPassword = genTempPassword(8);
+      const hash = await bcrypt.hash(tempPassword, 10);
+      await runWithEadSchemaRetry(() => query(
+        `UPDATE ead_students SET password_hash=$1, must_change_password=true WHERE id=$2`,
+        [hash, student.id]
+      ));
+    }
+
+    const notify = await withTimeout(notifyApproval(student, b, appBaseUrl(req), tempPassword), 9000, 'Notificação de aprovação').catch((e) => ({
       whatsapp: { success: false, error: e.message || 'Notificação não concluída' },
       email: { success: false, error: e.message || 'Notificação não concluída' },
     }));
-    res.json({ ok: true, notify });
+    res.json({ ok: true, temp_password: tempPassword, notify });
   } catch (e) { console.error(e); res.status(500).json({ error: 'Erro ao reenviar' }); }
 });
+
 
 admin.patch('/students/:id', gate('can_manage_ead'), async (req, res) => {
   try {

@@ -18,7 +18,7 @@ function maskCpf(v: string) {
 }
 
 export default function EadSignup() {
-  const [form, setForm] = useState({ cpf: '', name: '', email: '', password: '', company: '', city: '', state: '' });
+  const [form, setForm] = useState({ cpf: '', name: '', email: '', company: '', city: '', state: '' });
   const [loading, setLoading] = useState(false);
   const nav = useNavigate();
 
@@ -50,7 +50,10 @@ export default function EadSignup() {
             <div><Label>CPF</Label><Input value={form.cpf} onChange={e => setField('cpf', maskCpf(e.target.value))} required placeholder="000.000.000-00" /></div>
             <div><Label>Empresa</Label><Input value={form.company} onChange={e => setField('company', e.target.value)} /></div>
             <div className="sm:col-span-2"><Label>Email</Label><Input type="email" value={form.email} onChange={e => setField('email', e.target.value)} required /></div>
-            <div className="sm:col-span-2"><Label>Senha</Label><Input type="password" value={form.password} onChange={e => setField('password', e.target.value)} required minLength={6} /></div>
+            <div className="sm:col-span-2 rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground">
+              Após a aprovação do seu cadastro, você receberá uma <strong>senha temporária</strong> por WhatsApp/E-mail e poderá defini-la no primeiro acesso.
+            </div>
+
             <div><Label>Cidade</Label><Input value={form.city} onChange={e => setField('city', e.target.value)} /></div>
             <div>
               <Label>Estado</Label>
