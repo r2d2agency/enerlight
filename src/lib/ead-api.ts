@@ -25,7 +25,9 @@ export interface EadStudent {
   brand_cover_url?: string | null;
   brand_primary?: string | null;
   brand_accent?: string | null;
+  must_change_password?: boolean;
 }
+
 
 async function fetchEad(endpoint: string, init: RequestInit): Promise<Response> {
   const res = await fetch(`${API_URL}${endpoint}`, init);
