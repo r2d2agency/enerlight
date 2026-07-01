@@ -52,13 +52,10 @@ export default function EadBrandSignup() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!slug) return;
-    if (data.password && data.password !== passwordConfirm) {
-      toast.error('As senhas não conferem');
-      return;
-    }
     setSubmitting(true);
     try {
       const payload: any = { ...data };
+      delete payload.password;
       if (payload.cpf) payload.cpf = String(payload.cpf).replace(/\D/g, '');
       if (payload.phone) payload.phone = String(payload.phone).replace(/\D/g, '');
       const r = await eadApi.brandSignup(slug, payload);
@@ -67,6 +64,7 @@ export default function EadBrandSignup() {
       toast.error(e.message || 'Erro ao cadastrar');
     } finally { setSubmitting(false); }
   }
+
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
