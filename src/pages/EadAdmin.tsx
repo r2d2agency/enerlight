@@ -72,7 +72,7 @@ export default function EadAdmin() {
             {tab === 'courses' && <CoursesTab courses={courses} canManage={!!canManage} reload={reload} onOpen={setActiveCourse} />}
           </TabsContent>
           <TabsContent value="students" className="mt-4">
-            {tab === 'students' && <StudentsTab students={students} />}
+            {tab === 'students' && <StudentsTab students={students} onReload={reload} />}
           </TabsContent>
           <TabsContent value="certs" className="mt-4">
             {tab === 'certs' && <CertsTab certs={certs} />}
