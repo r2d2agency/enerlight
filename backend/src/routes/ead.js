@@ -1016,17 +1016,38 @@ async function notifyApproval(student, brand, baseUrl) {
   const message = tpl.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? '');
   const result = { whatsapp: null, email: null };
 
-  // WhatsApp
-  if (brand?.notify_connection_id && student.phone) {
+  // WhatsApp — usa conexão configurada na marca, ou fallback para qualquer conexão ativa da organização
+  if (student.phone) {
     try {
-      const c = await query('SELECT * FROM connections WHERE id = $1', [brand.notify_connection_id]);
-      if (c.rows[0]) {
-        const r = await sendWhatsapp(c.rows[0], student.phone, message, 'text');
+      let conn = null;
+      if (brand?.notify_connection_id) {
+        const c = await query('SELECT * FROM connections WHERE id = $1', [brand.notify_connection_id]);
+        conn = c.rows[0] || null;
+      }
+      if (!conn) {
+        const orgId = brand?.organization_id || student.organization_id;
+        if (orgId) {
+          const c = await query(
+            `SELECT * FROM connections WHERE organization_id = $1
+             ORDER BY CASE WHEN status = 'connected' THEN 0 ELSE 1 END, created_at ASC LIMIT 1`,
+            [orgId]
+          );
+          conn = c.rows[0] || null;
+        }
+      }
+      if (conn) {
+        const r = await sendWhatsapp(conn, student.phone, message, 'text');
         result.whatsapp = r;
-      } else result.whatsapp = { success: false, error: 'Conexão não encontrada' };
-    } catch (e) { result.whatsapp = { success: false, error: e.message }; }
+        console.log('[EAD notify] whatsapp', { studentId: student.id, connId: conn.id, r });
+      } else {
+        result.whatsapp = { success: false, error: 'Nenhuma conexão WhatsApp disponível' };
+      }
+    } catch (e) {
+      console.error('[EAD notify] whatsapp error', e);
+      result.whatsapp = { success: false, error: e.message };
+    }
   } else {
-    result.whatsapp = { success: false, error: !brand?.notify_connection_id ? 'Sem conexão configurada' : 'Aluno sem telefone' };
+    result.whatsapp = { success: false, error: 'Aluno sem telefone' };
   }
 
   // E-mail (via org SMTP)
