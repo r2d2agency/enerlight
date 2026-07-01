@@ -96,6 +96,17 @@ export default function EadBrandLogin() {
           </CardContent>
         </Card>
       </div>
+      <EadChangePasswordDialog
+        open={mustChange}
+        forced
+        primaryColor={primary}
+        onDone={() => {
+          setMustChange(false);
+          toast.success('Senha atualizada! Aproveite os treinamentos.');
+          nav(pendingSlug ? `/marca/${pendingSlug}/inicio` : '/ead');
+        }}
+      />
     </div>
   );
 }
+
