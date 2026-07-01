@@ -52,6 +52,10 @@ export default function EadBrandSignup() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!slug) return;
+    if (data.password && data.password !== passwordConfirm) {
+      toast.error('As senhas não conferem');
+      return;
+    }
     setSubmitting(true);
     try {
       const payload: any = { ...data };
