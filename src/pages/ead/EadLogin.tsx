@@ -7,11 +7,14 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Loader2, GraduationCap } from 'lucide-react';
+import EadChangePasswordDialog from './EadChangePasswordDialog';
 
 export default function EadLogin() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [mustChange, setMustChange] = useState(false);
+  const [pendingSlug, setPendingSlug] = useState<string | null>(null);
   const nav = useNavigate();
 
   async function submit(e: React.FormEvent) {
@@ -20,9 +23,14 @@ export default function EadLogin() {
     try {
       const r = await eadApi.login(email, password);
       eadToken.set(r.token);
-      toast.success(`Bem-vindo(a), ${r.student.name}!`);
       const slug = (r.student as any).brand_slug;
-      nav(slug ? `/marca/${slug}/inicio` : '/ead');
+      setPendingSlug(slug || null);
+      if (r.student.must_change_password) {
+        setMustChange(true);
+      } else {
+        toast.success(`Bem-vindo(a), ${r.student.name}!`);
+        nav(slug ? `/marca/${slug}/inicio` : '/ead');
+      }
     } catch (e: any) {
       toast.error(e.message || 'Erro ao entrar');
     } finally { setLoading(false); }
@@ -49,6 +57,15 @@ export default function EadLogin() {
           </form>
         </CardContent>
       </Card>
+      <EadChangePasswordDialog
+        open={mustChange}
+        forced
+        onDone={() => {
+          setMustChange(false);
+          toast.success('Senha atualizada!');
+          nav(pendingSlug ? `/marca/${pendingSlug}/inicio` : '/ead');
+        }}
+      />
     </div>
   );
 }
