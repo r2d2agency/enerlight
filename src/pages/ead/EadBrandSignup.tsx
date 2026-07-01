@@ -114,7 +114,7 @@ export default function EadBrandSignup() {
         <div className="max-w-5xl mx-auto px-4 py-5 sm:py-6 flex items-center justify-center gap-3">
           {logo ? (
             <div className="bg-white rounded-xl px-4 py-2 shadow-md flex items-center justify-center">
-              <img src={logo} alt={brand.name} className="h-10 sm:h-12 object-contain" />
+              <img src={logo} alt={brand.name} className="w-[100px] h-auto max-h-20 object-contain" />
             </div>
           ) : (
             <GraduationCap className="h-10 w-10 text-white" />
