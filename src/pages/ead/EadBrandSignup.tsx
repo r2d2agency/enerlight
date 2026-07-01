@@ -180,7 +180,7 @@ export default function EadBrandSignup() {
                   Enviar cadastro
                 </Button>
                 <p className="text-center text-sm mt-4 text-muted-foreground">
-                  Já tem acesso? <Link to="/ead/login" className="font-medium" style={{ color: primary }}>Entrar</Link>
+                  Já tem acesso? <Link to={`/marca/${slug}/login`} className="font-medium" style={{ color: primary }}>Entrar</Link>
                 </p>
               </div>
             </form>
