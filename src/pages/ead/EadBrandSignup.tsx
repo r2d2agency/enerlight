@@ -105,73 +105,72 @@ export default function EadBrandSignup() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: `linear-gradient(135deg, ${primary}10, ${accent}20)` }}>
-      {/* Thin brand header strip */}
-      <div
-        className="relative overflow-hidden shrink-0"
-        style={cover ? { backgroundImage: `linear-gradient(135deg, ${primary}cc, ${accent}dd), url(${cover})`, backgroundSize: 'cover', backgroundPosition: 'center' } : { background: `linear-gradient(135deg, ${primary}, ${accent})` }}
-      >
-        <div className="max-w-5xl mx-auto px-4 py-5 sm:py-6 flex items-center justify-center gap-3">
-          {logo ? (
-            <div className="bg-white rounded-xl px-4 py-2 shadow-md flex items-center justify-center">
-              <img src={logo} alt={brand.name} className="w-[100px] h-auto max-h-20 object-contain" />
-            </div>
-          ) : (
-            <GraduationCap className="h-10 w-10 text-white" />
-          )}
-          <span className="text-white font-semibold text-lg sm:text-xl drop-shadow-sm">{brand.name}</span>
+    <EadBrandShell
+      brand={brand}
+      eyebrow="Cadastro"
+      title="Solicitar acesso"
+      subtitle="Preencha seus dados. Após a análise, você recebe suas credenciais por WhatsApp/e-mail."
+    >
+      <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
+        {fields.filter((f: any) => f.type !== 'password').map((f: any) => (
+          <div key={f.key} className={`space-y-1.5 ${f.key === 'email' || f.key === 'name' ? 'sm:col-span-2' : ''}`}>
+            <Label className="text-slate-700 text-sm font-medium">{f.label}{f.required && ' *'}</Label>
+            {f.type === 'uf' ? (
+              <select
+                className="w-full h-11 px-3 border border-slate-200 rounded-md bg-white text-slate-900 focus:outline-none focus:ring-2"
+                style={{ ['--tw-ring-color' as any]: primary }}
+                value={data[f.key] || ''}
+                onChange={e => setField(f.key, e.target.value)}
+                required={f.required}
+              >
+                <option value="">UF</option>
+                {UF.map(u => <option key={u} value={u}>{u}</option>)}
+              </select>
+            ) : f.type === 'cpf' ? (
+              <Input className="h-11 bg-white border-slate-200" value={data[f.key] || ''} onChange={e => setField(f.key, maskCpf(e.target.value))} required={f.required} placeholder="000.000.000-00" inputMode="numeric" />
+            ) : f.type === 'phone' ? (
+              <Input className="h-11 bg-white border-slate-200" value={data[f.key] || ''} onChange={e => setField(f.key, maskPhone(e.target.value))} required={f.required} placeholder="(11) 99999-9999" inputMode="tel" />
+            ) : (
+              <Input
+                className="h-11 bg-white border-slate-200"
+                type={f.type === 'email' ? 'email' : 'text'}
+                value={data[f.key] || ''}
+                onChange={e => setField(f.key, e.target.value)}
+                required={f.required}
+                autoComplete={f.type === 'email' ? 'email' : undefined}
+              />
+            )}
+            {f.key === 'email' && (
+              <p className="text-xs text-slate-500">Este e-mail será usado para o login.</p>
+            )}
+          </div>
+        ))}
+
+        <div className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 flex gap-3">
+          <span className="text-xl">🔐</span>
+          <span>Após a aprovação, você receberá uma <strong>senha temporária</strong> por WhatsApp/e-mail. No primeiro acesso será solicitado que você crie sua própria senha.</span>
         </div>
-      </div>
 
-      <div className="flex-1 max-w-2xl mx-auto w-full px-4 py-4 sm:py-6">
-        <Card className="shadow-xl border-0">
-          <CardContent className="p-5 sm:p-8">
-            <h2 className="text-xl font-semibold mb-1">Solicitar cadastro</h2>
-            <p className="text-sm text-muted-foreground mb-6">Após o envio, seu acesso será analisado e liberado manualmente. Você receberá um aviso por WhatsApp/e-mail.</p>
-            <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
-              {fields.filter((f: any) => f.type !== 'password').map((f: any) => (
-                <div key={f.key} className={f.key === 'email' || f.key === 'name' ? 'sm:col-span-2' : ''}>
-                  <Label>{f.label}{f.required && ' *'}</Label>
-                  {f.type === 'uf' ? (
-                    <select className="w-full h-10 px-3 border rounded-md bg-background" value={data[f.key] || ''} onChange={e => setField(f.key, e.target.value)} required={f.required}>
-                      <option value="">UF</option>
-                      {UF.map(u => <option key={u} value={u}>{u}</option>)}
-                    </select>
-                  ) : f.type === 'cpf' ? (
-                    <Input value={data[f.key] || ''} onChange={e => setField(f.key, maskCpf(e.target.value))} required={f.required} placeholder="000.000.000-00" inputMode="numeric" />
-                  ) : f.type === 'phone' ? (
-                    <Input value={data[f.key] || ''} onChange={e => setField(f.key, maskPhone(e.target.value))} required={f.required} placeholder="(11) 99999-9999" inputMode="tel" />
-                  ) : (
-                    <Input
-                      type={f.type === 'email' ? 'email' : 'text'}
-                      value={data[f.key] || ''}
-                      onChange={e => setField(f.key, e.target.value)}
-                      required={f.required}
-                      autoComplete={f.type === 'email' ? 'email' : undefined}
-                    />
-                  )}
-                  {f.key === 'email' && (
-                    <p className="text-xs text-muted-foreground mt-1">Este e-mail será usado para login.</p>
-                  )}
-                </div>
-              ))}
-              <div className="sm:col-span-2 rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground">
-                🔐 Após a aprovação, você receberá uma <strong>senha temporária</strong> por WhatsApp/e-mail. No primeiro acesso será solicitado que você crie sua própria senha.
-              </div>
-
-              <div className="sm:col-span-2 mt-2">
-                <Button type="submit" className="w-full text-white" disabled={submitting} style={{ background: primary }}>
-                  {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                  Enviar cadastro
-                </Button>
-                <p className="text-center text-sm mt-4 text-muted-foreground">
-                  Já tem acesso? <Link to={`/marca/${slug}/login`} className="font-medium" style={{ color: primary }}>Entrar</Link>
-                </p>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+        <div className="sm:col-span-2 space-y-4">
+          <Button
+            type="submit"
+            className="w-full h-12 text-white font-semibold text-base rounded-xl shadow-lg hover:opacity-95 transition group"
+            disabled={submitting}
+            style={{ background: `linear-gradient(135deg, ${primary}, ${accent})`, boxShadow: `0 10px 30px -10px ${primary}80` }}
+          >
+            {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+            Enviar cadastro
+            {!submitting && <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-0.5 transition" />}
+          </Button>
+          <p className="text-center text-sm text-slate-500">
+            Já tem acesso?{' '}
+            <Link to={`/marca/${slug}/login`} className="font-semibold hover:underline" style={{ color: primary }}>
+              Entrar
+            </Link>
+          </p>
+        </div>
+      </form>
+    </EadBrandShell>
   );
 }
+
