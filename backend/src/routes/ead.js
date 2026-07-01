@@ -827,7 +827,7 @@ admin.get('/students', gate('can_view_ead'), async (req, res) => {
   try {
     await ensureEadApprovalSchema();
     const r = await runWithEadSchemaRetry(() => query(
-      `SELECT s.id, s.name, s.cpf, s.email, s.phone, s.company, s.city, s.state, s.status, s.created_at,
+      `SELECT s.id, s.name, s.cpf, s.email, s.phone, s.company, s.city, s.state, s.status, s.extra_fields, s.approved_at, s.created_at,
          s.brand_id, b.name AS brand_name, b.slug AS brand_slug,
          (SELECT COUNT(*)::int FROM ead_certificates c WHERE c.student_id = s.id) AS certificate_count,
          (SELECT COUNT(*)::int FROM ead_enrollments e WHERE e.student_id = s.id) AS enrollment_count
