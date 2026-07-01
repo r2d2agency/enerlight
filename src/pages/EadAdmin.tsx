@@ -696,6 +696,13 @@ function QuestionsManager({ courseId, canManage }: { courseId: string; canManage
 function StudentsTab({ students, onReload }: { students: any[]; onReload: () => void }) {
   const [brands, setBrands] = useState<any[]>([]);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [brandFilter, setBrandFilter] = useState<string>('__all__');
+  const [companyFilter, setCompanyFilter] = useState<string>('__all__');
+  const [statusFilter, setStatusFilter] = useState<string>('__all__');
+  const [detail, setDetail] = useState<any | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+
   useEffect(() => { eadAdminApi.brands().then(setBrands).catch(() => {}); }, []);
 
   const statusBadge = (s: string) => {
@@ -734,51 +741,269 @@ function StudentsTab({ students, onReload }: { students: any[]; onReload: () => 
     finally { setSavingId(null); }
   }
 
+  async function openDetail(id: string) {
+    setDetailLoading(true);
+    setDetail({ loading: true });
+    try {
+      const d = await eadAdminApi.student(id);
+      setDetail(d);
+    } catch (e: any) { toast.error(e.message || 'Erro ao carregar'); setDetail(null); }
+    finally { setDetailLoading(false); }
+  }
+
+  const companies = Array.from(new Set(students.map(s => (s.company || '').trim()).filter(Boolean))).sort();
+
+  const filtered = students.filter(s => {
+    if (brandFilter !== '__all__') {
+      if (brandFilter === '__none__') { if (s.brand_id) return false; }
+      else if (s.brand_id !== brandFilter) return false;
+    }
+    if (companyFilter !== '__all__') {
+      if (companyFilter === '__none__') { if ((s.company || '').trim()) return false; }
+      else if ((s.company || '').trim() !== companyFilter) return false;
+    }
+    if (statusFilter !== '__all__' && (s.status || 'approved') !== statusFilter) return false;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      const hay = [s.name, s.email, s.cpf, s.phone, s.company, s.city, s.state, s.brand_name].filter(Boolean).join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  function exportCsv() {
+    if (!filtered.length) { toast.error('Nenhum aluno para exportar'); return; }
+    const headers = ['Nome','CPF','Email','Telefone','Empresa','Cidade','UF','Marca','Status','Inscrições','Certificados','Aprovado em','Cadastro em','Campos extras'];
+    const escape = (v: any) => {
+      const s = v == null ? '' : String(v);
+      return `"${s.replace(/"/g, '""')}"`;
+    };
+    const rows = filtered.map(s => [
+      s.name, s.cpf, s.email, s.phone || '', s.company || '', s.city || '', s.state || '',
+      s.brand_name || '', s.status || 'approved', s.enrollment_count, s.certificate_count,
+      s.approved_at ? new Date(s.approved_at).toLocaleString('pt-BR') : '',
+      s.created_at ? new Date(s.created_at).toLocaleString('pt-BR') : '',
+      s.extra_fields && typeof s.extra_fields === 'object' ? JSON.stringify(s.extra_fields) : '',
+    ].map(escape).join(','));
+    const csv = '\ufeff' + [headers.map(escape).join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const suffix = companyFilter !== '__all__' && companyFilter !== '__none__' ? `_${companyFilter}` : '';
+    a.download = `alunos_ead${suffix}_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   return (
-    <Card><CardContent className="p-0">
-      <Table>
-        <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>CPF</TableHead><TableHead>Email</TableHead><TableHead>Marca</TableHead><TableHead>Status</TableHead><TableHead>Empresa</TableHead><TableHead>Cidade/UF</TableHead><TableHead>Inscrições</TableHead><TableHead>Certificados</TableHead><TableHead>Ações</TableHead></TableRow></TableHeader>
-        <TableBody>
-          {students.map(s => (
-            <TableRow key={s.id}>
-              <TableCell className="font-medium">{s.name}</TableCell>
-              <TableCell className="font-mono text-xs">{s.cpf}</TableCell>
-              <TableCell>{s.email}</TableCell>
-              <TableCell>
-                <Select value={s.brand_id || '__none__'} onValueChange={(v) => changeBrand(s.id, v)} disabled={savingId === s.id}>
-                  <SelectTrigger className="h-8 w-[180px]"><SelectValue placeholder="Sem marca" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">Sem marca</SelectItem>
-                    {brands.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </TableCell>
-              <TableCell>{statusBadge(s.status || 'approved')}</TableCell>
-              <TableCell>{s.company || '-'}</TableCell>
-              <TableCell>{[s.city, s.state].filter(Boolean).join(' / ') || '-'}</TableCell>
-              <TableCell>{s.enrollment_count}</TableCell>
-              <TableCell><Badge>{s.certificate_count}</Badge></TableCell>
-              <TableCell>
-                {s.status === 'pending' ? (
-                  <div className="flex gap-1">
+    <div className="space-y-3">
+      <Card>
+        <CardContent className="p-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
+            <div className="md:col-span-2">
+              <Label className="text-xs">Buscar</Label>
+              <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Nome, CPF, email, telefone..." />
+            </div>
+            <div>
+              <Label className="text-xs">Marca</Label>
+              <Select value={brandFilter} onValueChange={setBrandFilter}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">Todas</SelectItem>
+                  <SelectItem value="__none__">Sem marca</SelectItem>
+                  {brands.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Empresa</Label>
+              <Select value={companyFilter} onValueChange={setCompanyFilter}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">Todas</SelectItem>
+                  <SelectItem value="__none__">Sem empresa</SelectItem>
+                  {companies.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Status</Label>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">Todos</SelectItem>
+                  <SelectItem value="approved">Aprovado</SelectItem>
+                  <SelectItem value="pending">Pendente</SelectItem>
+                  <SelectItem value="rejected">Rejeitado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex items-center justify-between mt-3">
+            <span className="text-sm text-muted-foreground">{filtered.length} de {students.length} alunos</span>
+            <Button size="sm" variant="outline" onClick={exportCsv}><Download className="h-4 w-4 mr-1" /> Exportar CSV</Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card><CardContent className="p-0">
+        <Table>
+          <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>CPF</TableHead><TableHead>Email</TableHead><TableHead>Marca</TableHead><TableHead>Status</TableHead><TableHead>Empresa</TableHead><TableHead>Cidade/UF</TableHead><TableHead>Insc.</TableHead><TableHead>Cert.</TableHead><TableHead>Ações</TableHead></TableRow></TableHeader>
+          <TableBody>
+            {filtered.map(s => (
+              <TableRow key={s.id} className="cursor-pointer" onClick={(e) => {
+                if ((e.target as HTMLElement).closest('button,[role="combobox"],select,input')) return;
+                openDetail(s.id);
+              }}>
+                <TableCell className="font-medium text-primary hover:underline">{s.name}</TableCell>
+                <TableCell className="font-mono text-xs">{s.cpf}</TableCell>
+                <TableCell>{s.email}</TableCell>
+                <TableCell onClick={e => e.stopPropagation()}>
+                  <Select value={s.brand_id || '__none__'} onValueChange={(v) => changeBrand(s.id, v)} disabled={savingId === s.id}>
+                    <SelectTrigger className="h-8 w-[180px]"><SelectValue placeholder="Sem marca" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Sem marca</SelectItem>
+                      {brands.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </TableCell>
+                <TableCell>{statusBadge(s.status || 'approved')}</TableCell>
+                <TableCell>{s.company || '-'}</TableCell>
+                <TableCell>{[s.city, s.state].filter(Boolean).join(' / ') || '-'}</TableCell>
+                <TableCell>{s.enrollment_count}</TableCell>
+                <TableCell><Badge>{s.certificate_count}</Badge></TableCell>
+                <TableCell onClick={e => e.stopPropagation()}>
+                  {s.status === 'pending' ? (
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="default" disabled={savingId === s.id} onClick={() => approve(s.id)}>Aprovar</Button>
+                      <Button size="sm" variant="outline" disabled={savingId === s.id} onClick={() => reject(s.id)}>Rejeitar</Button>
+                    </div>
+                  ) : s.status === 'rejected' ? (
                     <Button size="sm" variant="default" disabled={savingId === s.id} onClick={() => approve(s.id)}>Aprovar</Button>
-                    <Button size="sm" variant="outline" disabled={savingId === s.id} onClick={() => reject(s.id)}>Rejeitar</Button>
-                  </div>
-                ) : s.status === 'rejected' ? (
-                  <Button size="sm" variant="default" disabled={savingId === s.id} onClick={() => approve(s.id)}>Aprovar</Button>
-                ) : (
-                  <Button size="sm" variant="outline" disabled={savingId === s.id} onClick={() => resend(s.id)}>Notificar</Button>
-                )}
+                  ) : (
+                    <Button size="sm" variant="outline" disabled={savingId === s.id} onClick={() => resend(s.id)}>Notificar</Button>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+            {!filtered.length && <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">Nenhum aluno encontrado.</TableCell></TableRow>}
+          </TableBody>
+        </Table>
+      </CardContent></Card>
 
-              </TableCell>
-            </TableRow>
-          ))}
-          {!students.length && <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">Nenhum aluno cadastrado.</TableCell></TableRow>}
-        </TableBody>
-      </Table>
-    </CardContent></Card>
+      <Dialog open={!!detail} onOpenChange={(o) => { if (!o) setDetail(null); }}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Detalhes do aluno</DialogTitle>
+          </DialogHeader>
+          {detailLoading || detail?.loading ? (
+            <div className="py-10 flex justify-center"><Loader2 className="animate-spin h-6 w-6" /></div>
+          ) : detail?.student ? (
+            <StudentDetailView data={detail} />
+          ) : null}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
 
+function StudentDetailView({ data }: { data: any }) {
+  const s = data.student;
+  const extras: [string, any][] = s.extra_fields && typeof s.extra_fields === 'object'
+    ? Object.entries(s.extra_fields).filter(([, v]) => v != null && v !== '')
+    : [];
+  const Field = ({ label, value }: { label: string; value: any }) => (
+    <div>
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="text-sm font-medium break-words">{value || '-'}</div>
+    </div>
+  );
+  const fmt = (d?: string) => d ? new Date(d).toLocaleString('pt-BR') : '-';
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardContent className="p-4 grid grid-cols-2 md:grid-cols-3 gap-3">
+          <Field label="Nome" value={s.name} />
+          <Field label="CPF" value={s.cpf} />
+          <Field label="Status" value={s.status || 'approved'} />
+          <Field label="Email" value={s.email} />
+          <Field label="Telefone/WhatsApp" value={s.phone} />
+          <Field label="Marca" value={s.brand_name} />
+          <Field label="Empresa" value={s.company} />
+          <Field label="Cidade" value={s.city} />
+          <Field label="UF" value={s.state} />
+          <Field label="Cadastrado em" value={fmt(s.created_at)} />
+          <Field label="Aprovado em" value={fmt(s.approved_at)} />
+          <Field label="Aprovado por" value={s.approved_by_name} />
+          {s.rejected_reason && <div className="col-span-full"><Field label="Motivo da rejeição" value={s.rejected_reason} /></div>}
+        </CardContent>
+      </Card>
+
+      {extras.length > 0 && (
+        <Card>
+          <CardHeader><CardTitle className="text-base">Campos extras do cadastro</CardTitle></CardHeader>
+          <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {extras.map(([k, v]) => <Field key={k} label={k} value={typeof v === 'object' ? JSON.stringify(v) : String(v)} />)}
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardHeader><CardTitle className="text-base">Inscrições ({data.enrollments?.length || 0})</CardTitle></CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader><TableRow><TableHead>Curso</TableHead><TableHead>Status</TableHead><TableHead>Início</TableHead><TableHead>Aprovação</TableHead></TableRow></TableHeader>
+            <TableBody>
+              {(data.enrollments || []).map((e: any) => (
+                <TableRow key={e.id}><TableCell>{e.course_title}</TableCell><TableCell>{e.status}</TableCell><TableCell>{fmt(e.created_at)}</TableCell><TableCell>{fmt(e.approved_at)}</TableCell></TableRow>
+              ))}
+              {!data.enrollments?.length && <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-4">Sem inscrições</TableCell></TableRow>}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base">Tentativas de prova ({data.attempts?.length || 0})</CardTitle></CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader><TableRow><TableHead>Curso</TableHead><TableHead>Nota</TableHead><TableHead>Acertos</TableHead><TableHead>Aprovado</TableHead><TableHead>Data</TableHead></TableRow></TableHeader>
+            <TableBody>
+              {(data.attempts || []).map((a: any) => (
+                <TableRow key={a.id}>
+                  <TableCell>{a.course_title}</TableCell>
+                  <TableCell>{a.score}%</TableCell>
+                  <TableCell>{a.correct}/{a.total}</TableCell>
+                  <TableCell>{a.passed ? <Badge variant="secondary">Sim</Badge> : <Badge variant="destructive">Não</Badge>}</TableCell>
+                  <TableCell>{fmt(a.created_at)}</TableCell>
+                </TableRow>
+              ))}
+              {!data.attempts?.length && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-4">Sem tentativas</TableCell></TableRow>}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base">Certificados ({data.certificates?.length || 0})</CardTitle></CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader><TableRow><TableHead>Curso</TableHead><TableHead>Emitido em</TableHead><TableHead></TableHead></TableRow></TableHeader>
+            <TableBody>
+              {(data.certificates || []).map((c: any) => (
+                <TableRow key={c.id}>
+                  <TableCell>{c.course_title}</TableCell>
+                  <TableCell>{fmt(c.issued_at)}</TableCell>
+                  <TableCell><a href={resolveMediaUrl(c.pdf_url)} target="_blank" rel="noreferrer" className="text-primary hover:underline text-sm">Baixar PDF</a></TableCell>
+                </TableRow>
+              ))}
+              {!data.certificates?.length && <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-4">Sem certificados</TableCell></TableRow>}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
