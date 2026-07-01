@@ -93,7 +93,7 @@ export default function EadBrandSignup() {
       <div className="min-h-screen flex items-center justify-center p-4" style={{ background: `linear-gradient(135deg, ${primary}15, ${accent}25)` }}>
         <Card className="max-w-md w-full">
           <CardContent className="py-12 text-center space-y-4">
-            {logo ? <img src={logo} alt={brand.name} className="h-16 mx-auto object-contain" /> : <GraduationCap className="h-12 w-12 mx-auto" style={{ color: primary }} />}
+            {logo ? <img src={logo} alt={brand.name} className="block mx-auto object-contain" style={{ width: '100px', height: 'auto' }} /> : <GraduationCap className="h-12 w-12 mx-auto" style={{ color: primary }} />}
             <CheckCircle2 className="h-14 w-14 mx-auto text-green-500" />
             <h2 className="text-2xl font-bold">Cadastro recebido!</h2>
             <p className="text-muted-foreground">{success}</p>
