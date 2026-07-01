@@ -1136,17 +1136,26 @@ admin.post('/students/:id/approve', gate('can_manage_ead'), async (req, res) => 
     const student = s.rows[0];
     if (student.status === 'approved') return res.status(400).json({ error: 'Já aprovado' });
     const b = student.brand_id ? (await runWithEadSchemaRetry(() => query('SELECT * FROM ead_brands WHERE id = $1', [student.brand_id]))).rows[0] : null;
-    await runWithEadSchemaRetry(() => query(`UPDATE ead_students SET status='approved', approved_at=NOW(), approved_by=$1 WHERE id=$2`, [req.userId, student.id]));
+
+    // Gera senha temporária
+    const tempPassword = genTempPassword(8);
+    const hash = await bcrypt.hash(tempPassword, 10);
+    await runWithEadSchemaRetry(() => query(
+      `UPDATE ead_students SET status='approved', approved_at=NOW(), approved_by=$1, password_hash=$2, must_change_password=true WHERE id=$3`,
+      [req.userId, hash, student.id]
+    ));
+
     // Fire-and-forget notification — never block the approve response
     const baseUrl = appBaseUrl(req);
     setImmediate(() => {
-      withTimeout(notifyApproval(student, b, baseUrl), 9000, 'Notificação de aprovação')
+      withTimeout(notifyApproval(student, b, baseUrl, tempPassword), 9000, 'Notificação de aprovação')
         .catch((err) => console.error('notifyApproval failed', err?.message || err));
     });
-    res.json({ ok: true, notify: { queued: true } });
+    res.json({ ok: true, temp_password: tempPassword, notify: { queued: true } });
 
   } catch (e) { console.error('approve', e); res.status(500).json({ error: 'Erro ao aprovar' }); }
 });
+
 
 admin.post('/students/:id/reject', gate('can_manage_ead'), async (req, res) => {
   try {
