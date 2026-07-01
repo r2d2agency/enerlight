@@ -111,21 +111,41 @@ router.post('/auth/login', async (req, res) => {
     if (s.status === 'pending') return res.status(403).json({ error: 'Seu cadastro está em análise. Você receberá um aviso por WhatsApp/e-mail quando for liberado.', status: 'pending' });
     if (s.status === 'rejected') return res.status(403).json({ error: 'Cadastro não aprovado. Entre em contato com o administrador.', status: 'rejected' });
     const { password_hash, ...student } = s;
-    res.json({ student, token: signStudent(s) });
+    res.json({ student: { ...student, must_change_password: !!s.must_change_password }, token: signStudent(s) });
   } catch (e) {
     console.error(e); res.status(500).json({ error: 'Erro ao entrar' });
   }
 });
 
+router.post('/auth/change-password', studentAuth, async (req, res) => {
+  try {
+    const { current_password, new_password } = req.body || {};
+    if (!new_password || String(new_password).length < 6) return res.status(400).json({ error: 'A nova senha deve ter ao menos 6 caracteres' });
+    const r = await query('SELECT id, password_hash, must_change_password FROM ead_students WHERE id = $1', [req.studentId]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Não encontrado' });
+    const s = r.rows[0];
+    // If not forced change, require current password
+    if (!s.must_change_password) {
+      if (!current_password) return res.status(400).json({ error: 'Informe a senha atual' });
+      const ok = await bcrypt.compare(current_password, s.password_hash || '');
+      if (!ok) return res.status(401).json({ error: 'Senha atual incorreta' });
+    }
+    const hash = await bcrypt.hash(String(new_password), 10);
+    await query('UPDATE ead_students SET password_hash=$1, must_change_password=false WHERE id=$2', [hash, req.studentId]);
+    res.json({ ok: true });
+  } catch (e) { console.error('change-password', e); res.status(500).json({ error: 'Erro ao trocar senha' }); }
+});
+
 router.get('/auth/me', studentAuth, async (req, res) => {
   const r = await query(
-    `SELECT s.id, s.cpf, s.name, s.email, s.company, s.city, s.state, s.phone, s.status, s.created_at,
+    `SELECT s.id, s.cpf, s.name, s.email, s.company, s.city, s.state, s.phone, s.status, s.created_at, s.must_change_password,
             b.id AS brand_id, b.slug AS brand_slug, b.name AS brand_name, b.logo_url AS brand_logo, b.cover_url AS brand_cover_url,
             b.primary_color AS brand_primary, b.accent_color AS brand_accent
      FROM ead_students s LEFT JOIN ead_brands b ON b.id = s.brand_id WHERE s.id = $1`, [req.studentId]);
   if (!r.rows.length) return res.status(404).json({ error: 'Não encontrado' });
   res.json({ student: r.rows[0] });
 });
+
 
 // =========================================================================
 // PUBLIC BRAND ENDPOINTS (per-brand signup link)
