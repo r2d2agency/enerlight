@@ -172,7 +172,7 @@ export default function EadBrandSignup() {
                       )}
                     </div>
                   )}
-                </>
+                </div>
               ))}
               <div className="sm:col-span-2 mt-2">
                 <Button type="submit" className="w-full text-white" disabled={submitting} style={{ background: primary }}>
