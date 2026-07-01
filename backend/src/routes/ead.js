@@ -975,9 +975,12 @@ admin.get('/brands-meta/connections', gate('can_view_ead'), async (req, res) => 
   const orgId = await getAdminOrgId(req.userId);
   if (!orgId) return res.json([]);
   const r = await query(
-    `SELECT id, instance_name, provider, status FROM connections WHERE organization_id = $1 ORDER BY instance_name`,
+    `SELECT id, instance_name, instance_id, phone_number, provider, status
+     FROM connections WHERE organization_id = $1
+     ORDER BY CASE WHEN status = 'connected' THEN 0 ELSE 1 END, instance_name NULLS LAST, created_at`,
     [orgId]
   );
+
   res.json(r.rows);
 });
 
