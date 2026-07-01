@@ -1,6 +1,7 @@
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
+import "@fontsource/archivo-black/400.css";
 
 // Initialize PWA install prompt handler
 import "./lib/pwa";
