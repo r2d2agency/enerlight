@@ -975,9 +975,12 @@ admin.get('/brands-meta/connections', gate('can_view_ead'), async (req, res) => 
   const orgId = await getAdminOrgId(req.userId);
   if (!orgId) return res.json([]);
   const r = await query(
-    `SELECT id, instance_name, provider, status FROM connections WHERE organization_id = $1 ORDER BY instance_name`,
+    `SELECT id, instance_name, instance_id, phone_number, provider, status
+     FROM connections WHERE organization_id = $1
+     ORDER BY CASE WHEN status = 'connected' THEN 0 ELSE 1 END, instance_name NULLS LAST, created_at`,
     [orgId]
   );
+
   res.json(r.rows);
 });
 
@@ -1006,14 +1009,20 @@ admin.get('/students/pending', gate('can_view_ead'), async (req, res) => {
 });
 
 function appBaseUrl(req) {
-  return process.env.APP_BASE_URL || process.env.FRONTEND_URL || `${req.protocol}://${req.get('host')}`;
+  const raw = process.env.APP_BASE_URL || process.env.FRONTEND_URL || `${req.protocol}://${req.get('host')}`;
+  return String(raw).replace(/\/+$/, '');
 }
 
 async function notifyApproval(student, brand, baseUrl) {
-  const link = brand?.slug ? `${baseUrl}/ead/login` : `${baseUrl}/ead/login`;
-  const tpl = brand?.approval_message || 'Olá {nome}! Seu cadastro foi aprovado. Acesse: {link}';
-  const vars = { nome: student.name, marca: brand?.name || '', link, email: student.email };
+  const base = String(baseUrl || '').replace(/\/+$/, '');
+  const link = brand?.slug ? `${base}/marca/${brand.slug}/login` : `${base}/ead/login`;
+  const defaultTpl = brand?.name
+    ? `Olá {nome}! 🎉\n\nSeu cadastro na área *{marca}* foi aprovado com sucesso.\n\nAcesse agora seus cursos, manuais e a prova de certificação:\n{link}\n\nUse seu e-mail ({email}) e a senha cadastrada para entrar.`
+    : `Olá {nome}! Seu cadastro foi aprovado. Acesse: {link}`;
+  const tpl = brand?.approval_message || defaultTpl;
+  const vars = { nome: student.name, marca: brand?.name || '', link, email: student.email, empresa: student.company || '' };
   const message = tpl.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? '');
+
   const result = { whatsapp: null, email: null };
 
   // WhatsApp — usa conexão configurada na marca, ou fallback para qualquer conexão ativa da organização

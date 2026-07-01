@@ -103,6 +103,7 @@ const EadCourse = lazyRetry(() => import("./pages/ead/EadCourse"));
 const EadQuiz = lazyRetry(() => import("./pages/ead/EadQuiz"));
 const EadCertificates = lazyRetry(() => import("./pages/ead/EadCertificates"));
 const EadBrandSignup = lazyRetry(() => import("./pages/ead/EadBrandSignup"));
+const EadBrandLogin = lazyRetry(() => import("./pages/ead/EadBrandLogin"));
 const EadAdmin = lazyRetry(() => import("./pages/EadAdmin"));
 
 
@@ -221,6 +222,8 @@ const App = () => (
               <Route path="/ead/cadastro" element={<EadSignup />} />
               {/* Brand-scoped portal (slug = brand) */}
               <Route path="/marca/:slug" element={<EadBrandSignup />} />
+              <Route path="/marca/:slug/login" element={<EadBrandLogin />} />
+              <Route path="/marca/:slug/cadastro" element={<EadBrandSignup />} />
               <Route path="/marca/:slug/inicio" element={<EadHome />} />
               <Route path="/marca/:slug/cursos" element={<EadCatalog />} />
               <Route path="/marca/:slug/manuais" element={<EadManuals />} />
