@@ -29,6 +29,7 @@ export default function EadBrandSignup() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [data, setData] = useState<Record<string, any>>({});
+  const [passwordConfirm, setPasswordConfirm] = useState('');
   const [success, setSuccess] = useState<string | null>(null);
   const nav = useNavigate();
 
