@@ -74,25 +74,23 @@ function isValidCPF(cpf) {
 
 router.post('/auth/register', async (req, res) => {
   try {
-    let { cpf, name, email, password, company, city, state } = req.body || {};
+    let { cpf, name, email, company, city, state } = req.body || {};
     cpf = String(cpf || '').replace(/\D/g, '');
     email = String(email || '').trim().toLowerCase();
     name = String(name || '').trim();
-    if (!cpf || !name || !email || !password) return res.status(400).json({ error: 'Preencha CPF, nome, email e senha' });
+    if (!cpf || !name || !email) return res.status(400).json({ error: 'Preencha CPF, nome e e-mail' });
     if (!isValidCPF(cpf)) return res.status(400).json({ error: 'CPF inválido' });
-    if (password.length < 6) return res.status(400).json({ error: 'Senha deve ter ao menos 6 caracteres' });
 
     const dup = await query('SELECT id FROM ead_students WHERE cpf = $1 OR lower(email) = $2 LIMIT 1', [cpf, email]);
     if (dup.rows.length) return res.status(400).json({ error: 'CPF ou email já cadastrados' });
 
-    const hash = await bcrypt.hash(password, 10);
     const r = await query(
       `INSERT INTO ead_students (cpf, name, email, password_hash, company, city, state, status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,'pending') RETURNING id, cpf, name, email, company, city, state, status, created_at`,
-      [cpf, name, email, hash, company || null, city || null, state || null]
+       VALUES ($1,$2,$3,NULL,$4,$5,$6,'pending') RETURNING id, cpf, name, email, company, city, state, status, created_at`,
+      [cpf, name, email, company || null, city || null, state || null]
     );
     const student = r.rows[0];
-    res.status(201).json({ student, pending: true, message: 'Cadastro recebido! Aguarde a liberação do administrador — você receberá um aviso por WhatsApp/e-mail.' });
+    res.status(201).json({ student, pending: true, message: 'Cadastro recebido! Aguarde a liberação — você receberá sua senha temporária por WhatsApp/e-mail.' });
   } catch (e) {
     console.error('ead register error', e);
     res.status(500).json({ error: 'Erro ao cadastrar' });
@@ -107,6 +105,7 @@ router.post('/auth/login', async (req, res) => {
     const r = await query('SELECT * FROM ead_students WHERE lower(email) = $1 LIMIT 1', [email]);
     if (!r.rows.length) return res.status(401).json({ error: 'Credenciais inválidas' });
     const s = r.rows[0];
+    if (!s.password_hash) return res.status(403).json({ error: 'Seu cadastro ainda não foi aprovado. Aguarde a liberação e o envio da senha temporária.', status: s.status || 'pending' });
     const ok = await bcrypt.compare(password, s.password_hash);
     if (!ok) return res.status(401).json({ error: 'Credenciais inválidas' });
     if (s.status === 'pending') return res.status(403).json({ error: 'Seu cadastro está em análise. Você receberá um aviso por WhatsApp/e-mail quando for liberado.', status: 'pending' });
