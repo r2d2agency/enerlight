@@ -28,10 +28,9 @@ export default function EadSignup() {
     e.preventDefault();
     setLoading(true);
     try {
-      const r = await eadApi.register({ ...form, cpf: form.cpf.replace(/\D/g, '') });
-      eadToken.set(r.token);
-      toast.success('Cadastro realizado!');
-      nav('/ead');
+      const r: any = await eadApi.register({ ...form, cpf: form.cpf.replace(/\D/g, '') });
+      if (r?.token) { eadToken.set(r.token); toast.success('Cadastro realizado!'); nav('/ead'); }
+      else { toast.success(r?.message || 'Cadastro enviado! Aguarde a liberação do administrador.'); nav('/ead/login'); }
     } catch (e: any) {
       toast.error(e.message || 'Erro ao cadastrar');
     } finally { setLoading(false); }
