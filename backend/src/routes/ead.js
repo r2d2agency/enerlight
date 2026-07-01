@@ -552,6 +552,8 @@ async function ensureEadApprovalSchema() {
     ALTER TABLE ead_students ADD COLUMN IF NOT EXISTS approved_at TIMESTAMPTZ;
     ALTER TABLE ead_students ADD COLUMN IF NOT EXISTS approved_by UUID REFERENCES users(id) ON DELETE SET NULL;
     ALTER TABLE ead_students ADD COLUMN IF NOT EXISTS rejected_reason TEXT;
+    ALTER TABLE ead_students ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN DEFAULT false;
+    ALTER TABLE ead_students ALTER COLUMN password_hash DROP NOT NULL;
     CREATE INDEX IF NOT EXISTS idx_ead_students_brand ON ead_students(brand_id);
     CREATE INDEX IF NOT EXISTS idx_ead_students_status ON ead_students(status);
     CREATE INDEX IF NOT EXISTS idx_ead_brands_slug ON ead_brands(slug);
