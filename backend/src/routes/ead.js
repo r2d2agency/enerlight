@@ -842,7 +842,15 @@ admin.get('/students', gate('can_view_ead'), async (req, res) => {
 });
 
 admin.get('/students/:id', gate('can_view_ead'), async (req, res) => {
-  const s = await query(`SELECT id, name, cpf, email, company, city, state, created_at FROM ead_students WHERE id=$1`, [req.params.id]);
+  const s = await query(
+    `SELECT s.id, s.name, s.cpf, s.email, s.phone, s.company, s.city, s.state,
+       s.status, s.extra_fields, s.approved_at, s.rejected_reason, s.created_at,
+       s.brand_id, b.name AS brand_name, b.slug AS brand_slug,
+       u.name AS approved_by_name
+     FROM ead_students s
+     LEFT JOIN ead_brands b ON b.id = s.brand_id
+     LEFT JOIN users u ON u.id = s.approved_by
+     WHERE s.id=$1`, [req.params.id]);
   if (!s.rows.length) return res.status(404).json({ error: 'Não encontrado' });
   const certs = await query(
     `SELECT c.id, c.pdf_url, c.issued_at, co.title as course_title
@@ -854,7 +862,12 @@ admin.get('/students/:id', gate('can_view_ead'), async (req, res) => {
      FROM ead_attempts a JOIN ead_courses co ON co.id=a.course_id
      WHERE a.student_id=$1 ORDER BY a.created_at DESC LIMIT 50`, [req.params.id]
   );
-  res.json({ student: s.rows[0], certificates: certs.rows, attempts: attempts.rows });
+  const enrollments = await query(
+    `SELECT e.id, e.status, e.approved_at, e.created_at, co.title as course_title
+     FROM ead_enrollments e JOIN ead_courses co ON co.id = e.course_id
+     WHERE e.student_id=$1 ORDER BY e.created_at DESC`, [req.params.id]
+  );
+  res.json({ student: s.rows[0], certificates: certs.rows, attempts: attempts.rows, enrollments: enrollments.rows });
 });
 
 // All certificates
