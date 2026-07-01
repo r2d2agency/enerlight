@@ -1065,16 +1065,14 @@ admin.post('/students/:id/approve', gate('can_manage_ead'), async (req, res) => 
     if (student.status === 'approved') return res.status(400).json({ error: 'Já aprovado' });
     const b = student.brand_id ? (await runWithEadSchemaRetry(() => query('SELECT * FROM ead_brands WHERE id = $1', [student.brand_id]))).rows[0] : null;
     await runWithEadSchemaRetry(() => query(`UPDATE ead_students SET status='approved', approved_at=NOW(), approved_by=$1 WHERE id=$2`, [req.userId, student.id]));
-    let notify;
-    try {
-      notify = await withTimeout(notifyApproval(student, b, appBaseUrl(req)), 9000, 'Notificação de aprovação');
-    } catch (notifyError) {
-      notify = {
-        whatsapp: { success: false, error: notifyError.message || 'Notificação não concluída' },
-        email: { success: false, error: notifyError.message || 'Notificação não concluída' },
-      };
-    }
-    res.json({ ok: true, notify });
+    // Fire-and-forget notification — never block the approve response
+    const baseUrl = appBaseUrl(req);
+    setImmediate(() => {
+      withTimeout(notifyApproval(student, b, baseUrl), 9000, 'Notificação de aprovação')
+        .catch((err) => console.error('notifyApproval failed', err?.message || err));
+    });
+    res.json({ ok: true, notify: { queued: true } });
+
   } catch (e) { console.error('approve', e); res.status(500).json({ error: 'Erro ao aprovar' }); }
 });
 
