@@ -693,12 +693,27 @@ function QuestionsManager({ courseId, canManage }: { courseId: string; canManage
   );
 }
 
-function StudentsTab({ students }: { students: any[] }) {
+function StudentsTab({ students, onReload }: { students: any[]; onReload: () => void }) {
+  const [brands, setBrands] = useState<any[]>([]);
+  const [savingId, setSavingId] = useState<string | null>(null);
+  useEffect(() => { eadAdminApi.brands().then(setBrands).catch(() => {}); }, []);
+
   const statusBadge = (s: string) => {
     if (s === 'pending') return <Badge variant="destructive">Pendente</Badge>;
     if (s === 'rejected') return <Badge variant="outline">Rejeitado</Badge>;
     return <Badge variant="secondary">Aprovado</Badge>;
   };
+
+  async function changeBrand(studentId: string, brandId: string) {
+    setSavingId(studentId);
+    try {
+      await eadAdminApi.updateStudent(studentId, { brand_id: brandId === '__none__' ? null : brandId });
+      toast.success('Marca atualizada');
+      onReload();
+    } catch (e: any) { toast.error(e.message || 'Erro ao atualizar'); }
+    finally { setSavingId(null); }
+  }
+
   return (
     <Card><CardContent className="p-0">
       <Table>
@@ -709,7 +724,15 @@ function StudentsTab({ students }: { students: any[] }) {
               <TableCell className="font-medium">{s.name}</TableCell>
               <TableCell className="font-mono text-xs">{s.cpf}</TableCell>
               <TableCell>{s.email}</TableCell>
-              <TableCell>{s.brand_name ? <Badge variant="outline">{s.brand_name}</Badge> : <span className="text-muted-foreground text-xs">Sem marca</span>}</TableCell>
+              <TableCell>
+                <Select value={s.brand_id || '__none__'} onValueChange={(v) => changeBrand(s.id, v)} disabled={savingId === s.id}>
+                  <SelectTrigger className="h-8 w-[180px]"><SelectValue placeholder="Sem marca" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Sem marca</SelectItem>
+                    {brands.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </TableCell>
               <TableCell>{statusBadge(s.status || 'approved')}</TableCell>
               <TableCell>{s.company || '-'}</TableCell>
               <TableCell>{[s.city, s.state].filter(Boolean).join(' / ') || '-'}</TableCell>
