@@ -66,7 +66,7 @@ export default function EadManuals() {
                   <Card key={m.id} className="overflow-hidden flex flex-col">
                     <div className="aspect-video bg-muted flex items-center justify-center">
                       {m.cover_url
-                        ? <img src={m.cover_url} alt={m.title} className="w-full h-full object-cover" />
+                        ? <img src={resolveMediaUrl(m.cover_url) || ''} alt={m.title} className="w-full h-full object-cover" />
                         : <FileText className="h-14 w-14 text-muted-foreground" />}
                     </div>
                     <CardContent className="p-4 flex flex-col gap-3 flex-1">
