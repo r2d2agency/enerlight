@@ -105,6 +105,9 @@ const EadCertificates = lazyRetry(() => import("./pages/ead/EadCertificates"));
 const EadBrandSignup = lazyRetry(() => import("./pages/ead/EadBrandSignup"));
 const EadBrandLogin = lazyRetry(() => import("./pages/ead/EadBrandLogin"));
 const EadAdmin = lazyRetry(() => import("./pages/EadAdmin"));
+const EadBrandAdminLogin = lazyRetry(() => import("./pages/ead/EadBrandAdminLogin"));
+const EadBrandAdminDashboard = lazyRetry(() => import("./pages/ead/EadBrandAdminDashboard"));
+
 
 
 const queryClient = new QueryClient();
@@ -230,7 +233,10 @@ const App = () => (
               <Route path="/marca/:slug/certificados" element={<EadCertificates />} />
               <Route path="/marca/:slug/curso/:id" element={<EadCourse />} />
               <Route path="/marca/:slug/curso/:id/prova" element={<EadQuiz />} />
+              <Route path="/marca/:slug/admin/login" element={<EadBrandAdminLogin />} />
+              <Route path="/marca/:slug/admin" element={<EadBrandAdminDashboard />} />
               {/* Legacy fallbacks (no slug) — render same pages and rely on layout redirect */}
+
               <Route path="/ead" element={<EadHome />} />
               <Route path="/ead/cursos" element={<EadCatalog />} />
               <Route path="/ead/manuais" element={<EadManuals />} />

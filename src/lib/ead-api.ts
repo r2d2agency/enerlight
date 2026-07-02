@@ -155,7 +155,43 @@ export const eadAdminApi = {
   rejectStudent: (id: string, reason?: string) => adminCall<any>(`/api/ead/admin/students/${id}/reject`, { method: 'POST', body: { reason } }),
   resendNotification: (id: string) => adminCall<any>(`/api/ead/admin/students/${id}/resend-notification`, { method: 'POST' }),
   resetPassword: (id: string) => adminCall<any>(`/api/ead/admin/students/${id}/reset-password`, { method: 'POST' }),
+
+  // Brand admins management (superadmin)
+  brandAdmins: (brandId: string) => adminCall<any[]>(`/api/ead/admin/brands/${brandId}/admins`),
+  createBrandAdmin: (brandId: string, b: { name: string; email: string; password?: string }) =>
+    adminCall<any>(`/api/ead/admin/brands/${brandId}/admins`, { method: 'POST', body: b }),
+  updateBrandAdmin: (id: string, b: any) => adminCall<any>(`/api/ead/admin/brand-admins/${id}`, { method: 'PATCH', body: b }),
+  resetBrandAdminPassword: (id: string) => adminCall<any>(`/api/ead/admin/brand-admins/${id}/reset-password`, { method: 'POST' }),
+  deleteBrandAdmin: (id: string) => adminCall<any>(`/api/ead/admin/brand-admins/${id}`, { method: 'DELETE' }),
 };
+
+// ==================== Brand Admin Portal (per-brand analytics) ====================
+const BA_TOKEN_KEY = 'ead_brand_admin_token';
+export const brandAdminToken = {
+  get: () => localStorage.getItem(BA_TOKEN_KEY),
+  set: (t: string) => localStorage.setItem(BA_TOKEN_KEY, t),
+  clear: () => localStorage.removeItem(BA_TOKEN_KEY),
+};
+
+async function baCall<T>(endpoint: string, opts: { method?: string; body?: any; auth?: boolean } = {}): Promise<T> {
+  const { method = 'GET', body, auth = true } = opts;
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (auth) { const t = brandAdminToken.get(); if (t) headers['Authorization'] = `Bearer ${t}`; }
+  const res = await fetchEad(endpoint, { method, headers, body: body ? JSON.stringify(body) : undefined });
+  const text = await res.text();
+  let data: any = null;
+  try { data = text ? JSON.parse(text) : null; } catch { data = { raw: text }; }
+  if (!res.ok) { const e: any = new Error(data?.error || `Erro ${res.status}`); e.status = res.status; throw e; }
+  return data as T;
+}
+
+export const eadBrandAdminApi = {
+  login: (slug: string, email: string, password: string) =>
+    baCall<{ token: string; admin: any }>('/api/ead/brand-admin/login', { method: 'POST', body: { slug, email, password }, auth: false }),
+  me: () => baCall<{ admin: any }>('/api/ead/brand-admin/me'),
+  dashboard: () => baCall<any>('/api/ead/brand-admin/dashboard'),
+};
+
 
 export function ytEmbedUrl(url: string): string {
   if (!url) return '';

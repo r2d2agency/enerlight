@@ -121,3 +121,18 @@ CREATE TABLE IF NOT EXISTS ead_certificates (
   UNIQUE(student_id, course_id)
 );
 CREATE INDEX IF NOT EXISTS idx_ead_certificates_student ON ead_certificates(student_id);
+
+-- Brand Admin Portal (per-brand analytics dashboard login)
+CREATE TABLE IF NOT EXISTS ead_brand_admins (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  brand_id UUID NOT NULL REFERENCES ead_brands(id) ON DELETE CASCADE,
+  name VARCHAR(200) NOT NULL,
+  email VARCHAR(200) NOT NULL,
+  password_hash TEXT NOT NULL,
+  active BOOLEAN DEFAULT true,
+  last_login_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(brand_id, email)
+);
+CREATE INDEX IF NOT EXISTS idx_ead_brand_admins_brand ON ead_brand_admins(brand_id);
+CREATE INDEX IF NOT EXISTS idx_ead_brand_admins_email ON ead_brand_admins(lower(email));
