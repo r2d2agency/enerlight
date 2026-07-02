@@ -1337,6 +1337,7 @@ router.get('/brand-admin/dashboard', brandAdminAuth, async (req, res) => {
     // Optional date filters (YYYY-MM-DD). Default: no filter.
     const from = req.query.from ? String(req.query.from) : null;
     const to = req.query.to ? String(req.query.to) : null;
+    const company = req.query.company ? String(req.query.company).trim() : null;
     const dateOk = (d) => !d || /^\d{4}-\d{2}-\d{2}$/.test(d);
     if (!dateOk(from) || !dateOk(to)) return res.status(400).json({ error: 'Data inválida' });
 
@@ -1346,6 +1347,13 @@ router.get('/brand-admin/dashboard', brandAdminAuth, async (req, res) => {
     let aFilter = '';
     if (from) { params.push(from); sFilter += ` AND s.created_at >= $${params.length}::date`; aFilter += ` AND a.created_at >= $${params.length}::date`; }
     if (to)   { params.push(to);   sFilter += ` AND s.created_at <  ($${params.length}::date + INTERVAL '1 day')`; aFilter += ` AND a.created_at <  ($${params.length}::date + INTERVAL '1 day')`; }
+    if (company) {
+      params.push(company);
+      const frag = ` AND COALESCE(NULLIF(TRIM(s.company), ''), 'Sem empresa') = $${params.length}`;
+      sFilter += frag;
+      aFilter += frag;
+    }
+
 
     const [students, courses, certs, attempts, monthly, topCourses, topStudents, recent, pending, companies] = await Promise.all([
       query(`SELECT
