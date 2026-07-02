@@ -44,12 +44,17 @@ export default function EadAdmin() {
 
   return (
     <MainLayout>
-      <div className="flex items-center gap-3 mb-6">
-        <GraduationCap className="h-7 w-7 text-primary" />
-        <div>
-          <h1 className="text-2xl font-bold">Academia (EAD)</h1>
-          <p className="text-muted-foreground text-sm">Gerencie cursos, módulos, aulas, manuais, provas e certificados.</p>
+      <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
+        <div className="flex items-center gap-3">
+          <GraduationCap className="h-7 w-7 text-primary" />
+          <div>
+            <h1 className="text-2xl font-bold">Academia (EAD)</h1>
+            <p className="text-muted-foreground text-sm">Gerencie cursos, módulos, aulas, manuais, provas e certificados.</p>
+          </div>
         </div>
+        <a href="/admin/ead/catalogos">
+          <Button variant="secondary">Catálogos globais</Button>
+        </a>
       </div>
 
       {loading ? <div className="flex justify-center py-12"><Loader2 className="animate-spin h-6 w-6" /></div> : (
