@@ -82,6 +82,9 @@ export const eadApi = {
     ),
   myCertificates: () => call<any[]>('/api/ead/my/certificates'),
   myManuals: () => call<any[]>('/api/ead/my/manuals'),
+  myCatalogs: () => call<{ categories: any[]; uncategorized: any[] }>('/api/ead/my/catalogs'),
+  myCatalog: (id: string) => call<any>(`/api/ead/my/catalogs/${id}`),
+  catalogPdfUrl: (id: string) => `${API_URL}/api/ead/my/catalogs/${id}/pdf`,
   lessonProgress: (lessonId: string, b: { watched_seconds: number; last_position: number; total_seconds?: number | null }) =>
     call<any>(`/api/ead/lessons/${lessonId}/progress`, { method: 'POST', body: b }),
   lessonComplete: (lessonId: string) =>
