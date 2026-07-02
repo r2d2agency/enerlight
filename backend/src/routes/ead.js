@@ -558,6 +558,9 @@ async function ensureEadApprovalSchema() {
     CREATE INDEX IF NOT EXISTS idx_ead_students_status ON ead_students(status);
     CREATE INDEX IF NOT EXISTS idx_ead_brands_slug ON ead_brands(slug);
 
+    ALTER TABLE ead_brands ADD COLUMN IF NOT EXISTS notify_admin_phone VARCHAR(30);
+    ALTER TABLE ead_brands ADD COLUMN IF NOT EXISTS signup_notify_message TEXT;
+
     CREATE TABLE IF NOT EXISTS ead_brand_admins (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       brand_id UUID NOT NULL REFERENCES ead_brands(id) ON DELETE CASCADE,
