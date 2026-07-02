@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 import {
   Loader2, LogOut, Users, GraduationCap, Award, TrendingUp,
-  UserCheck, UserX, Clock, BookOpen, Building2, Filter, X,
+  UserCheck, UserX, Clock, BookOpen, Building2, Filter, X, Layers,
 } from 'lucide-react';
 
 import {
