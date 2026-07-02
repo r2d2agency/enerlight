@@ -201,8 +201,40 @@ export const eadBrandAdminApi = {
     return baCall<any>(`/api/ead/brand-admin/dashboard${s ? `?${s}` : ''}`);
   },
 
+  // Catálogos
+  catalogCategories: () => baCall<any[]>('/api/ead/brand-admin/catalog-categories'),
+  createCatalogCategory: (b: { name: string; description?: string; order_index?: number }) =>
+    baCall<any>('/api/ead/brand-admin/catalog-categories', { method: 'POST', body: b }),
+  updateCatalogCategory: (id: string, b: any) =>
+    baCall<any>(`/api/ead/brand-admin/catalog-categories/${id}`, { method: 'PATCH', body: b }),
+  deleteCatalogCategory: (id: string) =>
+    baCall<any>(`/api/ead/brand-admin/catalog-categories/${id}`, { method: 'DELETE' }),
 
+  catalogs: (categoryId?: string) => {
+    const qs = categoryId ? `?category_id=${encodeURIComponent(categoryId)}` : '';
+    return baCall<any[]>(`/api/ead/brand-admin/catalogs${qs}`);
+  },
+  createCatalog: (b: any) => baCall<any>('/api/ead/brand-admin/catalogs', { method: 'POST', body: b }),
+  updateCatalog: (id: string, b: any) => baCall<any>(`/api/ead/brand-admin/catalogs/${id}`, { method: 'PATCH', body: b }),
+  deleteCatalog: (id: string) => baCall<any>(`/api/ead/brand-admin/catalogs/${id}`, { method: 'DELETE' }),
+
+  uploadCatalogFile: async (file: File): Promise<{ url: string }> => {
+    const t = brandAdminToken.get();
+    const fd = new FormData();
+    fd.append('file', file);
+    const res = await fetchEad('/api/ead/brand-admin/catalog-upload', {
+      method: 'POST',
+      headers: t ? { Authorization: `Bearer ${t}` } : {},
+      body: fd,
+    });
+    const text = await res.text();
+    let data: any = null;
+    try { data = text ? JSON.parse(text) : null; } catch {}
+    if (!res.ok) throw new Error(data?.error || `Erro ${res.status}`);
+    return data;
+  },
 };
+
 
 
 export function ytEmbedUrl(url: string): string {
