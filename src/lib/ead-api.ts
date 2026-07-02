@@ -189,13 +189,15 @@ export const eadBrandAdminApi = {
   login: (slug: string, email: string, password: string) =>
     baCall<{ token: string; admin: any }>('/api/ead/brand-admin/login', { method: 'POST', body: { slug, email, password }, auth: false }),
   me: () => baCall<{ admin: any }>('/api/ead/brand-admin/me'),
-  dashboard: (params?: { from?: string; to?: string }) => {
+  dashboard: (params?: { from?: string; to?: string; company?: string }) => {
     const qs = new URLSearchParams();
     if (params?.from) qs.set('from', params.from);
     if (params?.to) qs.set('to', params.to);
+    if (params?.company) qs.set('company', params.company);
     const s = qs.toString();
     return baCall<any>(`/api/ead/brand-admin/dashboard${s ? `?${s}` : ''}`);
   },
+
 
 };
 
