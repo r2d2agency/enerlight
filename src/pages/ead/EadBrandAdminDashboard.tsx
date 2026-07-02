@@ -40,9 +40,14 @@ export default function EadBrandAdminDashboard() {
   const [reloading, setReloading] = useState(false);
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  const [company, setCompany] = useState<string>('');
 
-  async function loadDashboard(f?: string, t?: string) {
-    const d = await eadBrandAdminApi.dashboard({ from: f || undefined, to: t || undefined });
+  async function loadDashboard(f?: string, t?: string, c?: string) {
+    const d = await eadBrandAdminApi.dashboard({
+      from: f || undefined,
+      to: t || undefined,
+      company: c || undefined,
+    });
     setData(d);
   }
 
@@ -56,12 +61,12 @@ export default function EadBrandAdminDashboard() {
 
   async function applyFilters() {
     setReloading(true);
-    try { await loadDashboard(from, to); } finally { setReloading(false); }
+    try { await loadDashboard(from, to, company); } finally { setReloading(false); }
   }
   async function clearFilters() {
-    setFrom(''); setTo('');
+    setFrom(''); setTo(''); setCompany('');
     setReloading(true);
-    try { await loadDashboard('', ''); } finally { setReloading(false); }
+    try { await loadDashboard('', '', ''); } finally { setReloading(false); }
   }
   function setPreset(days: number) {
     const t = new Date();
@@ -69,8 +74,15 @@ export default function EadBrandAdminDashboard() {
     const iso = (x: Date) => x.toISOString().slice(0, 10);
     setFrom(iso(f)); setTo(iso(t));
     setReloading(true);
-    loadDashboard(iso(f), iso(t)).finally(() => setReloading(false));
+    loadDashboard(iso(f), iso(t), company).finally(() => setReloading(false));
   }
+  function onCompanyChange(v: string) {
+    const next = v === '__all__' ? '' : v;
+    setCompany(next);
+    setReloading(true);
+    loadDashboard(from, to, next).finally(() => setReloading(false));
+  }
+
 
   function logout() {
     brandAdminToken.clear();
