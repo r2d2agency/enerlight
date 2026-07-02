@@ -275,7 +275,15 @@ export default function EadBrandAdminDashboard() {
           </CardContent>
         </Card>
       </main>
+
+      <footer className="bg-background border-t mt-8">
+        <div className="max-w-7xl mx-auto px-4 py-6 flex flex-col items-center gap-2">
+          <img src={enerlightLogo} alt="Enerlight" className="h-8 w-auto object-contain opacity-90" />
+          <div className="text-xs text-muted-foreground">Plataforma de ensino powered by Enerlight</div>
+        </div>
+      </footer>
     </div>
+
   );
 }
 
