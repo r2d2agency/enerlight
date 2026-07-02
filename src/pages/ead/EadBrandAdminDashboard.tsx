@@ -136,7 +136,10 @@ export default function EadBrandAdminDashboard() {
             <div className="flex justify-center">
               <img src={enerlightLogo} alt="Enerlight" className="h-8 w-auto object-contain opacity-90" />
             </div>
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-1">
+              <Link to={`/marca/${slug}/admin/catalogos`}>
+                <Button variant="outline" size="sm"><Layers className="h-4 w-4 mr-1" />Catálogos</Button>
+              </Link>
               <Button variant="ghost" size="sm" onClick={logout}><LogOut className="h-4 w-4 mr-1" />Sair</Button>
             </div>
           </div>
