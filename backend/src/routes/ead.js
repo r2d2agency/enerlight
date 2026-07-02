@@ -1334,14 +1334,27 @@ router.get('/brand-admin/dashboard', brandAdminAuth, async (req, res) => {
     await ensureEadApprovalSchema();
     const brandId = req.brandId;
 
-    const [students, courses, certs, attempts, monthly, topCourses, topStudents, recent, pending] = await Promise.all([
+    // Optional date filters (YYYY-MM-DD). Default: no filter.
+    const from = req.query.from ? String(req.query.from) : null;
+    const to = req.query.to ? String(req.query.to) : null;
+    const dateOk = (d) => !d || /^\d{4}-\d{2}-\d{2}$/.test(d);
+    if (!dateOk(from) || !dateOk(to)) return res.status(400).json({ error: 'Data inválida' });
+
+    // Build filter fragments for each table alias (s = students, a = attempts)
+    const params = [brandId];
+    let sFilter = '';
+    let aFilter = '';
+    if (from) { params.push(from); sFilter += ` AND s.created_at >= $${params.length}::date`; aFilter += ` AND a.created_at >= $${params.length}::date`; }
+    if (to)   { params.push(to);   sFilter += ` AND s.created_at <  ($${params.length}::date + INTERVAL '1 day')`; aFilter += ` AND a.created_at <  ($${params.length}::date + INTERVAL '1 day')`; }
+
+    const [students, courses, certs, attempts, monthly, topCourses, topStudents, recent, pending, companies] = await Promise.all([
       query(`SELECT
           COUNT(*)::int AS total,
-          COUNT(*) FILTER (WHERE status = 'approved')::int AS approved,
-          COUNT(*) FILTER (WHERE status = 'pending')::int AS pending,
-          COUNT(*) FILTER (WHERE status = 'rejected')::int AS rejected,
-          COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days')::int AS last30
-        FROM ead_students WHERE brand_id = $1`, [brandId]),
+          COUNT(*) FILTER (WHERE s.status = 'approved')::int AS approved,
+          COUNT(*) FILTER (WHERE s.status = 'pending')::int AS pending,
+          COUNT(*) FILTER (WHERE s.status = 'rejected')::int AS rejected,
+          COUNT(*) FILTER (WHERE s.created_at >= NOW() - INTERVAL '30 days')::int AS last30
+        FROM ead_students s WHERE s.brand_id = $1${sFilter}`, params),
       query(`SELECT
           COUNT(*)::int AS total,
           COUNT(*) FILTER (WHERE published)::int AS published
@@ -1349,47 +1362,62 @@ router.get('/brand-admin/dashboard', brandAdminAuth, async (req, res) => {
       query(`SELECT COUNT(*)::int AS total
          FROM ead_certificates c
          JOIN ead_students s ON s.id = c.student_id
-        WHERE s.brand_id = $1`, [brandId]),
+        WHERE s.brand_id = $1${sFilter}`, params),
       query(`SELECT
           COUNT(*)::int AS total,
-          COUNT(*) FILTER (WHERE passed)::int AS passed,
-          COALESCE(AVG(score),0)::float AS avg_score,
-          COALESCE(AVG(CASE WHEN passed THEN 1.0 ELSE 0.0 END)*100,0)::float AS pass_rate
+          COUNT(*) FILTER (WHERE a.passed)::int AS passed,
+          COALESCE(AVG(a.score),0)::float AS avg_score,
+          COALESCE(AVG(CASE WHEN a.passed THEN 1.0 ELSE 0.0 END)*100,0)::float AS pass_rate
          FROM ead_attempts a
          JOIN ead_students s ON s.id = a.student_id
-        WHERE s.brand_id = $1`, [brandId]),
+        WHERE s.brand_id = $1${aFilter}`, params),
       query(`SELECT to_char(date_trunc('month', s.created_at), 'YYYY-MM') AS month,
                 COUNT(*)::int AS signups,
                 COUNT(*) FILTER (WHERE s.status='approved')::int AS approved
          FROM ead_students s
-        WHERE s.brand_id = $1 AND s.created_at >= NOW() - INTERVAL '6 months'
-        GROUP BY 1 ORDER BY 1`, [brandId]),
+        WHERE s.brand_id = $1 ${from || to ? sFilter : `AND s.created_at >= NOW() - INTERVAL '6 months'`}
+        GROUP BY 1 ORDER BY 1`, from || to ? params : [brandId]),
       query(`SELECT c.id, c.title,
                 COUNT(DISTINCT a.student_id)::int AS students_attempted,
                 COUNT(DISTINCT CASE WHEN a.passed THEN a.student_id END)::int AS students_passed,
                 COALESCE(AVG(a.score),0)::float AS avg_score
            FROM ead_courses c
            LEFT JOIN ead_attempts a ON a.course_id = c.id
-          WHERE c.brand_id = $1
+           LEFT JOIN ead_students s ON s.id = a.student_id
+          WHERE c.brand_id = $1 ${(from || to) ? `AND (a.id IS NULL OR (1=1 ${aFilter}))` : ''}
           GROUP BY c.id, c.title
           ORDER BY students_attempted DESC NULLS LAST
-          LIMIT 8`, [brandId]),
-      query(`SELECT s.id, s.name, s.email,
+          LIMIT 8`, params),
+      query(`SELECT s.id, s.name, s.email, s.company,
                 COUNT(DISTINCT cert.course_id)::int AS certificates,
                 COALESCE(AVG(a.score),0)::float AS avg_score
            FROM ead_students s
            LEFT JOIN ead_certificates cert ON cert.student_id = s.id
            LEFT JOIN ead_attempts a ON a.student_id = s.id
-          WHERE s.brand_id = $1 AND s.status = 'approved'
-          GROUP BY s.id, s.name, s.email
+          WHERE s.brand_id = $1 AND s.status = 'approved'${sFilter}
+          GROUP BY s.id, s.name, s.email, s.company
           ORDER BY certificates DESC, avg_score DESC
-          LIMIT 10`, [brandId]),
-      query(`SELECT id, name, email, status, created_at, approved_at, city, state, company
-           FROM ead_students WHERE brand_id = $1
-           ORDER BY created_at DESC LIMIT 10`, [brandId]),
-      query(`SELECT id, name, email, created_at, city, state, company
-           FROM ead_students WHERE brand_id = $1 AND status = 'pending'
-           ORDER BY created_at DESC LIMIT 10`, [brandId]),
+          LIMIT 10`, params),
+      query(`SELECT s.id, s.name, s.email, s.status, s.created_at, s.approved_at, s.city, s.state, s.company
+           FROM ead_students s WHERE s.brand_id = $1${sFilter}
+           ORDER BY s.created_at DESC LIMIT 10`, params),
+      query(`SELECT s.id, s.name, s.email, s.created_at, s.city, s.state, s.company
+           FROM ead_students s WHERE s.brand_id = $1 AND s.status = 'pending'${sFilter}
+           ORDER BY s.created_at DESC LIMIT 10`, params),
+      query(`SELECT
+                COALESCE(NULLIF(TRIM(s.company), ''), 'Sem empresa') AS company,
+                COUNT(*)::int AS total,
+                COUNT(*) FILTER (WHERE s.status='approved')::int AS approved,
+                COUNT(*) FILTER (WHERE s.status='pending')::int AS pending,
+                COUNT(*) FILTER (WHERE s.status='rejected')::int AS rejected,
+                MAX(s.city) AS city,
+                MAX(s.state) AS state,
+                MAX(s.created_at) AS last_signup
+           FROM ead_students s
+          WHERE s.brand_id = $1${sFilter}
+          GROUP BY COALESCE(NULLIF(TRIM(s.company), ''), 'Sem empresa')
+          ORDER BY total DESC, approved DESC
+          LIMIT 50`, params),
     ]);
 
     res.json({
@@ -1402,9 +1430,12 @@ router.get('/brand-admin/dashboard', brandAdminAuth, async (req, res) => {
       top_students: topStudents.rows,
       recent_students: recent.rows,
       pending_students: pending.rows,
+      companies: companies.rows,
+      filter: { from, to },
     });
   } catch (e) { console.error('brand-admin dashboard', e); res.status(500).json({ error: 'Erro ao carregar' }); }
 });
+
 
 // ---- Superadmin CRUD for brand admins (managed via internal auth)
 admin.get('/brands/:id/admins', gate('can_view_ead'), async (req, res) => {
