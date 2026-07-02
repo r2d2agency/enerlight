@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 import { eadBrandAdminApi, brandAdminToken } from '@/lib/ead-api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 import {
   Loader2, LogOut, Users, GraduationCap, Award, TrendingUp,
-  UserCheck, UserX, Clock, BookOpen, Building2, Filter, X,
+  UserCheck, UserX, Clock, BookOpen, Building2, Filter, X, Layers,
 } from 'lucide-react';
 
 import {
@@ -136,7 +136,10 @@ export default function EadBrandAdminDashboard() {
             <div className="flex justify-center">
               <img src={enerlightLogo} alt="Enerlight" className="h-8 w-auto object-contain opacity-90" />
             </div>
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-1">
+              <Link to={`/marca/${slug}/admin/catalogos`}>
+                <Button variant="outline" size="sm"><Layers className="h-4 w-4 mr-1" />Catálogos</Button>
+              </Link>
               <Button variant="ghost" size="sm" onClick={logout}><LogOut className="h-4 w-4 mr-1" />Sair</Button>
             </div>
           </div>

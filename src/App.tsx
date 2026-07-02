@@ -107,6 +107,9 @@ const EadBrandLogin = lazyRetry(() => import("./pages/ead/EadBrandLogin"));
 const EadAdmin = lazyRetry(() => import("./pages/EadAdmin"));
 const EadBrandAdminLogin = lazyRetry(() => import("./pages/ead/EadBrandAdminLogin"));
 const EadBrandAdminDashboard = lazyRetry(() => import("./pages/ead/EadBrandAdminDashboard"));
+const EadBrandAdminCatalogs = lazyRetry(() => import("./pages/ead/EadBrandAdminCatalogs"));
+const EadCatalogs = lazyRetry(() => import("./pages/ead/EadCatalogs"));
+const EadCatalogView = lazyRetry(() => import("./pages/ead/EadCatalogView"));
 
 
 
@@ -230,11 +233,14 @@ const App = () => (
               <Route path="/marca/:slug/inicio" element={<EadHome />} />
               <Route path="/marca/:slug/cursos" element={<EadCatalog />} />
               <Route path="/marca/:slug/manuais" element={<EadManuals />} />
+              <Route path="/marca/:slug/catalogos" element={<EadCatalogs />} />
+              <Route path="/marca/:slug/catalogo/:id" element={<EadCatalogView />} />
               <Route path="/marca/:slug/certificados" element={<EadCertificates />} />
               <Route path="/marca/:slug/curso/:id" element={<EadCourse />} />
               <Route path="/marca/:slug/curso/:id/prova" element={<EadQuiz />} />
               <Route path="/marca/:slug/admin/login" element={<EadBrandAdminLogin />} />
               <Route path="/marca/:slug/admin" element={<EadBrandAdminDashboard />} />
+              <Route path="/marca/:slug/admin/catalogos" element={<EadBrandAdminCatalogs />} />
               {/* Legacy fallbacks (no slug) — render same pages and rely on layout redirect */}
 
               <Route path="/ead" element={<EadHome />} />
