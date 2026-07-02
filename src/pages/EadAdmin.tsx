@@ -1060,6 +1060,7 @@ function BrandsTab({ canManage }: { canManage: boolean }) {
   const [brands, setBrands] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<any>(null);
+  const [managingAdmins, setManagingAdmins] = useState<any>(null);
 
   async function load() {
     setLoading(true);
@@ -1103,12 +1104,14 @@ function BrandsTab({ canManage }: { canManage: boolean }) {
                   <button onClick={() => { navigator.clipboard.writeText(`${origin}/marca/${b.slug}`); toast.success('Link copiado!'); }} className="text-xs text-primary hover:underline">
                     {origin}/marca/{b.slug}
                   </button>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">Painel admin: /marca/{b.slug}/admin</div>
                 </TableCell>
                 <TableCell>{b.total_students || 0}</TableCell>
                 <TableCell>{b.pending_students > 0 ? <Badge variant="destructive">{b.pending_students}</Badge> : <span className="text-muted-foreground">0</span>}</TableCell>
                 <TableCell>{b.active ? <Badge>Ativa</Badge> : <Badge variant="secondary">Inativa</Badge>}</TableCell>
                 <TableCell className="text-right">
                   {canManage && <>
+                    <Button size="sm" variant="ghost" title="Administradores" onClick={() => setManagingAdmins(b)}><ShieldCheck className="h-4 w-4" /></Button>
                     <Button size="sm" variant="ghost" onClick={() => setEditing(b)}><Pencil className="h-4 w-4" /></Button>
                     <Button size="sm" variant="ghost" onClick={() => remove(b.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                   </>}
@@ -1120,9 +1123,112 @@ function BrandsTab({ canManage }: { canManage: boolean }) {
         </Table>
       )}
       {editing && <BrandEditor brand={editing} onClose={() => { setEditing(null); load(); }} />}
+      {managingAdmins && <BrandAdminsDialog brand={managingAdmins} onClose={() => setManagingAdmins(null)} />}
     </CardContent></Card>
   );
 }
+
+function BrandAdminsDialog({ brand, onClose }: { brand: any; onClose: () => void }) {
+  const [admins, setAdmins] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [form, setForm] = useState({ name: '', email: '', password: '' });
+  const [creating, setCreating] = useState(false);
+  const origin = window.location.origin;
+
+  async function load() {
+    setLoading(true);
+    try { setAdmins(await eadAdminApi.brandAdmins(brand.id)); }
+    catch (e: any) { toast.error(e.message); }
+    finally { setLoading(false); }
+  }
+  useEffect(() => { load(); }, [brand.id]);
+
+  async function create() {
+    if (!form.name || !form.email) { toast.error('Nome e e-mail obrigatórios'); return; }
+    setCreating(true);
+    try {
+      const r = await eadAdminApi.createBrandAdmin(brand.id, form);
+      if (r.temp_password) {
+        toast.success(`Senha temporária: ${r.temp_password}`, { duration: 15000 });
+        try { await navigator.clipboard.writeText(r.temp_password); } catch {}
+      } else toast.success('Administrador criado');
+      setForm({ name: '', email: '', password: '' });
+      load();
+    } catch (e: any) { toast.error(e.message); }
+    finally { setCreating(false); }
+  }
+
+  async function toggle(a: any) {
+    try { await eadAdminApi.updateBrandAdmin(a.id, { active: !a.active }); load(); }
+    catch (e: any) { toast.error(e.message); }
+  }
+  async function reset(a: any) {
+    if (!confirm(`Gerar nova senha para ${a.email}?`)) return;
+    try {
+      const r = await eadAdminApi.resetBrandAdminPassword(a.id);
+      toast.success(`Nova senha: ${r.temp_password}`, { duration: 15000 });
+      try { await navigator.clipboard.writeText(r.temp_password); } catch {}
+    } catch (e: any) { toast.error(e.message); }
+  }
+  async function remove(a: any) {
+    if (!confirm(`Remover ${a.email}?`)) return;
+    try { await eadAdminApi.deleteBrandAdmin(a.id); load(); }
+    catch (e: any) { toast.error(e.message); }
+  }
+
+  const loginUrl = `${origin}/marca/${brand.slug}/admin/login`;
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader><DialogTitle>Administradores — {brand.name}</DialogTitle></DialogHeader>
+        <div className="space-y-4">
+          <div className="p-3 bg-muted/50 rounded text-sm flex items-center justify-between gap-2">
+            <div><span className="text-muted-foreground">URL do painel: </span><code className="text-xs">{loginUrl}</code></div>
+            <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(loginUrl); toast.success('Copiado'); }}><Copy className="h-3 w-3 mr-1" />Copiar</Button>
+          </div>
+
+          <div className="border rounded p-3 space-y-2">
+            <div className="text-sm font-medium">Adicionar novo administrador</div>
+            <div className="grid sm:grid-cols-3 gap-2">
+              <Input placeholder="Nome" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+              <Input placeholder="E-mail" type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
+              <Input placeholder="Senha (opcional, mín 6)" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} />
+            </div>
+            <div className="text-xs text-muted-foreground">Se a senha ficar em branco, uma senha temporária será gerada e copiada para a área de transferência.</div>
+            <Button size="sm" onClick={create} disabled={creating}>{creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Plus className="h-4 w-4 mr-1" />Criar</>}</Button>
+          </div>
+
+          {loading ? <div className="flex justify-center py-6"><Loader2 className="animate-spin h-5 w-5" /></div> : (
+            <Table>
+              <TableHeader><TableRow>
+                <TableHead>Nome</TableHead><TableHead>E-mail</TableHead><TableHead>Status</TableHead><TableHead>Último login</TableHead><TableHead></TableHead>
+              </TableRow></TableHeader>
+              <TableBody>
+                {admins.map(a => (
+                  <TableRow key={a.id}>
+                    <TableCell>{a.name}</TableCell>
+                    <TableCell>{a.email}</TableCell>
+                    <TableCell><Switch checked={!!a.active} onCheckedChange={() => toggle(a)} /></TableCell>
+                    <TableCell className="text-xs">{a.last_login_at ? new Date(a.last_login_at).toLocaleString('pt-BR') : '—'}</TableCell>
+                    <TableCell className="text-right">
+                      <Button size="sm" variant="ghost" title="Redefinir senha" onClick={() => reset(a)}><KeyRound className="h-4 w-4" /></Button>
+                      <Button size="sm" variant="ghost" onClick={() => remove(a)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {!admins.length && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">Nenhum administrador para esta marca.</TableCell></TableRow>}
+              </TableBody>
+            </Table>
+          )}
+        </div>
+        <DialogFooter><Button variant="outline" onClick={onClose}>Fechar</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+
 
 function BrandEditor({ brand, onClose }: { brand: any; onClose: () => void }) {
   const [data, setData] = useState<any>({ ...brand, signup_fields: Array.isArray(brand.signup_fields) ? brand.signup_fields : DEFAULT_FIELDS });
