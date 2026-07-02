@@ -110,6 +110,7 @@ const EadBrandAdminDashboard = lazyRetry(() => import("./pages/ead/EadBrandAdmin
 const EadBrandAdminCatalogs = lazyRetry(() => import("./pages/ead/EadBrandAdminCatalogs"));
 const EadCatalogs = lazyRetry(() => import("./pages/ead/EadCatalogs"));
 const EadCatalogView = lazyRetry(() => import("./pages/ead/EadCatalogView"));
+const EadAdminCatalogs = lazyRetry(() => import("./pages/ead/EadAdminCatalogs"));
 
 
 
