@@ -1830,12 +1830,12 @@ router.get('/my/catalogs/:id', studentAuth, async (req, res) => {
 router.get('/my/catalogs/:id/pdf', studentAuth, async (req, res) => {
   try {
     const s = await query('SELECT brand_id FROM ead_students WHERE id = $1', [req.studentId]);
-    const brandId = s.rows[0]?.brand_id;
-    if (!brandId) return res.status(404).json({ error: 'Não encontrado' });
+    const brandId = s.rows[0]?.brand_id || null;
     const r = await runWithEadSchemaRetry(() => query(
       `SELECT title, type, images, pdf_url FROM ead_brand_catalogs
-        WHERE id = $1 AND brand_id = $2 AND active = true`,
-      [req.params.id, brandId]
+        WHERE id = $1 AND active = true
+          AND (brand_id IS NULL ${brandId ? 'OR brand_id = $2' : ''})`,
+      brandId ? [req.params.id, brandId] : [req.params.id]
     ));
     const cat = r.rows[0];
     if (!cat) return res.status(404).json({ error: 'Não encontrado' });
