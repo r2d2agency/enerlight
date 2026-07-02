@@ -1337,6 +1337,7 @@ router.get('/brand-admin/dashboard', brandAdminAuth, async (req, res) => {
     // Optional date filters (YYYY-MM-DD). Default: no filter.
     const from = req.query.from ? String(req.query.from) : null;
     const to = req.query.to ? String(req.query.to) : null;
+    const company = req.query.company ? String(req.query.company).trim() : null;
     const dateOk = (d) => !d || /^\d{4}-\d{2}-\d{2}$/.test(d);
     if (!dateOk(from) || !dateOk(to)) return res.status(400).json({ error: 'Data inválida' });
 
@@ -1346,8 +1347,15 @@ router.get('/brand-admin/dashboard', brandAdminAuth, async (req, res) => {
     let aFilter = '';
     if (from) { params.push(from); sFilter += ` AND s.created_at >= $${params.length}::date`; aFilter += ` AND a.created_at >= $${params.length}::date`; }
     if (to)   { params.push(to);   sFilter += ` AND s.created_at <  ($${params.length}::date + INTERVAL '1 day')`; aFilter += ` AND a.created_at <  ($${params.length}::date + INTERVAL '1 day')`; }
+    if (company) {
+      params.push(company);
+      const frag = ` AND COALESCE(NULLIF(TRIM(s.company), ''), 'Sem empresa') = $${params.length}`;
+      sFilter += frag;
+      aFilter += frag;
+    }
 
-    const [students, courses, certs, attempts, monthly, topCourses, topStudents, recent, pending, companies] = await Promise.all([
+
+    const [students, courses, certs, attempts, monthly, topCourses, topStudents, recent, pending, companies, allCompanies] = await Promise.all([
       query(`SELECT
           COUNT(*)::int AS total,
           COUNT(*) FILTER (WHERE s.status = 'approved')::int AS approved,
@@ -1375,8 +1383,8 @@ router.get('/brand-admin/dashboard', brandAdminAuth, async (req, res) => {
                 COUNT(*)::int AS signups,
                 COUNT(*) FILTER (WHERE s.status='approved')::int AS approved
          FROM ead_students s
-        WHERE s.brand_id = $1 ${from || to ? sFilter : `AND s.created_at >= NOW() - INTERVAL '6 months'`}
-        GROUP BY 1 ORDER BY 1`, from || to ? params : [brandId]),
+        WHERE s.brand_id = $1 ${from || to || company ? sFilter : `AND s.created_at >= NOW() - INTERVAL '6 months'`}
+        GROUP BY 1 ORDER BY 1`, from || to || company ? params : [brandId]),
       query(`SELECT c.id, c.title,
                 COUNT(DISTINCT a.student_id)::int AS students_attempted,
                 COUNT(DISTINCT CASE WHEN a.passed THEN a.student_id END)::int AS students_passed,
@@ -1384,10 +1392,11 @@ router.get('/brand-admin/dashboard', brandAdminAuth, async (req, res) => {
            FROM ead_courses c
            LEFT JOIN ead_attempts a ON a.course_id = c.id
            LEFT JOIN ead_students s ON s.id = a.student_id
-          WHERE c.brand_id = $1 ${(from || to) ? `AND (a.id IS NULL OR (1=1 ${aFilter}))` : ''}
+          WHERE c.brand_id = $1 ${(from || to || company) ? `AND (a.id IS NULL OR (1=1 ${aFilter}))` : ''}
           GROUP BY c.id, c.title
           ORDER BY students_attempted DESC NULLS LAST
           LIMIT 8`, params),
+
       query(`SELECT s.id, s.name, s.email, s.company,
                 COUNT(DISTINCT cert.course_id)::int AS certificates,
                 COALESCE(AVG(a.score),0)::float AS avg_score
@@ -1418,6 +1427,10 @@ router.get('/brand-admin/dashboard', brandAdminAuth, async (req, res) => {
           GROUP BY COALESCE(NULLIF(TRIM(s.company), ''), 'Sem empresa')
           ORDER BY total DESC, approved DESC
           LIMIT 50`, params),
+      query(`SELECT DISTINCT COALESCE(NULLIF(TRIM(s.company), ''), 'Sem empresa') AS company
+           FROM ead_students s
+          WHERE s.brand_id = $1
+          ORDER BY 1`, [brandId]),
     ]);
 
     res.json({
@@ -1431,8 +1444,10 @@ router.get('/brand-admin/dashboard', brandAdminAuth, async (req, res) => {
       recent_students: recent.rows,
       pending_students: pending.rows,
       companies: companies.rows,
-      filter: { from, to },
+      all_companies: allCompanies.rows.map(r => r.company),
+      filter: { from, to, company },
     });
+
   } catch (e) { console.error('brand-admin dashboard', e); res.status(500).json({ error: 'Erro ao carregar' }); }
 });
 

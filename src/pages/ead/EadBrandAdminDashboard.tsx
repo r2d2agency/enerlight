@@ -7,6 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
 import {
   Loader2, LogOut, Users, GraduationCap, Award, TrendingUp,
   UserCheck, UserX, Clock, BookOpen, Building2, Filter, X,
@@ -38,9 +40,14 @@ export default function EadBrandAdminDashboard() {
   const [reloading, setReloading] = useState(false);
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  const [company, setCompany] = useState<string>('');
 
-  async function loadDashboard(f?: string, t?: string) {
-    const d = await eadBrandAdminApi.dashboard({ from: f || undefined, to: t || undefined });
+  async function loadDashboard(f?: string, t?: string, c?: string) {
+    const d = await eadBrandAdminApi.dashboard({
+      from: f || undefined,
+      to: t || undefined,
+      company: c || undefined,
+    });
     setData(d);
   }
 
@@ -54,12 +61,12 @@ export default function EadBrandAdminDashboard() {
 
   async function applyFilters() {
     setReloading(true);
-    try { await loadDashboard(from, to); } finally { setReloading(false); }
+    try { await loadDashboard(from, to, company); } finally { setReloading(false); }
   }
   async function clearFilters() {
-    setFrom(''); setTo('');
+    setFrom(''); setTo(''); setCompany('');
     setReloading(true);
-    try { await loadDashboard('', ''); } finally { setReloading(false); }
+    try { await loadDashboard('', '', ''); } finally { setReloading(false); }
   }
   function setPreset(days: number) {
     const t = new Date();
@@ -67,8 +74,15 @@ export default function EadBrandAdminDashboard() {
     const iso = (x: Date) => x.toISOString().slice(0, 10);
     setFrom(iso(f)); setTo(iso(t));
     setReloading(true);
-    loadDashboard(iso(f), iso(t)).finally(() => setReloading(false));
+    loadDashboard(iso(f), iso(t), company).finally(() => setReloading(false));
   }
+  function onCompanyChange(v: string) {
+    const next = v === '__all__' ? '' : v;
+    setCompany(next);
+    setReloading(true);
+    loadDashboard(from, to, next).finally(() => setReloading(false));
+  }
+
 
   function logout() {
     brandAdminToken.clear();
@@ -147,14 +161,29 @@ export default function EadBrandAdminDashboard() {
                 <Label className="text-xs">Até</Label>
                 <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="h-9 w-[150px]" />
               </div>
+              <div className="grid gap-1">
+                <Label className="text-xs">Empresa</Label>
+                <Select value={company || '__all__'} onValueChange={onCompanyChange}>
+                  <SelectTrigger className="h-9 w-[220px]">
+                    <SelectValue placeholder="Todas as empresas" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[300px]">
+                    <SelectItem value="__all__">Todas as empresas</SelectItem>
+                    {(data.all_companies || []).map((c: string) => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <Button size="sm" onClick={applyFilters} disabled={reloading}>
                 {reloading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Aplicar'}
               </Button>
-              {(from || to) && (
+              {(from || to || company) && (
                 <Button size="sm" variant="ghost" onClick={clearFilters} disabled={reloading}>
                   <X className="h-4 w-4 mr-1" /> Limpar
                 </Button>
               )}
+
               <div className="flex gap-1 ml-auto flex-wrap">
                 <Button size="sm" variant="outline" onClick={() => setPreset(7)}>7 dias</Button>
                 <Button size="sm" variant="outline" onClick={() => setPreset(30)}>30 dias</Button>
