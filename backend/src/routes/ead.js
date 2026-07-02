@@ -1355,7 +1355,7 @@ router.get('/brand-admin/dashboard', brandAdminAuth, async (req, res) => {
     }
 
 
-    const [students, courses, certs, attempts, monthly, topCourses, topStudents, recent, pending, companies] = await Promise.all([
+    const [students, courses, certs, attempts, monthly, topCourses, topStudents, recent, pending, companies, allCompanies] = await Promise.all([
       query(`SELECT
           COUNT(*)::int AS total,
           COUNT(*) FILTER (WHERE s.status = 'approved')::int AS approved,
