@@ -166,6 +166,40 @@ export const eadAdminApi = {
   updateBrandAdmin: (id: string, b: any) => adminCall<any>(`/api/ead/admin/brand-admins/${id}`, { method: 'PATCH', body: b }),
   resetBrandAdminPassword: (id: string) => adminCall<any>(`/api/ead/admin/brand-admins/${id}/reset-password`, { method: 'POST' }),
   deleteBrandAdmin: (id: string) => adminCall<any>(`/api/ead/admin/brand-admins/${id}`, { method: 'DELETE' }),
+
+  // Catálogos globais (superadmin) — brand_id opcional (null = global)
+  catalogCategories: () => adminCall<any[]>('/api/ead/admin/catalog-categories'),
+  createCatalogCategory: (b: { name: string; description?: string; order_index?: number; brand_id?: string | null }) =>
+    adminCall<any>('/api/ead/admin/catalog-categories', { method: 'POST', body: b }),
+  updateCatalogCategory: (id: string, b: any) =>
+    adminCall<any>(`/api/ead/admin/catalog-categories/${id}`, { method: 'PATCH', body: b }),
+  deleteCatalogCategory: (id: string) =>
+    adminCall<any>(`/api/ead/admin/catalog-categories/${id}`, { method: 'DELETE' }),
+  catalogs: (params?: { category_id?: string; brand_id?: string | '__global__' }) => {
+    const qs = new URLSearchParams();
+    if (params?.category_id) qs.set('category_id', params.category_id);
+    if (params?.brand_id) qs.set('brand_id', params.brand_id);
+    const s = qs.toString();
+    return adminCall<any[]>(`/api/ead/admin/catalogs${s ? `?${s}` : ''}`);
+  },
+  createCatalog: (b: any) => adminCall<any>('/api/ead/admin/catalogs', { method: 'POST', body: b }),
+  updateCatalog: (id: string, b: any) => adminCall<any>(`/api/ead/admin/catalogs/${id}`, { method: 'PATCH', body: b }),
+  deleteCatalog: (id: string) => adminCall<any>(`/api/ead/admin/catalogs/${id}`, { method: 'DELETE' }),
+  uploadCatalogFile: async (file: File): Promise<{ url: string }> => {
+    const t = localStorage.getItem('auth_token');
+    const fd = new FormData();
+    fd.append('file', file);
+    const res = await fetchEad('/api/ead/admin/catalog-upload', {
+      method: 'POST',
+      headers: t ? { Authorization: `Bearer ${t}` } : {},
+      body: fd,
+    });
+    const text = await res.text();
+    let data: any = null;
+    try { data = text ? JSON.parse(text) : null; } catch {}
+    if (!res.ok) throw new Error(data?.error || `Erro ${res.status}`);
+    return data;
+  },
 };
 
 // ==================== Brand Admin Portal (per-brand analytics) ====================
