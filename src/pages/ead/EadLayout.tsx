@@ -182,8 +182,16 @@ export function EadLayout({ children, requireAuth = true, breadcrumbs }: Props) 
           </div>
         )}
 
-        <main className="max-w-6xl mx-auto px-4 py-6">{children}</main>
+        <main className="max-w-6xl mx-auto px-4 py-6 flex-1 w-full">{children}</main>
+
+        <footer className="bg-background border-t mt-8">
+          <div className="max-w-6xl mx-auto px-4 py-6 flex flex-col items-center gap-2">
+            <img src={enerlightLogo} alt="Enerlight" className="h-8 w-auto object-contain opacity-90" />
+            <div className="text-xs text-muted-foreground">Plataforma de ensino powered by Enerlight</div>
+          </div>
+        </footer>
       </div>
+
     </BrandContext.Provider>
   );
 }
