@@ -583,17 +583,18 @@ async function ensureEadApprovalSchema() {
 
     CREATE TABLE IF NOT EXISTS ead_brand_catalog_categories (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      brand_id UUID NOT NULL REFERENCES ead_brands(id) ON DELETE CASCADE,
+      brand_id UUID REFERENCES ead_brands(id) ON DELETE CASCADE,
       name VARCHAR(160) NOT NULL,
       description TEXT,
       order_index INT DEFAULT 0,
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
+    ALTER TABLE ead_brand_catalog_categories ALTER COLUMN brand_id DROP NOT NULL;
     CREATE INDEX IF NOT EXISTS idx_ead_bcat_brand ON ead_brand_catalog_categories(brand_id);
 
     CREATE TABLE IF NOT EXISTS ead_brand_catalogs (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      brand_id UUID NOT NULL REFERENCES ead_brands(id) ON DELETE CASCADE,
+      brand_id UUID REFERENCES ead_brands(id) ON DELETE CASCADE,
       category_id UUID REFERENCES ead_brand_catalog_categories(id) ON DELETE SET NULL,
       title VARCHAR(200) NOT NULL,
       description TEXT,
@@ -606,6 +607,7 @@ async function ensureEadApprovalSchema() {
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW()
     );
+    ALTER TABLE ead_brand_catalogs ALTER COLUMN brand_id DROP NOT NULL;
     CREATE INDEX IF NOT EXISTS idx_ead_bcat_brand2 ON ead_brand_catalogs(brand_id);
     CREATE INDEX IF NOT EXISTS idx_ead_bcat_category ON ead_brand_catalogs(category_id);
   `);
