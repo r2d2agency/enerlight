@@ -112,7 +112,7 @@ export function EadLayout({ children, requireAuth = true, breadcrumbs }: Props) 
 
   return (
     <BrandContext.Provider value={ctxValue}>
-      <div className="min-h-screen bg-muted/30" style={styleVars}>
+      <div className="min-h-screen bg-muted/30 flex flex-col" style={styleVars}>
         <header className="bg-background border-b sticky top-0 z-10">
           {/* Neon Enerlight accent line */}
           <div
