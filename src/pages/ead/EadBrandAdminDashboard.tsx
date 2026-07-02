@@ -35,6 +35,14 @@ export default function EadBrandAdminDashboard() {
   const [admin, setAdmin] = useState<any>(null);
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [reloading, setReloading] = useState(false);
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+
+  async function loadDashboard(f?: string, t?: string) {
+    const d = await eadBrandAdminApi.dashboard({ from: f || undefined, to: t || undefined });
+    setData(d);
+  }
 
   useEffect(() => {
     if (!brandAdminToken.get()) { nav(`/marca/${slug}/admin/login`, { replace: true }); return; }
@@ -44,6 +52,24 @@ export default function EadBrandAdminDashboard() {
       .finally(() => setLoading(false));
   }, [slug, nav]);
 
+  async function applyFilters() {
+    setReloading(true);
+    try { await loadDashboard(from, to); } finally { setReloading(false); }
+  }
+  async function clearFilters() {
+    setFrom(''); setTo('');
+    setReloading(true);
+    try { await loadDashboard('', ''); } finally { setReloading(false); }
+  }
+  function setPreset(days: number) {
+    const t = new Date();
+    const f = new Date(); f.setDate(f.getDate() - days);
+    const iso = (x: Date) => x.toISOString().slice(0, 10);
+    setFrom(iso(f)); setTo(iso(t));
+    setReloading(true);
+    loadDashboard(iso(f), iso(t)).finally(() => setReloading(false));
+  }
+
   function logout() {
     brandAdminToken.clear();
     nav(`/marca/${slug}/admin/login`, { replace: true });
@@ -51,6 +77,7 @@ export default function EadBrandAdminDashboard() {
 
   if (loading || !data) {
     return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+
   }
 
   const s = data.students, c = data.courses, at = data.attempts;
