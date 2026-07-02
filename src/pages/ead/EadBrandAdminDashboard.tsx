@@ -103,7 +103,7 @@ export default function EadBrandAdminDashboard() {
 
 
 
-      <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
+      <main className="max-w-7xl mx-auto px-4 py-6 space-y-6 flex-1 w-full">
         {/* KPIs */}
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
           <Kpi label="Inscritos" value={s.total} icon={Users} color="#0ea5e9" />
