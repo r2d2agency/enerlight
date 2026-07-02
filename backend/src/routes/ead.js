@@ -1780,21 +1780,23 @@ router.get('/my/catalogs', studentAuth, async (req, res) => {
   try {
     await ensureEadApprovalSchema();
     const s = await query('SELECT brand_id FROM ead_students WHERE id = $1', [req.studentId]);
-    const brandId = s.rows[0]?.brand_id;
-    if (!brandId) return res.json({ categories: [], uncategorized: [] });
+    const brandId = s.rows[0]?.brand_id || null;
 
+    // Categorias: globais (brand_id IS NULL) + da marca do aluno
     const cats = await runWithEadSchemaRetry(() => query(
-      `SELECT id, name, description, order_index
-         FROM ead_brand_catalog_categories WHERE brand_id = $1
-         ORDER BY order_index, created_at`,
-      [brandId]
+      `SELECT id, name, description, order_index, brand_id
+         FROM ead_brand_catalog_categories
+        WHERE brand_id IS NULL ${brandId ? 'OR brand_id = $1' : ''}
+        ORDER BY order_index, created_at`,
+      brandId ? [brandId] : []
     ));
+    // Catálogos: globais + da marca do aluno
     const catalogs = await runWithEadSchemaRetry(() => query(
-      `SELECT id, category_id, title, description, type, cover_url, images, pdf_url, order_index
+      `SELECT id, category_id, title, description, type, cover_url, images, pdf_url, order_index, brand_id
          FROM ead_brand_catalogs
-        WHERE brand_id = $1 AND active = true
+        WHERE active = true AND (brand_id IS NULL ${brandId ? 'OR brand_id = $1' : ''})
         ORDER BY order_index, created_at DESC`,
-      [brandId]
+      brandId ? [brandId] : []
     ));
     const byCat = new Map();
     for (const c of cats.rows) byCat.set(c.id, { ...c, items: [] });
@@ -1810,14 +1812,14 @@ router.get('/my/catalogs', studentAuth, async (req, res) => {
 router.get('/my/catalogs/:id', studentAuth, async (req, res) => {
   try {
     const s = await query('SELECT brand_id FROM ead_students WHERE id = $1', [req.studentId]);
-    const brandId = s.rows[0]?.brand_id;
-    if (!brandId) return res.status(404).json({ error: 'Não encontrado' });
+    const brandId = s.rows[0]?.brand_id || null;
     const r = await runWithEadSchemaRetry(() => query(
       `SELECT bc.*, cat.name AS category_name
          FROM ead_brand_catalogs bc
          LEFT JOIN ead_brand_catalog_categories cat ON cat.id = bc.category_id
-        WHERE bc.id = $1 AND bc.brand_id = $2 AND bc.active = true`,
-      [req.params.id, brandId]
+        WHERE bc.id = $1 AND bc.active = true
+          AND (bc.brand_id IS NULL ${brandId ? 'OR bc.brand_id = $2' : ''})`,
+      brandId ? [req.params.id, brandId] : [req.params.id]
     ));
     if (!r.rows.length) return res.status(404).json({ error: 'Não encontrado' });
     res.json(r.rows[0]);
