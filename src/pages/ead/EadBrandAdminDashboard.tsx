@@ -65,15 +65,24 @@ export default function EadBrandAdminDashboard() {
   const logoUrl = resolveMediaUrl(admin?.brand?.logo_url);
 
   return (
-    <div className="min-h-screen bg-muted/30">
+    <div className="min-h-screen bg-muted/30 flex flex-col">
       <header className="bg-background border-b sticky top-0 z-10">
+        <div
+          className="h-1 w-full"
+          style={{ background: 'linear-gradient(90deg, #2563eb, #06b6d4, #2563eb)', boxShadow: '0 0 10px rgba(6,182,212,0.6)' }}
+        />
         <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
+          <div className="grid grid-cols-3 items-center gap-4">
             <div className="min-w-0">
               <div className="text-xs text-muted-foreground uppercase tracking-wide">Painel</div>
               <div className="font-medium text-sm truncate">{admin?.name} · {admin?.email}</div>
             </div>
-            <Button variant="ghost" size="sm" onClick={logout}><LogOut className="h-4 w-4 mr-1" />Sair</Button>
+            <div className="flex justify-center">
+              <img src={enerlightLogo} alt="Enerlight" className="h-8 w-auto object-contain opacity-90" />
+            </div>
+            <div className="flex justify-end">
+              <Button variant="ghost" size="sm" onClick={logout}><LogOut className="h-4 w-4 mr-1" />Sair</Button>
+            </div>
           </div>
 
           <div className="flex flex-col items-center justify-center mt-4 mb-2">
@@ -91,6 +100,7 @@ export default function EadBrandAdminDashboard() {
           </div>
         </div>
       </header>
+
 
 
       <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
