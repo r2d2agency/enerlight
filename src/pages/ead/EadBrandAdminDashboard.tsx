@@ -134,7 +134,41 @@ export default function EadBrandAdminDashboard() {
 
 
       <main className="max-w-7xl mx-auto px-4 py-6 space-y-6 flex-1 w-full">
+        {/* Filtros */}
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <Filter className="h-4 w-4" /> Período
+              </div>
+              <div className="grid gap-1">
+                <Label className="text-xs">De</Label>
+                <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="h-9 w-[150px]" />
+              </div>
+              <div className="grid gap-1">
+                <Label className="text-xs">Até</Label>
+                <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="h-9 w-[150px]" />
+              </div>
+              <Button size="sm" onClick={applyFilters} disabled={reloading}>
+                {reloading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Aplicar'}
+              </Button>
+              {(from || to) && (
+                <Button size="sm" variant="ghost" onClick={clearFilters} disabled={reloading}>
+                  <X className="h-4 w-4 mr-1" /> Limpar
+                </Button>
+              )}
+              <div className="flex gap-1 ml-auto flex-wrap">
+                <Button size="sm" variant="outline" onClick={() => setPreset(7)}>7 dias</Button>
+                <Button size="sm" variant="outline" onClick={() => setPreset(30)}>30 dias</Button>
+                <Button size="sm" variant="outline" onClick={() => setPreset(90)}>90 dias</Button>
+                <Button size="sm" variant="outline" onClick={() => setPreset(365)}>12 meses</Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* KPIs */}
+
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
           <Kpi label="Inscritos" value={s.total} icon={Users} color="#0ea5e9" />
           <Kpi label="Aprovados" value={s.approved} icon={UserCheck} color="#22c55e" />
