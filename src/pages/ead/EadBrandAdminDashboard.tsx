@@ -253,7 +253,40 @@ export default function EadBrandAdminDashboard() {
           </CardContent>
         </Card>
 
+        {/* Empresas dos instaladores */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center gap-2"><Building2 className="h-5 w-5" /> Empresas dos instaladores</CardTitle>
+            <Badge variant="secondary">{data.companies?.length || 0} empresas</Badge>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader><TableRow>
+                <TableHead>Empresa</TableHead>
+                <TableHead>Localização</TableHead>
+                <TableHead className="text-right">Instaladores</TableHead>
+                <TableHead className="text-right">Aprovados</TableHead>
+                <TableHead className="text-right">Pendentes</TableHead>
+                <TableHead className="text-right">Último cadastro</TableHead>
+              </TableRow></TableHeader>
+              <TableBody>
+                {data.companies?.length ? data.companies.map((co: any, i: number) => (
+                  <TableRow key={`${co.company}-${i}`}>
+                    <TableCell className="font-medium">{co.company}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{[co.city, co.state].filter(Boolean).join(' / ') || '—'}</TableCell>
+                    <TableCell className="text-right font-semibold">{co.total}</TableCell>
+                    <TableCell className="text-right text-emerald-600">{co.approved}</TableCell>
+                    <TableCell className="text-right text-amber-600">{co.pending}</TableCell>
+                    <TableCell className="text-right text-sm">{fmtDate(co.last_signup)}</TableCell>
+                  </TableRow>
+                )) : <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">Sem dados no período</TableCell></TableRow>}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+
         {/* Top students + recent + pending */}
+
         <div className="grid lg:grid-cols-2 gap-4">
           <Card>
             <CardHeader><CardTitle>Top instaladores (certificados / desempenho)</CardTitle></CardHeader>
