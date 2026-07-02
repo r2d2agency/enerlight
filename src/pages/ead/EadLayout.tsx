@@ -3,6 +3,8 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { eadApi, eadToken, EadStudent } from '@/lib/ead-api';
 import { Button } from '@/components/ui/button';
 import { GraduationCap, Award, BookOpen, LogOut, FileText, Home, Loader2, ChevronRight } from 'lucide-react';
+import enerlightLogo from '@/assets/enerlight-logo.png';
+
 
 export type Crumb = { label: string; to?: string };
 
@@ -112,7 +114,13 @@ export function EadLayout({ children, requireAuth = true, breadcrumbs }: Props) 
     <BrandContext.Provider value={ctxValue}>
       <div className="min-h-screen bg-muted/30" style={styleVars}>
         <header className="bg-background border-b sticky top-0 z-10">
-          <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
+          {/* Neon Enerlight accent line */}
+          <div
+            className="h-1 w-full"
+            style={{ background: 'linear-gradient(90deg, #2563eb, #06b6d4, #2563eb)', boxShadow: '0 0 10px rgba(6,182,212,0.6)' }}
+          />
+          <div className="max-w-6xl mx-auto px-4 py-3 grid grid-cols-3 items-center gap-4">
+            {/* Brand logo/name */}
             <Link to={link('inicio')} className="flex items-center gap-2 font-semibold min-w-0">
               {student?.brand_logo ? (
                 <img src={student.brand_logo} alt={student.brand_name || ''} className="h-8 w-auto max-w-[140px] object-contain" />
@@ -121,26 +129,40 @@ export function EadLayout({ children, requireAuth = true, breadcrumbs }: Props) 
               )}
               <span className="truncate">{student?.brand_name || 'Academia'}</span>
             </Link>
-            {student && (
-              <nav className="flex items-center gap-1 text-sm overflow-x-auto">
-                {tabs.map(t => {
-                  const active = loc.pathname === t.to || (t.key === 'cursos' && loc.pathname.startsWith(link('curso/')));
-                  const Icon = t.icon;
-                  return (
-                    <Link key={t.key} to={t.to}>
-                      <Button variant={active ? 'secondary' : 'ghost'} size="sm">
-                        <Icon className="h-4 w-4 md:mr-1" />
-                        <span className="hidden md:inline">{t.label}</span>
-                      </Button>
-                    </Link>
-                  );
-                })}
-                <span className="hidden lg:inline text-muted-foreground px-2 truncate max-w-[160px]">{student.name}</span>
-                <Button variant="ghost" size="sm" onClick={logout} title="Sair"><LogOut className="h-4 w-4" /></Button>
-              </nav>
-            )}
+
+            {/* Enerlight logo — centered */}
+            <div className="flex justify-center">
+              <img
+                src={enerlightLogo}
+                alt="Enerlight"
+                className="h-7 w-auto object-contain opacity-90 hover:opacity-100 transition"
+              />
+            </div>
+
+            {/* Navigation / user */}
+            <div className="flex items-center justify-end gap-1 text-sm overflow-x-auto">
+              {student && (
+                <nav className="flex items-center gap-1">
+                  {tabs.map(t => {
+                    const active = loc.pathname === t.to || (t.key === 'cursos' && loc.pathname.startsWith(link('curso/')));
+                    const Icon = t.icon;
+                    return (
+                      <Link key={t.key} to={t.to}>
+                        <Button variant={active ? 'secondary' : 'ghost'} size="sm">
+                          <Icon className="h-4 w-4 md:mr-1" />
+                          <span className="hidden md:inline">{t.label}</span>
+                        </Button>
+                      </Link>
+                    );
+                  })}
+                </nav>
+              )}
+              <span className="hidden lg:inline text-muted-foreground px-2 truncate max-w-[160px]">{student?.name}</span>
+              {student && <Button variant="ghost" size="sm" onClick={logout} title="Sair"><LogOut className="h-4 w-4" /></Button>}
+            </div>
           </div>
         </header>
+
 
         {crumbs.length > 0 && (
           <div className="bg-background/60 border-b">
