@@ -58,7 +58,7 @@ export default function EadAdmin() {
             <TabsTrigger value="brands">Marcas</TabsTrigger>
             <TabsTrigger value="approvals">Aprovações</TabsTrigger>
             <TabsTrigger value="courses">Cursos</TabsTrigger>
-            <TabsTrigger value="students">Alunos</TabsTrigger>
+            <TabsTrigger value="students">Instaladores</TabsTrigger>
             <TabsTrigger value="certs">Certificados emitidos</TabsTrigger>
           </TabsList>
 
@@ -105,7 +105,7 @@ function CourseForm({ value, onChange, brands }: { value: any; onChange: (v: any
             {brands.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
           </SelectContent>
         </Select>
-        <p className="text-xs text-muted-foreground mt-1">Cursos vinculados a uma marca só aparecem para alunos cadastrados nela.</p>
+        <p className="text-xs text-muted-foreground mt-1">Cursos vinculados a uma marca só aparecem para instaladores cadastrados nela.</p>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="flex items-center gap-2 border rounded-md p-3">
@@ -723,14 +723,14 @@ function StudentsTab({ students, onReload }: { students: any[]; onReload: () => 
 
   async function approve(id: string) {
     setSavingId(id);
-    try { await eadAdminApi.approveStudent(id); toast.success('Aluno aprovado'); onReload(); }
+    try { await eadAdminApi.approveStudent(id); toast.success('Instalador aprovado'); onReload(); }
     catch (e: any) { toast.error(e.message || 'Erro ao aprovar'); }
     finally { setSavingId(null); }
   }
   async function reject(id: string) {
     const reason = window.prompt('Motivo da rejeição (opcional):') ?? undefined;
     setSavingId(id);
-    try { await eadAdminApi.rejectStudent(id, reason); toast.success('Aluno rejeitado'); onReload(); }
+    try { await eadAdminApi.rejectStudent(id, reason); toast.success('Instalador rejeitado'); onReload(); }
     catch (e: any) { toast.error(e.message || 'Erro ao rejeitar'); }
     finally { setSavingId(null); }
   }
@@ -782,7 +782,7 @@ function StudentsTab({ students, onReload }: { students: any[]; onReload: () => 
   });
 
   function exportCsv() {
-    if (!filtered.length) { toast.error('Nenhum aluno para exportar'); return; }
+    if (!filtered.length) { toast.error('Nenhum instalador para exportar'); return; }
     const headers = ['Nome','CPF','Email','Telefone','Empresa','Cidade','UF','Marca','Status','Inscrições','Certificados','Aprovado em','Cadastro em','Campos extras'];
     const escape = (v: any) => {
       const s = v == null ? '' : String(v);
@@ -801,7 +801,7 @@ function StudentsTab({ students, onReload }: { students: any[]; onReload: () => 
     const a = document.createElement('a');
     a.href = url;
     const suffix = companyFilter !== '__all__' && companyFilter !== '__none__' ? `_${companyFilter}` : '';
-    a.download = `alunos_ead${suffix}_${new Date().toISOString().slice(0,10)}.csv`;
+    a.download = `instaladores_ead${suffix}_${new Date().toISOString().slice(0,10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -851,7 +851,7 @@ function StudentsTab({ students, onReload }: { students: any[]; onReload: () => 
             </div>
           </div>
           <div className="flex items-center justify-between mt-3">
-            <span className="text-sm text-muted-foreground">{filtered.length} de {students.length} alunos</span>
+            <span className="text-sm text-muted-foreground">{filtered.length} de {students.length} instaladores</span>
             <Button size="sm" variant="outline" onClick={exportCsv}><Download className="h-4 w-4 mr-1" /> Exportar CSV</Button>
           </div>
         </CardContent>
@@ -900,7 +900,7 @@ function StudentsTab({ students, onReload }: { students: any[]; onReload: () => 
                 </TableCell>
               </TableRow>
             ))}
-            {!filtered.length && <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">Nenhum aluno encontrado.</TableCell></TableRow>}
+            {!filtered.length && <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">Nenhum instalador encontrado.</TableCell></TableRow>}
           </TableBody>
         </Table>
       </CardContent></Card>
@@ -908,7 +908,7 @@ function StudentsTab({ students, onReload }: { students: any[]; onReload: () => 
       <Dialog open={!!detail} onOpenChange={(o) => { if (!o) setDetail(null); }}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Detalhes do aluno</DialogTitle>
+            <DialogTitle>Detalhes do instalador</DialogTitle>
           </DialogHeader>
           {detailLoading || detail?.loading ? (
             <div className="py-10 flex justify-center"><Loader2 className="animate-spin h-6 w-6" /></div>
@@ -1024,7 +1024,7 @@ function CertsTab({ certs }: { certs: any[] }) {
   return (
     <Card><CardContent className="p-0">
       <Table>
-        <TableHeader><TableRow><TableHead>Aluno</TableHead><TableHead>Empresa</TableHead><TableHead>Curso</TableHead><TableHead>Emitido em</TableHead><TableHead></TableHead></TableRow></TableHeader>
+        <TableHeader><TableRow><TableHead>Instalador</TableHead><TableHead>Empresa</TableHead><TableHead>Curso</TableHead><TableHead>Emitido em</TableHead><TableHead></TableHead></TableRow></TableHeader>
         <TableBody>
           {certs.map(c => (
             <TableRow key={c.id}>
@@ -1071,7 +1071,7 @@ function BrandsTab({ canManage }: { canManage: boolean }) {
   useEffect(() => { load(); }, []);
 
   async function remove(id: string) {
-    if (!confirm('Excluir marca? Os alunos vinculados manterão seus cadastros.')) return;
+    if (!confirm('Excluir marca? Os instaladores vinculados manterão seus cadastros.')) return;
     try { await eadAdminApi.deleteBrand(id); toast.success('Marca excluída'); load(); }
     catch (e: any) { toast.error(e.message); }
   }
@@ -1086,7 +1086,7 @@ function BrandsTab({ canManage }: { canManage: boolean }) {
       {loading ? <div className="flex justify-center py-8"><Loader2 className="animate-spin h-5 w-5" /></div> : (
         <Table>
           <TableHeader><TableRow>
-            <TableHead>Marca</TableHead><TableHead>Link público</TableHead><TableHead>Alunos</TableHead><TableHead>Pendentes</TableHead><TableHead>Status</TableHead><TableHead></TableHead>
+            <TableHead>Marca</TableHead><TableHead>Link público</TableHead><TableHead>Instaladores</TableHead><TableHead>Pendentes</TableHead><TableHead>Status</TableHead><TableHead></TableHead>
           </TableRow></TableHeader>
           <TableBody>
             {brands.map(b => (
