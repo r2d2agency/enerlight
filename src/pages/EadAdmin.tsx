@@ -15,7 +15,7 @@ import { FileUploadInput } from '@/components/ui/file-upload-input';
 import { eadAdminApi } from '@/lib/ead-api';
 import { resolveMediaUrl } from '@/lib/media';
 import { toast } from 'sonner';
-import { Loader2, Plus, Pencil, Trash2, GraduationCap, Download, Award, FileQuestion, Video, Layers, Settings, BookOpen } from 'lucide-react';
+import { Loader2, Plus, Pencil, Trash2, GraduationCap, Download, Award, FileQuestion, Video, Layers, Settings, BookOpen, ShieldCheck, KeyRound, Copy } from 'lucide-react';
 import { CertificateEditor } from '@/components/ead/CertificateEditor';
 import { useAuth } from '@/contexts/AuthContext';
 
