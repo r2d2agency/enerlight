@@ -233,7 +233,10 @@ const App = () => (
               <Route path="/marca/:slug/certificados" element={<EadCertificates />} />
               <Route path="/marca/:slug/curso/:id" element={<EadCourse />} />
               <Route path="/marca/:slug/curso/:id/prova" element={<EadQuiz />} />
+              <Route path="/marca/:slug/admin/login" element={<EadBrandAdminLogin />} />
+              <Route path="/marca/:slug/admin" element={<EadBrandAdminDashboard />} />
               {/* Legacy fallbacks (no slug) — render same pages and rely on layout redirect */}
+
               <Route path="/ead" element={<EadHome />} />
               <Route path="/ead/cursos" element={<EadCatalog />} />
               <Route path="/ead/manuais" element={<EadManuals />} />
