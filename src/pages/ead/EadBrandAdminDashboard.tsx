@@ -4,11 +4,14 @@ import { eadBrandAdminApi, brandAdminToken } from '@/lib/ead-api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
   Loader2, LogOut, Users, GraduationCap, Award, TrendingUp,
-  UserCheck, UserX, Clock, BookOpen,
+  UserCheck, UserX, Clock, BookOpen, Building2, Filter, X,
 } from 'lucide-react';
+
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend,
   PieChart, Pie, Cell,
@@ -32,6 +35,14 @@ export default function EadBrandAdminDashboard() {
   const [admin, setAdmin] = useState<any>(null);
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [reloading, setReloading] = useState(false);
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+
+  async function loadDashboard(f?: string, t?: string) {
+    const d = await eadBrandAdminApi.dashboard({ from: f || undefined, to: t || undefined });
+    setData(d);
+  }
 
   useEffect(() => {
     if (!brandAdminToken.get()) { nav(`/marca/${slug}/admin/login`, { replace: true }); return; }
@@ -41,6 +52,24 @@ export default function EadBrandAdminDashboard() {
       .finally(() => setLoading(false));
   }, [slug, nav]);
 
+  async function applyFilters() {
+    setReloading(true);
+    try { await loadDashboard(from, to); } finally { setReloading(false); }
+  }
+  async function clearFilters() {
+    setFrom(''); setTo('');
+    setReloading(true);
+    try { await loadDashboard('', ''); } finally { setReloading(false); }
+  }
+  function setPreset(days: number) {
+    const t = new Date();
+    const f = new Date(); f.setDate(f.getDate() - days);
+    const iso = (x: Date) => x.toISOString().slice(0, 10);
+    setFrom(iso(f)); setTo(iso(t));
+    setReloading(true);
+    loadDashboard(iso(f), iso(t)).finally(() => setReloading(false));
+  }
+
   function logout() {
     brandAdminToken.clear();
     nav(`/marca/${slug}/admin/login`, { replace: true });
@@ -48,6 +77,7 @@ export default function EadBrandAdminDashboard() {
 
   if (loading || !data) {
     return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+
   }
 
   const s = data.students, c = data.courses, at = data.attempts;
@@ -104,7 +134,41 @@ export default function EadBrandAdminDashboard() {
 
 
       <main className="max-w-7xl mx-auto px-4 py-6 space-y-6 flex-1 w-full">
+        {/* Filtros */}
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <Filter className="h-4 w-4" /> Período
+              </div>
+              <div className="grid gap-1">
+                <Label className="text-xs">De</Label>
+                <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="h-9 w-[150px]" />
+              </div>
+              <div className="grid gap-1">
+                <Label className="text-xs">Até</Label>
+                <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="h-9 w-[150px]" />
+              </div>
+              <Button size="sm" onClick={applyFilters} disabled={reloading}>
+                {reloading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Aplicar'}
+              </Button>
+              {(from || to) && (
+                <Button size="sm" variant="ghost" onClick={clearFilters} disabled={reloading}>
+                  <X className="h-4 w-4 mr-1" /> Limpar
+                </Button>
+              )}
+              <div className="flex gap-1 ml-auto flex-wrap">
+                <Button size="sm" variant="outline" onClick={() => setPreset(7)}>7 dias</Button>
+                <Button size="sm" variant="outline" onClick={() => setPreset(30)}>30 dias</Button>
+                <Button size="sm" variant="outline" onClick={() => setPreset(90)}>90 dias</Button>
+                <Button size="sm" variant="outline" onClick={() => setPreset(365)}>12 meses</Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* KPIs */}
+
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
           <Kpi label="Inscritos" value={s.total} icon={Users} color="#0ea5e9" />
           <Kpi label="Aprovados" value={s.approved} icon={UserCheck} color="#22c55e" />
@@ -189,7 +253,40 @@ export default function EadBrandAdminDashboard() {
           </CardContent>
         </Card>
 
+        {/* Empresas dos instaladores */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center gap-2"><Building2 className="h-5 w-5" /> Empresas dos instaladores</CardTitle>
+            <Badge variant="secondary">{data.companies?.length || 0} empresas</Badge>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader><TableRow>
+                <TableHead>Empresa</TableHead>
+                <TableHead>Localização</TableHead>
+                <TableHead className="text-right">Instaladores</TableHead>
+                <TableHead className="text-right">Aprovados</TableHead>
+                <TableHead className="text-right">Pendentes</TableHead>
+                <TableHead className="text-right">Último cadastro</TableHead>
+              </TableRow></TableHeader>
+              <TableBody>
+                {data.companies?.length ? data.companies.map((co: any, i: number) => (
+                  <TableRow key={`${co.company}-${i}`}>
+                    <TableCell className="font-medium">{co.company}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{[co.city, co.state].filter(Boolean).join(' / ') || '—'}</TableCell>
+                    <TableCell className="text-right font-semibold">{co.total}</TableCell>
+                    <TableCell className="text-right text-emerald-600">{co.approved}</TableCell>
+                    <TableCell className="text-right text-amber-600">{co.pending}</TableCell>
+                    <TableCell className="text-right text-sm">{fmtDate(co.last_signup)}</TableCell>
+                  </TableRow>
+                )) : <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">Sem dados no período</TableCell></TableRow>}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+
         {/* Top students + recent + pending */}
+
         <div className="grid lg:grid-cols-2 gap-4">
           <Card>
             <CardHeader><CardTitle>Top instaladores (certificados / desempenho)</CardTitle></CardHeader>
