@@ -13,6 +13,8 @@ import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend,
   PieChart, Pie, Cell,
 } from 'recharts';
+import { resolveMediaUrl } from '@/lib/media';
+
 
 const COLORS = ['#0ea5e9', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
@@ -57,24 +59,36 @@ export default function EadBrandAdminDashboard() {
     Cadastros: m.signups, Aprovados: m.approved,
   }));
 
+  const logoUrl = resolveMediaUrl(admin?.brand?.logo_url);
+
   return (
     <div className="min-h-screen bg-muted/30">
       <header className="bg-background border-b sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3 min-w-0">
-            {admin?.brand?.logo_url ? (
-              <img src={admin.brand.logo_url} alt={admin.brand.name} className="h-9 w-auto max-w-[120px] object-contain" />
-            ) : (
-              <div className="h-9 w-9 rounded" style={{ background: admin?.brand?.primary_color || '#0ea5e9' }} />
-            )}
+        <div className="max-w-7xl mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
             <div className="min-w-0">
-              <div className="font-semibold truncate">{admin?.brand?.name} — Painel</div>
-              <div className="text-xs text-muted-foreground truncate">{admin?.name} · {admin?.email}</div>
+              <div className="text-xs text-muted-foreground uppercase tracking-wide">Painel</div>
+              <div className="font-medium text-sm truncate">{admin?.name} · {admin?.email}</div>
             </div>
+            <Button variant="ghost" size="sm" onClick={logout}><LogOut className="h-4 w-4 mr-1" />Sair</Button>
           </div>
-          <Button variant="ghost" size="sm" onClick={logout}><LogOut className="h-4 w-4 mr-1" />Sair</Button>
+
+          <div className="flex flex-col items-center justify-center mt-4 mb-2">
+            {logoUrl ? (
+              <img
+                src={logoUrl}
+                alt={admin?.brand?.name}
+                className="h-16 w-auto max-w-[220px] object-contain"
+                onError={() => setAdmin((prev: any) => ({ ...prev, brand: { ...prev?.brand, logo_url: null } }))}
+              />
+            ) : (
+              <div className="h-12 w-12 rounded" style={{ background: admin?.brand?.primary_color || '#0ea5e9' }} />
+            )}
+            <div className="text-sm font-semibold text-muted-foreground mt-2">{admin?.brand?.name}</div>
+          </div>
         </div>
       </header>
+
 
       <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
         {/* KPIs */}
