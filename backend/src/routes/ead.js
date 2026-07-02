@@ -1259,6 +1259,225 @@ admin.patch('/students/:id', gate('can_manage_ead'), async (req, res) => {
   } catch (e) { console.error('update student', e); res.status(500).json({ error: 'Erro ao atualizar' }); }
 });
 
+// =========================================================================
+// BRAND ADMIN AUTH + DASHBOARD (per-brand analytics portal)
+// =========================================================================
+function signBrandAdmin(a) {
+  return jwt.sign(
+    { brandAdminId: a.id, brandId: a.brand_id, type: 'ead_brand_admin' },
+    SECRET(),
+    { expiresIn: '30d' }
+  );
+}
+
+function brandAdminAuth(req, res, next) {
+  const h = req.headers.authorization;
+  if (!h?.startsWith('Bearer ')) return res.status(401).json({ error: 'Token não fornecido' });
+  try {
+    const d = jwt.verify(h.slice(7), SECRET());
+    if (d.type !== 'ead_brand_admin') return res.status(401).json({ error: 'Token inválido' });
+    req.brandAdminId = d.brandAdminId;
+    req.brandId = d.brandId;
+    next();
+  } catch {
+    res.status(401).json({ error: 'Token inválido' });
+  }
+}
+
+router.post('/brand-admin/login', async (req, res) => {
+  try {
+    await ensureEadApprovalSchema();
+    const { slug, email, password } = req.body || {};
+    if (!slug || !email || !password) return res.status(400).json({ error: 'Dados incompletos' });
+    const r = await runWithEadSchemaRetry(() => query(
+      `SELECT ba.*, b.slug, b.name AS brand_name, b.logo_url, b.primary_color, b.accent_color
+         FROM ead_brand_admins ba
+         JOIN ead_brands b ON b.id = ba.brand_id
+        WHERE b.slug = $1 AND lower(ba.email) = lower($2) AND ba.active = true
+        LIMIT 1`,
+      [String(slug).toLowerCase(), email]
+    ));
+    if (!r.rows.length) return res.status(401).json({ error: 'Credenciais inválidas' });
+    const a = r.rows[0];
+    const ok = await bcrypt.compare(String(password), a.password_hash);
+    if (!ok) return res.status(401).json({ error: 'Credenciais inválidas' });
+    await query(`UPDATE ead_brand_admins SET last_login_at = NOW() WHERE id = $1`, [a.id]);
+    const token = signBrandAdmin(a);
+    res.json({
+      token,
+      admin: {
+        id: a.id, name: a.name, email: a.email,
+        brand: { id: a.brand_id, slug: a.slug, name: a.brand_name, logo_url: a.logo_url, primary_color: a.primary_color, accent_color: a.accent_color },
+      },
+    });
+  } catch (e) { console.error('brand-admin login', e); res.status(500).json({ error: 'Erro no login' }); }
+});
+
+router.get('/brand-admin/me', brandAdminAuth, async (req, res) => {
+  const r = await query(
+    `SELECT ba.id, ba.name, ba.email, b.id AS brand_id, b.slug, b.name AS brand_name, b.logo_url, b.primary_color, b.accent_color
+       FROM ead_brand_admins ba JOIN ead_brands b ON b.id = ba.brand_id WHERE ba.id = $1`,
+    [req.brandAdminId]
+  );
+  if (!r.rows.length) return res.status(404).json({ error: 'Não encontrado' });
+  const a = r.rows[0];
+  res.json({
+    admin: {
+      id: a.id, name: a.name, email: a.email,
+      brand: { id: a.brand_id, slug: a.slug, name: a.brand_name, logo_url: a.logo_url, primary_color: a.primary_color, accent_color: a.accent_color },
+    },
+  });
+});
+
+router.get('/brand-admin/dashboard', brandAdminAuth, async (req, res) => {
+  try {
+    await ensureEadApprovalSchema();
+    const brandId = req.brandId;
+
+    const [students, courses, certs, attempts, monthly, topCourses, topStudents, recent, pending] = await Promise.all([
+      query(`SELECT
+          COUNT(*)::int AS total,
+          COUNT(*) FILTER (WHERE status = 'approved')::int AS approved,
+          COUNT(*) FILTER (WHERE status = 'pending')::int AS pending,
+          COUNT(*) FILTER (WHERE status = 'rejected')::int AS rejected,
+          COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days')::int AS last30
+        FROM ead_students WHERE brand_id = $1`, [brandId]),
+      query(`SELECT
+          COUNT(*)::int AS total,
+          COUNT(*) FILTER (WHERE published)::int AS published
+        FROM ead_courses WHERE brand_id = $1`, [brandId]),
+      query(`SELECT COUNT(*)::int AS total
+         FROM ead_certificates c
+         JOIN ead_students s ON s.id = c.student_id
+        WHERE s.brand_id = $1`, [brandId]),
+      query(`SELECT
+          COUNT(*)::int AS total,
+          COUNT(*) FILTER (WHERE passed)::int AS passed,
+          COALESCE(AVG(score),0)::float AS avg_score,
+          COALESCE(AVG(CASE WHEN passed THEN 1.0 ELSE 0.0 END)*100,0)::float AS pass_rate
+         FROM ead_attempts a
+         JOIN ead_students s ON s.id = a.student_id
+        WHERE s.brand_id = $1`, [brandId]),
+      query(`SELECT to_char(date_trunc('month', s.created_at), 'YYYY-MM') AS month,
+                COUNT(*)::int AS signups,
+                COUNT(*) FILTER (WHERE s.status='approved')::int AS approved
+         FROM ead_students s
+        WHERE s.brand_id = $1 AND s.created_at >= NOW() - INTERVAL '6 months'
+        GROUP BY 1 ORDER BY 1`, [brandId]),
+      query(`SELECT c.id, c.title,
+                COUNT(DISTINCT a.student_id)::int AS students_attempted,
+                COUNT(DISTINCT CASE WHEN a.passed THEN a.student_id END)::int AS students_passed,
+                COALESCE(AVG(a.score),0)::float AS avg_score
+           FROM ead_courses c
+           LEFT JOIN ead_attempts a ON a.course_id = c.id
+          WHERE c.brand_id = $1
+          GROUP BY c.id, c.title
+          ORDER BY students_attempted DESC NULLS LAST
+          LIMIT 8`, [brandId]),
+      query(`SELECT s.id, s.name, s.email,
+                COUNT(DISTINCT cert.course_id)::int AS certificates,
+                COALESCE(AVG(a.score),0)::float AS avg_score
+           FROM ead_students s
+           LEFT JOIN ead_certificates cert ON cert.student_id = s.id
+           LEFT JOIN ead_attempts a ON a.student_id = s.id
+          WHERE s.brand_id = $1 AND s.status = 'approved'
+          GROUP BY s.id, s.name, s.email
+          ORDER BY certificates DESC, avg_score DESC
+          LIMIT 10`, [brandId]),
+      query(`SELECT id, name, email, status, created_at, approved_at, city, state, company
+           FROM ead_students WHERE brand_id = $1
+           ORDER BY created_at DESC LIMIT 10`, [brandId]),
+      query(`SELECT id, name, email, created_at, city, state, company
+           FROM ead_students WHERE brand_id = $1 AND status = 'pending'
+           ORDER BY created_at DESC LIMIT 10`, [brandId]),
+    ]);
+
+    res.json({
+      students: students.rows[0],
+      courses: courses.rows[0],
+      certificates: certs.rows[0].total,
+      attempts: attempts.rows[0],
+      monthly: monthly.rows,
+      top_courses: topCourses.rows,
+      top_students: topStudents.rows,
+      recent_students: recent.rows,
+      pending_students: pending.rows,
+    });
+  } catch (e) { console.error('brand-admin dashboard', e); res.status(500).json({ error: 'Erro ao carregar' }); }
+});
+
+// ---- Superadmin CRUD for brand admins (managed via internal auth)
+admin.get('/brands/:id/admins', gate('can_view_ead'), async (req, res) => {
+  await ensureEadApprovalSchema();
+  const r = await runWithEadSchemaRetry(() => query(
+    `SELECT id, name, email, active, last_login_at, created_at
+       FROM ead_brand_admins WHERE brand_id = $1 ORDER BY created_at DESC`,
+    [req.params.id]
+  ));
+  res.json(r.rows);
+});
+
+admin.post('/brands/:id/admins', gate('can_manage_ead'), async (req, res) => {
+  try {
+    await ensureEadApprovalSchema();
+    const { name, email, password } = req.body || {};
+    if (!name || !email) return res.status(400).json({ error: 'Nome e e-mail são obrigatórios' });
+    const pass = password && String(password).length >= 6 ? String(password) : genTempPassword(10);
+    const hash = await bcrypt.hash(pass, 10);
+    const r = await runWithEadSchemaRetry(() => query(
+      `INSERT INTO ead_brand_admins (brand_id, name, email, password_hash)
+       VALUES ($1,$2,$3,$4) RETURNING id, name, email, active, created_at`,
+      [req.params.id, name, email, hash]
+    ));
+    res.status(201).json({ ...r.rows[0], temp_password: pass });
+  } catch (e) {
+    if (e.code === '23505') return res.status(400).json({ error: 'E-mail já cadastrado para esta marca' });
+    console.error(e); res.status(500).json({ error: 'Erro ao criar administrador' });
+  }
+});
+
+admin.patch('/brand-admins/:id', gate('can_manage_ead'), async (req, res) => {
+  try {
+    await ensureEadApprovalSchema();
+    const { name, email, active, password } = req.body || {};
+    let hash = null;
+    if (password && String(password).length >= 6) hash = await bcrypt.hash(String(password), 10);
+    const r = await runWithEadSchemaRetry(() => query(
+      `UPDATE ead_brand_admins SET
+         name = COALESCE($1, name),
+         email = COALESCE($2, email),
+         active = COALESCE($3, active),
+         password_hash = COALESCE($4, password_hash)
+       WHERE id = $5 RETURNING id, name, email, active`,
+      [name ?? null, email ?? null, typeof active === 'boolean' ? active : null, hash, req.params.id]
+    ));
+    if (!r.rows.length) return res.status(404).json({ error: 'Não encontrado' });
+    res.json(r.rows[0]);
+  } catch (e) {
+    if (e.code === '23505') return res.status(400).json({ error: 'E-mail já cadastrado para esta marca' });
+    console.error(e); res.status(500).json({ error: 'Erro ao atualizar' });
+  }
+});
+
+admin.post('/brand-admins/:id/reset-password', gate('can_manage_ead'), async (req, res) => {
+  try {
+    const pass = genTempPassword(10);
+    const hash = await bcrypt.hash(pass, 10);
+    const r = await runWithEadSchemaRetry(() => query(
+      `UPDATE ead_brand_admins SET password_hash=$1 WHERE id=$2 RETURNING id`,
+      [hash, req.params.id]
+    ));
+    if (!r.rows.length) return res.status(404).json({ error: 'Não encontrado' });
+    res.json({ ok: true, temp_password: pass });
+  } catch (e) { console.error(e); res.status(500).json({ error: 'Erro ao resetar senha' }); }
+});
+
+admin.delete('/brand-admins/:id', gate('can_manage_ead'), async (req, res) => {
+  await runWithEadSchemaRetry(() => query('DELETE FROM ead_brand_admins WHERE id = $1', [req.params.id]));
+  res.json({ ok: true });
+});
+
 router.use('/admin', admin);
 
 export default router;
+
