@@ -161,14 +161,29 @@ export default function EadBrandAdminDashboard() {
                 <Label className="text-xs">Até</Label>
                 <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="h-9 w-[150px]" />
               </div>
+              <div className="grid gap-1">
+                <Label className="text-xs">Empresa</Label>
+                <Select value={company || '__all__'} onValueChange={onCompanyChange}>
+                  <SelectTrigger className="h-9 w-[220px]">
+                    <SelectValue placeholder="Todas as empresas" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[300px]">
+                    <SelectItem value="__all__">Todas as empresas</SelectItem>
+                    {(data.all_companies || []).map((c: string) => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <Button size="sm" onClick={applyFilters} disabled={reloading}>
                 {reloading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Aplicar'}
               </Button>
-              {(from || to) && (
+              {(from || to || company) && (
                 <Button size="sm" variant="ghost" onClick={clearFilters} disabled={reloading}>
                   <X className="h-4 w-4 mr-1" /> Limpar
                 </Button>
               )}
+
               <div className="flex gap-1 ml-auto flex-wrap">
                 <Button size="sm" variant="outline" onClick={() => setPreset(7)}>7 dias</Button>
                 <Button size="sm" variant="outline" onClick={() => setPreset(30)}>30 dias</Button>
