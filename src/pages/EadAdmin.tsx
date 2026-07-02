@@ -1339,8 +1339,8 @@ function BrandEditor({ brand, onClose }: { brand: any; onClose: () => void }) {
             </div>
             <div>
               <Label>Mensagem de aprovação</Label>
-              <Textarea rows={6} value={data.approval_message || ''} onChange={e => set('approval_message', e.target.value)} placeholder={"Olá {nome}! 🎉\n\nSeu cadastro na área *{marca}* foi aprovado.\n\nAcesse: {link}\nUse seu e-mail ({email}) e a senha cadastrada."} />
-              <p className="text-xs text-muted-foreground mt-1">Variáveis: <code>{'{nome}'}</code> <code>{'{marca}'}</code> <code>{'{link}'}</code> <code>{'{email}'}</code> <code>{'{empresa}'}</code>. Deixe em branco para usar a mensagem padrão personalizada com a marca.</p>
+              <Textarea rows={8} value={data.approval_message || ''} onChange={e => set('approval_message', e.target.value)} placeholder={"Olá {nome}! 🎉\n\nSeu cadastro na área *{marca}* foi aprovado.\n\n🔐 Suas credenciais de acesso:\nE-mail: {email}\nSenha temporária: *{senha}*\n\nAcesse: {link}\n\nAo entrar pela primeira vez você será solicitado a criar uma nova senha."} />
+              <p className="text-xs text-muted-foreground mt-1">Variáveis: <code>{'{nome}'}</code> <code>{'{marca}'}</code> <code>{'{link}'}</code> <code>{'{email}'}</code> <code>{'{senha}'}</code> <code>{'{empresa}'}</code>. Use <code>{'{senha}'}</code> para incluir a senha temporária gerada. Deixe em branco para usar a mensagem padrão personalizada com a marca.</p>
             </div>
             <div className="pt-3 border-t">
               <Label>WhatsApp do administrador (novos cadastros)</Label>
