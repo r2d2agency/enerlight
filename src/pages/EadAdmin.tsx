@@ -1259,6 +1259,8 @@ function BrandEditor({ brand, onClose }: { brand: any; onClose: () => void }) {
         signup_fields: data.signup_fields,
         notify_connection_id: data.notify_connection_id || null,
         approval_message: data.approval_message,
+        notify_admin_phone: data.notify_admin_phone ?? null,
+        signup_notify_message: data.signup_notify_message,
         active: data.active,
       };
       if (data._new) await eadAdminApi.createBrand(body);
