@@ -206,6 +206,11 @@ router.post('/brand/:slug/signup', async (req, res) => {
        RETURNING id, name, email`,
       [cpf, name, email, company, city, state, phone, brand.id, JSON.stringify(extra)]
     );
+
+    // Notifica administradores por WhatsApp que há novo cadastro aguardando aprovação
+    notifyAdminNewSignup(brand, { id: r.rows[0].id, name, email, phone, company, city, state })
+      .catch(err => console.error('[EAD notifyAdminNewSignup] error', err));
+
     res.status(201).json({ ok: true, student: r.rows[0], message: 'Cadastro enviado! Assim que aprovado, você receberá sua senha temporária por WhatsApp/e-mail.' });
 
   } catch (e) {
@@ -557,6 +562,9 @@ async function ensureEadApprovalSchema() {
     CREATE INDEX IF NOT EXISTS idx_ead_students_brand ON ead_students(brand_id);
     CREATE INDEX IF NOT EXISTS idx_ead_students_status ON ead_students(status);
     CREATE INDEX IF NOT EXISTS idx_ead_brands_slug ON ead_brands(slug);
+
+    ALTER TABLE ead_brands ADD COLUMN IF NOT EXISTS notify_admin_phone VARCHAR(30);
+    ALTER TABLE ead_brands ADD COLUMN IF NOT EXISTS signup_notify_message TEXT;
 
     CREATE TABLE IF NOT EXISTS ead_brand_admins (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -951,19 +959,21 @@ admin.get('/brands', gate('can_view_ead'), async (req, res) => {
 
 admin.post('/brands', gate('can_manage_ead'), async (req, res) => {
   try {
-    const { slug, name, logo_url, cover_url, primary_color, accent_color, welcome_title, welcome_text, signup_fields, notify_connection_id, approval_message, active } = req.body || {};
+    const { slug, name, logo_url, cover_url, primary_color, accent_color, welcome_title, welcome_text, signup_fields, notify_connection_id, approval_message, active, notify_admin_phone, signup_notify_message } = req.body || {};
     const cleanSlug = String(slug || '').trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
     if (!cleanSlug || !name) return res.status(400).json({ error: 'Slug e nome são obrigatórios' });
     const orgId = await getAdminOrgId(req.userId);
+    const cleanAdminPhone = notify_admin_phone ? String(notify_admin_phone).replace(/\D/g, '') || null : null;
     const r = await query(
-      `INSERT INTO ead_brands (slug, name, logo_url, cover_url, primary_color, accent_color, welcome_title, welcome_text, signup_fields, organization_id, notify_connection_id, approval_message, active)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10,$11,$12,COALESCE($13,true))
+      `INSERT INTO ead_brands (slug, name, logo_url, cover_url, primary_color, accent_color, welcome_title, welcome_text, signup_fields, organization_id, notify_connection_id, approval_message, active, notify_admin_phone, signup_notify_message)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10,$11,$12,COALESCE($13,true),$14,$15)
        RETURNING *`,
       [cleanSlug, name, logo_url || null, cover_url || null, primary_color || '#0ea5e9', accent_color || '#0284c7',
        welcome_title || null, welcome_text || null,
        JSON.stringify(Array.isArray(signup_fields) && signup_fields.length ? signup_fields : DEFAULT_SIGNUP_FIELDS),
        orgId, notify_connection_id || null, approval_message || null,
-       typeof active === 'boolean' ? active : null]
+       typeof active === 'boolean' ? active : null,
+       cleanAdminPhone, signup_notify_message || null]
     );
     res.status(201).json(r.rows[0]);
   } catch (e) {
@@ -974,8 +984,11 @@ admin.post('/brands', gate('can_manage_ead'), async (req, res) => {
 
 admin.patch('/brands/:id', gate('can_manage_ead'), async (req, res) => {
   try {
-    const { slug, name, logo_url, cover_url, primary_color, accent_color, welcome_title, welcome_text, signup_fields, notify_connection_id, approval_message, active } = req.body || {};
+    const { slug, name, logo_url, cover_url, primary_color, accent_color, welcome_title, welcome_text, signup_fields, notify_connection_id, approval_message, active, notify_admin_phone, signup_notify_message } = req.body || {};
     const cleanSlug = slug !== undefined ? String(slug).trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') : null;
+    const cleanAdminPhone = notify_admin_phone !== undefined
+      ? (notify_admin_phone ? String(notify_admin_phone).replace(/\D/g, '') || null : null)
+      : undefined;
     const r = await query(
       `UPDATE ead_brands SET
          slug = COALESCE($1, slug),
@@ -990,6 +1003,8 @@ admin.patch('/brands/:id', gate('can_manage_ead'), async (req, res) => {
          notify_connection_id = $10,
          approval_message = COALESCE($11, approval_message),
          active = COALESCE($12, active),
+         notify_admin_phone = CASE WHEN $14::boolean THEN $15 ELSE notify_admin_phone END,
+         signup_notify_message = COALESCE($16, signup_notify_message),
          updated_at = NOW()
        WHERE id = $13 RETURNING *`,
       [cleanSlug, name ?? null, logo_url ?? null, cover_url ?? null, primary_color ?? null, accent_color ?? null,
@@ -998,7 +1013,9 @@ admin.patch('/brands/:id', gate('can_manage_ead'), async (req, res) => {
        notify_connection_id ?? null,
        approval_message ?? null,
        typeof active === 'boolean' ? active : null,
-       req.params.id]
+       req.params.id,
+       cleanAdminPhone !== undefined, cleanAdminPhone ?? null,
+       signup_notify_message ?? null]
     );
     res.json(r.rows[0]);
   } catch (e) {
@@ -1064,6 +1081,40 @@ function appBaseUrl(req) {
     || fromHeader
     || PUBLIC_DEFAULT;
   return String(raw).replace(/\/+$/, '');
+}
+
+async function notifyAdminNewSignup(brand, student) {
+  try {
+    if (!brand?.notify_admin_phone) return;
+    let conn = null;
+    if (brand?.notify_connection_id) {
+      const c = await query('SELECT * FROM connections WHERE id = $1', [brand.notify_connection_id]);
+      conn = c.rows[0] || null;
+    }
+    if (!conn && brand?.organization_id) {
+      const c = await query(
+        `SELECT * FROM connections WHERE organization_id = $1
+         ORDER BY CASE WHEN status = 'connected' THEN 0 ELSE 1 END, created_at ASC LIMIT 1`,
+        [brand.organization_id]
+      );
+      conn = c.rows[0] || null;
+    }
+    if (!conn) { console.warn('[EAD notifyAdminNewSignup] sem conexão WhatsApp'); return; }
+
+    const defaultTpl = `🔔 *Novo cadastro aguardando aprovação*\n\n👤 {nome}\n📧 {email}\n📱 {telefone}\n🏢 {empresa}\n📍 {cidade}/{uf}\n\nÁrea: *{marca}*\nAcesse o painel para aprovar.`;
+    const tpl = brand?.signup_notify_message || defaultTpl;
+    const vars = {
+      nome: student.name || '-', email: student.email || '-',
+      telefone: student.phone || '-', empresa: student.company || '-',
+      cidade: student.city || '-', uf: student.state || '-',
+      marca: brand?.name || '',
+    };
+    const message = tpl.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? '');
+    const r = await sendWhatsapp(conn, brand.notify_admin_phone, message, 'text');
+    console.log('[EAD notifyAdminNewSignup]', { brand: brand.slug, r });
+  } catch (e) {
+    console.error('[EAD notifyAdminNewSignup] error', e);
+  }
 }
 
 async function notifyApproval(student, brand, baseUrl, tempPassword) {
