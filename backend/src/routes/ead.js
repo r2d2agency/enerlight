@@ -1074,6 +1074,40 @@ function appBaseUrl(req) {
   return String(raw).replace(/\/+$/, '');
 }
 
+async function notifyAdminNewSignup(brand, student) {
+  try {
+    if (!brand?.notify_admin_phone) return;
+    let conn = null;
+    if (brand?.notify_connection_id) {
+      const c = await query('SELECT * FROM connections WHERE id = $1', [brand.notify_connection_id]);
+      conn = c.rows[0] || null;
+    }
+    if (!conn && brand?.organization_id) {
+      const c = await query(
+        `SELECT * FROM connections WHERE organization_id = $1
+         ORDER BY CASE WHEN status = 'connected' THEN 0 ELSE 1 END, created_at ASC LIMIT 1`,
+        [brand.organization_id]
+      );
+      conn = c.rows[0] || null;
+    }
+    if (!conn) { console.warn('[EAD notifyAdminNewSignup] sem conexão WhatsApp'); return; }
+
+    const defaultTpl = `🔔 *Novo cadastro aguardando aprovação*\n\n👤 {nome}\n📧 {email}\n📱 {telefone}\n🏢 {empresa}\n📍 {cidade}/{uf}\n\nÁrea: *{marca}*\nAcesse o painel para aprovar.`;
+    const tpl = brand?.signup_notify_message || defaultTpl;
+    const vars = {
+      nome: student.name || '-', email: student.email || '-',
+      telefone: student.phone || '-', empresa: student.company || '-',
+      cidade: student.city || '-', uf: student.state || '-',
+      marca: brand?.name || '',
+    };
+    const message = tpl.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? '');
+    const r = await sendWhatsapp(conn, brand.notify_admin_phone, message, 'text');
+    console.log('[EAD notifyAdminNewSignup]', { brand: brand.slug, r });
+  } catch (e) {
+    console.error('[EAD notifyAdminNewSignup] error', e);
+  }
+}
+
 async function notifyApproval(student, brand, baseUrl, tempPassword) {
   const base = String(baseUrl || '').replace(/\/+$/, '');
   const link = brand?.slug ? `${base}/marca/${brand.slug}` : `${base}/ead/login`;
