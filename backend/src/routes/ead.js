@@ -1603,6 +1603,281 @@ admin.delete('/brand-admins/:id', gate('can_manage_ead'), async (req, res) => {
   res.json({ ok: true });
 });
 
+// =========================================================================
+// BRAND CATALOGS — categorias + catálogos (galeria de imagens ou PDF)
+// =========================================================================
+
+// Multer para upload de imagens/PDF do brand-admin
+const _catalogUploadsDir = path.join(process.cwd(), 'uploads');
+if (!fs.existsSync(_catalogUploadsDir)) fs.mkdirSync(_catalogUploadsDir, { recursive: true });
+const catalogUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, _catalogUploadsDir),
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname || '') || '';
+      cb(null, `catalog-${Date.now()}-${crypto.randomBytes(6).toString('hex')}${ext}`);
+    },
+  }),
+  limits: { fileSize: 100 * 1024 * 1024 },
+});
+
+function catalogFileUrl(filename) {
+  const base = process.env.API_BASE_URL || '';
+  return `${base}/uploads/${filename}`;
+}
+
+// ---- Upload endpoint (brand-admin auth) — retorna { url }
+router.post('/brand-admin/catalog-upload', brandAdminAuth, catalogUpload.single('file'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Arquivo obrigatório' });
+  res.json({ url: catalogFileUrl(req.file.filename), filename: req.file.filename, size: req.file.size, mimetype: req.file.mimetype });
+});
+
+// ---- Categorias
+router.get('/brand-admin/catalog-categories', brandAdminAuth, async (req, res) => {
+  await ensureEadApprovalSchema();
+  const r = await runWithEadSchemaRetry(() => query(
+    `SELECT c.*, (SELECT COUNT(*)::int FROM ead_brand_catalogs bc WHERE bc.category_id = c.id) AS catalog_count
+       FROM ead_brand_catalog_categories c
+      WHERE c.brand_id = $1 ORDER BY c.order_index, c.created_at`,
+    [req.brandId]
+  ));
+  res.json(r.rows);
+});
+
+router.post('/brand-admin/catalog-categories', brandAdminAuth, async (req, res) => {
+  try {
+    await ensureEadApprovalSchema();
+    const { name, description, order_index } = req.body || {};
+    if (!name || !String(name).trim()) return res.status(400).json({ error: 'Nome obrigatório' });
+    const r = await runWithEadSchemaRetry(() => query(
+      `INSERT INTO ead_brand_catalog_categories (brand_id, name, description, order_index)
+       VALUES ($1,$2,$3,$4) RETURNING *`,
+      [req.brandId, String(name).trim(), description || null, Number.isFinite(+order_index) ? +order_index : 0]
+    ));
+    res.status(201).json(r.rows[0]);
+  } catch (e) { console.error(e); res.status(500).json({ error: 'Erro ao criar categoria' }); }
+});
+
+router.patch('/brand-admin/catalog-categories/:id', brandAdminAuth, async (req, res) => {
+  try {
+    const { name, description, order_index } = req.body || {};
+    const r = await runWithEadSchemaRetry(() => query(
+      `UPDATE ead_brand_catalog_categories SET
+         name = COALESCE($1, name),
+         description = COALESCE($2, description),
+         order_index = COALESCE($3, order_index)
+       WHERE id = $4 AND brand_id = $5 RETURNING *`,
+      [name ?? null, description ?? null, Number.isFinite(+order_index) ? +order_index : null, req.params.id, req.brandId]
+    ));
+    if (!r.rows.length) return res.status(404).json({ error: 'Não encontrado' });
+    res.json(r.rows[0]);
+  } catch (e) { console.error(e); res.status(500).json({ error: 'Erro ao atualizar' }); }
+});
+
+router.delete('/brand-admin/catalog-categories/:id', brandAdminAuth, async (req, res) => {
+  await runWithEadSchemaRetry(() => query(
+    'DELETE FROM ead_brand_catalog_categories WHERE id = $1 AND brand_id = $2',
+    [req.params.id, req.brandId]
+  ));
+  res.json({ ok: true });
+});
+
+// ---- Catálogos
+router.get('/brand-admin/catalogs', brandAdminAuth, async (req, res) => {
+  await ensureEadApprovalSchema();
+  const params = [req.brandId];
+  let where = 'WHERE bc.brand_id = $1';
+  if (req.query.category_id) {
+    params.push(req.query.category_id);
+    where += ` AND bc.category_id = $${params.length}`;
+  }
+  const r = await runWithEadSchemaRetry(() => query(
+    `SELECT bc.*, cat.name AS category_name
+       FROM ead_brand_catalogs bc
+       LEFT JOIN ead_brand_catalog_categories cat ON cat.id = bc.category_id
+       ${where}
+       ORDER BY bc.order_index, bc.created_at DESC`,
+    params
+  ));
+  res.json(r.rows);
+});
+
+function sanitizeImages(v) {
+  if (!Array.isArray(v)) return [];
+  return v.filter(x => x && typeof x.url === 'string').map((x, i) => ({
+    url: String(x.url),
+    title: x.title ? String(x.title).slice(0, 200) : null,
+    order: Number.isFinite(+x.order) ? +x.order : i,
+  })).sort((a, b) => a.order - b.order);
+}
+
+router.post('/brand-admin/catalogs', brandAdminAuth, async (req, res) => {
+  try {
+    await ensureEadApprovalSchema();
+    const { title, description, category_id, type, cover_url, images, pdf_url, order_index, active } = req.body || {};
+    if (!title || !String(title).trim()) return res.status(400).json({ error: 'Título obrigatório' });
+    const t = type === 'pdf' ? 'pdf' : 'gallery';
+    if (t === 'pdf' && !pdf_url) return res.status(400).json({ error: 'Arquivo PDF obrigatório' });
+    if (t === 'gallery' && (!Array.isArray(images) || images.length === 0)) return res.status(400).json({ error: 'Adicione ao menos uma imagem' });
+    const r = await runWithEadSchemaRetry(() => query(
+      `INSERT INTO ead_brand_catalogs
+         (brand_id, category_id, title, description, type, cover_url, images, pdf_url, order_index, active)
+       VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9,$10) RETURNING *`,
+      [req.brandId, category_id || null, String(title).trim(), description || null, t,
+       cover_url || null, JSON.stringify(sanitizeImages(images)), pdf_url || null,
+       Number.isFinite(+order_index) ? +order_index : 0, active !== false]
+    ));
+    res.status(201).json(r.rows[0]);
+  } catch (e) { console.error(e); res.status(500).json({ error: 'Erro ao criar catálogo' }); }
+});
+
+router.patch('/brand-admin/catalogs/:id', brandAdminAuth, async (req, res) => {
+  try {
+    const { title, description, category_id, type, cover_url, images, pdf_url, order_index, active } = req.body || {};
+    const hasCategory = Object.prototype.hasOwnProperty.call(req.body || {}, 'category_id');
+    const hasImages = Object.prototype.hasOwnProperty.call(req.body || {}, 'images');
+    const t = type === 'pdf' ? 'pdf' : type === 'gallery' ? 'gallery' : null;
+    const r = await runWithEadSchemaRetry(() => query(
+      `UPDATE ead_brand_catalogs SET
+         title = COALESCE($1, title),
+         description = COALESCE($2, description),
+         category_id = CASE WHEN $10::boolean THEN $3 ELSE category_id END,
+         type = COALESCE($4, type),
+         cover_url = COALESCE($5, cover_url),
+         images = CASE WHEN $11::boolean THEN $6::jsonb ELSE images END,
+         pdf_url = COALESCE($7, pdf_url),
+         order_index = COALESCE($8, order_index),
+         active = COALESCE($9, active),
+         updated_at = NOW()
+       WHERE id = $12 AND brand_id = $13 RETURNING *`,
+      [
+        title ?? null, description ?? null, category_id || null, t,
+        cover_url ?? null, hasImages ? JSON.stringify(sanitizeImages(images)) : null,
+        pdf_url ?? null, Number.isFinite(+order_index) ? +order_index : null,
+        typeof active === 'boolean' ? active : null,
+        hasCategory, hasImages, req.params.id, req.brandId,
+      ]
+    ));
+    if (!r.rows.length) return res.status(404).json({ error: 'Não encontrado' });
+    res.json(r.rows[0]);
+  } catch (e) { console.error(e); res.status(500).json({ error: 'Erro ao atualizar' }); }
+});
+
+router.delete('/brand-admin/catalogs/:id', brandAdminAuth, async (req, res) => {
+  await runWithEadSchemaRetry(() => query(
+    'DELETE FROM ead_brand_catalogs WHERE id = $1 AND brand_id = $2',
+    [req.params.id, req.brandId]
+  ));
+  res.json({ ok: true });
+});
+
+// =========================================================================
+// STUDENT — listar catálogos da marca + baixar galeria como PDF
+// =========================================================================
+router.get('/my/catalogs', studentAuth, async (req, res) => {
+  try {
+    await ensureEadApprovalSchema();
+    const s = await query('SELECT brand_id FROM ead_students WHERE id = $1', [req.studentId]);
+    const brandId = s.rows[0]?.brand_id;
+    if (!brandId) return res.json({ categories: [], uncategorized: [] });
+
+    const cats = await runWithEadSchemaRetry(() => query(
+      `SELECT id, name, description, order_index
+         FROM ead_brand_catalog_categories WHERE brand_id = $1
+         ORDER BY order_index, created_at`,
+      [brandId]
+    ));
+    const catalogs = await runWithEadSchemaRetry(() => query(
+      `SELECT id, category_id, title, description, type, cover_url, images, pdf_url, order_index
+         FROM ead_brand_catalogs
+        WHERE brand_id = $1 AND active = true
+        ORDER BY order_index, created_at DESC`,
+      [brandId]
+    ));
+    const byCat = new Map();
+    for (const c of cats.rows) byCat.set(c.id, { ...c, items: [] });
+    const uncategorized = [];
+    for (const it of catalogs.rows) {
+      if (it.category_id && byCat.has(it.category_id)) byCat.get(it.category_id).items.push(it);
+      else uncategorized.push(it);
+    }
+    res.json({ categories: Array.from(byCat.values()), uncategorized });
+  } catch (e) { console.error('my/catalogs', e); res.status(500).json({ error: 'Erro ao carregar catálogos' }); }
+});
+
+router.get('/my/catalogs/:id', studentAuth, async (req, res) => {
+  try {
+    const s = await query('SELECT brand_id FROM ead_students WHERE id = $1', [req.studentId]);
+    const brandId = s.rows[0]?.brand_id;
+    if (!brandId) return res.status(404).json({ error: 'Não encontrado' });
+    const r = await runWithEadSchemaRetry(() => query(
+      `SELECT bc.*, cat.name AS category_name
+         FROM ead_brand_catalogs bc
+         LEFT JOIN ead_brand_catalog_categories cat ON cat.id = bc.category_id
+        WHERE bc.id = $1 AND bc.brand_id = $2 AND bc.active = true`,
+      [req.params.id, brandId]
+    ));
+    if (!r.rows.length) return res.status(404).json({ error: 'Não encontrado' });
+    res.json(r.rows[0]);
+  } catch (e) { console.error(e); res.status(500).json({ error: 'Erro' }); }
+});
+
+// Gera PDF da galeria on-the-fly (uma imagem por página) e faz streaming
+router.get('/my/catalogs/:id/pdf', studentAuth, async (req, res) => {
+  try {
+    const s = await query('SELECT brand_id FROM ead_students WHERE id = $1', [req.studentId]);
+    const brandId = s.rows[0]?.brand_id;
+    if (!brandId) return res.status(404).json({ error: 'Não encontrado' });
+    const r = await runWithEadSchemaRetry(() => query(
+      `SELECT title, type, images, pdf_url FROM ead_brand_catalogs
+        WHERE id = $1 AND brand_id = $2 AND active = true`,
+      [req.params.id, brandId]
+    ));
+    const cat = r.rows[0];
+    if (!cat) return res.status(404).json({ error: 'Não encontrado' });
+
+    // Se já for PDF, redireciona
+    if (cat.type === 'pdf' && cat.pdf_url) return res.redirect(cat.pdf_url);
+
+    const imgs = Array.isArray(cat.images) ? cat.images : [];
+    if (!imgs.length) return res.status(400).json({ error: 'Catálogo sem imagens' });
+
+    const pdfDoc = await PDFDocument.create();
+    for (const im of imgs) {
+      try {
+        let bytes;
+        const url = String(im.url || '');
+        if (url.startsWith('http')) {
+          const rr = await fetch(url);
+          bytes = Buffer.from(await rr.arrayBuffer());
+        } else {
+          const local = path.join(process.cwd(), url.replace(/^\/uploads\//, 'uploads/'));
+          if (fs.existsSync(local)) bytes = fs.readFileSync(local);
+        }
+        if (!bytes) continue;
+        let img;
+        try { img = await pdfDoc.embedJpg(bytes); }
+        catch { try { img = await pdfDoc.embedPng(bytes); } catch { continue; } }
+        // A4 landscape/portrait dinâmico conforme proporção
+        const isLandscape = img.width >= img.height;
+        const pageW = isLandscape ? 842 : 595;
+        const pageH = isLandscape ? 595 : 842;
+        const page = pdfDoc.addPage([pageW, pageH]);
+        const scale = Math.min(pageW / img.width, pageH / img.height);
+        const w = img.width * scale;
+        const h = img.height * scale;
+        page.drawImage(img, { x: (pageW - w) / 2, y: (pageH - h) / 2, width: w, height: h });
+      } catch (e) { console.error('img fail', e); }
+    }
+
+    const bytes = await pdfDoc.save();
+    const safeName = String(cat.title || 'catalogo').replace(/[^a-zA-Z0-9-_]+/g, '_').slice(0, 60);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${safeName}.pdf"`);
+    res.send(Buffer.from(bytes));
+  } catch (e) { console.error('catalog pdf', e); res.status(500).json({ error: 'Erro ao gerar PDF' }); }
+});
+
 router.use('/admin', admin);
 
 export default router;
