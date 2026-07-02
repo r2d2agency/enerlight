@@ -16,7 +16,7 @@ interface Field {
 }
 
 const FIELD_KEYS = [
-  { key: 'nome', label: 'Nome do aluno' },
+  { key: 'nome', label: 'Nome do instalador' },
   { key: 'cpf', label: 'CPF' },
   { key: 'empresa', label: 'Empresa' },
   { key: 'curso', label: 'Nome do curso' },

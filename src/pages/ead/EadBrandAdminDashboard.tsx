@@ -129,7 +129,7 @@ export default function EadBrandAdminDashboard() {
             </CardContent>
           </Card>
           <Card>
-            <CardHeader><CardTitle>Status dos alunos</CardTitle></CardHeader>
+            <CardHeader><CardTitle>Status dos instaladores</CardTitle></CardHeader>
             <CardContent className="h-72">
               {statusPie.length ? (
                 <ResponsiveContainer width="100%" height="100%">
@@ -153,7 +153,7 @@ export default function EadBrandAdminDashboard() {
             <Table>
               <TableHeader><TableRow>
                 <TableHead>Curso</TableHead>
-                <TableHead className="text-right">Alunos que tentaram</TableHead>
+                <TableHead className="text-right">Instaladores que tentaram</TableHead>
                 <TableHead className="text-right">Aprovados</TableHead>
                 <TableHead className="text-right">Taxa</TableHead>
                 <TableHead className="text-right">Nota média</TableHead>
@@ -179,11 +179,11 @@ export default function EadBrandAdminDashboard() {
         {/* Top students + recent + pending */}
         <div className="grid lg:grid-cols-2 gap-4">
           <Card>
-            <CardHeader><CardTitle>Top alunos (certificados / desempenho)</CardTitle></CardHeader>
+            <CardHeader><CardTitle>Top instaladores (certificados / desempenho)</CardTitle></CardHeader>
             <CardContent>
               <Table>
                 <TableHeader><TableRow>
-                  <TableHead>Aluno</TableHead>
+                  <TableHead>Instalador</TableHead>
                   <TableHead className="text-right">Certificados</TableHead>
                   <TableHead className="text-right">Nota média</TableHead>
                 </TableRow></TableHeader>
@@ -240,7 +240,7 @@ export default function EadBrandAdminDashboard() {
           <CardContent>
             <Table>
               <TableHeader><TableRow>
-                <TableHead>Aluno</TableHead>
+                <TableHead>Instalador</TableHead>
                 <TableHead>Contato</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Data</TableHead>
