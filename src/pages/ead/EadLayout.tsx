@@ -3,6 +3,8 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { eadApi, eadToken, EadStudent } from '@/lib/ead-api';
 import { Button } from '@/components/ui/button';
 import { GraduationCap, Award, BookOpen, LogOut, FileText, Home, Loader2, ChevronRight } from 'lucide-react';
+import enerlightLogo from '@/assets/enerlight-logo.png';
+
 
 export type Crumb = { label: string; to?: string };
 
