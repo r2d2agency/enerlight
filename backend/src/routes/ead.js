@@ -1427,6 +1427,10 @@ router.get('/brand-admin/dashboard', brandAdminAuth, async (req, res) => {
           GROUP BY COALESCE(NULLIF(TRIM(s.company), ''), 'Sem empresa')
           ORDER BY total DESC, approved DESC
           LIMIT 50`, params),
+      query(`SELECT DISTINCT COALESCE(NULLIF(TRIM(s.company), ''), 'Sem empresa') AS company
+           FROM ead_students s
+          WHERE s.brand_id = $1
+          ORDER BY 1`, [brandId]),
     ]);
 
     res.json({
@@ -1440,8 +1444,10 @@ router.get('/brand-admin/dashboard', brandAdminAuth, async (req, res) => {
       recent_students: recent.rows,
       pending_students: pending.rows,
       companies: companies.rows,
-      filter: { from, to },
+      all_companies: allCompanies.rows.map(r => r.company),
+      filter: { from, to, company },
     });
+
   } catch (e) { console.error('brand-admin dashboard', e); res.status(500).json({ error: 'Erro ao carregar' }); }
 });
 
