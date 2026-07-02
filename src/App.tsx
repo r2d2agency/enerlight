@@ -107,6 +107,9 @@ const EadBrandLogin = lazyRetry(() => import("./pages/ead/EadBrandLogin"));
 const EadAdmin = lazyRetry(() => import("./pages/EadAdmin"));
 const EadBrandAdminLogin = lazyRetry(() => import("./pages/ead/EadBrandAdminLogin"));
 const EadBrandAdminDashboard = lazyRetry(() => import("./pages/ead/EadBrandAdminDashboard"));
+const EadBrandAdminCatalogs = lazyRetry(() => import("./pages/ead/EadBrandAdminCatalogs"));
+const EadCatalogs = lazyRetry(() => import("./pages/ead/EadCatalogs"));
+const EadCatalogView = lazyRetry(() => import("./pages/ead/EadCatalogView"));
 
 
 
