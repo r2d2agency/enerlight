@@ -95,6 +95,7 @@ export function EadLayout({ children, requireAuth = true, breadcrumbs }: Props) 
   const tabs = [
     { to: link('inicio'), label: 'Início', icon: Home, key: 'inicio' },
     { to: link('cursos'), label: 'Cursos', icon: BookOpen, key: 'cursos' },
+    { to: link('catalogos'), label: 'Catálogos', icon: Layers, key: 'catalogos' },
     { to: link('manuais'), label: 'Manuais', icon: FileText, key: 'manuais' },
     { to: link('certificados'), label: 'Certificados', icon: Award, key: 'certificados' },
   ];
