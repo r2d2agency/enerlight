@@ -206,6 +206,11 @@ router.post('/brand/:slug/signup', async (req, res) => {
        RETURNING id, name, email`,
       [cpf, name, email, company, city, state, phone, brand.id, JSON.stringify(extra)]
     );
+
+    // Notifica administradores por WhatsApp que há novo cadastro aguardando aprovação
+    notifyAdminNewSignup(brand, { id: r.rows[0].id, name, email, phone, company, city, state })
+      .catch(err => console.error('[EAD notifyAdminNewSignup] error', err));
+
     res.status(201).json({ ok: true, student: r.rows[0], message: 'Cadastro enviado! Assim que aprovado, você receberá sua senha temporária por WhatsApp/e-mail.' });
 
   } catch (e) {
