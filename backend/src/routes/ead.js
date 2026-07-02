@@ -984,8 +984,11 @@ admin.post('/brands', gate('can_manage_ead'), async (req, res) => {
 
 admin.patch('/brands/:id', gate('can_manage_ead'), async (req, res) => {
   try {
-    const { slug, name, logo_url, cover_url, primary_color, accent_color, welcome_title, welcome_text, signup_fields, notify_connection_id, approval_message, active } = req.body || {};
+    const { slug, name, logo_url, cover_url, primary_color, accent_color, welcome_title, welcome_text, signup_fields, notify_connection_id, approval_message, active, notify_admin_phone, signup_notify_message } = req.body || {};
     const cleanSlug = slug !== undefined ? String(slug).trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') : null;
+    const cleanAdminPhone = notify_admin_phone !== undefined
+      ? (notify_admin_phone ? String(notify_admin_phone).replace(/\D/g, '') || null : null)
+      : undefined;
     const r = await query(
       `UPDATE ead_brands SET
          slug = COALESCE($1, slug),
@@ -1000,6 +1003,8 @@ admin.patch('/brands/:id', gate('can_manage_ead'), async (req, res) => {
          notify_connection_id = $10,
          approval_message = COALESCE($11, approval_message),
          active = COALESCE($12, active),
+         notify_admin_phone = CASE WHEN $14::boolean THEN $15 ELSE notify_admin_phone END,
+         signup_notify_message = COALESCE($16, signup_notify_message),
          updated_at = NOW()
        WHERE id = $13 RETURNING *`,
       [cleanSlug, name ?? null, logo_url ?? null, cover_url ?? null, primary_color ?? null, accent_color ?? null,
@@ -1008,7 +1013,9 @@ admin.patch('/brands/:id', gate('can_manage_ead'), async (req, res) => {
        notify_connection_id ?? null,
        approval_message ?? null,
        typeof active === 'boolean' ? active : null,
-       req.params.id]
+       req.params.id,
+       cleanAdminPhone !== undefined, cleanAdminPhone ?? null,
+       signup_notify_message ?? null]
     );
     res.json(r.rows[0]);
   } catch (e) {
