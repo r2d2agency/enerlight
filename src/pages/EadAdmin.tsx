@@ -1342,6 +1342,25 @@ function BrandEditor({ brand, onClose }: { brand: any; onClose: () => void }) {
               <Textarea rows={6} value={data.approval_message || ''} onChange={e => set('approval_message', e.target.value)} placeholder={"Olá {nome}! 🎉\n\nSeu cadastro na área *{marca}* foi aprovado.\n\nAcesse: {link}\nUse seu e-mail ({email}) e a senha cadastrada."} />
               <p className="text-xs text-muted-foreground mt-1">Variáveis: <code>{'{nome}'}</code> <code>{'{marca}'}</code> <code>{'{link}'}</code> <code>{'{email}'}</code> <code>{'{empresa}'}</code>. Deixe em branco para usar a mensagem padrão personalizada com a marca.</p>
             </div>
+            <div className="pt-3 border-t">
+              <Label>WhatsApp do administrador (novos cadastros)</Label>
+              <Input
+                value={data.notify_admin_phone || ''}
+                onChange={e => set('notify_admin_phone', e.target.value)}
+                placeholder="5511999999999 (com DDI e DDD)"
+              />
+              <p className="text-xs text-muted-foreground mt-1">Quando um instalador se cadastrar, este número receberá um aviso pelo WhatsApp para aprovação. Deixe em branco para desativar.</p>
+            </div>
+            <div>
+              <Label>Mensagem de novo cadastro</Label>
+              <Textarea
+                rows={5}
+                value={data.signup_notify_message || ''}
+                onChange={e => set('signup_notify_message', e.target.value)}
+                placeholder={"🔔 Novo cadastro aguardando aprovação\n\n👤 {nome}\n📧 {email}\n📱 {telefone}\n🏢 {empresa}\n📍 {cidade}/{uf}\n\nÁrea: {marca}"}
+              />
+              <p className="text-xs text-muted-foreground mt-1">Variáveis: <code>{'{nome}'}</code> <code>{'{email}'}</code> <code>{'{telefone}'}</code> <code>{'{empresa}'}</code> <code>{'{cidade}'}</code> <code>{'{uf}'}</code> <code>{'{marca}'}</code>. Deixe em branco para usar o modelo padrão.</p>
+            </div>
           </TabsContent>
         </Tabs>
         <DialogFooter>
