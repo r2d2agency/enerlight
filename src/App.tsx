@@ -110,6 +110,7 @@ const EadBrandAdminDashboard = lazyRetry(() => import("./pages/ead/EadBrandAdmin
 const EadBrandAdminCatalogs = lazyRetry(() => import("./pages/ead/EadBrandAdminCatalogs"));
 const EadCatalogs = lazyRetry(() => import("./pages/ead/EadCatalogs"));
 const EadCatalogView = lazyRetry(() => import("./pages/ead/EadCatalogView"));
+const EadAdminCatalogs = lazyRetry(() => import("./pages/ead/EadAdminCatalogs"));
 
 
 
@@ -250,6 +251,7 @@ const App = () => (
               <Route path="/ead/curso/:id/prova" element={<EadQuiz />} />
               <Route path="/ead/certificados" element={<EadCertificates />} />
               <Route path="/admin/ead" element={<ProtectedRoute><EadAdmin /></ProtectedRoute>} />
+              <Route path="/admin/ead/catalogos" element={<ProtectedRoute><EadAdminCatalogs /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
 
             </Routes>

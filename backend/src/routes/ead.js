@@ -583,17 +583,18 @@ async function ensureEadApprovalSchema() {
 
     CREATE TABLE IF NOT EXISTS ead_brand_catalog_categories (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      brand_id UUID NOT NULL REFERENCES ead_brands(id) ON DELETE CASCADE,
+      brand_id UUID REFERENCES ead_brands(id) ON DELETE CASCADE,
       name VARCHAR(160) NOT NULL,
       description TEXT,
       order_index INT DEFAULT 0,
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
+    ALTER TABLE ead_brand_catalog_categories ALTER COLUMN brand_id DROP NOT NULL;
     CREATE INDEX IF NOT EXISTS idx_ead_bcat_brand ON ead_brand_catalog_categories(brand_id);
 
     CREATE TABLE IF NOT EXISTS ead_brand_catalogs (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      brand_id UUID NOT NULL REFERENCES ead_brands(id) ON DELETE CASCADE,
+      brand_id UUID REFERENCES ead_brands(id) ON DELETE CASCADE,
       category_id UUID REFERENCES ead_brand_catalog_categories(id) ON DELETE SET NULL,
       title VARCHAR(200) NOT NULL,
       description TEXT,
@@ -606,6 +607,7 @@ async function ensureEadApprovalSchema() {
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW()
     );
+    ALTER TABLE ead_brand_catalogs ALTER COLUMN brand_id DROP NOT NULL;
     CREATE INDEX IF NOT EXISTS idx_ead_bcat_brand2 ON ead_brand_catalogs(brand_id);
     CREATE INDEX IF NOT EXISTS idx_ead_bcat_category ON ead_brand_catalogs(category_id);
   `);
@@ -1778,21 +1780,23 @@ router.get('/my/catalogs', studentAuth, async (req, res) => {
   try {
     await ensureEadApprovalSchema();
     const s = await query('SELECT brand_id FROM ead_students WHERE id = $1', [req.studentId]);
-    const brandId = s.rows[0]?.brand_id;
-    if (!brandId) return res.json({ categories: [], uncategorized: [] });
+    const brandId = s.rows[0]?.brand_id || null;
 
+    // Categorias: globais (brand_id IS NULL) + da marca do aluno
     const cats = await runWithEadSchemaRetry(() => query(
-      `SELECT id, name, description, order_index
-         FROM ead_brand_catalog_categories WHERE brand_id = $1
-         ORDER BY order_index, created_at`,
-      [brandId]
+      `SELECT id, name, description, order_index, brand_id
+         FROM ead_brand_catalog_categories
+        WHERE brand_id IS NULL ${brandId ? 'OR brand_id = $1' : ''}
+        ORDER BY order_index, created_at`,
+      brandId ? [brandId] : []
     ));
+    // Catálogos: globais + da marca do aluno
     const catalogs = await runWithEadSchemaRetry(() => query(
-      `SELECT id, category_id, title, description, type, cover_url, images, pdf_url, order_index
+      `SELECT id, category_id, title, description, type, cover_url, images, pdf_url, order_index, brand_id
          FROM ead_brand_catalogs
-        WHERE brand_id = $1 AND active = true
+        WHERE active = true AND (brand_id IS NULL ${brandId ? 'OR brand_id = $1' : ''})
         ORDER BY order_index, created_at DESC`,
-      [brandId]
+      brandId ? [brandId] : []
     ));
     const byCat = new Map();
     for (const c of cats.rows) byCat.set(c.id, { ...c, items: [] });
@@ -1808,14 +1812,14 @@ router.get('/my/catalogs', studentAuth, async (req, res) => {
 router.get('/my/catalogs/:id', studentAuth, async (req, res) => {
   try {
     const s = await query('SELECT brand_id FROM ead_students WHERE id = $1', [req.studentId]);
-    const brandId = s.rows[0]?.brand_id;
-    if (!brandId) return res.status(404).json({ error: 'Não encontrado' });
+    const brandId = s.rows[0]?.brand_id || null;
     const r = await runWithEadSchemaRetry(() => query(
       `SELECT bc.*, cat.name AS category_name
          FROM ead_brand_catalogs bc
          LEFT JOIN ead_brand_catalog_categories cat ON cat.id = bc.category_id
-        WHERE bc.id = $1 AND bc.brand_id = $2 AND bc.active = true`,
-      [req.params.id, brandId]
+        WHERE bc.id = $1 AND bc.active = true
+          AND (bc.brand_id IS NULL ${brandId ? 'OR bc.brand_id = $2' : ''})`,
+      brandId ? [req.params.id, brandId] : [req.params.id]
     ));
     if (!r.rows.length) return res.status(404).json({ error: 'Não encontrado' });
     res.json(r.rows[0]);
@@ -1826,12 +1830,12 @@ router.get('/my/catalogs/:id', studentAuth, async (req, res) => {
 router.get('/my/catalogs/:id/pdf', studentAuth, async (req, res) => {
   try {
     const s = await query('SELECT brand_id FROM ead_students WHERE id = $1', [req.studentId]);
-    const brandId = s.rows[0]?.brand_id;
-    if (!brandId) return res.status(404).json({ error: 'Não encontrado' });
+    const brandId = s.rows[0]?.brand_id || null;
     const r = await runWithEadSchemaRetry(() => query(
       `SELECT title, type, images, pdf_url FROM ead_brand_catalogs
-        WHERE id = $1 AND brand_id = $2 AND active = true`,
-      [req.params.id, brandId]
+        WHERE id = $1 AND active = true
+          AND (brand_id IS NULL ${brandId ? 'OR brand_id = $2' : ''})`,
+      brandId ? [req.params.id, brandId] : [req.params.id]
     ));
     const cat = r.rows[0];
     if (!cat) return res.status(404).json({ error: 'Não encontrado' });
@@ -1876,6 +1880,142 @@ router.get('/my/catalogs/:id/pdf', studentAuth, async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${safeName}.pdf"`);
     res.send(Buffer.from(bytes));
   } catch (e) { console.error('catalog pdf', e); res.status(500).json({ error: 'Erro ao gerar PDF' }); }
+});
+
+// =========================================================================
+// SUPERADMIN — catálogos globais (com opção de vincular a uma marca)
+// =========================================================================
+admin.post('/catalog-upload', gate('can_manage_ead'), catalogUpload.single('file'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Arquivo obrigatório' });
+  res.json({ url: catalogFileUrl(req.file.filename), filename: req.file.filename, size: req.file.size, mimetype: req.file.mimetype });
+});
+
+admin.get('/catalog-categories', gate('can_view_ead'), async (req, res) => {
+  await ensureEadApprovalSchema();
+  const r = await runWithEadSchemaRetry(() => query(
+    `SELECT c.*, b.name AS brand_name,
+            (SELECT COUNT(*)::int FROM ead_brand_catalogs bc WHERE bc.category_id = c.id) AS catalog_count
+       FROM ead_brand_catalog_categories c
+       LEFT JOIN ead_brands b ON b.id = c.brand_id
+       ORDER BY c.order_index, c.created_at`
+  ));
+  res.json(r.rows);
+});
+
+admin.post('/catalog-categories', gate('can_manage_ead'), async (req, res) => {
+  try {
+    await ensureEadApprovalSchema();
+    const { name, description, order_index, brand_id } = req.body || {};
+    if (!name || !String(name).trim()) return res.status(400).json({ error: 'Nome obrigatório' });
+    const r = await runWithEadSchemaRetry(() => query(
+      `INSERT INTO ead_brand_catalog_categories (brand_id, name, description, order_index)
+       VALUES ($1,$2,$3,$4) RETURNING *`,
+      [brand_id || null, String(name).trim(), description || null, Number.isFinite(+order_index) ? +order_index : 0]
+    ));
+    res.status(201).json(r.rows[0]);
+  } catch (e) { console.error(e); res.status(500).json({ error: 'Erro ao criar categoria' }); }
+});
+
+admin.patch('/catalog-categories/:id', gate('can_manage_ead'), async (req, res) => {
+  try {
+    const { name, description, order_index, brand_id } = req.body || {};
+    const hasBrand = Object.prototype.hasOwnProperty.call(req.body || {}, 'brand_id');
+    const r = await runWithEadSchemaRetry(() => query(
+      `UPDATE ead_brand_catalog_categories SET
+         name = COALESCE($1, name),
+         description = COALESCE($2, description),
+         order_index = COALESCE($3, order_index),
+         brand_id = CASE WHEN $5::boolean THEN $4 ELSE brand_id END
+       WHERE id = $6 RETURNING *`,
+      [name ?? null, description ?? null, Number.isFinite(+order_index) ? +order_index : null,
+       brand_id || null, hasBrand, req.params.id]
+    ));
+    if (!r.rows.length) return res.status(404).json({ error: 'Não encontrado' });
+    res.json(r.rows[0]);
+  } catch (e) { console.error(e); res.status(500).json({ error: 'Erro ao atualizar' }); }
+});
+
+admin.delete('/catalog-categories/:id', gate('can_manage_ead'), async (req, res) => {
+  await runWithEadSchemaRetry(() => query('DELETE FROM ead_brand_catalog_categories WHERE id = $1', [req.params.id]));
+  res.json({ ok: true });
+});
+
+admin.get('/catalogs', gate('can_view_ead'), async (req, res) => {
+  await ensureEadApprovalSchema();
+  const params = [];
+  const where = [];
+  if (req.query.category_id) { params.push(req.query.category_id); where.push(`bc.category_id = $${params.length}`); }
+  if (req.query.brand_id === '__global__') where.push('bc.brand_id IS NULL');
+  else if (req.query.brand_id) { params.push(req.query.brand_id); where.push(`bc.brand_id = $${params.length}`); }
+  const r = await runWithEadSchemaRetry(() => query(
+    `SELECT bc.*, cat.name AS category_name, b.name AS brand_name
+       FROM ead_brand_catalogs bc
+       LEFT JOIN ead_brand_catalog_categories cat ON cat.id = bc.category_id
+       LEFT JOIN ead_brands b ON b.id = bc.brand_id
+       ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
+       ORDER BY bc.order_index, bc.created_at DESC`,
+    params
+  ));
+  res.json(r.rows);
+});
+
+admin.post('/catalogs', gate('can_manage_ead'), async (req, res) => {
+  try {
+    await ensureEadApprovalSchema();
+    const { title, description, category_id, type, cover_url, images, pdf_url, order_index, active, brand_id } = req.body || {};
+    if (!title || !String(title).trim()) return res.status(400).json({ error: 'Título obrigatório' });
+    const t = type === 'pdf' ? 'pdf' : 'gallery';
+    if (t === 'pdf' && !pdf_url) return res.status(400).json({ error: 'Arquivo PDF obrigatório' });
+    if (t === 'gallery' && (!Array.isArray(images) || images.length === 0)) return res.status(400).json({ error: 'Adicione ao menos uma imagem' });
+    const r = await runWithEadSchemaRetry(() => query(
+      `INSERT INTO ead_brand_catalogs
+         (brand_id, category_id, title, description, type, cover_url, images, pdf_url, order_index, active)
+       VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9,$10) RETURNING *`,
+      [brand_id || null, category_id || null, String(title).trim(), description || null, t,
+       cover_url || null, JSON.stringify(sanitizeImages(images)), pdf_url || null,
+       Number.isFinite(+order_index) ? +order_index : 0, active !== false]
+    ));
+    res.status(201).json(r.rows[0]);
+  } catch (e) { console.error(e); res.status(500).json({ error: 'Erro ao criar catálogo' }); }
+});
+
+admin.patch('/catalogs/:id', gate('can_manage_ead'), async (req, res) => {
+  try {
+    const { title, description, category_id, type, cover_url, images, pdf_url, order_index, active, brand_id } = req.body || {};
+    const hasCategory = Object.prototype.hasOwnProperty.call(req.body || {}, 'category_id');
+    const hasImages = Object.prototype.hasOwnProperty.call(req.body || {}, 'images');
+    const hasBrand = Object.prototype.hasOwnProperty.call(req.body || {}, 'brand_id');
+    const t = type === 'pdf' ? 'pdf' : type === 'gallery' ? 'gallery' : null;
+    const r = await runWithEadSchemaRetry(() => query(
+      `UPDATE ead_brand_catalogs SET
+         title = COALESCE($1, title),
+         description = COALESCE($2, description),
+         category_id = CASE WHEN $10::boolean THEN $3 ELSE category_id END,
+         type = COALESCE($4, type),
+         cover_url = COALESCE($5, cover_url),
+         images = CASE WHEN $11::boolean THEN $6::jsonb ELSE images END,
+         pdf_url = COALESCE($7, pdf_url),
+         order_index = COALESCE($8, order_index),
+         active = COALESCE($9, active),
+         brand_id = CASE WHEN $13::boolean THEN $14 ELSE brand_id END,
+         updated_at = NOW()
+       WHERE id = $12 RETURNING *`,
+      [
+        title ?? null, description ?? null, category_id || null, t,
+        cover_url ?? null, hasImages ? JSON.stringify(sanitizeImages(images)) : null,
+        pdf_url ?? null, Number.isFinite(+order_index) ? +order_index : null,
+        typeof active === 'boolean' ? active : null,
+        hasCategory, hasImages, req.params.id, hasBrand, brand_id || null,
+      ]
+    ));
+    if (!r.rows.length) return res.status(404).json({ error: 'Não encontrado' });
+    res.json(r.rows[0]);
+  } catch (e) { console.error(e); res.status(500).json({ error: 'Erro ao atualizar' }); }
+});
+
+admin.delete('/catalogs/:id', gate('can_manage_ead'), async (req, res) => {
+  await runWithEadSchemaRetry(() => query('DELETE FROM ead_brand_catalogs WHERE id = $1', [req.params.id]));
+  res.json({ ok: true });
 });
 
 router.use('/admin', admin);
