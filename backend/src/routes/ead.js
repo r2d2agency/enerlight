@@ -613,7 +613,6 @@ async function ensureEadApprovalSchema() {
     CREATE INDEX IF NOT EXISTS idx_ead_bcat_brand2 ON ead_brand_catalogs(brand_id);
     CREATE INDEX IF NOT EXISTS idx_ead_bcat_category ON ead_brand_catalogs(category_id);
   `);
-  eadApprovalSchemaReady = false; // force re-check to apply new ALTERs
   eadApprovalSchemaReady = true;
 }
 
