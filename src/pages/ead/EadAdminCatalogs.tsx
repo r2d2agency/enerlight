@@ -395,7 +395,7 @@ function CatalogDialog({ open, editing, form, setForm, cats, brands, onClose, on
               <Input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} />
             </div>
             <div>
-              <Label>Visibilidade</Label>
+              <Label>Visibilidade principal</Label>
               <Select value={form.brand_id} onValueChange={v => setForm({ ...form, brand_id: v, category_id: '' })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -403,8 +403,45 @@ function CatalogDialog({ open, editing, form, setForm, cats, brands, onClose, on
                   {brands.map(b => <SelectItem key={b.id} value={b.id}>Somente marca: {b.name}</SelectItem>)}
                 </SelectContent>
               </Select>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                {form.brand_id === GLOBAL
+                  ? 'Aparece para instaladores de todas as marcas.'
+                  : 'Aparece apenas para instaladores da marca escolhida (mais as adicionais abaixo).'}
+              </p>
             </div>
           </div>
+
+          {form.brand_id !== GLOBAL && brands.length > 0 && (
+            <div className="border rounded-md p-3 bg-muted/30">
+              <Label className="text-xs">Também visível nas marcas (opcional)</Label>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {brands.filter(b => b.id !== form.brand_id).map(b => {
+                  const checked = form.extra_brand_ids.includes(b.id);
+                  return (
+                    <button
+                      key={b.id}
+                      type="button"
+                      onClick={() => {
+                        const set = new Set(form.extra_brand_ids);
+                        checked ? set.delete(b.id) : set.add(b.id);
+                        setForm({ ...form, extra_brand_ids: Array.from(set) });
+                      }}
+                      className={`text-xs px-2.5 py-1 rounded-full border transition ${
+                        checked ? 'bg-primary text-primary-foreground border-primary' : 'bg-background hover:bg-muted'
+                      }`}
+                    >
+                      {checked ? '✓ ' : '+ '}{b.name}
+                    </button>
+                  );
+                })}
+              </div>
+              {form.extra_brand_ids.length > 0 && (
+                <p className="text-[11px] text-muted-foreground mt-2">
+                  Também será mostrado para instaladores destas {form.extra_brand_ids.length} marca(s).
+                </p>
+              )}
+            </div>
+          )}
 
           <div className="grid md:grid-cols-2 gap-3">
             <div>
