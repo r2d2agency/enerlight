@@ -1784,19 +1784,22 @@ router.get('/my/catalogs', studentAuth, async (req, res) => {
     const s = await query('SELECT brand_id FROM ead_students WHERE id = $1', [req.studentId]);
     const brandId = s.rows[0]?.brand_id || null;
 
-    // Categorias: globais (brand_id IS NULL) + da marca do aluno
+    // Global (brand_id IS NULL e sem extras) OU marca principal do aluno OU extras contêm marca do aluno
+    const visClause = brandId
+      ? `(brand_id IS NULL OR brand_id = $1 OR $1 = ANY(COALESCE(extra_brand_ids, '{}'::uuid[])))`
+      : `(brand_id IS NULL)`;
+
     const cats = await runWithEadSchemaRetry(() => query(
-      `SELECT id, name, description, order_index, brand_id
+      `SELECT id, name, description, order_index, brand_id, extra_brand_ids
          FROM ead_brand_catalog_categories
-        WHERE brand_id IS NULL ${brandId ? 'OR brand_id = $1' : ''}
+        WHERE ${visClause}
         ORDER BY order_index, created_at`,
       brandId ? [brandId] : []
     ));
-    // Catálogos: globais + da marca do aluno
     const catalogs = await runWithEadSchemaRetry(() => query(
-      `SELECT id, category_id, title, description, type, cover_url, images, pdf_url, order_index, brand_id
+      `SELECT id, category_id, title, description, type, cover_url, images, pdf_url, order_index, brand_id, extra_brand_ids
          FROM ead_brand_catalogs
-        WHERE active = true AND (brand_id IS NULL ${brandId ? 'OR brand_id = $1' : ''})
+        WHERE active = true AND ${visClause}
         ORDER BY order_index, created_at DESC`,
       brandId ? [brandId] : []
     ));
@@ -1815,12 +1818,14 @@ router.get('/my/catalogs/:id', studentAuth, async (req, res) => {
   try {
     const s = await query('SELECT brand_id FROM ead_students WHERE id = $1', [req.studentId]);
     const brandId = s.rows[0]?.brand_id || null;
+    const visClause = brandId
+      ? `(bc.brand_id IS NULL OR bc.brand_id = $2 OR $2 = ANY(COALESCE(bc.extra_brand_ids, '{}'::uuid[])))`
+      : `(bc.brand_id IS NULL)`;
     const r = await runWithEadSchemaRetry(() => query(
       `SELECT bc.*, cat.name AS category_name
          FROM ead_brand_catalogs bc
          LEFT JOIN ead_brand_catalog_categories cat ON cat.id = bc.category_id
-        WHERE bc.id = $1 AND bc.active = true
-          AND (bc.brand_id IS NULL ${brandId ? 'OR bc.brand_id = $2' : ''})`,
+        WHERE bc.id = $1 AND bc.active = true AND ${visClause}`,
       brandId ? [req.params.id, brandId] : [req.params.id]
     ));
     if (!r.rows.length) return res.status(404).json({ error: 'Não encontrado' });
