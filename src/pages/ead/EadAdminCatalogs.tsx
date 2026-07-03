@@ -110,6 +110,7 @@ export default function EadAdminCatalogs() {
         images: (it.images || []).map(x => ({ url: x.url, title: x.title || '' })),
         active: it.active,
         brand_id: it.brand_id || GLOBAL,
+        extra_brand_ids: it.extra_brand_ids || [],
       },
     });
   }
