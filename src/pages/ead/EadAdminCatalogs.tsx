@@ -314,9 +314,10 @@ interface CatalogFormState {
   type: 'gallery' | 'pdf'; cover_url: string; pdf_url: string;
   images: { url: string; title: string }[]; active: boolean;
   brand_id: string;
+  extra_brand_ids: string[];
 }
 function emptyForm(): CatalogFormState {
-  return { title: '', description: '', category_id: '', type: 'gallery', cover_url: '', pdf_url: '', images: [], active: true, brand_id: GLOBAL };
+  return { title: '', description: '', category_id: '', type: 'gallery', cover_url: '', pdf_url: '', images: [], active: true, brand_id: GLOBAL, extra_brand_ids: [] };
 }
 
 function CatalogDialog({ open, editing, form, setForm, cats, brands, onClose, onSave }: {
