@@ -1969,18 +1969,19 @@ admin.get('/catalogs', gate('can_view_ead'), async (req, res) => {
 admin.post('/catalogs', gate('can_manage_ead'), async (req, res) => {
   try {
     await ensureEadApprovalSchema();
-    const { title, description, category_id, type, cover_url, images, pdf_url, order_index, active, brand_id } = req.body || {};
+    const { title, description, category_id, type, cover_url, images, pdf_url, order_index, active, brand_id, extra_brand_ids } = req.body || {};
     if (!title || !String(title).trim()) return res.status(400).json({ error: 'Título obrigatório' });
     const t = type === 'pdf' ? 'pdf' : 'gallery';
     if (t === 'pdf' && !pdf_url) return res.status(400).json({ error: 'Arquivo PDF obrigatório' });
     if (t === 'gallery' && (!Array.isArray(images) || images.length === 0)) return res.status(400).json({ error: 'Adicione ao menos uma imagem' });
+    const extras = Array.isArray(extra_brand_ids) ? extra_brand_ids.filter(Boolean) : [];
     const r = await runWithEadSchemaRetry(() => query(
       `INSERT INTO ead_brand_catalogs
-         (brand_id, category_id, title, description, type, cover_url, images, pdf_url, order_index, active)
-       VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9,$10) RETURNING *`,
+         (brand_id, category_id, title, description, type, cover_url, images, pdf_url, order_index, active, extra_brand_ids)
+       VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9,$10,$11::uuid[]) RETURNING *`,
       [brand_id || null, category_id || null, String(title).trim(), description || null, t,
        cover_url || null, JSON.stringify(sanitizeImages(images)), pdf_url || null,
-       Number.isFinite(+order_index) ? +order_index : 0, active !== false]
+       Number.isFinite(+order_index) ? +order_index : 0, active !== false, extras]
     ));
     res.status(201).json(r.rows[0]);
   } catch (e) { console.error(e); res.status(500).json({ error: 'Erro ao criar catálogo' }); }
@@ -1988,10 +1989,12 @@ admin.post('/catalogs', gate('can_manage_ead'), async (req, res) => {
 
 admin.patch('/catalogs/:id', gate('can_manage_ead'), async (req, res) => {
   try {
-    const { title, description, category_id, type, cover_url, images, pdf_url, order_index, active, brand_id } = req.body || {};
+    const { title, description, category_id, type, cover_url, images, pdf_url, order_index, active, brand_id, extra_brand_ids } = req.body || {};
     const hasCategory = Object.prototype.hasOwnProperty.call(req.body || {}, 'category_id');
     const hasImages = Object.prototype.hasOwnProperty.call(req.body || {}, 'images');
     const hasBrand = Object.prototype.hasOwnProperty.call(req.body || {}, 'brand_id');
+    const hasExtras = Object.prototype.hasOwnProperty.call(req.body || {}, 'extra_brand_ids');
+    const extras = Array.isArray(extra_brand_ids) ? extra_brand_ids.filter(Boolean) : [];
     const t = type === 'pdf' ? 'pdf' : type === 'gallery' ? 'gallery' : null;
     const r = await runWithEadSchemaRetry(() => query(
       `UPDATE ead_brand_catalogs SET
@@ -2005,6 +2008,7 @@ admin.patch('/catalogs/:id', gate('can_manage_ead'), async (req, res) => {
          order_index = COALESCE($8, order_index),
          active = COALESCE($9, active),
          brand_id = CASE WHEN $13::boolean THEN $14 ELSE brand_id END,
+         extra_brand_ids = CASE WHEN $15::boolean THEN $16::uuid[] ELSE extra_brand_ids END,
          updated_at = NOW()
        WHERE id = $12 RETURNING *`,
       [
@@ -2013,6 +2017,7 @@ admin.patch('/catalogs/:id', gate('can_manage_ead'), async (req, res) => {
         pdf_url ?? null, Number.isFinite(+order_index) ? +order_index : null,
         typeof active === 'boolean' ? active : null,
         hasCategory, hasImages, req.params.id, hasBrand, brand_id || null,
+        hasExtras, extras,
       ]
     ));
     if (!r.rows.length) return res.status(404).json({ error: 'Não encontrado' });
