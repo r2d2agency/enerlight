@@ -1953,9 +1953,17 @@ admin.get('/catalogs', gate('can_view_ead'), async (req, res) => {
   const where = [];
   if (req.query.category_id) { params.push(req.query.category_id); where.push(`bc.category_id = $${params.length}`); }
   if (req.query.brand_id === '__global__') where.push('bc.brand_id IS NULL');
-  else if (req.query.brand_id) { params.push(req.query.brand_id); where.push(`bc.brand_id = $${params.length}`); }
+  else if (req.query.brand_id) {
+    params.push(req.query.brand_id);
+    where.push(`(bc.brand_id = $${params.length} OR $${params.length} = ANY(COALESCE(bc.extra_brand_ids, '{}'::uuid[])))`);
+  }
   const r = await runWithEadSchemaRetry(() => query(
-    `SELECT bc.*, cat.name AS category_name, b.name AS brand_name
+    `SELECT bc.*, cat.name AS category_name, b.name AS brand_name,
+            COALESCE((
+              SELECT array_agg(eb.name)
+                FROM unnest(COALESCE(bc.extra_brand_ids, '{}'::uuid[])) x
+                JOIN ead_brands eb ON eb.id = x
+            ), '{}'::text[]) AS extra_brand_names
        FROM ead_brand_catalogs bc
        LEFT JOIN ead_brand_catalog_categories cat ON cat.id = bc.category_id
        LEFT JOIN ead_brands b ON b.id = bc.brand_id
