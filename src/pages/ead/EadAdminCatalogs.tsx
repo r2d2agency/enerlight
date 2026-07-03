@@ -126,6 +126,7 @@ export default function EadAdminCatalogs() {
       images: f.images.map((im, i) => ({ url: im.url, title: im.title || null, order: i })),
       active: f.active,
       brand_id: f.brand_id === GLOBAL ? null : f.brand_id,
+      extra_brand_ids: (f.extra_brand_ids || []).filter(id => id && id !== f.brand_id),
     };
     try {
       if (itemDlg.editing) await eadAdminApi.updateCatalog(itemDlg.editing.id, body);
