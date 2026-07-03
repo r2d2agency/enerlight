@@ -235,10 +235,13 @@ export default function EadAdminCatalogs() {
                           <Badge variant="secondary">{it.type === 'pdf' ? 'PDF' : `${it.images?.length || 0} imgs`}</Badge>
                           {!it.active && <Badge variant="outline"><EyeOff className="h-3 w-3" /></Badge>}
                         </div>
-                        <div className="absolute top-2 left-2">
+                        <div className="absolute top-2 left-2 flex flex-col gap-1 max-w-[70%]">
                           {it.brand_id
                             ? <Badge>{it.brand_name}</Badge>
                             : <Badge variant="secondary"><Globe className="h-3 w-3 mr-1" />Global</Badge>}
+                          {it.extra_brand_names && it.extra_brand_names.length > 0 && (
+                            <Badge variant="outline" className="text-[10px]">+{it.extra_brand_names.length}: {it.extra_brand_names.slice(0,2).join(', ')}{it.extra_brand_names.length > 2 ? '…' : ''}</Badge>
+                          )}
                         </div>
                       </div>
                       <CardContent className="p-3 flex-1 flex flex-col gap-2">
