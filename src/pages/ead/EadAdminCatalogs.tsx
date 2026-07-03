@@ -27,6 +27,7 @@ interface Catalog {
   cover_url?: string | null; images: CatalogImg[]; pdf_url?: string | null;
   order_index: number; active: boolean;
   brand_id?: string | null; brand_name?: string | null;
+  extra_brand_ids?: string[] | null; extra_brand_names?: string[] | null;
 }
 
 export default function EadAdminCatalogs() {
