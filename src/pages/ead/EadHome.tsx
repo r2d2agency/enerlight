@@ -7,7 +7,7 @@ import { BookOpen, FileText, Award, ShoppingBag, ArrowRight, Loader2 } from 'luc
 
 function HomeInner() {
   const { student, link } = useBrand();
-  const [stats, setStats] = useState({ courses: 0, manuals: 0, certificates: 0 });
+  const [stats, setStats] = useState({ courses: 0, manuals: 0, certificates: 0, catalogs: 0 });
   const [loading, setLoading] = useState(true);
 
   const primary = student?.brand_primary || '#FB0812';
@@ -17,12 +17,14 @@ function HomeInner() {
     if (!eadToken.get()) return;
     (async () => {
       try {
-        const [courses, manuals, certs] = await Promise.all([
+        const [courses, manuals, certs, catalogs] = await Promise.all([
           eadApi.courses(),
           eadApi.myManuals().catch(() => []),
           eadApi.myCertificates().catch(() => []),
+          eadApi.myCatalogs().catch(() => ({ categories: [], uncategorized: [] })),
         ]);
-        setStats({ courses: courses.length, manuals: manuals.length, certificates: certs.length });
+        const catCount = ((catalogs as any).categories || []).reduce((a: number, c: any) => a + (c.items?.length || 0), 0) + (((catalogs as any).uncategorized) || []).length;
+        setStats({ courses: courses.length, manuals: manuals.length, certificates: certs.length, catalogs: catCount });
       } finally { setLoading(false); }
     })();
   }, []);
@@ -31,11 +33,11 @@ function HomeInner() {
   const brandName = student?.brand_name || 'Academia';
   const cover = student?.brand_cover_url ? resolveMediaUrl(student.brand_cover_url) : null;
 
-  const tiles = [
+  const tiles: Array<{ to: string; icon: any; title: string; desc: string; count: number; cta: string; border: string; disabled?: boolean }> = [
     { to: link('cursos'), icon: BookOpen, title: 'Cursos', desc: 'Vídeo-aulas técnicas e novas técnicas de aplicação.', count: stats.courses, cta: 'Explorar', border: accent },
     { to: link('manuais'), icon: FileText, title: 'Manuais', desc: 'Documentação técnica e tabelas de aplicação.', count: stats.manuals, cta: 'Consultar', border: primary },
     { to: link('certificados'), icon: Award, title: 'Certificados', desc: 'Valide seu conhecimento e baixe seus PDFs oficiais.', count: stats.certificates, cta: 'Visualizar', border: accent },
-    { to: '#', icon: ShoppingBag, title: 'Catálogo', desc: 'Acesso direto ao portfólio oficial de produtos.', count: 0, cta: 'Em breve', border: '#334155', disabled: true },
+    { to: link('catalogos'), icon: ShoppingBag, title: 'Catálogo', desc: 'Portfólio oficial de produtos e materiais técnicos.', count: stats.catalogs, cta: 'Explorar', border: '#334155' },
   ];
 
   return (
