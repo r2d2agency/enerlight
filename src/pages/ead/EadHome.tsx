@@ -33,7 +33,7 @@ function HomeInner() {
   const brandName = student?.brand_name || 'Academia';
   const cover = student?.brand_cover_url ? resolveMediaUrl(student.brand_cover_url) : null;
 
-  const tiles = [
+  const tiles: Array<{ to: string; icon: any; title: string; desc: string; count: number; cta: string; border: string; disabled?: boolean }> = [
     { to: link('cursos'), icon: BookOpen, title: 'Cursos', desc: 'Vídeo-aulas técnicas e novas técnicas de aplicação.', count: stats.courses, cta: 'Explorar', border: accent },
     { to: link('manuais'), icon: FileText, title: 'Manuais', desc: 'Documentação técnica e tabelas de aplicação.', count: stats.manuals, cta: 'Consultar', border: primary },
     { to: link('certificados'), icon: Award, title: 'Certificados', desc: 'Valide seu conhecimento e baixe seus PDFs oficiais.', count: stats.certificates, cta: 'Visualizar', border: accent },
