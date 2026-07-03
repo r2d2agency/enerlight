@@ -27,6 +27,7 @@ interface Catalog {
   cover_url?: string | null; images: CatalogImg[]; pdf_url?: string | null;
   order_index: number; active: boolean;
   brand_id?: string | null; brand_name?: string | null;
+  extra_brand_ids?: string[] | null; extra_brand_names?: string[] | null;
 }
 
 export default function EadAdminCatalogs() {
@@ -109,6 +110,7 @@ export default function EadAdminCatalogs() {
         images: (it.images || []).map(x => ({ url: x.url, title: x.title || '' })),
         active: it.active,
         brand_id: it.brand_id || GLOBAL,
+        extra_brand_ids: it.extra_brand_ids || [],
       },
     });
   }
@@ -124,6 +126,7 @@ export default function EadAdminCatalogs() {
       images: f.images.map((im, i) => ({ url: im.url, title: im.title || null, order: i })),
       active: f.active,
       brand_id: f.brand_id === GLOBAL ? null : f.brand_id,
+      extra_brand_ids: (f.extra_brand_ids || []).filter(id => id && id !== f.brand_id),
     };
     try {
       if (itemDlg.editing) await eadAdminApi.updateCatalog(itemDlg.editing.id, body);
@@ -232,10 +235,13 @@ export default function EadAdminCatalogs() {
                           <Badge variant="secondary">{it.type === 'pdf' ? 'PDF' : `${it.images?.length || 0} imgs`}</Badge>
                           {!it.active && <Badge variant="outline"><EyeOff className="h-3 w-3" /></Badge>}
                         </div>
-                        <div className="absolute top-2 left-2">
+                        <div className="absolute top-2 left-2 flex flex-col gap-1 max-w-[70%]">
                           {it.brand_id
                             ? <Badge>{it.brand_name}</Badge>
                             : <Badge variant="secondary"><Globe className="h-3 w-3 mr-1" />Global</Badge>}
+                          {it.extra_brand_names && it.extra_brand_names.length > 0 && (
+                            <Badge variant="outline" className="text-[10px]">+{it.extra_brand_names.length}: {it.extra_brand_names.slice(0,2).join(', ')}{it.extra_brand_names.length > 2 ? '…' : ''}</Badge>
+                          )}
                         </div>
                       </div>
                       <CardContent className="p-3 flex-1 flex flex-col gap-2">
@@ -312,9 +318,10 @@ interface CatalogFormState {
   type: 'gallery' | 'pdf'; cover_url: string; pdf_url: string;
   images: { url: string; title: string }[]; active: boolean;
   brand_id: string;
+  extra_brand_ids: string[];
 }
 function emptyForm(): CatalogFormState {
-  return { title: '', description: '', category_id: '', type: 'gallery', cover_url: '', pdf_url: '', images: [], active: true, brand_id: GLOBAL };
+  return { title: '', description: '', category_id: '', type: 'gallery', cover_url: '', pdf_url: '', images: [], active: true, brand_id: GLOBAL, extra_brand_ids: [] };
 }
 
 function CatalogDialog({ open, editing, form, setForm, cats, brands, onClose, onSave }: {
@@ -391,7 +398,7 @@ function CatalogDialog({ open, editing, form, setForm, cats, brands, onClose, on
               <Input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} />
             </div>
             <div>
-              <Label>Visibilidade</Label>
+              <Label>Visibilidade principal</Label>
               <Select value={form.brand_id} onValueChange={v => setForm({ ...form, brand_id: v, category_id: '' })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -399,8 +406,45 @@ function CatalogDialog({ open, editing, form, setForm, cats, brands, onClose, on
                   {brands.map(b => <SelectItem key={b.id} value={b.id}>Somente marca: {b.name}</SelectItem>)}
                 </SelectContent>
               </Select>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                {form.brand_id === GLOBAL
+                  ? 'Aparece para instaladores de todas as marcas.'
+                  : 'Aparece apenas para instaladores da marca escolhida (mais as adicionais abaixo).'}
+              </p>
             </div>
           </div>
+
+          {form.brand_id !== GLOBAL && brands.length > 0 && (
+            <div className="border rounded-md p-3 bg-muted/30">
+              <Label className="text-xs">Também visível nas marcas (opcional)</Label>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {brands.filter(b => b.id !== form.brand_id).map(b => {
+                  const checked = form.extra_brand_ids.includes(b.id);
+                  return (
+                    <button
+                      key={b.id}
+                      type="button"
+                      onClick={() => {
+                        const set = new Set(form.extra_brand_ids);
+                        checked ? set.delete(b.id) : set.add(b.id);
+                        setForm({ ...form, extra_brand_ids: Array.from(set) });
+                      }}
+                      className={`text-xs px-2.5 py-1 rounded-full border transition ${
+                        checked ? 'bg-primary text-primary-foreground border-primary' : 'bg-background hover:bg-muted'
+                      }`}
+                    >
+                      {checked ? '✓ ' : '+ '}{b.name}
+                    </button>
+                  );
+                })}
+              </div>
+              {form.extra_brand_ids.length > 0 && (
+                <p className="text-[11px] text-muted-foreground mt-2">
+                  Também será mostrado para instaladores destas {form.extra_brand_ids.length} marca(s).
+                </p>
+              )}
+            </div>
+          )}
 
           <div className="grid md:grid-cols-2 gap-3">
             <div>

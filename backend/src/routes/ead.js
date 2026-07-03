@@ -608,6 +608,8 @@ async function ensureEadApprovalSchema() {
       updated_at TIMESTAMPTZ DEFAULT NOW()
     );
     ALTER TABLE ead_brand_catalogs ALTER COLUMN brand_id DROP NOT NULL;
+    ALTER TABLE ead_brand_catalogs ADD COLUMN IF NOT EXISTS extra_brand_ids UUID[] DEFAULT '{}';
+    ALTER TABLE ead_brand_catalog_categories ADD COLUMN IF NOT EXISTS extra_brand_ids UUID[] DEFAULT '{}';
     CREATE INDEX IF NOT EXISTS idx_ead_bcat_brand2 ON ead_brand_catalogs(brand_id);
     CREATE INDEX IF NOT EXISTS idx_ead_bcat_category ON ead_brand_catalogs(category_id);
   `);
@@ -1782,19 +1784,22 @@ router.get('/my/catalogs', studentAuth, async (req, res) => {
     const s = await query('SELECT brand_id FROM ead_students WHERE id = $1', [req.studentId]);
     const brandId = s.rows[0]?.brand_id || null;
 
-    // Categorias: globais (brand_id IS NULL) + da marca do aluno
+    // Global (brand_id IS NULL e sem extras) OU marca principal do aluno OU extras contêm marca do aluno
+    const visClause = brandId
+      ? `(brand_id IS NULL OR brand_id = $1 OR $1 = ANY(COALESCE(extra_brand_ids, '{}'::uuid[])))`
+      : `(brand_id IS NULL)`;
+
     const cats = await runWithEadSchemaRetry(() => query(
-      `SELECT id, name, description, order_index, brand_id
+      `SELECT id, name, description, order_index, brand_id, extra_brand_ids
          FROM ead_brand_catalog_categories
-        WHERE brand_id IS NULL ${brandId ? 'OR brand_id = $1' : ''}
+        WHERE ${visClause}
         ORDER BY order_index, created_at`,
       brandId ? [brandId] : []
     ));
-    // Catálogos: globais + da marca do aluno
     const catalogs = await runWithEadSchemaRetry(() => query(
-      `SELECT id, category_id, title, description, type, cover_url, images, pdf_url, order_index, brand_id
+      `SELECT id, category_id, title, description, type, cover_url, images, pdf_url, order_index, brand_id, extra_brand_ids
          FROM ead_brand_catalogs
-        WHERE active = true AND (brand_id IS NULL ${brandId ? 'OR brand_id = $1' : ''})
+        WHERE active = true AND ${visClause}
         ORDER BY order_index, created_at DESC`,
       brandId ? [brandId] : []
     ));
@@ -1813,12 +1818,14 @@ router.get('/my/catalogs/:id', studentAuth, async (req, res) => {
   try {
     const s = await query('SELECT brand_id FROM ead_students WHERE id = $1', [req.studentId]);
     const brandId = s.rows[0]?.brand_id || null;
+    const visClause = brandId
+      ? `(bc.brand_id IS NULL OR bc.brand_id = $2 OR $2 = ANY(COALESCE(bc.extra_brand_ids, '{}'::uuid[])))`
+      : `(bc.brand_id IS NULL)`;
     const r = await runWithEadSchemaRetry(() => query(
       `SELECT bc.*, cat.name AS category_name
          FROM ead_brand_catalogs bc
          LEFT JOIN ead_brand_catalog_categories cat ON cat.id = bc.category_id
-        WHERE bc.id = $1 AND bc.active = true
-          AND (bc.brand_id IS NULL ${brandId ? 'OR bc.brand_id = $2' : ''})`,
+        WHERE bc.id = $1 AND bc.active = true AND ${visClause}`,
       brandId ? [req.params.id, brandId] : [req.params.id]
     ));
     if (!r.rows.length) return res.status(404).json({ error: 'Não encontrado' });
@@ -1946,9 +1953,17 @@ admin.get('/catalogs', gate('can_view_ead'), async (req, res) => {
   const where = [];
   if (req.query.category_id) { params.push(req.query.category_id); where.push(`bc.category_id = $${params.length}`); }
   if (req.query.brand_id === '__global__') where.push('bc.brand_id IS NULL');
-  else if (req.query.brand_id) { params.push(req.query.brand_id); where.push(`bc.brand_id = $${params.length}`); }
+  else if (req.query.brand_id) {
+    params.push(req.query.brand_id);
+    where.push(`(bc.brand_id = $${params.length} OR $${params.length} = ANY(COALESCE(bc.extra_brand_ids, '{}'::uuid[])))`);
+  }
   const r = await runWithEadSchemaRetry(() => query(
-    `SELECT bc.*, cat.name AS category_name, b.name AS brand_name
+    `SELECT bc.*, cat.name AS category_name, b.name AS brand_name,
+            COALESCE((
+              SELECT array_agg(eb.name)
+                FROM unnest(COALESCE(bc.extra_brand_ids, '{}'::uuid[])) x
+                JOIN ead_brands eb ON eb.id = x
+            ), '{}'::text[]) AS extra_brand_names
        FROM ead_brand_catalogs bc
        LEFT JOIN ead_brand_catalog_categories cat ON cat.id = bc.category_id
        LEFT JOIN ead_brands b ON b.id = bc.brand_id
@@ -1962,18 +1977,19 @@ admin.get('/catalogs', gate('can_view_ead'), async (req, res) => {
 admin.post('/catalogs', gate('can_manage_ead'), async (req, res) => {
   try {
     await ensureEadApprovalSchema();
-    const { title, description, category_id, type, cover_url, images, pdf_url, order_index, active, brand_id } = req.body || {};
+    const { title, description, category_id, type, cover_url, images, pdf_url, order_index, active, brand_id, extra_brand_ids } = req.body || {};
     if (!title || !String(title).trim()) return res.status(400).json({ error: 'Título obrigatório' });
     const t = type === 'pdf' ? 'pdf' : 'gallery';
     if (t === 'pdf' && !pdf_url) return res.status(400).json({ error: 'Arquivo PDF obrigatório' });
     if (t === 'gallery' && (!Array.isArray(images) || images.length === 0)) return res.status(400).json({ error: 'Adicione ao menos uma imagem' });
+    const extras = Array.isArray(extra_brand_ids) ? extra_brand_ids.filter(Boolean) : [];
     const r = await runWithEadSchemaRetry(() => query(
       `INSERT INTO ead_brand_catalogs
-         (brand_id, category_id, title, description, type, cover_url, images, pdf_url, order_index, active)
-       VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9,$10) RETURNING *`,
+         (brand_id, category_id, title, description, type, cover_url, images, pdf_url, order_index, active, extra_brand_ids)
+       VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9,$10,$11::uuid[]) RETURNING *`,
       [brand_id || null, category_id || null, String(title).trim(), description || null, t,
        cover_url || null, JSON.stringify(sanitizeImages(images)), pdf_url || null,
-       Number.isFinite(+order_index) ? +order_index : 0, active !== false]
+       Number.isFinite(+order_index) ? +order_index : 0, active !== false, extras]
     ));
     res.status(201).json(r.rows[0]);
   } catch (e) { console.error(e); res.status(500).json({ error: 'Erro ao criar catálogo' }); }
@@ -1981,10 +1997,12 @@ admin.post('/catalogs', gate('can_manage_ead'), async (req, res) => {
 
 admin.patch('/catalogs/:id', gate('can_manage_ead'), async (req, res) => {
   try {
-    const { title, description, category_id, type, cover_url, images, pdf_url, order_index, active, brand_id } = req.body || {};
+    const { title, description, category_id, type, cover_url, images, pdf_url, order_index, active, brand_id, extra_brand_ids } = req.body || {};
     const hasCategory = Object.prototype.hasOwnProperty.call(req.body || {}, 'category_id');
     const hasImages = Object.prototype.hasOwnProperty.call(req.body || {}, 'images');
     const hasBrand = Object.prototype.hasOwnProperty.call(req.body || {}, 'brand_id');
+    const hasExtras = Object.prototype.hasOwnProperty.call(req.body || {}, 'extra_brand_ids');
+    const extras = Array.isArray(extra_brand_ids) ? extra_brand_ids.filter(Boolean) : [];
     const t = type === 'pdf' ? 'pdf' : type === 'gallery' ? 'gallery' : null;
     const r = await runWithEadSchemaRetry(() => query(
       `UPDATE ead_brand_catalogs SET
@@ -1998,6 +2016,7 @@ admin.patch('/catalogs/:id', gate('can_manage_ead'), async (req, res) => {
          order_index = COALESCE($8, order_index),
          active = COALESCE($9, active),
          brand_id = CASE WHEN $13::boolean THEN $14 ELSE brand_id END,
+         extra_brand_ids = CASE WHEN $15::boolean THEN $16::uuid[] ELSE extra_brand_ids END,
          updated_at = NOW()
        WHERE id = $12 RETURNING *`,
       [
@@ -2006,6 +2025,7 @@ admin.patch('/catalogs/:id', gate('can_manage_ead'), async (req, res) => {
         pdf_url ?? null, Number.isFinite(+order_index) ? +order_index : null,
         typeof active === 'boolean' ? active : null,
         hasCategory, hasImages, req.params.id, hasBrand, brand_id || null,
+        hasExtras, extras,
       ]
     ));
     if (!r.rows.length) return res.status(404).json({ error: 'Não encontrado' });
