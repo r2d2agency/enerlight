@@ -634,6 +634,10 @@ function DashboardTab({ dashboard }: { dashboard?: any }) {
           <p className="text-lg font-bold text-destructive">{formatCurrency(Number(s.total_freight_paid))}</p>
         </Card>
         <Card className="p-3">
+          <p className="text-xs text-muted-foreground">Frete Pago</p>
+          <p className="text-lg font-bold" style={{ color: CHART_COLORS.pago }}>{formatCurrency(Number(s.total_freight_actual_paid))}</p>
+        </Card>
+        <Card className="p-3">
           <p className="text-xs text-muted-foreground">Cobrado NF</p>
           <p className="text-lg font-bold text-green-600">{formatCurrency(Number(s.total_freight_invoiced))}</p>
         </Card>
