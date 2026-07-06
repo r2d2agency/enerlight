@@ -4,6 +4,15 @@ import { authenticate as requireAuth } from '../middleware/auth.js';
 
 const router = Router();
 
+// Ensure freight_actual_paid column exists (migration for existing installs)
+(async () => {
+  try {
+    await query(`ALTER TABLE logistics_shipments ADD COLUMN IF NOT EXISTS freight_actual_paid NUMERIC(15,2) DEFAULT 0`);
+  } catch (e) {
+    console.error('[logistics] migration freight_actual_paid failed:', e.message);
+  }
+})();
+
 async function getUserOrg(userId) {
   const r = await query(
     `SELECT om.organization_id, om.role FROM organization_members om WHERE om.user_id = $1 LIMIT 1`,
