@@ -17,6 +17,7 @@ export interface LogisticsShipment {
   carrier_quote_code: string;
   volumes: number;
   freight_paid: number;
+  freight_actual_paid: number;
   freight_invoiced: number;
   tax_value: number;
   real_cost: number;
