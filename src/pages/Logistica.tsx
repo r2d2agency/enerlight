@@ -367,8 +367,9 @@ export default function Logistica() {
               <div><span className="text-muted-foreground">Saída:</span> {viewShipment.departure_date?.split("T")[0] || "—"}</div>
               <div><span className="text-muted-foreground">Prev. Entrega:</span> {viewShipment.estimated_delivery?.split("T")[0] || "—"}</div>
               <div><span className="text-muted-foreground">Entregue:</span> {viewShipment.actual_delivery?.split("T")[0] || "—"}</div>
-              <div className="col-span-2 border-t pt-2 grid grid-cols-4 gap-2">
-                <div><span className="text-muted-foreground text-xs block">Frete Pago</span><strong>{formatCurrency(Number(viewShipment.freight_paid))}</strong></div>
+              <div className="col-span-2 border-t pt-2 grid grid-cols-5 gap-2">
+                <div><span className="text-muted-foreground text-xs block">Frete Cotado</span><strong>{formatCurrency(Number(viewShipment.freight_paid))}</strong></div>
+                <div><span className="text-muted-foreground text-xs block">Frete Pago</span><strong>{formatCurrency(Number(viewShipment.freight_actual_paid))}</strong></div>
                 <div><span className="text-muted-foreground text-xs block">Cobrado NF</span><strong>{formatCurrency(Number(viewShipment.freight_invoiced))}</strong></div>
                 <div><span className="text-muted-foreground text-xs block">Imposto</span><strong>{formatCurrency(Number(viewShipment.tax_value))}</strong></div>
                 <div><span className="text-muted-foreground text-xs block">Custo Real</span><strong className="text-primary">{formatCurrency(Number(viewShipment.real_cost))}</strong></div>
