@@ -457,6 +457,7 @@ router.get('/dashboard', requireAuth, async (req, res) => {
     const byChannel = await query(`
       SELECT channel, COUNT(*) as total,
         COALESCE(SUM(freight_paid),0) as freight_paid,
+        COALESCE(SUM(freight_actual_paid),0) as freight_actual_paid,
         COALESCE(SUM(freight_invoiced),0) as freight_invoiced
       FROM logistics_shipments ls
       WHERE ls.organization_id = $1 ${dateFilter} AND channel IS NOT NULL
