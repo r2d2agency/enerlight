@@ -296,7 +296,7 @@ export default function Logistica() {
                           <td className="p-2 text-xs whitespace-nowrap">{s.estimated_delivery ? s.estimated_delivery.split("T")[0].split("-").reverse().join("/") : "—"}</td>
                           <td className="p-2 text-xs">{s.channel || "—"}</td>
                           <td className="p-2 text-right font-mono">{formatCurrency(Number(s.freight_paid))}</td>
-                          <td className="p-2 text-right font-mono">{formatCurrency(Number(s.freight_actual_paid))}</td>
+                          <td className={cn("p-2 text-right font-mono", Number(s.freight_actual_paid) > Number(s.freight_paid) && "text-destructive font-bold")}>{formatCurrency(Number(s.freight_actual_paid))}</td>
                           <td className="p-2 text-right font-mono">{formatCurrency(Number(s.freight_invoiced))}</td>
                           <td className="p-2 text-right font-mono">{formatCurrency(Number(s.tax_value))}</td>
                           <td className="p-2 text-right font-mono font-semibold">{formatCurrency(Number(s.real_cost))}</td>
