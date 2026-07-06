@@ -388,6 +388,7 @@ router.get('/dashboard', requireAuth, async (req, res) => {
       SELECT
         COUNT(*) as total_shipments,
         COALESCE(SUM(freight_paid),0) as total_freight_paid,
+        COALESCE(SUM(freight_actual_paid),0) as total_freight_actual_paid,
         COALESCE(SUM(freight_invoiced),0) as total_freight_invoiced,
         COALESCE(SUM(tax_value),0) as total_tax,
         COALESCE(SUM(real_cost),0) as total_real_cost,
@@ -404,6 +405,7 @@ router.get('/dashboard', requireAuth, async (req, res) => {
     const byCarrier = await query(`
       SELECT carrier, COUNT(*) as total,
         COALESCE(SUM(freight_paid),0) as freight_paid,
+        COALESCE(SUM(freight_actual_paid),0) as freight_actual_paid,
         COALESCE(SUM(freight_invoiced),0) as freight_invoiced,
         COALESCE(SUM(real_cost),0) as real_cost
       FROM logistics_shipments ls
@@ -416,6 +418,7 @@ router.get('/dashboard', requireAuth, async (req, res) => {
       SELECT ls.requester_id, u.name as requester_name,
         COUNT(*) as total_shipments,
         COALESCE(SUM(freight_paid),0) as total_freight_paid,
+        COALESCE(SUM(freight_actual_paid),0) as total_freight_actual_paid,
         COALESCE(SUM(freight_invoiced),0) as total_invoiced,
         COALESCE(SUM(freight_invoiced) - SUM(freight_paid),0) as balance
       FROM logistics_shipments ls
@@ -428,7 +431,8 @@ router.get('/dashboard', requireAuth, async (req, res) => {
     // By status
     const byStatus = await query(`
       SELECT status, COUNT(*) as total,
-        COALESCE(SUM(freight_paid),0) as freight_paid
+        COALESCE(SUM(freight_paid),0) as freight_paid,
+        COALESCE(SUM(freight_actual_paid),0) as freight_actual_paid
       FROM logistics_shipments ls
       WHERE ls.organization_id = $1 ${dateFilter}
       GROUP BY status ORDER BY total DESC
@@ -440,6 +444,7 @@ router.get('/dashboard', requireAuth, async (req, res) => {
         TO_CHAR(requested_date, 'YYYY-MM') as month,
         COUNT(*) as total,
         COALESCE(SUM(freight_paid),0) as freight_paid,
+        COALESCE(SUM(freight_actual_paid),0) as freight_actual_paid,
         COALESCE(SUM(freight_invoiced),0) as freight_invoiced,
         COALESCE(SUM(real_cost),0) as real_cost
       FROM logistics_shipments ls
@@ -452,6 +457,7 @@ router.get('/dashboard', requireAuth, async (req, res) => {
     const byChannel = await query(`
       SELECT channel, COUNT(*) as total,
         COALESCE(SUM(freight_paid),0) as freight_paid,
+        COALESCE(SUM(freight_actual_paid),0) as freight_actual_paid,
         COALESCE(SUM(freight_invoiced),0) as freight_invoiced
       FROM logistics_shipments ls
       WHERE ls.organization_id = $1 ${dateFilter} AND channel IS NOT NULL
@@ -462,6 +468,7 @@ router.get('/dashboard', requireAuth, async (req, res) => {
     const byCompany = await query(`
       SELECT company_name, COUNT(*) as total,
         COALESCE(SUM(freight_paid),0) as freight_paid,
+        COALESCE(SUM(freight_actual_paid),0) as freight_actual_paid,
         COALESCE(SUM(freight_invoiced),0) as freight_invoiced,
         COALESCE(SUM(real_cost),0) as real_cost,
         COALESCE(SUM(freight_invoiced) - SUM(freight_paid),0) as balance

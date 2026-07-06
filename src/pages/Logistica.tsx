@@ -34,7 +34,7 @@ import {
 
 const STATUSES = ["Pendente", "Em trânsito", "Entregue no prazo", "Entregue com atraso", "Cancelado"];
 const COLORS = ["#6366f1", "#22c55e", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#14b8a6", "#f97316"];
-const CHART_COLORS = { paid: "#ef4444", invoiced: "#22c55e", realCost: "#6366f1", primary: "#3b82f6" };
+const CHART_COLORS = { cotado: "#ef4444", pago: "#f97316", invoiced: "#22c55e", realCost: "#6366f1", primary: "#3b82f6" };
 const TICK_STYLE = { fontSize: 10, fill: "#64748b" };
 
 const formatCurrency = (v: number) =>
@@ -624,7 +624,7 @@ function DashboardTab({ dashboard }: { dashboard?: any }) {
   return (
     <div className="space-y-4">
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <Card className="p-3">
           <p className="text-xs text-muted-foreground">Total Remessas</p>
           <p className="text-2xl font-bold">{s.total_shipments}</p>
@@ -632,6 +632,10 @@ function DashboardTab({ dashboard }: { dashboard?: any }) {
         <Card className="p-3">
           <p className="text-xs text-muted-foreground">Frete Cotado</p>
           <p className="text-lg font-bold text-destructive">{formatCurrency(Number(s.total_freight_paid))}</p>
+        </Card>
+        <Card className="p-3">
+          <p className="text-xs text-muted-foreground">Frete Pago</p>
+          <p className="text-lg font-bold" style={{ color: CHART_COLORS.pago }}>{formatCurrency(Number(s.total_freight_actual_paid))}</p>
         </Card>
         <Card className="p-3">
           <p className="text-xs text-muted-foreground">Cobrado NF</p>
@@ -655,18 +659,21 @@ function DashboardTab({ dashboard }: { dashboard?: any }) {
           <h3 className="font-semibold text-sm mt-2">Resumo por Canal</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {dashboard.byChannel.map((ch: any) => {
-              const paid = Number(ch.freight_paid);
+              const cotado = Number(ch.freight_paid);
+              const pago = Number(ch.freight_actual_paid);
               const invoiced = Number(ch.freight_invoiced);
-              const saldo = invoiced - paid;
-              const markup = paid > 0 ? ((invoiced / paid) * 100).toFixed(0) : "—";
+              const saldo = invoiced - cotado;
+              const markup = cotado > 0 ? ((invoiced / cotado) * 100).toFixed(0) : "—";
               return (
                 <Card key={ch.channel} className={cn("p-4 space-y-1", saldo < 0 ? "border-destructive/50" : "border-green-500/50")}>
                   <p className="font-semibold text-sm">{ch.channel || "Sem canal"}</p>
                   <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
                     <span className="text-muted-foreground">Cobrado NF</span>
                     <span className="text-right font-mono font-medium text-green-600">{formatCurrency(invoiced)}</span>
-                    <span className="text-muted-foreground">Valor Pago</span>
-                    <span className="text-right font-mono font-medium text-destructive">{formatCurrency(paid)}</span>
+                    <span className="text-muted-foreground">Frete Cotado</span>
+                    <span className="text-right font-mono font-medium text-destructive">{formatCurrency(cotado)}</span>
+                    <span className="text-muted-foreground">Frete Pago</span>
+                    <span className="text-right font-mono font-medium" style={{ color: CHART_COLORS.pago }}>{formatCurrency(pago)}</span>
                     <span className="text-muted-foreground">Saldo</span>
                     <span className={cn("text-right font-mono font-bold", saldo >= 0 ? "text-green-600" : "text-destructive")}>{formatCurrency(saldo)}</span>
                     <span className="text-muted-foreground">Markup</span>
@@ -701,7 +708,8 @@ function DashboardTab({ dashboard }: { dashboard?: any }) {
               <XAxis dataKey="carrier" tick={TICK_STYLE} />
               <YAxis tick={TICK_STYLE} />
               <RechartsTooltip formatter={(v: number) => formatCurrency(v)} />
-              <Bar dataKey="freight_paid" fill={CHART_COLORS.paid} name="Frete Cotado" />
+              <Bar dataKey="freight_paid" fill={CHART_COLORS.cotado} name="Frete Cotado" />
+              <Bar dataKey="freight_actual_paid" fill={CHART_COLORS.pago} name="Frete Pago" />
               <Bar dataKey="freight_invoiced" fill={CHART_COLORS.invoiced} name="Cobrado NF" />
             </BarChart>
           </ResponsiveContainer>
@@ -719,7 +727,8 @@ function DashboardTab({ dashboard }: { dashboard?: any }) {
               <YAxis tick={TICK_STYLE} />
               <RechartsTooltip formatter={(v: number) => formatCurrency(v)} />
               <Legend />
-              <Line type="monotone" dataKey="freight_paid" stroke={CHART_COLORS.paid} name="Frete Cotado" strokeWidth={2} />
+              <Line type="monotone" dataKey="freight_paid" stroke={CHART_COLORS.cotado} name="Frete Cotado" strokeWidth={2} />
+              <Line type="monotone" dataKey="freight_actual_paid" stroke={CHART_COLORS.pago} name="Frete Pago" strokeWidth={2} />
               <Line type="monotone" dataKey="freight_invoiced" stroke={CHART_COLORS.invoiced} name="Cobrado NF" strokeWidth={2} />
               <Line type="monotone" dataKey="real_cost" stroke={CHART_COLORS.realCost} name="Custo Real" strokeWidth={2} />
             </LineChart>
@@ -738,7 +747,8 @@ function DashboardTab({ dashboard }: { dashboard?: any }) {
               <YAxis tick={TICK_STYLE} />
               <RechartsTooltip formatter={(v: number) => formatCurrency(v)} />
               <Legend />
-              <Bar dataKey="freight_paid" fill={CHART_COLORS.paid} name="Frete Cotado" />
+              <Bar dataKey="freight_paid" fill={CHART_COLORS.cotado} name="Frete Cotado" />
+              <Bar dataKey="freight_actual_paid" fill={CHART_COLORS.pago} name="Frete Pago" />
               <Bar dataKey="freight_invoiced" fill={CHART_COLORS.invoiced} name="Cobrado NF" />
               <Bar dataKey="real_cost" fill={CHART_COLORS.realCost} name="Custo Real" />
             </BarChart>
@@ -751,6 +761,7 @@ function DashboardTab({ dashboard }: { dashboard?: any }) {
                   <th className="text-left p-1.5 font-medium">Empresa</th>
                   <th className="text-right p-1.5 font-medium">Remessas</th>
                   <th className="text-right p-1.5 font-medium">Frete Cotado</th>
+                  <th className="text-right p-1.5 font-medium">Frete Pago</th>
                   <th className="text-right p-1.5 font-medium">Cobrado NF</th>
                   <th className="text-right p-1.5 font-medium">Custo Real</th>
                   <th className="text-right p-1.5 font-medium">Saldo</th>
@@ -764,6 +775,7 @@ function DashboardTab({ dashboard }: { dashboard?: any }) {
                       <td className="p-1.5 font-medium">{c.company_name}</td>
                       <td className="p-1.5 text-right">{c.total}</td>
                       <td className="p-1.5 text-right font-mono">{formatCurrency(Number(c.freight_paid))}</td>
+                      <td className="p-1.5 text-right font-mono">{formatCurrency(Number(c.freight_actual_paid))}</td>
                       <td className="p-1.5 text-right font-mono">{formatCurrency(Number(c.freight_invoiced))}</td>
                       <td className="p-1.5 text-right font-mono">{formatCurrency(Number(c.real_cost))}</td>
                       <td className={cn("p-1.5 text-right font-mono font-semibold", bal >= 0 ? "text-green-600" : "text-destructive")}>{formatCurrency(bal)}</td>
@@ -1045,7 +1057,7 @@ function WalletTab({ dashboard, channelWallet, sellerWallet }: { dashboard?: any
               <XAxis dataKey="channel" tick={TICK_STYLE} />
               <YAxis tick={TICK_STYLE} />
               <RechartsTooltip formatter={(v: number) => formatCurrency(v)} />
-              <Bar dataKey="freight_paid" fill={CHART_COLORS.paid} name="Frete Cotado" />
+              <Bar dataKey="freight_paid" fill={CHART_COLORS.cotado} name="Frete Cotado" />
               <Bar dataKey="freight_invoiced" fill={CHART_COLORS.invoiced} name="Cobrado NF" />
             </BarChart>
           </ResponsiveContainer>
