@@ -388,6 +388,7 @@ router.get('/dashboard', requireAuth, async (req, res) => {
       SELECT
         COUNT(*) as total_shipments,
         COALESCE(SUM(freight_paid),0) as total_freight_paid,
+        COALESCE(SUM(freight_actual_paid),0) as total_freight_actual_paid,
         COALESCE(SUM(freight_invoiced),0) as total_freight_invoiced,
         COALESCE(SUM(tax_value),0) as total_tax,
         COALESCE(SUM(real_cost),0) as total_real_cost,
