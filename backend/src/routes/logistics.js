@@ -431,7 +431,8 @@ router.get('/dashboard', requireAuth, async (req, res) => {
     // By status
     const byStatus = await query(`
       SELECT status, COUNT(*) as total,
-        COALESCE(SUM(freight_paid),0) as freight_paid
+        COALESCE(SUM(freight_paid),0) as freight_paid,
+        COALESCE(SUM(freight_actual_paid),0) as freight_actual_paid
       FROM logistics_shipments ls
       WHERE ls.organization_id = $1 ${dateFilter}
       GROUP BY status ORDER BY total DESC
