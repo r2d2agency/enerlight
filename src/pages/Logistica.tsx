@@ -624,7 +624,7 @@ function DashboardTab({ dashboard }: { dashboard?: any }) {
   return (
     <div className="space-y-4">
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <Card className="p-3">
           <p className="text-xs text-muted-foreground">Total Remessas</p>
           <p className="text-2xl font-bold">{s.total_shipments}</p>
