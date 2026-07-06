@@ -119,7 +119,7 @@ router.post('/shipments', requireAuth, async (req, res) => {
       company_name, client_name, invoice_number, order_number,
       requested_date, departure_date, estimated_delivery, actual_delivery,
       carrier, carrier_quote_code, volumes,
-      freight_paid, freight_invoiced, tax_value,
+      freight_paid, freight_actual_paid, freight_invoiced, tax_value,
       status, channel, deal_id, requester_id, notes
     } = req.body;
 
@@ -130,15 +130,15 @@ router.post('/shipments', requireAuth, async (req, res) => {
         organization_id, company_name, client_name, invoice_number, order_number,
         requested_date, departure_date, estimated_delivery, actual_delivery,
         carrier, carrier_quote_code, volumes,
-        freight_paid, freight_invoiced, tax_value, real_cost,
+        freight_paid, freight_actual_paid, freight_invoiced, tax_value, real_cost,
         status, channel, deal_id, requester_id, notes, created_by
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)
       RETURNING *`,
       [
         org.organization_id, company_name, client_name, invoice_number, order_number,
         requested_date || null, departure_date || null, estimated_delivery || null, actual_delivery || null,
         carrier, carrier_quote_code, volumes || 0,
-        freight_paid || 0, freight_invoiced || 0, tax_value || 0, real_cost,
+        freight_paid || 0, freight_actual_paid || 0, freight_invoiced || 0, tax_value || 0, real_cost,
         status || 'Pendente', channel, deal_id || null, requester_id || null, notes, req.userId
       ]
     );
