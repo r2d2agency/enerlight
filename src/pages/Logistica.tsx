@@ -709,6 +709,7 @@ function DashboardTab({ dashboard }: { dashboard?: any }) {
               <YAxis tick={TICK_STYLE} />
               <RechartsTooltip formatter={(v: number) => formatCurrency(v)} />
               <Bar dataKey="freight_paid" fill={CHART_COLORS.cotado} name="Frete Cotado" />
+              <Bar dataKey="freight_actual_paid" fill={CHART_COLORS.pago} name="Frete Pago" />
               <Bar dataKey="freight_invoiced" fill={CHART_COLORS.invoiced} name="Cobrado NF" />
             </BarChart>
           </ResponsiveContainer>
