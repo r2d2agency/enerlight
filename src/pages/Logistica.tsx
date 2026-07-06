@@ -563,8 +563,12 @@ function ShipmentFormDialog({ open, onOpenChange, shipment, members, companies, 
             <Input type="date" value={form.actual_delivery || ""} onChange={(e) => upd("actual_delivery", e.target.value)} />
           </div>
           <div>
-            <Label>Frete Pago (R$)</Label>
+            <Label>Frete Cotado (R$)</Label>
             <Input type="number" step="0.01" value={form.freight_paid || 0} onChange={(e) => upd("freight_paid", Number(e.target.value))} />
+          </div>
+          <div>
+            <Label>Frete Pago (R$)</Label>
+            <Input type="number" step="0.01" value={form.freight_actual_paid || 0} onChange={(e) => upd("freight_actual_paid", Number(e.target.value))} />
           </div>
           <div>
             <Label>Valor Cobrado NF (R$)</Label>
