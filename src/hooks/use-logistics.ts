@@ -36,6 +36,7 @@ export interface LogisticsDashboard {
   summary: {
     total_shipments: number;
     total_freight_paid: number;
+    total_freight_actual_paid: number;
     total_freight_invoiced: number;
     total_tax: number;
     total_real_cost: number;
@@ -45,12 +46,12 @@ export interface LogisticsDashboard {
     in_transit: number;
     pending: number;
   };
-  byCarrier: Array<{ carrier: string; total: number; freight_paid: number; freight_invoiced: number; real_cost: number }>;
-  byRequester: Array<{ requester_id: string; requester_name: string; total_shipments: number; total_freight_paid: number; total_invoiced: number; balance: number }>;
-  byStatus: Array<{ status: string; total: number; freight_paid: number }>;
-  monthlyTrend: Array<{ month: string; total: number; freight_paid: number; freight_invoiced: number; real_cost: number }>;
-  byCompany: Array<{ company_name: string; total: number; freight_paid: number; freight_invoiced: number; real_cost: number; balance: number }>;
-  byChannel: Array<{ channel: string; total: number; freight_paid: number; freight_invoiced: number }>;
+  byCarrier: Array<{ carrier: string; total: number; freight_paid: number; freight_actual_paid: number; freight_invoiced: number; real_cost: number }>;
+  byRequester: Array<{ requester_id: string; requester_name: string; total_shipments: number; total_freight_paid: number; total_freight_actual_paid: number; total_invoiced: number; balance: number }>;
+  byStatus: Array<{ status: string; total: number; freight_paid: number; freight_actual_paid: number }>;
+  monthlyTrend: Array<{ month: string; total: number; freight_paid: number; freight_actual_paid: number; freight_invoiced: number; real_cost: number }>;
+  byCompany: Array<{ company_name: string; total: number; freight_paid: number; freight_actual_paid: number; freight_invoiced: number; real_cost: number; balance: number }>;
+  byChannel: Array<{ channel: string; total: number; freight_paid: number; freight_actual_paid: number; freight_invoiced: number }>;
   byCarrierStatus: Array<{ carrier: string; status: string; total: number; nearest_delivery: string; future_deliveries: number; overdue: number }>;
 }
 
