@@ -4481,6 +4481,12 @@ DO $$ BEGIN
 EXCEPTION WHEN others THEN NULL;
 END $$;
 
+-- Add freight_actual_paid column (valor efetivamente pago posteriormente)
+DO $$ BEGIN
+  ALTER TABLE logistics_shipments ADD COLUMN IF NOT EXISTS freight_actual_paid NUMERIC(15,2) DEFAULT 0;
+EXCEPTION WHEN others THEN NULL;
+END $$;
+
 -- Plan column for Logistics
 DO $$ BEGIN
   ALTER TABLE plans ADD COLUMN IF NOT EXISTS has_logistics BOOLEAN DEFAULT false;
