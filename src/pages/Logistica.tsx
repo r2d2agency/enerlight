@@ -748,6 +748,7 @@ function DashboardTab({ dashboard }: { dashboard?: any }) {
               <RechartsTooltip formatter={(v: number) => formatCurrency(v)} />
               <Legend />
               <Bar dataKey="freight_paid" fill={CHART_COLORS.cotado} name="Frete Cotado" />
+              <Bar dataKey="freight_actual_paid" fill={CHART_COLORS.pago} name="Frete Pago" />
               <Bar dataKey="freight_invoiced" fill={CHART_COLORS.invoiced} name="Cobrado NF" />
               <Bar dataKey="real_cost" fill={CHART_COLORS.realCost} name="Custo Real" />
             </BarChart>
