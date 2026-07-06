@@ -444,6 +444,7 @@ router.get('/dashboard', requireAuth, async (req, res) => {
         TO_CHAR(requested_date, 'YYYY-MM') as month,
         COUNT(*) as total,
         COALESCE(SUM(freight_paid),0) as freight_paid,
+        COALESCE(SUM(freight_actual_paid),0) as freight_actual_paid,
         COALESCE(SUM(freight_invoiced),0) as freight_invoiced,
         COALESCE(SUM(real_cost),0) as real_cost
       FROM logistics_shipments ls
