@@ -761,6 +761,7 @@ function DashboardTab({ dashboard }: { dashboard?: any }) {
                   <th className="text-left p-1.5 font-medium">Empresa</th>
                   <th className="text-right p-1.5 font-medium">Remessas</th>
                   <th className="text-right p-1.5 font-medium">Frete Cotado</th>
+                  <th className="text-right p-1.5 font-medium">Frete Pago</th>
                   <th className="text-right p-1.5 font-medium">Cobrado NF</th>
                   <th className="text-right p-1.5 font-medium">Custo Real</th>
                   <th className="text-right p-1.5 font-medium">Saldo</th>
@@ -774,6 +775,7 @@ function DashboardTab({ dashboard }: { dashboard?: any }) {
                       <td className="p-1.5 font-medium">{c.company_name}</td>
                       <td className="p-1.5 text-right">{c.total}</td>
                       <td className="p-1.5 text-right font-mono">{formatCurrency(Number(c.freight_paid))}</td>
+                      <td className="p-1.5 text-right font-mono">{formatCurrency(Number(c.freight_actual_paid))}</td>
                       <td className="p-1.5 text-right font-mono">{formatCurrency(Number(c.freight_invoiced))}</td>
                       <td className="p-1.5 text-right font-mono">{formatCurrency(Number(c.real_cost))}</td>
                       <td className={cn("p-1.5 text-right font-mono font-semibold", bal >= 0 ? "text-green-600" : "text-destructive")}>{formatCurrency(bal)}</td>
