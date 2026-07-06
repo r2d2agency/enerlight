@@ -701,7 +701,7 @@ function DashboardTab({ dashboard }: { dashboard?: any }) {
               <XAxis dataKey="carrier" tick={TICK_STYLE} />
               <YAxis tick={TICK_STYLE} />
               <RechartsTooltip formatter={(v: number) => formatCurrency(v)} />
-              <Bar dataKey="freight_paid" fill={CHART_COLORS.paid} name="Frete Cotado" />
+              <Bar dataKey="freight_paid" fill={CHART_COLORS.cotado} name="Frete Cotado" />
               <Bar dataKey="freight_invoiced" fill={CHART_COLORS.invoiced} name="Cobrado NF" />
             </BarChart>
           </ResponsiveContainer>
@@ -719,7 +719,7 @@ function DashboardTab({ dashboard }: { dashboard?: any }) {
               <YAxis tick={TICK_STYLE} />
               <RechartsTooltip formatter={(v: number) => formatCurrency(v)} />
               <Legend />
-              <Line type="monotone" dataKey="freight_paid" stroke={CHART_COLORS.paid} name="Frete Cotado" strokeWidth={2} />
+              <Line type="monotone" dataKey="freight_paid" stroke={CHART_COLORS.cotado} name="Frete Cotado" strokeWidth={2} />
               <Line type="monotone" dataKey="freight_invoiced" stroke={CHART_COLORS.invoiced} name="Cobrado NF" strokeWidth={2} />
               <Line type="monotone" dataKey="real_cost" stroke={CHART_COLORS.realCost} name="Custo Real" strokeWidth={2} />
             </LineChart>
@@ -738,7 +738,7 @@ function DashboardTab({ dashboard }: { dashboard?: any }) {
               <YAxis tick={TICK_STYLE} />
               <RechartsTooltip formatter={(v: number) => formatCurrency(v)} />
               <Legend />
-              <Bar dataKey="freight_paid" fill={CHART_COLORS.paid} name="Frete Cotado" />
+              <Bar dataKey="freight_paid" fill={CHART_COLORS.cotado} name="Frete Cotado" />
               <Bar dataKey="freight_invoiced" fill={CHART_COLORS.invoiced} name="Cobrado NF" />
               <Bar dataKey="real_cost" fill={CHART_COLORS.realCost} name="Custo Real" />
             </BarChart>
@@ -1045,7 +1045,7 @@ function WalletTab({ dashboard, channelWallet, sellerWallet }: { dashboard?: any
               <XAxis dataKey="channel" tick={TICK_STYLE} />
               <YAxis tick={TICK_STYLE} />
               <RechartsTooltip formatter={(v: number) => formatCurrency(v)} />
-              <Bar dataKey="freight_paid" fill={CHART_COLORS.paid} name="Frete Cotado" />
+              <Bar dataKey="freight_paid" fill={CHART_COLORS.cotado} name="Frete Cotado" />
               <Bar dataKey="freight_invoiced" fill={CHART_COLORS.invoiced} name="Cobrado NF" />
             </BarChart>
           </ResponsiveContainer>
