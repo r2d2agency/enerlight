@@ -418,6 +418,7 @@ router.get('/dashboard', requireAuth, async (req, res) => {
       SELECT ls.requester_id, u.name as requester_name,
         COUNT(*) as total_shipments,
         COALESCE(SUM(freight_paid),0) as total_freight_paid,
+        COALESCE(SUM(freight_actual_paid),0) as total_freight_actual_paid,
         COALESCE(SUM(freight_invoiced),0) as total_invoiced,
         COALESCE(SUM(freight_invoiced) - SUM(freight_paid),0) as balance
       FROM logistics_shipments ls
