@@ -728,6 +728,7 @@ function DashboardTab({ dashboard }: { dashboard?: any }) {
               <RechartsTooltip formatter={(v: number) => formatCurrency(v)} />
               <Legend />
               <Line type="monotone" dataKey="freight_paid" stroke={CHART_COLORS.cotado} name="Frete Cotado" strokeWidth={2} />
+              <Line type="monotone" dataKey="freight_actual_paid" stroke={CHART_COLORS.pago} name="Frete Pago" strokeWidth={2} />
               <Line type="monotone" dataKey="freight_invoiced" stroke={CHART_COLORS.invoiced} name="Cobrado NF" strokeWidth={2} />
               <Line type="monotone" dataKey="real_cost" stroke={CHART_COLORS.realCost} name="Custo Real" strokeWidth={2} />
             </LineChart>
