@@ -4440,6 +4440,7 @@ CREATE TABLE IF NOT EXISTS logistics_shipments (
   carrier_quote_code VARCHAR(100),
   volumes INTEGER DEFAULT 0,
   freight_paid NUMERIC(15,2) DEFAULT 0,
+  freight_actual_paid NUMERIC(15,2) DEFAULT 0,
   freight_invoiced NUMERIC(15,2) DEFAULT 0,
   tax_value NUMERIC(15,2) DEFAULT 0,
   real_cost NUMERIC(15,2) DEFAULT 0,
@@ -4478,6 +4479,12 @@ CREATE INDEX IF NOT EXISTS idx_logistics_import_batches_org ON logistics_import_
 -- Add import_batch_id column if missing (existing installs)
 DO $$ BEGIN
   ALTER TABLE logistics_shipments ADD COLUMN IF NOT EXISTS import_batch_id UUID;
+EXCEPTION WHEN others THEN NULL;
+END $$;
+
+-- Add freight_actual_paid column (valor efetivamente pago posteriormente)
+DO $$ BEGIN
+  ALTER TABLE logistics_shipments ADD COLUMN IF NOT EXISTS freight_actual_paid NUMERIC(15,2) DEFAULT 0;
 EXCEPTION WHEN others THEN NULL;
 END $$;
 

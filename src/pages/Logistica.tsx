@@ -274,6 +274,7 @@ export default function Logistica() {
                         <th className="text-left p-2 font-medium">Cód. Cotação</th>
                         <th className="text-left p-2 font-medium">Prev. Entrega</th>
                         <th className="text-left p-2 font-medium">Canal</th>
+                        <th className="text-right p-2 font-medium">Frete Cotado</th>
                         <th className="text-right p-2 font-medium">Frete Pago</th>
                         <th className="text-right p-2 font-medium">Cobrado NF</th>
                         <th className="text-right p-2 font-medium">Imposto</th>
@@ -295,6 +296,7 @@ export default function Logistica() {
                           <td className="p-2 text-xs whitespace-nowrap">{s.estimated_delivery ? s.estimated_delivery.split("T")[0].split("-").reverse().join("/") : "—"}</td>
                           <td className="p-2 text-xs">{s.channel || "—"}</td>
                           <td className="p-2 text-right font-mono">{formatCurrency(Number(s.freight_paid))}</td>
+                          <td className="p-2 text-right font-mono">{formatCurrency(Number(s.freight_actual_paid))}</td>
                           <td className="p-2 text-right font-mono">{formatCurrency(Number(s.freight_invoiced))}</td>
                           <td className="p-2 text-right font-mono">{formatCurrency(Number(s.tax_value))}</td>
                           <td className="p-2 text-right font-mono font-semibold">{formatCurrency(Number(s.real_cost))}</td>
@@ -365,8 +367,9 @@ export default function Logistica() {
               <div><span className="text-muted-foreground">Saída:</span> {viewShipment.departure_date?.split("T")[0] || "—"}</div>
               <div><span className="text-muted-foreground">Prev. Entrega:</span> {viewShipment.estimated_delivery?.split("T")[0] || "—"}</div>
               <div><span className="text-muted-foreground">Entregue:</span> {viewShipment.actual_delivery?.split("T")[0] || "—"}</div>
-              <div className="col-span-2 border-t pt-2 grid grid-cols-4 gap-2">
-                <div><span className="text-muted-foreground text-xs block">Frete Pago</span><strong>{formatCurrency(Number(viewShipment.freight_paid))}</strong></div>
+              <div className="col-span-2 border-t pt-2 grid grid-cols-5 gap-2">
+                <div><span className="text-muted-foreground text-xs block">Frete Cotado</span><strong>{formatCurrency(Number(viewShipment.freight_paid))}</strong></div>
+                <div><span className="text-muted-foreground text-xs block">Frete Pago</span><strong>{formatCurrency(Number(viewShipment.freight_actual_paid))}</strong></div>
                 <div><span className="text-muted-foreground text-xs block">Cobrado NF</span><strong>{formatCurrency(Number(viewShipment.freight_invoiced))}</strong></div>
                 <div><span className="text-muted-foreground text-xs block">Imposto</span><strong>{formatCurrency(Number(viewShipment.tax_value))}</strong></div>
                 <div><span className="text-muted-foreground text-xs block">Custo Real</span><strong className="text-primary">{formatCurrency(Number(viewShipment.real_cost))}</strong></div>
@@ -438,6 +441,7 @@ function ShipmentFormDialog({ open, onOpenChange, shipment, members, companies, 
         carrier_quote_code: shipment.carrier_quote_code || "",
         volumes: shipment.volumes || 0,
         freight_paid: shipment.freight_paid || 0,
+        freight_actual_paid: shipment.freight_actual_paid || 0,
         freight_invoiced: shipment.freight_invoiced || 0,
         tax_value: shipment.tax_value || 0,
         status: shipment.status || "Pendente",
@@ -453,7 +457,7 @@ function ShipmentFormDialog({ open, onOpenChange, shipment, members, companies, 
         company_name: "", client_name: "", invoice_number: "", order_number: "",
         requested_date: format(new Date(), "yyyy-MM-dd"), departure_date: "", estimated_delivery: format(new Date(Date.now() + 15 * 86400000), "yyyy-MM-dd"), actual_delivery: "",
         carrier: "", carrier_quote_code: "", volumes: 0,
-        freight_paid: 0, freight_invoiced: 0, tax_value: 0,
+        freight_paid: 0, freight_actual_paid: 0, freight_invoiced: 0, tax_value: 0,
         status: "Pendente", channel: "", requester_id: "", notes: "",
       });
       setCustomCompany(false);
@@ -559,8 +563,12 @@ function ShipmentFormDialog({ open, onOpenChange, shipment, members, companies, 
             <Input type="date" value={form.actual_delivery || ""} onChange={(e) => upd("actual_delivery", e.target.value)} />
           </div>
           <div>
-            <Label>Frete Pago (R$)</Label>
+            <Label>Frete Cotado (R$)</Label>
             <Input type="number" step="0.01" value={form.freight_paid || 0} onChange={(e) => upd("freight_paid", Number(e.target.value))} />
+          </div>
+          <div>
+            <Label>Frete Pago (R$)</Label>
+            <Input type="number" step="0.01" value={form.freight_actual_paid || 0} onChange={(e) => upd("freight_actual_paid", Number(e.target.value))} />
           </div>
           <div>
             <Label>Valor Cobrado NF (R$)</Label>
@@ -622,7 +630,7 @@ function DashboardTab({ dashboard }: { dashboard?: any }) {
           <p className="text-2xl font-bold">{s.total_shipments}</p>
         </Card>
         <Card className="p-3">
-          <p className="text-xs text-muted-foreground">Frete Pago</p>
+          <p className="text-xs text-muted-foreground">Frete Cotado</p>
           <p className="text-lg font-bold text-destructive">{formatCurrency(Number(s.total_freight_paid))}</p>
         </Card>
         <Card className="p-3">
@@ -693,7 +701,7 @@ function DashboardTab({ dashboard }: { dashboard?: any }) {
               <XAxis dataKey="carrier" tick={TICK_STYLE} />
               <YAxis tick={TICK_STYLE} />
               <RechartsTooltip formatter={(v: number) => formatCurrency(v)} />
-              <Bar dataKey="freight_paid" fill={CHART_COLORS.paid} name="Frete Pago" />
+              <Bar dataKey="freight_paid" fill={CHART_COLORS.paid} name="Frete Cotado" />
               <Bar dataKey="freight_invoiced" fill={CHART_COLORS.invoiced} name="Cobrado NF" />
             </BarChart>
           </ResponsiveContainer>
@@ -711,7 +719,7 @@ function DashboardTab({ dashboard }: { dashboard?: any }) {
               <YAxis tick={TICK_STYLE} />
               <RechartsTooltip formatter={(v: number) => formatCurrency(v)} />
               <Legend />
-              <Line type="monotone" dataKey="freight_paid" stroke={CHART_COLORS.paid} name="Frete Pago" strokeWidth={2} />
+              <Line type="monotone" dataKey="freight_paid" stroke={CHART_COLORS.paid} name="Frete Cotado" strokeWidth={2} />
               <Line type="monotone" dataKey="freight_invoiced" stroke={CHART_COLORS.invoiced} name="Cobrado NF" strokeWidth={2} />
               <Line type="monotone" dataKey="real_cost" stroke={CHART_COLORS.realCost} name="Custo Real" strokeWidth={2} />
             </LineChart>
@@ -730,7 +738,7 @@ function DashboardTab({ dashboard }: { dashboard?: any }) {
               <YAxis tick={TICK_STYLE} />
               <RechartsTooltip formatter={(v: number) => formatCurrency(v)} />
               <Legend />
-              <Bar dataKey="freight_paid" fill={CHART_COLORS.paid} name="Frete Pago" />
+              <Bar dataKey="freight_paid" fill={CHART_COLORS.paid} name="Frete Cotado" />
               <Bar dataKey="freight_invoiced" fill={CHART_COLORS.invoiced} name="Cobrado NF" />
               <Bar dataKey="real_cost" fill={CHART_COLORS.realCost} name="Custo Real" />
             </BarChart>
@@ -742,7 +750,7 @@ function DashboardTab({ dashboard }: { dashboard?: any }) {
                 <tr className="border-b bg-muted/50">
                   <th className="text-left p-1.5 font-medium">Empresa</th>
                   <th className="text-right p-1.5 font-medium">Remessas</th>
-                  <th className="text-right p-1.5 font-medium">Frete Pago</th>
+                  <th className="text-right p-1.5 font-medium">Frete Cotado</th>
                   <th className="text-right p-1.5 font-medium">Cobrado NF</th>
                   <th className="text-right p-1.5 font-medium">Custo Real</th>
                   <th className="text-right p-1.5 font-medium">Saldo</th>
@@ -957,7 +965,7 @@ function WalletTab({ dashboard, channelWallet, sellerWallet }: { dashboard?: any
                     <div className="grid grid-cols-6 gap-2 px-4 py-2 text-[10px] font-semibold text-muted-foreground uppercase bg-muted/40">
                       <span className="col-span-2">Vendedor</span>
                       <span className="text-right">Cobrado NF</span>
-                      <span className="text-right">Frete Pago</span>
+                      <span className="text-right">Frete Cotado</span>
                       <span className="text-right">Saldo</span>
                       <span className="text-right">%</span>
                     </div>
@@ -1000,7 +1008,7 @@ function WalletTab({ dashboard, channelWallet, sellerWallet }: { dashboard?: any
       {/* Existing: Wallet by requester */}
       <div>
         <h3 className="font-semibold text-sm">Carteira por Solicitante</h3>
-        <p className="text-xs text-muted-foreground mb-3">Saldo = Cobrado NF − Frete Pago. Positivo = crédito. Negativo = débito (vermelho).</p>
+        <p className="text-xs text-muted-foreground mb-3">Saldo = Cobrado NF − Frete Cotado. Positivo = crédito. Negativo = débito (vermelho).</p>
 
         <div className="grid gap-3">
           {dashboard.byRequester?.length === 0 && (
@@ -1015,7 +1023,7 @@ function WalletTab({ dashboard, channelWallet, sellerWallet }: { dashboard?: any
                   <p className="text-xs text-muted-foreground">{r.total_shipments} remessas</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs text-muted-foreground">Frete Pago: {formatCurrency(Number(r.total_freight_paid))}</p>
+                  <p className="text-xs text-muted-foreground">Frete Cotado: {formatCurrency(Number(r.total_freight_paid))}</p>
                   <p className="text-xs text-muted-foreground">Cobrado: {formatCurrency(Number(r.total_invoiced))}</p>
                   <p className={cn("font-bold text-lg", bal >= 0 ? "text-green-600" : "text-destructive")}>
                     {bal >= 0 ? "+" : ""}{formatCurrency(bal)}
@@ -1037,7 +1045,7 @@ function WalletTab({ dashboard, channelWallet, sellerWallet }: { dashboard?: any
               <XAxis dataKey="channel" tick={TICK_STYLE} />
               <YAxis tick={TICK_STYLE} />
               <RechartsTooltip formatter={(v: number) => formatCurrency(v)} />
-              <Bar dataKey="freight_paid" fill={CHART_COLORS.paid} name="Frete Pago" />
+              <Bar dataKey="freight_paid" fill={CHART_COLORS.paid} name="Frete Cotado" />
               <Bar dataKey="freight_invoiced" fill={CHART_COLORS.invoiced} name="Cobrado NF" />
             </BarChart>
           </ResponsiveContainer>
