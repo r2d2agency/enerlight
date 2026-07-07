@@ -329,20 +329,20 @@ export function DevolucaoDetailDialog({ open, onOpenChange, devolucaoId }: Props
               {/* ENVIO */}
               <TabsContent value="envio" className="space-y-3 pt-3">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <div><Label>NF de saída (Enerlight → cliente)</Label><Input defaultValue={dev.outbound_invoice_number || ''} onBlur={e => save({ outbound_invoice_number: e.target.value })} /></div>
-                  <div><Label>Data da NF</Label><Input type="date" defaultValue={dev.outbound_invoice_date?.slice(0,10) || ''} onBlur={e => save({ outbound_invoice_date: e.target.value || null })} /></div>
-                  <div><Label>Valor (R$)</Label><Input type="number" step="0.01" defaultValue={dev.outbound_invoice_value || ''} onBlur={e => save({ outbound_invoice_value: Number(e.target.value) || null })} /></div>
-                  <div><Label>Enviado em</Label><Input type="datetime-local" defaultValue={dev.outbound_sent_at?.slice(0,16) || ''} onBlur={e => save({ outbound_sent_at: e.target.value || null })} /></div>
+                  <div><Label>NF de saída (Enerlight → cliente)</Label><Input value={envio.outbound_invoice_number || ''} onChange={e => setEnvioField('outbound_invoice_number', e.target.value)} /></div>
+                  <div><Label>Data da NF</Label><Input type="date" value={envio.outbound_invoice_date || ''} onChange={e => setEnvioField('outbound_invoice_date', e.target.value)} /></div>
+                  <div><Label>Valor (R$)</Label><Input type="number" step="0.01" value={envio.outbound_invoice_value ?? ''} onChange={e => setEnvioField('outbound_invoice_value', e.target.value)} /></div>
+                  <div><Label>Enviado em</Label><Input type="datetime-local" value={envio.outbound_sent_at || ''} onChange={e => setEnvioField('outbound_sent_at', e.target.value)} /></div>
                 </div>
                 <div className="border rounded-lg p-3 space-y-3">
                   <div className="font-medium text-sm flex items-center gap-2"><Truck className="h-4 w-4" />Frete de saída</div>
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                    <div><Label>Transportadora</Label><Input list="devolucao-carriers-list" placeholder="Selecione ou cadastre uma nova" defaultValue={dev.outbound_carrier || ''} onBlur={e => save({ outbound_carrier: e.target.value })} /></div>
-                    <div><Label>Código rastreio</Label><Input defaultValue={dev.outbound_tracking_code || ''} onBlur={e => save({ outbound_tracking_code: e.target.value })} /></div>
-                    <div><Label>Custo (R$)</Label><Input type="number" step="0.01" defaultValue={dev.outbound_freight_cost || ''} onBlur={e => save({ outbound_freight_cost: Number(e.target.value) || 0 })} /></div>
+                    <div><Label>Transportadora</Label><Input list="devolucao-carriers-list" placeholder="Selecione ou cadastre uma nova" value={envio.outbound_carrier || ''} onChange={e => setEnvioField('outbound_carrier', e.target.value)} /></div>
+                    <div><Label>Código rastreio</Label><Input value={envio.outbound_tracking_code || ''} onChange={e => setEnvioField('outbound_tracking_code', e.target.value)} /></div>
+                    <div><Label>Custo (R$)</Label><Input type="number" step="0.01" value={envio.outbound_freight_cost ?? ''} onChange={e => setEnvioField('outbound_freight_cost', e.target.value)} /></div>
                     <div>
                       <Label>Status</Label>
-                      <Select defaultValue={dev.outbound_freight_status || ''} onValueChange={v => save({ outbound_freight_status: v })}>
+                      <Select value={envio.outbound_freight_status || ''} onValueChange={v => setEnvioField('outbound_freight_status', v)}>
                         <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="aguardando_coleta">Aguardando coleta</SelectItem>
@@ -355,13 +355,21 @@ export function DevolucaoDetailDialog({ open, onOpenChange, devolucaoId }: Props
                 </div>
                 <div>
                   <Label>Resumo da resolução</Label>
-                  <Textarea rows={3} defaultValue={dev.resolution_summary || ''} onBlur={e => save({ resolution_summary: e.target.value })} placeholder="O que foi feito, peças trocadas, conclusão final..." />
+                  <Textarea rows={3} value={envio.resolution_summary || ''} onChange={e => setEnvioField('resolution_summary', e.target.value)} placeholder="O que foi feito, peças trocadas, conclusão final..." />
                 </div>
                 <div className="rounded-md bg-muted/40 px-3 py-2 text-sm flex items-center justify-between">
                   <span>Custo total de fretes</span>
-                  <b>R$ {((Number(dev.inbound_freight_cost)||0) + (Number(dev.outbound_freight_cost)||0)).toFixed(2)}</b>
+                  <b>R$ {((Number(dev.inbound_freight_cost)||0) + (Number(envio.outbound_freight_cost)||0)).toFixed(2)}</b>
+                </div>
+                <div className="flex items-center justify-end gap-2 sticky bottom-0 bg-background/95 backdrop-blur py-2 border-t">
+                  {envioDirty && <span className="text-xs text-amber-600">Alterações não salvas</span>}
+                  <Button onClick={saveEnvio} disabled={update.isPending || !envioDirty}>
+                    {update.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Check className="h-4 w-4 mr-2" />}
+                    Salvar envio
+                  </Button>
                 </div>
               </TabsContent>
+
 
               {/* ANEXOS */}
               <TabsContent value="anexos" className="space-y-3 pt-3">
