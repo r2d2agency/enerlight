@@ -62,6 +62,42 @@ export function DevolucaoDetailDialog({ open, onOpenChange, devolucaoId }: Props
   const [anexoCat, setAnexoCat] = useState<'foto' | 'nf_entrada' | 'nf_saida' | 'laudo' | 'outro'>('foto');
   const [newItem, setNewItem] = useState<{ product_name: string; sku: string; quantity: number; serial_number: string }>({ product_name: '', sku: '', quantity: 1, serial_number: '' });
 
+  // Estado local da aba Envio (com botão Salvar explícito)
+  const [envio, setEnvio] = useState<any>({});
+  const [envioDirty, setEnvioDirty] = useState(false);
+  useEffect(() => {
+    if (!dev) return;
+    setEnvio({
+      outbound_invoice_number: dev.outbound_invoice_number || '',
+      outbound_invoice_date: dev.outbound_invoice_date?.slice(0, 10) || '',
+      outbound_invoice_value: dev.outbound_invoice_value ?? '',
+      outbound_sent_at: dev.outbound_sent_at?.slice(0, 16) || '',
+      outbound_carrier: dev.outbound_carrier || '',
+      outbound_tracking_code: dev.outbound_tracking_code || '',
+      outbound_freight_cost: dev.outbound_freight_cost ?? '',
+      outbound_freight_status: dev.outbound_freight_status || '',
+      resolution_summary: dev.resolution_summary || '',
+    });
+    setEnvioDirty(false);
+  }, [dev?.id, dev?.updated_at]);
+  const setEnvioField = (k: string, v: any) => { setEnvio((p: any) => ({ ...p, [k]: v })); setEnvioDirty(true); };
+  const saveEnvio = async () => {
+    if (!dev) return;
+    await update.mutateAsync({
+      id: dev.id,
+      outbound_invoice_number: envio.outbound_invoice_number || null,
+      outbound_invoice_date: envio.outbound_invoice_date || null,
+      outbound_invoice_value: envio.outbound_invoice_value === '' ? null : Number(envio.outbound_invoice_value),
+      outbound_sent_at: envio.outbound_sent_at || null,
+      outbound_carrier: envio.outbound_carrier || null,
+      outbound_tracking_code: envio.outbound_tracking_code || null,
+      outbound_freight_cost: envio.outbound_freight_cost === '' ? 0 : Number(envio.outbound_freight_cost),
+      outbound_freight_status: envio.outbound_freight_status || null,
+      resolution_summary: envio.resolution_summary || null,
+    });
+    setEnvioDirty(false);
+  };
+
   if (!devolucaoId) return null;
 
   const save = (patch: any) => dev && update.mutate({ id: dev.id, _silent: true, ...patch });
