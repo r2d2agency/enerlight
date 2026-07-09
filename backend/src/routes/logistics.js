@@ -740,4 +740,39 @@ router.get('/seller-wallet', requireAuth, async (req, res) => {
   }
 });
 
+// ===================== FLEET SETTINGS (frota própria) =====================
+router.get('/fleet-settings', requireAuth, async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+    const s = await getFleetSettings(org.organization_id);
+    res.json(s);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.put('/fleet-settings', requireAuth, async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+    const { fuel_price_per_liter, km_per_liter, own_carrier_name } = req.body;
+    await query(
+      `INSERT INTO logistics_fleet_settings (organization_id, fuel_price_per_liter, km_per_liter, own_carrier_name, updated_at)
+       VALUES ($1,$2,$3,$4,NOW())
+       ON CONFLICT (organization_id) DO UPDATE SET
+         fuel_price_per_liter = EXCLUDED.fuel_price_per_liter,
+         km_per_liter = EXCLUDED.km_per_liter,
+         own_carrier_name = EXCLUDED.own_carrier_name,
+         updated_at = NOW()`,
+      [org.organization_id, parseFloat(fuel_price_per_liter) || 0, parseFloat(km_per_liter) || 0, own_carrier_name || 'Enerlight']
+    );
+    const s = await getFleetSettings(org.organization_id);
+    res.json(s);
+  } catch (e) {
+    console.error('Update fleet-settings error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 export default router;
