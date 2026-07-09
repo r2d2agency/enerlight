@@ -65,3 +65,12 @@ CREATE TABLE IF NOT EXISTS logistics_import_batches (
 );
 
 CREATE INDEX IF NOT EXISTS idx_logistics_import_batches_org ON logistics_import_batches(organization_id);
+
+-- Configurações da frota própria (Enerlight): preço por litro e km/litro
+CREATE TABLE IF NOT EXISTS logistics_fleet_settings (
+  organization_id UUID PRIMARY KEY REFERENCES organizations(id) ON DELETE CASCADE,
+  fuel_price_per_liter NUMERIC(10,3) DEFAULT 0,
+  km_per_liter NUMERIC(10,3) DEFAULT 0,
+  own_carrier_name VARCHAR(100) DEFAULT 'Enerlight',
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
