@@ -25,6 +25,9 @@ CREATE TABLE IF NOT EXISTS logistics_shipments (
   freight_invoiced NUMERIC(15,2) DEFAULT 0,
   tax_value NUMERIC(15,2) DEFAULT 0,
   real_cost NUMERIC(15,2) DEFAULT 0,
+  -- Frota própria (Enerlight)
+  distance_km NUMERIC(10,2) DEFAULT 0,
+  own_fleet_cost NUMERIC(15,2) DEFAULT 0,
   -- Status & canal
   status VARCHAR(100) DEFAULT 'Pendente',
   channel VARCHAR(100),
