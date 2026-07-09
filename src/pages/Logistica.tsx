@@ -357,6 +357,7 @@ export default function Logistica() {
                   </table>
                 </div>
               </ScrollArea>
+              </>
             )}
           </TabsContent>
 
