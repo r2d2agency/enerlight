@@ -4,14 +4,47 @@ import { authenticate as requireAuth } from '../middleware/auth.js';
 
 const router = Router();
 
-// Ensure freight_actual_paid column exists (migration for existing installs)
+// Ensure new columns / tables exist (migration for existing installs)
 (async () => {
   try {
     await query(`ALTER TABLE logistics_shipments ADD COLUMN IF NOT EXISTS freight_actual_paid NUMERIC(15,2) DEFAULT 0`);
+    await query(`ALTER TABLE logistics_shipments ADD COLUMN IF NOT EXISTS distance_km NUMERIC(10,2) DEFAULT 0`);
+    await query(`ALTER TABLE logistics_shipments ADD COLUMN IF NOT EXISTS own_fleet_cost NUMERIC(15,2) DEFAULT 0`);
+    await query(`
+      CREATE TABLE IF NOT EXISTS logistics_fleet_settings (
+        organization_id UUID PRIMARY KEY,
+        fuel_price_per_liter NUMERIC(10,3) DEFAULT 0,
+        km_per_liter NUMERIC(10,3) DEFAULT 0,
+        own_carrier_name VARCHAR(100) DEFAULT 'Enerlight',
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      )
+    `);
   } catch (e) {
-    console.error('[logistics] migration freight_actual_paid failed:', e.message);
+    console.error('[logistics] migration failed:', e.message);
   }
 })();
+
+async function getFleetSettings(orgId) {
+  const r = await query(
+    `SELECT fuel_price_per_liter, km_per_liter, own_carrier_name FROM logistics_fleet_settings WHERE organization_id = $1`,
+    [orgId]
+  );
+  return r.rows[0] || { fuel_price_per_liter: 0, km_per_liter: 0, own_carrier_name: 'Enerlight' };
+}
+
+function computeOwnFleetCost(distanceKm, settings) {
+  const km = parseFloat(distanceKm) || 0;
+  const price = parseFloat(settings.fuel_price_per_liter) || 0;
+  const eff = parseFloat(settings.km_per_liter) || 0;
+  if (!km || !price || !eff) return 0;
+  return +(km / eff * price).toFixed(2);
+}
+
+function isOwnCarrier(carrier, settings) {
+  if (!carrier) return false;
+  const own = (settings.own_carrier_name || 'Enerlight').toLowerCase();
+  return carrier.toLowerCase().includes(own);
+}
 
 async function getUserOrg(userId) {
   const r = await query(
