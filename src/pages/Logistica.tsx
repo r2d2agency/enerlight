@@ -1151,3 +1151,83 @@ function ImportBatchHistory() {
     </div>
   );
 }
+
+// ===================== FLEET SETTINGS DIALOG =====================
+function FleetSettingsDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+  const { data: settings } = useFleetSettings();
+  const updateMut = useUpdateFleetSettings();
+  const [form, setForm] = useState<Partial<FleetSettings>>({});
+  const [prevOpen, setPrevOpen] = useState(false);
+
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+    if (open && settings) {
+      setForm({
+        fuel_price_per_liter: settings.fuel_price_per_liter,
+        km_per_liter: settings.km_per_liter,
+        own_carrier_name: settings.own_carrier_name || "Enerlight",
+      });
+    }
+  }
+
+  const km = Number(form.km_per_liter) || 0;
+  const price = Number(form.fuel_price_per_liter) || 0;
+  const costPerKm = km ? price / km : 0;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><Fuel className="h-5 w-5" /> Configurações da Frota Própria</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <p className="text-xs text-muted-foreground">
+            Usado para calcular o custo dos fretes feitos pela frota própria. Quando a transportadora contém este nome, o sistema pede a distância percorrida e calcula automaticamente o custo (km ÷ km/litro × preço/litro).
+          </p>
+          <div>
+            <Label>Nome da transportadora (frota própria)</Label>
+            <Input
+              value={form.own_carrier_name || ""}
+              onChange={(e) => setForm(f => ({ ...f, own_carrier_name: e.target.value }))}
+              placeholder="Enerlight"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Preço por litro (R$)</Label>
+              <Input
+                type="number" step="0.01"
+                value={form.fuel_price_per_liter ?? 0}
+                onChange={(e) => setForm(f => ({ ...f, fuel_price_per_liter: Number(e.target.value) }))}
+              />
+            </div>
+            <div>
+              <Label>Km por litro</Label>
+              <Input
+                type="number" step="0.1"
+                value={form.km_per_liter ?? 0}
+                onChange={(e) => setForm(f => ({ ...f, km_per_liter: Number(e.target.value) }))}
+              />
+            </div>
+          </div>
+          <div className="rounded-md bg-muted/40 border p-2 text-sm">
+            <span className="text-muted-foreground">Custo por km: </span>
+            <strong className="font-mono">
+              {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 3 }).format(costPerKm)}
+            </strong>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+          <Button
+            onClick={() => updateMut.mutate(form, { onSuccess: () => onOpenChange(false) })}
+            disabled={updateMut.isPending}
+          >
+            {updateMut.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+            Salvar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
