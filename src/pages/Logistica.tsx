@@ -591,7 +591,37 @@ function ShipmentFormDialog({ open, onOpenChange, shipment, members, companies, 
           <div>
             <Label>Imposto (R$)</Label>
             <Input type="number" step="0.01" value={form.tax_value || 0} onChange={(e) => upd("tax_value", Number(e.target.value))} />
-          </div>
+          {(() => {
+            const ownName = fleetSettings?.own_carrier_name || "Enerlight";
+            const isOwn = (form.carrier || "").toLowerCase().includes(ownName.toLowerCase());
+            if (!isOwn) return null;
+            const km = Number(form.distance_km) || 0;
+            const price = Number(fleetSettings?.fuel_price_per_liter) || 0;
+            const eff = Number(fleetSettings?.km_per_liter) || 0;
+            const cost = km && price && eff ? (km / eff) * price : 0;
+            return (
+              <>
+                <div className="col-span-2 border-t pt-2 mt-1">
+                  <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                    <Fuel className="h-3 w-3" /> Frota própria ({ownName})
+                  </p>
+                </div>
+                <div>
+                  <Label>Distância (km)</Label>
+                  <Input type="number" step="0.1" value={form.distance_km || 0} onChange={(e) => upd("distance_km", Number(e.target.value))} />
+                </div>
+                <div>
+                  <Label>Custo estimado do frete</Label>
+                  <div className="h-9 px-3 flex items-center rounded-md border bg-muted/40 text-sm font-mono">
+                    {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cost)}
+                  </div>
+                  {(!price || !eff) && (
+                    <p className="text-[10px] text-amber-600 mt-1">Configure preço/litro e km/litro em "Frota".</p>
+                  )}
+                </div>
+              </>
+            );
+          })()}
           <div>
             <Label>Status</Label>
             <Select value={form.status || "Pendente"} onValueChange={(v) => upd("status", v)}>
