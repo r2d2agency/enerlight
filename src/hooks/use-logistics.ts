@@ -272,3 +272,26 @@ export function useLogisticsSellerWallet(filters?: { start_date?: string; end_da
     queryFn: () => api<SellerWalletItem[]>(`/api/logistics/seller-wallet?${params.toString()}`),
   });
 }
+
+export function useFleetSettings() {
+  return useQuery({
+    queryKey: ["logistics-fleet-settings"],
+    queryFn: () => api<FleetSettings>(`/api/logistics/fleet-settings`),
+  });
+}
+
+export function useUpdateFleetSettings() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: (data: Partial<FleetSettings>) =>
+      api<FleetSettings>(`/api/logistics/fleet-settings`, { method: "PUT", body: data }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["logistics-fleet-settings"] });
+      qc.invalidateQueries({ queryKey: ["logistics-shipments"] });
+      qc.invalidateQueries({ queryKey: ["logistics-dashboard"] });
+      toast({ title: "Configurações da frota atualizadas" });
+    },
+    onError: (e: any) => toast({ title: "Erro ao salvar configurações", description: e.message, variant: "destructive" }),
+  });
+}
