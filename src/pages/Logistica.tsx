@@ -347,9 +347,14 @@ export default function Logistica() {
         companies={companies || []}
         carriers={carriers || []}
         channels={channels || []}
+        fleetSettings={fleetSettings}
         onSave={handleSave}
         isSaving={createMut.isPending || updateMut.isPending}
       />
+
+      {/* Fleet Settings Dialog */}
+      <FleetSettingsDialog open={showFleetSettings} onOpenChange={setShowFleetSettings} />
+
 
       {/* View Dialog */}
       {viewShipment && (
