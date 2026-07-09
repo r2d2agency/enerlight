@@ -421,7 +421,7 @@ export default function Logistica() {
 }
 
 // ===================== FORM DIALOG =====================
-function ShipmentFormDialog({ open, onOpenChange, shipment, members, companies, carriers, channels, onSave, isSaving }: {
+function ShipmentFormDialog({ open, onOpenChange, shipment, members, companies, carriers, channels, fleetSettings, onSave, isSaving }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   shipment: LogisticsShipment | null;
@@ -429,6 +429,7 @@ function ShipmentFormDialog({ open, onOpenChange, shipment, members, companies, 
   companies: string[];
   carriers: string[];
   channels: string[];
+  fleetSettings?: FleetSettings;
   onSave: (data: Partial<LogisticsShipment>) => void;
   isSaving: boolean;
 }) {
