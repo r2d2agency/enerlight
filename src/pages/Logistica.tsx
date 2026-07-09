@@ -16,14 +16,15 @@ import { cn } from "@/lib/utils";
 import {
   Plus, Search, Trash2, Edit, Truck, Package, Calendar,
   DollarSign, Upload, Loader2, BarChart3, TrendingUp, TrendingDown,
-  Filter, FileSpreadsheet, ArrowUpDown, Eye
+  Filter, FileSpreadsheet, ArrowUpDown, Eye, Fuel, Settings
 } from "lucide-react";
 import {
   useLogisticsShipments, useLogisticsDashboard, useLogisticsMembers, useLogisticsCompanies,
   useLogisticsCarriers, useLogisticsChannels, useLogisticsChannelWallet, useLogisticsSellerWallet,
   useCreateShipment, useUpdateShipment, useDeleteShipment, useImportShipments,
   useLogisticsImportBatches, useDeleteImportBatch,
-  LogisticsShipment, ChannelWalletItem, SellerWalletItem,
+  useFleetSettings, useUpdateFleetSettings,
+  LogisticsShipment, ChannelWalletItem, SellerWalletItem, FleetSettings,
 } from "@/hooks/use-logistics";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, subMonths, subDays, startOfDay, endOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -59,6 +60,7 @@ export default function Logistica() {
   const [showImport, setShowImport] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [viewShipment, setViewShipment] = useState<LogisticsShipment | null>(null);
+  const [showFleetSettings, setShowFleetSettings] = useState(false);
   const { toast } = useToast();
 
   const dateRange = useMemo(() => {
@@ -111,6 +113,7 @@ export default function Logistica() {
   const { data: channels } = useLogisticsChannels();
   const { data: channelWallet } = useLogisticsChannelWallet(dateRange);
   const { data: sellerWallet } = useLogisticsSellerWallet(dateRange);
+  const { data: fleetSettings } = useFleetSettings();
   const createMut = useCreateShipment();
   const updateMut = useUpdateShipment();
   const deleteMut = useDeleteShipment();
@@ -176,6 +179,9 @@ export default function Logistica() {
             <p className="text-sm text-muted-foreground">Controle de remessas, fretes e entregas</p>
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setShowFleetSettings(true)}>
+              <Fuel className="h-4 w-4 mr-1" /> Frota
+            </Button>
             <Button variant="outline" size="sm" onClick={() => setShowImport(true)}>
               <Upload className="h-4 w-4 mr-1" /> Importar XLSX
             </Button>
@@ -260,6 +266,38 @@ export default function Logistica() {
                 <p>Nenhuma remessa encontrada</p>
               </div>
             ) : (
+              <>
+                {(() => {
+                  const ownName = (fleetSettings?.own_carrier_name || "Enerlight").toLowerCase();
+                  const ownShipments = shipments.filter(s => (s.carrier || "").toLowerCase().includes(ownName));
+                  if (!ownShipments.length) return null;
+                  const totalKm = ownShipments.reduce((a, s) => a + Number(s.distance_km || 0), 0);
+                  const totalCost = ownShipments.reduce((a, s) => a + Number(s.own_fleet_cost || 0), 0);
+                  return (
+                    <Card className="p-3 mb-3 flex flex-wrap items-center gap-6 border-primary/30">
+                      <div className="flex items-center gap-2">
+                        <Fuel className="h-5 w-5 text-primary" />
+                        <span className="text-sm font-medium">Frota própria ({fleetSettings?.own_carrier_name || "Enerlight"})</span>
+                      </div>
+                      <div className="text-sm">
+                        <span className="text-muted-foreground">Remessas: </span>
+                        <strong>{ownShipments.length}</strong>
+                      </div>
+                      <div className="text-sm">
+                        <span className="text-muted-foreground">Km rodados: </span>
+                        <strong className="font-mono">{totalKm.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}</strong>
+                      </div>
+                      <div className="text-sm">
+                        <span className="text-muted-foreground">Custo total: </span>
+                        <strong className="font-mono text-primary">{formatCurrency(totalCost)}</strong>
+                      </div>
+                      <Button variant="ghost" size="sm" className="ml-auto" onClick={() => setShowFleetSettings(true)}>
+                        <Settings className="h-3 w-3 mr-1" /> Configurar
+                      </Button>
+                    </Card>
+                  );
+                })()}
+
               <ScrollArea className="h-[calc(100vh-280px)]">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -319,6 +357,7 @@ export default function Logistica() {
                   </table>
                 </div>
               </ScrollArea>
+              </>
             )}
           </TabsContent>
 
@@ -341,9 +380,14 @@ export default function Logistica() {
         companies={companies || []}
         carriers={carriers || []}
         channels={channels || []}
+        fleetSettings={fleetSettings}
         onSave={handleSave}
         isSaving={createMut.isPending || updateMut.isPending}
       />
+
+      {/* Fleet Settings Dialog */}
+      <FleetSettingsDialog open={showFleetSettings} onOpenChange={setShowFleetSettings} />
+
 
       {/* View Dialog */}
       {viewShipment && (
@@ -410,7 +454,7 @@ export default function Logistica() {
 }
 
 // ===================== FORM DIALOG =====================
-function ShipmentFormDialog({ open, onOpenChange, shipment, members, companies, carriers, channels, onSave, isSaving }: {
+function ShipmentFormDialog({ open, onOpenChange, shipment, members, companies, carriers, channels, fleetSettings, onSave, isSaving }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   shipment: LogisticsShipment | null;
@@ -418,6 +462,7 @@ function ShipmentFormDialog({ open, onOpenChange, shipment, members, companies, 
   companies: string[];
   carriers: string[];
   channels: string[];
+  fleetSettings?: FleetSettings;
   onSave: (data: Partial<LogisticsShipment>) => void;
   isSaving: boolean;
 }) {
@@ -444,6 +489,7 @@ function ShipmentFormDialog({ open, onOpenChange, shipment, members, companies, 
         freight_actual_paid: shipment.freight_actual_paid || 0,
         freight_invoiced: shipment.freight_invoiced || 0,
         tax_value: shipment.tax_value || 0,
+        distance_km: shipment.distance_km || 0,
         status: shipment.status || "Pendente",
         channel: shipment.channel || "",
         requester_id: shipment.requester_id || "",
@@ -458,6 +504,7 @@ function ShipmentFormDialog({ open, onOpenChange, shipment, members, companies, 
         requested_date: format(new Date(), "yyyy-MM-dd"), departure_date: "", estimated_delivery: format(new Date(Date.now() + 15 * 86400000), "yyyy-MM-dd"), actual_delivery: "",
         carrier: "", carrier_quote_code: "", volumes: 0,
         freight_paid: 0, freight_actual_paid: 0, freight_invoiced: 0, tax_value: 0,
+        distance_km: 0,
         status: "Pendente", channel: "", requester_id: "", notes: "",
       });
       setCustomCompany(false);
@@ -578,6 +625,37 @@ function ShipmentFormDialog({ open, onOpenChange, shipment, members, companies, 
             <Label>Imposto (R$)</Label>
             <Input type="number" step="0.01" value={form.tax_value || 0} onChange={(e) => upd("tax_value", Number(e.target.value))} />
           </div>
+          {(() => {
+            const ownName = fleetSettings?.own_carrier_name || "Enerlight";
+            const isOwn = (form.carrier || "").toLowerCase().includes(ownName.toLowerCase());
+            if (!isOwn) return null;
+            const km = Number(form.distance_km) || 0;
+            const price = Number(fleetSettings?.fuel_price_per_liter) || 0;
+            const eff = Number(fleetSettings?.km_per_liter) || 0;
+            const cost = km && price && eff ? (km / eff) * price : 0;
+            return (
+              <>
+                <div className="col-span-2 border-t pt-2 mt-1">
+                  <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                    <Fuel className="h-3 w-3" /> Frota própria ({ownName})
+                  </p>
+                </div>
+                <div>
+                  <Label>Distância (km)</Label>
+                  <Input type="number" step="0.1" value={form.distance_km || 0} onChange={(e) => upd("distance_km", Number(e.target.value))} />
+                </div>
+                <div>
+                  <Label>Custo estimado do frete</Label>
+                  <div className="h-9 px-3 flex items-center rounded-md border bg-muted/40 text-sm font-mono">
+                    {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cost)}
+                  </div>
+                  {(!price || !eff) && (
+                    <p className="text-[10px] text-amber-600 mt-1">Configure preço/litro e km/litro em "Frota".</p>
+                  )}
+                </div>
+              </>
+            );
+          })()}
           <div>
             <Label>Status</Label>
             <Select value={form.status || "Pendente"} onValueChange={(v) => upd("status", v)}>
@@ -1104,5 +1182,85 @@ function ImportBatchHistory() {
         ))}
       </ScrollArea>
     </div>
+  );
+}
+
+// ===================== FLEET SETTINGS DIALOG =====================
+function FleetSettingsDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+  const { data: settings } = useFleetSettings();
+  const updateMut = useUpdateFleetSettings();
+  const [form, setForm] = useState<Partial<FleetSettings>>({});
+  const [prevOpen, setPrevOpen] = useState(false);
+
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+    if (open && settings) {
+      setForm({
+        fuel_price_per_liter: settings.fuel_price_per_liter,
+        km_per_liter: settings.km_per_liter,
+        own_carrier_name: settings.own_carrier_name || "Enerlight",
+      });
+    }
+  }
+
+  const km = Number(form.km_per_liter) || 0;
+  const price = Number(form.fuel_price_per_liter) || 0;
+  const costPerKm = km ? price / km : 0;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><Fuel className="h-5 w-5" /> Configurações da Frota Própria</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <p className="text-xs text-muted-foreground">
+            Usado para calcular o custo dos fretes feitos pela frota própria. Quando a transportadora contém este nome, o sistema pede a distância percorrida e calcula automaticamente o custo (km ÷ km/litro × preço/litro).
+          </p>
+          <div>
+            <Label>Nome da transportadora (frota própria)</Label>
+            <Input
+              value={form.own_carrier_name || ""}
+              onChange={(e) => setForm(f => ({ ...f, own_carrier_name: e.target.value }))}
+              placeholder="Enerlight"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Preço por litro (R$)</Label>
+              <Input
+                type="number" step="0.01"
+                value={form.fuel_price_per_liter ?? 0}
+                onChange={(e) => setForm(f => ({ ...f, fuel_price_per_liter: Number(e.target.value) }))}
+              />
+            </div>
+            <div>
+              <Label>Km por litro</Label>
+              <Input
+                type="number" step="0.1"
+                value={form.km_per_liter ?? 0}
+                onChange={(e) => setForm(f => ({ ...f, km_per_liter: Number(e.target.value) }))}
+              />
+            </div>
+          </div>
+          <div className="rounded-md bg-muted/40 border p-2 text-sm">
+            <span className="text-muted-foreground">Custo por km: </span>
+            <strong className="font-mono">
+              {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 3 }).format(costPerKm)}
+            </strong>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+          <Button
+            onClick={() => updateMut.mutate(form, { onSuccess: () => onOpenChange(false) })}
+            disabled={updateMut.isPending}
+          >
+            {updateMut.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+            Salvar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

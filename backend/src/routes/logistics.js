@@ -4,14 +4,47 @@ import { authenticate as requireAuth } from '../middleware/auth.js';
 
 const router = Router();
 
-// Ensure freight_actual_paid column exists (migration for existing installs)
+// Ensure new columns / tables exist (migration for existing installs)
 (async () => {
   try {
     await query(`ALTER TABLE logistics_shipments ADD COLUMN IF NOT EXISTS freight_actual_paid NUMERIC(15,2) DEFAULT 0`);
+    await query(`ALTER TABLE logistics_shipments ADD COLUMN IF NOT EXISTS distance_km NUMERIC(10,2) DEFAULT 0`);
+    await query(`ALTER TABLE logistics_shipments ADD COLUMN IF NOT EXISTS own_fleet_cost NUMERIC(15,2) DEFAULT 0`);
+    await query(`
+      CREATE TABLE IF NOT EXISTS logistics_fleet_settings (
+        organization_id UUID PRIMARY KEY,
+        fuel_price_per_liter NUMERIC(10,3) DEFAULT 0,
+        km_per_liter NUMERIC(10,3) DEFAULT 0,
+        own_carrier_name VARCHAR(100) DEFAULT 'Enerlight',
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      )
+    `);
   } catch (e) {
-    console.error('[logistics] migration freight_actual_paid failed:', e.message);
+    console.error('[logistics] migration failed:', e.message);
   }
 })();
+
+async function getFleetSettings(orgId) {
+  const r = await query(
+    `SELECT fuel_price_per_liter, km_per_liter, own_carrier_name FROM logistics_fleet_settings WHERE organization_id = $1`,
+    [orgId]
+  );
+  return r.rows[0] || { fuel_price_per_liter: 0, km_per_liter: 0, own_carrier_name: 'Enerlight' };
+}
+
+function computeOwnFleetCost(distanceKm, settings) {
+  const km = parseFloat(distanceKm) || 0;
+  const price = parseFloat(settings.fuel_price_per_liter) || 0;
+  const eff = parseFloat(settings.km_per_liter) || 0;
+  if (!km || !price || !eff) return 0;
+  return +(km / eff * price).toFixed(2);
+}
+
+function isOwnCarrier(carrier, settings) {
+  if (!carrier) return false;
+  const own = (settings.own_carrier_name || 'Enerlight').toLowerCase();
+  return carrier.toLowerCase().includes(own);
+}
 
 async function getUserOrg(userId) {
   const r = await query(
@@ -129,10 +162,13 @@ router.post('/shipments', requireAuth, async (req, res) => {
       requested_date, departure_date, estimated_delivery, actual_delivery,
       carrier, carrier_quote_code, volumes,
       freight_paid, freight_actual_paid, freight_invoiced, tax_value,
+      distance_km,
       status, channel, deal_id, requester_id, notes
     } = req.body;
 
     const real_cost = (parseFloat(freight_paid) || 0) + (parseFloat(tax_value) || 0);
+    const settings = await getFleetSettings(org.organization_id);
+    const own_fleet_cost = isOwnCarrier(carrier, settings) ? computeOwnFleetCost(distance_km, settings) : 0;
 
     const result = await query(
       `INSERT INTO logistics_shipments (
@@ -140,14 +176,16 @@ router.post('/shipments', requireAuth, async (req, res) => {
         requested_date, departure_date, estimated_delivery, actual_delivery,
         carrier, carrier_quote_code, volumes,
         freight_paid, freight_actual_paid, freight_invoiced, tax_value, real_cost,
+        distance_km, own_fleet_cost,
         status, channel, deal_id, requester_id, notes, created_by
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)
       RETURNING *`,
       [
         org.organization_id, company_name, client_name, invoice_number, order_number,
         requested_date || null, departure_date || null, estimated_delivery || null, actual_delivery || null,
         carrier, carrier_quote_code, volumes || 0,
         freight_paid || 0, freight_actual_paid || 0, freight_invoiced || 0, tax_value || 0, real_cost,
+        parseFloat(distance_km) || 0, own_fleet_cost,
         status || 'Pendente', channel, deal_id || null, requester_id || null, notes, req.userId
       ]
     );
@@ -169,10 +207,13 @@ router.put('/shipments/:id', requireAuth, async (req, res) => {
       requested_date, departure_date, estimated_delivery, actual_delivery,
       carrier, carrier_quote_code, volumes,
       freight_paid, freight_actual_paid, freight_invoiced, tax_value,
+      distance_km,
       status, channel, deal_id, requester_id, notes
     } = req.body;
 
     const real_cost = (parseFloat(freight_paid) || 0) + (parseFloat(tax_value) || 0);
+    const settings = await getFleetSettings(org.organization_id);
+    const own_fleet_cost = isOwnCarrier(carrier, settings) ? computeOwnFleetCost(distance_km, settings) : 0;
 
     const result = await query(
       `UPDATE logistics_shipments SET
@@ -180,15 +221,17 @@ router.put('/shipments/:id', requireAuth, async (req, res) => {
         requested_date=$5, departure_date=$6, estimated_delivery=$7, actual_delivery=$8,
         carrier=$9, carrier_quote_code=$10, volumes=$11,
         freight_paid=$12, freight_actual_paid=$13, freight_invoiced=$14, tax_value=$15, real_cost=$16,
-        status=$17, channel=$18, deal_id=$19, requester_id=$20, notes=$21,
+        distance_km=$17, own_fleet_cost=$18,
+        status=$19, channel=$20, deal_id=$21, requester_id=$22, notes=$23,
         updated_at=NOW()
-      WHERE id=$22 AND organization_id=$23
+      WHERE id=$24 AND organization_id=$25
       RETURNING *`,
       [
         company_name, client_name, invoice_number, order_number,
         requested_date || null, departure_date || null, estimated_delivery || null, actual_delivery || null,
         carrier, carrier_quote_code, volumes || 0,
         freight_paid || 0, freight_actual_paid || 0, freight_invoiced || 0, tax_value || 0, real_cost,
+        parseFloat(distance_km) || 0, own_fleet_cost,
         status || 'Pendente', channel, deal_id || null, requester_id || null, notes,
         req.params.id, org.organization_id
       ]
@@ -693,6 +736,41 @@ router.get('/seller-wallet', requireAuth, async (req, res) => {
     res.json(result.rows);
   } catch (e) {
     console.error('Seller wallet error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ===================== FLEET SETTINGS (frota própria) =====================
+router.get('/fleet-settings', requireAuth, async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+    const s = await getFleetSettings(org.organization_id);
+    res.json(s);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.put('/fleet-settings', requireAuth, async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+    const { fuel_price_per_liter, km_per_liter, own_carrier_name } = req.body;
+    await query(
+      `INSERT INTO logistics_fleet_settings (organization_id, fuel_price_per_liter, km_per_liter, own_carrier_name, updated_at)
+       VALUES ($1,$2,$3,$4,NOW())
+       ON CONFLICT (organization_id) DO UPDATE SET
+         fuel_price_per_liter = EXCLUDED.fuel_price_per_liter,
+         km_per_liter = EXCLUDED.km_per_liter,
+         own_carrier_name = EXCLUDED.own_carrier_name,
+         updated_at = NOW()`,
+      [org.organization_id, parseFloat(fuel_price_per_liter) || 0, parseFloat(km_per_liter) || 0, own_carrier_name || 'Enerlight']
+    );
+    const s = await getFleetSettings(org.organization_id);
+    res.json(s);
+  } catch (e) {
+    console.error('Update fleet-settings error:', e);
     res.status(500).json({ error: e.message });
   }
 });

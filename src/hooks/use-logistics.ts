@@ -21,6 +21,8 @@ export interface LogisticsShipment {
   freight_invoiced: number;
   tax_value: number;
   real_cost: number;
+  distance_km: number;
+  own_fleet_cost: number;
   status: string;
   channel: string;
   deal_id?: string;
@@ -30,6 +32,12 @@ export interface LogisticsShipment {
   created_by_name?: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface FleetSettings {
+  fuel_price_per_liter: number;
+  km_per_liter: number;
+  own_carrier_name: string;
 }
 
 export interface LogisticsDashboard {
@@ -262,5 +270,28 @@ export function useLogisticsSellerWallet(filters?: { start_date?: string; end_da
   return useQuery({
     queryKey: ["logistics-seller-wallet", filters],
     queryFn: () => api<SellerWalletItem[]>(`/api/logistics/seller-wallet?${params.toString()}`),
+  });
+}
+
+export function useFleetSettings() {
+  return useQuery({
+    queryKey: ["logistics-fleet-settings"],
+    queryFn: () => api<FleetSettings>(`/api/logistics/fleet-settings`),
+  });
+}
+
+export function useUpdateFleetSettings() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: (data: Partial<FleetSettings>) =>
+      api<FleetSettings>(`/api/logistics/fleet-settings`, { method: "PUT", body: data }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["logistics-fleet-settings"] });
+      qc.invalidateQueries({ queryKey: ["logistics-shipments"] });
+      qc.invalidateQueries({ queryKey: ["logistics-dashboard"] });
+      toast({ title: "Configurações da frota atualizadas" });
+    },
+    onError: (e: any) => toast({ title: "Erro ao salvar configurações", description: e.message, variant: "destructive" }),
   });
 }
