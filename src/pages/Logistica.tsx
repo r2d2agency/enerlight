@@ -266,6 +266,38 @@ export default function Logistica() {
                 <p>Nenhuma remessa encontrada</p>
               </div>
             ) : (
+              <>
+                {(() => {
+                  const ownName = (fleetSettings?.own_carrier_name || "Enerlight").toLowerCase();
+                  const ownShipments = shipments.filter(s => (s.carrier || "").toLowerCase().includes(ownName));
+                  if (!ownShipments.length) return null;
+                  const totalKm = ownShipments.reduce((a, s) => a + Number(s.distance_km || 0), 0);
+                  const totalCost = ownShipments.reduce((a, s) => a + Number(s.own_fleet_cost || 0), 0);
+                  return (
+                    <Card className="p-3 mb-3 flex flex-wrap items-center gap-6 border-primary/30">
+                      <div className="flex items-center gap-2">
+                        <Fuel className="h-5 w-5 text-primary" />
+                        <span className="text-sm font-medium">Frota própria ({fleetSettings?.own_carrier_name || "Enerlight"})</span>
+                      </div>
+                      <div className="text-sm">
+                        <span className="text-muted-foreground">Remessas: </span>
+                        <strong>{ownShipments.length}</strong>
+                      </div>
+                      <div className="text-sm">
+                        <span className="text-muted-foreground">Km rodados: </span>
+                        <strong className="font-mono">{totalKm.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}</strong>
+                      </div>
+                      <div className="text-sm">
+                        <span className="text-muted-foreground">Custo total: </span>
+                        <strong className="font-mono text-primary">{formatCurrency(totalCost)}</strong>
+                      </div>
+                      <Button variant="ghost" size="sm" className="ml-auto" onClick={() => setShowFleetSettings(true)}>
+                        <Settings className="h-3 w-3 mr-1" /> Configurar
+                      </Button>
+                    </Card>
+                  );
+                })()}
+
               <ScrollArea className="h-[calc(100vh-280px)]">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
