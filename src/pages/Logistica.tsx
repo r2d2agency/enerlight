@@ -16,14 +16,15 @@ import { cn } from "@/lib/utils";
 import {
   Plus, Search, Trash2, Edit, Truck, Package, Calendar,
   DollarSign, Upload, Loader2, BarChart3, TrendingUp, TrendingDown,
-  Filter, FileSpreadsheet, ArrowUpDown, Eye
+  Filter, FileSpreadsheet, ArrowUpDown, Eye, Fuel, Settings
 } from "lucide-react";
 import {
   useLogisticsShipments, useLogisticsDashboard, useLogisticsMembers, useLogisticsCompanies,
   useLogisticsCarriers, useLogisticsChannels, useLogisticsChannelWallet, useLogisticsSellerWallet,
   useCreateShipment, useUpdateShipment, useDeleteShipment, useImportShipments,
   useLogisticsImportBatches, useDeleteImportBatch,
-  LogisticsShipment, ChannelWalletItem, SellerWalletItem,
+  useFleetSettings, useUpdateFleetSettings,
+  LogisticsShipment, ChannelWalletItem, SellerWalletItem, FleetSettings,
 } from "@/hooks/use-logistics";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, subMonths, subDays, startOfDay, endOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
