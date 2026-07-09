@@ -162,10 +162,13 @@ router.post('/shipments', requireAuth, async (req, res) => {
       requested_date, departure_date, estimated_delivery, actual_delivery,
       carrier, carrier_quote_code, volumes,
       freight_paid, freight_actual_paid, freight_invoiced, tax_value,
+      distance_km,
       status, channel, deal_id, requester_id, notes
     } = req.body;
 
     const real_cost = (parseFloat(freight_paid) || 0) + (parseFloat(tax_value) || 0);
+    const settings = await getFleetSettings(org.organization_id);
+    const own_fleet_cost = isOwnCarrier(carrier, settings) ? computeOwnFleetCost(distance_km, settings) : 0;
 
     const result = await query(
       `INSERT INTO logistics_shipments (
@@ -173,14 +176,16 @@ router.post('/shipments', requireAuth, async (req, res) => {
         requested_date, departure_date, estimated_delivery, actual_delivery,
         carrier, carrier_quote_code, volumes,
         freight_paid, freight_actual_paid, freight_invoiced, tax_value, real_cost,
+        distance_km, own_fleet_cost,
         status, channel, deal_id, requester_id, notes, created_by
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)
       RETURNING *`,
       [
         org.organization_id, company_name, client_name, invoice_number, order_number,
         requested_date || null, departure_date || null, estimated_delivery || null, actual_delivery || null,
         carrier, carrier_quote_code, volumes || 0,
         freight_paid || 0, freight_actual_paid || 0, freight_invoiced || 0, tax_value || 0, real_cost,
+        parseFloat(distance_km) || 0, own_fleet_cost,
         status || 'Pendente', channel, deal_id || null, requester_id || null, notes, req.userId
       ]
     );
@@ -202,10 +207,13 @@ router.put('/shipments/:id', requireAuth, async (req, res) => {
       requested_date, departure_date, estimated_delivery, actual_delivery,
       carrier, carrier_quote_code, volumes,
       freight_paid, freight_actual_paid, freight_invoiced, tax_value,
+      distance_km,
       status, channel, deal_id, requester_id, notes
     } = req.body;
 
     const real_cost = (parseFloat(freight_paid) || 0) + (parseFloat(tax_value) || 0);
+    const settings = await getFleetSettings(org.organization_id);
+    const own_fleet_cost = isOwnCarrier(carrier, settings) ? computeOwnFleetCost(distance_km, settings) : 0;
 
     const result = await query(
       `UPDATE logistics_shipments SET
@@ -213,15 +221,17 @@ router.put('/shipments/:id', requireAuth, async (req, res) => {
         requested_date=$5, departure_date=$6, estimated_delivery=$7, actual_delivery=$8,
         carrier=$9, carrier_quote_code=$10, volumes=$11,
         freight_paid=$12, freight_actual_paid=$13, freight_invoiced=$14, tax_value=$15, real_cost=$16,
-        status=$17, channel=$18, deal_id=$19, requester_id=$20, notes=$21,
+        distance_km=$17, own_fleet_cost=$18,
+        status=$19, channel=$20, deal_id=$21, requester_id=$22, notes=$23,
         updated_at=NOW()
-      WHERE id=$22 AND organization_id=$23
+      WHERE id=$24 AND organization_id=$25
       RETURNING *`,
       [
         company_name, client_name, invoice_number, order_number,
         requested_date || null, departure_date || null, estimated_delivery || null, actual_delivery || null,
         carrier, carrier_quote_code, volumes || 0,
         freight_paid || 0, freight_actual_paid || 0, freight_invoiced || 0, tax_value || 0, real_cost,
+        parseFloat(distance_km) || 0, own_fleet_cost,
         status || 'Pendente', channel, deal_id || null, requester_id || null, notes,
         req.params.id, org.organization_id
       ]
