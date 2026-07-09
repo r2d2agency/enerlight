@@ -591,6 +591,7 @@ function ShipmentFormDialog({ open, onOpenChange, shipment, members, companies, 
           <div>
             <Label>Imposto (R$)</Label>
             <Input type="number" step="0.01" value={form.tax_value || 0} onChange={(e) => upd("tax_value", Number(e.target.value))} />
+          </div>
           {(() => {
             const ownName = fleetSettings?.own_carrier_name || "Enerlight";
             const isOwn = (form.carrier || "").toLowerCase().includes(ownName.toLowerCase());
