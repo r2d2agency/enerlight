@@ -179,6 +179,9 @@ export default function Logistica() {
             <p className="text-sm text-muted-foreground">Controle de remessas, fretes e entregas</p>
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setShowFleetSettings(true)}>
+              <Fuel className="h-4 w-4 mr-1" /> Frota
+            </Button>
             <Button variant="outline" size="sm" onClick={() => setShowImport(true)}>
               <Upload className="h-4 w-4 mr-1" /> Importar XLSX
             </Button>
