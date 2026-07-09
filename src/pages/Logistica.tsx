@@ -60,6 +60,7 @@ export default function Logistica() {
   const [showImport, setShowImport] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [viewShipment, setViewShipment] = useState<LogisticsShipment | null>(null);
+  const [showFleetSettings, setShowFleetSettings] = useState(false);
   const { toast } = useToast();
 
   const dateRange = useMemo(() => {
