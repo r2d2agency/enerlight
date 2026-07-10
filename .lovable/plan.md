@@ -1,104 +1,91 @@
-## Sistema EAD - Cursos, Provas e Certificados
+## Objetivo
 
-Plataforma de ensino para instaladores/empresas com cursos em vídeo (YouTube embed), quiz de avaliação e geração automática de certificado em PDF.
+Criar uma tela onde qualquer usuário registra a saída/uso de um veículo da empresa (visita a cliente, entrega, deslocamento), com KM inicial/final, data/hora, checklist rápido de vistoria e, opcionalmente, marca que houve entrega — nesse caso já gera automaticamente um registro na Logística usando as configurações da frota própria (preço por litro, km/l) para calcular o custo do frete.
 
----
+## Fluxo do usuário
 
-### 1. Fluxo do Instalador (área pública/autenticada)
+1. Menu **Logística → Veículos** (ou item novo "Controle de Veículos").
+2. Página lista todas as saídas registradas, com filtros por veículo, motorista, período e status (aberta / finalizada).
+3. Botão **"Registrar saída"**:
+   - Veículo (dropdown de veículos cadastrados)
+   - Motorista (auto = usuário logado, editável por admin)
+   - Data/hora de saída (default = agora)
+   - KM inicial
+   - Checklist rápido: pneus, óleo, combustível, luzes, limpeza, avarias (checkboxes + campo "observações")
+   - Destino / cliente visitado (autocomplete de empresas do CRM ou texto livre)
+   - Motivo: Visita comercial / Entrega / Outro
+   - Se **Entrega**: seleciona negociação (deal) da CRM e produtos/nota; ao salvar, cria automaticamente um `logistics_shipment` vinculado.
+4. Botão **"Finalizar saída"** na linha aberta:
+   - Data/hora de retorno
+   - KM final (calcula distância = final - inicial)
+   - Observações finais / avarias no retorno
+   - Se marcado como entrega, atualiza `distance_km` e `own_fleet_cost` no shipment vinculado usando `logistics_fleet_settings`.
 
-**Cadastro/Login dedicado** (`/ead/login` e `/ead/cadastro`):
-- Campos obrigatórios: CPF, Nome, Email, Senha, Empresa, Cidade, Estado
-- Validação de CPF (algoritmo) e email
-- Login separado dos usuários internos do sistema
+## Estrutura técnica
 
-**Catálogo de Cursos** (`/ead`):
-- Lista de cursos publicados (ex: "RedBar", "Curso X")
-- Cada card mostra: capa, título, descrição, nº de aulas, status (não iniciado / em andamento / aprovado com selo)
+### Backend
 
-**Página do Curso** (`/ead/curso/:id`):
-- Lista de aulas em ordem; player embed do YouTube (assistido dentro da plataforma, sem sair)
-- Marcação de aula concluída
-- Botão "Fazer Prova" liberado após assistir todas (ou sempre, conforme config do curso)
+**Nova migration `schema-vehicles.sql`:**
 
-**Prova/Quiz** (`/ead/curso/:id/prova`):
-- Perguntas com alternativas (múltipla escolha, 1 correta)
-- Tentativas ilimitadas até atingir 100%
-- Resultado imediato com gabarito
-- Ao acertar 100%: selo "Aprovado", prova desabilitada, certificado gerado automaticamente
+```text
+vehicles
+  id, organization_id, name (ex: "Fiorino ABC-1234"),
+  plate, model, brand, year,
+  current_km (cache do último km final),
+  is_active, notes, created_at
 
-**Meus Certificados** (`/ead/certificados`):
-- Lista de certificados aprovados
-- Download em PDF
+vehicle_trips
+  id, organization_id, vehicle_id, driver_id (user),
+  departure_at, return_at (nullable),
+  km_start, km_end (nullable), km_total (generated),
+  purpose ('visit' | 'delivery' | 'other'),
+  destination_text, client_company_id (nullable FK crm_companies),
+  deal_id (nullable FK crm_deals),
+  shipment_id (nullable FK logistics_shipments),
+  checklist_out jsonb, checklist_in jsonb,
+  notes_out, notes_in,
+  status ('open' | 'closed'),
+  created_at, updated_at
 
----
+GRANTs padrão + índices em (organization_id, status, vehicle_id, driver_id)
+```
 
-### 2. Geração de Certificado
+**Novo `backend/src/routes/vehicles.js`:**
+- `GET/POST/PUT/DELETE /api/vehicles` — CRUD de veículos
+- `GET /api/vehicles/trips` (filtros)
+- `POST /api/vehicles/trips` — cria saída; se `purpose = delivery`, cria shipment em `logistics_shipments` com carrier = nome da frota própria configurada
+- `POST /api/vehicles/trips/:id/close` — fecha viagem, atualiza `current_km` do veículo e, se houver shipment vinculado, atualiza `distance_km` + `own_fleet_cost` reaproveitando `computeOwnFleetCost` já existente em `routes/logistics.js` (exportar helper)
+- `GET /api/vehicles/trips/:id`
+- Registrar em `backend/src/index.js`
 
-**Admin faz upload de template PNG** do certificado.
-**Editor visual** (admin): arrasta os campos sobre a imagem para posicionar:
-- `{{nome}}`, `{{cpf}}`, `{{empresa}}`, `{{curso}}`, `{{data_conclusao}}`, `{{cidade_estado}}`
-- Define fonte, tamanho, cor e coordenadas (x,y) de cada campo
+### Frontend
 
-**Geração**: quando aluno é aprovado, backend monta o PDF usando o template + posições + dados do aluno (pdf-lib ou pdfkit no Node, ou jspdf no front). Salva o PDF em `/uploads/certificates/` e referencia em `ead_certificates`.
+- `src/hooks/use-vehicles.ts` — hooks React Query para veículos e viagens
+- `src/pages/ControleVeiculos.tsx` — página principal com tabs "Viagens" e "Veículos"
+- `src/components/vehicles/VehicleFormDialog.tsx` — cadastro de veículo
+- `src/components/vehicles/TripFormDialog.tsx` — registrar saída (com checklist + seleção condicional de entrega)
+- `src/components/vehicles/TripCloseDialog.tsx` — finalizar saída (km final + checklist retorno)
+- Rota nova em `src/App.tsx`: `/controle-veiculos`
+- Item de menu na `Sidebar` sob "Logística"
 
----
+### Integração com Logística
 
-### 3. Admin EAD (`/admin/ead`)
+- Reaproveita `logistics_fleet_settings` (preço/litro e km/litro já cadastrados) para calcular o custo.
+- Shipment criado a partir de uma entrega já nasce com carrier = frota própria, `deal_id`, `client_name` e, ao fechar viagem, ganha `distance_km` e `own_fleet_cost`.
+- Na tela de Logística o shipment aparece normalmente e soma no KPI da frota própria.
 
-Visível para perfis com permissão "EAD - Gerenciar":
+## Checklist padrão (JSON)
 
-**Aba Cursos**: CRUD de cursos + aulas (título, descrição, link YouTube, ordem)
-**Aba Provas**: CRUD de perguntas e alternativas por curso (marca a correta)
-**Aba Certificados (template)**: upload do PNG, posicionar campos no editor visual
-**Aba Alunos**: lista de instaladores cadastrados (filtros por curso, status, empresa, cidade)
-**Aba Certificados emitidos**: lista global de quem foi aprovado, com link para baixar o PDF
+```text
+{ tires: bool, oil: bool, fuel_level: '1/4'|'1/2'|'3/4'|'full',
+  lights: bool, cleanliness: bool, damages: bool, damages_notes: string }
+```
 
----
+## Fora de escopo (podemos adicionar depois)
 
-### 4. Permissões
+- Aprovação/assinatura digital da vistoria
+- Upload de fotos do veículo antes/depois
+- Relatórios de consumo por veículo / motorista
+- Reserva/agenda de veículo
 
-Novo grupo de permissões "EAD":
-- `ead_view` (ver área admin), `ead_manage_courses`, `ead_manage_quiz`, `ead_manage_template`, `ead_view_students`, `ead_view_certificates`
-
-Adicionado em `PermissionTemplatesTab.tsx` e backend `permissions.js`.
-
----
-
-### Detalhes técnicos
-
-**Banco** (`backend/schema-ead.sql` + migration):
-- `ead_students` (id, cpf UNIQUE, name, email UNIQUE, password_hash, company, city, state, created_at)
-- `ead_courses` (id, org_id, title, slug, description, cover_url, published, created_at)
-- `ead_lessons` (id, course_id, title, youtube_url, order_index)
-- `ead_quiz_questions` (id, course_id, question, order_index)
-- `ead_quiz_options` (id, question_id, text, is_correct)
-- `ead_attempts` (id, student_id, course_id, score, passed, answers JSONB, created_at)
-- `ead_enrollments` (id, student_id, course_id, status, approved_at)
-- `ead_certificate_templates` (id, course_id, image_url, fields JSONB) — fields = `[{key, x, y, fontSize, color, fontFamily}]`
-- `ead_certificates` (id, student_id, course_id, pdf_url, issued_at)
-- GRANTs + RLS conforme padrão do projeto
-
-**Backend** (`backend/src/routes/ead.js`):
-- `POST /ead/auth/register`, `POST /ead/auth/login` (JWT separado para alunos)
-- `GET /ead/courses`, `GET /ead/courses/:id`
-- `POST /ead/courses/:id/attempt` → corrige, se 100% gera certificado
-- `GET /ead/students/:id/certificates`
-- Admin: `CRUD /admin/ead/courses`, `/admin/ead/lessons`, `/admin/ead/questions`, `/admin/ead/templates`, `GET /admin/ead/students`, `GET /admin/ead/certificates`
-- Geração de PDF com `pdf-lib` carregando o PNG como background
-
-**Frontend**:
-- Páginas: `src/pages/ead/Login.tsx`, `Cadastro.tsx`, `Catalogo.tsx`, `Curso.tsx`, `Prova.tsx`, `MeusCertificados.tsx`
-- Admin: `src/pages/admin/EadAdmin.tsx` com abas (Cursos, Aulas, Quiz, Template Editor, Alunos, Certificados)
-- Hook `src/hooks/use-ead.ts` + contexto `EadAuthContext` para sessão do aluno
-- Editor de template: canvas/div absoluta sobre `<img>`, campos draggable com `react-draggable` ou mousedown manual
-- PDF download direto via URL do backend
-
-**Permissões e rotas**: adicionar entrada no menu lateral (`Sidebar`), proteger admin com `ProtectedRoute` + check de permissão.
-
----
-
-### O que vou implementar nesta entrega
-
-Tudo acima de ponta a ponta: schema + migration, rotas backend, geração de PDF, autenticação separada de alunos, todas as páginas do aluno, painel admin completo com editor visual de template, permissões. Sem pagamento, sem emissão de e-mail (posso adicionar depois).
-
-Confirma para eu seguir?
+Confirmo e sigo com a implementação?

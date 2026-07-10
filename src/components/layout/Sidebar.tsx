@@ -45,6 +45,7 @@ import {
   Radio,
   Gavel,
   Truck,
+  Car,
   Wallet,
   Filter,
   Calculator,
@@ -182,6 +183,7 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
     permissionKey: 'can_view_logistics',
     items: [
       { name: "Remessas", href: "/logistica", icon: Truck, permissionKey: 'can_view_logistics' },
+      { name: "Controle de Veículos", href: "/controle-veiculos", icon: Car, permissionKey: 'can_view_logistics' },
     ],
   },
   {

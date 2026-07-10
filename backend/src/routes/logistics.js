@@ -775,4 +775,5 @@ router.put('/fleet-settings', requireAuth, async (req, res) => {
   }
 });
 
+export { getFleetSettings, computeOwnFleetCost, isOwnCarrier };
 export default router;
