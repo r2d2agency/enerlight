@@ -48,6 +48,19 @@ export interface SignatureDocument {
   signers?: DocSigner[];
   placements?: DocPlacement[];
   audit_log?: any[];
+  drafts?: DocDraft[];
+}
+
+export interface DocDraft {
+  id: string;
+  recipient_name: string;
+  recipient_email: string;
+  access_token: string;
+  expires_at?: string | null;
+  view_count: number;
+  last_viewed_at?: string | null;
+  revoked: boolean;
+  created_at: string;
 }
 
 const getHeaders = () => ({
@@ -151,9 +164,54 @@ export function useDocumentSignatures() {
     } catch { return false; }
   }, []);
 
+  // ===== Minuta (draft) =====
+  const sendDraft = useCallback(async (
+    documentId: string,
+    data: { recipient_name: string; recipient_email: string; expires_in_days?: number }
+  ): Promise<{ url: string; password: string; email_sent: boolean; email_error?: string; draft: DocDraft } | null> => {
+    try {
+      const res = await fetch(`${API_URL}/api/document-signatures/${documentId}/drafts`, {
+        method: 'POST', headers: getHeaders(), body: JSON.stringify(data)
+      });
+      if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || 'Erro ao enviar minuta'); }
+      return res.json();
+    } catch (e: any) { throw e; }
+  }, []);
+
+  const regenerateDraftPassword = useCallback(async (documentId: string, draftId: string) => {
+    const res = await fetch(`${API_URL}/api/document-signatures/${documentId}/drafts/${draftId}/regenerate`, {
+      method: 'POST', headers: getHeaders()
+    });
+    if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || 'Erro'); }
+    return res.json() as Promise<{ url: string; password: string; email_sent: boolean; email_error?: string }>;
+  }, []);
+
+  const revokeDraft = useCallback(async (documentId: string, draftId: string) => {
+    const res = await fetch(`${API_URL}/api/document-signatures/${documentId}/drafts/${draftId}`, {
+      method: 'DELETE', headers: getHeaders()
+    });
+    return res.ok;
+  }, []);
+
+  const getDraftInfo = useCallback(async (token: string) => {
+    const res = await fetch(`${API_URL}/api/document-signatures/draft/${token}/info`);
+    if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || 'Link inválido'); }
+    return res.json() as Promise<{ document_title: string; recipient_name: string; recipient_email_masked: string; requires_password: boolean }>;
+  }, []);
+
+  const authDraft = useCallback(async (token: string, password: string) => {
+    const res = await fetch(`${API_URL}/api/document-signatures/draft/${token}/auth`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password })
+    });
+    if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || 'Falha'); }
+    return res.json() as Promise<{ session_token: string; recipient_name: string; recipient_email: string; expires_in: number }>;
+  }, []);
+
   return {
     loading, documents, fetchDocuments, getDocument,
     createDocument, updateDocument, sendForSigning, deleteDocument,
-    getSigningPage, submitSignature
+    getSigningPage, submitSignature,
+    sendDraft, regenerateDraftPassword, revokeDraft, getDraftInfo, authDraft,
   };
 }

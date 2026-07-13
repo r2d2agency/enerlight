@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { toast } from "sonner";
 import { 
   FileSignature, Plus, Send, Trash2, Copy, Download, Clock, CheckCircle2, 
-  XCircle, FileText, Users, Shield, Eye, Link2, ExternalLink, Move 
+  XCircle, FileText, Users, Shield, Eye, Link2, ExternalLink, Move, Lock, Mail, RefreshCw, Ban
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -263,7 +263,7 @@ const statusConfig: Record<string, { label: string; color: string; icon: any }> 
 export default function AssinaturasDoc() {
   const { token } = useParams<{ token?: string }>();
 
-  const { documents, loading, fetchDocuments, createDocument, sendForSigning, deleteDocument, getDocument, getSigningPage, submitSignature } = useDocumentSignatures();
+  const { documents, loading, fetchDocuments, createDocument, sendForSigning, deleteDocument, getDocument, getSigningPage, submitSignature, sendDraft, regenerateDraftPassword, revokeDraft } = useDocumentSignatures();
   const { uploadFile, isUploading } = useUpload();
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -279,6 +279,14 @@ export default function AssinaturasDoc() {
     { name: '', email: '', cpf: '', phone: '', role: 'Signatário', sign_order: 1 }
   ]);
   const [signaturePlacements, setSignaturePlacements] = useState<SignaturePlacement[]>([]);
+
+  // Draft (Minuta) state
+  const [draftDialogOpen, setDraftDialogOpen] = useState(false);
+  const [draftName, setDraftName] = useState('');
+  const [draftEmail, setDraftEmail] = useState('');
+  const [draftExpires, setDraftExpires] = useState<number | ''>(7);
+  const [draftLoading, setDraftLoading] = useState(false);
+  const [lastDraftResult, setLastDraftResult] = useState<{ url: string; password: string; email_sent: boolean; email_error?: string } | null>(null);
 
   // Public signing state
   const [pageData, setPageData] = useState<any>(null);
@@ -427,6 +435,54 @@ export default function AssinaturasDoc() {
     const total = doc.total_signers || doc.signers?.length || 0;
     const signed = doc.signed_count || doc.signers?.filter(s => s.status === 'signed').length || 0;
     return total > 0 ? Math.round((signed / total) * 100) : 0;
+  };
+
+  // ===== Minuta handlers =====
+  const openDraftDialog = () => {
+    setDraftName(''); setDraftEmail(''); setDraftExpires(7);
+    setLastDraftResult(null);
+    setDraftDialogOpen(true);
+  };
+  const handleSendDraft = async () => {
+    if (!selectedDoc) return;
+    if (!draftName || !draftEmail) { toast.error('Preencha nome e e-mail'); return; }
+    setDraftLoading(true);
+    try {
+      const r = await sendDraft(selectedDoc.id, {
+        recipient_name: draftName, recipient_email: draftEmail,
+        expires_in_days: draftExpires === '' ? undefined : Number(draftExpires),
+      });
+      if (r) {
+        setLastDraftResult({ url: r.url, password: r.password, email_sent: r.email_sent, email_error: r.email_error });
+        if (r.email_sent) toast.success('Minuta enviada por e-mail com a senha');
+        else toast.warning('Minuta criada — envio de e-mail falhou. Compartilhe o link e senha abaixo.');
+        // refresh doc
+        const doc = await getDocument(selectedDoc.id);
+        if (doc) setSelectedDoc(doc);
+      }
+    } catch (e: any) {
+      toast.error(e.message || 'Erro ao enviar minuta');
+    } finally { setDraftLoading(false); }
+  };
+  const handleRegenerateDraft = async (draftId: string) => {
+    if (!selectedDoc) return;
+    try {
+      const r = await regenerateDraftPassword(selectedDoc.id, draftId);
+      setLastDraftResult({ url: r.url, password: r.password, email_sent: r.email_sent, email_error: r.email_error });
+      setDraftDialogOpen(true);
+      if (r.email_sent) toast.success('Nova senha enviada por e-mail');
+      else toast.warning('Nova senha gerada — envio de e-mail falhou.');
+    } catch (e: any) { toast.error(e.message); }
+  };
+  const handleRevokeDraft = async (draftId: string) => {
+    if (!selectedDoc) return;
+    if (!confirm('Revogar esta minuta? O destinatário não conseguirá mais acessá-la.')) return;
+    const ok = await revokeDraft(selectedDoc.id, draftId);
+    if (ok) {
+      toast.success('Minuta revogada');
+      const doc = await getDocument(selectedDoc.id);
+      if (doc) setSelectedDoc(doc);
+    }
   };
 
   return (
@@ -681,6 +737,67 @@ export default function AssinaturasDoc() {
                   </div>
                 )}
 
+                {/* ===== MINUTAS (envio protegido por senha) ===== */}
+                <div className="border-t pt-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-semibold flex items-center gap-1"><Lock className="h-4 w-4" />Minutas (leitura protegida)</h4>
+                    <Button size="sm" variant="outline" onClick={openDraftDialog}>
+                      <Mail className="h-3 w-3 mr-1" />Enviar Minuta
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Envie o documento para análise por e-mail. O destinatário abre com uma senha e não pode baixar, imprimir ou copiar.
+                  </p>
+                  {selectedDoc.drafts && selectedDoc.drafts.length > 0 ? (
+                    <div className="space-y-2">
+                      {selectedDoc.drafts.map(dr => (
+                        <div key={dr.id} className="border rounded-lg p-2 flex items-center gap-2 flex-wrap">
+                          <div className="flex-1 min-w-[180px]">
+                            <p className="text-sm font-medium">{dr.recipient_name}</p>
+                            <p className="text-xs text-muted-foreground">{dr.recipient_email}</p>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Badge variant="outline" className="text-xs">
+                              <Eye className="h-3 w-3 mr-1" />{dr.view_count} visualiz.
+                            </Badge>
+                            {dr.revoked ? (
+                              <Badge className="bg-red-100 text-red-800 text-xs">Revogada</Badge>
+                            ) : dr.expires_at && new Date(dr.expires_at) < new Date() ? (
+                              <Badge className="bg-muted text-muted-foreground text-xs">Expirada</Badge>
+                            ) : (
+                              <Badge className="bg-green-100 text-green-800 text-xs">Ativa</Badge>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button size="sm" variant="ghost" className="h-7 px-2" title="Copiar link"
+                              onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/minuta/${dr.access_token}`); toast.success('Link copiado'); }}>
+                              <Copy className="h-3 w-3" />
+                            </Button>
+                            <Button size="sm" variant="ghost" className="h-7 px-2" title="Abrir"
+                              onClick={() => window.open(`/minuta/${dr.access_token}`, '_blank')}>
+                              <ExternalLink className="h-3 w-3" />
+                            </Button>
+                            {!dr.revoked && (
+                              <>
+                                <Button size="sm" variant="ghost" className="h-7 px-2" title="Nova senha por e-mail"
+                                  onClick={() => handleRegenerateDraft(dr.id)}>
+                                  <RefreshCw className="h-3 w-3" />
+                                </Button>
+                                <Button size="sm" variant="ghost" className="h-7 px-2 text-destructive" title="Revogar"
+                                  onClick={() => handleRevokeDraft(dr.id)}>
+                                  <Ban className="h-3 w-3" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic">Nenhuma minuta enviada ainda.</p>
+                  )}
+                </div>
+
                 {/* Actions */}
                 <div className="flex gap-2 flex-wrap border-t pt-3">
                   {selectedDoc.status === 'draft' && (
@@ -699,6 +816,76 @@ export default function AssinaturasDoc() {
                 </div>
               </div>
             )}
+          </DialogContent>
+        </Dialog>
+
+        {/* ========== SEND DRAFT (MINUTA) DIALOG ========== */}
+        <Dialog open={draftDialogOpen} onOpenChange={(o) => { setDraftDialogOpen(o); if (!o) setLastDraftResult(null); }}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2"><Lock className="h-5 w-5" />Enviar Minuta para Análise</DialogTitle>
+            </DialogHeader>
+            {!lastDraftResult ? (
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  Uma senha será gerada e enviada por e-mail. O destinatário poderá apenas <strong>visualizar</strong> o documento (sem baixar, imprimir ou copiar).
+                </p>
+                <div>
+                  <Label>Nome do destinatário *</Label>
+                  <Input value={draftName} onChange={e => setDraftName(e.target.value)} placeholder="Ex: João Silva" />
+                </div>
+                <div>
+                  <Label>E-mail do destinatário *</Label>
+                  <Input type="email" value={draftEmail} onChange={e => setDraftEmail(e.target.value)} placeholder="email@exemplo.com" />
+                </div>
+                <div>
+                  <Label>Expira em (dias)</Label>
+                  <Input type="number" min={1} max={90}
+                    value={draftExpires}
+                    onChange={e => setDraftExpires(e.target.value === '' ? '' : Number(e.target.value))}
+                    placeholder="Deixe em branco para não expirar" />
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className={`rounded-lg p-3 text-sm ${lastDraftResult.email_sent ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-yellow-50 text-yellow-900 border border-yellow-200'}`}>
+                  {lastDraftResult.email_sent
+                    ? '✅ E-mail enviado com sucesso ao destinatário.'
+                    : `⚠️ O e-mail não pôde ser enviado (${lastDraftResult.email_error || 'sem SMTP configurado'}). Compartilhe manualmente:`}
+                </div>
+                <div>
+                  <Label className="text-xs">Link da minuta</Label>
+                  <div className="flex gap-2">
+                    <Input readOnly value={lastDraftResult.url} className="font-mono text-xs" />
+                    <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(lastDraftResult.url); toast.success('Copiado'); }}>
+                      <Copy className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-xs">Senha de acesso</Label>
+                  <div className="flex gap-2">
+                    <Input readOnly value={lastDraftResult.password} className="font-mono text-lg tracking-widest text-center" />
+                    <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(lastDraftResult.password); toast.success('Senha copiada'); }}>
+                      <Copy className="h-3 w-3" />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">Guarde ou copie agora — por segurança, a senha não poderá ser exibida novamente.</p>
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              {!lastDraftResult ? (
+                <>
+                  <Button variant="outline" onClick={() => setDraftDialogOpen(false)}>Cancelar</Button>
+                  <Button onClick={handleSendDraft} disabled={draftLoading}>
+                    {draftLoading ? 'Enviando...' : (<><Send className="h-4 w-4 mr-2" />Enviar Minuta</>)}
+                  </Button>
+                </>
+              ) : (
+                <Button onClick={() => setDraftDialogOpen(false)}>Fechar</Button>
+              )}
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>

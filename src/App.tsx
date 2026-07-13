@@ -80,6 +80,7 @@ const LeadGleego = lazyRetry(() => import("./pages/LeadGleego"));
 const VisitasExternas = lazyRetry(() => import("./pages/VisitasExternas"));
 const Captador = lazyRetry(() => import("./pages/Captador"));
 const AssinaturasDoc = lazyRetry(() => import("./pages/AssinaturasDoc"));
+const MinutaViewer = lazyRetry(() => import("./pages/MinutaViewer"));
 const PrestacaoContas = lazyRetry(() => import("./pages/PrestacaoContas"));
 const PrestacaoContasAgente = lazyRetry(() => import("./pages/PrestacaoContasAgente"));
 const Segmentacao = lazyRetry(() => import("./pages/Segmentacao"));
@@ -217,6 +218,7 @@ const App = () => (
               <Route path="/crm/segmentacao" element={<ProtectedRoute><Segmentacao /></ProtectedRoute>} />
               <Route path="/crm/pesquisas" element={<ProtectedRoute><Pesquisas /></ProtectedRoute>} />
               <Route path="/assinar/:token" element={<AssinaturasDoc />} />
+              <Route path="/minuta/:token" element={<MinutaViewer />} />
               <Route path="/f/:slug" element={<PublicFormPage />} />
               <Route path="/pesquisa/:slug" element={<PublicSurveyPage />} />
               <Route path="/crm/orcamentos" element={<ProtectedRoute><OnlineQuotes /></ProtectedRoute>} />

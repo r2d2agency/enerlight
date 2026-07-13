@@ -64,3 +64,22 @@ CREATE INDEX IF NOT EXISTS idx_doc_sig_signers_doc ON doc_signature_signers(docu
 CREATE INDEX IF NOT EXISTS idx_doc_sig_signers_token ON doc_signature_signers(access_token);
 CREATE INDEX IF NOT EXISTS idx_doc_sig_audit_doc ON doc_signature_audit_log(document_id);
 CREATE INDEX IF NOT EXISTS idx_doc_sig_placements_doc ON doc_signature_placements(document_id);
+
+-- Minutas (envio de rascunho para leitura protegida por senha)
+CREATE TABLE IF NOT EXISTS doc_signature_drafts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    document_id UUID REFERENCES doc_signature_documents(id) ON DELETE CASCADE NOT NULL,
+    recipient_name VARCHAR(255) NOT NULL,
+    recipient_email VARCHAR(255) NOT NULL,
+    access_token UUID DEFAULT gen_random_uuid() UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    password_salt TEXT NOT NULL,
+    expires_at TIMESTAMP WITH TIME ZONE,
+    view_count INTEGER DEFAULT 0,
+    last_viewed_at TIMESTAMP WITH TIME ZONE,
+    revoked BOOLEAN DEFAULT FALSE,
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_doc_sig_drafts_doc ON doc_signature_drafts(document_id);
+CREATE INDEX IF NOT EXISTS idx_doc_sig_drafts_token ON doc_signature_drafts(access_token);
