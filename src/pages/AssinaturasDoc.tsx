@@ -437,6 +437,54 @@ export default function AssinaturasDoc() {
     return total > 0 ? Math.round((signed / total) * 100) : 0;
   };
 
+  // ===== Minuta handlers =====
+  const openDraftDialog = () => {
+    setDraftName(''); setDraftEmail(''); setDraftExpires(7);
+    setLastDraftResult(null);
+    setDraftDialogOpen(true);
+  };
+  const handleSendDraft = async () => {
+    if (!selectedDoc) return;
+    if (!draftName || !draftEmail) { toast.error('Preencha nome e e-mail'); return; }
+    setDraftLoading(true);
+    try {
+      const r = await sendDraft(selectedDoc.id, {
+        recipient_name: draftName, recipient_email: draftEmail,
+        expires_in_days: draftExpires === '' ? undefined : Number(draftExpires),
+      });
+      if (r) {
+        setLastDraftResult({ url: r.url, password: r.password, email_sent: r.email_sent, email_error: r.email_error });
+        if (r.email_sent) toast.success('Minuta enviada por e-mail com a senha');
+        else toast.warning('Minuta criada — envio de e-mail falhou. Compartilhe o link e senha abaixo.');
+        // refresh doc
+        const doc = await getDocument(selectedDoc.id);
+        if (doc) setSelectedDoc(doc);
+      }
+    } catch (e: any) {
+      toast.error(e.message || 'Erro ao enviar minuta');
+    } finally { setDraftLoading(false); }
+  };
+  const handleRegenerateDraft = async (draftId: string) => {
+    if (!selectedDoc) return;
+    try {
+      const r = await regenerateDraftPassword(selectedDoc.id, draftId);
+      setLastDraftResult({ url: r.url, password: r.password, email_sent: r.email_sent, email_error: r.email_error });
+      setDraftDialogOpen(true);
+      if (r.email_sent) toast.success('Nova senha enviada por e-mail');
+      else toast.warning('Nova senha gerada — envio de e-mail falhou.');
+    } catch (e: any) { toast.error(e.message); }
+  };
+  const handleRevokeDraft = async (draftId: string) => {
+    if (!selectedDoc) return;
+    if (!confirm('Revogar esta minuta? O destinatário não conseguirá mais acessá-la.')) return;
+    const ok = await revokeDraft(selectedDoc.id, draftId);
+    if (ok) {
+      toast.success('Minuta revogada');
+      const doc = await getDocument(selectedDoc.id);
+      if (doc) setSelectedDoc(doc);
+    }
+  };
+
   return (
     <MainLayout>
       <div className="p-4 md:p-6 space-y-6">
