@@ -280,6 +280,14 @@ export default function AssinaturasDoc() {
   ]);
   const [signaturePlacements, setSignaturePlacements] = useState<SignaturePlacement[]>([]);
 
+  // Draft (Minuta) state
+  const [draftDialogOpen, setDraftDialogOpen] = useState(false);
+  const [draftName, setDraftName] = useState('');
+  const [draftEmail, setDraftEmail] = useState('');
+  const [draftExpires, setDraftExpires] = useState<number | ''>(7);
+  const [draftLoading, setDraftLoading] = useState(false);
+  const [lastDraftResult, setLastDraftResult] = useState<{ url: string; password: string; email_sent: boolean; email_error?: string } | null>(null);
+
   // Public signing state
   const [pageData, setPageData] = useState<any>(null);
   const [cpf, setCpf] = useState('');
