@@ -737,6 +737,67 @@ export default function AssinaturasDoc() {
                   </div>
                 )}
 
+                {/* ===== MINUTAS (envio protegido por senha) ===== */}
+                <div className="border-t pt-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-semibold flex items-center gap-1"><Lock className="h-4 w-4" />Minutas (leitura protegida)</h4>
+                    <Button size="sm" variant="outline" onClick={openDraftDialog}>
+                      <Mail className="h-3 w-3 mr-1" />Enviar Minuta
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Envie o documento para análise por e-mail. O destinatário abre com uma senha e não pode baixar, imprimir ou copiar.
+                  </p>
+                  {selectedDoc.drafts && selectedDoc.drafts.length > 0 ? (
+                    <div className="space-y-2">
+                      {selectedDoc.drafts.map(dr => (
+                        <div key={dr.id} className="border rounded-lg p-2 flex items-center gap-2 flex-wrap">
+                          <div className="flex-1 min-w-[180px]">
+                            <p className="text-sm font-medium">{dr.recipient_name}</p>
+                            <p className="text-xs text-muted-foreground">{dr.recipient_email}</p>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Badge variant="outline" className="text-xs">
+                              <Eye className="h-3 w-3 mr-1" />{dr.view_count} visualiz.
+                            </Badge>
+                            {dr.revoked ? (
+                              <Badge className="bg-red-100 text-red-800 text-xs">Revogada</Badge>
+                            ) : dr.expires_at && new Date(dr.expires_at) < new Date() ? (
+                              <Badge className="bg-muted text-muted-foreground text-xs">Expirada</Badge>
+                            ) : (
+                              <Badge className="bg-green-100 text-green-800 text-xs">Ativa</Badge>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button size="sm" variant="ghost" className="h-7 px-2" title="Copiar link"
+                              onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/minuta/${dr.access_token}`); toast.success('Link copiado'); }}>
+                              <Copy className="h-3 w-3" />
+                            </Button>
+                            <Button size="sm" variant="ghost" className="h-7 px-2" title="Abrir"
+                              onClick={() => window.open(`/minuta/${dr.access_token}`, '_blank')}>
+                              <ExternalLink className="h-3 w-3" />
+                            </Button>
+                            {!dr.revoked && (
+                              <>
+                                <Button size="sm" variant="ghost" className="h-7 px-2" title="Nova senha por e-mail"
+                                  onClick={() => handleRegenerateDraft(dr.id)}>
+                                  <RefreshCw className="h-3 w-3" />
+                                </Button>
+                                <Button size="sm" variant="ghost" className="h-7 px-2 text-destructive" title="Revogar"
+                                  onClick={() => handleRevokeDraft(dr.id)}>
+                                  <Ban className="h-3 w-3" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic">Nenhuma minuta enviada ainda.</p>
+                  )}
+                </div>
+
                 {/* Actions */}
                 <div className="flex gap-2 flex-wrap border-t pt-3">
                   {selectedDoc.status === 'draft' && (
