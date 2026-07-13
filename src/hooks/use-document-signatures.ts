@@ -48,6 +48,19 @@ export interface SignatureDocument {
   signers?: DocSigner[];
   placements?: DocPlacement[];
   audit_log?: any[];
+  drafts?: DocDraft[];
+}
+
+export interface DocDraft {
+  id: string;
+  recipient_name: string;
+  recipient_email: string;
+  access_token: string;
+  expires_at?: string | null;
+  view_count: number;
+  last_viewed_at?: string | null;
+  revoked: boolean;
+  created_at: string;
 }
 
 const getHeaders = () => ({
