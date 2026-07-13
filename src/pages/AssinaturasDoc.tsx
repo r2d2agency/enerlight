@@ -818,6 +818,76 @@ export default function AssinaturasDoc() {
             )}
           </DialogContent>
         </Dialog>
+
+        {/* ========== SEND DRAFT (MINUTA) DIALOG ========== */}
+        <Dialog open={draftDialogOpen} onOpenChange={(o) => { setDraftDialogOpen(o); if (!o) setLastDraftResult(null); }}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2"><Lock className="h-5 w-5" />Enviar Minuta para Análise</DialogTitle>
+            </DialogHeader>
+            {!lastDraftResult ? (
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  Uma senha será gerada e enviada por e-mail. O destinatário poderá apenas <strong>visualizar</strong> o documento (sem baixar, imprimir ou copiar).
+                </p>
+                <div>
+                  <Label>Nome do destinatário *</Label>
+                  <Input value={draftName} onChange={e => setDraftName(e.target.value)} placeholder="Ex: João Silva" />
+                </div>
+                <div>
+                  <Label>E-mail do destinatário *</Label>
+                  <Input type="email" value={draftEmail} onChange={e => setDraftEmail(e.target.value)} placeholder="email@exemplo.com" />
+                </div>
+                <div>
+                  <Label>Expira em (dias)</Label>
+                  <Input type="number" min={1} max={90}
+                    value={draftExpires}
+                    onChange={e => setDraftExpires(e.target.value === '' ? '' : Number(e.target.value))}
+                    placeholder="Deixe em branco para não expirar" />
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className={`rounded-lg p-3 text-sm ${lastDraftResult.email_sent ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-yellow-50 text-yellow-900 border border-yellow-200'}`}>
+                  {lastDraftResult.email_sent
+                    ? '✅ E-mail enviado com sucesso ao destinatário.'
+                    : `⚠️ O e-mail não pôde ser enviado (${lastDraftResult.email_error || 'sem SMTP configurado'}). Compartilhe manualmente:`}
+                </div>
+                <div>
+                  <Label className="text-xs">Link da minuta</Label>
+                  <div className="flex gap-2">
+                    <Input readOnly value={lastDraftResult.url} className="font-mono text-xs" />
+                    <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(lastDraftResult.url); toast.success('Copiado'); }}>
+                      <Copy className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-xs">Senha de acesso</Label>
+                  <div className="flex gap-2">
+                    <Input readOnly value={lastDraftResult.password} className="font-mono text-lg tracking-widest text-center" />
+                    <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(lastDraftResult.password); toast.success('Senha copiada'); }}>
+                      <Copy className="h-3 w-3" />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">Guarde ou copie agora — por segurança, a senha não poderá ser exibida novamente.</p>
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              {!lastDraftResult ? (
+                <>
+                  <Button variant="outline" onClick={() => setDraftDialogOpen(false)}>Cancelar</Button>
+                  <Button onClick={handleSendDraft} disabled={draftLoading}>
+                    {draftLoading ? 'Enviando...' : (<><Send className="h-4 w-4 mr-2" />Enviar Minuta</>)}
+                  </Button>
+                </>
+              ) : (
+                <Button onClick={() => setDraftDialogOpen(false)}>Fechar</Button>
+              )}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </MainLayout>
   );
