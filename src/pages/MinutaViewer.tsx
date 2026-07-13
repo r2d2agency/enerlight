@@ -11,7 +11,7 @@ import { API_URL } from "@/lib/api";
 
 export default function MinutaViewer() {
   const { token } = useParams<{ token: string }>();
-  const { getDraftInfo, authDraft } = useDocumentSignatures();
+  const { getDraftInfo, authDraft, requestDraftPassword } = useDocumentSignatures();
 
   const [loading, setLoading] = useState(true);
   const [info, setInfo] = useState<{ document_title: string; recipient_name: string; recipient_email_masked: string } | null>(null);
@@ -24,6 +24,10 @@ export default function MinutaViewer() {
   const [session, setSession] = useState<string | null>(null);
   const [recipient, setRecipient] = useState<{ name: string; email: string } | null>(null);
 
+  const [passwordSent, setPasswordSent] = useState(false);
+  const [sendingPwd, setSendingPwd] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+
   useEffect(() => {
     if (!token) return;
     getDraftInfo(token)
@@ -31,6 +35,28 @@ export default function MinutaViewer() {
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, [token, getDraftInfo]);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [cooldown]);
+
+  const handleRequestPassword = async () => {
+    if (!token) return;
+    setSendingPwd(true);
+    try {
+      const r = await requestDraftPassword(token);
+      setPasswordSent(true);
+      setCooldown(30);
+      toast.success(r.message || "Senha enviada para seu e-mail");
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao enviar senha");
+    } finally {
+      setSendingPwd(false);
+    }
+  };
+
 
   // Anti-print / anti-download client-side hardening while viewing
   useEffect(() => {
