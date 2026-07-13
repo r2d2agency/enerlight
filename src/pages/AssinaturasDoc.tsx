@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { toast } from "sonner";
 import { 
   FileSignature, Plus, Send, Trash2, Copy, Download, Clock, CheckCircle2, 
-  XCircle, FileText, Users, Shield, Eye, Link2, ExternalLink, Move 
+  XCircle, FileText, Users, Shield, Eye, Link2, ExternalLink, Move, Lock, Mail, RefreshCw, Ban
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
