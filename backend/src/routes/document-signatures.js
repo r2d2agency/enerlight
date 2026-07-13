@@ -177,11 +177,19 @@ router.post('/draft/:token/auth', async (req, res) => {
     if (!verifyPassword(password, dr.password_hash, dr.password_salt)) {
       return res.status(401).json({ error: 'Senha incorreta' });
     }
-    await query(`UPDATE doc_signature_drafts SET view_count = view_count + 1, last_viewed_at = NOW() WHERE id = $1`, [dr.id]);
+    const ipAddr = req.headers['x-forwarded-for']?.toString().split(',')[0].trim() || req.ip;
+    await query(`
+      UPDATE doc_signature_drafts
+      SET view_count = view_count + 1,
+          last_viewed_at = NOW(),
+          access_ips = COALESCE(access_ips, '[]'::jsonb) || $2::jsonb
+      WHERE id = $1
+    `, [dr.id, JSON.stringify([{ ip: ipAddr, user_agent: req.headers['user-agent'] || null, at: new Date().toISOString(), event: 'opened' }])]);
     await query(`
       INSERT INTO doc_signature_audit_log (document_id, action, ip_address, user_agent, details)
       VALUES ($1, 'draft_viewed', $2, $3, $4)
-    `, [dr.document_id, req.ip, req.headers['user-agent'], JSON.stringify({ draft_id: dr.id, recipient_email: dr.recipient_email })]);
+    `, [dr.document_id, ipAddr, req.headers['user-agent'], JSON.stringify({ draft_id: dr.id, recipient_email: dr.recipient_email })]);
+
 
     const sessionToken = jwt.sign(
       { draftId: dr.id, docId: dr.document_id, scope: 'draft_view' },
