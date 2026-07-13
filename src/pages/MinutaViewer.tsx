@@ -150,35 +150,66 @@ export default function MinutaViewer() {
               <p className="font-medium">{info.recipient_name}</p>
               <p className="text-xs text-muted-foreground">{info.recipient_email_masked}</p>
             </div>
-            <form onSubmit={handleAuth} className="space-y-3">
-              <div>
-                <Label>Senha de acesso</Label>
-                <div className="relative">
-                  <Input
-                    type={showPwd ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value.toUpperCase())}
-                    placeholder="Informe a senha recebida por e-mail"
-                    autoComplete="off"
-                    autoFocus
-                    className="pr-10 uppercase tracking-widest"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPwd((v) => !v)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground"
-                  >
-                    {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
+            {!passwordSent ? (
+              <div className="space-y-3">
+                <div className="rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground">
+                  Por segurança, uma nova senha de acesso é gerada e enviada ao seu e-mail
+                  <strong className="text-foreground"> {info.recipient_email_masked} </strong>
+                  a cada tentativa de abertura.
                 </div>
+                <Button
+                  type="button"
+                  className="w-full"
+                  onClick={handleRequestPassword}
+                  disabled={sendingPwd}
+                >
+                  {sendingPwd && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                  Enviar senha para meu e-mail
+                </Button>
               </div>
-              <Button type="submit" className="w-full" disabled={submitting || !password}>
-                {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                Abrir minuta
-              </Button>
-            </form>
+            ) : (
+              <form onSubmit={handleAuth} className="space-y-3">
+                <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-sm">
+                  ✉️ Senha enviada para <strong>{info.recipient_email_masked}</strong>. Verifique sua caixa de entrada (e o spam).
+                </div>
+                <div>
+                  <Label>Senha de acesso</Label>
+                  <div className="relative">
+                    <Input
+                      type={showPwd ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value.toUpperCase())}
+                      placeholder="Informe a senha recebida por e-mail"
+                      autoComplete="off"
+                      autoFocus
+                      className="pr-10 uppercase tracking-widest"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPwd((v) => !v)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground"
+                    >
+                      {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+                <Button type="submit" className="w-full" disabled={submitting || !password}>
+                  {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                  Abrir minuta
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-full text-xs"
+                  onClick={handleRequestPassword}
+                  disabled={sendingPwd || cooldown > 0}
+                >
+                  {cooldown > 0 ? `Reenviar senha em ${cooldown}s` : "Não recebi — reenviar senha"}
+                </Button>
+              </form>
+            )}
             <p className="text-xs text-muted-foreground mt-4 text-center">
-              Este documento é <strong>somente leitura</strong>. Download, impressão e cópia estão desativados.
+              Este documento é <strong>somente leitura</strong>. Download, impressão e cópia estão desativados. Todo acesso é registrado.
             </p>
           </CardContent>
         </Card>
