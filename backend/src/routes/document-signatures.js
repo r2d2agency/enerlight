@@ -29,6 +29,11 @@ const router = Router();
     `);
     await query(`CREATE INDEX IF NOT EXISTS idx_doc_sig_drafts_doc ON doc_signature_drafts(document_id)`);
     await query(`CREATE INDEX IF NOT EXISTS idx_doc_sig_drafts_token ON doc_signature_drafts(access_token)`);
+    // Rastreio de IPs e envio de senha sob demanda
+    await query(`ALTER TABLE doc_signature_drafts ADD COLUMN IF NOT EXISTS access_ips JSONB DEFAULT '[]'::jsonb`);
+    await query(`ALTER TABLE doc_signature_drafts ADD COLUMN IF NOT EXISTS last_password_sent_at TIMESTAMP WITH TIME ZONE`);
+    await query(`ALTER TABLE doc_signature_drafts ADD COLUMN IF NOT EXISTS last_password_ip TEXT`);
+    await query(`ALTER TABLE doc_signature_drafts ADD COLUMN IF NOT EXISTS password_send_count INTEGER DEFAULT 0`);
   } catch (e) {
     console.error('[document-signatures] migration failed:', e.message);
   }
