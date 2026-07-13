@@ -218,6 +218,7 @@ const App = () => (
               <Route path="/crm/segmentacao" element={<ProtectedRoute><Segmentacao /></ProtectedRoute>} />
               <Route path="/crm/pesquisas" element={<ProtectedRoute><Pesquisas /></ProtectedRoute>} />
               <Route path="/assinar/:token" element={<AssinaturasDoc />} />
+              <Route path="/minuta/:token" element={<MinutaViewer />} />
               <Route path="/f/:slug" element={<PublicFormPage />} />
               <Route path="/pesquisa/:slug" element={<PublicSurveyPage />} />
               <Route path="/crm/orcamentos" element={<ProtectedRoute><OnlineQuotes /></ProtectedRoute>} />
