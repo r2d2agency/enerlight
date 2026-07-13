@@ -263,7 +263,7 @@ const statusConfig: Record<string, { label: string; color: string; icon: any }> 
 export default function AssinaturasDoc() {
   const { token } = useParams<{ token?: string }>();
 
-  const { documents, loading, fetchDocuments, createDocument, sendForSigning, deleteDocument, getDocument, getSigningPage, submitSignature } = useDocumentSignatures();
+  const { documents, loading, fetchDocuments, createDocument, sendForSigning, deleteDocument, getDocument, getSigningPage, submitSignature, sendDraft, regenerateDraftPassword, revokeDraft } = useDocumentSignatures();
   const { uploadFile, isUploading } = useUpload();
 
   const [createOpen, setCreateOpen] = useState(false);
