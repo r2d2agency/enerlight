@@ -29,6 +29,11 @@ const router = Router();
     `);
     await query(`CREATE INDEX IF NOT EXISTS idx_doc_sig_drafts_doc ON doc_signature_drafts(document_id)`);
     await query(`CREATE INDEX IF NOT EXISTS idx_doc_sig_drafts_token ON doc_signature_drafts(access_token)`);
+    // Rastreio de IPs e envio de senha sob demanda
+    await query(`ALTER TABLE doc_signature_drafts ADD COLUMN IF NOT EXISTS access_ips JSONB DEFAULT '[]'::jsonb`);
+    await query(`ALTER TABLE doc_signature_drafts ADD COLUMN IF NOT EXISTS last_password_sent_at TIMESTAMP WITH TIME ZONE`);
+    await query(`ALTER TABLE doc_signature_drafts ADD COLUMN IF NOT EXISTS last_password_ip TEXT`);
+    await query(`ALTER TABLE doc_signature_drafts ADD COLUMN IF NOT EXISTS password_send_count INTEGER DEFAULT 0`);
   } catch (e) {
     console.error('[document-signatures] migration failed:', e.message);
   }
@@ -172,11 +177,19 @@ router.post('/draft/:token/auth', async (req, res) => {
     if (!verifyPassword(password, dr.password_hash, dr.password_salt)) {
       return res.status(401).json({ error: 'Senha incorreta' });
     }
-    await query(`UPDATE doc_signature_drafts SET view_count = view_count + 1, last_viewed_at = NOW() WHERE id = $1`, [dr.id]);
+    const ipAddr = req.headers['x-forwarded-for']?.toString().split(',')[0].trim() || req.ip;
+    await query(`
+      UPDATE doc_signature_drafts
+      SET view_count = view_count + 1,
+          last_viewed_at = NOW(),
+          access_ips = COALESCE(access_ips, '[]'::jsonb) || $2::jsonb
+      WHERE id = $1
+    `, [dr.id, JSON.stringify([{ ip: ipAddr, user_agent: req.headers['user-agent'] || null, at: new Date().toISOString(), event: 'opened' }])]);
     await query(`
       INSERT INTO doc_signature_audit_log (document_id, action, ip_address, user_agent, details)
       VALUES ($1, 'draft_viewed', $2, $3, $4)
-    `, [dr.document_id, req.ip, req.headers['user-agent'], JSON.stringify({ draft_id: dr.id, recipient_email: dr.recipient_email })]);
+    `, [dr.document_id, ipAddr, req.headers['user-agent'], JSON.stringify({ draft_id: dr.id, recipient_email: dr.recipient_email })]);
+
 
     const sessionToken = jwt.sign(
       { draftId: dr.id, docId: dr.document_id, scope: 'draft_view' },
@@ -230,7 +243,94 @@ router.get('/draft/:token/file', async (req, res) => {
   }
 });
 
-// ================================================
+// Solicita nova senha da minuta (envia por e-mail a cada tentativa)
+// Rate-limit: máximo 1 envio a cada 30 segundos por minuta
+router.post('/draft/:token/request-password', async (req, res) => {
+  try {
+    const ipAddr = req.headers['x-forwarded-for']?.toString().split(',')[0].trim() || req.ip;
+    const r = await query(`
+      SELECT dr.*, d.title as document_title, d.org_id
+      FROM doc_signature_drafts dr
+      JOIN doc_signature_documents d ON dr.document_id = d.id
+      WHERE dr.access_token = $1
+    `, [req.params.token]);
+    const dr = r.rows[0];
+    if (!dr) return res.status(404).json({ error: 'Link inválido' });
+    if (dr.revoked) return res.status(410).json({ error: 'Link revogado' });
+    if (dr.expires_at && new Date(dr.expires_at) < new Date()) return res.status(410).json({ error: 'Link expirou' });
+
+    // Rate limit: 30s entre envios
+    if (dr.last_password_sent_at) {
+      const diffMs = Date.now() - new Date(dr.last_password_sent_at).getTime();
+      if (diffMs < 30_000) {
+        return res.status(429).json({
+          error: `Aguarde ${Math.ceil((30_000 - diffMs) / 1000)}s para solicitar outra senha`,
+        });
+      }
+    }
+
+    // Gera nova senha, atualiza hash e envia por e-mail
+    const password = generatePassword();
+    const { hash, salt } = hashPassword(password);
+
+    // Busca SMTP a nível de organização (destinatário público não tem userId)
+    const smtpRes = await query(
+      `SELECT * FROM email_smtp_configs WHERE organization_id = $1 AND is_active = true LIMIT 1`,
+      [dr.org_id]
+    );
+    const smtp = smtpRes.rows[0];
+
+    const origin = req.headers.origin || `${req.protocol}://${req.get('host')}`;
+    const url = `${origin}/minuta/${dr.access_token}`;
+
+    let emailSent = false; let emailError = null;
+    try {
+      await sendDraftEmail({
+        smtp, to: dr.recipient_email, recipientName: dr.recipient_name,
+        password, url, docTitle: dr.document_title,
+      });
+      emailSent = true;
+    } catch (e) { emailError = e.message; console.error('request-password email failed:', e.message); }
+
+    // Só atualiza a senha se o e-mail foi enviado com sucesso, para não travar o destinatário
+    if (emailSent) {
+      await query(`
+        UPDATE doc_signature_drafts
+        SET password_hash = $1,
+            password_salt = $2,
+            last_password_sent_at = NOW(),
+            last_password_ip = $3,
+            password_send_count = COALESCE(password_send_count, 0) + 1,
+            access_ips = COALESCE(access_ips, '[]'::jsonb) || $5::jsonb
+        WHERE id = $4
+      `, [hash, salt, ipAddr, dr.id, JSON.stringify([{
+        ip: ipAddr, user_agent: req.headers['user-agent'] || null,
+        at: new Date().toISOString(), event: 'password_requested',
+      }])]);
+    }
+
+    await query(`
+      INSERT INTO doc_signature_audit_log (document_id, action, ip_address, user_agent, details)
+      VALUES ($1, 'draft_password_requested', $2, $3, $4)
+    `, [dr.document_id, ipAddr, req.headers['user-agent'], JSON.stringify({
+      draft_id: dr.id, recipient_email: dr.recipient_email, email_sent: emailSent, email_error: emailError,
+    })]);
+
+    if (!emailSent) {
+      return res.status(500).json({ error: emailError || 'Falha ao enviar e-mail com a senha' });
+    }
+    res.json({
+      success: true,
+      recipient_email_masked: dr.recipient_email.replace(/(.).+(@.*)/, '$1***$2'),
+      message: 'Uma nova senha foi enviada para o seu e-mail',
+    });
+  } catch (e) {
+    console.error('request-password error:', e);
+    res.status(500).json({ error: 'Erro ao enviar senha' });
+  }
+});
+
+
 // ============= AUTHENTICATED ROUTES ============
 // ================================================
 router.use(authenticate);
