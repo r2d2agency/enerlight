@@ -208,10 +208,18 @@ export function useDocumentSignatures() {
     return res.json() as Promise<{ session_token: string; recipient_name: string; recipient_email: string; expires_in: number }>;
   }, []);
 
+  const requestDraftPassword = useCallback(async (token: string) => {
+    const res = await fetch(`${API_URL}/api/document-signatures/draft/${token}/request-password`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+    });
+    if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || 'Falha ao enviar senha'); }
+    return res.json() as Promise<{ success: boolean; recipient_email_masked: string; message: string }>;
+  }, []);
+
   return {
     loading, documents, fetchDocuments, getDocument,
     createDocument, updateDocument, sendForSigning, deleteDocument,
     getSigningPage, submitSignature,
-    sendDraft, regenerateDraftPassword, revokeDraft, getDraftInfo, authDraft,
+    sendDraft, regenerateDraftPassword, revokeDraft, getDraftInfo, authDraft, requestDraftPassword,
   };
 }
