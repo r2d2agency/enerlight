@@ -1132,7 +1132,19 @@ function appBaseUrl(req) {
 
 async function notifyAdminNewSignup(brand, student) {
   try {
-    if (!brand?.notify_admin_phone) return;
+    // Consolida destinatários: array notify_admin_recipients + fallback ao notify_admin_phone
+    const recipientList = [];
+    if (Array.isArray(brand?.notify_admin_recipients)) {
+      for (const r of brand.notify_admin_recipients) {
+        const phone = String(r?.phone || '').replace(/\D/g, '');
+        if (phone) recipientList.push({ name: String(r?.name || '').trim(), phone });
+      }
+    }
+    if (!recipientList.length && brand?.notify_admin_phone) {
+      recipientList.push({ name: '', phone: String(brand.notify_admin_phone).replace(/\D/g, '') });
+    }
+    if (!recipientList.length) return;
+
     let conn = null;
     if (brand?.notify_connection_id) {
       const c = await query('SELECT * FROM connections WHERE id = $1', [brand.notify_connection_id]);
@@ -1148,17 +1160,26 @@ async function notifyAdminNewSignup(brand, student) {
     }
     if (!conn) { console.warn('[EAD notifyAdminNewSignup] sem conexão WhatsApp'); return; }
 
-    const defaultTpl = `🔔 *Novo cadastro aguardando aprovação*\n\n👤 {nome}\n📧 {email}\n📱 {telefone}\n🏢 {empresa}\n📍 {cidade}/{uf}\n\nÁrea: *{marca}*\nAcesse o painel para aprovar.`;
+    const defaultTpl = `🔔 *Novo cadastro aguardando aprovação*\n\n{saudacao}👤 {nome}\n📧 {email}\n📱 {telefone}\n🏢 {empresa}\n📍 {cidade}/{uf}\n\nÁrea: *{marca}*\nAcesse o painel para aprovar.`;
     const tpl = brand?.signup_notify_message || defaultTpl;
-    const vars = {
-      nome: student.name || '-', email: student.email || '-',
-      telefone: student.phone || '-', empresa: student.company || '-',
-      cidade: student.city || '-', uf: student.state || '-',
-      marca: brand?.name || '',
-    };
-    const message = tpl.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? '');
-    const r = await sendWhatsapp(conn, brand.notify_admin_phone, message, 'text');
-    console.log('[EAD notifyAdminNewSignup]', { brand: brand.slug, r });
+
+    for (const rec of recipientList) {
+      const vars = {
+        nome: student.name || '-', email: student.email || '-',
+        telefone: student.phone || '-', empresa: student.company || '-',
+        cidade: student.city || '-', uf: student.state || '-',
+        marca: brand?.name || '',
+        destinatario: rec.name || '',
+        saudacao: rec.name ? `Olá ${rec.name}!\n\n` : '',
+      };
+      const message = tpl.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? '');
+      try {
+        const r = await sendWhatsapp(conn, rec.phone, message, 'text');
+        console.log('[EAD notifyAdminNewSignup]', { brand: brand.slug, to: rec.phone, r });
+      } catch (err) {
+        console.error('[EAD notifyAdminNewSignup] send error', rec.phone, err?.message || err);
+      }
+    }
   } catch (e) {
     console.error('[EAD notifyAdminNewSignup] error', e);
   }
