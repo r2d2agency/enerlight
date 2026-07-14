@@ -1575,7 +1575,7 @@ router.get('/brand-admin/dashboard', brandAdminAuth, async (req, res) => {
       pending_students: pending.rows,
       companies: companies.rows,
       all_companies: allCompanies.rows.map(r => r.company),
-      all_cities: (typeof cities !== 'undefined' && cities?.rows) ? cities.rows.map(r => r.city) : [],
+      all_cities: cities.rows.map(r => r.city),
       filter: { from, to, company, city },
     });
 
