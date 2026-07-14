@@ -1024,10 +1024,15 @@ admin.post('/brands', gate('can_manage_ead'), async (req, res) => {
 
 admin.patch('/brands/:id', gate('can_manage_ead'), async (req, res) => {
   try {
-    const { slug, name, logo_url, cover_url, primary_color, accent_color, welcome_title, welcome_text, signup_fields, notify_connection_id, approval_message, active, notify_admin_phone, signup_notify_message } = req.body || {};
+    const { slug, name, logo_url, cover_url, primary_color, accent_color, welcome_title, welcome_text, signup_fields, notify_connection_id, approval_message, active, notify_admin_phone, signup_notify_message, notify_admin_recipients } = req.body || {};
     const cleanSlug = slug !== undefined ? String(slug).trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') : null;
     const cleanAdminPhone = notify_admin_phone !== undefined
       ? (notify_admin_phone ? String(notify_admin_phone).replace(/\D/g, '') || null : null)
+      : undefined;
+    const cleanRecipients = Array.isArray(notify_admin_recipients)
+      ? notify_admin_recipients
+          .map(r => ({ name: String(r?.name || '').trim(), phone: String(r?.phone || '').replace(/\D/g, '') }))
+          .filter(r => r.phone)
       : undefined;
     const r = await query(
       `UPDATE ead_brands SET
@@ -1045,6 +1050,7 @@ admin.patch('/brands/:id', gate('can_manage_ead'), async (req, res) => {
          active = COALESCE($12, active),
          notify_admin_phone = CASE WHEN $14::boolean THEN $15 ELSE notify_admin_phone END,
          signup_notify_message = COALESCE($16, signup_notify_message),
+         notify_admin_recipients = CASE WHEN $17::boolean THEN $18::jsonb ELSE notify_admin_recipients END,
          updated_at = NOW()
        WHERE id = $13 RETURNING *`,
       [cleanSlug, name ?? null, logo_url ?? null, cover_url ?? null, primary_color ?? null, accent_color ?? null,
@@ -1055,7 +1061,8 @@ admin.patch('/brands/:id', gate('can_manage_ead'), async (req, res) => {
        typeof active === 'boolean' ? active : null,
        req.params.id,
        cleanAdminPhone !== undefined, cleanAdminPhone ?? null,
-       signup_notify_message ?? null]
+       signup_notify_message ?? null,
+       cleanRecipients !== undefined, cleanRecipients ? JSON.stringify(cleanRecipients) : '[]']
     );
     res.json(r.rows[0]);
   } catch (e) {
