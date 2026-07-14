@@ -16,6 +16,14 @@ interface Catalog {
 }
 
 export default function EadCatalogView() {
+  return (
+    <EadLayout>
+      <CatalogViewInner />
+    </EadLayout>
+  );
+}
+
+function CatalogViewInner() {
   const { id = '' } = useParams();
   const { link } = useBrand();
   const [cat, setCat] = useState<Catalog | null>(null);
@@ -27,8 +35,8 @@ export default function EadCatalogView() {
     eadApi.myCatalog(id).then(setCat).catch(() => setCat(null)).finally(() => setLoading(false));
   }, [id]);
 
-  if (loading) return <EadLayout><div className="flex justify-center py-12"><Loader2 className="animate-spin h-6 w-6" /></div></EadLayout>;
-  if (!cat) return <EadLayout><Card><CardContent className="p-10 text-center text-muted-foreground">Catálogo não encontrado.</CardContent></Card></EadLayout>;
+  if (loading) return <div className="flex justify-center py-12"><Loader2 className="animate-spin h-6 w-6" /></div>;
+  if (!cat) return <Card><CardContent className="p-10 text-center text-muted-foreground">Catálogo não encontrado.</CardContent></Card>;
 
   const isGallery = cat.type === 'gallery';
   const imgs = cat.images || [];
@@ -69,7 +77,7 @@ export default function EadCatalogView() {
   }
 
   return (
-    <EadLayout breadcrumbs={[{ label: 'Catálogos', to: link('catalogos') }, { label: cat.title }]}>
+    <>
       <div className="mb-4">
         <h1 className="text-2xl font-bold mb-1">{cat.title}</h1>
         {cat.category_name && <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">{cat.category_name}</div>}
@@ -155,6 +163,6 @@ export default function EadCatalogView() {
           </div>
         </>
       )}
-    </EadLayout>
+    </>
   );
 }

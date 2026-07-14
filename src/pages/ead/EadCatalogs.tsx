@@ -15,6 +15,14 @@ interface CatalogItem {
 interface Category { id: string; name: string; description?: string; items: CatalogItem[]; }
 
 export default function EadCatalogs() {
+  return (
+    <EadLayout breadcrumbs={[{ label: 'Catálogos' }]}>
+      <CatalogsInner />
+    </EadLayout>
+  );
+}
+
+function CatalogsInner() {
   const { link } = useBrand();
   const [data, setData] = useState<{ categories: Category[]; uncategorized: CatalogItem[] } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -26,7 +34,7 @@ export default function EadCatalogs() {
   const empty = !loading && data && data.categories.every(c => c.items.length === 0) && data.uncategorized.length === 0;
 
   return (
-    <EadLayout breadcrumbs={[{ label: 'Catálogos' }]}>
+    <>
       <div className="mb-6">
         <h1 className="text-2xl font-bold mb-1 flex items-center gap-2"><Layers className="h-6 w-6" /> Catálogos</h1>
         <p className="text-muted-foreground">Materiais e catálogos oficiais da marca — visualize ou baixe.</p>
@@ -46,7 +54,7 @@ export default function EadCatalogs() {
           )}
         </div>
       )}
-    </EadLayout>
+    </>
   );
 }
 
