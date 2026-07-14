@@ -7,6 +7,7 @@ import crypto from 'crypto';
 import multer from 'multer';
 import nodemailer from 'nodemailer';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import sharp from 'sharp';
 import { query } from '../db.js';
 import { authenticate } from '../middleware/auth.js';
 import { sendMessage as sendWhatsapp } from '../lib/whatsapp-provider.js';
@@ -1631,9 +1632,32 @@ function catalogFileUrl(filename) {
 }
 
 // ---- Upload endpoint (brand-admin auth) — retorna { url }
-router.post('/brand-admin/catalog-upload', brandAdminAuth, catalogUpload.single('file'), (req, res) => {
+// Imagens são convertidas para WebP (qualidade otimizada) para melhor performance.
+router.post('/brand-admin/catalog-upload', brandAdminAuth, catalogUpload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Arquivo obrigatório' });
-  res.json({ url: catalogFileUrl(req.file.filename), filename: req.file.filename, size: req.file.size, mimetype: req.file.mimetype });
+  try {
+    const mime = String(req.file.mimetype || '').toLowerCase();
+    const isImage = mime.startsWith('image/') && !mime.includes('svg') && !mime.includes('gif');
+    if (isImage) {
+      const srcPath = path.join(_catalogUploadsDir, req.file.filename);
+      const webpName = `catalog-${Date.now()}-${crypto.randomBytes(6).toString('hex')}.webp`;
+      const outPath = path.join(_catalogUploadsDir, webpName);
+      await sharp(srcPath, { failOn: 'none' })
+        .rotate()
+        .resize({ width: 2000, height: 2000, fit: 'inside', withoutEnlargement: true })
+        .webp({ quality: 78, effort: 4 })
+        .toFile(outPath);
+      try { fs.unlinkSync(srcPath); } catch {}
+      const stat = fs.statSync(outPath);
+      return res.json({ url: catalogFileUrl(webpName), filename: webpName, size: stat.size, mimetype: 'image/webp' });
+    }
+    // Não-imagens (PDF etc.) mantêm o arquivo original
+    return res.json({ url: catalogFileUrl(req.file.filename), filename: req.file.filename, size: req.file.size, mimetype: req.file.mimetype });
+  } catch (err) {
+    console.error('[ead catalog upload] webp convert failed', err);
+    // Fallback: entrega o original se conversão falhar
+    return res.json({ url: catalogFileUrl(req.file.filename), filename: req.file.filename, size: req.file.size, mimetype: req.file.mimetype });
+  }
 });
 
 // ---- Categorias
@@ -1867,8 +1891,14 @@ router.get('/my/catalogs/:id/pdf', studentAuth, async (req, res) => {
         }
         if (!bytes) continue;
         let img;
-        try { img = await pdfDoc.embedJpg(bytes); }
-        catch { try { img = await pdfDoc.embedPng(bytes); } catch { continue; } }
+        // Normaliza para JPEG (pdf-lib não suporta webp nativamente)
+        try {
+          const jpg = await sharp(bytes, { failOn: 'none' }).rotate().jpeg({ quality: 85 }).toBuffer();
+          img = await pdfDoc.embedJpg(jpg);
+        } catch {
+          try { img = await pdfDoc.embedJpg(bytes); }
+          catch { try { img = await pdfDoc.embedPng(bytes); } catch { continue; } }
+        }
         // A4 landscape/portrait dinâmico conforme proporção
         const isLandscape = img.width >= img.height;
         const pageW = isLandscape ? 842 : 595;
@@ -1892,9 +1922,29 @@ router.get('/my/catalogs/:id/pdf', studentAuth, async (req, res) => {
 // =========================================================================
 // SUPERADMIN — catálogos globais (com opção de vincular a uma marca)
 // =========================================================================
-admin.post('/catalog-upload', gate('can_manage_ead'), catalogUpload.single('file'), (req, res) => {
+admin.post('/catalog-upload', gate('can_manage_ead'), catalogUpload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Arquivo obrigatório' });
-  res.json({ url: catalogFileUrl(req.file.filename), filename: req.file.filename, size: req.file.size, mimetype: req.file.mimetype });
+  try {
+    const mime = String(req.file.mimetype || '').toLowerCase();
+    const isImage = mime.startsWith('image/') && !mime.includes('svg') && !mime.includes('gif');
+    if (isImage) {
+      const srcPath = path.join(_catalogUploadsDir, req.file.filename);
+      const webpName = `catalog-${Date.now()}-${crypto.randomBytes(6).toString('hex')}.webp`;
+      const outPath = path.join(_catalogUploadsDir, webpName);
+      await sharp(srcPath, { failOn: 'none' })
+        .rotate()
+        .resize({ width: 2000, height: 2000, fit: 'inside', withoutEnlargement: true })
+        .webp({ quality: 78, effort: 4 })
+        .toFile(outPath);
+      try { fs.unlinkSync(srcPath); } catch {}
+      const stat = fs.statSync(outPath);
+      return res.json({ url: catalogFileUrl(webpName), filename: webpName, size: stat.size, mimetype: 'image/webp' });
+    }
+    return res.json({ url: catalogFileUrl(req.file.filename), filename: req.file.filename, size: req.file.size, mimetype: req.file.mimetype });
+  } catch (err) {
+    console.error('[ead admin catalog upload] webp convert failed', err);
+    return res.json({ url: catalogFileUrl(req.file.filename), filename: req.file.filename, size: req.file.size, mimetype: req.file.mimetype });
+  }
 });
 
 admin.get('/catalog-categories', gate('can_view_ead'), async (req, res) => {
