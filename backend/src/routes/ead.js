@@ -1563,7 +1563,6 @@ router.get('/brand-admin/dashboard', brandAdminAuth, async (req, res) => {
           WHERE s.brand_id = $1
           ORDER BY 1`, [brandId]),
     ]);
-    const allCities = arguments; // placeholder to keep destructuring below stable
     res.json({
       students: students.rows[0],
       courses: courses.rows[0],
