@@ -1236,7 +1236,14 @@ function BrandAdminsDialog({ brand, onClose }: { brand: any; onClose: () => void
 
 
 function BrandEditor({ brand, onClose }: { brand: any; onClose: () => void }) {
-  const [data, setData] = useState<any>({ ...brand, signup_fields: Array.isArray(brand.signup_fields) ? brand.signup_fields : DEFAULT_FIELDS });
+  const initialRecipients = Array.isArray(brand.notify_admin_recipients) && brand.notify_admin_recipients.length
+    ? brand.notify_admin_recipients
+    : (brand.notify_admin_phone ? [{ name: '', phone: brand.notify_admin_phone }] : []);
+  const [data, setData] = useState<any>({
+    ...brand,
+    signup_fields: Array.isArray(brand.signup_fields) ? brand.signup_fields : DEFAULT_FIELDS,
+    notify_admin_recipients: initialRecipients,
+  });
   const [connections, setConnections] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -1253,10 +1260,29 @@ function BrandEditor({ brand, onClose }: { brand: any; onClose: () => void }) {
   function addField() { set('signup_fields', [...(data.signup_fields || []), { key: `extra_${Date.now()}`, label: 'Novo campo', type: 'text', required: false }]); }
   function removeField(i: number) { const arr = [...data.signup_fields]; arr.splice(i, 1); set('signup_fields', arr); }
 
+  function setRecipient(i: number, k: 'name' | 'phone', v: string) {
+    setData((d: any) => {
+      const arr = [...(d.notify_admin_recipients || [])];
+      arr[i] = { ...arr[i], [k]: v };
+      return { ...d, notify_admin_recipients: arr };
+    });
+  }
+  function addRecipient() {
+    set('notify_admin_recipients', [...(data.notify_admin_recipients || []), { name: '', phone: '' }]);
+  }
+  function removeRecipient(i: number) {
+    const arr = [...(data.notify_admin_recipients || [])];
+    arr.splice(i, 1);
+    set('notify_admin_recipients', arr);
+  }
+
   async function save() {
     if (!data.slug || !data.name) { toast.error('Slug e nome são obrigatórios'); return; }
     setSaving(true);
     try {
+      const recipients = (data.notify_admin_recipients || [])
+        .map((r: any) => ({ name: String(r.name || '').trim(), phone: String(r.phone || '').replace(/\D/g, '') }))
+        .filter((r: any) => r.phone);
       const body = {
         slug: data.slug, name: data.name, logo_url: data.logo_url, cover_url: data.cover_url,
         primary_color: data.primary_color, accent_color: data.accent_color,
@@ -1264,7 +1290,8 @@ function BrandEditor({ brand, onClose }: { brand: any; onClose: () => void }) {
         signup_fields: data.signup_fields,
         notify_connection_id: data.notify_connection_id || null,
         approval_message: data.approval_message,
-        notify_admin_phone: data.notify_admin_phone ?? null,
+        notify_admin_phone: recipients[0]?.phone || null, // compat: primeiro número
+        notify_admin_recipients: recipients,
         signup_notify_message: data.signup_notify_message,
         active: data.active,
       };
