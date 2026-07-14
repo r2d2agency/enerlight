@@ -567,6 +567,7 @@ async function ensureEadApprovalSchema() {
 
     ALTER TABLE ead_brands ADD COLUMN IF NOT EXISTS notify_admin_phone VARCHAR(30);
     ALTER TABLE ead_brands ADD COLUMN IF NOT EXISTS signup_notify_message TEXT;
+    ALTER TABLE ead_brands ADD COLUMN IF NOT EXISTS notify_admin_recipients JSONB DEFAULT '[]'::jsonb;
 
     CREATE TABLE IF NOT EXISTS ead_brand_admins (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
