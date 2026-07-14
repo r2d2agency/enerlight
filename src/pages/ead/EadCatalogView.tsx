@@ -43,20 +43,8 @@ function CatalogViewInner() {
   const cur = imgs[idx];
   const curUrl = cur ? resolveMediaUrl(cur.url) : null;
 
-  async function downloadCurrent() {
-    if (!cur) return;
-    const url = resolveMediaUrl(cur.url);
-    if (!url) return;
-    try {
-      const r = await fetch(url);
-      const blob = await r.blob();
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = `${(cur.title || cat!.title || 'imagem').replace(/[^\w-]+/g, '_')}-${idx + 1}.${(cur.url.split('.').pop() || 'jpg').split('?')[0]}`;
-      link.click();
-      setTimeout(() => URL.revokeObjectURL(link.href), 5000);
-    } catch { toast.error('Erro ao baixar imagem'); }
-  }
+  // Download individual de imagem foi removido — apenas PDF completo é permitido.
+
 
   async function downloadAllPdf() {
     setDownloadingPdf(true);
