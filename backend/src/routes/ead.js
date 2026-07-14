@@ -1510,8 +1510,8 @@ router.get('/brand-admin/dashboard', brandAdminAuth, async (req, res) => {
                 COUNT(*)::int AS signups,
                 COUNT(*) FILTER (WHERE s.status='approved')::int AS approved
          FROM ead_students s
-        WHERE s.brand_id = $1 ${from || to || company ? sFilter : `AND s.created_at >= NOW() - INTERVAL '6 months'`}
-        GROUP BY 1 ORDER BY 1`, from || to || company ? params : [brandId]),
+        WHERE s.brand_id = $1 ${hasFilter ? sFilter : `AND s.created_at >= NOW() - INTERVAL '6 months'`}
+        GROUP BY 1 ORDER BY 1`, hasFilter ? params : [brandId]),
       query(`SELECT c.id, c.title,
                 COUNT(DISTINCT a.student_id)::int AS students_attempted,
                 COUNT(DISTINCT CASE WHEN a.passed THEN a.student_id END)::int AS students_passed,
@@ -1519,7 +1519,7 @@ router.get('/brand-admin/dashboard', brandAdminAuth, async (req, res) => {
            FROM ead_courses c
            LEFT JOIN ead_attempts a ON a.course_id = c.id
            LEFT JOIN ead_students s ON s.id = a.student_id
-          WHERE c.brand_id = $1 ${(from || to || company) ? `AND (a.id IS NULL OR (1=1 ${aFilter}))` : ''}
+          WHERE c.brand_id = $1 ${hasFilter ? `AND (a.id IS NULL OR (1=1 ${aFilter}))` : ''}
           GROUP BY c.id, c.title
           ORDER BY students_attempted DESC NULLS LAST
           LIMIT 8`, params),
