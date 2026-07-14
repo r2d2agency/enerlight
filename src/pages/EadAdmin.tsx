@@ -1374,14 +1374,42 @@ function BrandEditor({ brand, onClose }: { brand: any; onClose: () => void }) {
               <Textarea rows={8} value={data.approval_message || ''} onChange={e => set('approval_message', e.target.value)} placeholder={"Olá {nome}! 🎉\n\nSeu cadastro na área *{marca}* foi aprovado.\n\n🔐 Suas credenciais de acesso:\nE-mail: {email}\nSenha temporária: *{senha}*\n\nAcesse: {link}\n\nAo entrar pela primeira vez você será solicitado a criar uma nova senha."} />
               <p className="text-xs text-muted-foreground mt-1">Variáveis: <code>{'{nome}'}</code> <code>{'{marca}'}</code> <code>{'{link}'}</code> <code>{'{email}'}</code> <code>{'{senha}'}</code> <code>{'{empresa}'}</code>. Use <code>{'{senha}'}</code> para incluir a senha temporária gerada. Deixe em branco para usar a mensagem padrão personalizada com a marca.</p>
             </div>
-            <div className="pt-3 border-t">
-              <Label>WhatsApp do administrador (novos cadastros)</Label>
-              <Input
-                value={data.notify_admin_phone || ''}
-                onChange={e => set('notify_admin_phone', e.target.value)}
-                placeholder="5511999999999 (com DDI e DDD)"
-              />
-              <p className="text-xs text-muted-foreground mt-1">Quando um instalador se cadastrar, este número receberá um aviso pelo WhatsApp para aprovação. Deixe em branco para desativar.</p>
+            <div className="pt-3 border-t space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Destinatários das notificações (novos cadastros)</Label>
+                <Button size="sm" variant="outline" onClick={addRecipient}>
+                  <Plus className="h-4 w-4 mr-1" />Adicionar
+                </Button>
+              </div>
+              {(data.notify_admin_recipients || []).length === 0 && (
+                <p className="text-xs text-muted-foreground">Nenhum destinatário. Adicione pelo menos um nome + número para receber avisos por WhatsApp.</p>
+              )}
+              {(data.notify_admin_recipients || []).map((r: any, i: number) => (
+                <div key={i} className="grid grid-cols-12 gap-2 items-end border p-2 rounded">
+                  <div className="col-span-5">
+                    <Label className="text-xs">Nome</Label>
+                    <Input
+                      value={r.name || ''}
+                      onChange={e => setRecipient(i, 'name', e.target.value)}
+                      placeholder="Ex.: João da Silva"
+                    />
+                  </div>
+                  <div className="col-span-6">
+                    <Label className="text-xs">WhatsApp</Label>
+                    <Input
+                      value={r.phone || ''}
+                      onChange={e => setRecipient(i, 'phone', e.target.value)}
+                      placeholder="5511999999999 (com DDI e DDD)"
+                    />
+                  </div>
+                  <div className="col-span-1 flex items-center pb-1">
+                    <Button size="sm" variant="ghost" onClick={() => removeRecipient(i)}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+              <p className="text-xs text-muted-foreground">Cada destinatário receberá um WhatsApp com os dados do novo cadastro. Use a variável <code>{'{destinatario}'}</code> na mensagem para incluir o nome de quem receberá.</p>
             </div>
             <div>
               <Label>Mensagem de novo cadastro</Label>
@@ -1389,9 +1417,9 @@ function BrandEditor({ brand, onClose }: { brand: any; onClose: () => void }) {
                 rows={5}
                 value={data.signup_notify_message || ''}
                 onChange={e => set('signup_notify_message', e.target.value)}
-                placeholder={"🔔 Novo cadastro aguardando aprovação\n\n👤 {nome}\n📧 {email}\n📱 {telefone}\n🏢 {empresa}\n📍 {cidade}/{uf}\n\nÁrea: {marca}"}
+                placeholder={"🔔 Novo cadastro aguardando aprovação\n\n{saudacao}👤 {nome}\n📧 {email}\n📱 {telefone}\n🏢 {empresa}\n📍 {cidade}/{uf}\n\nÁrea: {marca}"}
               />
-              <p className="text-xs text-muted-foreground mt-1">Variáveis: <code>{'{nome}'}</code> <code>{'{email}'}</code> <code>{'{telefone}'}</code> <code>{'{empresa}'}</code> <code>{'{cidade}'}</code> <code>{'{uf}'}</code> <code>{'{marca}'}</code>. Deixe em branco para usar o modelo padrão.</p>
+              <p className="text-xs text-muted-foreground mt-1">Variáveis: <code>{'{nome}'}</code> <code>{'{email}'}</code> <code>{'{telefone}'}</code> <code>{'{empresa}'}</code> <code>{'{cidade}'}</code> <code>{'{uf}'}</code> <code>{'{marca}'}</code> <code>{'{destinatario}'}</code> <code>{'{saudacao}'}</code>. Deixe em branco para usar o modelo padrão.</p>
             </div>
           </TabsContent>
         </Tabs>
