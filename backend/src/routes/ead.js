@@ -7,6 +7,7 @@ import crypto from 'crypto';
 import multer from 'multer';
 import nodemailer from 'nodemailer';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import sharp from 'sharp';
 import { query } from '../db.js';
 import { authenticate } from '../middleware/auth.js';
 import { sendMessage as sendWhatsapp } from '../lib/whatsapp-provider.js';
