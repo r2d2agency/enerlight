@@ -42,12 +42,15 @@ export default function EadBrandAdminDashboard() {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [company, setCompany] = useState<string>('');
+  const [city, setCity] = useState<string>('');
+  const [busyId, setBusyId] = useState<string | null>(null);
 
-  async function loadDashboard(f?: string, t?: string, c?: string) {
+  async function loadDashboard(f?: string, t?: string, c?: string, ci?: string) {
     const d = await eadBrandAdminApi.dashboard({
       from: f || undefined,
       to: t || undefined,
       company: c || undefined,
+      city: ci || undefined,
     });
     setData(d);
   }
@@ -62,12 +65,12 @@ export default function EadBrandAdminDashboard() {
 
   async function applyFilters() {
     setReloading(true);
-    try { await loadDashboard(from, to, company); } finally { setReloading(false); }
+    try { await loadDashboard(from, to, company, city); } finally { setReloading(false); }
   }
   async function clearFilters() {
-    setFrom(''); setTo(''); setCompany('');
+    setFrom(''); setTo(''); setCompany(''); setCity('');
     setReloading(true);
-    try { await loadDashboard('', '', ''); } finally { setReloading(false); }
+    try { await loadDashboard('', '', '', ''); } finally { setReloading(false); }
   }
   function setPreset(days: number) {
     const t = new Date();
@@ -75,14 +78,41 @@ export default function EadBrandAdminDashboard() {
     const iso = (x: Date) => x.toISOString().slice(0, 10);
     setFrom(iso(f)); setTo(iso(t));
     setReloading(true);
-    loadDashboard(iso(f), iso(t), company).finally(() => setReloading(false));
+    loadDashboard(iso(f), iso(t), company, city).finally(() => setReloading(false));
   }
   function onCompanyChange(v: string) {
     const next = v === '__all__' ? '' : v;
     setCompany(next);
     setReloading(true);
-    loadDashboard(from, to, next).finally(() => setReloading(false));
+    loadDashboard(from, to, next, city).finally(() => setReloading(false));
   }
+  function onCityChange(v: string) {
+    const next = v === '__all__' ? '' : v;
+    setCity(next);
+    setReloading(true);
+    loadDashboard(from, to, company, next).finally(() => setReloading(false));
+  }
+
+  async function approve(id: string) {
+    setBusyId(id);
+    try {
+      await eadBrandAdminApi.approveStudent(id);
+      toast.success('Cadastro aprovado! Senha temporária enviada por WhatsApp/e-mail.');
+      await loadDashboard(from, to, company, city);
+    } catch (e: any) { toast.error(e.message || 'Erro ao aprovar'); }
+    finally { setBusyId(null); }
+  }
+  async function reject(id: string) {
+    const reason = window.prompt('Motivo da rejeição (opcional):') || '';
+    setBusyId(id);
+    try {
+      await eadBrandAdminApi.rejectStudent(id, reason);
+      toast.success('Cadastro rejeitado');
+      await loadDashboard(from, to, company, city);
+    } catch (e: any) { toast.error(e.message || 'Erro ao rejeitar'); }
+    finally { setBusyId(null); }
+  }
+
 
 
   function logout() {
