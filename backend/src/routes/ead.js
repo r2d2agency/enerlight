@@ -1922,9 +1922,29 @@ router.get('/my/catalogs/:id/pdf', studentAuth, async (req, res) => {
 // =========================================================================
 // SUPERADMIN — catálogos globais (com opção de vincular a uma marca)
 // =========================================================================
-admin.post('/catalog-upload', gate('can_manage_ead'), catalogUpload.single('file'), (req, res) => {
+admin.post('/catalog-upload', gate('can_manage_ead'), catalogUpload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Arquivo obrigatório' });
-  res.json({ url: catalogFileUrl(req.file.filename), filename: req.file.filename, size: req.file.size, mimetype: req.file.mimetype });
+  try {
+    const mime = String(req.file.mimetype || '').toLowerCase();
+    const isImage = mime.startsWith('image/') && !mime.includes('svg') && !mime.includes('gif');
+    if (isImage) {
+      const srcPath = path.join(_catalogUploadsDir, req.file.filename);
+      const webpName = `catalog-${Date.now()}-${crypto.randomBytes(6).toString('hex')}.webp`;
+      const outPath = path.join(_catalogUploadsDir, webpName);
+      await sharp(srcPath, { failOn: 'none' })
+        .rotate()
+        .resize({ width: 2000, height: 2000, fit: 'inside', withoutEnlargement: true })
+        .webp({ quality: 78, effort: 4 })
+        .toFile(outPath);
+      try { fs.unlinkSync(srcPath); } catch {}
+      const stat = fs.statSync(outPath);
+      return res.json({ url: catalogFileUrl(webpName), filename: webpName, size: stat.size, mimetype: 'image/webp' });
+    }
+    return res.json({ url: catalogFileUrl(req.file.filename), filename: req.file.filename, size: req.file.size, mimetype: req.file.mimetype });
+  } catch (err) {
+    console.error('[ead admin catalog upload] webp convert failed', err);
+    return res.json({ url: catalogFileUrl(req.file.filename), filename: req.file.filename, size: req.file.size, mimetype: req.file.mimetype });
+  }
 });
 
 admin.get('/catalog-categories', gate('can_view_ead'), async (req, res) => {
