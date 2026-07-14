@@ -11,8 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 import {
   Loader2, LogOut, Users, GraduationCap, Award, TrendingUp,
-  UserCheck, UserX, Clock, BookOpen, Building2, Filter, X, Layers,
+  UserCheck, UserX, Clock, BookOpen, Building2, Filter, X, Layers, Check, XCircle, MapPin,
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend,
@@ -41,12 +42,15 @@ export default function EadBrandAdminDashboard() {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [company, setCompany] = useState<string>('');
+  const [city, setCity] = useState<string>('');
+  const [busyId, setBusyId] = useState<string | null>(null);
 
-  async function loadDashboard(f?: string, t?: string, c?: string) {
+  async function loadDashboard(f?: string, t?: string, c?: string, ci?: string) {
     const d = await eadBrandAdminApi.dashboard({
       from: f || undefined,
       to: t || undefined,
       company: c || undefined,
+      city: ci || undefined,
     });
     setData(d);
   }
@@ -61,12 +65,12 @@ export default function EadBrandAdminDashboard() {
 
   async function applyFilters() {
     setReloading(true);
-    try { await loadDashboard(from, to, company); } finally { setReloading(false); }
+    try { await loadDashboard(from, to, company, city); } finally { setReloading(false); }
   }
   async function clearFilters() {
-    setFrom(''); setTo(''); setCompany('');
+    setFrom(''); setTo(''); setCompany(''); setCity('');
     setReloading(true);
-    try { await loadDashboard('', '', ''); } finally { setReloading(false); }
+    try { await loadDashboard('', '', '', ''); } finally { setReloading(false); }
   }
   function setPreset(days: number) {
     const t = new Date();
@@ -74,14 +78,41 @@ export default function EadBrandAdminDashboard() {
     const iso = (x: Date) => x.toISOString().slice(0, 10);
     setFrom(iso(f)); setTo(iso(t));
     setReloading(true);
-    loadDashboard(iso(f), iso(t), company).finally(() => setReloading(false));
+    loadDashboard(iso(f), iso(t), company, city).finally(() => setReloading(false));
   }
   function onCompanyChange(v: string) {
     const next = v === '__all__' ? '' : v;
     setCompany(next);
     setReloading(true);
-    loadDashboard(from, to, next).finally(() => setReloading(false));
+    loadDashboard(from, to, next, city).finally(() => setReloading(false));
   }
+  function onCityChange(v: string) {
+    const next = v === '__all__' ? '' : v;
+    setCity(next);
+    setReloading(true);
+    loadDashboard(from, to, company, next).finally(() => setReloading(false));
+  }
+
+  async function approve(id: string) {
+    setBusyId(id);
+    try {
+      await eadBrandAdminApi.approveStudent(id);
+      toast.success('Cadastro aprovado! Senha temporária enviada por WhatsApp/e-mail.');
+      await loadDashboard(from, to, company, city);
+    } catch (e: any) { toast.error(e.message || 'Erro ao aprovar'); }
+    finally { setBusyId(null); }
+  }
+  async function reject(id: string) {
+    const reason = window.prompt('Motivo da rejeição (opcional):') || '';
+    setBusyId(id);
+    try {
+      await eadBrandAdminApi.rejectStudent(id, reason);
+      toast.success('Cadastro rejeitado');
+      await loadDashboard(from, to, company, city);
+    } catch (e: any) { toast.error(e.message || 'Erro ao rejeitar'); }
+    finally { setBusyId(null); }
+  }
+
 
 
   function logout() {
@@ -178,10 +209,24 @@ export default function EadBrandAdminDashboard() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="grid gap-1">
+                <Label className="text-xs">Cidade</Label>
+                <Select value={city || '__all__'} onValueChange={onCityChange}>
+                  <SelectTrigger className="h-9 w-[200px]">
+                    <SelectValue placeholder="Todas as cidades" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[300px]">
+                    <SelectItem value="__all__">Todas as cidades</SelectItem>
+                    {(data.all_cities || []).map((c: string) => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <Button size="sm" onClick={applyFilters} disabled={reloading}>
                 {reloading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Aplicar'}
               </Button>
-              {(from || to || company) && (
+              {(from || to || company || city) && (
                 <Button size="sm" variant="ghost" onClick={clearFilters} disabled={reloading}>
                   <X className="h-4 w-4 mr-1" /> Limpar
                 </Button>
@@ -351,9 +396,10 @@ export default function EadBrandAdminDashboard() {
             <CardContent>
               <Table>
                 <TableHeader><TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Empresa / Local</TableHead>
+                  <TableHead>Instalador</TableHead>
+                  <TableHead>Empresa / Cidade</TableHead>
                   <TableHead className="text-right">Cadastro</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
                 </TableRow></TableHeader>
                 <TableBody>
                   {data.pending_students?.length ? data.pending_students.map((p: any) => (
@@ -361,19 +407,45 @@ export default function EadBrandAdminDashboard() {
                       <TableCell>
                         <div className="font-medium">{p.name}</div>
                         <div className="text-xs text-muted-foreground">{p.email}</div>
+                        {p.phone && <div className="text-xs text-muted-foreground">📱 {p.phone}</div>}
                       </TableCell>
                       <TableCell className="text-sm">
-                        {p.company || '—'}
-                        {(p.city || p.state) && <div className="text-xs text-muted-foreground">{[p.city, p.state].filter(Boolean).join(' / ')}</div>}
+                        <div className="flex items-center gap-1"><Building2 className="h-3 w-3 text-muted-foreground" />{p.company || '—'}</div>
+                        {(p.city || p.state) && (
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <MapPin className="h-3 w-3" />{[p.city, p.state].filter(Boolean).join(' / ')}
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell className="text-right text-sm">{fmtDate(p.created_at)}</TableCell>
+                      <TableCell className="text-right whitespace-nowrap">
+                        <Button
+                          size="sm"
+                          variant="default"
+                          className="h-8 mr-1"
+                          disabled={busyId === p.id}
+                          onClick={() => approve(p.id)}
+                        >
+                          {busyId === p.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Check className="h-3 w-3 mr-1" />Aprovar</>}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8"
+                          disabled={busyId === p.id}
+                          onClick={() => reject(p.id)}
+                        >
+                          <XCircle className="h-3 w-3 mr-1" />Rejeitar
+                        </Button>
+                      </TableCell>
                     </TableRow>
-                  )) : <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-6">Sem pendências</TableCell></TableRow>}
+                  )) : <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-6">Sem pendências</TableCell></TableRow>}
                 </TableBody>
               </Table>
             </CardContent>
           </Card>
         </div>
+
 
         <Card>
           <CardHeader><CardTitle>Cadastros recentes</CardTitle></CardHeader>

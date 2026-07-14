@@ -226,14 +226,28 @@ export const eadBrandAdminApi = {
   login: (slug: string, email: string, password: string) =>
     baCall<{ token: string; admin: any }>('/api/ead/brand-admin/login', { method: 'POST', body: { slug, email, password }, auth: false }),
   me: () => baCall<{ admin: any }>('/api/ead/brand-admin/me'),
-  dashboard: (params?: { from?: string; to?: string; company?: string }) => {
+  dashboard: (params?: { from?: string; to?: string; company?: string; city?: string }) => {
     const qs = new URLSearchParams();
     if (params?.from) qs.set('from', params.from);
     if (params?.to) qs.set('to', params.to);
     if (params?.company) qs.set('company', params.company);
+    if (params?.city) qs.set('city', params.city);
     const s = qs.toString();
     return baCall<any>(`/api/ead/brand-admin/dashboard${s ? `?${s}` : ''}`);
   },
+
+  pendingStudents: (params?: { company?: string; city?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.company) qs.set('company', params.company);
+    if (params?.city) qs.set('city', params.city);
+    const s = qs.toString();
+    return baCall<any[]>(`/api/ead/brand-admin/students/pending${s ? `?${s}` : ''}`);
+  },
+  approveStudent: (id: string) =>
+    baCall<any>(`/api/ead/brand-admin/students/${id}/approve`, { method: 'POST' }),
+  rejectStudent: (id: string, reason?: string) =>
+    baCall<any>(`/api/ead/brand-admin/students/${id}/reject`, { method: 'POST', body: { reason } }),
+
 
   // Catálogos
   catalogCategories: () => baCall<any[]>('/api/ead/brand-admin/catalog-categories'),

@@ -567,6 +567,7 @@ async function ensureEadApprovalSchema() {
 
     ALTER TABLE ead_brands ADD COLUMN IF NOT EXISTS notify_admin_phone VARCHAR(30);
     ALTER TABLE ead_brands ADD COLUMN IF NOT EXISTS signup_notify_message TEXT;
+    ALTER TABLE ead_brands ADD COLUMN IF NOT EXISTS notify_admin_recipients JSONB DEFAULT '[]'::jsonb;
 
     CREATE TABLE IF NOT EXISTS ead_brand_admins (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -993,21 +994,26 @@ admin.get('/brands', gate('can_view_ead'), async (req, res) => {
 
 admin.post('/brands', gate('can_manage_ead'), async (req, res) => {
   try {
-    const { slug, name, logo_url, cover_url, primary_color, accent_color, welcome_title, welcome_text, signup_fields, notify_connection_id, approval_message, active, notify_admin_phone, signup_notify_message } = req.body || {};
+    const { slug, name, logo_url, cover_url, primary_color, accent_color, welcome_title, welcome_text, signup_fields, notify_connection_id, approval_message, active, notify_admin_phone, signup_notify_message, notify_admin_recipients } = req.body || {};
     const cleanSlug = String(slug || '').trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
     if (!cleanSlug || !name) return res.status(400).json({ error: 'Slug e nome são obrigatórios' });
     const orgId = await getAdminOrgId(req.userId);
     const cleanAdminPhone = notify_admin_phone ? String(notify_admin_phone).replace(/\D/g, '') || null : null;
+    const cleanRecipients = Array.isArray(notify_admin_recipients)
+      ? notify_admin_recipients
+          .map(r => ({ name: String(r?.name || '').trim(), phone: String(r?.phone || '').replace(/\D/g, '') }))
+          .filter(r => r.phone)
+      : [];
     const r = await query(
-      `INSERT INTO ead_brands (slug, name, logo_url, cover_url, primary_color, accent_color, welcome_title, welcome_text, signup_fields, organization_id, notify_connection_id, approval_message, active, notify_admin_phone, signup_notify_message)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10,$11,$12,COALESCE($13,true),$14,$15)
+      `INSERT INTO ead_brands (slug, name, logo_url, cover_url, primary_color, accent_color, welcome_title, welcome_text, signup_fields, organization_id, notify_connection_id, approval_message, active, notify_admin_phone, signup_notify_message, notify_admin_recipients)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10,$11,$12,COALESCE($13,true),$14,$15,$16::jsonb)
        RETURNING *`,
       [cleanSlug, name, logo_url || null, cover_url || null, primary_color || '#0ea5e9', accent_color || '#0284c7',
        welcome_title || null, welcome_text || null,
        JSON.stringify(Array.isArray(signup_fields) && signup_fields.length ? signup_fields : DEFAULT_SIGNUP_FIELDS),
        orgId, notify_connection_id || null, approval_message || null,
        typeof active === 'boolean' ? active : null,
-       cleanAdminPhone, signup_notify_message || null]
+       cleanAdminPhone, signup_notify_message || null, JSON.stringify(cleanRecipients)]
     );
     res.status(201).json(r.rows[0]);
   } catch (e) {
@@ -1018,10 +1024,15 @@ admin.post('/brands', gate('can_manage_ead'), async (req, res) => {
 
 admin.patch('/brands/:id', gate('can_manage_ead'), async (req, res) => {
   try {
-    const { slug, name, logo_url, cover_url, primary_color, accent_color, welcome_title, welcome_text, signup_fields, notify_connection_id, approval_message, active, notify_admin_phone, signup_notify_message } = req.body || {};
+    const { slug, name, logo_url, cover_url, primary_color, accent_color, welcome_title, welcome_text, signup_fields, notify_connection_id, approval_message, active, notify_admin_phone, signup_notify_message, notify_admin_recipients } = req.body || {};
     const cleanSlug = slug !== undefined ? String(slug).trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') : null;
     const cleanAdminPhone = notify_admin_phone !== undefined
       ? (notify_admin_phone ? String(notify_admin_phone).replace(/\D/g, '') || null : null)
+      : undefined;
+    const cleanRecipients = Array.isArray(notify_admin_recipients)
+      ? notify_admin_recipients
+          .map(r => ({ name: String(r?.name || '').trim(), phone: String(r?.phone || '').replace(/\D/g, '') }))
+          .filter(r => r.phone)
       : undefined;
     const r = await query(
       `UPDATE ead_brands SET
@@ -1039,6 +1050,7 @@ admin.patch('/brands/:id', gate('can_manage_ead'), async (req, res) => {
          active = COALESCE($12, active),
          notify_admin_phone = CASE WHEN $14::boolean THEN $15 ELSE notify_admin_phone END,
          signup_notify_message = COALESCE($16, signup_notify_message),
+         notify_admin_recipients = CASE WHEN $17::boolean THEN $18::jsonb ELSE notify_admin_recipients END,
          updated_at = NOW()
        WHERE id = $13 RETURNING *`,
       [cleanSlug, name ?? null, logo_url ?? null, cover_url ?? null, primary_color ?? null, accent_color ?? null,
@@ -1049,7 +1061,8 @@ admin.patch('/brands/:id', gate('can_manage_ead'), async (req, res) => {
        typeof active === 'boolean' ? active : null,
        req.params.id,
        cleanAdminPhone !== undefined, cleanAdminPhone ?? null,
-       signup_notify_message ?? null]
+       signup_notify_message ?? null,
+       cleanRecipients !== undefined, cleanRecipients ? JSON.stringify(cleanRecipients) : '[]']
     );
     res.json(r.rows[0]);
   } catch (e) {
@@ -1119,7 +1132,19 @@ function appBaseUrl(req) {
 
 async function notifyAdminNewSignup(brand, student) {
   try {
-    if (!brand?.notify_admin_phone) return;
+    // Consolida destinatários: array notify_admin_recipients + fallback ao notify_admin_phone
+    const recipientList = [];
+    if (Array.isArray(brand?.notify_admin_recipients)) {
+      for (const r of brand.notify_admin_recipients) {
+        const phone = String(r?.phone || '').replace(/\D/g, '');
+        if (phone) recipientList.push({ name: String(r?.name || '').trim(), phone });
+      }
+    }
+    if (!recipientList.length && brand?.notify_admin_phone) {
+      recipientList.push({ name: '', phone: String(brand.notify_admin_phone).replace(/\D/g, '') });
+    }
+    if (!recipientList.length) return;
+
     let conn = null;
     if (brand?.notify_connection_id) {
       const c = await query('SELECT * FROM connections WHERE id = $1', [brand.notify_connection_id]);
@@ -1135,17 +1160,26 @@ async function notifyAdminNewSignup(brand, student) {
     }
     if (!conn) { console.warn('[EAD notifyAdminNewSignup] sem conexão WhatsApp'); return; }
 
-    const defaultTpl = `🔔 *Novo cadastro aguardando aprovação*\n\n👤 {nome}\n📧 {email}\n📱 {telefone}\n🏢 {empresa}\n📍 {cidade}/{uf}\n\nÁrea: *{marca}*\nAcesse o painel para aprovar.`;
+    const defaultTpl = `🔔 *Novo cadastro aguardando aprovação*\n\n{saudacao}👤 {nome}\n📧 {email}\n📱 {telefone}\n🏢 {empresa}\n📍 {cidade}/{uf}\n\nÁrea: *{marca}*\nAcesse o painel para aprovar.`;
     const tpl = brand?.signup_notify_message || defaultTpl;
-    const vars = {
-      nome: student.name || '-', email: student.email || '-',
-      telefone: student.phone || '-', empresa: student.company || '-',
-      cidade: student.city || '-', uf: student.state || '-',
-      marca: brand?.name || '',
-    };
-    const message = tpl.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? '');
-    const r = await sendWhatsapp(conn, brand.notify_admin_phone, message, 'text');
-    console.log('[EAD notifyAdminNewSignup]', { brand: brand.slug, r });
+
+    for (const rec of recipientList) {
+      const vars = {
+        nome: student.name || '-', email: student.email || '-',
+        telefone: student.phone || '-', empresa: student.company || '-',
+        cidade: student.city || '-', uf: student.state || '-',
+        marca: brand?.name || '',
+        destinatario: rec.name || '',
+        saudacao: rec.name ? `Olá ${rec.name}!\n\n` : '',
+      };
+      const message = tpl.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? '');
+      try {
+        const r = await sendWhatsapp(conn, rec.phone, message, 'text');
+        console.log('[EAD notifyAdminNewSignup]', { brand: brand.slug, to: rec.phone, r });
+      } catch (err) {
+        console.error('[EAD notifyAdminNewSignup] send error', rec.phone, err?.message || err);
+      }
+    }
   } catch (e) {
     console.error('[EAD notifyAdminNewSignup] error', e);
   }
@@ -1423,6 +1457,7 @@ router.get('/brand-admin/dashboard', brandAdminAuth, async (req, res) => {
     const from = req.query.from ? String(req.query.from) : null;
     const to = req.query.to ? String(req.query.to) : null;
     const company = req.query.company ? String(req.query.company).trim() : null;
+    const city = req.query.city ? String(req.query.city).trim() : null;
     const dateOk = (d) => !d || /^\d{4}-\d{2}-\d{2}$/.test(d);
     if (!dateOk(from) || !dateOk(to)) return res.status(400).json({ error: 'Data inválida' });
 
@@ -1438,9 +1473,16 @@ router.get('/brand-admin/dashboard', brandAdminAuth, async (req, res) => {
       sFilter += frag;
       aFilter += frag;
     }
+    if (city) {
+      params.push(city);
+      const frag = ` AND COALESCE(NULLIF(TRIM(s.city), ''), 'Sem cidade') = $${params.length}`;
+      sFilter += frag;
+      aFilter += frag;
+    }
+    const hasFilter = !!(from || to || company || city);
 
 
-    const [students, courses, certs, attempts, monthly, topCourses, topStudents, recent, pending, companies, allCompanies] = await Promise.all([
+    const [students, courses, certs, attempts, monthly, topCourses, topStudents, recent, pending, companies, allCompanies, cities] = await Promise.all([
       query(`SELECT
           COUNT(*)::int AS total,
           COUNT(*) FILTER (WHERE s.status = 'approved')::int AS approved,
@@ -1468,8 +1510,8 @@ router.get('/brand-admin/dashboard', brandAdminAuth, async (req, res) => {
                 COUNT(*)::int AS signups,
                 COUNT(*) FILTER (WHERE s.status='approved')::int AS approved
          FROM ead_students s
-        WHERE s.brand_id = $1 ${from || to || company ? sFilter : `AND s.created_at >= NOW() - INTERVAL '6 months'`}
-        GROUP BY 1 ORDER BY 1`, from || to || company ? params : [brandId]),
+        WHERE s.brand_id = $1 ${hasFilter ? sFilter : `AND s.created_at >= NOW() - INTERVAL '6 months'`}
+        GROUP BY 1 ORDER BY 1`, hasFilter ? params : [brandId]),
       query(`SELECT c.id, c.title,
                 COUNT(DISTINCT a.student_id)::int AS students_attempted,
                 COUNT(DISTINCT CASE WHEN a.passed THEN a.student_id END)::int AS students_passed,
@@ -1477,7 +1519,7 @@ router.get('/brand-admin/dashboard', brandAdminAuth, async (req, res) => {
            FROM ead_courses c
            LEFT JOIN ead_attempts a ON a.course_id = c.id
            LEFT JOIN ead_students s ON s.id = a.student_id
-          WHERE c.brand_id = $1 ${(from || to || company) ? `AND (a.id IS NULL OR (1=1 ${aFilter}))` : ''}
+          WHERE c.brand_id = $1 ${hasFilter ? `AND (a.id IS NULL OR (1=1 ${aFilter}))` : ''}
           GROUP BY c.id, c.title
           ORDER BY students_attempted DESC NULLS LAST
           LIMIT 8`, params),
@@ -1495,9 +1537,9 @@ router.get('/brand-admin/dashboard', brandAdminAuth, async (req, res) => {
       query(`SELECT s.id, s.name, s.email, s.status, s.created_at, s.approved_at, s.city, s.state, s.company
            FROM ead_students s WHERE s.brand_id = $1${sFilter}
            ORDER BY s.created_at DESC LIMIT 10`, params),
-      query(`SELECT s.id, s.name, s.email, s.created_at, s.city, s.state, s.company
+      query(`SELECT s.id, s.name, s.email, s.phone, s.cpf, s.created_at, s.city, s.state, s.company
            FROM ead_students s WHERE s.brand_id = $1 AND s.status = 'pending'${sFilter}
-           ORDER BY s.created_at DESC LIMIT 10`, params),
+           ORDER BY s.created_at DESC LIMIT 100`, params),
       query(`SELECT
                 COALESCE(NULLIF(TRIM(s.company), ''), 'Sem empresa') AS company,
                 COUNT(*)::int AS total,
@@ -1516,8 +1558,11 @@ router.get('/brand-admin/dashboard', brandAdminAuth, async (req, res) => {
            FROM ead_students s
           WHERE s.brand_id = $1
           ORDER BY 1`, [brandId]),
+      query(`SELECT DISTINCT COALESCE(NULLIF(TRIM(s.city), ''), 'Sem cidade') AS city
+           FROM ead_students s
+          WHERE s.brand_id = $1
+          ORDER BY 1`, [brandId]),
     ]);
-
     res.json({
       students: students.rows[0],
       courses: courses.rows[0],
@@ -1530,11 +1575,72 @@ router.get('/brand-admin/dashboard', brandAdminAuth, async (req, res) => {
       pending_students: pending.rows,
       companies: companies.rows,
       all_companies: allCompanies.rows.map(r => r.company),
-      filter: { from, to, company },
+      all_cities: cities.rows.map(r => r.city),
+      filter: { from, to, company, city },
     });
 
   } catch (e) { console.error('brand-admin dashboard', e); res.status(500).json({ error: 'Erro ao carregar' }); }
 });
+
+// ---- Brand Admin: approve / reject pending students (scoped to own brand) ----
+router.get('/brand-admin/students/pending', brandAdminAuth, async (req, res) => {
+  try {
+    await ensureEadApprovalSchema();
+    const params = [req.brandId];
+    let where = `s.brand_id = $1 AND s.status = 'pending'`;
+    if (req.query.company) { params.push(String(req.query.company).trim()); where += ` AND COALESCE(NULLIF(TRIM(s.company),''),'Sem empresa') = $${params.length}`; }
+    if (req.query.city)    { params.push(String(req.query.city).trim());    where += ` AND COALESCE(NULLIF(TRIM(s.city),''),'Sem cidade') = $${params.length}`; }
+    const r = await runWithEadSchemaRetry(() => query(
+      `SELECT s.id, s.name, s.cpf, s.email, s.phone, s.company, s.city, s.state, s.extra_fields, s.created_at
+         FROM ead_students s WHERE ${where} ORDER BY s.created_at DESC`,
+      params
+    ));
+    res.json(r.rows);
+  } catch (e) { console.error('ba pending', e); res.status(500).json({ error: 'Erro ao carregar pendências' }); }
+});
+
+router.post('/brand-admin/students/:id/approve', brandAdminAuth, async (req, res) => {
+  try {
+    await ensureEadApprovalSchema();
+    const s = await runWithEadSchemaRetry(() => query(
+      'SELECT * FROM ead_students WHERE id = $1 AND brand_id = $2', [req.params.id, req.brandId]
+    ));
+    if (!s.rows.length) return res.status(404).json({ error: 'Aluno não encontrado' });
+    const student = s.rows[0];
+    if (student.status === 'approved') return res.status(400).json({ error: 'Já aprovado' });
+    const b = (await runWithEadSchemaRetry(() => query('SELECT * FROM ead_brands WHERE id = $1', [req.brandId]))).rows[0];
+
+    const tempPassword = genTempPassword(8);
+    const hash = await bcrypt.hash(tempPassword, 10);
+    await runWithEadSchemaRetry(() => query(
+      `UPDATE ead_students SET status='approved', approved_at=NOW(), password_hash=$1, must_change_password=true WHERE id=$2`,
+      [hash, student.id]
+    ));
+
+    const baseUrl = appBaseUrl(req);
+    setImmediate(() => {
+      withTimeout(notifyApproval(student, b, baseUrl, tempPassword), 9000, 'Notificação de aprovação')
+        .catch((err) => console.error('notifyApproval failed', err?.message || err));
+    });
+    res.json({ ok: true, temp_password: tempPassword, notify: { queued: true } });
+  } catch (e) { console.error('ba approve', e); res.status(500).json({ error: 'Erro ao aprovar' }); }
+});
+
+router.post('/brand-admin/students/:id/reject', brandAdminAuth, async (req, res) => {
+  try {
+    await ensureEadApprovalSchema();
+    const { reason } = req.body || {};
+    const r = await runWithEadSchemaRetry(() => query(
+      `UPDATE ead_students SET status='rejected', rejected_reason=$1
+        WHERE id=$2 AND brand_id=$3 RETURNING id`,
+      [reason || null, req.params.id, req.brandId]
+    ));
+    if (!r.rows.length) return res.status(404).json({ error: 'Aluno não encontrado' });
+    res.json({ ok: true });
+  } catch (e) { console.error('ba reject', e); res.status(500).json({ error: 'Erro ao rejeitar' }); }
+});
+
+
 
 
 // ---- Superadmin CRUD for brand admins (managed via internal auth)
