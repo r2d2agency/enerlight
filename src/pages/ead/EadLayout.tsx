@@ -149,9 +149,9 @@ export function EadLayout({ children, requireAuth = true, breadcrumbs }: Props) 
                     const Icon = t.icon;
                     return (
                       <Link key={t.key} to={t.to}>
-                        <Button variant={active ? 'secondary' : 'ghost'} size="sm">
-                          <Icon className="h-4 w-4 md:mr-1" />
-                          <span className="hidden md:inline">{t.label}</span>
+                        <Button variant={active ? 'secondary' : 'ghost'} size="sm" className="px-2">
+                          <Icon className="h-4 w-4 xl:mr-1" />
+                          <span className="hidden xl:inline">{t.label}</span>
                         </Button>
                       </Link>
                     );
