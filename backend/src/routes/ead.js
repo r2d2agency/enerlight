@@ -1582,6 +1582,66 @@ router.get('/brand-admin/dashboard', brandAdminAuth, async (req, res) => {
   } catch (e) { console.error('brand-admin dashboard', e); res.status(500).json({ error: 'Erro ao carregar' }); }
 });
 
+// ---- Brand Admin: approve / reject pending students (scoped to own brand) ----
+router.get('/brand-admin/students/pending', brandAdminAuth, async (req, res) => {
+  try {
+    await ensureEadApprovalSchema();
+    const params = [req.brandId];
+    let where = `s.brand_id = $1 AND s.status = 'pending'`;
+    if (req.query.company) { params.push(String(req.query.company).trim()); where += ` AND COALESCE(NULLIF(TRIM(s.company),''),'Sem empresa') = $${params.length}`; }
+    if (req.query.city)    { params.push(String(req.query.city).trim());    where += ` AND COALESCE(NULLIF(TRIM(s.city),''),'Sem cidade') = $${params.length}`; }
+    const r = await runWithEadSchemaRetry(() => query(
+      `SELECT s.id, s.name, s.cpf, s.email, s.phone, s.company, s.city, s.state, s.extra_fields, s.created_at
+         FROM ead_students s WHERE ${where} ORDER BY s.created_at DESC`,
+      params
+    ));
+    res.json(r.rows);
+  } catch (e) { console.error('ba pending', e); res.status(500).json({ error: 'Erro ao carregar pendências' }); }
+});
+
+router.post('/brand-admin/students/:id/approve', brandAdminAuth, async (req, res) => {
+  try {
+    await ensureEadApprovalSchema();
+    const s = await runWithEadSchemaRetry(() => query(
+      'SELECT * FROM ead_students WHERE id = $1 AND brand_id = $2', [req.params.id, req.brandId]
+    ));
+    if (!s.rows.length) return res.status(404).json({ error: 'Aluno não encontrado' });
+    const student = s.rows[0];
+    if (student.status === 'approved') return res.status(400).json({ error: 'Já aprovado' });
+    const b = (await runWithEadSchemaRetry(() => query('SELECT * FROM ead_brands WHERE id = $1', [req.brandId]))).rows[0];
+
+    const tempPassword = genTempPassword(8);
+    const hash = await bcrypt.hash(tempPassword, 10);
+    await runWithEadSchemaRetry(() => query(
+      `UPDATE ead_students SET status='approved', approved_at=NOW(), password_hash=$1, must_change_password=true WHERE id=$2`,
+      [hash, student.id]
+    ));
+
+    const baseUrl = appBaseUrl(req);
+    setImmediate(() => {
+      withTimeout(notifyApproval(student, b, baseUrl, tempPassword), 9000, 'Notificação de aprovação')
+        .catch((err) => console.error('notifyApproval failed', err?.message || err));
+    });
+    res.json({ ok: true, temp_password: tempPassword, notify: { queued: true } });
+  } catch (e) { console.error('ba approve', e); res.status(500).json({ error: 'Erro ao aprovar' }); }
+});
+
+router.post('/brand-admin/students/:id/reject', brandAdminAuth, async (req, res) => {
+  try {
+    await ensureEadApprovalSchema();
+    const { reason } = req.body || {};
+    const r = await runWithEadSchemaRetry(() => query(
+      `UPDATE ead_students SET status='rejected', rejected_reason=$1
+        WHERE id=$2 AND brand_id=$3 RETURNING id`,
+      [reason || null, req.params.id, req.brandId]
+    ));
+    if (!r.rows.length) return res.status(404).json({ error: 'Aluno não encontrado' });
+    res.json({ ok: true });
+  } catch (e) { console.error('ba reject', e); res.status(500).json({ error: 'Erro ao rejeitar' }); }
+});
+
+
+
 
 // ---- Superadmin CRUD for brand admins (managed via internal auth)
 admin.get('/brands/:id/admins', gate('can_view_ead'), async (req, res) => {
