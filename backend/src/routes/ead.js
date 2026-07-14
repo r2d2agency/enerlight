@@ -994,21 +994,26 @@ admin.get('/brands', gate('can_view_ead'), async (req, res) => {
 
 admin.post('/brands', gate('can_manage_ead'), async (req, res) => {
   try {
-    const { slug, name, logo_url, cover_url, primary_color, accent_color, welcome_title, welcome_text, signup_fields, notify_connection_id, approval_message, active, notify_admin_phone, signup_notify_message } = req.body || {};
+    const { slug, name, logo_url, cover_url, primary_color, accent_color, welcome_title, welcome_text, signup_fields, notify_connection_id, approval_message, active, notify_admin_phone, signup_notify_message, notify_admin_recipients } = req.body || {};
     const cleanSlug = String(slug || '').trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
     if (!cleanSlug || !name) return res.status(400).json({ error: 'Slug e nome são obrigatórios' });
     const orgId = await getAdminOrgId(req.userId);
     const cleanAdminPhone = notify_admin_phone ? String(notify_admin_phone).replace(/\D/g, '') || null : null;
+    const cleanRecipients = Array.isArray(notify_admin_recipients)
+      ? notify_admin_recipients
+          .map(r => ({ name: String(r?.name || '').trim(), phone: String(r?.phone || '').replace(/\D/g, '') }))
+          .filter(r => r.phone)
+      : [];
     const r = await query(
-      `INSERT INTO ead_brands (slug, name, logo_url, cover_url, primary_color, accent_color, welcome_title, welcome_text, signup_fields, organization_id, notify_connection_id, approval_message, active, notify_admin_phone, signup_notify_message)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10,$11,$12,COALESCE($13,true),$14,$15)
+      `INSERT INTO ead_brands (slug, name, logo_url, cover_url, primary_color, accent_color, welcome_title, welcome_text, signup_fields, organization_id, notify_connection_id, approval_message, active, notify_admin_phone, signup_notify_message, notify_admin_recipients)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10,$11,$12,COALESCE($13,true),$14,$15,$16::jsonb)
        RETURNING *`,
       [cleanSlug, name, logo_url || null, cover_url || null, primary_color || '#0ea5e9', accent_color || '#0284c7',
        welcome_title || null, welcome_text || null,
        JSON.stringify(Array.isArray(signup_fields) && signup_fields.length ? signup_fields : DEFAULT_SIGNUP_FIELDS),
        orgId, notify_connection_id || null, approval_message || null,
        typeof active === 'boolean' ? active : null,
-       cleanAdminPhone, signup_notify_message || null]
+       cleanAdminPhone, signup_notify_message || null, JSON.stringify(cleanRecipients)]
     );
     res.status(201).json(r.rows[0]);
   } catch (e) {
