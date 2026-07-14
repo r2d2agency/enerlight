@@ -209,10 +209,24 @@ export default function EadBrandAdminDashboard() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="grid gap-1">
+                <Label className="text-xs">Cidade</Label>
+                <Select value={city || '__all__'} onValueChange={onCityChange}>
+                  <SelectTrigger className="h-9 w-[200px]">
+                    <SelectValue placeholder="Todas as cidades" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[300px]">
+                    <SelectItem value="__all__">Todas as cidades</SelectItem>
+                    {(data.all_cities || []).map((c: string) => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <Button size="sm" onClick={applyFilters} disabled={reloading}>
                 {reloading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Aplicar'}
               </Button>
-              {(from || to || company) && (
+              {(from || to || company || city) && (
                 <Button size="sm" variant="ghost" onClick={clearFilters} disabled={reloading}>
                   <X className="h-4 w-4 mr-1" /> Limpar
                 </Button>
