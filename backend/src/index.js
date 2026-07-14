@@ -92,30 +92,54 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Add CORS headers to EVERY response (must be absolute first)
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
-  res.header('Access-Control-Max-Age', '86400');
-  
-  // Handle preflight immediately
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
-  }
-  next();
-});
+// CORS must run before every route/middleware so OPTIONS preflight never reaches auth/routes.
+const defaultAllowedOrigins = [
+  'https://app.enerlight.com.br',
+  'https://id-preview--76095dbe-d19e-40c8-ba98-1f41e6469fab.lovable.app',
+  'http://localhost:8080',
+  'http://localhost:5173',
+];
 
-// CORS configuration - belt and suspenders
+const allowedOrigins = new Set(
+  [
+    ...defaultAllowedOrigins,
+    process.env.FRONTEND_URL,
+    process.env.APP_URL,
+    ...(process.env.CORS_ORIGINS || '').split(','),
+  ]
+    .map((origin) => origin?.trim().replace(/\/$/, ''))
+    .filter(Boolean)
+);
+
 const corsOptions = {
-  origin: '*',
+  origin(origin, callback) {
+    // Allow server-to-server tools/curl and same-origin/proxied requests with no Origin header.
+    if (!origin) return callback(null, true);
+
+    const normalizedOrigin = origin.replace(/\/$/, '');
+    if (allowedOrigins.has(normalizedOrigin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`Origem não permitida pelo CORS: ${origin}`));
+  },
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  allowedHeaders: [
+    'Origin',
+    'Accept',
+    'Content-Type',
+    'Authorization',
+    'X-Requested-With',
+    'X-Request-Id',
+  ],
+  exposedHeaders: ['X-Request-Id'],
   credentials: false,
-  optionsSuccessStatus: 200
+  maxAge: 86400,
+  optionsSuccessStatus: 204,
 };
 
 app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 
 app.use(express.json({ limit: '50mb' }));
