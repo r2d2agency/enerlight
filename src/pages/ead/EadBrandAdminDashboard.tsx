@@ -396,9 +396,10 @@ export default function EadBrandAdminDashboard() {
             <CardContent>
               <Table>
                 <TableHeader><TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Empresa / Local</TableHead>
+                  <TableHead>Instalador</TableHead>
+                  <TableHead>Empresa / Cidade</TableHead>
                   <TableHead className="text-right">Cadastro</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
                 </TableRow></TableHeader>
                 <TableBody>
                   {data.pending_students?.length ? data.pending_students.map((p: any) => (
@@ -406,19 +407,45 @@ export default function EadBrandAdminDashboard() {
                       <TableCell>
                         <div className="font-medium">{p.name}</div>
                         <div className="text-xs text-muted-foreground">{p.email}</div>
+                        {p.phone && <div className="text-xs text-muted-foreground">📱 {p.phone}</div>}
                       </TableCell>
                       <TableCell className="text-sm">
-                        {p.company || '—'}
-                        {(p.city || p.state) && <div className="text-xs text-muted-foreground">{[p.city, p.state].filter(Boolean).join(' / ')}</div>}
+                        <div className="flex items-center gap-1"><Building2 className="h-3 w-3 text-muted-foreground" />{p.company || '—'}</div>
+                        {(p.city || p.state) && (
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <MapPin className="h-3 w-3" />{[p.city, p.state].filter(Boolean).join(' / ')}
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell className="text-right text-sm">{fmtDate(p.created_at)}</TableCell>
+                      <TableCell className="text-right whitespace-nowrap">
+                        <Button
+                          size="sm"
+                          variant="default"
+                          className="h-8 mr-1"
+                          disabled={busyId === p.id}
+                          onClick={() => approve(p.id)}
+                        >
+                          {busyId === p.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Check className="h-3 w-3 mr-1" />Aprovar</>}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8"
+                          disabled={busyId === p.id}
+                          onClick={() => reject(p.id)}
+                        >
+                          <XCircle className="h-3 w-3 mr-1" />Rejeitar
+                        </Button>
+                      </TableCell>
                     </TableRow>
-                  )) : <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-6">Sem pendências</TableCell></TableRow>}
+                  )) : <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-6">Sem pendências</TableCell></TableRow>}
                 </TableBody>
               </Table>
             </CardContent>
           </Card>
         </div>
+
 
         <Card>
           <CardHeader><CardTitle>Cadastros recentes</CardTitle></CardHeader>
