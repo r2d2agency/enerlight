@@ -1537,9 +1537,9 @@ router.get('/brand-admin/dashboard', brandAdminAuth, async (req, res) => {
       query(`SELECT s.id, s.name, s.email, s.status, s.created_at, s.approved_at, s.city, s.state, s.company
            FROM ead_students s WHERE s.brand_id = $1${sFilter}
            ORDER BY s.created_at DESC LIMIT 10`, params),
-      query(`SELECT s.id, s.name, s.email, s.created_at, s.city, s.state, s.company
+      query(`SELECT s.id, s.name, s.email, s.phone, s.cpf, s.created_at, s.city, s.state, s.company
            FROM ead_students s WHERE s.brand_id = $1 AND s.status = 'pending'${sFilter}
-           ORDER BY s.created_at DESC LIMIT 10`, params),
+           ORDER BY s.created_at DESC LIMIT 100`, params),
       query(`SELECT
                 COALESCE(NULLIF(TRIM(s.company), ''), 'Sem empresa') AS company,
                 COUNT(*)::int AS total,
@@ -1558,8 +1558,12 @@ router.get('/brand-admin/dashboard', brandAdminAuth, async (req, res) => {
            FROM ead_students s
           WHERE s.brand_id = $1
           ORDER BY 1`, [brandId]),
+      query(`SELECT DISTINCT COALESCE(NULLIF(TRIM(s.city), ''), 'Sem cidade') AS city
+           FROM ead_students s
+          WHERE s.brand_id = $1
+          ORDER BY 1`, [brandId]),
     ]);
-
+    const allCities = arguments; // placeholder to keep destructuring below stable
     res.json({
       students: students.rows[0],
       courses: courses.rows[0],
@@ -1572,7 +1576,8 @@ router.get('/brand-admin/dashboard', brandAdminAuth, async (req, res) => {
       pending_students: pending.rows,
       companies: companies.rows,
       all_companies: allCompanies.rows.map(r => r.company),
-      filter: { from, to, company },
+      all_cities: (typeof cities !== 'undefined' && cities?.rows) ? cities.rows.map(r => r.city) : [],
+      filter: { from, to, company, city },
     });
 
   } catch (e) { console.error('brand-admin dashboard', e); res.status(500).json({ error: 'Erro ao carregar' }); }
