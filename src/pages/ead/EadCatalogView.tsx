@@ -77,7 +77,7 @@ function CatalogViewInner() {
   }
 
   return (
-    <EadLayout breadcrumbs={[{ label: 'Catálogos', to: link('catalogos') }, { label: cat.title }]}>
+    <>
       <div className="mb-4">
         <h1 className="text-2xl font-bold mb-1">{cat.title}</h1>
         {cat.category_name && <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">{cat.category_name}</div>}
