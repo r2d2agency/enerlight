@@ -1891,8 +1891,14 @@ router.get('/my/catalogs/:id/pdf', studentAuth, async (req, res) => {
         }
         if (!bytes) continue;
         let img;
-        try { img = await pdfDoc.embedJpg(bytes); }
-        catch { try { img = await pdfDoc.embedPng(bytes); } catch { continue; } }
+        // Normaliza para JPEG (pdf-lib não suporta webp nativamente)
+        try {
+          const jpg = await sharp(bytes, { failOn: 'none' }).rotate().jpeg({ quality: 85 }).toBuffer();
+          img = await pdfDoc.embedJpg(jpg);
+        } catch {
+          try { img = await pdfDoc.embedJpg(bytes); }
+          catch { try { img = await pdfDoc.embedPng(bytes); } catch { continue; } }
+        }
         // A4 landscape/portrait dinâmico conforme proporção
         const isLandscape = img.width >= img.height;
         const pageW = isLandscape ? 842 : 595;
