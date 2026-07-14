@@ -1457,6 +1457,7 @@ router.get('/brand-admin/dashboard', brandAdminAuth, async (req, res) => {
     const from = req.query.from ? String(req.query.from) : null;
     const to = req.query.to ? String(req.query.to) : null;
     const company = req.query.company ? String(req.query.company).trim() : null;
+    const city = req.query.city ? String(req.query.city).trim() : null;
     const dateOk = (d) => !d || /^\d{4}-\d{2}-\d{2}$/.test(d);
     if (!dateOk(from) || !dateOk(to)) return res.status(400).json({ error: 'Data inválida' });
 
@@ -1472,6 +1473,13 @@ router.get('/brand-admin/dashboard', brandAdminAuth, async (req, res) => {
       sFilter += frag;
       aFilter += frag;
     }
+    if (city) {
+      params.push(city);
+      const frag = ` AND COALESCE(NULLIF(TRIM(s.city), ''), 'Sem cidade') = $${params.length}`;
+      sFilter += frag;
+      aFilter += frag;
+    }
+    const hasFilter = !!(from || to || company || city);
 
 
     const [students, courses, certs, attempts, monthly, topCourses, topStudents, recent, pending, companies, allCompanies] = await Promise.all([
