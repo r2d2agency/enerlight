@@ -124,15 +124,13 @@ function CatalogViewInner() {
           </Card>
 
           <div className="flex flex-wrap items-center gap-2 mt-4">
-            <Button onClick={downloadCurrent} variant="secondary">
-              <Download className="h-4 w-4 mr-2" /> Baixar esta imagem
-            </Button>
             <Button onClick={downloadAllPdf} disabled={downloadingPdf}>
               {downloadingPdf ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
-              Baixar tudo em PDF
+              Baixar catálogo em PDF
             </Button>
             {cur?.title && <div className="text-sm text-muted-foreground ml-2">{cur.title}</div>}
           </div>
+
 
           {/* Miniaturas */}
           <div className="mt-4 grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
