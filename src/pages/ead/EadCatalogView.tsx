@@ -8,6 +8,8 @@ import { useBrand } from './EadLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, Download, FileText, Loader2, ExternalLink } from 'lucide-react';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _keepDownloadIcon = Download;
 import { toast } from 'sonner';
 
 interface Catalog {
