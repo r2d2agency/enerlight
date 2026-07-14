@@ -163,6 +163,6 @@ function CatalogViewInner() {
           </div>
         </>
       )}
-    </EadLayout>
+    </>
   );
 }
