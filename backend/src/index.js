@@ -111,14 +111,45 @@ const allowedOrigins = new Set(
     .filter(Boolean)
 );
 
+function resolveCorsOrigin(origin) {
+  if (!origin) return '*';
+  const normalizedOrigin = String(origin).trim().replace(/\/$/, '');
+  if (allowedOrigins.has(normalizedOrigin)) return normalizedOrigin;
+  // Production app and Lovable previews must never be blocked by preflight.
+  if (/^https:\/\/([a-z0-9-]+\.)?lovable\.app$/i.test(normalizedOrigin)) return normalizedOrigin;
+  return null;
+}
+
+// Hard preflight responder before any parser/auth/router. This prevents Easypanel/Nginx
+// fallback HTML/502 from being returned for OPTIONS requests.
+app.use((req, res, next) => {
+  const corsOrigin = resolveCorsOrigin(req.headers.origin);
+  if (corsOrigin) {
+    res.setHeader('Access-Control-Allow-Origin', corsOrigin);
+    res.setHeader('Vary', 'Origin');
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    req.headers['access-control-request-headers'] || 'Origin, Accept, Content-Type, Authorization, X-Requested-With, X-Request-Id, Cache-Control, Pragma'
+  );
+  res.setHeader('Access-Control-Expose-Headers', 'X-Request-Id');
+  res.setHeader('Access-Control-Max-Age', '86400');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
+  next();
+});
+
 const corsOptions = {
   origin(origin, callback) {
     // Allow server-to-server tools/curl and same-origin/proxied requests with no Origin header.
     if (!origin) return callback(null, true);
 
-    const normalizedOrigin = origin.replace(/\/$/, '');
-    if (allowedOrigins.has(normalizedOrigin)) {
-      return callback(null, true);
+    const normalizedOrigin = resolveCorsOrigin(origin);
+    if (normalizedOrigin) {
+      return callback(null, normalizedOrigin === '*' ? true : normalizedOrigin);
     }
 
     return callback(new Error(`Origem não permitida pelo CORS: ${origin}`));
@@ -131,6 +162,8 @@ const corsOptions = {
     'Authorization',
     'X-Requested-With',
     'X-Request-Id',
+    'Cache-Control',
+    'Pragma',
   ],
   exposedHeaders: ['X-Request-Id'],
   credentials: false,
@@ -294,9 +327,11 @@ app.use((err, req, res, next) => {
   });
   
   // Ensure CORS headers are set even on errors
-  res.header('Access-Control-Allow-Origin', '*');
+  const corsOrigin = resolveCorsOrigin(req.headers.origin) || '*';
+  res.header('Access-Control-Allow-Origin', corsOrigin);
+  res.header('Vary', 'Origin');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+  res.header('Access-Control-Allow-Headers', req.headers['access-control-request-headers'] || 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-Request-Id, Cache-Control, Pragma');
   
   res.status(err.status || 500).json({
     error: err.message || 'Internal Server Error',
