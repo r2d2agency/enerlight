@@ -248,6 +248,10 @@ export const eadBrandAdminApi = {
   rejectStudent: (id: string, reason?: string) =>
     baCall<any>(`/api/ead/brand-admin/students/${id}/reject`, { method: 'POST', body: { reason } }),
 
+  settings: () => baCall<any>('/api/ead/brand-admin/settings'),
+  updateSettings: (b: any) =>
+    baCall<any>('/api/ead/brand-admin/settings', { method: 'PATCH', body: b }),
+
 
   // Catálogos
   catalogCategories: () => baCall<any[]>('/api/ead/brand-admin/catalog-categories'),

@@ -6,12 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 import {
   Loader2, LogOut, Users, GraduationCap, Award, TrendingUp,
   UserCheck, UserX, Clock, BookOpen, Building2, Filter, X, Layers, Check, XCircle, MapPin,
+  Settings, Plus, Trash2, Save,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -37,8 +39,10 @@ export default function EadBrandAdminDashboard() {
   const nav = useNavigate();
   const [admin, setAdmin] = useState<any>(null);
   const [data, setData] = useState<any>(null);
+  const [settings, setSettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [reloading, setReloading] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [company, setCompany] = useState<string>('');
@@ -57,11 +61,56 @@ export default function EadBrandAdminDashboard() {
 
   useEffect(() => {
     if (!brandAdminToken.get()) { nav(`/marca/${slug}/admin/login`, { replace: true }); return; }
-    Promise.all([eadBrandAdminApi.me(), eadBrandAdminApi.dashboard()])
-      .then(([m, d]) => { setAdmin(m.admin); setData(d); })
+    Promise.all([eadBrandAdminApi.me(), eadBrandAdminApi.dashboard(), eadBrandAdminApi.settings()])
+      .then(([m, d, st]) => { setAdmin(m.admin); setData(d); setSettings(st); })
       .catch(() => { brandAdminToken.clear(); nav(`/marca/${slug}/admin/login`, { replace: true }); })
       .finally(() => setLoading(false));
   }, [slug, nav]);
+
+  function setRecipient(i: number, k: 'name' | 'phone' | 'email', v: string) {
+    setSettings((prev: any) => {
+      const arr = [...(prev?.notify_admin_recipients || [])];
+      arr[i] = { ...arr[i], [k]: v };
+      return { ...(prev || {}), notify_admin_recipients: arr };
+    });
+  }
+
+  function addRecipient() {
+    setSettings((prev: any) => ({
+      ...(prev || {}),
+      notify_admin_recipients: [...(prev?.notify_admin_recipients || []), { name: '', phone: '', email: '' }],
+    }));
+  }
+
+  function removeRecipient(i: number) {
+    setSettings((prev: any) => {
+      const arr = [...(prev?.notify_admin_recipients || [])];
+      arr.splice(i, 1);
+      return { ...(prev || {}), notify_admin_recipients: arr };
+    });
+  }
+
+  async function saveSettings() {
+    if (!settings) return;
+    setSavingSettings(true);
+    try {
+      const recipients = (settings.notify_admin_recipients || [])
+        .map((r: any) => ({
+          name: String(r.name || '').trim(),
+          phone: String(r.phone || '').replace(/\D/g, ''),
+          email: String(r.email || '').trim().toLowerCase(),
+        }))
+        .filter((r: any) => r.phone || r.email);
+      const r = await eadBrandAdminApi.updateSettings({
+        notify_connection_id: settings.notify_connection_id || null,
+        notify_admin_recipients: recipients,
+        signup_notify_message: settings.signup_notify_message || null,
+      });
+      setSettings((prev: any) => ({ ...(prev || {}), ...(r.settings || {}), notify_admin_recipients: recipients }));
+      toast.success('Notificações salvas');
+    } catch (e: any) { toast.error(e.message || 'Erro ao salvar notificações'); }
+    finally { setSavingSettings(false); }
+  }
 
   async function applyFilters() {
     setReloading(true);
@@ -246,6 +295,72 @@ export default function EadBrandAdminDashboard() {
             </div>
           </CardContent>
         </Card>
+
+        {settings && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between gap-3">
+              <CardTitle className="flex items-center gap-2"><Settings className="h-5 w-5" /> Notificações de novos cadastros</CardTitle>
+              <Button size="sm" onClick={saveSettings} disabled={savingSettings}>
+                {savingSettings ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Save className="h-4 w-4 mr-1" />Salvar</>}
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid md:grid-cols-[260px_1fr] gap-4">
+                <div className="space-y-2">
+                  <Label>Conexão WhatsApp</Label>
+                  <Select
+                    value={settings.notify_connection_id || '__auto__'}
+                    onValueChange={(v) => setSettings((prev: any) => ({ ...(prev || {}), notify_connection_id: v === '__auto__' ? null : v }))}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__auto__">Automática</SelectItem>
+                      {(settings.connections || []).map((c: any) => (
+                        <SelectItem key={c.id} value={c.id}>{c.instance_name || c.phone_number || c.instance_id}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Mensagem para administradores</Label>
+                  <Textarea
+                    value={settings.signup_notify_message || ''}
+                    onChange={(e) => setSettings((prev: any) => ({ ...(prev || {}), signup_notify_message: e.target.value }))}
+                    placeholder="Use {nome}, {email}, {telefone}, {empresa}, {cidade}, {uf}, {marca}, {destinatario}"
+                    rows={3}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <Label>Destinatários fixos</Label>
+                  <Button size="sm" variant="outline" onClick={addRecipient}><Plus className="h-4 w-4 mr-1" />Adicionar</Button>
+                </div>
+                {(settings.notify_admin_recipients || []).length === 0 && (
+                  <div className="text-sm text-muted-foreground border rounded-md p-3">Nenhum destinatário configurado.</div>
+                )}
+                {(settings.notify_admin_recipients || []).map((r: any, i: number) => (
+                  <div key={i} className="grid md:grid-cols-[1fr_170px_1fr_auto] gap-2 items-end">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Nome</Label>
+                      <Input value={r.name || ''} onChange={(e) => setRecipient(i, 'name', e.target.value)} placeholder="Nome" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">WhatsApp</Label>
+                      <Input value={r.phone || ''} onChange={(e) => setRecipient(i, 'phone', e.target.value)} placeholder="5599999999999" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">E-mail</Label>
+                      <Input type="email" value={r.email || ''} onChange={(e) => setRecipient(i, 'email', e.target.value)} placeholder="nome@empresa.com" />
+                    </div>
+                    <Button size="icon" variant="ghost" onClick={() => removeRecipient(i)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* KPIs */}
 

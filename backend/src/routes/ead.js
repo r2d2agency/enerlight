@@ -1002,7 +1002,19 @@ async function getAdminOrgId(userId) {
   return r.rows[0]?.organization_id || null;
 }
 
+function sanitizeNotifyRecipients(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map(r => ({
+      name: String(r?.name || '').trim(),
+      phone: String(r?.phone || '').replace(/\D/g, ''),
+      email: String(r?.email || '').trim().toLowerCase(),
+    }))
+    .filter(r => r.phone || r.email);
+}
+
 admin.get('/brands', gate('can_view_ead'), async (req, res) => {
+  await ensureEadApprovalSchema();
   const r = await query(
     `SELECT b.*, c.instance_name AS connection_name,
        (SELECT COUNT(*)::int FROM ead_students s WHERE s.brand_id = b.id) AS total_students,
@@ -1015,16 +1027,13 @@ admin.get('/brands', gate('can_view_ead'), async (req, res) => {
 
 admin.post('/brands', gate('can_manage_ead'), async (req, res) => {
   try {
+    await ensureEadApprovalSchema();
     const { slug, name, logo_url, cover_url, primary_color, accent_color, welcome_title, welcome_text, signup_fields, notify_connection_id, approval_message, active, notify_admin_phone, signup_notify_message, notify_admin_recipients } = req.body || {};
     const cleanSlug = String(slug || '').trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
     if (!cleanSlug || !name) return res.status(400).json({ error: 'Slug e nome são obrigatórios' });
     const orgId = await getAdminOrgId(req.userId);
     const cleanAdminPhone = notify_admin_phone ? String(notify_admin_phone).replace(/\D/g, '') || null : null;
-    const cleanRecipients = Array.isArray(notify_admin_recipients)
-      ? notify_admin_recipients
-          .map(r => ({ name: String(r?.name || '').trim(), phone: String(r?.phone || '').replace(/\D/g, '') }))
-          .filter(r => r.phone)
-      : [];
+    const cleanRecipients = sanitizeNotifyRecipients(notify_admin_recipients);
     const r = await query(
       `INSERT INTO ead_brands (slug, name, logo_url, cover_url, primary_color, accent_color, welcome_title, welcome_text, signup_fields, organization_id, notify_connection_id, approval_message, active, notify_admin_phone, signup_notify_message, notify_admin_recipients)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10,$11,$12,COALESCE($13,true),$14,$15,$16::jsonb)
@@ -1045,15 +1054,14 @@ admin.post('/brands', gate('can_manage_ead'), async (req, res) => {
 
 admin.patch('/brands/:id', gate('can_manage_ead'), async (req, res) => {
   try {
+    await ensureEadApprovalSchema();
     const { slug, name, logo_url, cover_url, primary_color, accent_color, welcome_title, welcome_text, signup_fields, notify_connection_id, approval_message, active, notify_admin_phone, signup_notify_message, notify_admin_recipients } = req.body || {};
     const cleanSlug = slug !== undefined ? String(slug).trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') : null;
     const cleanAdminPhone = notify_admin_phone !== undefined
       ? (notify_admin_phone ? String(notify_admin_phone).replace(/\D/g, '') || null : null)
       : undefined;
     const cleanRecipients = Array.isArray(notify_admin_recipients)
-      ? notify_admin_recipients
-          .map(r => ({ name: String(r?.name || '').trim(), phone: String(r?.phone || '').replace(/\D/g, '') }))
-          .filter(r => r.phone)
+      ? sanitizeNotifyRecipients(notify_admin_recipients)
       : undefined;
     const r = await query(
       `UPDATE ead_brands SET
@@ -1511,6 +1519,74 @@ router.get('/brand-admin/me', brandAdminAuth, async (req, res) => {
       brand: { id: a.brand_id, slug: a.slug, name: a.brand_name, logo_url: a.logo_url, primary_color: a.primary_color, accent_color: a.accent_color },
     },
   });
+});
+
+router.get('/brand-admin/settings', brandAdminAuth, async (req, res) => {
+  try {
+    await ensureEadApprovalSchema();
+    const brand = await runWithEadSchemaRetry(() => query(
+      `SELECT id, name, organization_id, notify_connection_id, notify_admin_phone, signup_notify_message, notify_admin_recipients
+         FROM ead_brands WHERE id = $1 LIMIT 1`,
+      [req.brandId]
+    ));
+    if (!brand.rows.length) return res.status(404).json({ error: 'Marca não encontrada' });
+    const b = brand.rows[0];
+    const recipients = sanitizeNotifyRecipients(b.notify_admin_recipients);
+    if (!recipients.length && b.notify_admin_phone) {
+      recipients.push({ name: '', phone: String(b.notify_admin_phone).replace(/\D/g, ''), email: '' });
+    }
+    let connections = [];
+    if (b.organization_id) {
+      const c = await query(
+        `SELECT id, instance_name, instance_id, phone_number, provider, status
+           FROM connections WHERE organization_id = $1
+          ORDER BY CASE WHEN status = 'connected' THEN 0 ELSE 1 END, instance_name NULLS LAST, created_at`,
+        [b.organization_id]
+      );
+      connections = c.rows;
+    }
+    res.json({
+      notify_connection_id: b.notify_connection_id,
+      notify_admin_phone: b.notify_admin_phone,
+      notify_admin_recipients: recipients,
+      signup_notify_message: b.signup_notify_message,
+      connections,
+    });
+  } catch (e) { console.error('brand-admin settings', e); res.status(500).json({ error: 'Erro ao carregar configurações' }); }
+});
+
+router.patch('/brand-admin/settings', brandAdminAuth, async (req, res) => {
+  try {
+    await ensureEadApprovalSchema();
+    const { notify_connection_id, notify_admin_recipients, signup_notify_message } = req.body || {};
+    const brand = await runWithEadSchemaRetry(() => query(
+      `SELECT id, organization_id FROM ead_brands WHERE id = $1 LIMIT 1`,
+      [req.brandId]
+    ));
+    if (!brand.rows.length) return res.status(404).json({ error: 'Marca não encontrada' });
+    const orgId = brand.rows[0].organization_id;
+
+    const connectionId = notify_connection_id || null;
+    if (connectionId) {
+      const c = await query('SELECT id FROM connections WHERE id = $1 AND organization_id = $2 LIMIT 1', [connectionId, orgId]);
+      if (!c.rows.length) return res.status(400).json({ error: 'Conexão WhatsApp inválida para esta marca' });
+    }
+
+    const recipients = sanitizeNotifyRecipients(notify_admin_recipients);
+    const firstPhone = recipients.find(r => r.phone)?.phone || null;
+    const r = await runWithEadSchemaRetry(() => query(
+      `UPDATE ead_brands SET
+         notify_connection_id = $1,
+         notify_admin_phone = $2,
+         notify_admin_recipients = $3::jsonb,
+         signup_notify_message = $4,
+         updated_at = NOW()
+       WHERE id = $5
+       RETURNING notify_connection_id, notify_admin_phone, notify_admin_recipients, signup_notify_message`,
+      [connectionId, firstPhone, JSON.stringify(recipients), signup_notify_message || null, req.brandId]
+    ));
+    res.json({ ok: true, settings: r.rows[0] });
+  } catch (e) { console.error('brand-admin save settings', e); res.status(500).json({ error: 'Erro ao salvar configurações' }); }
 });
 
 router.get('/brand-admin/dashboard', brandAdminAuth, async (req, res) => {
