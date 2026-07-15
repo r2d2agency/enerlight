@@ -96,10 +96,15 @@ export default function EadBrandAdminDashboard() {
   async function approve(id: string) {
     setBusyId(id);
     try {
-      await eadBrandAdminApi.approveStudent(id);
-      toast.success('Cadastro aprovado! Senha temporária enviada por WhatsApp/e-mail.');
+      const r: any = await eadBrandAdminApi.approveStudent(id);
+      const w = r?.notify?.whatsapp;
+      const em = r?.notify?.email;
+      toast.success(`Aprovado! WhatsApp: ${w?.success ? 'enviado' : (w?.error || 'falhou')} • E-mail: ${em?.success ? 'enviado' : (em?.error || 'falhou')}`);
       await loadDashboard(from, to, company, city);
-    } catch (e: any) { toast.error(e.message || 'Erro ao aprovar'); }
+    } catch (e: any) {
+      if (e?.status === 400) { toast.info(e.message || 'Já aprovado'); await loadDashboard(from, to, company, city); }
+      else toast.error(e.message || 'Erro ao aprovar');
+    }
     finally { setBusyId(null); }
   }
   async function reject(id: string) {
