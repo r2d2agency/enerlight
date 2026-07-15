@@ -1020,11 +1020,7 @@ admin.post('/brands', gate('can_manage_ead'), async (req, res) => {
     if (!cleanSlug || !name) return res.status(400).json({ error: 'Slug e nome são obrigatórios' });
     const orgId = await getAdminOrgId(req.userId);
     const cleanAdminPhone = notify_admin_phone ? String(notify_admin_phone).replace(/\D/g, '') || null : null;
-    const cleanRecipients = Array.isArray(notify_admin_recipients)
-      ? notify_admin_recipients
-          .map(r => ({ name: String(r?.name || '').trim(), phone: String(r?.phone || '').replace(/\D/g, '') }))
-          .filter(r => r.phone)
-      : [];
+    const cleanRecipients = sanitizeNotifyRecipients(notify_admin_recipients);
     const r = await query(
       `INSERT INTO ead_brands (slug, name, logo_url, cover_url, primary_color, accent_color, welcome_title, welcome_text, signup_fields, organization_id, notify_connection_id, approval_message, active, notify_admin_phone, signup_notify_message, notify_admin_recipients)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10,$11,$12,COALESCE($13,true),$14,$15,$16::jsonb)
@@ -1051,9 +1047,7 @@ admin.patch('/brands/:id', gate('can_manage_ead'), async (req, res) => {
       ? (notify_admin_phone ? String(notify_admin_phone).replace(/\D/g, '') || null : null)
       : undefined;
     const cleanRecipients = Array.isArray(notify_admin_recipients)
-      ? notify_admin_recipients
-          .map(r => ({ name: String(r?.name || '').trim(), phone: String(r?.phone || '').replace(/\D/g, '') }))
-          .filter(r => r.phone)
+      ? sanitizeNotifyRecipients(notify_admin_recipients)
       : undefined;
     const r = await query(
       `UPDATE ead_brands SET
