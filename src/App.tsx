@@ -96,6 +96,9 @@ const MeuDia = lazyRetry(() => import("./pages/MeuDia"));
 const CartoesNFC = lazyRetry(() => import("./pages/CartoesNFC"));
 const PublicNfcCard = lazyRetry(() => import("./pages/PublicNfcCard"));
 const Devolucoes = lazyRetry(() => import("./pages/Devolucoes"));
+const ComissoesValidacao = lazyRetry(() => import("./pages/ComissoesValidacao"));
+const ComissoesMinhas = lazyRetry(() => import("./pages/ComissoesMinhas"));
+const ComissoesRegras = lazyRetry(() => import("./pages/ComissoesRegras"));
 const EadLogin = lazyRetry(() => import("./pages/ead/EadLogin"));
 const EadSignup = lazyRetry(() => import("./pages/ead/EadSignup"));
 const EadHome = lazyRetry(() => import("./pages/ead/EadHome"));
@@ -189,6 +192,10 @@ const App = () => (
               <Route path="/crm/agenda" element={<ProtectedRoute><CRMAgenda /></ProtectedRoute>} />
               <Route path="/crm/configuracoes" element={<ProtectedRoute><CRMConfiguracoes /></ProtectedRoute>} />
               <Route path="/crm/relatorios" element={<ProtectedRoute><CRMRelatorios /></ProtectedRoute>} />
+              <Route path="/comissoes/validacao" element={<ProtectedRoute><ComissoesValidacao /></ProtectedRoute>} />
+              <Route path="/comissoes/minhas" element={<ProtectedRoute><ComissoesMinhas /></ProtectedRoute>} />
+              <Route path="/comissoes/regras" element={<ProtectedRoute><ComissoesRegras /></ProtectedRoute>} />
+
               <Route path="/crm/representantes" element={<ProtectedRoute><CRMRepresentantes /></ProtectedRoute>} />
               <Route path="/crm/representantes-hub" element={<ProtectedRoute><RepresentativesHub /></ProtectedRoute>} />
               <Route path="/supervisor-ia" element={<ProtectedRoute><SupervisorIA /></ProtectedRoute>} />
