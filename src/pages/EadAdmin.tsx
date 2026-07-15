@@ -728,8 +728,17 @@ function StudentsTab({ students, onReload }: { students: any[]; onReload: () => 
 
   async function approve(id: string) {
     setSavingId(id);
-    try { await eadAdminApi.approveStudent(id); toast.success('Instalador aprovado'); onReload(); }
-    catch (e: any) { toast.error(e.message || 'Erro ao aprovar'); }
+    try {
+      const r: any = await eadAdminApi.approveStudent(id);
+      const w = r?.notify?.whatsapp;
+      const em = r?.notify?.email;
+      toast.success(`Aprovado! WhatsApp: ${w?.success ? 'enviado' : (w?.error || 'falhou')} • E-mail: ${em?.success ? 'enviado' : (em?.error || 'falhou')}`);
+      onReload();
+    }
+    catch (e: any) {
+      if (e?.status === 400) { toast.info(e.message || 'Já aprovado'); onReload(); }
+      else toast.error(e.message || 'Erro ao aprovar');
+    }
     finally { setSavingId(null); }
   }
   async function reject(id: string) {
