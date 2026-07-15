@@ -1290,8 +1290,12 @@ function BrandEditor({ brand, onClose }: { brand: any; onClose: () => void }) {
     setSaving(true);
     try {
       const recipients = (data.notify_admin_recipients || [])
-        .map((r: any) => ({ name: String(r.name || '').trim(), phone: String(r.phone || '').replace(/\D/g, '') }))
-        .filter((r: any) => r.phone);
+        .map((r: any) => ({
+          name: String(r.name || '').trim(),
+          phone: String(r.phone || '').replace(/\D/g, ''),
+          email: String(r.email || '').trim().toLowerCase(),
+        }))
+        .filter((r: any) => r.phone || r.email);
       const body = {
         slug: data.slug, name: data.name, logo_url: data.logo_url, cover_url: data.cover_url,
         primary_color: data.primary_color, accent_color: data.accent_color,
