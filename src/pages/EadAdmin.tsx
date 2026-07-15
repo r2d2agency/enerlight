@@ -1395,11 +1395,11 @@ function BrandEditor({ brand, onClose }: { brand: any; onClose: () => void }) {
                 </Button>
               </div>
               {(data.notify_admin_recipients || []).length === 0 && (
-                <p className="text-xs text-muted-foreground">Nenhum destinatário. Adicione pelo menos um nome + número para receber avisos por WhatsApp.</p>
+                <p className="text-xs text-muted-foreground">Nenhum destinatário. Adicione nome + WhatsApp e/ou e-mail para receber avisos de novos cadastros.</p>
               )}
               {(data.notify_admin_recipients || []).map((r: any, i: number) => (
                 <div key={i} className="grid grid-cols-12 gap-2 items-end border p-2 rounded">
-                  <div className="col-span-5">
+                  <div className="col-span-3">
                     <Label className="text-xs">Nome</Label>
                     <Input
                       value={r.name || ''}
@@ -1407,12 +1407,21 @@ function BrandEditor({ brand, onClose }: { brand: any; onClose: () => void }) {
                       placeholder="Ex.: João da Silva"
                     />
                   </div>
-                  <div className="col-span-6">
+                  <div className="col-span-4">
                     <Label className="text-xs">WhatsApp</Label>
                     <Input
                       value={r.phone || ''}
                       onChange={e => setRecipient(i, 'phone', e.target.value)}
-                      placeholder="5511999999999 (com DDI e DDD)"
+                      placeholder="5511999999999"
+                    />
+                  </div>
+                  <div className="col-span-4">
+                    <Label className="text-xs">E-mail</Label>
+                    <Input
+                      type="email"
+                      value={r.email || ''}
+                      onChange={e => setRecipient(i, 'email', e.target.value)}
+                      placeholder="joao@empresa.com"
                     />
                   </div>
                   <div className="col-span-1 flex items-center pb-1">
@@ -1422,7 +1431,7 @@ function BrandEditor({ brand, onClose }: { brand: any; onClose: () => void }) {
                   </div>
                 </div>
               ))}
-              <p className="text-xs text-muted-foreground">Cada destinatário receberá um WhatsApp com os dados do novo cadastro. Use a variável <code>{'{destinatario}'}</code> na mensagem para incluir o nome de quem receberá.</p>
+              <p className="text-xs text-muted-foreground">Cada destinatário recebe aviso de novo cadastro por WhatsApp e/ou e-mail (preencha ao menos um). Use <code>{'{destinatario}'}</code> na mensagem para incluir o nome.</p>
             </div>
             <div>
               <Label>Mensagem de novo cadastro</Label>
