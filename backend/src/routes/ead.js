@@ -1002,6 +1002,17 @@ async function getAdminOrgId(userId) {
   return r.rows[0]?.organization_id || null;
 }
 
+function sanitizeNotifyRecipients(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map(r => ({
+      name: String(r?.name || '').trim(),
+      phone: String(r?.phone || '').replace(/\D/g, ''),
+      email: String(r?.email || '').trim().toLowerCase(),
+    }))
+    .filter(r => r.phone || r.email);
+}
+
 admin.get('/brands', gate('can_view_ead'), async (req, res) => {
   const r = await query(
     `SELECT b.*, c.instance_name AS connection_name,
