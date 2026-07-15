@@ -1612,23 +1612,28 @@ router.post('/brand-admin/students/:id/approve', brandAdminAuth, async (req, res
     ));
     if (!s.rows.length) return res.status(404).json({ error: 'Aluno não encontrado' });
     const student = s.rows[0];
-    if (student.status === 'approved') return res.status(400).json({ error: 'Já aprovado' });
+    if (student.status === 'approved') return res.status(400).json({ error: 'Já aprovado', already: true });
     const b = (await runWithEadSchemaRetry(() => query('SELECT * FROM ead_brands WHERE id = $1', [req.brandId]))).rows[0];
 
     const tempPassword = genTempPassword(8);
     const hash = await bcrypt.hash(tempPassword, 10);
-    await runWithEadSchemaRetry(() => query(
-      `UPDATE ead_students SET status='approved', approved_at=NOW(), password_hash=$1, must_change_password=true WHERE id=$2`,
+    const upd = await runWithEadSchemaRetry(() => query(
+      `UPDATE ead_students SET status='approved', approved_at=NOW(), password_hash=$1, must_change_password=true WHERE id=$2
+       RETURNING id, status, approved_at`,
       [hash, student.id]
     ));
 
     const baseUrl = appBaseUrl(req);
-    setImmediate(() => {
-      withTimeout(notifyApproval(student, b, baseUrl, tempPassword), 9000, 'Notificação de aprovação')
-        .catch((err) => console.error('notifyApproval failed', err?.message || err));
-    });
-    res.json({ ok: true, temp_password: tempPassword, notify: { queued: true } });
-  } catch (e) { console.error('ba approve', e); res.status(500).json({ error: 'Erro ao aprovar' }); }
+    const notify = await withTimeout(
+      notifyApproval(student, b, baseUrl, tempPassword),
+      9000,
+      'Notificação de aprovação'
+    ).catch((err) => ({
+      whatsapp: { success: false, error: err?.message || 'timeout' },
+      email: { success: false, error: err?.message || 'timeout' },
+    }));
+    res.json({ ok: true, temp_password: tempPassword, student: upd.rows[0], notify });
+  } catch (e) { console.error('ba approve', e); res.status(500).json({ error: e?.message || 'Erro ao aprovar' }); }
 });
 
 router.post('/brand-admin/students/:id/reject', brandAdminAuth, async (req, res) => {
