@@ -1137,14 +1137,16 @@ async function notifyAdminNewSignup(brand, student) {
     if (Array.isArray(brand?.notify_admin_recipients)) {
       for (const r of brand.notify_admin_recipients) {
         const phone = String(r?.phone || '').replace(/\D/g, '');
-        if (phone) recipientList.push({ name: String(r?.name || '').trim(), phone });
+        const email = String(r?.email || '').trim().toLowerCase();
+        if (phone || email) recipientList.push({ name: String(r?.name || '').trim(), phone, email });
       }
     }
     if (!recipientList.length && brand?.notify_admin_phone) {
-      recipientList.push({ name: '', phone: String(brand.notify_admin_phone).replace(/\D/g, '') });
+      recipientList.push({ name: '', phone: String(brand.notify_admin_phone).replace(/\D/g, ''), email: '' });
     }
     if (!recipientList.length) return;
 
+    // WhatsApp connection
     let conn = null;
     if (brand?.notify_connection_id) {
       const c = await query('SELECT * FROM connections WHERE id = $1', [brand.notify_connection_id]);
@@ -1158,7 +1160,33 @@ async function notifyAdminNewSignup(brand, student) {
       );
       conn = c.rows[0] || null;
     }
-    if (!conn) { console.warn('[EAD notifyAdminNewSignup] sem conexão WhatsApp'); return; }
+
+    // SMTP (para e-mails)
+    let transporter = null;
+    let smtpFrom = null;
+    if (brand?.organization_id) {
+      try {
+        const cfg = await query('SELECT * FROM email_smtp_configs WHERE organization_id = $1 LIMIT 1', [brand.organization_id]);
+        const smtp = cfg.rows[0];
+        if (smtp) {
+          const ENC = process.env.EMAIL_ENCRYPTION_KEY || 'whatsale-email-key-32chars!!';
+          const [ivHex, enc] = String(smtp.password_encrypted).split(':');
+          const iv = Buffer.from(ivHex, 'hex');
+          const key = crypto.scryptSync(ENC, 'salt', 32);
+          const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+          let pass = decipher.update(enc, 'hex', 'utf8'); pass += decipher.final('utf8');
+          transporter = nodemailer.createTransport({
+            host: smtp.host, port: smtp.port, secure: smtp.secure,
+            auth: { user: smtp.username, pass },
+            tls: { rejectUnauthorized: false },
+            connectionTimeout: 8000, greetingTimeout: 8000, socketTimeout: 8000,
+          });
+          smtpFrom = `"${smtp.from_name || brand?.name || 'EAD'}" <${smtp.from_email}>`;
+        }
+      } catch (e) {
+        console.error('[EAD notifyAdminNewSignup] smtp load error', e?.message || e);
+      }
+    }
 
     const defaultTpl = `🔔 *Novo cadastro aguardando aprovação*\n\n{saudacao}👤 {nome}\n📧 {email}\n📱 {telefone}\n🏢 {empresa}\n📍 {cidade}/{uf}\n\nÁrea: *{marca}*\nAcesse o painel para aprovar.`;
     const tpl = brand?.signup_notify_message || defaultTpl;
@@ -1173,11 +1201,43 @@ async function notifyAdminNewSignup(brand, student) {
         saudacao: rec.name ? `Olá ${rec.name}!\n\n` : '',
       };
       const message = tpl.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? '');
-      try {
-        const r = await sendWhatsapp(conn, rec.phone, message, 'text');
-        console.log('[EAD notifyAdminNewSignup]', { brand: brand.slug, to: rec.phone, r });
-      } catch (err) {
-        console.error('[EAD notifyAdminNewSignup] send error', rec.phone, err?.message || err);
+
+      // WhatsApp
+      if (rec.phone && conn) {
+        try {
+          const r = await sendWhatsapp(conn, rec.phone, message, 'text');
+          console.log('[EAD notifyAdminNewSignup] wa', { brand: brand.slug, to: rec.phone, r });
+        } catch (err) {
+          console.error('[EAD notifyAdminNewSignup] wa error', rec.phone, err?.message || err);
+        }
+      }
+
+      // Email
+      if (rec.email && transporter) {
+        try {
+          await transporter.sendMail({
+            from: smtpFrom,
+            to: rec.email,
+            subject: `Novo cadastro aguardando aprovação — ${brand?.name || 'EAD'}`,
+            html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:24px;border:1px solid #eee;border-radius:8px">
+              ${brand?.logo_url ? `<div style="text-align:center;margin-bottom:16px"><img src="${brand.logo_url}" alt="${brand.name}" style="max-height:80px"/></div>` : ''}
+              <h2 style="color:${brand?.primary_color || '#0ea5e9'}">Novo cadastro aguardando aprovação</h2>
+              ${rec.name ? `<p>Olá <b>${rec.name}</b>,</p>` : ''}
+              <p>Um novo instalador se cadastrou na área <b>${brand?.name || ''}</b>:</p>
+              <ul style="line-height:1.7">
+                <li><b>Nome:</b> ${student.name || '-'}</li>
+                <li><b>E-mail:</b> ${student.email || '-'}</li>
+                <li><b>WhatsApp:</b> ${student.phone || '-'}</li>
+                <li><b>Empresa:</b> ${student.company || '-'}</li>
+                <li><b>Cidade/UF:</b> ${student.city || '-'}/${student.state || '-'}</li>
+              </ul>
+              <p style="color:#666;font-size:13px;margin-top:16px">Acesse o painel administrativo para aprovar ou rejeitar este cadastro.</p>
+            </div>`,
+          });
+          console.log('[EAD notifyAdminNewSignup] email ok', { to: rec.email });
+        } catch (err) {
+          console.error('[EAD notifyAdminNewSignup] email error', rec.email, err?.message || err);
+        }
       }
     }
   } catch (e) {
