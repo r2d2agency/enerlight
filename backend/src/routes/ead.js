@@ -22,10 +22,10 @@ const DEFAULT_SIGNUP_FIELDS = [
   { key: 'state', label: 'Estado', type: 'uf', required: false },
 ];
 
-function genTempPassword(len = 8) {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
-  let s = '';
-  for (let i = 0; i < len; i++) s += chars[Math.floor(Math.random() * chars.length)];
+function genTempPassword(digits = 6) {
+  // Formato: "ener" + N dígitos aleatórios (ex: ener483920)
+  let s = 'ener';
+  for (let i = 0; i < digits; i++) s += Math.floor(Math.random() * 10);
   return s;
 }
 
