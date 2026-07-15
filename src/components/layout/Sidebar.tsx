@@ -53,7 +53,6 @@ import {
   RotateCcw,
   GraduationCap,
   ShieldCheck,
-  Wallet as WalletIcon,
 } from "lucide-react";
 
 import { API_URL, getAuthToken } from "@/lib/api";
