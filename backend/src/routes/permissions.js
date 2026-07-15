@@ -23,6 +23,7 @@ const PERMISSION_COLUMNS = [
   'can_delete_deals', 'can_delete_projects', 'can_delete_tasks', 'can_delete_homologation', 'can_delete_licitacao',
   'can_edit_logistics', 'can_delete_logistics',
   'can_view_ead', 'can_manage_ead',
+  'can_validate_billing', 'can_view_commission', 'can_manage_commission_rules',
 ];
 
 // Default permissions for each role
