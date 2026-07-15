@@ -1782,6 +1782,11 @@ router.post('/deals/:id/notes', async (req, res) => {
        VALUES ($1, $2, $3, 'note', $4) RETURNING *`,
       [req.params.id, req.userId, userName, String(content).trim()]
     );
+    // Reset inactivity counter when a new note/history entry is added
+    await query(
+      `UPDATE crm_deals SET last_activity_at = NOW(), updated_at = NOW() WHERE id = $1 AND organization_id = $2`,
+      [req.params.id, org.organization_id]
+    );
     res.json({ ...result.rows[0], user_name: userName });
   } catch (error) {
     console.error('Error adding deal note:', error);
