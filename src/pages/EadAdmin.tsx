@@ -1269,7 +1269,7 @@ function BrandEditor({ brand, onClose }: { brand: any; onClose: () => void }) {
   function addField() { set('signup_fields', [...(data.signup_fields || []), { key: `extra_${Date.now()}`, label: 'Novo campo', type: 'text', required: false }]); }
   function removeField(i: number) { const arr = [...data.signup_fields]; arr.splice(i, 1); set('signup_fields', arr); }
 
-  function setRecipient(i: number, k: 'name' | 'phone', v: string) {
+  function setRecipient(i: number, k: 'name' | 'phone' | 'email', v: string) {
     setData((d: any) => {
       const arr = [...(d.notify_admin_recipients || [])];
       arr[i] = { ...arr[i], [k]: v };
@@ -1277,7 +1277,7 @@ function BrandEditor({ brand, onClose }: { brand: any; onClose: () => void }) {
     });
   }
   function addRecipient() {
-    set('notify_admin_recipients', [...(data.notify_admin_recipients || []), { name: '', phone: '' }]);
+    set('notify_admin_recipients', [...(data.notify_admin_recipients || []), { name: '', phone: '', email: '' }]);
   }
   function removeRecipient(i: number) {
     const arr = [...(data.notify_admin_recipients || [])];
@@ -1290,8 +1290,12 @@ function BrandEditor({ brand, onClose }: { brand: any; onClose: () => void }) {
     setSaving(true);
     try {
       const recipients = (data.notify_admin_recipients || [])
-        .map((r: any) => ({ name: String(r.name || '').trim(), phone: String(r.phone || '').replace(/\D/g, '') }))
-        .filter((r: any) => r.phone);
+        .map((r: any) => ({
+          name: String(r.name || '').trim(),
+          phone: String(r.phone || '').replace(/\D/g, ''),
+          email: String(r.email || '').trim().toLowerCase(),
+        }))
+        .filter((r: any) => r.phone || r.email);
       const body = {
         slug: data.slug, name: data.name, logo_url: data.logo_url, cover_url: data.cover_url,
         primary_color: data.primary_color, accent_color: data.accent_color,
@@ -1391,11 +1395,11 @@ function BrandEditor({ brand, onClose }: { brand: any; onClose: () => void }) {
                 </Button>
               </div>
               {(data.notify_admin_recipients || []).length === 0 && (
-                <p className="text-xs text-muted-foreground">Nenhum destinatário. Adicione pelo menos um nome + número para receber avisos por WhatsApp.</p>
+                <p className="text-xs text-muted-foreground">Nenhum destinatário. Adicione nome + WhatsApp e/ou e-mail para receber avisos de novos cadastros.</p>
               )}
               {(data.notify_admin_recipients || []).map((r: any, i: number) => (
                 <div key={i} className="grid grid-cols-12 gap-2 items-end border p-2 rounded">
-                  <div className="col-span-5">
+                  <div className="col-span-3">
                     <Label className="text-xs">Nome</Label>
                     <Input
                       value={r.name || ''}
@@ -1403,12 +1407,21 @@ function BrandEditor({ brand, onClose }: { brand: any; onClose: () => void }) {
                       placeholder="Ex.: João da Silva"
                     />
                   </div>
-                  <div className="col-span-6">
+                  <div className="col-span-4">
                     <Label className="text-xs">WhatsApp</Label>
                     <Input
                       value={r.phone || ''}
                       onChange={e => setRecipient(i, 'phone', e.target.value)}
-                      placeholder="5511999999999 (com DDI e DDD)"
+                      placeholder="5511999999999"
+                    />
+                  </div>
+                  <div className="col-span-4">
+                    <Label className="text-xs">E-mail</Label>
+                    <Input
+                      type="email"
+                      value={r.email || ''}
+                      onChange={e => setRecipient(i, 'email', e.target.value)}
+                      placeholder="joao@empresa.com"
                     />
                   </div>
                   <div className="col-span-1 flex items-center pb-1">
@@ -1418,7 +1431,7 @@ function BrandEditor({ brand, onClose }: { brand: any; onClose: () => void }) {
                   </div>
                 </div>
               ))}
-              <p className="text-xs text-muted-foreground">Cada destinatário receberá um WhatsApp com os dados do novo cadastro. Use a variável <code>{'{destinatario}'}</code> na mensagem para incluir o nome de quem receberá.</p>
+              <p className="text-xs text-muted-foreground">Cada destinatário recebe aviso de novo cadastro por WhatsApp e/ou e-mail (preencha ao menos um). Use <code>{'{destinatario}'}</code> na mensagem para incluir o nome.</p>
             </div>
             <div>
               <Label>Mensagem de novo cadastro</Label>
