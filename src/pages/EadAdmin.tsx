@@ -1269,7 +1269,7 @@ function BrandEditor({ brand, onClose }: { brand: any; onClose: () => void }) {
   function addField() { set('signup_fields', [...(data.signup_fields || []), { key: `extra_${Date.now()}`, label: 'Novo campo', type: 'text', required: false }]); }
   function removeField(i: number) { const arr = [...data.signup_fields]; arr.splice(i, 1); set('signup_fields', arr); }
 
-  function setRecipient(i: number, k: 'name' | 'phone', v: string) {
+  function setRecipient(i: number, k: 'name' | 'phone' | 'email', v: string) {
     setData((d: any) => {
       const arr = [...(d.notify_admin_recipients || [])];
       arr[i] = { ...arr[i], [k]: v };
@@ -1277,7 +1277,7 @@ function BrandEditor({ brand, onClose }: { brand: any; onClose: () => void }) {
     });
   }
   function addRecipient() {
-    set('notify_admin_recipients', [...(data.notify_admin_recipients || []), { name: '', phone: '' }]);
+    set('notify_admin_recipients', [...(data.notify_admin_recipients || []), { name: '', phone: '', email: '' }]);
   }
   function removeRecipient(i: number) {
     const arr = [...(data.notify_admin_recipients || [])];
