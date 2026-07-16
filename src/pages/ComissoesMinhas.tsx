@@ -1,6 +1,13 @@
 import { useState, useMemo } from "react";
-import { format } from "date-fns";
+import { format, isValid } from "date-fns";
 import { ptBR } from "date-fns/locale";
+
+const safeFormat = (value: any, pattern: string) => {
+  if (!value) return "—";
+  const s = String(value);
+  const d = s.length <= 10 ? new Date(s + "T12:00:00") : new Date(s);
+  return isValid(d) ? format(d, pattern, { locale: ptBR }) : "—";
+};
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
@@ -178,7 +185,7 @@ export default function ComissoesMinhas() {
             <TableBody>
               {(data?.daily || []).map((d: any) => (
                 <TableRow key={d.day}>
-                  <TableCell>{format(new Date(d.day + "T12:00:00"), "dd/MM (EEE)", { locale: ptBR })}</TableCell>
+                  <TableCell>{safeFormat(d.day, "dd/MM (EEE)")}</TableCell>
                   <TableCell className="text-right">{d.count}</TableCell>
                   <TableCell className="text-right font-medium">{fmt(d.value)}</TableCell>
                 </TableRow>
@@ -207,7 +214,7 @@ export default function ComissoesMinhas() {
             <TableBody>
               {(data?.details || []).map((r: any) => (
                 <TableRow key={r.id} className={r.is_refund ? "bg-red-50/40 dark:bg-red-950/10" : ""}>
-                  <TableCell className="text-sm">{format(new Date(r.billing_date + "T12:00:00"), "dd/MM", { locale: ptBR })}</TableCell>
+                  <TableCell className="text-sm">{safeFormat(r.billing_date, "dd/MM")}</TableCell>
                   <TableCell>
                     <div className="text-sm">{r.client_name}</div>
                     <div className="text-xs text-muted-foreground">#{r.order_number}</div>
