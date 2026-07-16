@@ -197,19 +197,37 @@ export default function ComissoesValidacao() {
       ) : (
         <div className="space-y-6">
           {groupedByDay.map(([day, list]) => {
-            const dayTotal = list.reduce((s, r) => s + Number(r.adjusted_value ?? r.order_value), 0);
-            const validatedTotal = list.filter(r => r.validation_status === "validated" && !r.is_refund)
-              .reduce((s, r) => s + Number(r.adjusted_value ?? r.order_value), 0);
+            const sign = (r: ValidationRecord) => r.is_refund ? -1 : 1;
+            const dayTotal = list.reduce((s, r) => s + Number(r.adjusted_value ?? r.order_value) * sign(r), 0);
+            const validatedTotal = list.filter(r => r.validation_status === "validated")
+              .reduce((s, r) => s + Number(r.adjusted_value ?? r.order_value) * sign(r), 0);
+            const pendingCount = list.filter(r => (r.validation_status || "pending") === "pending").length;
+            const byChannel: Record<string, number> = {};
+            list.forEach(r => {
+              const c = r.channel || "—";
+              byChannel[c] = (byChannel[c] || 0) + Number(r.adjusted_value ?? r.order_value) * sign(r);
+            });
             return (
               <Card key={day}>
-                <CardHeader className="pb-2 flex-row items-center justify-between">
+                <CardHeader className="pb-2 flex-row items-center justify-between gap-3 flex-wrap">
                   <div>
                     <CardTitle className="text-base">
                       {day ? format(new Date(day + "T12:00:00"), "EEEE, dd 'de' MMMM", { locale: ptBR }) : "Sem data"}
                     </CardTitle>
                     <p className="text-xs text-muted-foreground">
-                      {list.length} itens • Total {fmt(dayTotal)} • Validado {fmt(validatedTotal)}
+                      {list.length} itens {pendingCount ? `• ${pendingCount} pendentes` : ""}
                     </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                    {Object.entries(byChannel).map(([c, v]) => (
+                      <Badge key={c} variant="outline" className="font-normal">
+                        {c}: <span className="ml-1 font-medium">{fmt(v)}</span>
+                      </Badge>
+                    ))}
+                    <Badge variant="secondary">Total do dia: <span className="ml-1 font-semibold">{fmt(dayTotal)}</span></Badge>
+                    <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                      Validado: {fmt(validatedTotal)}
+                    </Badge>
                   </div>
                 </CardHeader>
                 <CardContent className="p-0">
