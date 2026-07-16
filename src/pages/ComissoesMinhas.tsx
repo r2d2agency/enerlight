@@ -214,7 +214,7 @@ export default function ComissoesMinhas() {
             <TableBody>
               {(data?.details || []).map((r: any) => (
                 <TableRow key={r.id} className={r.is_refund ? "bg-red-50/40 dark:bg-red-950/10" : ""}>
-                  <TableCell className="text-sm">{format(new Date(r.billing_date + "T12:00:00"), "dd/MM", { locale: ptBR })}</TableCell>
+                  <TableCell className="text-sm">{safeFormat(r.billing_date, "dd/MM")}</TableCell>
                   <TableCell>
                     <div className="text-sm">{r.client_name}</div>
                     <div className="text-xs text-muted-foreground">#{r.order_number}</div>
