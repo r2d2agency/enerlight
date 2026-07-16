@@ -164,6 +164,8 @@ export const eadAdminApi = {
     brand_id?: string | null; course_id: string;
     password?: string; send_notification?: boolean;
   }) => adminCall<any>('/api/ead/admin/students/manual-enroll', { method: 'POST', body: b }),
+  issueCertificate: (studentId: string, course_id: string) =>
+    adminCall<any>(`/api/ead/admin/students/${studentId}/issue-certificate`, { method: 'POST', body: { course_id } }),
 
   // Brand admins management (superadmin)
   brandAdmins: (brandId: string) => adminCall<any[]>(`/api/ead/admin/brands/${brandId}/admins`),

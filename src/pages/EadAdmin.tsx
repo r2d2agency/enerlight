@@ -944,6 +944,29 @@ function StudentDetailView({ data }: { data: any }) {
   const extras: [string, any][] = s.extra_fields && typeof s.extra_fields === 'object'
     ? Object.entries(s.extra_fields).filter(([, v]) => v != null && v !== '')
     : [];
+  const [courses, setCourses] = useState<any[]>([]);
+  const [issueCourseId, setIssueCourseId] = useState('');
+  const [issuing, setIssuing] = useState(false);
+  useEffect(() => { eadAdminApi.courses().then(setCourses).catch(() => {}); }, []);
+  const alreadyCertCourseIds = new Set((data.certificates || []).map((c: any) => c.course_id));
+
+  async function issue() {
+    if (!issueCourseId) { toast.error('Selecione um curso'); return; }
+    setIssuing(true);
+    try {
+      const r = await eadAdminApi.issueCertificate(s.id, issueCourseId);
+      if (r.already) {
+        toast.info('Este aluno já possui certificado para este curso');
+      } else {
+        toast.success('Certificado emitido!');
+      }
+      if (r.certificate?.pdf_url) window.open(r.certificate.pdf_url, '_blank');
+      setIssueCourseId('');
+    } catch (e: any) {
+      toast.error(e.message || 'Erro ao emitir certificado');
+    } finally { setIssuing(false); }
+  }
+
   const Field = ({ label, value }: { label: string; value: any }) => (
     <div>
       <div className="text-xs text-muted-foreground">{label}</div>
@@ -1034,7 +1057,35 @@ function StudentDetailView({ data }: { data: any }) {
           </Table>
         </CardContent>
       </Card>
+
+      <Card className="border-primary/40">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Award className="h-4 w-4" /> Emitir certificado (prova presencial)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col md:flex-row gap-2 md:items-end">
+          <div className="flex-1">
+            <Label className="text-xs">Curso</Label>
+            <Select value={issueCourseId} onValueChange={setIssueCourseId}>
+              <SelectTrigger><SelectValue placeholder="Selecione o curso" /></SelectTrigger>
+              <SelectContent>
+                {courses.map(c => (
+                  <SelectItem key={c.id} value={c.id} disabled={alreadyCertCourseIds.has(c.id)}>
+                    {c.title}{alreadyCertCourseIds.has(c.id) ? ' (já possui certificado)' : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Button onClick={issue} disabled={issuing || !issueCourseId}>
+            {issuing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            <Award className="h-4 w-4 mr-1" /> Emitir certificado
+          </Button>
+        </CardContent>
+      </Card>
     </div>
+
   );
 }
 
