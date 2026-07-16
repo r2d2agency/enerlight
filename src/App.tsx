@@ -196,7 +196,7 @@ const App = () => (
               <Route path="/comissoes/validacao" element={<ProtectedRoute><ComissoesValidacao /></ProtectedRoute>} />
               <Route path="/comissoes/minhas" element={<ProtectedRoute><ComissoesMinhas /></ProtectedRoute>} />
               <Route path="/comissoes/regras" element={<ProtectedRoute><ComissoesRegras /></ProtectedRoute>} />
-              <Route path="/folha-pagamento" element={<ProtectedRoute><FolhaPagamento /></ProtectedRoute>} />
+              <Route path="/folha-pagamento" element={<ProtectedRoute permissionKey="can_view_payroll"><FolhaPagamento /></ProtectedRoute>} />
 
               <Route path="/crm/representantes" element={<ProtectedRoute><CRMRepresentantes /></ProtectedRoute>} />
               <Route path="/crm/representantes-hub" element={<ProtectedRoute><RepresentativesHub /></ProtectedRoute>} />
