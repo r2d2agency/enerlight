@@ -35,6 +35,7 @@ export default function ComissoesValidacao() {
   const [endDate, setEndDate] = useState(lastOfMonth());
   const [status, setStatus] = useState("pending");
   const [userId, setUserId] = useState("all");
+  const [channel, setChannel] = useState("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [editing, setEditing] = useState<ValidationRecord | null>(null);
 
@@ -47,12 +48,31 @@ export default function ComissoesValidacao() {
   const { data: summary } = useCommissionSummary({ start_date: startDate, end_date: endDate });
   const { updateRecord, bulkStatus } = useValidationMutations();
 
-  const records = data?.records || [];
+  const allRecords = data?.records || [];
+  const channels = useMemo(() => {
+    const s = new Set<string>();
+    allRecords.forEach(r => { if (r.channel) s.add(r.channel); });
+    return Array.from(s).sort();
+  }, [allRecords]);
+  const records = useMemo(
+    () => channel === "all" ? allRecords : allRecords.filter(r => (r.channel || "") === channel),
+    [allRecords, channel]
+  );
   const totalsByStatus = useMemo(() => {
     const acc: Record<string, { count: number; total: number }> = {};
-    (data?.stats || []).forEach((s: any) => { acc[s.status] = { count: Number(s.count), total: Number(s.total_value) }; });
+    if (channel === "all") {
+      (data?.stats || []).forEach((s: any) => { acc[s.status] = { count: Number(s.count), total: Number(s.total_value) }; });
+    } else {
+      records.forEach(r => {
+        const st = r.validation_status || "pending";
+        const v = Number(r.adjusted_value ?? r.order_value) * (r.is_refund ? -1 : 1);
+        acc[st] ||= { count: 0, total: 0 };
+        acc[st].count += 1;
+        acc[st].total += v;
+      });
+    }
     return acc;
-  }, [data]);
+  }, [data, records, channel]);
 
   const toggleAll = (checked: boolean) => {
     if (checked) setSelected(new Set(records.map(r => r.id))); else setSelected(new Set());
@@ -69,6 +89,11 @@ export default function ComissoesValidacao() {
     });
     return Object.entries(m).sort(([a], [b]) => b.localeCompare(a));
   }, [records]);
+
+  const periodTotal = useMemo(
+    () => records.reduce((s, r) => s + Number(r.adjusted_value ?? r.order_value) * (r.is_refund ? -1 : 1), 0),
+    [records]
+  );
 
   const doBulk = async (newStatus: string) => {
     if (!selected.size) return;
@@ -88,7 +113,7 @@ export default function ComissoesValidacao() {
       </p>
 
       <Card>
-        <CardContent className="p-4 grid grid-cols-2 md:grid-cols-6 gap-3">
+        <CardContent className="p-4 grid grid-cols-2 md:grid-cols-7 gap-3">
           <div>
             <Label className="text-xs">De</Label>
             <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
@@ -116,6 +141,16 @@ export default function ComissoesValidacao() {
               <SelectContent>
                 <SelectItem value="all">Todos</SelectItem>
                 {(users || []).map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">Canal</Label>
+            <Select value={channel} onValueChange={setChannel}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                {channels.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -162,19 +197,37 @@ export default function ComissoesValidacao() {
       ) : (
         <div className="space-y-6">
           {groupedByDay.map(([day, list]) => {
-            const dayTotal = list.reduce((s, r) => s + Number(r.adjusted_value ?? r.order_value), 0);
-            const validatedTotal = list.filter(r => r.validation_status === "validated" && !r.is_refund)
-              .reduce((s, r) => s + Number(r.adjusted_value ?? r.order_value), 0);
+            const sign = (r: ValidationRecord) => r.is_refund ? -1 : 1;
+            const dayTotal = list.reduce((s, r) => s + Number(r.adjusted_value ?? r.order_value) * sign(r), 0);
+            const validatedTotal = list.filter(r => r.validation_status === "validated")
+              .reduce((s, r) => s + Number(r.adjusted_value ?? r.order_value) * sign(r), 0);
+            const pendingCount = list.filter(r => (r.validation_status || "pending") === "pending").length;
+            const byChannel: Record<string, number> = {};
+            list.forEach(r => {
+              const c = r.channel || "—";
+              byChannel[c] = (byChannel[c] || 0) + Number(r.adjusted_value ?? r.order_value) * sign(r);
+            });
             return (
               <Card key={day}>
-                <CardHeader className="pb-2 flex-row items-center justify-between">
+                <CardHeader className="pb-2 flex-row items-center justify-between gap-3 flex-wrap">
                   <div>
                     <CardTitle className="text-base">
                       {day ? format(new Date(day + "T12:00:00"), "EEEE, dd 'de' MMMM", { locale: ptBR }) : "Sem data"}
                     </CardTitle>
                     <p className="text-xs text-muted-foreground">
-                      {list.length} itens • Total {fmt(dayTotal)} • Validado {fmt(validatedTotal)}
+                      {list.length} itens {pendingCount ? `• ${pendingCount} pendentes` : ""}
                     </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                    {Object.entries(byChannel).map(([c, v]) => (
+                      <Badge key={c} variant="outline" className="font-normal">
+                        {c}: <span className="ml-1 font-medium">{fmt(v)}</span>
+                      </Badge>
+                    ))}
+                    <Badge variant="secondary">Total do dia: <span className="ml-1 font-semibold">{fmt(dayTotal)}</span></Badge>
+                    <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                      Validado: {fmt(validatedTotal)}
+                    </Badge>
                   </div>
                 </CardHeader>
                 <CardContent className="p-0">
