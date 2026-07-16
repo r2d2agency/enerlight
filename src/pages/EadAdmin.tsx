@@ -1057,7 +1057,35 @@ function StudentDetailView({ data }: { data: any }) {
           </Table>
         </CardContent>
       </Card>
+
+      <Card className="border-primary/40">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Award className="h-4 w-4" /> Emitir certificado (prova presencial)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col md:flex-row gap-2 md:items-end">
+          <div className="flex-1">
+            <Label className="text-xs">Curso</Label>
+            <Select value={issueCourseId} onValueChange={setIssueCourseId}>
+              <SelectTrigger><SelectValue placeholder="Selecione o curso" /></SelectTrigger>
+              <SelectContent>
+                {courses.map(c => (
+                  <SelectItem key={c.id} value={c.id} disabled={alreadyCertCourseIds.has(c.id)}>
+                    {c.title}{alreadyCertCourseIds.has(c.id) ? ' (já possui certificado)' : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Button onClick={issue} disabled={issuing || !issueCourseId}>
+            {issuing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            <Award className="h-4 w-4 mr-1" /> Emitir certificado
+          </Button>
+        </CardContent>
+      </Card>
     </div>
+
   );
 }
 
