@@ -290,40 +290,57 @@ router.get('/my', async (req, res) => {
     const sd = req.query.start_date || new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
     const ed = req.query.end_date || new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
 
+    // Match records linked directly to the user OR linked via seller_name mapping (fallback when linked_user_id is null)
+    const matchFilter = `(
+      b.linked_user_id = $2
+      OR (b.linked_user_id IS NULL AND EXISTS (
+        SELECT 1 FROM erp_seller_user_mapping m
+        WHERE m.organization_id = $1 AND m.user_id = $2 AND m.seller_name = b.seller_name
+      ))
+    )`;
+    const baseParams = [m.organization_id, req.userId, sd, ed];
+    const dateRange = `b.billing_date >= $3::date AND b.billing_date <= $4::date`;
+
     const agg = await query(
       `SELECT
-         COALESCE(SUM(CASE WHEN COALESCE(validation_status,'pending')='validated' AND NOT COALESCE(is_refund,false)
-                           THEN COALESCE(adjusted_value, order_value) ELSE 0 END), 0) AS validated_total,
-         COALESCE(SUM(CASE WHEN COALESCE(validation_status,'pending')='validated' AND COALESCE(is_refund,false)
-                           THEN COALESCE(adjusted_value, order_value) ELSE 0 END), 0) AS refund_total,
-         COUNT(*) FILTER (WHERE COALESCE(validation_status,'pending')='validated' AND NOT COALESCE(is_refund,false)) AS validated_count,
-         COUNT(*) FILTER (WHERE COALESCE(validation_status,'pending')='pending') AS pending_count
-       FROM erp_billing_records
-       WHERE organization_id = $1 AND linked_user_id = $2
-         AND billing_date >= $3::date AND billing_date <= $4::date`,
-      [m.organization_id, req.userId, sd, ed]
+         COALESCE(SUM(CASE WHEN COALESCE(b.validation_status,'pending')='validated' AND NOT COALESCE(b.is_refund,false)
+                           THEN COALESCE(b.adjusted_value, b.order_value) ELSE 0 END), 0) AS validated_total,
+         COALESCE(SUM(CASE WHEN COALESCE(b.validation_status,'pending')='validated' AND COALESCE(b.is_refund,false)
+                           THEN COALESCE(b.adjusted_value, b.order_value) ELSE 0 END), 0) AS refund_total,
+         COALESCE(SUM(CASE WHEN COALESCE(b.validation_status,'pending')='pending' AND NOT COALESCE(b.is_refund,false)
+                           THEN COALESCE(b.adjusted_value, b.order_value) ELSE 0 END), 0) AS pending_total,
+         COALESCE(SUM(CASE WHEN COALESCE(b.validation_status,'pending') <> 'rejected' AND NOT COALESCE(b.is_refund,false)
+                           THEN COALESCE(b.adjusted_value, b.order_value) ELSE 0 END), 0) AS gross_total,
+         COUNT(*) FILTER (WHERE COALESCE(b.validation_status,'pending')='validated' AND NOT COALESCE(b.is_refund,false)) AS validated_count,
+         COUNT(*) FILTER (WHERE COALESCE(b.validation_status,'pending')='pending') AS pending_count,
+         COUNT(*) AS total_count
+       FROM erp_billing_records b
+       WHERE b.organization_id = $1 AND ${matchFilter} AND ${dateRange}`,
+      baseParams
     );
 
     const daily = await query(
-      `SELECT billing_date::date AS day,
-              COALESCE(SUM(CASE WHEN COALESCE(validation_status,'pending')='validated' AND NOT COALESCE(is_refund,false)
-                                THEN COALESCE(adjusted_value, order_value) ELSE 0 END), 0) AS validated_value,
-              COUNT(*) FILTER (WHERE COALESCE(validation_status,'pending')='validated' AND NOT COALESCE(is_refund,false)) AS validated_count
-       FROM erp_billing_records
-       WHERE organization_id = $1 AND linked_user_id = $2
-         AND billing_date >= $3::date AND billing_date <= $4::date
+      `SELECT b.billing_date::date AS day,
+              COALESCE(SUM(CASE WHEN COALESCE(b.validation_status,'pending')='validated' AND NOT COALESCE(b.is_refund,false)
+                                THEN COALESCE(b.adjusted_value, b.order_value) ELSE 0 END), 0) AS validated_value,
+              COALESCE(SUM(CASE WHEN COALESCE(b.validation_status,'pending')='pending' AND NOT COALESCE(b.is_refund,false)
+                                THEN COALESCE(b.adjusted_value, b.order_value) ELSE 0 END), 0) AS pending_value,
+              COUNT(*) FILTER (WHERE COALESCE(b.validation_status,'pending')='validated' AND NOT COALESCE(b.is_refund,false)) AS validated_count,
+              COUNT(*) FILTER (WHERE COALESCE(b.validation_status,'pending')='pending') AS pending_count
+       FROM erp_billing_records b
+       WHERE b.organization_id = $1 AND ${matchFilter} AND ${dateRange}
        GROUP BY 1 ORDER BY 1`,
-      [m.organization_id, req.userId, sd, ed]
+      baseParams
     );
 
     const details = await query(
-      `SELECT id, client_name, order_number, billing_date, channel, order_value, adjusted_value, validation_status, is_refund, validation_note
-       FROM erp_billing_records
-       WHERE organization_id = $1 AND linked_user_id = $2
-         AND billing_date >= $3::date AND billing_date <= $4::date
-       ORDER BY billing_date DESC, created_at DESC
+      `SELECT b.id, b.client_name, b.order_number, b.billing_date, b.channel, b.seller_name,
+              b.order_value, b.adjusted_value, b.validation_status, b.is_refund, b.validation_note
+       FROM erp_billing_records b
+       WHERE b.organization_id = $1 AND ${matchFilter} AND ${dateRange}
+       ORDER BY b.billing_date DESC, b.created_at DESC
        LIMIT 500`,
-      [m.organization_id, req.userId, sd, ed]
+      baseParams
     );
 
     const ruleRes = await query(
@@ -332,17 +349,31 @@ router.get('/my', async (req, res) => {
     );
     const rule = ruleRes.rows[0] || null;
     const validated = Number(agg.rows[0].validated_total) - Number(agg.rows[0].refund_total);
+    const gross = Number(agg.rows[0].gross_total) - Number(agg.rows[0].refund_total);
     const commission = computeCommission(rule, Math.max(0, validated));
+    const projectedCommission = computeCommission(rule, Math.max(0, gross));
 
     res.json({
       start_date: sd, end_date: ed,
       validated_total: Number(agg.rows[0].validated_total),
       refund_total: Number(agg.rows[0].refund_total),
+      pending_total: Number(agg.rows[0].pending_total),
+      gross_total: Number(agg.rows[0].gross_total),
       net_total: validated,
+      projected_net_total: gross,
       validated_count: Number(agg.rows[0].validated_count),
       pending_count: Number(agg.rows[0].pending_count),
-      commission, rule,
-      daily: daily.rows.map(d => ({ day: d.day, value: Number(d.validated_value), count: Number(d.validated_count) })),
+      total_count: Number(agg.rows[0].total_count),
+      commission,
+      projected_commission: projectedCommission,
+      rule,
+      daily: daily.rows.map(d => ({
+        day: d.day,
+        value: Number(d.validated_value),
+        pending_value: Number(d.pending_value),
+        count: Number(d.validated_count),
+        pending_count: Number(d.pending_count),
+      })),
       details: details.rows,
     });
   } catch (e) { res.status(500).json({ error: e.message }); }
