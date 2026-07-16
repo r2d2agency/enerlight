@@ -32,20 +32,22 @@ export default function ComissoesMinhas() {
 
   const remainingDays = businessDaysRemaining(endDate);
 
+  const progressValue = data?.projected_net_total ?? data?.net_total ?? 0;
+
   const motivation = useMemo(() => {
     if (!data?.commission?.nextTier) return null;
     const nt = data.commission.nextTier;
-    const remaining = Math.max(0, nt.target - data.net_total);
+    const remaining = Math.max(0, nt.target - progressValue);
     const perDay = remainingDays > 0 ? remaining / remainingDays : remaining;
     return { nextTier: nt, remaining, perDay };
-  }, [data, remainingDays]);
+  }, [data, remainingDays, progressValue]);
 
   if (isLoading) return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin" /></div>;
 
   const tiers = data?.rule?.tiers || [];
   const achievedIds = new Set((data?.commission?.achieved || []).map((a: any) => a.target));
-  const maxTarget = tiers.length ? Math.max(...tiers.map((t: any) => t.target)) : (data?.net_total || 1);
-  const pct = maxTarget > 0 ? Math.min(100, (data?.net_total / maxTarget) * 100) : 0;
+  const maxTarget = tiers.length ? Math.max(...tiers.map((t: any) => t.target)) : (progressValue || 1);
+  const pct = maxTarget > 0 ? Math.min(100, (progressValue / maxTarget) * 100) : 0;
 
   return (
     <div className="p-4 md:p-6 space-y-4 max-w-[1200px] mx-auto">
