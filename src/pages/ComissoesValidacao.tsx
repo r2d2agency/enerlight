@@ -48,12 +48,31 @@ export default function ComissoesValidacao() {
   const { data: summary } = useCommissionSummary({ start_date: startDate, end_date: endDate });
   const { updateRecord, bulkStatus } = useValidationMutations();
 
-  const records = data?.records || [];
+  const allRecords = data?.records || [];
+  const channels = useMemo(() => {
+    const s = new Set<string>();
+    allRecords.forEach(r => { if (r.channel) s.add(r.channel); });
+    return Array.from(s).sort();
+  }, [allRecords]);
+  const records = useMemo(
+    () => channel === "all" ? allRecords : allRecords.filter(r => (r.channel || "") === channel),
+    [allRecords, channel]
+  );
   const totalsByStatus = useMemo(() => {
     const acc: Record<string, { count: number; total: number }> = {};
-    (data?.stats || []).forEach((s: any) => { acc[s.status] = { count: Number(s.count), total: Number(s.total_value) }; });
+    if (channel === "all") {
+      (data?.stats || []).forEach((s: any) => { acc[s.status] = { count: Number(s.count), total: Number(s.total_value) }; });
+    } else {
+      records.forEach(r => {
+        const st = r.validation_status || "pending";
+        const v = Number(r.adjusted_value ?? r.order_value) * (r.is_refund ? -1 : 1);
+        acc[st] ||= { count: 0, total: 0 };
+        acc[st].count += 1;
+        acc[st].total += v;
+      });
+    }
     return acc;
-  }, [data]);
+  }, [data, records, channel]);
 
   const toggleAll = (checked: boolean) => {
     if (checked) setSelected(new Set(records.map(r => r.id))); else setSelected(new Set());
@@ -70,6 +89,11 @@ export default function ComissoesValidacao() {
     });
     return Object.entries(m).sort(([a], [b]) => b.localeCompare(a));
   }, [records]);
+
+  const periodTotal = useMemo(
+    () => records.reduce((s, r) => s + Number(r.adjusted_value ?? r.order_value) * (r.is_refund ? -1 : 1), 0),
+    [records]
+  );
 
   const doBulk = async (newStatus: string) => {
     if (!selected.size) return;
