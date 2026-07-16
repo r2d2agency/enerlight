@@ -866,8 +866,12 @@ function StudentsTab({ students, onReload }: { students: any[]; onReload: () => 
           </div>
           <div className="flex items-center justify-between mt-3">
             <span className="text-sm text-muted-foreground">{filtered.length} de {students.length} instaladores</span>
-            <Button size="sm" variant="outline" onClick={exportCsv}><Download className="h-4 w-4 mr-1" /> Exportar CSV</Button>
+            <div className="flex gap-2">
+              <ManualEnrollButton brands={brands} onDone={onReload} />
+              <Button size="sm" variant="outline" onClick={exportCsv}><Download className="h-4 w-4 mr-1" /> Exportar CSV</Button>
+            </div>
           </div>
+
         </CardContent>
       </Card>
 
