@@ -24,6 +24,7 @@ const PERMISSION_COLUMNS = [
   'can_edit_logistics', 'can_delete_logistics',
   'can_view_ead', 'can_manage_ead',
   'can_validate_billing', 'can_view_commission', 'can_manage_commission_rules',
+  'can_view_payroll', 'can_manage_payroll',
 ];
 
 // Default permissions for each role
