@@ -1,6 +1,13 @@
 import { useState, useMemo } from "react";
-import { format } from "date-fns";
+import { format, isValid } from "date-fns";
 import { ptBR } from "date-fns/locale";
+
+const safeFormat = (value: any, pattern: string) => {
+  if (!value) return "—";
+  const s = String(value);
+  const d = s.length <= 10 ? new Date(s + "T12:00:00") : new Date(s);
+  return isValid(d) ? format(d, pattern, { locale: ptBR }) : "—";
+};
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
