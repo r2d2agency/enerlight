@@ -866,8 +866,12 @@ function StudentsTab({ students, onReload }: { students: any[]; onReload: () => 
           </div>
           <div className="flex items-center justify-between mt-3">
             <span className="text-sm text-muted-foreground">{filtered.length} de {students.length} instaladores</span>
-            <Button size="sm" variant="outline" onClick={exportCsv}><Download className="h-4 w-4 mr-1" /> Exportar CSV</Button>
+            <div className="flex gap-2">
+              <ManualEnrollButton brands={brands} onDone={onReload} />
+              <Button size="sm" variant="outline" onClick={exportCsv}><Download className="h-4 w-4 mr-1" /> Exportar CSV</Button>
+            </div>
           </div>
+
         </CardContent>
       </Card>
 
@@ -1521,4 +1525,191 @@ function ApprovalsTab({ canManage }: { canManage: boolean }) {
     </CardContent></Card>
   );
 }
+
+function ManualEnrollButton({ brands, onDone }: { brands: any[]; onDone: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [courses, setCourses] = useState<any[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [result, setResult] = useState<any>(null);
+  const [form, setForm] = useState<any>({
+    name: '', cpf: '', email: '', phone: '',
+    company: '', city: '', state: '',
+    brand_id: '', course_id: '',
+    password: '',
+    send_notification: true,
+  });
+
+  useEffect(() => {
+    if (!open) return;
+    eadAdminApi.courses().then(setCourses).catch(() => {});
+  }, [open]);
+
+  function reset() {
+    setForm({
+      name: '', cpf: '', email: '', phone: '',
+      company: '', city: '', state: '',
+      brand_id: '', course_id: '',
+      password: '', send_notification: true,
+    });
+    setResult(null);
+  }
+
+  async function submit() {
+    if (!form.name || !form.cpf || !form.email || !form.course_id) {
+      toast.error('Preencha nome, CPF, e-mail e curso');
+      return;
+    }
+    setSaving(true);
+    try {
+      const r = await eadAdminApi.manualEnroll({
+        ...form,
+        brand_id: form.brand_id || null,
+      });
+      setResult(r);
+      const w = r?.notify?.whatsapp;
+      const em = r?.notify?.email;
+      toast.success(`Aluno cadastrado, prova validada e certificado emitido!${form.send_notification ? ` WhatsApp: ${w?.success ? 'ok' : (w?.error || 'falhou')} • E-mail: ${em?.success ? 'ok' : (em?.error || 'falhou')}` : ''}`);
+      onDone();
+    } catch (e: any) {
+      toast.error(e.message || 'Erro ao cadastrar');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function copyPass() {
+    if (!result?.temp_password) return;
+    navigator.clipboard.writeText(result.temp_password).then(() => toast.success('Senha copiada'));
+  }
+
+  return (
+    <>
+      <Button size="sm" onClick={() => { reset(); setOpen(true); }}>
+        <Plus className="h-4 w-4 mr-1" /> Cadastro manual (prova presencial)
+      </Button>
+      <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) reset(); }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Cadastrar aluno — Prova presencial</DialogTitle>
+          </DialogHeader>
+
+          {result?.ok ? (
+            <div className="space-y-4">
+              <Card className="border-green-300 bg-green-50">
+                <CardContent className="p-4 space-y-2">
+                  <p className="font-medium text-green-900">✓ Aluno cadastrado com sucesso</p>
+                  <p className="text-sm">Nome: <strong>{result.student.name}</strong></p>
+                  <p className="text-sm">E-mail: <strong>{result.student.email}</strong></p>
+                  <div className="flex items-center gap-2 text-sm">
+                    <span>Senha temporária:</span>
+                    <code className="px-2 py-1 bg-white border rounded font-mono">{result.temp_password}</code>
+                    <Button size="sm" variant="ghost" onClick={copyPass}><Copy className="h-3 w-3" /></Button>
+                  </div>
+                  {result.certificate && (
+                    <div className="text-sm">
+                      Certificado:{' '}
+                      <a href={result.certificate.pdf_url} target="_blank" rel="noreferrer" className="text-primary underline">
+                        Baixar PDF
+                      </a>
+                    </div>
+                  )}
+                  {result.notify && (
+                    <div className="text-xs text-muted-foreground pt-2 border-t mt-2">
+                      WhatsApp: {result.notify.whatsapp?.success ? '✓ enviado' : `✗ ${result.notify.whatsapp?.error || 'falhou'}`}<br/>
+                      E-mail: {result.notify.email?.success ? '✓ enviado' : `✗ ${result.notify.email?.error || 'falhou'}`}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+              <DialogFooter>
+                <Button variant="outline" onClick={reset}>Cadastrar outro</Button>
+                <Button onClick={() => setOpen(false)}>Fechar</Button>
+              </DialogFooter>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Use este formulário para alunos que fizeram a prova no papel. O sistema cria o aluno, marca a prova como aprovada (100%) e emite o certificado.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <Label>Nome *</Label>
+                  <Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+                </div>
+                <div>
+                  <Label>CPF *</Label>
+                  <Input value={form.cpf} onChange={e => setForm({ ...form, cpf: e.target.value })} placeholder="Apenas números" />
+                </div>
+                <div>
+                  <Label>E-mail *</Label>
+                  <Input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
+                </div>
+                <div>
+                  <Label>WhatsApp (com DDD)</Label>
+                  <Input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="Ex: 5511987654321" />
+                </div>
+                <div>
+                  <Label>Empresa</Label>
+                  <Input value={form.company} onChange={e => setForm({ ...form, company: e.target.value })} />
+                </div>
+                <div>
+                  <Label>Cidade</Label>
+                  <Input value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} />
+                </div>
+                <div>
+                  <Label>UF</Label>
+                  <Input value={form.state} maxLength={2} onChange={e => setForm({ ...form, state: e.target.value.toUpperCase() })} />
+                </div>
+                <div>
+                  <Label>Marca</Label>
+                  <Select value={form.brand_id || '__none__'} onValueChange={(v) => setForm({ ...form, brand_id: v === '__none__' ? '' : v })}>
+                    <SelectTrigger><SelectValue placeholder="Sem marca" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Sem marca</SelectItem>
+                      {brands.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="md:col-span-2">
+                  <Label>Curso *</Label>
+                  <Select value={form.course_id} onValueChange={(v) => setForm({ ...form, course_id: v })}>
+                    <SelectTrigger><SelectValue placeholder="Selecione o curso" /></SelectTrigger>
+                    <SelectContent>
+                      {courses.map(c => <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="md:col-span-2">
+                  <Label>Senha temporária (opcional)</Label>
+                  <Input
+                    value={form.password}
+                    onChange={e => setForm({ ...form, password: e.target.value })}
+                    placeholder="Deixe em branco para gerar automaticamente (mín. 6 caracteres)"
+                  />
+                </div>
+                <div className="md:col-span-2 flex items-center gap-2">
+                  <Switch
+                    checked={form.send_notification}
+                    onCheckedChange={(v) => setForm({ ...form, send_notification: v })}
+                  />
+                  <Label className="cursor-pointer" onClick={() => setForm({ ...form, send_notification: !form.send_notification })}>
+                    Enviar senha por WhatsApp e e-mail
+                  </Label>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+                <Button onClick={submit} disabled={saving}>
+                  {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Cadastrar, aprovar e emitir certificado
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 

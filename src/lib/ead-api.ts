@@ -158,6 +158,12 @@ export const eadAdminApi = {
   rejectStudent: (id: string, reason?: string) => adminCall<any>(`/api/ead/admin/students/${id}/reject`, { method: 'POST', body: { reason } }),
   resendNotification: (id: string) => adminCall<any>(`/api/ead/admin/students/${id}/resend-notification`, { method: 'POST' }),
   resetPassword: (id: string) => adminCall<any>(`/api/ead/admin/students/${id}/reset-password`, { method: 'POST' }),
+  manualEnroll: (b: {
+    name: string; cpf: string; email: string; phone?: string;
+    company?: string; city?: string; state?: string;
+    brand_id?: string | null; course_id: string;
+    password?: string; send_notification?: boolean;
+  }) => adminCall<any>('/api/ead/admin/students/manual-enroll', { method: 'POST', body: b }),
 
   // Brand admins management (superadmin)
   brandAdmins: (brandId: string) => adminCall<any[]>(`/api/ead/admin/brands/${brandId}/admins`),

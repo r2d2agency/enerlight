@@ -1435,6 +1435,128 @@ admin.post('/students/:id/reset-password', gate('can_manage_ead'), async (req, r
   } catch (e) { console.error('reset-password', e); res.status(500).json({ error: 'Erro ao resetar senha' }); }
 });
 
+// ---- Cadastro manual de aluno já aprovado no quiz (prova presencial) ----
+// Cria/atualiza aluno como aprovado, matricula no curso, registra tentativa 100%
+// e emite certificado. Envia senha por WhatsApp/e-mail.
+admin.post('/students/manual-enroll', gate('can_manage_ead'), async (req, res) => {
+  try {
+    await ensureEadApprovalSchema();
+    let { name, cpf, email, phone, company, city, state, brand_id, course_id, password, send_notification } = req.body || {};
+    name = String(name || '').trim();
+    cpf = String(cpf || '').replace(/\D/g, '');
+    email = String(email || '').trim().toLowerCase();
+    phone = phone ? String(phone).replace(/\D/g, '') : null;
+
+    if (!name || !cpf || !email || !course_id) {
+      return res.status(400).json({ error: 'Nome, CPF, e-mail e curso são obrigatórios' });
+    }
+    if (!isValidCPF(cpf)) return res.status(400).json({ error: 'CPF inválido' });
+
+    const course = await runWithEadSchemaRetry(() => query(
+      'SELECT id, title, has_certificate FROM ead_courses WHERE id = $1', [course_id]
+    ));
+    if (!course.rows.length) return res.status(404).json({ error: 'Curso não encontrado' });
+
+    // Localiza aluno existente por CPF ou e-mail
+    const existing = await runWithEadSchemaRetry(() => query(
+      'SELECT * FROM ead_students WHERE cpf = $1 OR lower(email) = $2 LIMIT 1', [cpf, email]
+    ));
+
+    const tempPassword = (password && String(password).length >= 6)
+      ? String(password)
+      : genTempPassword(8);
+    const hash = await bcrypt.hash(tempPassword, 10);
+
+    let student;
+    if (existing.rows.length) {
+      const upd = await runWithEadSchemaRetry(() => query(
+        `UPDATE ead_students SET
+           name = $1,
+           email = COALESCE(NULLIF($2,''), email),
+           phone = COALESCE(NULLIF($3,''), phone),
+           company = COALESCE(NULLIF($4,''), company),
+           city = COALESCE(NULLIF($5,''), city),
+           state = COALESCE(NULLIF($6,''), state),
+           brand_id = COALESCE($7, brand_id),
+           status = 'approved',
+           approved_at = COALESCE(approved_at, NOW()),
+           approved_by = COALESCE(approved_by, $8),
+           password_hash = $9,
+           must_change_password = true
+         WHERE id = $10
+         RETURNING *`,
+        [name, email, phone, company || '', city || '', state || '', brand_id || null, req.userId || null, hash, existing.rows[0].id]
+      ));
+      student = upd.rows[0];
+    } else {
+      const ins = await runWithEadSchemaRetry(() => query(
+        `INSERT INTO ead_students (cpf, name, email, phone, password_hash, company, city, state, brand_id, status, approved_at, approved_by, must_change_password)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'approved',NOW(),$10,true)
+         RETURNING *`,
+        [cpf, name, email, phone, hash, company || null, city || null, state || null, brand_id || null, req.userId || null]
+      ));
+      student = ins.rows[0];
+    }
+
+    // Matricula como aprovado
+    await query(
+      `INSERT INTO ead_enrollments (student_id, course_id, status, approved_at)
+       VALUES ($1,$2,'approved',NOW())
+       ON CONFLICT (student_id, course_id) DO UPDATE SET
+         status = 'approved',
+         approved_at = COALESCE(ead_enrollments.approved_at, EXCLUDED.approved_at)`,
+      [student.id, course_id]
+    );
+
+    // Contabiliza tentativa presencial 100%
+    const totalQ = await query('SELECT COUNT(*)::int AS n FROM ead_quiz_questions WHERE course_id = $1', [course_id]);
+    const totalN = totalQ.rows[0]?.n || 0;
+    await query(
+      `INSERT INTO ead_attempts (student_id, course_id, score, total, correct, passed, answers)
+       VALUES ($1,$2,100,$3,$3,true,$4::jsonb)`,
+      [student.id, course_id, totalN, JSON.stringify({ manual: true, source: 'presencial' })]
+    );
+
+    // Gera certificado
+    let certificate = null;
+    if (course.rows[0].has_certificate !== false) {
+      try {
+        certificate = await generateCertificate(student.id, course_id);
+      } catch (e) {
+        console.error('manual-enroll cert error', e);
+      }
+    }
+
+    // Notifica com senha
+    let notify = null;
+    if (send_notification !== false) {
+      const b = student.brand_id ? (await runWithEadSchemaRetry(() => query('SELECT * FROM ead_brands WHERE id = $1', [student.brand_id]))).rows[0] : null;
+      notify = await withTimeout(
+        notifyApproval(student, b, appBaseUrl(req), tempPassword),
+        9000,
+        'Notificação de cadastro manual'
+      ).catch((err) => ({
+        whatsapp: { success: false, error: err?.message || 'timeout' },
+        email: { success: false, error: err?.message || 'timeout' },
+      }));
+    }
+
+    res.json({
+      ok: true,
+      student: { id: student.id, name: student.name, email: student.email, cpf: student.cpf },
+      temp_password: tempPassword,
+      certificate,
+      notify,
+    });
+  } catch (e) {
+    console.error('manual-enroll', e);
+    res.status(500).json({ error: e?.message || 'Erro ao cadastrar aluno manualmente' });
+  }
+});
+
+
+
+
 
 
 
