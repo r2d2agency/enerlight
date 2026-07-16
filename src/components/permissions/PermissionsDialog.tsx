@@ -158,6 +158,14 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
       { key: 'can_approve_rh', label: 'Aprovar Pontos', description: 'Permite aprovar registros de ponto' },
     ],
   },
+  {
+    title: 'Comissões',
+    items: [
+      { key: 'can_view_commission', label: 'Minhas Comissões', description: 'Ver a página de comissões do vendedor' },
+      { key: 'can_validate_billing', label: 'Validação de Faturamento', description: 'Aprovar/reprovar registros de faturamento para comissão' },
+      { key: 'can_manage_commission_rules', label: 'Regras de Comissão', description: 'Criar e editar regras de cálculo de comissão' },
+    ],
+  },
 ];
 
 const ALL_KEYS = PERMISSION_GROUPS.flatMap(g => g.items.map(i => i.key));
