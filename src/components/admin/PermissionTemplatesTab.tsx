@@ -183,6 +183,13 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
       { key: 'can_manage_commission_rules', label: 'Regras de Comissão', description: 'Criar e editar regras de cálculo de comissão' },
     ],
   },
+  {
+    title: 'Folha de Pagamento',
+    items: [
+      { key: 'can_view_payroll', label: 'Ver Folha de Pagamento', description: 'Acessar o módulo de folha de pagamento' },
+      { key: 'can_manage_payroll', label: 'Gerenciar Folha', description: 'Criar folhas, editar salário base e configurar aprovadores' },
+    ],
+  },
 ];
 
 const ALL_KEYS = PERMISSION_GROUPS.flatMap(g => g.items.map(i => i.key));
