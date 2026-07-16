@@ -113,7 +113,7 @@ export default function ComissoesValidacao() {
       </p>
 
       <Card>
-        <CardContent className="p-4 grid grid-cols-2 md:grid-cols-6 gap-3">
+        <CardContent className="p-4 grid grid-cols-2 md:grid-cols-7 gap-3">
           <div>
             <Label className="text-xs">De</Label>
             <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
