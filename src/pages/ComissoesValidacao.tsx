@@ -35,6 +35,7 @@ export default function ComissoesValidacao() {
   const [endDate, setEndDate] = useState(lastOfMonth());
   const [status, setStatus] = useState("pending");
   const [userId, setUserId] = useState("all");
+  const [channel, setChannel] = useState("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [editing, setEditing] = useState<ValidationRecord | null>(null);
 
