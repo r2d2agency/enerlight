@@ -126,6 +126,7 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
       { name: "Validar Faturamento", href: "/comissoes/validacao", icon: ShieldCheck, permissionKey: 'can_validate_billing' },
       { name: "Minha Comissão", href: "/comissoes/minhas", icon: Wallet },
       { name: "Regras de Comissão", href: "/comissoes/regras", icon: Settings, adminOnly: true },
+      { name: "Folha de Pagamento", href: "/folha-pagamento", icon: Receipt, permissionKey: 'can_view_payroll' },
       { name: "Revenue Intel", href: "/revenue-intelligence", icon: Brain, permissionKey: 'can_view_revenue_intel' },
       { name: "Supervisor IA", href: "/supervisor-ia", icon: Brain, moduleKey: 'supervisor_ia', permissionKey: 'can_view_supervisor_ia' },
       { name: "Segmentação", href: "/crm/segmentacao", icon: Filter, permissionKey: 'can_view_companies' },
