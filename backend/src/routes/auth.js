@@ -7,7 +7,7 @@ import { invalidatePasswordChangedCache, isTokenInvalidated } from '../middlewar
 
 const router = Router();
 
-const SESSION_PERMISSION_PREFIXES = ['can_view_', 'can_edit_', 'can_delete_'];
+const SESSION_PERMISSION_PREFIXES = ['can_view_', 'can_edit_', 'can_delete_', 'can_validate_', 'can_manage_', 'can_approve_', 'can_accept_', 'can_refuse_', 'can_create_'];
 
 function buildSessionPermissions(row, role) {
   const roleDefaults = role ? (ROLE_DEFAULTS[role] || ROLE_DEFAULTS.agent) : null;
