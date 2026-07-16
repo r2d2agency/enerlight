@@ -1554,6 +1554,69 @@ admin.post('/students/manual-enroll', gate('can_manage_ead'), async (req, res) =
   }
 });
 
+// ---- Emitir certificado para aluno JÁ CADASTRADO (prova presencial) ----
+admin.post('/students/:id/issue-certificate', gate('can_manage_ead'), async (req, res) => {
+  try {
+    await ensureEadApprovalSchema();
+    const { course_id } = req.body || {};
+    if (!course_id) return res.status(400).json({ error: 'course_id obrigatório' });
+
+    const s = await runWithEadSchemaRetry(() => query('SELECT * FROM ead_students WHERE id = $1', [req.params.id]));
+    if (!s.rows.length) return res.status(404).json({ error: 'Aluno não encontrado' });
+    const student = s.rows[0];
+
+    const c = await query('SELECT id, title, has_certificate FROM ead_courses WHERE id = $1', [course_id]);
+    if (!c.rows.length) return res.status(404).json({ error: 'Curso não encontrado' });
+
+    // Se estiver rejeitado/pending, aprova o aluno
+    if (student.status !== 'approved') {
+      await runWithEadSchemaRetry(() => query(
+        `UPDATE ead_students SET status='approved', approved_at=COALESCE(approved_at, NOW()), approved_by=COALESCE(approved_by, $1) WHERE id = $2`,
+        [req.userId || null, student.id]
+      ));
+    }
+
+    // Matricula como aprovado
+    await query(
+      `INSERT INTO ead_enrollments (student_id, course_id, status, approved_at)
+       VALUES ($1,$2,'approved',NOW())
+       ON CONFLICT (student_id, course_id) DO UPDATE SET
+         status = 'approved',
+         approved_at = COALESCE(ead_enrollments.approved_at, EXCLUDED.approved_at)`,
+      [student.id, course_id]
+    );
+
+    // Se já existe certificado, não duplica — retorna o existente
+    const existingCert = await query(
+      'SELECT id, pdf_url, issued_at FROM ead_certificates WHERE student_id = $1 AND course_id = $2',
+      [student.id, course_id]
+    );
+    if (existingCert.rows.length) {
+      return res.json({ ok: true, certificate: existingCert.rows[0], already: true });
+    }
+
+    // Registra tentativa presencial e gera certificado
+    const totalQ = await query('SELECT COUNT(*)::int AS n FROM ead_quiz_questions WHERE course_id = $1', [course_id]);
+    const totalN = totalQ.rows[0]?.n || 0;
+    await query(
+      `INSERT INTO ead_attempts (student_id, course_id, score, total, correct, passed, answers)
+       VALUES ($1,$2,100,$3,$3,true,$4::jsonb)`,
+      [student.id, course_id, totalN, JSON.stringify({ manual: true, source: 'presencial' })]
+    );
+
+    let certificate = null;
+    if (c.rows[0].has_certificate !== false) {
+      certificate = await generateCertificate(student.id, course_id);
+    }
+
+    res.json({ ok: true, certificate });
+  } catch (e) {
+    console.error('issue-certificate', e);
+    res.status(500).json({ error: e?.message || 'Erro ao emitir certificado' });
+  }
+});
+
+
 
 
 
