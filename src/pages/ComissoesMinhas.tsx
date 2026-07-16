@@ -185,7 +185,7 @@ export default function ComissoesMinhas() {
             <TableBody>
               {(data?.daily || []).map((d: any) => (
                 <TableRow key={d.day}>
-                  <TableCell>{format(new Date(d.day + "T12:00:00"), "dd/MM (EEE)", { locale: ptBR })}</TableCell>
+                  <TableCell>{safeFormat(d.day, "dd/MM (EEE)")}</TableCell>
                   <TableCell className="text-right">{d.count}</TableCell>
                   <TableCell className="text-right font-medium">{fmt(d.value)}</TableCell>
                 </TableRow>
