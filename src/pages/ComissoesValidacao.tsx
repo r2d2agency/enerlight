@@ -144,6 +144,16 @@ export default function ComissoesValidacao() {
               </SelectContent>
             </Select>
           </div>
+          <div>
+            <Label className="text-xs">Canal</Label>
+            <Select value={channel} onValueChange={setChannel}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                {channels.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="col-span-2 md:col-span-2 flex items-end gap-2">
             <Button size="sm" variant="default" disabled={!selected.size || bulkStatus.isPending}
               onClick={() => doBulk("validated")}>
