@@ -32,20 +32,22 @@ export default function ComissoesMinhas() {
 
   const remainingDays = businessDaysRemaining(endDate);
 
+  const progressValue = data?.projected_net_total ?? data?.net_total ?? 0;
+
   const motivation = useMemo(() => {
     if (!data?.commission?.nextTier) return null;
     const nt = data.commission.nextTier;
-    const remaining = Math.max(0, nt.target - data.net_total);
+    const remaining = Math.max(0, nt.target - progressValue);
     const perDay = remainingDays > 0 ? remaining / remainingDays : remaining;
     return { nextTier: nt, remaining, perDay };
-  }, [data, remainingDays]);
+  }, [data, remainingDays, progressValue]);
 
   if (isLoading) return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin" /></div>;
 
   const tiers = data?.rule?.tiers || [];
   const achievedIds = new Set((data?.commission?.achieved || []).map((a: any) => a.target));
-  const maxTarget = tiers.length ? Math.max(...tiers.map((t: any) => t.target)) : (data?.net_total || 1);
-  const pct = maxTarget > 0 ? Math.min(100, (data?.net_total / maxTarget) * 100) : 0;
+  const maxTarget = tiers.length ? Math.max(...tiers.map((t: any) => t.target)) : (progressValue || 1);
+  const pct = maxTarget > 0 ? Math.min(100, (progressValue / maxTarget) * 100) : 0;
 
   return (
     <div className="p-4 md:p-6 space-y-4 max-w-[1200px] mx-auto">
@@ -74,15 +76,26 @@ export default function ComissoesMinhas() {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <TrendingUp className="h-4 w-4" /> Faturado validado
+              <TrendingUp className="h-4 w-4" /> Faturamento do mês
             </div>
-            <div className="text-2xl font-bold">{fmt(data?.net_total || 0)}</div>
+            <div className="text-2xl font-bold">{fmt(data?.projected_net_total || 0)}</div>
             <div className="text-xs text-muted-foreground">
-              {data?.validated_count || 0} pedidos • {data?.pending_count || 0} aguardando validação
+              {data?.total_count || 0} pedidos no período
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <TrendingUp className="h-4 w-4" /> Já validado
+            </div>
+            <div className="text-2xl font-bold text-green-600">{fmt(data?.net_total || 0)}</div>
+            <div className="text-xs text-muted-foreground">
+              {data?.validated_count || 0} validados • {fmt(data?.pending_total || 0)} aguardando
             </div>
           </CardContent>
         </Card>
@@ -93,7 +106,7 @@ export default function ComissoesMinhas() {
             </div>
             <div className="text-2xl font-bold text-primary">{fmt(data?.commission?.total || 0)}</div>
             <div className="text-xs text-muted-foreground">
-              Base {fmt(data?.commission?.base || 0)} • Bônus {fmt(data?.commission?.bonus || 0)}
+              Projeção mês: {fmt(data?.projected_commission?.total || 0)}
             </div>
           </CardContent>
         </Card>
