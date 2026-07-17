@@ -539,12 +539,18 @@ router.get('/my', async (req, res) => {
       `SELECT
          COALESCE(SUM(CASE WHEN COALESCE(b.validation_status,'pending')='validated' AND NOT COALESCE(b.is_refund,false)
                            THEN COALESCE(b.adjusted_value, b.order_value) ELSE 0 END), 0) AS validated_total,
+         COALESCE(SUM(CASE WHEN COALESCE(b.validation_status,'pending')='validated' AND NOT COALESCE(b.is_refund,false) AND b.is_redbar
+                           THEN COALESCE(b.adjusted_value, b.order_value) ELSE 0 END), 0) AS validated_redbar_total,
          COALESCE(SUM(CASE WHEN COALESCE(b.validation_status,'pending')='validated' AND COALESCE(b.is_refund,false)
                            THEN COALESCE(b.adjusted_value, b.order_value) ELSE 0 END), 0) AS refund_total,
+         COALESCE(SUM(CASE WHEN COALESCE(b.validation_status,'pending')='validated' AND COALESCE(b.is_refund,false) AND b.is_redbar
+                           THEN COALESCE(b.adjusted_value, b.order_value) ELSE 0 END), 0) AS refund_redbar_total,
          COALESCE(SUM(CASE WHEN COALESCE(b.validation_status,'pending')='pending' AND NOT COALESCE(b.is_refund,false)
                            THEN COALESCE(b.adjusted_value, b.order_value) ELSE 0 END), 0) AS pending_total,
          COALESCE(SUM(CASE WHEN COALESCE(b.validation_status,'pending') <> 'rejected' AND NOT COALESCE(b.is_refund,false)
                            THEN COALESCE(b.adjusted_value, b.order_value) ELSE 0 END), 0) AS gross_total,
+         COALESCE(SUM(CASE WHEN COALESCE(b.validation_status,'pending') <> 'rejected' AND NOT COALESCE(b.is_refund,false) AND b.is_redbar
+                           THEN COALESCE(b.adjusted_value, b.order_value) ELSE 0 END), 0) AS gross_redbar_total,
          COUNT(*) FILTER (WHERE COALESCE(b.validation_status,'pending')='validated' AND NOT COALESCE(b.is_refund,false)) AS validated_count,
          COUNT(*) FILTER (WHERE COALESCE(b.validation_status,'pending')='pending') AS pending_count,
          COUNT(*) AS total_count
