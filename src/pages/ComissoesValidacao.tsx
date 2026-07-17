@@ -115,7 +115,7 @@ export default function ComissoesValidacao() {
       </p>
 
       <Card>
-        <CardContent className="p-4 grid grid-cols-2 md:grid-cols-7 gap-3">
+        <CardContent className="p-4 grid grid-cols-2 md:grid-cols-8 gap-3">
           <div>
             <Label className="text-xs">De</Label>
             <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
@@ -153,6 +153,17 @@ export default function ComissoesValidacao() {
               <SelectContent>
                 <SelectItem value="all">Todos</SelectItem>
                 {channels.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">Red Bar</Label>
+            <Select value={redbarFilter} onValueChange={setRedbarFilter}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="only">Somente Red Bar</SelectItem>
+                <SelectItem value="exclude">Excluir Red Bar</SelectItem>
               </SelectContent>
             </Select>
           </div>
