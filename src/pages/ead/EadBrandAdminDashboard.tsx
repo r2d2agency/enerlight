@@ -715,7 +715,7 @@ export default function EadBrandAdminDashboard() {
                         </TableCell>
                         <TableCell className="text-right text-sm">{fmtDate(r.created_at)}</TableCell>
                       </TableRow>
-                    )) : <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">Sem instaladores</TableCell></TableRow>}
+                    )) : <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">Sem instaladores</TableCell></TableRow>}
                   </TableBody>
                 </Table>
               </CardContent>
