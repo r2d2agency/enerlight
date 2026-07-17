@@ -115,6 +115,11 @@ export default function ComissoesMinhas() {
             <div className="text-xs text-muted-foreground">
               Projeção mês: {fmt(data?.projected_commission?.total || 0)}
             </div>
+            {data?.commission?.redbar_enabled && (
+              <div className="mt-1 text-[11px] text-red-700 dark:text-red-400">
+                Padrão: {fmt(data?.commission?.regular?.total || 0)} • Red Bar: {fmt(data?.commission?.redbar?.total || 0)}
+              </div>
+            )}
           </CardContent>
         </Card>
         <Card>
