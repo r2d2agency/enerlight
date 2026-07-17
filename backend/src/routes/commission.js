@@ -406,16 +406,16 @@ router.delete('/rules/:userId', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Helper: compute commission for a validated amount using rule
-function computeCommission(rule, validatedTotal) {
-  const base = validatedTotal * (Number(rule?.base_percent || 0) / 100);
-  const tiers = Array.isArray(rule?.tiers) ? rule.tiers : [];
+// Helper: compute commission on a single bucket (regular or redbar)
+function computePart(basePercent, tiers, total) {
+  const base = total * (Number(basePercent || 0) / 100);
+  const list = Array.isArray(tiers) ? tiers : [];
   let bonus = 0;
   const achieved = [];
   let nextTier = null;
-  for (const t of tiers) {
-    if (validatedTotal >= t.target) {
-      const b = (validatedTotal * (Number(t.extra_percent) || 0) / 100) + (Number(t.extra_fixed) || 0);
+  for (const t of list) {
+    if (total >= t.target) {
+      const b = (total * (Number(t.extra_percent) || 0) / 100) + (Number(t.extra_fixed) || 0);
       bonus += b;
       achieved.push({ ...t, bonus: b });
     } else if (!nextTier) {
@@ -423,6 +423,26 @@ function computeCommission(rule, validatedTotal) {
     }
   }
   return { base, bonus, total: base + bonus, achieved, nextTier };
+}
+
+// If redbar is enabled on the rule, uses its own base_percent/tiers; otherwise falls back to normal rule.
+function computeCommission(rule, validatedTotal, redbarTotal = 0) {
+  const redbarEnabled = !!rule?.redbar_enabled;
+  const regularAmount = redbarEnabled ? Math.max(0, validatedTotal - redbarTotal) : validatedTotal;
+  const regular = computePart(rule?.base_percent, rule?.tiers, regularAmount);
+  const redbar = redbarEnabled
+    ? computePart(rule?.redbar_base_percent, rule?.redbar_tiers, redbarTotal)
+    : { base: 0, bonus: 0, total: 0, achieved: [], nextTier: null };
+  return {
+    base: regular.base + redbar.base,
+    bonus: regular.bonus + redbar.bonus,
+    total: regular.total + redbar.total,
+    achieved: [...regular.achieved, ...redbar.achieved.map(a => ({ ...a, redbar: true }))],
+    nextTier: regular.nextTier,
+    regular,
+    redbar,
+    redbar_enabled: redbarEnabled,
+  };
 }
 
 // GET /api/commission/summary — supervisor view: total per user in period
