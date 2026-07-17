@@ -293,6 +293,7 @@ export default function ComissoesValidacao() {
                             </TableCell>
                             <TableCell>
                               <Badge className={STATUS_LABEL[st].className}>{STATUS_LABEL[st].label}</Badge>
+                              {r.is_redbar && <Badge className="ml-1 bg-red-100 text-red-700">Red Bar</Badge>}
                               {r.is_refund && <Badge variant="outline" className="ml-1 text-red-600">Devolução</Badge>}
                             </TableCell>
                             <TableCell>
