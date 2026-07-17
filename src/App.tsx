@@ -225,6 +225,7 @@ const App = () => (
               <Route path="/crm/visitas-externas" element={<ProtectedRoute><VisitasExternas /></ProtectedRoute>} />
               <Route path="/captador" element={<ProtectedRoute><Captador /></ProtectedRoute>} />
               <Route path="/assinaturas" element={<ProtectedRoute><AssinaturasDoc /></ProtectedRoute>} />
+              <Route path="/minutas" element={<ProtectedRoute><Minutas /></ProtectedRoute>} />
               <Route path="/prestacao-contas" element={<ProtectedRoute><PrestacaoContas /></ProtectedRoute>} />
               <Route path="/prestacao-contas/agente" element={<ProtectedRoute><PrestacaoContasAgente /></ProtectedRoute>} />
               <Route path="/crm/segmentacao" element={<ProtectedRoute><Segmentacao /></ProtectedRoute>} />
