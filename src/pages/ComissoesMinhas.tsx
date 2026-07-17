@@ -93,6 +93,11 @@ export default function ComissoesMinhas() {
             <div className="text-xs text-muted-foreground">
               {data?.total_count || 0} pedidos no período
             </div>
+            {(data?.projected_redbar_net_total || 0) > 0 && (
+              <div className="mt-1 text-[11px] text-red-700 dark:text-red-400">
+                Red Bar: {fmt(data?.projected_redbar_net_total || 0)}
+              </div>
+            )}
           </CardContent>
         </Card>
         <Card>
@@ -115,6 +120,11 @@ export default function ComissoesMinhas() {
             <div className="text-xs text-muted-foreground">
               Projeção mês: {fmt(data?.projected_commission?.total || 0)}
             </div>
+            {data?.commission?.redbar_enabled && (
+              <div className="mt-1 text-[11px] text-red-700 dark:text-red-400">
+                Padrão: {fmt(data?.commission?.regular?.total || 0)} • Red Bar: {fmt(data?.commission?.redbar?.total || 0)}
+              </div>
+            )}
           </CardContent>
         </Card>
         <Card>
@@ -224,6 +234,7 @@ export default function ComissoesMinhas() {
                     <Badge variant={r.validation_status === "validated" ? "default" : "outline"}>
                       {r.validation_status === "validated" ? "Validado" : r.validation_status === "rejected" ? "Rejeitado" : "Pendente"}
                     </Badge>
+                    {r.is_redbar && <Badge className="ml-1 bg-red-100 text-red-700">Red Bar</Badge>}
                     {r.is_refund && <Badge variant="outline" className="ml-1 text-red-600">Devolução</Badge>}
                   </TableCell>
                   <TableCell className={`text-right text-sm font-medium ${r.is_refund ? "text-red-600" : ""}`}>

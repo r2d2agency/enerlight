@@ -36,6 +36,7 @@ export default function ComissoesValidacao() {
   const [status, setStatus] = useState("pending");
   const [userId, setUserId] = useState("all");
   const [channel, setChannel] = useState("all");
+  const [redbarFilter, setRedbarFilter] = useState("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [editing, setEditing] = useState<ValidationRecord | null>(null);
 
@@ -43,6 +44,7 @@ export default function ComissoesValidacao() {
     start_date: startDate, end_date: endDate,
     status: status !== "all" ? status : undefined,
     user_id: userId !== "all" ? userId : undefined,
+    redbar: redbarFilter !== "all" ? redbarFilter : undefined,
   });
   const { data: users } = useCommissionOrgUsers();
   const { data: summary } = useCommissionSummary({ start_date: startDate, end_date: endDate });
@@ -113,7 +115,7 @@ export default function ComissoesValidacao() {
       </p>
 
       <Card>
-        <CardContent className="p-4 grid grid-cols-2 md:grid-cols-7 gap-3">
+        <CardContent className="p-4 grid grid-cols-2 md:grid-cols-8 gap-3">
           <div>
             <Label className="text-xs">De</Label>
             <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
@@ -151,6 +153,17 @@ export default function ComissoesValidacao() {
               <SelectContent>
                 <SelectItem value="all">Todos</SelectItem>
                 {channels.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">Red Bar</Label>
+            <Select value={redbarFilter} onValueChange={setRedbarFilter}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="only">Somente Red Bar</SelectItem>
+                <SelectItem value="exclude">Excluir Red Bar</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -280,6 +293,7 @@ export default function ComissoesValidacao() {
                             </TableCell>
                             <TableCell>
                               <Badge className={STATUS_LABEL[st].className}>{STATUS_LABEL[st].label}</Badge>
+                              {r.is_redbar && <Badge className="ml-1 bg-red-100 text-red-700">Red Bar</Badge>}
                               {r.is_refund && <Badge variant="outline" className="ml-1 text-red-600">Devolução</Badge>}
                             </TableCell>
                             <TableCell>

@@ -10,6 +10,9 @@ export interface CommissionRule {
   base_percent: number;
   tiers: Tier[];
   active: boolean;
+  redbar_enabled?: boolean;
+  redbar_base_percent?: number;
+  redbar_tiers?: Tier[];
 }
 
 export interface ValidationRecord {
@@ -30,11 +33,12 @@ export interface ValidationRecord {
   validated_at: string | null;
   validation_note: string | null;
   is_refund: boolean;
+  is_redbar?: boolean;
 }
 
 export interface OrgUser { id: string; name: string; email: string; }
 
-export function useValidationQueue(params: { start_date?: string; end_date?: string; status?: string; seller_name?: string; user_id?: string }) {
+export function useValidationQueue(params: { start_date?: string; end_date?: string; status?: string; seller_name?: string; user_id?: string; redbar?: string }) {
   const sp = new URLSearchParams();
   Object.entries(params).forEach(([k, v]) => { if (v) sp.set(k, String(v)); });
   return useQuery({
@@ -74,7 +78,7 @@ export function useCommissionRulesMutations() {
   const qc = useQueryClient();
   const invalidate = () => qc.invalidateQueries({ queryKey: ["commission-rules"] });
   const upsert = useMutation({
-    mutationFn: (data: { user_id: string; base_percent: number; tiers: Tier[]; active: boolean }) =>
+    mutationFn: (data: { user_id: string; base_percent: number; tiers: Tier[]; active: boolean; redbar_enabled?: boolean; redbar_base_percent?: number; redbar_tiers?: Tier[] }) =>
       api(`/api/commission/rules/${data.user_id}`, { method: "PUT", body: data }),
     onSuccess: invalidate,
   });
