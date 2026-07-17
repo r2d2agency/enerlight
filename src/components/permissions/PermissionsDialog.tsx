@@ -151,6 +151,14 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
       { key: 'can_delete_devolucoes', label: 'Excluir (apagar) RMA', description: 'Permite excluir devoluções definitivamente' },
     ],
   },
+  {
+    title: 'EAD / Academy',
+    items: [
+      { key: 'can_view_ead', label: 'Ver EAD', description: 'Acessar o módulo EAD (Academy)' },
+      { key: 'can_manage_ead', label: 'Gerenciar EAD', description: 'Criar cursos, aprovar instaladores e emitir certificados' },
+    ],
+  },
+
 
   {
     title: 'RH / Ponto',

@@ -48,6 +48,9 @@ export default function EadBrandAdminDashboard() {
   const [company, setCompany] = useState<string>('');
   const [city, setCity] = useState<string>('');
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [certFilter, setCertFilter] = useState<'all' | 'with' | 'without'>('all');
+  const [installerSearch, setInstallerSearch] = useState('');
+
 
   async function loadDashboard(f?: string, t?: string, c?: string, ci?: string) {
     const d = await eadBrandAdminApi.dashboard({
@@ -567,32 +570,151 @@ export default function EadBrandAdminDashboard() {
         </div>
 
 
-        <Card>
-          <CardHeader><CardTitle>Cadastros recentes</CardTitle></CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader><TableRow>
-                <TableHead>Instalador</TableHead>
-                <TableHead>Contato</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Data</TableHead>
-              </TableRow></TableHeader>
-              <TableBody>
-                {data.recent_students?.length ? data.recent_students.map((r: any) => (
-                  <TableRow key={r.id}>
-                    <TableCell>
-                      <div className="font-medium">{r.name}</div>
-                      <div className="text-xs text-muted-foreground">{r.company || '—'}</div>
-                    </TableCell>
-                    <TableCell className="text-sm">{r.email}<div className="text-xs text-muted-foreground">{[r.city, r.state].filter(Boolean).join(' / ')}</div></TableCell>
-                    <TableCell><StatusBadge status={r.status} /></TableCell>
-                    <TableCell className="text-right text-sm">{fmtDate(r.created_at)}</TableCell>
-                  </TableRow>
-                )) : <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-6">Sem cadastros</TableCell></TableRow>}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        {/* Instaladores */}
+        {(() => {
+          const list: any[] = data.installers || data.recent_students || [];
+          const stats = data.installer_stats || {
+            total: list.length,
+            with_certificate: list.filter((x: any) => (x.certificate_count || 0) > 0).length,
+            without_certificate: list.filter((x: any) => !(x.certificate_count || 0)).length,
+            avg_attempts: 0,
+            avg_attempts_active: 0,
+          };
+          const q = installerSearch.trim().toLowerCase();
+          const filtered = list.filter((r: any) => {
+            if (certFilter === 'with' && !(r.certificate_count > 0)) return false;
+            if (certFilter === 'without' && (r.certificate_count > 0)) return false;
+            if (!q) return true;
+            return [r.name, r.email, r.company, r.city, r.state, r.phone]
+              .filter(Boolean).some((v: string) => String(v).toLowerCase().includes(q));
+          });
+          const certPie = [
+            { name: 'Com certificado', value: stats.with_certificate },
+            { name: 'Sem certificado', value: stats.without_certificate },
+          ].filter(x => x.value > 0);
+          return (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-3 flex-wrap">
+                <CardTitle className="flex items-center gap-2"><Users className="h-5 w-5" /> Instaladores</CardTitle>
+                <Badge variant="secondary">{filtered.length} de {list.length}</Badge>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <Kpi label="Total cadastrados" value={stats.total} icon={Users} color="#0ea5e9" />
+                  <Kpi label="Com certificado" value={stats.with_certificate} icon={Award} color="#22c55e" />
+                  <Kpi label="Sem certificado" value={stats.without_certificate} icon={UserX} color="#ef4444" />
+                  <Kpi
+                    label="Média de tentativas"
+                    value={Number(stats.avg_attempts || 0).toFixed(1)}
+                    icon={GraduationCap}
+                    color="#8b5cf6"
+                    hint={`Ativos: ${Number(stats.avg_attempts_active || 0).toFixed(1)}/instalador`}
+                  />
+                </div>
+
+                {certPie.length > 0 && (
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div className="h-56">
+                      <div className="text-sm font-medium mb-2">Distribuição por certificado</div>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie data={certPie} dataKey="value" nameKey="name" outerRadius={70} label>
+                            {certPie.map((_, i) => <Cell key={i} fill={COLORS[i]} />)}
+                          </Pie>
+                          <Tooltip />
+                          <Legend />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="h-56">
+                      <div className="text-sm font-medium mb-2">Tentativas de prova por instalador</div>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                          data={[...list]
+                            .sort((a: any, b: any) => (b.attempts_count || 0) - (a.attempts_count || 0))
+                            .slice(0, 8)
+                            .map((r: any) => ({ nome: (r.name || '').split(' ')[0], Tentativas: r.attempts_count || 0, Certificados: r.certificate_count || 0 }))}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="nome" />
+                          <YAxis allowDecimals={false} />
+                          <Tooltip />
+                          <Legend />
+                          <Bar dataKey="Tentativas" fill="#8b5cf6" />
+                          <Bar dataKey="Certificados" fill="#22c55e" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex flex-wrap items-end gap-3">
+                  <div className="grid gap-1">
+                    <Label className="text-xs">Certificado</Label>
+                    <Select value={certFilter} onValueChange={(v) => setCertFilter(v as any)}>
+                      <SelectTrigger className="h-9 w-[200px]"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos</SelectItem>
+                        <SelectItem value="with">Com certificado</SelectItem>
+                        <SelectItem value="without">Sem certificado</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-1 flex-1 min-w-[220px]">
+                    <Label className="text-xs">Buscar</Label>
+                    <Input
+                      value={installerSearch}
+                      onChange={(e) => setInstallerSearch(e.target.value)}
+                      placeholder="Nome, e-mail, empresa, cidade..."
+                      className="h-9"
+                    />
+                  </div>
+                  {(certFilter !== 'all' || installerSearch) && (
+                    <Button size="sm" variant="ghost" onClick={() => { setCertFilter('all'); setInstallerSearch(''); }}>
+                      <X className="h-4 w-4 mr-1" /> Limpar
+                    </Button>
+                  )}
+                </div>
+
+                <Table>
+                  <TableHeader><TableRow>
+                    <TableHead>Instalador</TableHead>
+                    <TableHead>Empresa / Cidade</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Tentativas</TableHead>
+                    <TableHead className="text-right">Certificados</TableHead>
+                    <TableHead className="text-right">Cadastro</TableHead>
+                  </TableRow></TableHeader>
+                  <TableBody>
+                    {filtered.length ? filtered.map((r: any) => (
+                      <TableRow key={r.id}>
+                        <TableCell>
+                          <div className="font-medium">{r.name}</div>
+                          <div className="text-xs text-muted-foreground">{r.email}</div>
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          <div>{r.company || '—'}</div>
+                          <div className="text-xs text-muted-foreground">{[r.city, r.state].filter(Boolean).join(' / ')}</div>
+                        </TableCell>
+                        <TableCell><StatusBadge status={r.status} /></TableCell>
+                        <TableCell className="text-right">{r.attempts_count ?? 0}</TableCell>
+                        <TableCell className="text-right">
+                          {(r.certificate_count || 0) > 0 ? (
+                            <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">{r.certificate_count}</Badge>
+                          ) : (
+                            <span className="text-muted-foreground">0</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right text-sm">{fmtDate(r.created_at)}</TableCell>
+                      </TableRow>
+                    )) : <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">Sem instaladores</TableCell></TableRow>}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          );
+        })()}
+
       </main>
 
       <footer className="bg-background border-t mt-8">

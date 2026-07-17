@@ -1808,7 +1808,7 @@ router.get('/brand-admin/dashboard', brandAdminAuth, async (req, res) => {
     const hasFilter = !!(from || to || company || city);
 
 
-    const [students, courses, certs, attempts, monthly, topCourses, topStudents, recent, pending, companies, allCompanies, cities] = await Promise.all([
+    const [students, courses, certs, attempts, monthly, topCourses, topStudents, recent, pending, companies, allCompanies, cities, installers, installerStats] = await Promise.all([
       query(`SELECT
           COUNT(*)::int AS total,
           COUNT(*) FILTER (WHERE s.status = 'approved')::int AS approved,
@@ -1888,7 +1888,30 @@ router.get('/brand-admin/dashboard', brandAdminAuth, async (req, res) => {
            FROM ead_students s
           WHERE s.brand_id = $1
           ORDER BY 1`, [brandId]),
+      // Full installers list with certificate & attempt counts (for the filterable table)
+      query(`SELECT s.id, s.name, s.email, s.phone, s.company, s.city, s.state, s.status, s.created_at,
+                COALESCE((SELECT COUNT(*)::int FROM ead_certificates c WHERE c.student_id = s.id), 0) AS certificate_count,
+                COALESCE((SELECT COUNT(*)::int FROM ead_attempts a WHERE a.student_id = s.id), 0) AS attempts_count
+           FROM ead_students s
+          WHERE s.brand_id = $1${sFilter}
+          ORDER BY s.created_at DESC
+          LIMIT 500`, params),
+      // Aggregated stats for installer KPIs (respects filters)
+      query(`WITH base AS (
+              SELECT s.id,
+                (SELECT COUNT(*) FROM ead_certificates c WHERE c.student_id = s.id) AS certs,
+                (SELECT COUNT(*) FROM ead_attempts a WHERE a.student_id = s.id) AS atts
+              FROM ead_students s WHERE s.brand_id = $1${sFilter}
+            )
+            SELECT
+              COUNT(*)::int AS total,
+              COUNT(*) FILTER (WHERE certs > 0)::int AS with_certificate,
+              COUNT(*) FILTER (WHERE certs = 0)::int AS without_certificate,
+              COALESCE(AVG(atts)::float, 0) AS avg_attempts,
+              COALESCE(AVG(atts) FILTER (WHERE atts > 0)::float, 0) AS avg_attempts_active
+            FROM base`, params),
     ]);
+
     res.json({
       students: students.rows[0],
       courses: courses.rows[0],
@@ -1902,8 +1925,12 @@ router.get('/brand-admin/dashboard', brandAdminAuth, async (req, res) => {
       companies: companies.rows,
       all_companies: allCompanies.rows.map(r => r.company),
       all_cities: cities.rows.map(r => r.city),
+      installers: installers.rows,
+      installer_stats: installerStats.rows[0] || { total: 0, with_certificate: 0, without_certificate: 0, avg_attempts: 0, avg_attempts_active: 0 },
       filter: { from, to, company, city },
     });
+
+
 
   } catch (e) { console.error('brand-admin dashboard', e); res.status(500).json({ error: 'Erro ao carregar' }); }
 });
