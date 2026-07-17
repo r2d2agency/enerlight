@@ -339,6 +339,55 @@ router.post('/draft/:token/request-password', async (req, res) => {
   } catch (e) { console.error('request-password error:', e); res.status(500).json({ error: 'Erro ao enviar senha' }); }
 });
 
+// Registra resposta do destinatário à minuta: 'accepted' (De acordo) ou 'objected' (Ressalva)
+router.post('/draft/:token/respond', async (req, res) => {
+  try {
+    const { session_token, status, reason } = req.body || {};
+    if (!session_token) return res.status(401).json({ error: 'Sem sessão' });
+    if (!['accepted', 'objected'].includes(status)) return res.status(400).json({ error: 'Status inválido' });
+    const trimmedReason = typeof reason === 'string' ? reason.trim() : '';
+    if (status === 'objected' && trimmedReason.length < 5) {
+      return res.status(400).json({ error: 'Descreva a ressalva (mínimo 5 caracteres)' });
+    }
+    let decoded;
+    try { decoded = jwt.verify(session_token, process.env.JWT_SECRET); } catch { return res.status(401).json({ error: 'Sessão expirada' }); }
+    if (decoded.scope !== 'draft_view') return res.status(401).json({ error: 'Escopo inválido' });
+
+    const r = await query(
+      `SELECT * FROM doc_signature_drafts WHERE access_token = $1 AND id = $2`,
+      [req.params.token, decoded.draftId]
+    );
+    const dr = r.rows[0];
+    if (!dr) return res.status(404).json({ error: 'Não encontrado' });
+    if (dr.revoked) return res.status(410).json({ error: 'Link revogado' });
+    if (dr.response_status && dr.response_status !== 'pending') {
+      return res.status(409).json({ error: 'Já existe uma resposta registrada para esta minuta', response_status: dr.response_status });
+    }
+
+    const ipAddr = getIp(req);
+    const storedReason = status === 'objected' ? trimmedReason : (trimmedReason || null);
+    await query(
+      `UPDATE doc_signature_drafts SET response_status=$1, response_reason=$2, responded_at=NOW(), response_ip=$3 WHERE id=$4`,
+      [status, storedReason, ipAddr, dr.id]
+    );
+    await query(
+      `INSERT INTO doc_signature_audit_log (document_id, action, ip_address, user_agent, details)
+       VALUES ($1,$2,$3,$4,$5)`,
+      [
+        dr.document_id,
+        status === 'accepted' ? 'draft_accepted' : 'draft_objected',
+        ipAddr,
+        req.headers['user-agent'],
+        JSON.stringify({ draft_id: dr.id, recipient_name: dr.recipient_name, recipient_email: dr.recipient_email, reason: storedReason }),
+      ]
+    );
+    res.json({ success: true, response_status: status, responded_at: new Date().toISOString(), response_reason: storedReason });
+  } catch (e) {
+    console.error('draft respond', e);
+    res.status(500).json({ error: 'Erro ao registrar resposta' });
+  }
+});
+
 // ---------- SIGNING (v2 com OTP + biometria) ----------
 
 // Info público do signatário (sem OTP validado ainda)
