@@ -35,6 +35,10 @@ const router = Router();
     await query(`ALTER TABLE doc_signature_drafts ADD COLUMN IF NOT EXISTS last_password_sent_at TIMESTAMP WITH TIME ZONE`);
     await query(`ALTER TABLE doc_signature_drafts ADD COLUMN IF NOT EXISTS last_password_ip TEXT`);
     await query(`ALTER TABLE doc_signature_drafts ADD COLUMN IF NOT EXISTS password_send_count INTEGER DEFAULT 0`);
+    await query(`ALTER TABLE doc_signature_drafts ADD COLUMN IF NOT EXISTS response_status VARCHAR(20) DEFAULT 'pending'`);
+    await query(`ALTER TABLE doc_signature_drafts ADD COLUMN IF NOT EXISTS response_reason TEXT`);
+    await query(`ALTER TABLE doc_signature_drafts ADD COLUMN IF NOT EXISTS responded_at TIMESTAMP WITH TIME ZONE`);
+    await query(`ALTER TABLE doc_signature_drafts ADD COLUMN IF NOT EXISTS response_ip TEXT`);
 
     // Biometric + OTP + Tracking (v2)
     await query(`ALTER TABLE doc_signature_signers ADD COLUMN IF NOT EXISTS selfie_url TEXT`);
@@ -255,7 +259,15 @@ router.post('/draft/:token/auth', async (req, res) => {
       [dr.document_id, ipAddr, req.headers['user-agent'], JSON.stringify({ draft_id: dr.id, recipient_email: dr.recipient_email })]);
 
     const sessionToken = jwt.sign({ draftId: dr.id, docId: dr.document_id, scope: 'draft_view' }, process.env.JWT_SECRET, { expiresIn: '30m' });
-    res.json({ session_token: sessionToken, recipient_name: dr.recipient_name, recipient_email: dr.recipient_email, expires_in: 1800 });
+    res.json({
+      session_token: sessionToken,
+      recipient_name: dr.recipient_name,
+      recipient_email: dr.recipient_email,
+      expires_in: 1800,
+      response_status: dr.response_status || 'pending',
+      response_reason: dr.response_reason || null,
+      responded_at: dr.responded_at || null,
+    });
   } catch (e) { console.error('draft auth', e); res.status(500).json({ error: 'Erro' }); }
 });
 
@@ -325,6 +337,55 @@ router.post('/draft/:token/request-password', async (req, res) => {
     if (!emailSent) return res.status(500).json({ error: emailError || 'Falha ao enviar e-mail com a senha' });
     res.json({ success: true, recipient_email_masked: dr.recipient_email.replace(/(.).+(@.*)/, '$1***$2'), message: 'Uma nova senha foi enviada para o seu e-mail' });
   } catch (e) { console.error('request-password error:', e); res.status(500).json({ error: 'Erro ao enviar senha' }); }
+});
+
+// Registra resposta do destinatário à minuta: 'accepted' (De acordo) ou 'objected' (Ressalva)
+router.post('/draft/:token/respond', async (req, res) => {
+  try {
+    const { session_token, status, reason } = req.body || {};
+    if (!session_token) return res.status(401).json({ error: 'Sem sessão' });
+    if (!['accepted', 'objected'].includes(status)) return res.status(400).json({ error: 'Status inválido' });
+    const trimmedReason = typeof reason === 'string' ? reason.trim() : '';
+    if (status === 'objected' && trimmedReason.length < 5) {
+      return res.status(400).json({ error: 'Descreva a ressalva (mínimo 5 caracteres)' });
+    }
+    let decoded;
+    try { decoded = jwt.verify(session_token, process.env.JWT_SECRET); } catch { return res.status(401).json({ error: 'Sessão expirada' }); }
+    if (decoded.scope !== 'draft_view') return res.status(401).json({ error: 'Escopo inválido' });
+
+    const r = await query(
+      `SELECT * FROM doc_signature_drafts WHERE access_token = $1 AND id = $2`,
+      [req.params.token, decoded.draftId]
+    );
+    const dr = r.rows[0];
+    if (!dr) return res.status(404).json({ error: 'Não encontrado' });
+    if (dr.revoked) return res.status(410).json({ error: 'Link revogado' });
+    if (dr.response_status && dr.response_status !== 'pending') {
+      return res.status(409).json({ error: 'Já existe uma resposta registrada para esta minuta', response_status: dr.response_status });
+    }
+
+    const ipAddr = getIp(req);
+    const storedReason = status === 'objected' ? trimmedReason : (trimmedReason || null);
+    await query(
+      `UPDATE doc_signature_drafts SET response_status=$1, response_reason=$2, responded_at=NOW(), response_ip=$3 WHERE id=$4`,
+      [status, storedReason, ipAddr, dr.id]
+    );
+    await query(
+      `INSERT INTO doc_signature_audit_log (document_id, action, ip_address, user_agent, details)
+       VALUES ($1,$2,$3,$4,$5)`,
+      [
+        dr.document_id,
+        status === 'accepted' ? 'draft_accepted' : 'draft_objected',
+        ipAddr,
+        req.headers['user-agent'],
+        JSON.stringify({ draft_id: dr.id, recipient_name: dr.recipient_name, recipient_email: dr.recipient_email, reason: storedReason }),
+      ]
+    );
+    res.json({ success: true, response_status: status, responded_at: new Date().toISOString(), response_reason: storedReason });
+  } catch (e) {
+    console.error('draft respond', e);
+    res.status(500).json({ error: 'Erro ao registrar resposta' });
+  }
 });
 
 // ---------- SIGNING (v2 com OTP + biometria) ----------
@@ -766,7 +827,8 @@ router.get('/:id', async (req, res) => {
     const placements = await query(`SELECT * FROM doc_signature_placements WHERE document_id = $1`, [id]);
     const audit = await query(`SELECT * FROM doc_signature_audit_log WHERE document_id = $1 ORDER BY created_at DESC`, [id]);
     const drafts = await query(`SELECT id, recipient_name, recipient_email, access_token, expires_at,
-      view_count, last_viewed_at, revoked, created_at FROM doc_signature_drafts WHERE document_id = $1 ORDER BY created_at DESC`, [id]);
+      view_count, last_viewed_at, revoked, created_at, response_status, response_reason, responded_at, response_ip
+      FROM doc_signature_drafts WHERE document_id = $1 ORDER BY created_at DESC`, [id]);
     res.json({ ...docResult.rows[0], signers: signers.rows, placements: placements.rows, audit_log: audit.rows, drafts: drafts.rows });
   } catch (e) { console.error('get', e); res.status(500).json({ error: 'Erro ao buscar' }); }
 });
