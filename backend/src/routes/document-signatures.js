@@ -827,7 +827,8 @@ router.get('/:id', async (req, res) => {
     const placements = await query(`SELECT * FROM doc_signature_placements WHERE document_id = $1`, [id]);
     const audit = await query(`SELECT * FROM doc_signature_audit_log WHERE document_id = $1 ORDER BY created_at DESC`, [id]);
     const drafts = await query(`SELECT id, recipient_name, recipient_email, access_token, expires_at,
-      view_count, last_viewed_at, revoked, created_at FROM doc_signature_drafts WHERE document_id = $1 ORDER BY created_at DESC`, [id]);
+      view_count, last_viewed_at, revoked, created_at, response_status, response_reason, responded_at, response_ip
+      FROM doc_signature_drafts WHERE document_id = $1 ORDER BY created_at DESC`, [id]);
     res.json({ ...docResult.rows[0], signers: signers.rows, placements: placements.rows, audit_log: audit.rows, drafts: drafts.rows });
   } catch (e) { console.error('get', e); res.status(500).json({ error: 'Erro ao buscar' }); }
 });
