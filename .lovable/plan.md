@@ -1,91 +1,96 @@
-## Objetivo
+# Assinatura de Contrato com Biometria + OTP + Rastreio Público
 
-Criar uma tela onde qualquer usuário registra a saída/uso de um veículo da empresa (visita a cliente, entrega, deslocamento), com KM inicial/final, data/hora, checklist rápido de vistoria e, opcionalmente, marca que houve entrega — nesse caso já gera automaticamente um registro na Logística usando as configurações da frota própria (preço por litro, km/l) para calcular o custo do frete.
+Reaproveita o módulo existente `doc_signature_*`. Não cria um módulo novo.
 
-## Fluxo do usuário
+## 1. Banco de Dados (backend/schema-document-signatures.sql — ALTER)
 
-1. Menu **Logística → Veículos** (ou item novo "Controle de Veículos").
-2. Página lista todas as saídas registradas, com filtros por veículo, motorista, período e status (aberta / finalizada).
-3. Botão **"Registrar saída"**:
-   - Veículo (dropdown de veículos cadastrados)
-   - Motorista (auto = usuário logado, editável por admin)
-   - Data/hora de saída (default = agora)
-   - KM inicial
-   - Checklist rápido: pneus, óleo, combustível, luzes, limpeza, avarias (checkboxes + campo "observações")
-   - Destino / cliente visitado (autocomplete de empresas do CRM ou texto livre)
-   - Motivo: Visita comercial / Entrega / Outro
-   - Se **Entrega**: seleciona negociação (deal) da CRM e produtos/nota; ao salvar, cria automaticamente um `logistics_shipment` vinculado.
-4. Botão **"Finalizar saída"** na linha aberta:
-   - Data/hora de retorno
-   - KM final (calcula distância = final - inicial)
-   - Observações finais / avarias no retorno
-   - Se marcado como entrega, atualiza `distance_km` e `own_fleet_cost` no shipment vinculado usando `logistics_fleet_settings`.
+Adicionar em `doc_signature_signers`:
+- `selfie_url TEXT`, `document_front_url TEXT`, `document_back_url TEXT`
+- `face_match_score DECIMAL(5,4)` — score do face-api (0..1)
+- `face_validation_status VARCHAR(30)` — `pending|passed|failed`
+- `face_validation_details JSONB`
 
-## Estrutura técnica
+Nova tabela `doc_signature_otps` (OTP a cada tentativa):
+- `id, signer_id, code_hash, code_salt, sent_to_email, expires_at, used_at, created_at`
 
-### Backend
+Adicionar em `doc_signature_documents`:
+- `require_biometric BOOLEAN DEFAULT TRUE`
+- `document_hash VARCHAR(128)` — SHA-256 do PDF final
+- `public_tracking_slug VARCHAR(20) UNIQUE` — slug curto pro QR (`/rastreio/:slug`)
 
-**Nova migration `schema-vehicles.sql`:**
+## 2. Backend (`backend/src/routes/document-signatures.js`)
 
-```text
-vehicles
-  id, organization_id, name (ex: "Fiorino ABC-1234"),
-  plate, model, brand, year,
-  current_km (cache do último km final),
-  is_active, notes, created_at
+Rotas públicas novas (sem auth):
 
-vehicle_trips
-  id, organization_id, vehicle_id, driver_id (user),
-  departure_at, return_at (nullable),
-  km_start, km_end (nullable), km_total (generated),
-  purpose ('visit' | 'delivery' | 'other'),
-  destination_text, client_company_id (nullable FK crm_companies),
-  deal_id (nullable FK crm_deals),
-  shipment_id (nullable FK logistics_shipments),
-  checklist_out jsonb, checklist_in jsonb,
-  notes_out, notes_in,
-  status ('open' | 'closed'),
-  created_at, updated_at
+- `POST /sign/:token/request-otp` → gera OTP 6 dígitos, envia email
+- `POST /sign/:token/verify-otp {code}` → devolve `session_token` (JWT 15min)
+- `GET  /sign/:token/file?session=` → serve PDF inline, watermark "PENDENTE" enquanto não `completed`, download real só quando `completed`
+- `POST /sign/:token/upload-biometric` (session) → grava selfie + doc frente/verso + score
+- `POST /sign/:token/submit` (session) → só aceita se biometria passou
+- `GET  /track/:slug` → dados do rastreio público
 
-GRANTs padrão + índices em (organization_id, status, vehicle_id, driver_id)
-```
+## 3. Geração do PDF final (backend, com `pdf-lib` + `qrcode`)
 
-**Novo `backend/src/routes/vehicles.js`:**
-- `GET/POST/PUT/DELETE /api/vehicles` — CRUD de veículos
-- `GET /api/vehicles/trips` (filtros)
-- `POST /api/vehicles/trips` — cria saída; se `purpose = delivery`, cria shipment em `logistics_shipments` com carrier = nome da frota própria configurada
-- `POST /api/vehicles/trips/:id/close` — fecha viagem, atualiza `current_km` do veículo e, se houver shipment vinculado, atualiza `distance_km` + `own_fleet_cost` reaproveitando `computeOwnFleetCost` já existente em `routes/logistics.js` (exportar helper)
-- `GET /api/vehicles/trips/:id`
-- Registrar em `backend/src/index.js`
+Quando todos assinam:
+1. Carrega original, aplica assinaturas nas posições dos `doc_signature_placements`.
+2. **Página final "Certificado de Assinatura Digital"**: hash SHA-256, base legal MP 2.200-2/2001, e para cada signatário: nome, CPF, email, IP, geo, data/hora + thumbnails da selfie e documento frente/verso.
+3. **Rodapé em todas as páginas**: QR code apontando pra `https://<host>/rastreio/<slug>` + texto "Verificar autenticidade".
+4. Recalcula SHA-256 e grava em `document_hash`.
 
-### Frontend
+## 4. Frontend público — `src/pages/PublicSigningPage.tsx` (nova)
 
-- `src/hooks/use-vehicles.ts` — hooks React Query para veículos e viagens
-- `src/pages/ControleVeiculos.tsx` — página principal com tabs "Viagens" e "Veículos"
-- `src/components/vehicles/VehicleFormDialog.tsx` — cadastro de veículo
-- `src/components/vehicles/TripFormDialog.tsx` — registrar saída (com checklist + seleção condicional de entrega)
-- `src/components/vehicles/TripCloseDialog.tsx` — finalizar saída (km final + checklist retorno)
-- Rota nova em `src/App.tsx`: `/controle-veiculos`
-- Item de menu na `Sidebar` sob "Logística"
+Rota: `/assinar/:token`. Stepper:
 
-### Integração com Logística
+1. **OTP** — "Enviar código pro meu e-mail" → digita 6 dígitos → session.
+2. **Leitura do contrato** — iframe inline, sem toolbar, watermark "Aguardando assinatura". Botão "Li e concordo".
+3. **Biometria**:
+   - Selfie: webcam → `face-api.js` detecta 1 rosto (score ≥ 0.6).
+   - Documento frente: câmera traseira (`facingMode: environment`).
+   - Documento verso: idem.
+   - Match: `computeFaceDescriptor` selfie × doc frente, `euclideanDistance` ≤ 0.6.
+   - Upload dos 3 base64 + score.
+4. **Assinatura**: canvas (`react-signature-canvas`) → submit.
+5. **Confirmação**: link pro rastreio público.
 
-- Reaproveita `logistics_fleet_settings` (preço/litro e km/litro já cadastrados) para calcular o custo.
-- Shipment criado a partir de uma entrega já nasce com carrier = frota própria, `deal_id`, `client_name` e, ao fechar viagem, ganha `distance_km` e `own_fleet_cost`.
-- Na tela de Logística o shipment aparece normalmente e soma no KPI da frota própria.
+Modelos face-api.js em `/public/models/face-api/` (tiny_face_detector + landmarks + recognition).
 
-## Checklist padrão (JSON)
+## 5. Frontend público — `src/pages/PublicSignatureTracking.tsx` (nova)
 
-```text
-{ tires: bool, oil: bool, fuel_level: '1/4'|'1/2'|'3/4'|'full',
-  lights: bool, cleanliness: bool, damages: bool, damages_notes: string }
-```
+Rota `/rastreio/:slug`. Mostra: título, hash, status, timeline (cada signatário: assinado em / IP / cidade / biometria ✓). Botão "Baixar documento" **apenas** se `completed`.
 
-## Fora de escopo (podemos adicionar depois)
+## 6. Frontend admin
 
-- Aprovação/assinatura digital da vistoria
-- Upload de fotos do veículo antes/depois
-- Relatórios de consumo por veículo / motorista
-- Reserva/agenda de veículo
+- `use-document-signatures.ts`: novos métodos `requestOtp`, `verifyOtp`, `uploadBiometric`, `submitSignatureBiometric`, `getTracking`; parâmetro `require_biometric` no create.
+- Na tela existente, um switch "Exigir biometria (selfie + documento)".
 
-Confirmo e sigo com a implementação?
+## 7. Segurança
+
+- OTP com bcrypt, expira 10min, uso único.
+- JWT session curto (15min).
+- face-api.js roda no cliente (privacidade); servidor recebe apenas score + fotos.
+- Download bloqueado antes de `completed` (headers + validação por sessão).
+- Hash SHA-256 publicado permite verificar integridade sem expor conteúdo.
+
+## Arquivos
+
+**Novos:**
+- `src/pages/PublicSigningPage.tsx`
+- `src/pages/PublicSignatureTracking.tsx`
+- `public/models/face-api/*.json` (~6MB, CDN oficial)
+
+**Editados:**
+- `backend/schema-document-signatures.sql` (ALTERs idempotentes)
+- `backend/src/routes/document-signatures.js` (rotas + geração do PDF final)
+- `backend/package.json` (`pdf-lib`, `qrcode` se faltarem)
+- `src/App.tsx` (rotas `/assinar/:token`, `/rastreio/:slug`)
+- `src/hooks/use-document-signatures.ts`
+- `package.json` (`face-api.js`, `react-signature-canvas`)
+
+## Fora do escopo (adiciono depois se quiser)
+
+- Vivacidade real (piscar, virar rosto).
+- OCR do documento pra ler CPF/nome.
+- Fallback pra aprovação manual quando o match face-api falha 3x.
+- Assinatura ICP-Brasil (A1/A3) — aqui a validade é a da MP 2.200-2/2001 §2º (assinatura eletrônica simples com evidências).
+
+Confirma que posso implementar tudo isso?

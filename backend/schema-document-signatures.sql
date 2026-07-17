@@ -83,3 +83,31 @@ CREATE TABLE IF NOT EXISTS doc_signature_drafts (
 );
 CREATE INDEX IF NOT EXISTS idx_doc_sig_drafts_doc ON doc_signature_drafts(document_id);
 CREATE INDEX IF NOT EXISTS idx_doc_sig_drafts_token ON doc_signature_drafts(access_token);
+
+-- ============= BIOMETRIC + OTP + PUBLIC TRACKING (v2) =============
+ALTER TABLE doc_signature_signers    ADD COLUMN IF NOT EXISTS selfie_url TEXT;
+ALTER TABLE doc_signature_signers    ADD COLUMN IF NOT EXISTS document_front_url TEXT;
+ALTER TABLE doc_signature_signers    ADD COLUMN IF NOT EXISTS document_back_url TEXT;
+ALTER TABLE doc_signature_signers    ADD COLUMN IF NOT EXISTS face_match_score DECIMAL(6,4);
+ALTER TABLE doc_signature_signers    ADD COLUMN IF NOT EXISTS face_validation_status VARCHAR(30) DEFAULT 'pending';
+ALTER TABLE doc_signature_signers    ADD COLUMN IF NOT EXISTS face_validation_details JSONB;
+
+ALTER TABLE doc_signature_documents  ADD COLUMN IF NOT EXISTS require_biometric BOOLEAN DEFAULT TRUE;
+ALTER TABLE doc_signature_documents  ADD COLUMN IF NOT EXISTS document_hash VARCHAR(128);
+ALTER TABLE doc_signature_documents  ADD COLUMN IF NOT EXISTS public_tracking_slug VARCHAR(20) UNIQUE;
+
+CREATE TABLE IF NOT EXISTS doc_signature_otps (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    signer_id UUID REFERENCES doc_signature_signers(id) ON DELETE CASCADE NOT NULL,
+    code_hash TEXT NOT NULL,
+    code_salt TEXT NOT NULL,
+    sent_to_email VARCHAR(255) NOT NULL,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    used_at TIMESTAMP WITH TIME ZONE,
+    attempts INTEGER DEFAULT 0,
+    ip_address VARCHAR(50),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_doc_sig_otps_signer ON doc_signature_otps(signer_id);
+CREATE INDEX IF NOT EXISTS idx_doc_sig_otps_exp ON doc_signature_otps(expires_at);
+

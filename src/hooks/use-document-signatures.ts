@@ -216,10 +216,56 @@ export function useDocumentSignatures() {
     return res.json() as Promise<{ success: boolean; recipient_email_masked: string; message: string }>;
   }, []);
 
+  // ===== Signing v2 (OTP + biometria) =====
+  const getSigningInfo = useCallback(async (token: string) => {
+    const res = await fetch(`${API_URL}/api/document-signatures/sign/${token}/info`);
+    if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || 'Link inválido'); }
+    return res.json();
+  }, []);
+  const requestSignOtp = useCallback(async (token: string) => {
+    const res = await fetch(`${API_URL}/api/document-signatures/sign/${token}/request-otp`, { method: 'POST' });
+    if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || 'Falha ao enviar código'); }
+    return res.json() as Promise<{ success: boolean; recipient_email_masked: string }>;
+  }, []);
+  const verifySignOtp = useCallback(async (token: string, code: string) => {
+    const res = await fetch(`${API_URL}/api/document-signatures/sign/${token}/verify-otp`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code }),
+    });
+    if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || 'Código inválido'); }
+    return res.json() as Promise<{ session_token: string; expires_in: number }>;
+  }, []);
+  const uploadBiometric = useCallback(async (token: string, session_token: string, payload: {
+    selfie: string; doc_front: string; doc_back: string; face_match_score: number; faces_detected: number; distance?: number | null;
+  }) => {
+    const res = await fetch(`${API_URL}/api/document-signatures/sign/${token}/upload-biometric`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_token, ...payload }),
+    });
+    if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || 'Falha na biometria'); }
+    return res.json();
+  }, []);
+  const submitSignSignature = useCallback(async (token: string, session_token: string, payload: {
+    signature_data: string; cpf?: string; geolocation?: string;
+  }) => {
+    const res = await fetch(`${API_URL}/api/document-signatures/sign/${token}/submit`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_token, ...payload }),
+    });
+    if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || 'Falha ao assinar'); }
+    return res.json();
+  }, []);
+  const getTracking = useCallback(async (slug: string) => {
+    const res = await fetch(`${API_URL}/api/document-signatures/track/${slug}`);
+    if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || 'Rastreio indisponível'); }
+    return res.json();
+  }, []);
+
   return {
     loading, documents, fetchDocuments, getDocument,
     createDocument, updateDocument, sendForSigning, deleteDocument,
     getSigningPage, submitSignature,
     sendDraft, regenerateDraftPassword, revokeDraft, getDraftInfo, authDraft, requestDraftPassword,
+    getSigningInfo, requestSignOtp, verifySignOtp, uploadBiometric, submitSignSignature, getTracking,
   };
 }
+

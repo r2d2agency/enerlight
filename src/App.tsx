@@ -81,6 +81,8 @@ const VisitasExternas = lazyRetry(() => import("./pages/VisitasExternas"));
 const Captador = lazyRetry(() => import("./pages/Captador"));
 const AssinaturasDoc = lazyRetry(() => import("./pages/AssinaturasDoc"));
 const MinutaViewer = lazyRetry(() => import("./pages/MinutaViewer"));
+const PublicSigningPage = lazyRetry(() => import("./pages/PublicSigningPage"));
+const PublicSignatureTracking = lazyRetry(() => import("./pages/PublicSignatureTracking"));
 const PrestacaoContas = lazyRetry(() => import("./pages/PrestacaoContas"));
 const PrestacaoContasAgente = lazyRetry(() => import("./pages/PrestacaoContasAgente"));
 const Segmentacao = lazyRetry(() => import("./pages/Segmentacao"));
@@ -226,8 +228,10 @@ const App = () => (
               <Route path="/prestacao-contas/agente" element={<ProtectedRoute><PrestacaoContasAgente /></ProtectedRoute>} />
               <Route path="/crm/segmentacao" element={<ProtectedRoute><Segmentacao /></ProtectedRoute>} />
               <Route path="/crm/pesquisas" element={<ProtectedRoute><Pesquisas /></ProtectedRoute>} />
-              <Route path="/assinar/:token" element={<AssinaturasDoc />} />
+              <Route path="/assinar/:token" element={<PublicSigningPage />} />
               <Route path="/minuta/:token" element={<MinutaViewer />} />
+              <Route path="/rastreio/:slug" element={<PublicSignatureTracking />} />
+
               <Route path="/f/:slug" element={<PublicFormPage />} />
               <Route path="/pesquisa/:slug" element={<PublicSurveyPage />} />
               <Route path="/crm/orcamentos" element={<ProtectedRoute><OnlineQuotes /></ProtectedRoute>} />
