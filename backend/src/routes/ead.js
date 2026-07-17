@@ -1888,7 +1888,29 @@ router.get('/brand-admin/dashboard', brandAdminAuth, async (req, res) => {
            FROM ead_students s
           WHERE s.brand_id = $1
           ORDER BY 1`, [brandId]),
-    ]);
+      // Full installers list with certificate & attempt counts (for the filterable table)
+      query(`SELECT s.id, s.name, s.email, s.phone, s.company, s.city, s.state, s.status, s.created_at,
+                COALESCE((SELECT COUNT(*)::int FROM ead_certificates c WHERE c.student_id = s.id), 0) AS certificate_count,
+                COALESCE((SELECT COUNT(*)::int FROM ead_attempts a WHERE a.student_id = s.id), 0) AS attempts_count
+           FROM ead_students s
+          WHERE s.brand_id = $1${sFilter}
+          ORDER BY s.created_at DESC
+          LIMIT 500`, params),
+      // Aggregated stats for installer KPIs (respects filters)
+      query(`WITH base AS (
+              SELECT s.id,
+                (SELECT COUNT(*) FROM ead_certificates c WHERE c.student_id = s.id) AS certs,
+                (SELECT COUNT(*) FROM ead_attempts a WHERE a.student_id = s.id) AS atts
+              FROM ead_students s WHERE s.brand_id = $1${sFilter}
+            )
+            SELECT
+              COUNT(*)::int AS total,
+              COUNT(*) FILTER (WHERE certs > 0)::int AS with_certificate,
+              COUNT(*) FILTER (WHERE certs = 0)::int AS without_certificate,
+              COALESCE(AVG(atts)::float, 0) AS avg_attempts,
+              COALESCE(AVG(atts) FILTER (WHERE atts > 0)::float, 0) AS avg_attempts_active
+            FROM base`, params),
+
     res.json({
       students: students.rows[0],
       courses: courses.rows[0],
