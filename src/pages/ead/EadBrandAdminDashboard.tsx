@@ -700,6 +700,13 @@ export default function EadBrandAdminDashboard() {
                         <TableCell><StatusBadge status={r.status} /></TableCell>
                         <TableCell className="text-right">{r.attempts_count ?? 0}</TableCell>
                         <TableCell className="text-right">
+                          {(r.certificate_count || 0) > 0 && (r.attempts_until_certificate || 0) > 0 ? (
+                            <Badge variant="outline">{r.attempts_until_certificate}</Badge>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
                           {(r.certificate_count || 0) > 0 ? (
                             <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">{r.certificate_count}</Badge>
                           ) : (
