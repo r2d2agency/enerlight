@@ -280,7 +280,7 @@ export function useDocumentSignatures() {
     loading, documents, fetchDocuments, getDocument,
     createDocument, updateDocument, sendForSigning, deleteDocument,
     getSigningPage, submitSignature,
-    sendDraft, regenerateDraftPassword, revokeDraft, getDraftInfo, authDraft, requestDraftPassword,
+    sendDraft, regenerateDraftPassword, revokeDraft, getDraftInfo, authDraft, requestDraftPassword, respondDraft,
     getSigningInfo, requestSignOtp, verifySignOtp, uploadBiometric, submitSignSignature, getTracking,
   };
 }
