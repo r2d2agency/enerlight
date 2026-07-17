@@ -551,7 +551,7 @@ export default function AssinaturasDoc() {
               </Card>
             );
           })}
-          {!loading && documents.length === 0 && (
+          {!loading && documents.filter(d => !d.is_minuta).length === 0 && (
             <div className="col-span-full text-center py-12 text-muted-foreground">
               <FileSignature className="h-12 w-12 mx-auto mb-2 opacity-50" /><p>Nenhum documento ainda</p>
             </div>
