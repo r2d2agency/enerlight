@@ -36,6 +36,7 @@ export default function ComissoesValidacao() {
   const [status, setStatus] = useState("pending");
   const [userId, setUserId] = useState("all");
   const [channel, setChannel] = useState("all");
+  const [redbarFilter, setRedbarFilter] = useState("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [editing, setEditing] = useState<ValidationRecord | null>(null);
 
@@ -43,6 +44,7 @@ export default function ComissoesValidacao() {
     start_date: startDate, end_date: endDate,
     status: status !== "all" ? status : undefined,
     user_id: userId !== "all" ? userId : undefined,
+    redbar: redbarFilter !== "all" ? redbarFilter : undefined,
   });
   const { data: users } = useCommissionOrgUsers();
   const { data: summary } = useCommissionSummary({ start_date: startDate, end_date: endDate });
