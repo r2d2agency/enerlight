@@ -103,6 +103,7 @@ export function useDocumentSignatures() {
     original_url: string;
     original_filename?: string;
     original_mimetype?: string;
+    is_minuta?: boolean;
     signers?: Omit<DocSigner, 'id' | 'status' | 'signed_at' | 'access_token'>[];
   }): Promise<SignatureDocument | null> => {
     setLoading(true);
