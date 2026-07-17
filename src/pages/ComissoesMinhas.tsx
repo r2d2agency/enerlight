@@ -234,6 +234,7 @@ export default function ComissoesMinhas() {
                     <Badge variant={r.validation_status === "validated" ? "default" : "outline"}>
                       {r.validation_status === "validated" ? "Validado" : r.validation_status === "rejected" ? "Rejeitado" : "Pendente"}
                     </Badge>
+                    {r.is_redbar && <Badge className="ml-1 bg-red-100 text-red-700">Red Bar</Badge>}
                     {r.is_refund && <Badge variant="outline" className="ml-1 text-red-600">Devolução</Badge>}
                   </TableCell>
                   <TableCell className={`text-right text-sm font-medium ${r.is_refund ? "text-red-600" : ""}`}>
