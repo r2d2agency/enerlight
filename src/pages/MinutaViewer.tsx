@@ -307,9 +307,142 @@ export default function MinutaViewer() {
         />
       </div>
 
+      {/* Barra de resposta: De acordo / Ressalva */}
+      {response.status === "pending" ? (
+        <div className="bg-neutral-800 border-t border-neutral-700 px-4 py-3 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+          <div className="flex-1 text-xs text-neutral-300 leading-snug">
+            Ao final da leitura, registre sua resposta. Esta escolha ficará registrada no histórico da minuta e será enviada a quem emitiu o documento.
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="destructive"
+              onClick={() => setShowObjectionDialog(true)}
+              disabled={!!respondingStatus}
+              className="gap-2"
+            >
+              <MessageSquareWarning className="h-4 w-4" />
+              Registrar ressalva
+            </Button>
+            <Button
+              onClick={() => setConfirmAccept(true)}
+              disabled={!!respondingStatus}
+              className="gap-2 bg-emerald-600 hover:bg-emerald-500 text-white"
+            >
+              <ThumbsUp className="h-4 w-4" />
+              Estou de acordo
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div
+          className={`border-t px-4 py-3 flex items-start sm:items-center gap-3 ${
+            response.status === "accepted"
+              ? "bg-emerald-950/60 border-emerald-800 text-emerald-100"
+              : "bg-amber-950/60 border-amber-800 text-amber-100"
+          }`}
+        >
+          {response.status === "accepted" ? (
+            <CheckCircle2 className="h-5 w-5 shrink-0" />
+          ) : (
+            <AlertTriangle className="h-5 w-5 shrink-0" />
+          )}
+          <div className="flex-1 text-sm">
+            <div className="font-semibold">
+              {response.status === "accepted" ? "De acordo com a minuta" : "Ressalva registrada"}
+              {response.at && (
+                <span className="ml-2 text-xs opacity-80 font-normal">
+                  em {new Date(response.at).toLocaleString("pt-BR")}
+                </span>
+              )}
+            </div>
+            {response.status === "objected" && response.reason && (
+              <div className="text-xs mt-1 whitespace-pre-wrap opacity-90">
+                <span className="font-medium">Motivo:</span> {response.reason}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="bg-neutral-800 px-4 py-2 text-[11px] text-neutral-400 text-center border-t border-neutral-700">
         Documento pessoal para {recipient?.name} — download, impressão e cópia estão desabilitados. Toda visualização é registrada.
       </div>
+
+      {/* Confirmação: De acordo */}
+      <Dialog open={confirmAccept} onOpenChange={(o) => !respondingStatus && setConfirmAccept(o)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar aceite da minuta</DialogTitle>
+            <DialogDescription>
+              Ao confirmar, você declara estar <strong>de acordo</strong> com o conteúdo desta minuta. Sua resposta será registrada com data, hora e endereço IP e enviada ao emissor. Esta ação não pode ser desfeita.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setConfirmAccept(false)} disabled={!!respondingStatus}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => submitResponse("accepted")}
+              disabled={!!respondingStatus}
+              className="bg-emerald-600 hover:bg-emerald-500 text-white"
+            >
+              {respondingStatus === "accepted" && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Confirmar aceite
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Ressalva */}
+      <Dialog
+        open={showObjectionDialog}
+        onOpenChange={(o) => {
+          if (respondingStatus) return;
+          setShowObjectionDialog(o);
+          if (!o) setObjectionReason("");
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Registrar ressalva</DialogTitle>
+            <DialogDescription>
+              Descreva o que não está de acordo ou o que sugere alterar. O emissor receberá esta observação junto com data, hora e IP do envio.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="objection-reason">Motivo / sugestão de alteração</Label>
+            <Textarea
+              id="objection-reason"
+              value={objectionReason}
+              onChange={(e) => setObjectionReason(e.target.value)}
+              placeholder="Ex.: Solicito ajustar a cláusula 4ª sobre prazo de pagamento para 30 dias..."
+              rows={6}
+              maxLength={4000}
+              autoFocus
+            />
+            <div className="text-[11px] text-muted-foreground text-right">
+              {objectionReason.trim().length}/4000 (mínimo 5 caracteres)
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowObjectionDialog(false)}
+              disabled={!!respondingStatus}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => submitResponse("objected", objectionReason.trim())}
+              disabled={!!respondingStatus || objectionReason.trim().length < 5}
+            >
+              {respondingStatus === "objected" && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Enviar ressalva
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
