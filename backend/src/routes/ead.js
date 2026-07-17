@@ -1910,8 +1910,26 @@ router.get('/brand-admin/dashboard', brandAdminAuth, async (req, res) => {
               COALESCE(AVG(atts)::float, 0) AS avg_attempts,
               COALESCE(AVG(atts) FILTER (WHERE atts > 0)::float, 0) AS avg_attempts_active
             FROM base`, params),
+    ]);
 
     res.json({
+      students: students.rows[0],
+      courses: courses.rows[0],
+      certificates: certs.rows[0].total,
+      attempts: attempts.rows[0],
+      monthly: monthly.rows,
+      top_courses: topCourses.rows,
+      top_students: topStudents.rows,
+      recent_students: recent.rows,
+      pending_students: pending.rows,
+      companies: companies.rows,
+      all_companies: allCompanies.rows.map(r => r.company),
+      all_cities: cities.rows.map(r => r.city),
+      installers: installers.rows,
+      installer_stats: installerStats.rows[0] || { total: 0, with_certificate: 0, without_certificate: 0, avg_attempts: 0, avg_attempts_active: 0 },
+      filter: { from, to, company, city },
+    });
+
       students: students.rows[0],
       courses: courses.rows[0],
       certificates: certs.rows[0].total,
