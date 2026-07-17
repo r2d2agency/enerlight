@@ -575,7 +575,7 @@ router.get('/my', async (req, res) => {
 
     const details = await query(
       `SELECT b.id, b.client_name, b.order_number, b.billing_date, b.channel, b.seller_name,
-              b.order_value, b.adjusted_value, b.validation_status, b.is_refund, b.validation_note
+              b.order_value, b.adjusted_value, b.validation_status, b.is_refund, b.is_redbar, b.validation_note
         FROM ${commissionSourceSql()} b
        WHERE b.organization_id = $1 AND ${matchFilter} AND ${dateRange}
        ORDER BY b.billing_date DESC, b.created_at DESC
@@ -589,18 +589,24 @@ router.get('/my', async (req, res) => {
     );
     const rule = ruleRes.rows[0] || null;
     const validated = Number(agg.rows[0].validated_total) - Number(agg.rows[0].refund_total);
+    const validatedRedbar = Math.max(0, Number(agg.rows[0].validated_redbar_total) - Number(agg.rows[0].refund_redbar_total));
     const gross = Number(agg.rows[0].gross_total) - Number(agg.rows[0].refund_total);
-    const commission = computeCommission(rule, Math.max(0, validated));
-    const projectedCommission = computeCommission(rule, Math.max(0, gross));
+    const grossRedbar = Math.max(0, Number(agg.rows[0].gross_redbar_total) - Number(agg.rows[0].refund_redbar_total));
+    const commission = computeCommission(rule, Math.max(0, validated), validatedRedbar);
+    const projectedCommission = computeCommission(rule, Math.max(0, gross), grossRedbar);
 
     res.json({
       start_date: sd, end_date: ed,
       validated_total: Number(agg.rows[0].validated_total),
+      validated_redbar_total: Number(agg.rows[0].validated_redbar_total),
       refund_total: Number(agg.rows[0].refund_total),
       pending_total: Number(agg.rows[0].pending_total),
       gross_total: Number(agg.rows[0].gross_total),
+      gross_redbar_total: Number(agg.rows[0].gross_redbar_total),
       net_total: validated,
+      redbar_net_total: validatedRedbar,
       projected_net_total: gross,
+      projected_redbar_net_total: grossRedbar,
       validated_count: Number(agg.rows[0].validated_count),
       pending_count: Number(agg.rows[0].pending_count),
       total_count: Number(agg.rows[0].total_count),
