@@ -48,6 +48,8 @@ const router = Router();
     await query(`ALTER TABLE doc_signature_signers ADD COLUMN IF NOT EXISTS face_validation_status VARCHAR(30) DEFAULT 'pending'`);
     await query(`ALTER TABLE doc_signature_signers ADD COLUMN IF NOT EXISTS face_validation_details JSONB`);
     await query(`ALTER TABLE doc_signature_documents ADD COLUMN IF NOT EXISTS require_biometric BOOLEAN DEFAULT TRUE`);
+    await query(`ALTER TABLE doc_signature_documents ADD COLUMN IF NOT EXISTS is_minuta BOOLEAN DEFAULT FALSE`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_doc_sig_docs_is_minuta ON doc_signature_documents(is_minuta)`);
     await query(`ALTER TABLE doc_signature_documents ADD COLUMN IF NOT EXISTS document_hash VARCHAR(128)`);
     await query(`ALTER TABLE doc_signature_documents ADD COLUMN IF NOT EXISTS public_tracking_slug VARCHAR(20) UNIQUE`);
 
