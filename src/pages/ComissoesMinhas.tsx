@@ -93,6 +93,11 @@ export default function ComissoesMinhas() {
             <div className="text-xs text-muted-foreground">
               {data?.total_count || 0} pedidos no período
             </div>
+            {(data?.projected_redbar_net_total || 0) > 0 && (
+              <div className="mt-1 text-[11px] text-red-700 dark:text-red-400">
+                Red Bar: {fmt(data?.projected_redbar_net_total || 0)}
+              </div>
+            )}
           </CardContent>
         </Card>
         <Card>
