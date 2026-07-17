@@ -48,6 +48,8 @@ const router = Router();
     await query(`ALTER TABLE doc_signature_signers ADD COLUMN IF NOT EXISTS face_validation_status VARCHAR(30) DEFAULT 'pending'`);
     await query(`ALTER TABLE doc_signature_signers ADD COLUMN IF NOT EXISTS face_validation_details JSONB`);
     await query(`ALTER TABLE doc_signature_documents ADD COLUMN IF NOT EXISTS require_biometric BOOLEAN DEFAULT TRUE`);
+    await query(`ALTER TABLE doc_signature_documents ADD COLUMN IF NOT EXISTS is_minuta BOOLEAN DEFAULT FALSE`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_doc_sig_docs_is_minuta ON doc_signature_documents(is_minuta)`);
     await query(`ALTER TABLE doc_signature_documents ADD COLUMN IF NOT EXISTS document_hash VARCHAR(128)`);
     await query(`ALTER TABLE doc_signature_documents ADD COLUMN IF NOT EXISTS public_tracking_slug VARCHAR(20) UNIQUE`);
 
@@ -837,14 +839,14 @@ router.post('/', async (req, res) => {
   try {
     const orgId = await getUserOrg(req.userId);
     if (!orgId) return res.status(403).json({ error: 'Sem organização' });
-    const { title, description, original_url, original_filename, original_mimetype, signers, require_biometric } = req.body;
+    const { title, description, original_url, original_filename, original_mimetype, signers, require_biometric, is_minuta } = req.body;
     if (!title || !original_url) return res.status(400).json({ error: 'Título e arquivo são obrigatórios' });
     const slug = generateSlug();
     const docResult = await query(`
-      INSERT INTO doc_signature_documents (org_id, title, description, original_url, original_filename, original_mimetype, created_by, status, require_biometric, public_tracking_slug)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,'draft',$8,$9) RETURNING *
+      INSERT INTO doc_signature_documents (org_id, title, description, original_url, original_filename, original_mimetype, created_by, status, require_biometric, public_tracking_slug, is_minuta)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,'draft',$8,$9,$10) RETURNING *
     `, [orgId, title, description, original_url, original_filename || 'document.pdf', original_mimetype || 'application/pdf',
-        req.userId, require_biometric !== false, slug]);
+        req.userId, require_biometric !== false, slug, !!is_minuta]);
     const doc = docResult.rows[0];
     if (signers?.length) {
       for (const s of signers) {

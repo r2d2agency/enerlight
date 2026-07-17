@@ -89,7 +89,9 @@ export interface UserPermissions {
   can_delete_devolucoes: boolean;
   can_view_ead: boolean;
   can_manage_ead: boolean;
+  can_view_minutas?: boolean;
 }
+
 
 interface User {
   id: string;

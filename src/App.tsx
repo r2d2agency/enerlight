@@ -80,6 +80,7 @@ const LeadGleego = lazyRetry(() => import("./pages/LeadGleego"));
 const VisitasExternas = lazyRetry(() => import("./pages/VisitasExternas"));
 const Captador = lazyRetry(() => import("./pages/Captador"));
 const AssinaturasDoc = lazyRetry(() => import("./pages/AssinaturasDoc"));
+const Minutas = lazyRetry(() => import("./pages/Minutas"));
 const MinutaViewer = lazyRetry(() => import("./pages/MinutaViewer"));
 const PublicSigningPage = lazyRetry(() => import("./pages/PublicSigningPage"));
 const PublicSignatureTracking = lazyRetry(() => import("./pages/PublicSignatureTracking"));
@@ -224,6 +225,7 @@ const App = () => (
               <Route path="/crm/visitas-externas" element={<ProtectedRoute><VisitasExternas /></ProtectedRoute>} />
               <Route path="/captador" element={<ProtectedRoute><Captador /></ProtectedRoute>} />
               <Route path="/assinaturas" element={<ProtectedRoute><AssinaturasDoc /></ProtectedRoute>} />
+              <Route path="/minutas" element={<ProtectedRoute><Minutas /></ProtectedRoute>} />
               <Route path="/prestacao-contas" element={<ProtectedRoute><PrestacaoContas /></ProtectedRoute>} />
               <Route path="/prestacao-contas/agente" element={<ProtectedRoute><PrestacaoContasAgente /></ProtectedRoute>} />
               <Route path="/crm/segmentacao" element={<ProtectedRoute><Segmentacao /></ProtectedRoute>} />

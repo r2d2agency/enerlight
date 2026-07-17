@@ -109,6 +109,7 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
     title: 'Assinaturas',
     items: [
       { key: 'can_view_document_signatures', label: 'Assinaturas', description: 'Módulo de assinatura de documentos' },
+      { key: 'can_view_minutas', label: 'Minutas', description: 'Envio e acompanhamento de minutas de contrato' },
     ],
   },
   {
