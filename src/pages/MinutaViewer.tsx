@@ -119,6 +119,23 @@ export default function MinutaViewer() {
     }
   };
 
+  const submitResponse = async (status: "accepted" | "objected", reason?: string) => {
+    if (!token || !session) return;
+    setRespondingStatus(status);
+    try {
+      const r = await respondDraft(token, session, status, reason);
+      setResponse({ status: r.response_status, reason: r.response_reason, at: r.responded_at });
+      setShowObjectionDialog(false);
+      setConfirmAccept(false);
+      toast.success(status === "accepted" ? "Aceite registrado com sucesso" : "Ressalva registrada com sucesso");
+    } catch (err: any) {
+      toast.error(err.message || "Falha ao registrar resposta");
+    } finally {
+      setRespondingStatus(null);
+    }
+  };
+
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
