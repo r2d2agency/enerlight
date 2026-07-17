@@ -13,7 +13,7 @@ import { API_URL } from "@/lib/api";
 
 export default function MinutaViewer() {
   const { token } = useParams<{ token: string }>();
-  const { getDraftInfo, authDraft, requestDraftPassword } = useDocumentSignatures();
+  const { getDraftInfo, authDraft, requestDraftPassword, respondDraft } = useDocumentSignatures();
 
   const [loading, setLoading] = useState(true);
   const [info, setInfo] = useState<{ document_title: string; recipient_name: string; recipient_email_masked: string } | null>(null);
