@@ -464,8 +464,14 @@ router.get('/summary', async (req, res) => {
                 WHEN COALESCE(b.validation_status,'pending')='validated' AND NOT COALESCE(b.is_refund,false)
                   THEN COALESCE(b.adjusted_value, b.order_value) ELSE 0 END), 0) AS validated_total,
               COALESCE(SUM(CASE
+                WHEN COALESCE(b.validation_status,'pending')='validated' AND NOT COALESCE(b.is_refund,false) AND b.is_redbar
+                  THEN COALESCE(b.adjusted_value, b.order_value) ELSE 0 END), 0) AS validated_redbar_total,
+              COALESCE(SUM(CASE
                 WHEN COALESCE(b.validation_status,'pending')='validated' AND COALESCE(b.is_refund,false)
                   THEN COALESCE(b.adjusted_value, b.order_value) ELSE 0 END), 0) AS refund_total,
+              COALESCE(SUM(CASE
+                WHEN COALESCE(b.validation_status,'pending')='validated' AND COALESCE(b.is_refund,false) AND b.is_redbar
+                  THEN COALESCE(b.adjusted_value, b.order_value) ELSE 0 END), 0) AS refund_redbar_total,
               COUNT(*) FILTER (WHERE COALESCE(b.validation_status,'pending')='pending') AS pending_count
        FROM ${commissionSourceSql()} b
        LEFT JOIN crm_goals_seller_mapping sm
@@ -484,15 +490,18 @@ router.get('/summary', async (req, res) => {
 
     const users = rows.rows.map(r => {
       const validated = Number(r.validated_total) - Number(r.refund_total);
+      const redbarNet = Math.max(0, Number(r.validated_redbar_total) - Number(r.refund_redbar_total));
       const rule = rulesByUser[r.linked_user_id];
-      const comm = computeCommission(rule, Math.max(0, validated));
+      const comm = computeCommission(rule, Math.max(0, validated), redbarNet);
       return {
         user_id: r.linked_user_id,
         user_name: r.user_name,
         validated_count: Number(r.validated_count),
         validated_total: Number(r.validated_total),
+        validated_redbar_total: Number(r.validated_redbar_total),
         refund_total: Number(r.refund_total),
         net_total: validated,
+        redbar_net_total: redbarNet,
         pending_count: Number(r.pending_count),
         commission: comm,
         rule: rule || null,
