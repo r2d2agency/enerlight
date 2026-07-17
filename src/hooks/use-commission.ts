@@ -38,7 +38,7 @@ export interface ValidationRecord {
 
 export interface OrgUser { id: string; name: string; email: string; }
 
-export function useValidationQueue(params: { start_date?: string; end_date?: string; status?: string; seller_name?: string; user_id?: string }) {
+export function useValidationQueue(params: { start_date?: string; end_date?: string; status?: string; seller_name?: string; user_id?: string; redbar?: string }) {
   const sp = new URLSearchParams();
   Object.entries(params).forEach(([k, v]) => { if (v) sp.set(k, String(v)); });
   return useQuery({
