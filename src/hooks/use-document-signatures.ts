@@ -209,7 +209,19 @@ export function useDocumentSignatures() {
       body: JSON.stringify({ password })
     });
     if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || 'Falha'); }
-    return res.json() as Promise<{ session_token: string; recipient_name: string; recipient_email: string; expires_in: number }>;
+    return res.json() as Promise<{
+      session_token: string; recipient_name: string; recipient_email: string; expires_in: number;
+      response_status?: 'pending' | 'accepted' | 'objected'; response_reason?: string | null; responded_at?: string | null;
+    }>;
+  }, []);
+
+  const respondDraft = useCallback(async (token: string, session_token: string, status: 'accepted' | 'objected', reason?: string) => {
+    const res = await fetch(`${API_URL}/api/document-signatures/draft/${token}/respond`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_token, status, reason: reason || null }),
+    });
+    if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || 'Falha ao registrar resposta'); }
+    return res.json() as Promise<{ success: boolean; response_status: 'accepted' | 'objected'; responded_at: string; response_reason: string | null }>;
   }, []);
 
   const requestDraftPassword = useCallback(async (token: string) => {
