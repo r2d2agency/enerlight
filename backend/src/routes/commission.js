@@ -95,6 +95,10 @@ async function ensureSchema() {
       updated_at timestamptz DEFAULT NOW(),
       UNIQUE(organization_id, user_id)
     )`);
+    await query(`ALTER TABLE commission_rules
+      ADD COLUMN IF NOT EXISTS redbar_enabled boolean NOT NULL DEFAULT false,
+      ADD COLUMN IF NOT EXISTS redbar_base_percent numeric(6,3) NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS redbar_tiers jsonb NOT NULL DEFAULT '[]'::jsonb`);
     await query(`CREATE INDEX IF NOT EXISTS idx_commission_rules_org ON commission_rules(organization_id)`);
   })().catch((e) => { schemaReady = null; throw e; });
   return schemaReady;
