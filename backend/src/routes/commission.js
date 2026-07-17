@@ -215,13 +215,15 @@ router.get('/validation', async (req, res) => {
     if (!m) return res.status(403).json({ error: 'No organization' });
     if (!(await canValidate(req.userId, m.organization_id))) return res.status(403).json({ error: 'Sem permissão' });
 
-    const { start_date, end_date, status, seller_name, user_id } = req.query;
+    const { start_date, end_date, status, seller_name, user_id, redbar } = req.query;
     const params = [m.organization_id];
     let where = `b.organization_id = $1`;
     if (start_date) { params.push(start_date); where += ` AND b.billing_date >= $${params.length}::date`; }
     if (end_date) { params.push(end_date); where += ` AND b.billing_date <= $${params.length}::date`; }
     if (status && status !== 'all') { params.push(status); where += ` AND COALESCE(b.validation_status, 'pending') = $${params.length}`; }
     if (seller_name) { params.push(seller_name); where += ` AND b.seller_name = $${params.length}`; }
+    if (redbar === 'only') where += ` AND b.is_redbar = true`;
+    else if (redbar === 'exclude') where += ` AND b.is_redbar = false`;
     if (user_id) {
       params.push(user_id);
       where += ` AND (b.linked_user_id = $${params.length} OR (b.linked_user_id IS NULL AND EXISTS (
