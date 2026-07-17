@@ -498,7 +498,7 @@ export default function AssinaturasDoc() {
 
         {/* Documents Grid */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {documents.map(doc => {
+          {documents.filter(d => !d.is_minuta).map(doc => {
             const st = statusConfig[doc.status] || statusConfig.draft;
             const Icon = st.icon;
             const progress = getProgressPercent(doc);
