@@ -14,6 +14,7 @@ import { API_URL } from "@/lib/api";
 
 export default function MinutaViewer() {
   const { token } = useParams<{ token: string }>();
+  const { branding } = useThemedBranding();
   const { getDraftInfo, authDraft, requestDraftPassword, respondDraft } = useDocumentSignatures();
 
   const [loading, setLoading] = useState(true);
