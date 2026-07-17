@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useDocumentSignatures } from "@/hooks/use-document-signatures";
+import { useThemedBranding } from "@/hooks/use-branding";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,7 @@ import { API_URL } from "@/lib/api";
 
 export default function MinutaViewer() {
   const { token } = useParams<{ token: string }>();
+  const { branding } = useThemedBranding();
   const { getDraftInfo, authDraft, requestDraftPassword, respondDraft } = useDocumentSignatures();
 
   const [loading, setLoading] = useState(true);
@@ -251,122 +253,123 @@ export default function MinutaViewer() {
   const watermarkText = `${recipient?.name || ""} • ${recipient?.email || ""} • ${new Date().toLocaleString("pt-BR")}`;
 
   return (
-    <div className="min-h-screen bg-neutral-900 text-white flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-neutral-950 via-neutral-900 to-neutral-950 text-white flex flex-col items-center py-6 px-3">
       <style>{`
         @media print { body, html { display: none !important; } }
         .minuta-noselect { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
         .minuta-watermark {
-          position: absolute; inset: 0; pointer-events: none; overflow: hidden;
-          background-image: repeating-linear-gradient(
-            -30deg,
-            transparent 0, transparent 220px,
-            rgba(0,0,0,0.06) 220px, rgba(0,0,0,0.06) 221px
-          );
-          z-index: 5;
+          position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 5;
         }
         .minuta-watermark span {
-          position: absolute; color: rgba(0,0,0,0.14); font-size: 14px; font-weight: 600;
+          position: absolute; color: rgba(0,0,0,0.10); font-size: 12px; font-weight: 600;
           transform: rotate(-30deg); white-space: nowrap;
         }
       `}</style>
 
-      <div className="bg-neutral-800 px-4 py-3 flex items-center justify-between border-b border-neutral-700">
-        <div className="flex items-center gap-2">
-          <FileText className="h-4 w-4" />
-          <span className="text-sm font-medium truncate">{info.document_title}</span>
-        </div>
+      {/* Header com logo Enerlight */}
+      <div className="w-full max-w-4xl flex flex-col items-center gap-3 mb-4">
+        {branding.logo_login ? (
+          <img src={branding.logo_login} alt={branding.company_name || "Enerlight"} className="h-12 object-contain" />
+        ) : (
+          <div className="text-2xl font-bold tracking-wide">{branding.company_name || "ENERLIGHT"}</div>
+        )}
         <div className="flex items-center gap-2 text-xs text-neutral-400">
           <Lock className="h-3 w-3" />
-          Somente leitura
+          Minuta confidencial • Somente leitura
         </div>
       </div>
 
-      <div className="flex-1 relative overflow-hidden minuta-noselect">
-        {/* Watermark tiles */}
-        <div className="minuta-watermark">
-          {Array.from({ length: 40 }).map((_, i) => (
-            <span
-              key={i}
-              style={{
-                top: `${(i * 90) % 2000}px`,
-                left: `${((i * 340) % 1600) - 100}px`,
-              }}
-            >
-              {watermarkText}
-            </span>
-          ))}
+      {/* Caixa central de leitura */}
+      <div className="w-full max-w-4xl bg-white text-neutral-900 rounded-xl shadow-2xl overflow-hidden flex flex-col">
+        <div className="bg-neutral-100 border-b border-neutral-200 px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2 min-w-0">
+            <FileText className="h-4 w-4 text-neutral-600 shrink-0" />
+            <span className="text-sm font-semibold truncate text-neutral-800">{info.document_title}</span>
+          </div>
+          <span className="text-[11px] text-neutral-500 shrink-0">Destinatário: {recipient?.name}</span>
         </div>
 
-        {/* Bloqueia interações extras via um overlay transparente (permite scroll do iframe) */}
-        <iframe
-          title="Minuta"
-          src={`${fileUrl}#toolbar=0&navpanes=0&scrollbar=1&statusbar=0&messages=0&view=FitH`}
-          className="w-full h-full bg-white"
-          style={{ border: 0, minHeight: "calc(100vh - 52px)" }}
-          onContextMenu={(e) => e.preventDefault()}
-        />
+        <div className="relative minuta-noselect" style={{ height: "min(70vh, 720px)" }}>
+          <div className="minuta-watermark">
+            {Array.from({ length: 24 }).map((_, i) => (
+              <span key={i} style={{ top: `${(i * 110) % 1400}px`, left: `${((i * 280) % 1200) - 60}px` }}>
+                {watermarkText}
+              </span>
+            ))}
+          </div>
+          <iframe
+            title="Minuta"
+            src={`${fileUrl}#toolbar=0&navpanes=0&scrollbar=1&statusbar=0&messages=0&view=FitH`}
+            className="w-full h-full bg-white"
+            style={{ border: 0 }}
+            onContextMenu={(e) => e.preventDefault()}
+          />
+        </div>
       </div>
 
-      {/* Barra de resposta: De acordo / Ressalva */}
-      {response.status === "pending" ? (
-        <div className="bg-neutral-800 border-t border-neutral-700 px-4 py-3 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-          <div className="flex-1 text-xs text-neutral-300 leading-snug">
-            Ao final da leitura, registre sua resposta. Esta escolha ficará registrada no histórico da minuta e será enviada a quem emitiu o documento.
+      {/* Barra de resposta sempre visível abaixo da caixa */}
+      <div className="w-full max-w-4xl mt-4">
+        {response.status === "pending" ? (
+          <div className="bg-neutral-800/80 border border-neutral-700 rounded-xl px-4 py-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shadow-lg">
+            <div className="flex-1 text-xs text-neutral-300 leading-snug">
+              Ao final da leitura, registre sua resposta. Esta escolha ficará registrada no histórico da minuta e será enviada a quem emitiu o documento.
+            </div>
+            <div className="flex gap-2 flex-wrap justify-end">
+              <Button
+                variant="destructive"
+                onClick={() => setShowObjectionDialog(true)}
+                disabled={!!respondingStatus}
+                className="gap-2"
+              >
+                <MessageSquareWarning className="h-4 w-4" />
+                Registrar ressalva
+              </Button>
+              <Button
+                onClick={() => setConfirmAccept(true)}
+                disabled={!!respondingStatus}
+                className="gap-2 bg-emerald-600 hover:bg-emerald-500 text-white"
+              >
+                <ThumbsUp className="h-4 w-4" />
+                Estou de acordo
+              </Button>
+            </div>
           </div>
-          <div className="flex gap-2">
-            <Button
-              variant="destructive"
-              onClick={() => setShowObjectionDialog(true)}
-              disabled={!!respondingStatus}
-              className="gap-2"
-            >
-              <MessageSquareWarning className="h-4 w-4" />
-              Registrar ressalva
-            </Button>
-            <Button
-              onClick={() => setConfirmAccept(true)}
-              disabled={!!respondingStatus}
-              className="gap-2 bg-emerald-600 hover:bg-emerald-500 text-white"
-            >
-              <ThumbsUp className="h-4 w-4" />
-              Estou de acordo
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <div
-          className={`border-t px-4 py-3 flex items-start sm:items-center gap-3 ${
-            response.status === "accepted"
-              ? "bg-emerald-950/60 border-emerald-800 text-emerald-100"
-              : "bg-amber-950/60 border-amber-800 text-amber-100"
-          }`}
-        >
-          {response.status === "accepted" ? (
-            <CheckCircle2 className="h-5 w-5 shrink-0" />
-          ) : (
-            <AlertTriangle className="h-5 w-5 shrink-0" />
-          )}
-          <div className="flex-1 text-sm">
-            <div className="font-semibold">
-              {response.status === "accepted" ? "De acordo com a minuta" : "Ressalva registrada"}
-              {response.at && (
-                <span className="ml-2 text-xs opacity-80 font-normal">
-                  em {new Date(response.at).toLocaleString("pt-BR")}
-                </span>
+        ) : (
+          <div
+            className={`border rounded-xl px-4 py-3 flex items-start sm:items-center gap-3 shadow-lg ${
+              response.status === "accepted"
+                ? "bg-emerald-950/70 border-emerald-800 text-emerald-100"
+                : "bg-amber-950/70 border-amber-800 text-amber-100"
+            }`}
+          >
+            {response.status === "accepted" ? (
+              <CheckCircle2 className="h-5 w-5 shrink-0" />
+            ) : (
+              <AlertTriangle className="h-5 w-5 shrink-0" />
+            )}
+            <div className="flex-1 text-sm">
+              <div className="font-semibold">
+                {response.status === "accepted" ? "De acordo com a minuta" : "Ressalva registrada"}
+                {response.at && (
+                  <span className="ml-2 text-xs opacity-80 font-normal">
+                    em {new Date(response.at).toLocaleString("pt-BR")}
+                  </span>
+                )}
+              </div>
+              {response.status === "objected" && response.reason && (
+                <div className="text-xs mt-1 whitespace-pre-wrap opacity-90">
+                  <span className="font-medium">Motivo:</span> {response.reason}
+                </div>
               )}
             </div>
-            {response.status === "objected" && response.reason && (
-              <div className="text-xs mt-1 whitespace-pre-wrap opacity-90">
-                <span className="font-medium">Motivo:</span> {response.reason}
-              </div>
-            )}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      <div className="bg-neutral-800 px-4 py-2 text-[11px] text-neutral-400 text-center border-t border-neutral-700">
+      <div className="w-full max-w-4xl mt-3 text-[11px] text-neutral-500 text-center">
         Documento pessoal para {recipient?.name} — download, impressão e cópia estão desabilitados. Toda visualização é registrada.
       </div>
+
 
       {/* Confirmação: De acordo */}
       <Dialog open={confirmAccept} onOpenChange={(o) => !respondingStatus && setConfirmAccept(o)}>
