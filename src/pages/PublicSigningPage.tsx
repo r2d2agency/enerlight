@@ -15,7 +15,7 @@ import SignatureCanvas from "react-signature-canvas";
 
 const FACEAPI_CDN = "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights";
 
-type Step = "otp" | "read" | "biometric" | "sign" | "done";
+type Step = "otp" | "read" | "sign" | "biometric" | "done";
 
 export default function PublicSigningPage() {
   const { token } = useParams<{ token: string }>();
@@ -50,6 +50,8 @@ export default function PublicSigningPage() {
   const sigRef = useRef<SignatureCanvas | null>(null);
   const [cpf, setCpf] = useState("");
   const [signing, setSigning] = useState(false);
+  const [pendingSignature, setPendingSignature] = useState<string | null>(null);
+  const [pendingGeo, setPendingGeo] = useState<string>("");
 
   useEffect(() => {
     if (!token) return;
@@ -176,6 +178,7 @@ export default function PublicSigningPage() {
   const analyzeBiometrics = async () => {
     if (!selfie || !docFront || !docBack) { toast.error("Capture selfie e documento (frente e verso)"); return; }
     if (!token || !session) return;
+    if (!pendingSignature) { toast.error("Assinatura não encontrada. Volte e desenhe novamente."); setStep("sign"); return; }
     setAnalyzing(true);
     try {
       const faceapi = await import("face-api.js");
@@ -200,8 +203,14 @@ export default function PublicSigningPage() {
         selfie, doc_front: docFront, doc_back: docBack,
         face_match_score: score, faces_detected: 1, distance,
       });
-      toast.success("Biometria validada com sucesso");
-      setStep("sign");
+      // Biometria OK — envia a assinatura já capturada
+      await submitSignSignature(token, session, {
+        signature_data: pendingSignature,
+        cpf: cpf || undefined,
+        geolocation: pendingGeo || undefined,
+      });
+      toast.success("Contrato assinado!");
+      setStep("done");
     } catch (e: any) { toast.error(e.message || "Falha na validação biométrica"); }
     finally { setAnalyzing(false); setBiometricLoading(false); }
   };
@@ -217,11 +226,11 @@ export default function PublicSigningPage() {
     } catch { /* opcional */ }
     setSigning(true);
     try {
-      await submitSignSignature(token, session, { signature_data: dataUrl, cpf: cpf || undefined, geolocation: geo || undefined });
-      setStep("done");
-      toast.success("Contrato assinado!");
-    } catch (e: any) { toast.error(e.message); }
-    finally { setSigning(false); }
+      setPendingSignature(dataUrl);
+      setPendingGeo(geo);
+      setStep("biometric");
+      toast.info("Agora confirme sua identidade com selfie + documento");
+    } finally { setSigning(false); }
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin" /></div>;
@@ -267,8 +276,8 @@ export default function PublicSigningPage() {
               {[
                 { k: "otp", l: "Código" },
                 { k: "read", l: "Contrato" },
-                { k: "biometric", l: "Biometria" },
                 { k: "sign", l: "Assinar" },
+                { k: "biometric", l: "Biometria" },
               ].map((s, i) => (
                 <div key={s.k} className={`flex-1 py-1 px-2 rounded text-center ${step === s.k ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
                   {i + 1}. {s.l}
@@ -329,7 +338,7 @@ export default function PublicSigningPage() {
               <div className="text-xs text-muted-foreground">
                 O contrato está em modo somente-leitura e com marca d'água até que a assinatura seja concluída. O download só será liberado após todas as assinaturas.
               </div>
-              <Button onClick={() => setStep("biometric")} className="w-full">Li e concordo — prosseguir</Button>
+              <Button onClick={() => setStep("sign")} className="w-full">Li e concordo — prosseguir</Button>
             </CardContent>
           </Card>
         )}
@@ -341,6 +350,9 @@ export default function PublicSigningPage() {
               <CardTitle className="text-base flex items-center gap-2"><ScanFace className="h-4 w-4" />Verificação biométrica</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
+              <p className="text-xs text-muted-foreground">
+                Última etapa: confirme sua identidade para finalizar a assinatura. Suas fotos serão anexadas ao certificado do contrato.
+              </p>
               {!faceReady && <div className="text-xs text-muted-foreground flex items-center gap-2"><Loader2 className="h-3 w-3 animate-spin" />Carregando modelos biométricos…</div>}
 
               <CameraCapture facing="user" label="Selfie" hint="Enquadre bem seu rosto, com boa iluminação." current={selfie} onCapture={(d) => setSelfie(d || null)} />
@@ -354,7 +366,7 @@ export default function PublicSigningPage() {
               )}
               <Button className="w-full" disabled={!selfie || !docFront || !docBack || !faceReady || analyzing || biometricLoading} onClick={analyzeBiometrics}>
                 {(analyzing || biometricLoading) && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                Validar biometria e continuar
+                Validar biometria e finalizar assinatura
               </Button>
             </CardContent>
           </Card>
@@ -380,7 +392,7 @@ export default function PublicSigningPage() {
                 </div>
               </div>
               <Button className="w-full" onClick={handleSign} disabled={signing}>
-                {signing && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Assinar contrato
+                {signing && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Continuar para biometria
               </Button>
               <p className="text-[11px] text-muted-foreground text-center">
                 Ao assinar, você concorda que esta assinatura eletrônica tem validade jurídica (MP 2.200-2/2001).
