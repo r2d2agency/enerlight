@@ -1891,7 +1891,13 @@ router.get('/brand-admin/dashboard', brandAdminAuth, async (req, res) => {
       // Full installers list with certificate & attempt counts (for the filterable table)
       query(`SELECT s.id, s.name, s.email, s.phone, s.company, s.city, s.state, s.status, s.created_at,
                 COALESCE((SELECT COUNT(*)::int FROM ead_certificates c WHERE c.student_id = s.id), 0) AS certificate_count,
-                COALESCE((SELECT COUNT(*)::int FROM ead_attempts a WHERE a.student_id = s.id), 0) AS attempts_count
+                COALESCE((SELECT COUNT(*)::int FROM ead_attempts a WHERE a.student_id = s.id), 0) AS attempts_count,
+                COALESCE((
+                  SELECT COUNT(*)::int FROM ead_attempts a
+                   WHERE a.student_id = s.id
+                     AND a.created_at <= (SELECT MIN(a2.created_at) FROM ead_attempts a2
+                                           WHERE a2.student_id = s.id AND a2.passed = true)
+                ), 0) AS attempts_until_certificate
            FROM ead_students s
           WHERE s.brand_id = $1${sFilter}
           ORDER BY s.created_at DESC
