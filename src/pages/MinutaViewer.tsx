@@ -5,8 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { FileText, Lock, ShieldAlert, Eye, EyeOff, Loader2 } from "lucide-react";
+import { FileText, Lock, ShieldAlert, Eye, EyeOff, Loader2, CheckCircle2, AlertTriangle, ThumbsUp, MessageSquareWarning } from "lucide-react";
 import { API_URL } from "@/lib/api";
 
 export default function MinutaViewer() {
