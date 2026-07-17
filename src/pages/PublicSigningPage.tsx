@@ -13,7 +13,7 @@ import { API_URL } from "@/lib/api";
 import { useDocumentSignatures } from "@/hooks/use-document-signatures";
 import SignatureCanvas from "react-signature-canvas";
 
-const FACEAPI_CDN = "https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.13/model";
+const FACEAPI_CDN = "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights";
 
 type Step = "otp" | "read" | "biometric" | "sign" | "done";
 
