@@ -80,6 +80,7 @@ const LeadGleego = lazyRetry(() => import("./pages/LeadGleego"));
 const VisitasExternas = lazyRetry(() => import("./pages/VisitasExternas"));
 const Captador = lazyRetry(() => import("./pages/Captador"));
 const AssinaturasDoc = lazyRetry(() => import("./pages/AssinaturasDoc"));
+const Minutas = lazyRetry(() => import("./pages/Minutas"));
 const MinutaViewer = lazyRetry(() => import("./pages/MinutaViewer"));
 const PublicSigningPage = lazyRetry(() => import("./pages/PublicSigningPage"));
 const PublicSignatureTracking = lazyRetry(() => import("./pages/PublicSignatureTracking"));
