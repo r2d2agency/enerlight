@@ -106,6 +106,11 @@ export default function MinutaViewer() {
       const r = await authDraft(token, password.trim());
       setSession(r.session_token);
       setRecipient({ name: r.recipient_name, email: r.recipient_email });
+      setResponse({
+        status: (r.response_status as any) || "pending",
+        reason: r.response_reason,
+        at: r.responded_at,
+      });
       toast.success("Acesso liberado");
     } catch (err: any) {
       toast.error(err.message || "Senha incorreta");
