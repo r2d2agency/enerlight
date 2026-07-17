@@ -84,6 +84,12 @@ CREATE TABLE IF NOT EXISTS doc_signature_drafts (
 CREATE INDEX IF NOT EXISTS idx_doc_sig_drafts_doc ON doc_signature_drafts(document_id);
 CREATE INDEX IF NOT EXISTS idx_doc_sig_drafts_token ON doc_signature_drafts(access_token);
 
+-- Resposta do destinatário à minuta
+ALTER TABLE doc_signature_drafts ADD COLUMN IF NOT EXISTS response_status VARCHAR(20) DEFAULT 'pending';
+ALTER TABLE doc_signature_drafts ADD COLUMN IF NOT EXISTS response_reason TEXT;
+ALTER TABLE doc_signature_drafts ADD COLUMN IF NOT EXISTS responded_at TIMESTAMP WITH TIME ZONE;
+ALTER TABLE doc_signature_drafts ADD COLUMN IF NOT EXISTS response_ip TEXT;
+
 -- ============= BIOMETRIC + OTP + PUBLIC TRACKING (v2) =============
 ALTER TABLE doc_signature_signers    ADD COLUMN IF NOT EXISTS selfie_url TEXT;
 ALTER TABLE doc_signature_signers    ADD COLUMN IF NOT EXISTS document_front_url TEXT;
