@@ -25,6 +25,11 @@ export default function MinutaViewer() {
 
   const [session, setSession] = useState<string | null>(null);
   const [recipient, setRecipient] = useState<{ name: string; email: string } | null>(null);
+  const [response, setResponse] = useState<{ status: "pending" | "accepted" | "objected"; reason?: string | null; at?: string | null }>({ status: "pending" });
+  const [showObjectionDialog, setShowObjectionDialog] = useState(false);
+  const [objectionReason, setObjectionReason] = useState("");
+  const [confirmAccept, setConfirmAccept] = useState(false);
+  const [respondingStatus, setRespondingStatus] = useState<null | "accepted" | "objected">(null);
 
   const [passwordSent, setPasswordSent] = useState(false);
   const [sendingPwd, setSendingPwd] = useState(false);
