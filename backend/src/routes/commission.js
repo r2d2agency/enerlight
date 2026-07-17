@@ -120,6 +120,7 @@ function defaultPeriod() {
   };
 }
 
+const REDBAR_REGEX = `'red[[:space:]]*bar'`;
 function commissionSourceSql() {
   return `(
     SELECT
@@ -134,12 +135,16 @@ function commissionSourceSql() {
       b.seller_name,
       b.billing_date,
       b.channel,
+      NULL::varchar AS client_group,
       COALESCE(b.linked_user_id, b.user_id) AS linked_user_id,
       COALESCE(b.validation_status, 'pending') AS validation_status,
       b.validated_by,
       b.validated_at,
       b.validation_note,
       COALESCE(b.is_refund, false) AS is_refund,
+      (
+        COALESCE(b.channel,'') || ' ' || COALESCE(b.client_name,'') || ' ' || COALESCE(b.order_number,'')
+      ) ~* ${REDBAR_REGEX} AS is_redbar,
       b.created_at
     FROM erp_billing_records b
     UNION ALL
@@ -155,12 +160,16 @@ function commissionSourceSql() {
       g.seller_name,
       COALESCE(g.billing_date, g.emission_date, g.delivery_date, g.created_at::date) AS billing_date,
       g.channel,
+      g.client_group,
       g.user_id AS linked_user_id,
       COALESCE(g.validation_status, 'pending') AS validation_status,
       g.validated_by,
       g.validated_at,
       g.validation_note,
       COALESCE(g.is_refund, false) AS is_refund,
+      (
+        COALESCE(g.channel,'') || ' ' || COALESCE(g.client_name,'') || ' ' || COALESCE(g.client_group,'') || ' ' || COALESCE(g.order_number,'') || ' ' || COALESCE(g.number,'')
+      ) ~* ${REDBAR_REGEX} AS is_redbar,
       g.created_at
     FROM crm_goals_data g
     WHERE g.data_type = 'faturamento'
