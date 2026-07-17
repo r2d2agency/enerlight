@@ -61,6 +61,10 @@ export interface DocDraft {
   last_viewed_at?: string | null;
   revoked: boolean;
   created_at: string;
+  response_status?: 'pending' | 'accepted' | 'objected' | null;
+  response_reason?: string | null;
+  responded_at?: string | null;
+  response_ip?: string | null;
 }
 
 const getHeaders = () => ({
