@@ -49,6 +49,7 @@ export interface SignatureDocument {
   placements?: DocPlacement[];
   audit_log?: any[];
   drafts?: DocDraft[];
+  is_minuta?: boolean;
 }
 
 export interface DocDraft {
