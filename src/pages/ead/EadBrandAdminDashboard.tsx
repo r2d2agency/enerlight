@@ -682,6 +682,7 @@ export default function EadBrandAdminDashboard() {
                     <TableHead>Empresa / Cidade</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Tentativas</TableHead>
+                    <TableHead className="text-right">Tent. p/ certificado</TableHead>
                     <TableHead className="text-right">Certificados</TableHead>
                     <TableHead className="text-right">Cadastro</TableHead>
                   </TableRow></TableHeader>
