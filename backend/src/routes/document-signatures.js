@@ -35,6 +35,10 @@ const router = Router();
     await query(`ALTER TABLE doc_signature_drafts ADD COLUMN IF NOT EXISTS last_password_sent_at TIMESTAMP WITH TIME ZONE`);
     await query(`ALTER TABLE doc_signature_drafts ADD COLUMN IF NOT EXISTS last_password_ip TEXT`);
     await query(`ALTER TABLE doc_signature_drafts ADD COLUMN IF NOT EXISTS password_send_count INTEGER DEFAULT 0`);
+    await query(`ALTER TABLE doc_signature_drafts ADD COLUMN IF NOT EXISTS response_status VARCHAR(20) DEFAULT 'pending'`);
+    await query(`ALTER TABLE doc_signature_drafts ADD COLUMN IF NOT EXISTS response_reason TEXT`);
+    await query(`ALTER TABLE doc_signature_drafts ADD COLUMN IF NOT EXISTS responded_at TIMESTAMP WITH TIME ZONE`);
+    await query(`ALTER TABLE doc_signature_drafts ADD COLUMN IF NOT EXISTS response_ip TEXT`);
 
     // Biometric + OTP + Tracking (v2)
     await query(`ALTER TABLE doc_signature_signers ADD COLUMN IF NOT EXISTS selfie_url TEXT`);
