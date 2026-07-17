@@ -682,6 +682,7 @@ export default function EadBrandAdminDashboard() {
                     <TableHead>Empresa / Cidade</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Tentativas</TableHead>
+                    <TableHead className="text-right">Tent. p/ certificado</TableHead>
                     <TableHead className="text-right">Certificados</TableHead>
                     <TableHead className="text-right">Cadastro</TableHead>
                   </TableRow></TableHeader>
@@ -699,6 +700,13 @@ export default function EadBrandAdminDashboard() {
                         <TableCell><StatusBadge status={r.status} /></TableCell>
                         <TableCell className="text-right">{r.attempts_count ?? 0}</TableCell>
                         <TableCell className="text-right">
+                          {(r.certificate_count || 0) > 0 && (r.attempts_until_certificate || 0) > 0 ? (
+                            <Badge variant="outline">{r.attempts_until_certificate}</Badge>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
                           {(r.certificate_count || 0) > 0 ? (
                             <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">{r.certificate_count}</Badge>
                           ) : (
@@ -707,7 +715,7 @@ export default function EadBrandAdminDashboard() {
                         </TableCell>
                         <TableCell className="text-right text-sm">{fmtDate(r.created_at)}</TableCell>
                       </TableRow>
-                    )) : <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">Sem instaladores</TableCell></TableRow>}
+                    )) : <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">Sem instaladores</TableCell></TableRow>}
                   </TableBody>
                 </Table>
               </CardContent>
