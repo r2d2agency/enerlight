@@ -102,6 +102,9 @@ function RuleDialog({ rule, onClose, users, existing }: {
   const [basePercent, setBasePercent] = useState("0");
   const [active, setActive] = useState(true);
   const [tiers, setTiers] = useState<Tier[]>([]);
+  const [redbarEnabled, setRedbarEnabled] = useState(false);
+  const [redbarBasePercent, setRedbarBasePercent] = useState("0");
+  const [redbarTiers, setRedbarTiers] = useState<Tier[]>([]);
 
   useEffect(() => {
     if (rule) {
@@ -109,6 +112,9 @@ function RuleDialog({ rule, onClose, users, existing }: {
       setBasePercent(String(rule.base_percent ?? 0));
       setActive(rule.active !== false);
       setTiers(Array.isArray(rule.tiers) ? [...rule.tiers] : []);
+      setRedbarEnabled(!!rule.redbar_enabled);
+      setRedbarBasePercent(String(rule.redbar_base_percent ?? 0));
+      setRedbarTiers(Array.isArray(rule.redbar_tiers) ? [...rule.redbar_tiers] : []);
     }
   }, [rule]);
 
@@ -119,6 +125,10 @@ function RuleDialog({ rule, onClose, users, existing }: {
   const updateTier = (i: number, patch: Partial<Tier>) => setTiers(tiers.map((t, ix) => ix === i ? { ...t, ...patch } : t));
   const removeTier = (i: number) => setTiers(tiers.filter((_, ix) => ix !== i));
 
+  const addRedTier = () => setRedbarTiers([...redbarTiers, { label: `Red Bar ${redbarTiers.length + 1}`, target: 0, extra_percent: 0, extra_fixed: 0 }]);
+  const updateRedTier = (i: number, patch: Partial<Tier>) => setRedbarTiers(redbarTiers.map((t, ix) => ix === i ? { ...t, ...patch } : t));
+  const removeRedTier = (i: number) => setRedbarTiers(redbarTiers.filter((_, ix) => ix !== i));
+
   const save = async () => {
     if (!userId) { toast.error("Selecione o vendedor"); return; }
     await upsert.mutateAsync({
@@ -126,6 +136,9 @@ function RuleDialog({ rule, onClose, users, existing }: {
       base_percent: Number(basePercent) || 0,
       tiers,
       active,
+      redbar_enabled: redbarEnabled,
+      redbar_base_percent: Number(redbarBasePercent) || 0,
+      redbar_tiers: redbarTiers,
     });
     toast.success("Regra salva");
     onClose();
@@ -194,6 +207,56 @@ function RuleDialog({ rule, onClose, users, existing }: {
               </div>
             ))}
             {!tiers.length && <p className="text-xs text-muted-foreground">Nenhuma faixa. O vendedor receberá apenas o % base.</p>}
+          </div>
+
+          {/* Red Bar */}
+          <div className="rounded-lg border border-red-300/60 bg-red-50/40 dark:bg-red-950/10 p-3 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-sm font-semibold text-red-700 dark:text-red-400">Regra específica Red Bar</Label>
+                <p className="text-xs text-muted-foreground">Pedidos identificados como "Red Bar" (canal/cliente/grupo/pedido contém "red bar") usarão o percentual e faixas abaixo em vez da regra padrão.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch checked={redbarEnabled} onCheckedChange={setRedbarEnabled} />
+                <Label className="text-xs">Ativar</Label>
+              </div>
+            </div>
+            {redbarEnabled && (
+              <>
+                <div>
+                  <Label className="text-xs">% base sobre faturamento Red Bar validado</Label>
+                  <Input type="number" step="0.001" value={redbarBasePercent} onChange={e => setRedbarBasePercent(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">Faixas de bônus Red Bar</Label>
+                    <Button size="sm" variant="outline" onClick={addRedTier}><Plus className="h-3 w-3 mr-1" /> Adicionar faixa</Button>
+                  </div>
+                  {redbarTiers.map((t, i) => (
+                    <div key={i} className="grid grid-cols-12 gap-2 items-end border rounded-lg p-2 bg-background">
+                      <div className="col-span-3">
+                        <Label className="text-xs">Rótulo</Label>
+                        <Input value={t.label} onChange={e => updateRedTier(i, { label: e.target.value })} />
+                      </div>
+                      <div className="col-span-3">
+                        <Label className="text-xs">Meta (R$)</Label>
+                        <Input type="number" value={t.target} onChange={e => updateRedTier(i, { target: Number(e.target.value) })} />
+                      </div>
+                      <div className="col-span-2">
+                        <Label className="text-xs">Bônus %</Label>
+                        <Input type="number" step="0.001" value={t.extra_percent} onChange={e => updateRedTier(i, { extra_percent: Number(e.target.value) })} />
+                      </div>
+                      <div className="col-span-3">
+                        <Label className="text-xs">Bônus fixo (R$)</Label>
+                        <Input type="number" step="0.01" value={t.extra_fixed} onChange={e => updateRedTier(i, { extra_fixed: Number(e.target.value) })} />
+                      </div>
+                      <Button size="icon" variant="ghost" onClick={() => removeRedTier(i)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                    </div>
+                  ))}
+                  {!redbarTiers.length && <p className="text-xs text-muted-foreground">Sem faixas específicas para Red Bar — apenas o % base será aplicado.</p>}
+                </div>
+              </>
+            )}
           </div>
         </div>
         <DialogFooter className="flex justify-between">
