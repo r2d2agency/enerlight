@@ -1930,20 +1930,7 @@ router.get('/brand-admin/dashboard', brandAdminAuth, async (req, res) => {
       filter: { from, to, company, city },
     });
 
-      students: students.rows[0],
-      courses: courses.rows[0],
-      certificates: certs.rows[0].total,
-      attempts: attempts.rows[0],
-      monthly: monthly.rows,
-      top_courses: topCourses.rows,
-      top_students: topStudents.rows,
-      recent_students: recent.rows,
-      pending_students: pending.rows,
-      companies: companies.rows,
-      all_companies: allCompanies.rows.map(r => r.company),
-      all_cities: cities.rows.map(r => r.city),
-      filter: { from, to, company, city },
-    });
+
 
   } catch (e) { console.error('brand-admin dashboard', e); res.status(500).json({ error: 'Erro ao carregar' }); }
 });
