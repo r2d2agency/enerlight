@@ -10,6 +10,9 @@ export interface CommissionRule {
   base_percent: number;
   tiers: Tier[];
   active: boolean;
+  redbar_enabled?: boolean;
+  redbar_base_percent?: number;
+  redbar_tiers?: Tier[];
 }
 
 export interface ValidationRecord {
@@ -30,6 +33,7 @@ export interface ValidationRecord {
   validated_at: string | null;
   validation_note: string | null;
   is_refund: boolean;
+  is_redbar?: boolean;
 }
 
 export interface OrgUser { id: string; name: string; email: string; }
