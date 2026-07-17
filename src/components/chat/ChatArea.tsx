@@ -1285,7 +1285,7 @@ export function ChatArea({
                   <Tag className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="z-[80]">
+              <DropdownMenuContent align="end" className="z-[80] max-h-72 overflow-y-auto">
                 {tags.filter(t => !conversation.tags.some(ct => ct.id === t.id)).map(tag => (
                   <DropdownMenuItem
                     key={tag.id}
