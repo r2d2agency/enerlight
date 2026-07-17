@@ -70,6 +70,11 @@ export default function ComissoesRegras() {
                           ))}
                         </div>
                       ) : <span className="text-muted-foreground">—</span>}
+                      {r.redbar_enabled && (
+                        <div className="mt-1">
+                          <Badge className="bg-red-100 text-red-700 text-xs">Red Bar: {Number(r.redbar_base_percent || 0)}%{r.redbar_tiers?.length ? ` • ${r.redbar_tiers.length} faixa(s)` : ""}</Badge>
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Badge className={r.active ? "bg-green-100 text-green-700" : "bg-gray-200"}>{r.active ? "Sim" : "Não"}</Badge>
