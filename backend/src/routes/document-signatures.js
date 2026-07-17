@@ -259,7 +259,15 @@ router.post('/draft/:token/auth', async (req, res) => {
       [dr.document_id, ipAddr, req.headers['user-agent'], JSON.stringify({ draft_id: dr.id, recipient_email: dr.recipient_email })]);
 
     const sessionToken = jwt.sign({ draftId: dr.id, docId: dr.document_id, scope: 'draft_view' }, process.env.JWT_SECRET, { expiresIn: '30m' });
-    res.json({ session_token: sessionToken, recipient_name: dr.recipient_name, recipient_email: dr.recipient_email, expires_in: 1800 });
+    res.json({
+      session_token: sessionToken,
+      recipient_name: dr.recipient_name,
+      recipient_email: dr.recipient_email,
+      expires_in: 1800,
+      response_status: dr.response_status || 'pending',
+      response_reason: dr.response_reason || null,
+      responded_at: dr.responded_at || null,
+    });
   } catch (e) { console.error('draft auth', e); res.status(500).json({ error: 'Erro' }); }
 });
 
