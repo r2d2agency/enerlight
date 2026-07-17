@@ -365,21 +365,31 @@ router.put('/rules/:userId', async (req, res) => {
     const m = await getMember(req.userId);
     if (!m) return res.status(403).json({ error: 'No organization' });
     if (!['owner', 'admin'].includes(m.role)) return res.status(403).json({ error: 'Somente admin' });
-    const { base_percent, tiers, active } = req.body || {};
-    const cleanTiers = Array.isArray(tiers) ? tiers.map(t => ({
+    const { base_percent, tiers, active, redbar_enabled, redbar_base_percent, redbar_tiers } = req.body || {};
+    const cleanList = (arr) => Array.isArray(arr) ? arr.map(t => ({
       label: String(t.label || '').slice(0, 80),
       target: Number(t.target) || 0,
       extra_percent: Number(t.extra_percent) || 0,
       extra_fixed: Number(t.extra_fixed) || 0,
     })).filter(t => t.target > 0).sort((a, b) => a.target - b.target) : [];
+    const cleanTiers = cleanList(tiers);
+    const cleanRedbarTiers = cleanList(redbar_tiers);
     const r = await query(
-      `INSERT INTO commission_rules (organization_id, user_id, base_percent, tiers, active)
-       VALUES ($1, $2, $3, $4::jsonb, $5)
+      `INSERT INTO commission_rules (organization_id, user_id, base_percent, tiers, active, redbar_enabled, redbar_base_percent, redbar_tiers)
+       VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8::jsonb)
        ON CONFLICT (organization_id, user_id) DO UPDATE
        SET base_percent = EXCLUDED.base_percent, tiers = EXCLUDED.tiers,
-           active = EXCLUDED.active, updated_at = NOW()
+           active = EXCLUDED.active,
+           redbar_enabled = EXCLUDED.redbar_enabled,
+           redbar_base_percent = EXCLUDED.redbar_base_percent,
+           redbar_tiers = EXCLUDED.redbar_tiers,
+           updated_at = NOW()
        RETURNING *`,
-      [m.organization_id, req.params.userId, Number(base_percent) || 0, JSON.stringify(cleanTiers), active !== false]
+      [
+        m.organization_id, req.params.userId,
+        Number(base_percent) || 0, JSON.stringify(cleanTiers), active !== false,
+        !!redbar_enabled, Number(redbar_base_percent) || 0, JSON.stringify(cleanRedbarTiers),
+      ]
     );
     res.json(r.rows[0]);
   } catch (e) { res.status(500).json({ error: e.message }); }
