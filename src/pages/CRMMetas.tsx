@@ -1363,6 +1363,9 @@ export default function CRMMetas() {
                             <TableRow>
                               <TableHead className="font-semibold" colSpan={4}>Total ({recordsData.total} registros)</TableHead>
                               <TableHead className="text-right font-semibold">{fmt(recordsData.totals.total_value)}</TableHead>
+                              {recordsType !== "orcamento" && (
+                                <TableHead className="text-right font-semibold">{fmt(recordsData.totals.total_cost || 0)}</TableHead>
+                              )}
                               <TableHead colSpan={recordsType === "orcamento" ? 3 : 4}></TableHead>
                               {recordsType !== "orcamento" && (
                                 <TableHead className="text-right font-semibold">
