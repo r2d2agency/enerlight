@@ -383,6 +383,15 @@ export default function CRMMetas() {
                       <p className="text-xs text-muted-foreground">{gd.orcamento.count} orçamentos</p>
                     </CardContent>
                   </Card>
+                  <Card className="border-l-4 border-l-blue-500">
+                    <CardContent className="pt-4 px-3">
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1"><Target className="h-3.5 w-3.5 shrink-0" /> Conversão</div>
+                      <p className="text-lg sm:text-2xl font-bold text-blue-600">
+                        {gd.orcamento.value > 0 ? ((gd.pedido.value / gd.orcamento.value) * 100).toFixed(1) : 0}%
+                      </p>
+                      <p className="text-xs text-muted-foreground">Pedidos / Orçamentos</p>
+                    </CardContent>
+                  </Card>
                   <Card className="border-l-4 border-l-green-500">
                     <CardContent className="pt-4 px-3">
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1"><ShoppingCart className="h-3.5 w-3.5 shrink-0" /> Pedidos</div>
@@ -390,48 +399,39 @@ export default function CRMMetas() {
                       <p className="text-xs text-muted-foreground">{gd.pedido.count} pedidos</p>
                     </CardContent>
                   </Card>
-                  <Card className="border-l-4 border-l-emerald-500">
+                  <Card className="border-l-4 border-l-green-500">
                     <CardContent className="pt-4 px-3">
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1"><TrendingUp className="h-3.5 w-3.5 shrink-0" /> Markup Pedidos</div>
                       {(() => {
                         const m = gd.pedido?.avg_margin || 0;
                         return (
                           <>
-                            <p className="text-lg sm:text-2xl font-bold text-emerald-600 truncate">{formatMarkupFromMargin(m)}</p>
+                            <p className="text-lg sm:text-2xl font-bold text-green-600 truncate">{formatMarkupFromMargin(m)}</p>
                             <p className="text-xs text-muted-foreground">Margem {m.toFixed(1)}%</p>
                           </>
                         );
                       })()}
                     </CardContent>
                   </Card>
-                  <Card className="border-l-4 border-l-amber-500">
+                  <Card className="border-l-4 border-l-orange-500">
                     <CardContent className="pt-4 px-3">
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1"><Receipt className="h-3.5 w-3.5 shrink-0" /> Faturamento</div>
-                      <p className="text-lg sm:text-2xl font-bold text-amber-600 truncate">{fmt(gd.faturamento.value)}</p>
+                      <p className="text-lg sm:text-2xl font-bold text-orange-600 truncate">{fmt(gd.faturamento.value)}</p>
                       <p className="text-xs text-muted-foreground">{gd.faturamento.count} notas</p>
                     </CardContent>
                   </Card>
-                  <Card className="border-l-4 border-l-teal-500">
+                  <Card className="border-l-4 border-l-orange-500">
                     <CardContent className="pt-4 px-3">
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1"><TrendingUp className="h-3.5 w-3.5 shrink-0" /> Markup Faturado</div>
                       {(() => {
                         const m = gd.faturamento?.avg_margin || 0;
                         return (
                           <>
-                            <p className="text-lg sm:text-2xl font-bold text-teal-600 truncate">{formatMarkupFromMargin(m)}</p>
+                            <p className="text-lg sm:text-2xl font-bold text-orange-600 truncate">{formatMarkupFromMargin(m)}</p>
                             <p className="text-xs text-muted-foreground">Margem {m.toFixed(1)}%</p>
                           </>
                         );
                       })()}
-                    </CardContent>
-                  </Card>
-                  <Card className="border-l-4 border-l-purple-500">
-                    <CardContent className="pt-4 px-3">
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1"><Target className="h-3.5 w-3.5 shrink-0" /> Conversão</div>
-                      <p className="text-lg sm:text-2xl font-bold text-purple-600">
-                        {gd.orcamento.value > 0 ? ((gd.pedido.value / gd.orcamento.value) * 100).toFixed(1) : 0}%
-                      </p>
-                      <p className="text-xs text-muted-foreground">Pedidos / Orçamentos</p>
                     </CardContent>
                   </Card>
                 </div>
