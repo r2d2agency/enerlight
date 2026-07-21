@@ -375,7 +375,7 @@ export default function CRMMetas() {
             ) : (
               <>
                 {/* KPI Summary Cards - ONLY from imported data */}
-                <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
                   <Card className="border-l-4 border-l-blue-500">
                     <CardContent className="pt-4 px-3">
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1"><FileText className="h-3.5 w-3.5 shrink-0" /> Orçamentos</div>
@@ -390,6 +390,20 @@ export default function CRMMetas() {
                       <p className="text-xs text-muted-foreground">{gd.pedido.count} pedidos</p>
                     </CardContent>
                   </Card>
+                  <Card className="border-l-4 border-l-emerald-500">
+                    <CardContent className="pt-4 px-3">
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1"><TrendingUp className="h-3.5 w-3.5 shrink-0" /> Markup Pedidos</div>
+                      {(() => {
+                        const m = gd.pedido?.avg_margin || 0;
+                        return (
+                          <>
+                            <p className="text-lg sm:text-2xl font-bold text-emerald-600 truncate">{formatMarkupFromMargin(m)}</p>
+                            <p className="text-xs text-muted-foreground">Margem {m.toFixed(1)}%</p>
+                          </>
+                        );
+                      })()}
+                    </CardContent>
+                  </Card>
                   <Card className="border-l-4 border-l-amber-500">
                     <CardContent className="pt-4 px-3">
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1"><Receipt className="h-3.5 w-3.5 shrink-0" /> Faturamento</div>
@@ -397,19 +411,15 @@ export default function CRMMetas() {
                       <p className="text-xs text-muted-foreground">{gd.faturamento.count} notas</p>
                     </CardContent>
                   </Card>
-                  <Card className="border-l-4 border-l-emerald-500">
+                  <Card className="border-l-4 border-l-teal-500">
                     <CardContent className="pt-4 px-3">
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1"><TrendingUp className="h-3.5 w-3.5 shrink-0" /> Margem & Markup</div>
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1"><TrendingUp className="h-3.5 w-3.5 shrink-0" /> Markup Faturado</div>
                       {(() => {
-                        const avgMargin = gd.faturamento?.avg_margin > 0 ? gd.faturamento.avg_margin : (gd.pedido?.avg_margin || 0);
+                        const m = gd.faturamento?.avg_margin || 0;
                         return (
                           <>
-                            <p className="text-lg sm:text-2xl font-bold text-emerald-600 truncate">
-                              {avgMargin.toFixed(1)}%
-                            </p>
-                            <p className="text-xs text-muted-foreground font-medium">
-                              Markup {formatMarkupFromMargin(avgMargin)}
-                            </p>
+                            <p className="text-lg sm:text-2xl font-bold text-teal-600 truncate">{formatMarkupFromMargin(m)}</p>
+                            <p className="text-xs text-muted-foreground">Margem {m.toFixed(1)}%</p>
                           </>
                         );
                       })()}
