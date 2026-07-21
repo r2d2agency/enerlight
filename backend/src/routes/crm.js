@@ -7576,6 +7576,15 @@ router.get('/goals/data-records', async (req, res) => {
     const countResult = await query(`SELECT COUNT(*) as total FROM crm_goals_data WHERE ${baseWhere}`, params);
     const total = parseInt(countResult.rows[0]?.total || '0');
 
+    const totalsResult = await query(
+      `SELECT COALESCE(SUM(value),0) AS total_value,
+              COALESCE(SUM(cost),0) AS total_cost,
+              COALESCE(SUM(CASE WHEN cost IS NOT NULL AND cost > 0 THEN value ELSE 0 END),0) AS value_with_cost
+       FROM crm_goals_data WHERE ${baseWhere}`,
+      params
+    );
+    const t = totalsResult.rows[0] || {};
+
     const dataParams = [...params, lim, offset];
     const result = await query(
       `SELECT id, data_type, number, status, client_name, value, seller_name, channel, client_group, state, city, emission_date, delivery_date, billing_date, margin, cost, observation, order_number, created_at
@@ -7588,9 +7597,15 @@ router.get('/goals/data-records', async (req, res) => {
     res.json({
       records: result.rows.map(r => ({ ...r, value: parseFloat(r.value || '0'), margin: r.margin ? parseFloat(r.margin) : null, cost: r.cost != null ? parseFloat(r.cost) : null })),
       total,
+      totals: {
+        total_value: parseFloat(t.total_value || '0'),
+        total_cost: parseFloat(t.total_cost || '0'),
+        value_with_cost: parseFloat(t.value_with_cost || '0'),
+      },
       page: pageNum,
       totalPages: Math.ceil(total / lim),
     });
+
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
