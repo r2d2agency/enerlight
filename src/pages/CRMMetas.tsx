@@ -1279,6 +1279,7 @@ export default function CRMMetas() {
                             <TableHead>Vendedor</TableHead>
                             <TableHead>Canal</TableHead>
                             <TableHead className="text-right">Valor</TableHead>
+                            {recordsType !== "orcamento" && <TableHead className="text-right">Custo</TableHead>}
                             <TableHead>Status</TableHead>
                             <TableHead>Data Emissão</TableHead>
                             {recordsType === "pedido" && <TableHead>Nº Pedido</TableHead>}
