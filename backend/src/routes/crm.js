@@ -7120,11 +7120,16 @@ async function ensureGoalsDataTable() {
       delivery_date DATE,
       billing_date DATE,
       margin NUMERIC(10,2),
+      cost NUMERIC(15,2),
       observation TEXT,
       order_number VARCHAR(100),
       batch_id UUID,
       created_at TIMESTAMPTZ DEFAULT NOW()
     )`);
+    await query(`ALTER TABLE crm_goals_data ADD COLUMN IF NOT EXISTS cost NUMERIC(15,2)`);
+    // Backfill cost for existing rows using margin
+    await query(`UPDATE crm_goals_data SET cost = ROUND(value * (1 - margin/100.0), 2)
+                 WHERE cost IS NULL AND margin IS NOT NULL AND margin < 100 AND value > 0`);
     await query(`CREATE INDEX IF NOT EXISTS idx_goals_data_org ON crm_goals_data(organization_id)`);
     await query(`CREATE INDEX IF NOT EXISTS idx_goals_data_type ON crm_goals_data(data_type)`);
     await query(`CREATE INDEX IF NOT EXISTS idx_goals_data_date ON crm_goals_data(emission_date)`);
