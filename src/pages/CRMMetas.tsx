@@ -75,6 +75,25 @@ function formatMarkupFromMargin(avgMargin: number) {
   return `${markupX > 0 ? markupX.toFixed(2).replace('.', ',') : '0,00'}x`;
 }
 
+// Real markup based on total value / total cost (weighted by every product)
+function computeRealMarkup(totalValue: number, totalCost: number) {
+  if (!Number.isFinite(totalValue) || !Number.isFinite(totalCost) || totalCost <= 0) return 0;
+  return totalValue / totalCost;
+}
+
+function formatRealMarkup(totalValue: number, totalCost: number, fallbackAvgMargin = 0) {
+  const mk = computeRealMarkup(totalValue, totalCost);
+  if (mk > 0) return `${mk.toFixed(2).replace('.', ',')}x`;
+  return formatMarkupFromMargin(fallbackAvgMargin);
+}
+
+// Real (weighted) margin = (value - cost) / value
+function computeRealMarginPct(totalValue: number, totalCost: number) {
+  if (!Number.isFinite(totalValue) || totalValue <= 0 || !Number.isFinite(totalCost) || totalCost <= 0) return 0;
+  return ((totalValue - totalCost) / totalValue) * 100;
+}
+
+
 export default function CRMMetas() {
   const { user, userPermissions } = useAuth();
   const isAdmin = user?.role && ["owner", "admin", "manager"].includes(user.role);
