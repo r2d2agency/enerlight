@@ -212,7 +212,7 @@ export function GoalsImportDialog({ open, onOpenChange, dataType, onSuccess }: P
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) reset(); onOpenChange(v); }}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto" aria-describedby={undefined}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle className={`flex items-center gap-2 ${config.color}`}>
             <Icon className="h-5 w-5" /> Importar {config.label}
