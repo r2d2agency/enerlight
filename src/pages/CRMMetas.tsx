@@ -1279,6 +1279,7 @@ export default function CRMMetas() {
                             <TableHead>Vendedor</TableHead>
                             <TableHead>Canal</TableHead>
                             <TableHead className="text-right">Valor</TableHead>
+                            {recordsType !== "orcamento" && <TableHead className="text-right">Custo</TableHead>}
                             <TableHead>Status</TableHead>
                             <TableHead>Data Emissão</TableHead>
                             {recordsType === "pedido" && <TableHead>Nº Pedido</TableHead>}
@@ -1297,6 +1298,9 @@ export default function CRMMetas() {
                             const rowMarkup = (r.margin != null && r.margin < 100)
                               ? 1 / (1 - r.margin / 100)
                               : null;
+                            const rowCost = (r.margin != null && r.margin < 100)
+                              ? Number(r.value || 0) * (1 - r.margin / 100)
+                              : null;
                             return (
                             <TableRow key={r.id} className={canShowFreight ? "cursor-pointer hover:bg-muted/50" : ""} onClick={() => canShowFreight && setFreightDetailOrder(orderNum)}>
                               <TableCell className="font-mono text-sm">{r.number || "—"}</TableCell>
@@ -1308,6 +1312,11 @@ export default function CRMMetas() {
                                 ) : "—"}
                               </TableCell>
                               <TableCell className="text-right font-medium">{fmt(r.value)}</TableCell>
+                              {recordsType !== "orcamento" && (
+                                <TableCell className="text-right text-sm">
+                                  {rowCost != null ? fmt(rowCost) : "—"}
+                                </TableCell>
+                              )}
                               <TableCell>
                                 {r.status ? (
                                   <Badge variant="secondary" className="text-xs">{r.status}</Badge>
@@ -1354,6 +1363,9 @@ export default function CRMMetas() {
                             <TableRow>
                               <TableHead className="font-semibold" colSpan={4}>Total ({recordsData.total} registros)</TableHead>
                               <TableHead className="text-right font-semibold">{fmt(recordsData.totals.total_value)}</TableHead>
+                              {recordsType !== "orcamento" && (
+                                <TableHead className="text-right font-semibold">{fmt(recordsData.totals.total_cost || 0)}</TableHead>
+                              )}
                               <TableHead colSpan={recordsType === "orcamento" ? 3 : 4}></TableHead>
                               {recordsType !== "orcamento" && (
                                 <TableHead className="text-right font-semibold">
