@@ -387,7 +387,8 @@ export function GoalsImportDialog({ open, onOpenChange, dataType, onSuccess }: P
               </Button>
             </DialogFooter>
           </div>
-        )}
+          );
+        })()}
 
         {step === "done" && result && (
           <div className="text-center py-8 space-y-4">
