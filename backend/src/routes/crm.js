@@ -7410,6 +7410,8 @@ router.get('/goals/data-summary', async (req, res) => {
     // Summary by type
     const summary = await query(
       `SELECT data_type, COUNT(*) as count, COALESCE(SUM(value),0) as total_value,
+              COALESCE(SUM(CASE WHEN data_type IN ('pedido','faturamento') THEN cost ELSE NULL END),0) as total_cost,
+              COALESCE(SUM(CASE WHEN data_type IN ('pedido','faturamento') AND cost IS NOT NULL THEN value ELSE 0 END),0) as value_with_cost,
               AVG(CASE WHEN data_type IN ('pedido', 'faturamento') AND margin IS NOT NULL THEN margin ELSE NULL END) as avg_margin
        FROM crm_goals_data WHERE ${baseWhere}
        GROUP BY data_type`,
@@ -7427,6 +7429,8 @@ router.get('/goals/data-summary', async (req, res) => {
               ORDER BY ug.name LIMIT 1),
            'SEM CANAL')) as channel,
          COUNT(*) as count, COALESCE(SUM(value),0) as total_value,
+         COALESCE(SUM(CASE WHEN data_type IN ('pedido','faturamento') THEN cost ELSE NULL END),0) as total_cost,
+         COALESCE(SUM(CASE WHEN data_type IN ('pedido','faturamento') AND cost IS NOT NULL THEN value ELSE 0 END),0) as value_with_cost,
          AVG(CASE WHEN data_type IN ('pedido', 'faturamento') AND margin IS NOT NULL THEN margin ELSE NULL END) as avg_margin
        FROM crm_goals_data WHERE ${baseWhere}
        GROUP BY data_type, channel, user_id ORDER BY total_value DESC`,
@@ -7437,6 +7441,8 @@ router.get('/goals/data-summary', async (req, res) => {
     const bySeller = await query(
       `SELECT data_type, COALESCE(seller_name, 'Sem Vendedor') as seller_name, user_id, 
               COUNT(*) as count, COALESCE(SUM(value),0) as total_value,
+              COALESCE(SUM(CASE WHEN data_type IN ('pedido','faturamento') THEN cost ELSE NULL END),0) as total_cost,
+              COALESCE(SUM(CASE WHEN data_type IN ('pedido','faturamento') AND cost IS NOT NULL THEN value ELSE 0 END),0) as value_with_cost,
               AVG(CASE WHEN data_type IN ('pedido', 'faturamento') AND margin IS NOT NULL THEN margin ELSE NULL END) as avg_margin
        FROM crm_goals_data WHERE ${baseWhere}
        GROUP BY data_type, seller_name, user_id ORDER BY total_value DESC`,
@@ -7445,14 +7451,16 @@ router.get('/goals/data-summary', async (req, res) => {
 
     const result = { 
       orcamento: { count: 0, value: 0 }, 
-      pedido: { count: 0, value: 0, avg_margin: 0 }, 
-      faturamento: { count: 0, value: 0, avg_margin: 0 } 
+      pedido: { count: 0, value: 0, avg_margin: 0, total_cost: 0, value_with_cost: 0 }, 
+      faturamento: { count: 0, value: 0, avg_margin: 0, total_cost: 0, value_with_cost: 0 } 
     };
     for (const row of summary.rows) {
       result[row.data_type] = { 
         count: parseInt(row.count), 
         value: parseFloat(row.total_value),
-        avg_margin: row.avg_margin ? parseFloat(row.avg_margin) : 0
+        avg_margin: row.avg_margin ? parseFloat(row.avg_margin) : 0,
+        total_cost: parseFloat(row.total_cost || 0),
+        value_with_cost: parseFloat(row.value_with_cost || 0),
       };
     }
 
@@ -7462,13 +7470,17 @@ router.get('/goals/data-summary', async (req, res) => {
         ...r, 
         count: parseInt(r.count), 
         total_value: parseFloat(r.total_value),
-        avg_margin: r.avg_margin ? parseFloat(r.avg_margin) : 0
+        avg_margin: r.avg_margin ? parseFloat(r.avg_margin) : 0,
+        total_cost: parseFloat(r.total_cost || 0),
+        value_with_cost: parseFloat(r.value_with_cost || 0),
       })),
       bySeller: bySeller.rows.map(r => ({ 
         ...r, 
         count: parseInt(r.count), 
         total_value: parseFloat(r.total_value),
-        avg_margin: r.avg_margin ? parseFloat(r.avg_margin) : 0
+        avg_margin: r.avg_margin ? parseFloat(r.avg_margin) : 0,
+        total_cost: parseFloat(r.total_cost || 0),
+        value_with_cost: parseFloat(r.value_with_cost || 0),
       })),
     });
   } catch (error) {
