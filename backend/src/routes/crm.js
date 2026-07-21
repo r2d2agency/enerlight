@@ -7120,11 +7120,16 @@ async function ensureGoalsDataTable() {
       delivery_date DATE,
       billing_date DATE,
       margin NUMERIC(10,2),
+      cost NUMERIC(15,2),
       observation TEXT,
       order_number VARCHAR(100),
       batch_id UUID,
       created_at TIMESTAMPTZ DEFAULT NOW()
     )`);
+    await query(`ALTER TABLE crm_goals_data ADD COLUMN IF NOT EXISTS cost NUMERIC(15,2)`);
+    // Backfill cost for existing rows using margin
+    await query(`UPDATE crm_goals_data SET cost = ROUND(value * (1 - margin/100.0), 2)
+                 WHERE cost IS NULL AND margin IS NOT NULL AND margin < 100 AND value > 0`);
     await query(`CREATE INDEX IF NOT EXISTS idx_goals_data_org ON crm_goals_data(organization_id)`);
     await query(`CREATE INDEX IF NOT EXISTS idx_goals_data_type ON crm_goals_data(data_type)`);
     await query(`CREATE INDEX IF NOT EXISTS idx_goals_data_date ON crm_goals_data(emission_date)`);
@@ -7280,13 +7285,18 @@ router.post('/goals/import', async (req, res) => {
         const userId = sellerMapping?.[row.seller_name] || null;
         const rawChannel = channelMapping?.[row.channel] || row.channel || null;
         const channel = rawChannel ? rawChannel.trim().toUpperCase() : null;
+        const marginNum = row.margin != null && row.margin !== '' ? parseFloat(row.margin) : null;
+        const valueNum = parseFloat(row.value) || 0;
+        const cost = (marginNum !== null && Number.isFinite(marginNum) && marginNum < 100 && valueNum > 0)
+          ? +(valueNum * (1 - marginNum / 100)).toFixed(2)
+          : null;
         await query(
           `INSERT INTO crm_goals_data 
-           (organization_id, data_type, number, status, client_name, value, seller_name, user_id, channel, client_group, state, city, emission_date, delivery_date, billing_date, margin, observation, order_number, batch_id)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
-          [org.organization_id, dataType, row.number, row.status, row.client_name, row.value || 0,
+           (organization_id, data_type, number, status, client_name, value, seller_name, user_id, channel, client_group, state, city, emission_date, delivery_date, billing_date, margin, cost, observation, order_number, batch_id)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`,
+          [org.organization_id, dataType, row.number, row.status, row.client_name, valueNum,
            row.seller_name, userId, channel, row.client_group, row.state, row.city,
-           row.emission_date, row.delivery_date, row.billing_date, row.margin, row.observation, row.order_number, batchId]
+           row.emission_date, row.delivery_date, row.billing_date, marginNum, cost, row.observation, row.order_number, batchId]
         );
         imported++;
       } catch (_) { skipped++; }
@@ -7400,6 +7410,8 @@ router.get('/goals/data-summary', async (req, res) => {
     // Summary by type
     const summary = await query(
       `SELECT data_type, COUNT(*) as count, COALESCE(SUM(value),0) as total_value,
+              COALESCE(SUM(CASE WHEN data_type IN ('pedido','faturamento') THEN cost ELSE NULL END),0) as total_cost,
+              COALESCE(SUM(CASE WHEN data_type IN ('pedido','faturamento') AND cost IS NOT NULL THEN value ELSE 0 END),0) as value_with_cost,
               AVG(CASE WHEN data_type IN ('pedido', 'faturamento') AND margin IS NOT NULL THEN margin ELSE NULL END) as avg_margin
        FROM crm_goals_data WHERE ${baseWhere}
        GROUP BY data_type`,
@@ -7417,6 +7429,8 @@ router.get('/goals/data-summary', async (req, res) => {
               ORDER BY ug.name LIMIT 1),
            'SEM CANAL')) as channel,
          COUNT(*) as count, COALESCE(SUM(value),0) as total_value,
+         COALESCE(SUM(CASE WHEN data_type IN ('pedido','faturamento') THEN cost ELSE NULL END),0) as total_cost,
+         COALESCE(SUM(CASE WHEN data_type IN ('pedido','faturamento') AND cost IS NOT NULL THEN value ELSE 0 END),0) as value_with_cost,
          AVG(CASE WHEN data_type IN ('pedido', 'faturamento') AND margin IS NOT NULL THEN margin ELSE NULL END) as avg_margin
        FROM crm_goals_data WHERE ${baseWhere}
        GROUP BY data_type, channel, user_id ORDER BY total_value DESC`,
@@ -7427,6 +7441,8 @@ router.get('/goals/data-summary', async (req, res) => {
     const bySeller = await query(
       `SELECT data_type, COALESCE(seller_name, 'Sem Vendedor') as seller_name, user_id, 
               COUNT(*) as count, COALESCE(SUM(value),0) as total_value,
+              COALESCE(SUM(CASE WHEN data_type IN ('pedido','faturamento') THEN cost ELSE NULL END),0) as total_cost,
+              COALESCE(SUM(CASE WHEN data_type IN ('pedido','faturamento') AND cost IS NOT NULL THEN value ELSE 0 END),0) as value_with_cost,
               AVG(CASE WHEN data_type IN ('pedido', 'faturamento') AND margin IS NOT NULL THEN margin ELSE NULL END) as avg_margin
        FROM crm_goals_data WHERE ${baseWhere}
        GROUP BY data_type, seller_name, user_id ORDER BY total_value DESC`,
@@ -7435,14 +7451,16 @@ router.get('/goals/data-summary', async (req, res) => {
 
     const result = { 
       orcamento: { count: 0, value: 0 }, 
-      pedido: { count: 0, value: 0, avg_margin: 0 }, 
-      faturamento: { count: 0, value: 0, avg_margin: 0 } 
+      pedido: { count: 0, value: 0, avg_margin: 0, total_cost: 0, value_with_cost: 0 }, 
+      faturamento: { count: 0, value: 0, avg_margin: 0, total_cost: 0, value_with_cost: 0 } 
     };
     for (const row of summary.rows) {
       result[row.data_type] = { 
         count: parseInt(row.count), 
         value: parseFloat(row.total_value),
-        avg_margin: row.avg_margin ? parseFloat(row.avg_margin) : 0
+        avg_margin: row.avg_margin ? parseFloat(row.avg_margin) : 0,
+        total_cost: parseFloat(row.total_cost || 0),
+        value_with_cost: parseFloat(row.value_with_cost || 0),
       };
     }
 
@@ -7452,13 +7470,17 @@ router.get('/goals/data-summary', async (req, res) => {
         ...r, 
         count: parseInt(r.count), 
         total_value: parseFloat(r.total_value),
-        avg_margin: r.avg_margin ? parseFloat(r.avg_margin) : 0
+        avg_margin: r.avg_margin ? parseFloat(r.avg_margin) : 0,
+        total_cost: parseFloat(r.total_cost || 0),
+        value_with_cost: parseFloat(r.value_with_cost || 0),
       })),
       bySeller: bySeller.rows.map(r => ({ 
         ...r, 
         count: parseInt(r.count), 
         total_value: parseFloat(r.total_value),
-        avg_margin: r.avg_margin ? parseFloat(r.avg_margin) : 0
+        avg_margin: r.avg_margin ? parseFloat(r.avg_margin) : 0,
+        total_cost: parseFloat(r.total_cost || 0),
+        value_with_cost: parseFloat(r.value_with_cost || 0),
       })),
     });
   } catch (error) {
@@ -7556,7 +7578,7 @@ router.get('/goals/data-records', async (req, res) => {
 
     const dataParams = [...params, lim, offset];
     const result = await query(
-      `SELECT id, data_type, number, status, client_name, value, seller_name, channel, client_group, state, city, emission_date, delivery_date, billing_date, margin, observation, order_number, created_at
+      `SELECT id, data_type, number, status, client_name, value, seller_name, channel, client_group, state, city, emission_date, delivery_date, billing_date, margin, cost, observation, order_number, created_at
        FROM crm_goals_data WHERE ${baseWhere}
        ORDER BY ${dateExpr} DESC, created_at DESC
        LIMIT $${dataParams.length - 1} OFFSET $${dataParams.length}`,
@@ -7564,7 +7586,7 @@ router.get('/goals/data-records', async (req, res) => {
     );
 
     res.json({
-      records: result.rows.map(r => ({ ...r, value: parseFloat(r.value || '0'), margin: r.margin ? parseFloat(r.margin) : null })),
+      records: result.rows.map(r => ({ ...r, value: parseFloat(r.value || '0'), margin: r.margin ? parseFloat(r.margin) : null, cost: r.cost != null ? parseFloat(r.cost) : null })),
       total,
       page: pageNum,
       totalPages: Math.ceil(total / lim),

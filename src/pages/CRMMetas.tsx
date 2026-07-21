@@ -75,6 +75,25 @@ function formatMarkupFromMargin(avgMargin: number) {
   return `${markupX > 0 ? markupX.toFixed(2).replace('.', ',') : '0,00'}x`;
 }
 
+// Real markup based on total value / total cost (weighted by every product)
+function computeRealMarkup(totalValue: number, totalCost: number) {
+  if (!Number.isFinite(totalValue) || !Number.isFinite(totalCost) || totalCost <= 0) return 0;
+  return totalValue / totalCost;
+}
+
+function formatRealMarkup(totalValue: number, totalCost: number, fallbackAvgMargin = 0) {
+  const mk = computeRealMarkup(totalValue, totalCost);
+  if (mk > 0) return `${mk.toFixed(2).replace('.', ',')}x`;
+  return formatMarkupFromMargin(fallbackAvgMargin);
+}
+
+// Real (weighted) margin = (value - cost) / value
+function computeRealMarginPct(totalValue: number, totalCost: number) {
+  if (!Number.isFinite(totalValue) || totalValue <= 0 || !Number.isFinite(totalCost) || totalCost <= 0) return 0;
+  return ((totalValue - totalCost) / totalValue) * 100;
+}
+
+
 export default function CRMMetas() {
   const { user, userPermissions } = useAuth();
   const isAdmin = user?.role && ["owner", "admin", "manager"].includes(user.role);
@@ -403,11 +422,14 @@ export default function CRMMetas() {
                     <CardContent className="pt-4 px-3">
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1"><TrendingUp className="h-3.5 w-3.5 shrink-0" /> Markup Pedidos</div>
                       {(() => {
+                        const val = (gd.pedido as any)?.value_with_cost || 0;
+                        const cost = (gd.pedido as any)?.total_cost || 0;
                         const m = gd.pedido?.avg_margin || 0;
+                        const realMargin = computeRealMarginPct(val, cost);
                         return (
                           <>
-                            <p className="text-lg sm:text-2xl font-bold text-green-600 truncate">{formatMarkupFromMargin(m)}</p>
-                            <p className="text-xs text-muted-foreground">Margem {m.toFixed(1)}%</p>
+                            <p className="text-lg sm:text-2xl font-bold text-green-600 truncate">{formatRealMarkup(val, cost, m)}</p>
+                            <p className="text-xs text-muted-foreground">Margem {realMargin > 0 ? realMargin.toFixed(1) : m.toFixed(1)}%</p>
                           </>
                         );
                       })()}
@@ -424,11 +446,14 @@ export default function CRMMetas() {
                     <CardContent className="pt-4 px-3">
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1"><TrendingUp className="h-3.5 w-3.5 shrink-0" /> Markup Faturado</div>
                       {(() => {
+                        const val = (gd.faturamento as any)?.value_with_cost || 0;
+                        const cost = (gd.faturamento as any)?.total_cost || 0;
                         const m = gd.faturamento?.avg_margin || 0;
+                        const realMargin = computeRealMarginPct(val, cost);
                         return (
                           <>
-                            <p className="text-lg sm:text-2xl font-bold text-orange-600 truncate">{formatMarkupFromMargin(m)}</p>
-                            <p className="text-xs text-muted-foreground">Margem {m.toFixed(1)}%</p>
+                            <p className="text-lg sm:text-2xl font-bold text-orange-600 truncate">{formatRealMarkup(val, cost, m)}</p>
+                            <p className="text-xs text-muted-foreground">Margem {realMargin > 0 ? realMargin.toFixed(1) : m.toFixed(1)}%</p>
                           </>
                         );
                       })()}
@@ -813,18 +838,21 @@ export default function CRMMetas() {
           <TabsContent value="by-channel" className="mt-4 space-y-6">
             {(() => {
               const gdByChannel = goalsData?.byChannel || [];
-              const channelMap: Record<string, { channel: string; quotes: number; quotes_value: number; orders: number; orders_value: number; billing_value: number; total_margin: number; margin_count: number }> = {};
+              const channelMap: Record<string, { channel: string; quotes: number; quotes_value: number; orders: number; orders_value: number; billing_value: number; total_margin: number; margin_count: number; total_cost: number; value_with_cost: number }> = {};
               for (const row of gdByChannel) {
                 const key = row.channel;
-                if (!channelMap[key]) channelMap[key] = { channel: key, quotes: 0, quotes_value: 0, orders: 0, orders_value: 0, billing_value: 0, total_margin: 0, margin_count: 0 };
+                if (!channelMap[key]) channelMap[key] = { channel: key, quotes: 0, quotes_value: 0, orders: 0, orders_value: 0, billing_value: 0, total_margin: 0, margin_count: 0, total_cost: 0, value_with_cost: 0 };
                 if (row.data_type === 'orcamento') { channelMap[key].quotes += row.count; channelMap[key].quotes_value += row.total_value; }
                 if (row.data_type === 'pedido') { channelMap[key].orders += row.count; channelMap[key].orders_value += row.total_value; }
                 if (row.data_type === 'faturamento') { channelMap[key].billing_value += row.total_value; }
                 
                 if (['pedido', 'faturamento'].includes(row.data_type) && row.avg_margin > 0) {
-                  // Weighting by value to get a more accurate weighted average margin
                   channelMap[key].total_margin += (row.avg_margin * row.total_value);
                   channelMap[key].margin_count += row.total_value;
+                }
+                if (['pedido', 'faturamento'].includes(row.data_type)) {
+                  channelMap[key].total_cost += Number(row.total_cost || 0);
+                  channelMap[key].value_with_cost += Number(row.value_with_cost || 0);
                 }
               }
               const channels = Object.values(channelMap).filter(c => c.quotes > 0 || c.orders > 0 || c.billing_value > 0);
@@ -882,12 +910,16 @@ export default function CRMMetas() {
                                 <TableCell className="text-right text-sm">{fmt(ch.orders_value)}</TableCell>
                                 <TableCell className="text-right text-amber-600 font-medium">{fmt(ch.billing_value)}</TableCell>
                                 <TableCell className="text-right font-medium text-emerald-600">
-                                  {ch.margin_count > 0 ? (ch.total_margin / ch.margin_count).toFixed(1) : "0"}%
+                                  {(() => {
+                                    const real = computeRealMarginPct(ch.value_with_cost, ch.total_cost);
+                                    if (real > 0) return `${real.toFixed(1)}%`;
+                                    return ch.margin_count > 0 ? `${(ch.total_margin / ch.margin_count).toFixed(1)}%` : "0%";
+                                  })()}
                                 </TableCell>
                                 <TableCell className="text-right font-medium text-teal-600">
                                   {(() => {
                                     const avgMargin = ch.margin_count > 0 ? (ch.total_margin / ch.margin_count) : 0;
-                                    return formatMarkupFromMargin(avgMargin);
+                                    return formatRealMarkup(ch.value_with_cost, ch.total_cost, avgMargin);
                                   })()}
                                 </TableCell>
                                 <TableCell className="text-center">
@@ -905,16 +937,23 @@ export default function CRMMetas() {
                               <TableCell className="text-right">{fmt(channels.reduce((s, c) => s + c.orders_value, 0))}</TableCell>
                               <TableCell className="text-right text-amber-600">{fmt(channels.reduce((s, c) => s + c.billing_value, 0))}</TableCell>
                                <TableCell className="text-right text-emerald-600">
-                                {channels.filter(c => c.margin_count > 0).length > 0 
-                                  ? (channels.reduce((s, c) => s + (c.margin_count > 0 ? c.total_margin / c.margin_count : 0), 0) / channels.filter(c => c.margin_count > 0).length).toFixed(1)
-                                  : "0"}%
+                                {(() => {
+                                  const val = channels.reduce((s, c) => s + (c.value_with_cost || 0), 0);
+                                  const cost = channels.reduce((s, c) => s + (c.total_cost || 0), 0);
+                                  const real = computeRealMarginPct(val, cost);
+                                  if (real > 0) return `${real.toFixed(1)}%`;
+                                  const filtered = channels.filter(c => c.margin_count > 0);
+                                  if (filtered.length === 0) return "0%";
+                                  return `${(filtered.reduce((s, c) => s + c.total_margin / c.margin_count, 0) / filtered.length).toFixed(1)}%`;
+                                })()}
                               </TableCell>
                               <TableCell className="text-right text-teal-600">
                                 {(() => {
+                                  const val = channels.reduce((s, c) => s + (c.value_with_cost || 0), 0);
+                                  const cost = channels.reduce((s, c) => s + (c.total_cost || 0), 0);
                                   const filtered = channels.filter(c => c.margin_count > 0);
-                                  if (filtered.length === 0) return "0,00x";
-                                  const avgMargin = filtered.reduce((s, c) => s + (c.total_margin / c.margin_count), 0) / filtered.length;
-                                  return formatMarkupFromMargin(avgMargin);
+                                  const avgMargin = filtered.length > 0 ? filtered.reduce((s, c) => s + c.total_margin / c.margin_count, 0) / filtered.length : 0;
+                                  return formatRealMarkup(val, cost, avgMargin);
                                 })()}
                               </TableCell>
                               <TableCell className="text-center">—</TableCell>
@@ -955,10 +994,10 @@ export default function CRMMetas() {
           <TabsContent value="individual" className="mt-4 space-y-6">
             {(() => {
               const gdBySeller = goalsData?.bySeller || [];
-              const sellerMap: Record<string, { seller: string; quotes: number; quotes_value: number; orders: number; orders_value: number; billing_value: number; avg_margin: number; margin_count: number }> = {};
+              const sellerMap: Record<string, { seller: string; quotes: number; quotes_value: number; orders: number; orders_value: number; billing_value: number; avg_margin: number; margin_count: number; total_cost: number; value_with_cost: number }> = {};
               for (const row of gdBySeller) {
                 const key = row.seller_name;
-                if (!sellerMap[key]) sellerMap[key] = { seller: key, quotes: 0, quotes_value: 0, orders: 0, orders_value: 0, billing_value: 0, avg_margin: 0, margin_count: 0 };
+                if (!sellerMap[key]) sellerMap[key] = { seller: key, quotes: 0, quotes_value: 0, orders: 0, orders_value: 0, billing_value: 0, avg_margin: 0, margin_count: 0, total_cost: 0, value_with_cost: 0 };
                 if (row.data_type === 'orcamento') { sellerMap[key].quotes += row.count; sellerMap[key].quotes_value += row.total_value; }
                 if (row.data_type === 'pedido') { sellerMap[key].orders += row.count; sellerMap[key].orders_value += row.total_value; }
                 if (row.data_type === 'faturamento') { sellerMap[key].billing_value += row.total_value; }
@@ -966,6 +1005,10 @@ export default function CRMMetas() {
                 if (['pedido', 'faturamento'].includes(row.data_type) && row.avg_margin > 0) {
                   sellerMap[key].avg_margin += row.avg_margin;
                   sellerMap[key].margin_count += 1;
+                }
+                if (['pedido', 'faturamento'].includes(row.data_type)) {
+                  sellerMap[key].total_cost += Number(row.total_cost || 0);
+                  sellerMap[key].value_with_cost += Number(row.value_with_cost || 0);
                 }
               }
               const sellers = Object.values(sellerMap).filter(s => s.quotes > 0 || s.orders > 0 || s.billing_value > 0);
@@ -1028,7 +1071,11 @@ export default function CRMMetas() {
                               <TableCell className="text-right text-sm">{fmt(r.orders_value)}</TableCell>
                               <TableCell className="text-right text-amber-600 font-medium">{fmt(r.billing_value)}</TableCell>
                               <TableCell className="text-right font-medium text-emerald-600">
-                                {r.margin_count > 0 ? (r.avg_margin / r.margin_count).toFixed(1) : "0"}%
+                                {(() => {
+                                  const real = computeRealMarginPct(r.value_with_cost, r.total_cost);
+                                  if (real > 0) return `${real.toFixed(1)}%`;
+                                  return r.margin_count > 0 ? `${(r.avg_margin / r.margin_count).toFixed(1)}%` : "0%";
+                                })()}
                               </TableCell>
                               <TableCell className="text-center">
                                 <Badge variant={r.quotes > 0 && (r.orders / r.quotes) >= 0.3 ? "default" : "secondary"}>
@@ -1046,9 +1093,15 @@ export default function CRMMetas() {
                             <TableCell className="text-right">{fmt(sellers.reduce((s, r) => s + r.orders_value, 0))}</TableCell>
                             <TableCell className="text-right text-amber-600">{fmt(sellers.reduce((s, r) => s + r.billing_value, 0))}</TableCell>
                             <TableCell className="text-right text-emerald-600">
-                              {sellers.filter(s => s.margin_count > 0).length > 0 
-                                ? (sellers.reduce((sum, s) => sum + (s.margin_count > 0 ? s.avg_margin / s.margin_count : 0), 0) / sellers.filter(s => s.margin_count > 0).length).toFixed(1)
-                                : "0"}%
+                              {(() => {
+                                const val = sellers.reduce((s, r) => s + (r.value_with_cost || 0), 0);
+                                const cost = sellers.reduce((s, r) => s + (r.total_cost || 0), 0);
+                                const real = computeRealMarginPct(val, cost);
+                                if (real > 0) return `${real.toFixed(1)}%`;
+                                const filtered = sellers.filter(s => s.margin_count > 0);
+                                if (filtered.length === 0) return "0%";
+                                return `${(filtered.reduce((sum, s) => sum + s.avg_margin / s.margin_count, 0) / filtered.length).toFixed(1)}%`;
+                              })()}
                             </TableCell>
                             <TableCell className="text-center">—</TableCell>
                           </TableRow>
