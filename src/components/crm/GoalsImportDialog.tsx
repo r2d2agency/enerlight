@@ -247,31 +247,15 @@ export function GoalsImportDialog({ open, onOpenChange, dataType, onSuccess }: P
         )}
 
         {step === "mapping" && (() => {
-          const markupOf = (m: number | null) => {
-            if (m == null || !Number.isFinite(m)) return null;
-            if (m >= 100) return null;
-            return 1 / (1 - m / 100);
-          };
-          const costOf = (r: ParsedRow) => {
-            const mk = markupOf(r.margin);
-            return mk && mk > 0 ? r.value / mk : 0;
-          };
           const totalValue = rows.reduce((s, r) => s + (r.value || 0), 0);
-          const totalCost = rows.reduce((s, r) => s + costOf(r), 0);
-          const totalValueWithMargin = rows.reduce((s, r) => s + (markupOf(r.margin) ? r.value : 0), 0);
-          const realMarkup = totalCost > 0 ? totalValue / totalCost : 0;
-          const realMarginPct = totalValue > 0 && totalCost > 0 ? ((totalValue - totalCost) / totalValue) * 100 : 0;
           return (
           <div className="space-y-4">
             <div className="flex items-center gap-2 flex-wrap text-sm">
               <Badge variant="outline">{rows.length} registros</Badge>
               <Badge variant="outline" className={config.color}>Total: {fmt(totalValue)}</Badge>
-              <Badge variant="outline">Custo: {fmt(totalCost)}</Badge>
-              <Badge variant="outline" className="text-emerald-600">Markup real: {realMarkup > 0 ? `${realMarkup.toFixed(2).replace('.', ',')}x` : '—'}</Badge>
-              <Badge variant="outline" className="text-emerald-600">Margem real: {realMarginPct > 0 ? `${realMarginPct.toFixed(1).replace('.', ',')}%` : '—'}</Badge>
             </div>
 
-            {/* Preview - all rows with markup */}
+            {/* Preview - all rows */}
             <div className="max-h-72 overflow-auto border rounded">
               <Table>
                 <TableHeader className="sticky top-0 bg-background z-10">
@@ -279,39 +263,24 @@ export function GoalsImportDialog({ open, onOpenChange, dataType, onSuccess }: P
                     <TableHead className="text-xs">Nº</TableHead>
                     <TableHead className="text-xs">Cliente</TableHead>
                     <TableHead className="text-xs text-right">Valor</TableHead>
-                    <TableHead className="text-xs text-right">Margem</TableHead>
-                    <TableHead className="text-xs text-right">Markup</TableHead>
                     <TableHead className="text-xs">Vendedor</TableHead>
                     <TableHead className="text-xs">Canal</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rows.map((r, i) => {
-                    const mk = markupOf(r.margin);
-                    return (
-                      <TableRow key={i}>
-                        <TableCell className="text-xs">{r.number}</TableCell>
-                        <TableCell className="text-xs truncate max-w-[200px]">{r.client_name}</TableCell>
-                        <TableCell className="text-xs text-right">{fmt(r.value)}</TableCell>
-                        <TableCell className="text-xs text-right">{r.margin != null ? `${r.margin.toFixed(1).replace('.', ',')}%` : '—'}</TableCell>
-                        <TableCell className="text-xs text-right font-medium">{mk ? `${mk.toFixed(2).replace('.', ',')}x` : '—'}</TableCell>
-                        <TableCell className="text-xs truncate max-w-[140px]">{r.seller_name}</TableCell>
-                        <TableCell className="text-xs truncate max-w-[120px]">{r.channel}</TableCell>
-                      </TableRow>
-                    );
-                  })}
+                  {rows.map((r, i) => (
+                    <TableRow key={i}>
+                      <TableCell className="text-xs">{r.number}</TableCell>
+                      <TableCell className="text-xs truncate max-w-[200px]">{r.client_name}</TableCell>
+                      <TableCell className="text-xs text-right">{fmt(r.value)}</TableCell>
+                      <TableCell className="text-xs truncate max-w-[140px]">{r.seller_name}</TableCell>
+                      <TableCell className="text-xs truncate max-w-[120px]">{r.channel}</TableCell>
+                    </TableRow>
+                  ))}
                 </TableBody>
-                <TableHeader className="sticky bottom-0 bg-muted/60">
-                  <TableRow>
-                    <TableHead className="text-xs font-semibold" colSpan={2}>Total ({rows.length})</TableHead>
-                    <TableHead className="text-xs text-right font-semibold">{fmt(totalValue)}</TableHead>
-                    <TableHead className="text-xs text-right font-semibold">{realMarginPct > 0 ? `${realMarginPct.toFixed(1).replace('.', ',')}%` : '—'}</TableHead>
-                    <TableHead className="text-xs text-right font-semibold text-emerald-600">{realMarkup > 0 ? `${realMarkup.toFixed(2).replace('.', ',')}x` : '—'}</TableHead>
-                    <TableHead className="text-xs" colSpan={2}>Custo total: {fmt(totalCost)}</TableHead>
-                  </TableRow>
-                </TableHeader>
               </Table>
             </div>
+
 
             {/* Seller mapping */}
             {sellers.length > 0 && (

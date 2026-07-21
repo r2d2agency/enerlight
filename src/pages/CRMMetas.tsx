@@ -1286,6 +1286,7 @@ export default function CRMMetas() {
                             <TableHead>UF</TableHead>
                             <TableHead>Cidade</TableHead>
                             {recordsType !== "orcamento" && <TableHead className="text-right">Margem</TableHead>}
+                            {recordsType !== "orcamento" && <TableHead className="text-right">Markup</TableHead>}
                             {recordsType !== "orcamento" && <TableHead className="text-center"><Truck className="h-4 w-4 inline" /> Frete</TableHead>}
                           </TableRow>
                         </TableHeader>
@@ -1293,6 +1294,9 @@ export default function CRMMetas() {
                           {recordsData.records.map((r: any) => {
                             const orderNum = r.order_number || r.number;
                             const canShowFreight = recordsType !== "orcamento" && orderNum;
+                            const rowMarkup = (r.margin != null && r.margin < 100)
+                              ? 1 / (1 - r.margin / 100)
+                              : null;
                             return (
                             <TableRow key={r.id} className={canShowFreight ? "cursor-pointer hover:bg-muted/50" : ""} onClick={() => canShowFreight && setFreightDetailOrder(orderNum)}>
                               <TableCell className="font-mono text-sm">{r.number || "—"}</TableCell>
@@ -1328,6 +1332,11 @@ export default function CRMMetas() {
                                 </TableCell>
                               )}
                               {recordsType !== "orcamento" && (
+                                <TableCell className="text-right text-sm font-medium text-emerald-600">
+                                  {rowMarkup ? `${rowMarkup.toFixed(2).replace('.', ',')}x` : "—"}
+                                </TableCell>
+                              )}
+                              {recordsType !== "orcamento" && (
                                 <TableCell className="text-center">
                                   {canShowFreight ? (
                                     <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1" onClick={e => { e.stopPropagation(); setFreightDetailOrder(orderNum); }}>
@@ -1340,8 +1349,33 @@ export default function CRMMetas() {
                           );
                           })}
                         </TableBody>
+                        {recordsData.totals && (
+                          <TableHeader className="bg-muted/60">
+                            <TableRow>
+                              <TableHead className="font-semibold" colSpan={4}>Total ({recordsData.total} registros)</TableHead>
+                              <TableHead className="text-right font-semibold">{fmt(recordsData.totals.total_value)}</TableHead>
+                              <TableHead colSpan={recordsType === "orcamento" ? 3 : 4}></TableHead>
+                              {recordsType !== "orcamento" && (
+                                <TableHead className="text-right font-semibold">
+                                  {recordsData.totals.total_cost > 0 && recordsData.totals.value_with_cost > 0
+                                    ? `${(((recordsData.totals.value_with_cost - recordsData.totals.total_cost) / recordsData.totals.value_with_cost) * 100).toFixed(1).replace('.', ',')}%`
+                                    : "—"}
+                                </TableHead>
+                              )}
+                              {recordsType !== "orcamento" && (
+                                <TableHead className="text-right font-semibold text-emerald-600">
+                                  {recordsData.totals.total_cost > 0 && recordsData.totals.value_with_cost > 0
+                                    ? `${(recordsData.totals.value_with_cost / recordsData.totals.total_cost).toFixed(2).replace('.', ',')}x`
+                                    : "—"}
+                                </TableHead>
+                              )}
+                              {recordsType !== "orcamento" && <TableHead></TableHead>}
+                            </TableRow>
+                          </TableHeader>
+                        )}
                       </Table>
                     </div>
+
 
                     {/* Pagination */}
                     {recordsData.totalPages > 1 && (
