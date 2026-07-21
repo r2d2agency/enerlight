@@ -422,11 +422,14 @@ export default function CRMMetas() {
                     <CardContent className="pt-4 px-3">
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1"><TrendingUp className="h-3.5 w-3.5 shrink-0" /> Markup Pedidos</div>
                       {(() => {
+                        const val = (gd.pedido as any)?.value_with_cost || 0;
+                        const cost = (gd.pedido as any)?.total_cost || 0;
                         const m = gd.pedido?.avg_margin || 0;
+                        const realMargin = computeRealMarginPct(val, cost);
                         return (
                           <>
-                            <p className="text-lg sm:text-2xl font-bold text-green-600 truncate">{formatMarkupFromMargin(m)}</p>
-                            <p className="text-xs text-muted-foreground">Margem {m.toFixed(1)}%</p>
+                            <p className="text-lg sm:text-2xl font-bold text-green-600 truncate">{formatRealMarkup(val, cost, m)}</p>
+                            <p className="text-xs text-muted-foreground">Margem {realMargin > 0 ? realMargin.toFixed(1) : m.toFixed(1)}%</p>
                           </>
                         );
                       })()}
@@ -443,11 +446,14 @@ export default function CRMMetas() {
                     <CardContent className="pt-4 px-3">
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1"><TrendingUp className="h-3.5 w-3.5 shrink-0" /> Markup Faturado</div>
                       {(() => {
+                        const val = (gd.faturamento as any)?.value_with_cost || 0;
+                        const cost = (gd.faturamento as any)?.total_cost || 0;
                         const m = gd.faturamento?.avg_margin || 0;
+                        const realMargin = computeRealMarginPct(val, cost);
                         return (
                           <>
-                            <p className="text-lg sm:text-2xl font-bold text-orange-600 truncate">{formatMarkupFromMargin(m)}</p>
-                            <p className="text-xs text-muted-foreground">Margem {m.toFixed(1)}%</p>
+                            <p className="text-lg sm:text-2xl font-bold text-orange-600 truncate">{formatRealMarkup(val, cost, m)}</p>
+                            <p className="text-xs text-muted-foreground">Margem {realMargin > 0 ? realMargin.toFixed(1) : m.toFixed(1)}%</p>
                           </>
                         );
                       })()}
