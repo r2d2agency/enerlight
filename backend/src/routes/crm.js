@@ -7285,13 +7285,18 @@ router.post('/goals/import', async (req, res) => {
         const userId = sellerMapping?.[row.seller_name] || null;
         const rawChannel = channelMapping?.[row.channel] || row.channel || null;
         const channel = rawChannel ? rawChannel.trim().toUpperCase() : null;
+        const marginNum = row.margin != null && row.margin !== '' ? parseFloat(row.margin) : null;
+        const valueNum = parseFloat(row.value) || 0;
+        const cost = (marginNum !== null && Number.isFinite(marginNum) && marginNum < 100 && valueNum > 0)
+          ? +(valueNum * (1 - marginNum / 100)).toFixed(2)
+          : null;
         await query(
           `INSERT INTO crm_goals_data 
-           (organization_id, data_type, number, status, client_name, value, seller_name, user_id, channel, client_group, state, city, emission_date, delivery_date, billing_date, margin, observation, order_number, batch_id)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
-          [org.organization_id, dataType, row.number, row.status, row.client_name, row.value || 0,
+           (organization_id, data_type, number, status, client_name, value, seller_name, user_id, channel, client_group, state, city, emission_date, delivery_date, billing_date, margin, cost, observation, order_number, batch_id)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`,
+          [org.organization_id, dataType, row.number, row.status, row.client_name, valueNum,
            row.seller_name, userId, channel, row.client_group, row.state, row.city,
-           row.emission_date, row.delivery_date, row.billing_date, row.margin, row.observation, row.order_number, batchId]
+           row.emission_date, row.delivery_date, row.billing_date, marginNum, cost, row.observation, row.order_number, batchId]
         );
         imported++;
       } catch (_) { skipped++; }
