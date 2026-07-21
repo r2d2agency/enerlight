@@ -7578,7 +7578,7 @@ router.get('/goals/data-records', async (req, res) => {
 
     const dataParams = [...params, lim, offset];
     const result = await query(
-      `SELECT id, data_type, number, status, client_name, value, seller_name, channel, client_group, state, city, emission_date, delivery_date, billing_date, margin, observation, order_number, created_at
+      `SELECT id, data_type, number, status, client_name, value, seller_name, channel, client_group, state, city, emission_date, delivery_date, billing_date, margin, cost, observation, order_number, created_at
        FROM crm_goals_data WHERE ${baseWhere}
        ORDER BY ${dateExpr} DESC, created_at DESC
        LIMIT $${dataParams.length - 1} OFFSET $${dataParams.length}`,
@@ -7586,7 +7586,7 @@ router.get('/goals/data-records', async (req, res) => {
     );
 
     res.json({
-      records: result.rows.map(r => ({ ...r, value: parseFloat(r.value || '0'), margin: r.margin ? parseFloat(r.margin) : null })),
+      records: result.rows.map(r => ({ ...r, value: parseFloat(r.value || '0'), margin: r.margin ? parseFloat(r.margin) : null, cost: r.cost != null ? parseFloat(r.cost) : null })),
       total,
       page: pageNum,
       totalPages: Math.ceil(total / lim),
