@@ -1093,9 +1093,15 @@ export default function CRMMetas() {
                             <TableCell className="text-right">{fmt(sellers.reduce((s, r) => s + r.orders_value, 0))}</TableCell>
                             <TableCell className="text-right text-amber-600">{fmt(sellers.reduce((s, r) => s + r.billing_value, 0))}</TableCell>
                             <TableCell className="text-right text-emerald-600">
-                              {sellers.filter(s => s.margin_count > 0).length > 0 
-                                ? (sellers.reduce((sum, s) => sum + (s.margin_count > 0 ? s.avg_margin / s.margin_count : 0), 0) / sellers.filter(s => s.margin_count > 0).length).toFixed(1)
-                                : "0"}%
+                              {(() => {
+                                const val = sellers.reduce((s, r) => s + (r.value_with_cost || 0), 0);
+                                const cost = sellers.reduce((s, r) => s + (r.total_cost || 0), 0);
+                                const real = computeRealMarginPct(val, cost);
+                                if (real > 0) return `${real.toFixed(1)}%`;
+                                const filtered = sellers.filter(s => s.margin_count > 0);
+                                if (filtered.length === 0) return "0%";
+                                return `${(filtered.reduce((sum, s) => sum + s.avg_margin / s.margin_count, 0) / filtered.length).toFixed(1)}%`;
+                              })()}
                             </TableCell>
                             <TableCell className="text-center">—</TableCell>
                           </TableRow>
