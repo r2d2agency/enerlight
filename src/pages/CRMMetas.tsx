@@ -1071,7 +1071,11 @@ export default function CRMMetas() {
                               <TableCell className="text-right text-sm">{fmt(r.orders_value)}</TableCell>
                               <TableCell className="text-right text-amber-600 font-medium">{fmt(r.billing_value)}</TableCell>
                               <TableCell className="text-right font-medium text-emerald-600">
-                                {r.margin_count > 0 ? (r.avg_margin / r.margin_count).toFixed(1) : "0"}%
+                                {(() => {
+                                  const real = computeRealMarginPct(r.value_with_cost, r.total_cost);
+                                  if (real > 0) return `${real.toFixed(1)}%`;
+                                  return r.margin_count > 0 ? `${(r.avg_margin / r.margin_count).toFixed(1)}%` : "0%";
+                                })()}
                               </TableCell>
                               <TableCell className="text-center">
                                 <Badge variant={r.quotes > 0 && (r.orders / r.quotes) >= 0.3 ? "default" : "secondary"}>
