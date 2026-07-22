@@ -7127,12 +7127,11 @@ async function ensureGoalsDataTable() {
       created_at TIMESTAMPTZ DEFAULT NOW()
     )`);
     await query(`ALTER TABLE crm_goals_data ADD COLUMN IF NOT EXISTS cost NUMERIC(15,2)`);
-    // Backfill cost for existing rows using margin (supports negative margins and margin >= 100)
-    await query(`UPDATE crm_goals_data SET cost = ROUND(value * (1 - margin/100.0), 2)
-                 WHERE cost IS NULL AND margin IS NOT NULL AND value <> 0`);
-    // Recompute previously-skipped rows (margin >= 100 or negative) that stayed NULL under old rules
-    await query(`UPDATE crm_goals_data SET cost = ROUND(value * (1 - margin/100.0), 2)
-                 WHERE margin IS NOT NULL AND value <> 0 AND cost IS NULL`);
+    // Backfill/recompute cost using formula: cost = value / (1 + margin/100). Supports negative margins.
+    await query(`UPDATE crm_goals_data SET cost = ROUND(value / (1 + margin/100.0), 2)
+                 WHERE margin IS NOT NULL AND value <> 0 AND (1 + margin/100.0) <> 0
+                   AND (cost IS NULL OR cost <> ROUND(value / (1 + margin/100.0), 2))`);
+
     await query(`CREATE INDEX IF NOT EXISTS idx_goals_data_org ON crm_goals_data(organization_id)`);
     await query(`CREATE INDEX IF NOT EXISTS idx_goals_data_type ON crm_goals_data(data_type)`);
     await query(`CREATE INDEX IF NOT EXISTS idx_goals_data_date ON crm_goals_data(emission_date)`);
