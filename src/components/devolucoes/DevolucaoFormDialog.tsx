@@ -153,7 +153,18 @@ export function DevolucaoFormDialog({ open, onOpenChange, devolucao }: Props) {
             <div className="border rounded-lg p-3 space-y-3 bg-muted/30">
               <div className="font-medium text-sm">Dados do fornecedor / fabricante</div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div><Label>Fornecedor *</Label><Input value={form.supplier_name || ''} onChange={e => set('supplier_name', e.target.value)} placeholder="Ex.: Blumenau Iluminação" /></div>
+                <SupplierSearchField
+                  currentName={form.supplier_name}
+                  onSelect={(s) => setForm((f: any) => ({
+                    ...f,
+                    supplier_name: s.name || '',
+                    ...(s.document !== undefined ? { supplier_document: s.document } : {}),
+                    ...(s.contact_name !== undefined ? { supplier_contact_name: s.contact_name } : {}),
+                    ...(s.whatsapp !== undefined ? { supplier_whatsapp: s.whatsapp } : {}),
+                    ...(s.email !== undefined ? { supplier_email: s.email } : {}),
+                    ...(s.address !== undefined ? { supplier_address: s.address } : {}),
+                  }))}
+                />
                 <div><Label>CNPJ</Label><Input value={form.supplier_document || ''} onChange={e => set('supplier_document', e.target.value)} /></div>
                 <div><Label>Contato (nome)</Label><Input value={form.supplier_contact_name || ''} onChange={e => set('supplier_contact_name', e.target.value)} /></div>
                 <div><Label>WhatsApp</Label><Input value={form.supplier_whatsapp || ''} onChange={e => set('supplier_whatsapp', e.target.value)} /></div>
