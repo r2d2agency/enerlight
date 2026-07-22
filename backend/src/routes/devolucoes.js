@@ -397,8 +397,66 @@ router.patch('/:id/status', async (req, res) => {
     const sql = `UPDATE devolucoes SET status = $1, updated_at = NOW() ${closedSql} WHERE id = $2 AND organization_id = $${orgIdx} RETURNING *`;
     const r = await query(sql, args);
     await logEvent(req.params.id, req.userId, 'status_change', { from_status: prev.status, to_status: status, message: note || null });
+    if (prev.linked_devolucao_id) {
+      const kind = (prev.rma_type === 'fornecedor') ? 'fornecedor' : 'cliente';
+      await logEvent(prev.linked_devolucao_id, req.userId, 'note', { message: `RMA ${kind} vinculado mudou de ${prev.status} → ${status}` });
+    }
     res.json(r.rows[0]);
   } catch (e) { console.error('status change', e); res.status(500).json({ error: e.message }); }
+});
+
+// ============================================ LINK SUPPLIER (cross-link cliente → fornecedor)
+router.post('/:id/link-supplier', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+    const src = await query('SELECT * FROM devolucoes WHERE id = $1 AND organization_id = $2', [req.params.id, org.organization_id]);
+    if (!src.rows[0]) return res.status(404).json({ error: 'Devolução não encontrada' });
+    const s = src.rows[0];
+
+    const b = req.body || {};
+    if (!b.supplier_name) return res.status(400).json({ error: 'Nome do fornecedor é obrigatório' });
+
+    const r = await query(`
+      INSERT INTO devolucoes (
+        organization_id, created_by, seller_user_id, priority, reason, description,
+        rma_type, linked_devolucao_id, opened_channel,
+        supplier_name, supplier_document, supplier_contact_name, supplier_whatsapp,
+        supplier_email, supplier_address, supplier_rma_number, supplier_expected_return_date,
+        warranty_type, supplier_charge_status
+      ) VALUES ($1,$2,$3,$4,$5,$6,'fornecedor',$7,'sac',$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+      RETURNING *
+    `, [
+      org.organization_id, req.userId, s.seller_user_id, s.priority || 'normal',
+      s.reason || 'garantia',
+      b.description || `Garantia solicitada ao fornecedor referente à devolução #${s.numero} do cliente ${s.customer_name || ''}`.trim(),
+      s.id,
+      b.supplier_name, b.supplier_document || null, b.supplier_contact_name || null,
+      b.supplier_whatsapp || null, b.supplier_email || null, b.supplier_address || null,
+      b.supplier_rma_number || null, b.supplier_expected_return_date || null,
+      b.warranty_type || 'garantia_fabrica', b.supplier_charge_status || 'pendente',
+    ]);
+    const dev = r.rows[0];
+
+    // Copia itens
+    const itens = (await query('SELECT * FROM devolucao_itens WHERE devolucao_id = $1', [s.id])).rows;
+    for (const it of itens) {
+      await query(
+        `INSERT INTO devolucao_itens (devolucao_id, sku, product_name, quantity, serial_number, unit_value, notes)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [dev.id, it.sku, it.product_name, it.quantity, it.serial_number, it.unit_value, it.notes]
+      );
+    }
+
+    await logEvent(dev.id, req.userId, 'status_change', { to_status: dev.status, message: `RMA fornecedor aberto (vinculado ao RMA cliente #${s.numero})` });
+    await logEvent(s.id, req.userId, 'note', { message: `RMA de fornecedor #${dev.numero} aberto para ${b.supplier_name}` });
+    // Se a devolução de cliente ainda não tinha link, aponta pra este novo RMA de fornecedor
+    if (!s.linked_devolucao_id) {
+      await query('UPDATE devolucoes SET linked_devolucao_id = $1, updated_at = NOW() WHERE id = $2', [dev.id, s.id]);
+    }
+
+    res.status(201).json(dev);
+  } catch (e) { console.error('link supplier', e); res.status(500).json({ error: e.message }); }
 });
 
 // ============================================ DELETE
