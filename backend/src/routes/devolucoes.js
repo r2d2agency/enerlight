@@ -332,7 +332,12 @@ router.put('/:id', async (req, res) => {
       'outbound_invoice_number','outbound_invoice_date','outbound_invoice_value',
       'outbound_tracking_code','outbound_carrier','outbound_sent_at',
       'outbound_freight_cost','outbound_freight_status',
-      'resolution_summary','status'
+      'resolution_summary','status',
+      // Fornecedor / cross-link
+      'rma_type','linked_devolucao_id',
+      'supplier_name','supplier_document','supplier_contact_name','supplier_whatsapp',
+      'supplier_email','supplier_address','supplier_rma_number','supplier_expected_return_date',
+      'warranty_type','supplier_charge_status','supplier_credit_value'
     ];
     const sets = []; const params = []; let i = 1;
     for (const f of fields) {
