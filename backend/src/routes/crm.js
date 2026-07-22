@@ -7289,9 +7289,10 @@ router.post('/goals/import', async (req, res) => {
         const channel = rawChannel ? rawChannel.trim().toUpperCase() : null;
         const marginNum = row.margin != null && row.margin !== '' ? parseFloat(row.margin) : null;
         const valueNum = parseFloat(row.value) || 0;
-        // Cost = value * (1 - margin/100). Supports negative margins and margin >= 100.
-        const cost = (marginNum !== null && Number.isFinite(marginNum) && valueNum !== 0)
-          ? +(valueNum * (1 - marginNum / 100)).toFixed(2)
+        // Cost = value / (1 + margin/100). Supports negative margins.
+        const cost = (marginNum !== null && Number.isFinite(marginNum) && valueNum !== 0 && (1 + marginNum / 100) !== 0)
+          ? +(valueNum / (1 + marginNum / 100)).toFixed(2)
+
           : null;
         await query(
           `INSERT INTO crm_goals_data 
