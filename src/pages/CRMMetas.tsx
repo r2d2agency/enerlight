@@ -1024,7 +1024,6 @@ export default function CRMMetas() {
                             <TableHead className="text-right cursor-pointer select-none" onClick={() => toggleSellerSort("billing_value")}>
                               <div className="flex items-center justify-end">Faturamento <SortIcon field="billing_value" currentField={sellerSortBy} direction={sellerSortDir} /></div>
                             </TableHead>
-                            <TableHead className="text-right">Margem Média</TableHead>
                             <TableHead className="text-center">Conversão</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -1043,13 +1042,6 @@ export default function CRMMetas() {
                               <TableCell className="text-center text-green-600 font-medium">{r.orders}</TableCell>
                               <TableCell className="text-right text-sm">{fmt(r.orders_value)}</TableCell>
                               <TableCell className="text-right text-amber-600 font-medium">{fmt(r.billing_value)}</TableCell>
-                              <TableCell className="text-right font-medium text-emerald-600">
-                                {(() => {
-                                  const real = computeRealMarginPct(r.value_with_cost, r.total_cost);
-                                  if (real > 0) return `${real.toFixed(1)}%`;
-                                  return r.margin_count > 0 ? `${(r.avg_margin / r.margin_count).toFixed(1)}%` : "0%";
-                                })()}
-                              </TableCell>
                               <TableCell className="text-center">
                                 <Badge variant={r.quotes > 0 && (r.orders / r.quotes) >= 0.3 ? "default" : "secondary"}>
                                   {r.quotes > 0 ? ((r.orders / r.quotes) * 100).toFixed(0) : 0}%
@@ -1065,17 +1057,6 @@ export default function CRMMetas() {
                             <TableCell className="text-center text-green-600">{sellers.reduce((s, r) => s + r.orders, 0)}</TableCell>
                             <TableCell className="text-right">{fmt(sellers.reduce((s, r) => s + r.orders_value, 0))}</TableCell>
                             <TableCell className="text-right text-amber-600">{fmt(sellers.reduce((s, r) => s + r.billing_value, 0))}</TableCell>
-                            <TableCell className="text-right text-emerald-600">
-                              {(() => {
-                                const val = sellers.reduce((s, r) => s + (r.value_with_cost || 0), 0);
-                                const cost = sellers.reduce((s, r) => s + (r.total_cost || 0), 0);
-                                const real = computeRealMarginPct(val, cost);
-                                if (real > 0) return `${real.toFixed(1)}%`;
-                                const filtered = sellers.filter(s => s.margin_count > 0);
-                                if (filtered.length === 0) return "0%";
-                                return `${(filtered.reduce((sum, s) => sum + s.avg_margin / s.margin_count, 0) / filtered.length).toFixed(1)}%`;
-                              })()}
-                            </TableCell>
                             <TableCell className="text-center">—</TableCell>
                           </TableRow>
                         </TableBody>
