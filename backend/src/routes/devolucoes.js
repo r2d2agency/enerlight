@@ -77,35 +77,6 @@ router.get('/', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'Sem organização' });
 
-    const { search, status, seller, reason, date_from, date_to, only_mine } = req.query;
-    let sql = `
-      SELECT d.*,
-        u.name as seller_name,
-        c.name as created_by_name,
-        ct.name as contact_name,
-        (SELECT COUNT(*)::int FROM devolucao_itens i WHERE i.devolucao_id = d.id) as item_count,
-        (SELECT COUNT(*)::int FROM devolucao_anexos a WHERE a.devolucao_id = d.id) as attachment_count,
-        (COALESCE(d.inbound_freight_cost,0) + COALESCE(d.outbound_freight_cost,0)) as total_freight_cost
-      FROM devolucoes d
-      LEFT JOIN users u ON u.id = d.seller_user_id
-      LEFT JOIN users c ON c.id = d.created_by
-      LEFT JOIN contacts ct ON ct.id = d.contact_id
-      WHERE d.organization_id = $1
-    `;
-    const params = [org.organization_id];
-    let i = 2;
-
-    const elevated = ['owner', 'admin', 'superadmin', 'manager'].includes(org.role);
-    if (only_mine === '1' || (!elevated && !seller)) {
-      sql += ` AND (d.seller_user_id = $${i} OR d.created_by = $${i})`;
-      params.push(req.userId); i++;
-    }
-    if (search) { sql += ` AND (d.customer_name ILIKE $${i} OR d.description ILIKE $${i} OR CAST(d.numero AS TEXT) ILIKE $${i})`; params.push(`%${search}%`); i++; }
-    if (status) { sql += ` AND d.status = $${i}`; params.push(status); i++; }
-    if (seller) { sql += ` AND d.seller_user_id = $${i}`; params.push(seller); i++; }
-    if (reason) { sql += ` AND d.reason = $${i}`; params.push(reason); i++; }
-    if (date_from) { sql += ` AND d.created_at >= $${i}`; params.push(date_from); i++; }
-    if (date_to) { sql += ` AND d.created_at <= ($${i}::date + INTERVAL '1 day')`; params.push(date_to); i++; }
 
     const { search, status, seller, reason, date_from, date_to, only_mine, rma_type, supplier } = req.query;
     let sql = `
