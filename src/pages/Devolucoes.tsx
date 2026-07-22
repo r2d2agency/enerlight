@@ -225,7 +225,17 @@ export default function Devolucoes() {
                     return (
                       <tr key={d.id} className="hover:bg-muted/30 cursor-pointer" onClick={() => setSelectedId(d.id)}>
                         <td className="px-3 py-2 font-mono">#{d.numero}</td>
-                        <td className="px-3 py-2 font-medium">{d.customer_name}</td>
+                        <td className="px-3 py-2">
+                          <Badge variant={d.rma_type === 'fornecedor' ? 'default' : 'secondary'} className="text-[10px]">
+                            {d.rma_type === 'fornecedor' ? 'Fornecedor' : 'Cliente'}
+                          </Badge>
+                        </td>
+                        <td className="px-3 py-2 font-medium">
+                          {d.rma_type === 'fornecedor' ? (d.supplier_name || '—') : (d.customer_name || '—')}
+                          {d.linked_numero && (
+                            <span className="ml-2 text-[10px] text-muted-foreground">↔ #{d.linked_numero}</span>
+                          )}
+                        </td>
                         <td className="px-3 py-2"><Badge variant="outline" className="text-xs">{REASON_LABELS[d.reason] || d.reason}</Badge></td>
                         <td className="px-3 py-2"><Badge className={`${STATUS_COLORS[d.status]} text-xs`}>{STATUS_LABELS[d.status as DevolucaoStatus]}</Badge></td>
                         <td className="px-3 py-2">{s.level === 'none' ? <span className="text-muted-foreground text-xs">—</span> : <Badge variant="outline" className={`text-[10px] ${s.color}`}>{s.label}</Badge>}</td>
