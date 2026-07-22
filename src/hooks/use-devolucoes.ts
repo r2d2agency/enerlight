@@ -227,7 +227,17 @@ export function useDevolucaoMutations() {
     mutationFn: (id: string) => api(`/api/devolucoes/${id}`, { method: 'DELETE' }),
     onSuccess: () => { inv(); toast.success('Devolução excluída'); },
   });
-  return { create, update, changeStatus, remove };
+  const linkSupplier = useMutation({
+    mutationFn: ({ id, ...data }: any) =>
+      api(`/api/devolucoes/${id}/link-supplier`, { method: 'POST', body: data }),
+    onSuccess: (_r, v: any) => {
+      inv();
+      qc.invalidateQueries({ queryKey: ['devolucao', v.id] });
+      toast.success('RMA de fornecedor vinculado!');
+    },
+    onError: (e: any) => toast.error(e.message || 'Erro ao vincular fornecedor'),
+  });
+  return { create, update, changeStatus, remove, linkSupplier };
 }
 
 export function useDevolucaoItemMutations() {
