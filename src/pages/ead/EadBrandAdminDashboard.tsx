@@ -50,6 +50,8 @@ export default function EadBrandAdminDashboard() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [certFilter, setCertFilter] = useState<'all' | 'with' | 'without'>('all');
   const [installerSearch, setInstallerSearch] = useState('');
+  const [installerFrom, setInstallerFrom] = useState('');
+  const [installerTo, setInstallerTo] = useState('');
 
 
   async function loadDashboard(f?: string, t?: string, c?: string, ci?: string) {
@@ -581,9 +583,16 @@ export default function EadBrandAdminDashboard() {
             avg_attempts_active: 0,
           };
           const q = installerSearch.trim().toLowerCase();
+          const fromTs = installerFrom ? new Date(installerFrom + 'T00:00:00').getTime() : null;
+          const toTs = installerTo ? new Date(installerTo + 'T23:59:59').getTime() : null;
           const filtered = list.filter((r: any) => {
             if (certFilter === 'with' && !(r.certificate_count > 0)) return false;
             if (certFilter === 'without' && (r.certificate_count > 0)) return false;
+            if (fromTs || toTs) {
+              const ts = r.created_at ? new Date(r.created_at).getTime() : 0;
+              if (fromTs && ts < fromTs) return false;
+              if (toTs && ts > toTs) return false;
+            }
             if (!q) return true;
             return [r.name, r.email, r.company, r.city, r.state, r.phone]
               .filter(Boolean).some((v: string) => String(v).toLowerCase().includes(q));
@@ -669,8 +678,16 @@ export default function EadBrandAdminDashboard() {
                       className="h-9"
                     />
                   </div>
-                  {(certFilter !== 'all' || installerSearch) && (
-                    <Button size="sm" variant="ghost" onClick={() => { setCertFilter('all'); setInstallerSearch(''); }}>
+                  <div className="grid gap-1">
+                    <Label className="text-xs">Cadastro de</Label>
+                    <Input type="date" value={installerFrom} onChange={(e) => setInstallerFrom(e.target.value)} className="h-9 w-[150px]" />
+                  </div>
+                  <div className="grid gap-1">
+                    <Label className="text-xs">até</Label>
+                    <Input type="date" value={installerTo} onChange={(e) => setInstallerTo(e.target.value)} className="h-9 w-[150px]" />
+                  </div>
+                  {(certFilter !== 'all' || installerSearch || installerFrom || installerTo) && (
+                    <Button size="sm" variant="ghost" onClick={() => { setCertFilter('all'); setInstallerSearch(''); setInstallerFrom(''); setInstallerTo(''); }}>
                       <X className="h-4 w-4 mr-1" /> Limpar
                     </Button>
                   )}
