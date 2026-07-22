@@ -5,6 +5,38 @@ import { authenticate } from '../middleware/auth.js';
 const router = express.Router();
 router.use(authenticate);
 
+// ============================================ BOOTSTRAP: colunas fornecedor / cross-link
+let supplierColumnsReady = null;
+async function ensureSupplierColumns() {
+  if (supplierColumnsReady) return supplierColumnsReady;
+  supplierColumnsReady = (async () => {
+    const stmts = [
+      `ALTER TABLE devolucoes ADD COLUMN IF NOT EXISTS rma_type VARCHAR(15) DEFAULT 'cliente'`,
+      `ALTER TABLE devolucoes ADD COLUMN IF NOT EXISTS linked_devolucao_id UUID REFERENCES devolucoes(id) ON DELETE SET NULL`,
+      `ALTER TABLE devolucoes ADD COLUMN IF NOT EXISTS supplier_name VARCHAR(255)`,
+      `ALTER TABLE devolucoes ADD COLUMN IF NOT EXISTS supplier_document VARCHAR(40)`,
+      `ALTER TABLE devolucoes ADD COLUMN IF NOT EXISTS supplier_contact_name VARCHAR(255)`,
+      `ALTER TABLE devolucoes ADD COLUMN IF NOT EXISTS supplier_whatsapp VARCHAR(50)`,
+      `ALTER TABLE devolucoes ADD COLUMN IF NOT EXISTS supplier_email VARCHAR(255)`,
+      `ALTER TABLE devolucoes ADD COLUMN IF NOT EXISTS supplier_address TEXT`,
+      `ALTER TABLE devolucoes ADD COLUMN IF NOT EXISTS supplier_rma_number VARCHAR(80)`,
+      `ALTER TABLE devolucoes ADD COLUMN IF NOT EXISTS supplier_expected_return_date DATE`,
+      `ALTER TABLE devolucoes ADD COLUMN IF NOT EXISTS warranty_type VARCHAR(40)`,
+      `ALTER TABLE devolucoes ADD COLUMN IF NOT EXISTS supplier_charge_status VARCHAR(30)`,
+      `ALTER TABLE devolucoes ADD COLUMN IF NOT EXISTS supplier_credit_value NUMERIC(14,2)`,
+      `ALTER TABLE devolucoes ALTER COLUMN customer_name DROP NOT NULL`,
+      `CREATE INDEX IF NOT EXISTS idx_devolucoes_rma_type ON devolucoes(rma_type)`,
+      `CREATE INDEX IF NOT EXISTS idx_devolucoes_linked ON devolucoes(linked_devolucao_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_devolucoes_supplier ON devolucoes(supplier_name)`,
+    ];
+    for (const s of stmts) {
+      try { await query(s); } catch (e) { console.error('ensureSupplierColumns', s, e.message); }
+    }
+  })();
+  return supplierColumnsReady;
+}
+ensureSupplierColumns().catch(() => {});
+
 async function getUserOrg(userId) {
   const r = await query(
     `SELECT om.organization_id, om.role FROM organization_members om WHERE om.user_id = $1 LIMIT 1`,
