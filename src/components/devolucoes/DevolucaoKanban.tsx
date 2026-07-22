@@ -55,10 +55,20 @@ export function DevolucaoKanban({ devolucoes, onSelect, slaConfig }: Props) {
                       onClick={() => onSelect(d.id)}
                     >
                       <div className="flex items-start justify-between gap-2">
-                        <div className="text-xs text-muted-foreground">#{d.numero}</div>
+                        <div className="text-xs text-muted-foreground flex items-center gap-1">
+                          #{d.numero}
+                          <Badge variant={d.rma_type === 'fornecedor' ? 'default' : 'secondary'} className="text-[9px] px-1 py-0 h-4">
+                            {d.rma_type === 'fornecedor' ? 'FORN' : 'CLI'}
+                          </Badge>
+                        </div>
                         {d.priority === 'urgent' && <AlertCircle className="h-3.5 w-3.5 text-destructive" />}
                       </div>
-                      <div className="font-medium text-sm line-clamp-2">{d.customer_name}</div>
+                      <div className="font-medium text-sm line-clamp-2">
+                        {d.rma_type === 'fornecedor' ? (d.supplier_name || '—') : (d.customer_name || '—')}
+                      </div>
+                      {d.linked_numero && (
+                        <div className="text-[10px] text-muted-foreground">↔ vinculado #{d.linked_numero}</div>
+                      )}
                       {d.itens && d.itens[0] && (
                         <div className="text-xs text-muted-foreground line-clamp-1">{d.itens[0].product_name}</div>
                       )}
