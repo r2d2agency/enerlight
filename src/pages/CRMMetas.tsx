@@ -920,17 +920,6 @@ export default function CRMMetas() {
                               <TableCell className="text-center text-green-600">{channels.reduce((s, c) => s + c.orders, 0)}</TableCell>
                               <TableCell className="text-right">{fmt(channels.reduce((s, c) => s + c.orders_value, 0))}</TableCell>
                               <TableCell className="text-right text-amber-600">{fmt(channels.reduce((s, c) => s + c.billing_value, 0))}</TableCell>
-                               <TableCell className="text-right text-emerald-600">
-                                {(() => {
-                                  const val = channels.reduce((s, c) => s + (c.value_with_cost || 0), 0);
-                                  const cost = channels.reduce((s, c) => s + (c.total_cost || 0), 0);
-                                  const real = computeRealMarginPct(val, cost);
-                                  if (real > 0) return `${real.toFixed(1)}%`;
-                                  const filtered = channels.filter(c => c.margin_count > 0);
-                                  if (filtered.length === 0) return "0%";
-                                  return `${(filtered.reduce((s, c) => s + c.total_margin / c.margin_count, 0) / filtered.length).toFixed(1)}%`;
-                                })()}
-                              </TableCell>
                               <TableCell className="text-right text-teal-600">
                                 {(() => {
                                   const val = channels.reduce((s, c) => s + (c.value_with_cost || 0), 0);
