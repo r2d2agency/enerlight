@@ -11,6 +11,7 @@ import { api } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import { Plus, Trash2 } from "lucide-react";
 import { ClientSearchField } from "./ClientSearchField";
+import { SupplierSearchField } from "./SupplierSearchField";
 
 interface Props {
   open: boolean;
