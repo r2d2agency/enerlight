@@ -72,7 +72,7 @@ function getMarkupMultiplierFromMargin(avgMargin: number) {
 
 function formatMarkupFromMargin(avgMargin: number) {
   const markupX = getMarkupMultiplierFromMargin(avgMargin);
-  return `${markupX > 0 ? markupX.toFixed(2).replace('.', ',') : '0,00'}x`;
+  return markupX > 0 ? markupX.toFixed(2).replace('.', ',') : '0,00';
 }
 
 // Real markup based on total value / total cost (weighted by every product)
@@ -83,7 +83,7 @@ function computeRealMarkup(totalValue: number, totalCost: number) {
 
 function formatRealMarkup(totalValue: number, totalCost: number, fallbackAvgMargin = 0) {
   const mk = computeRealMarkup(totalValue, totalCost);
-  if (mk > 0) return `${mk.toFixed(2).replace('.', ',')}x`;
+  if (mk > 0) return mk.toFixed(2).replace('.', ',');
   return formatMarkupFromMargin(fallbackAvgMargin);
 }
 
