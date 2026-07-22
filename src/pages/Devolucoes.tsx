@@ -209,7 +209,8 @@ export default function Devolucoes() {
                 <thead className="bg-muted/40 text-left">
                   <tr>
                     <th className="px-3 py-2">#</th>
-                    <th className="px-3 py-2">Cliente</th>
+                    <th className="px-3 py-2">Tipo</th>
+                    <th className="px-3 py-2">Cliente / Fornecedor</th>
                     <th className="px-3 py-2">Motivo</th>
                     <th className="px-3 py-2">Status</th>
                     <th className="px-3 py-2">SLA</th>
