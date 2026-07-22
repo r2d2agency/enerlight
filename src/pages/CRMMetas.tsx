@@ -72,7 +72,7 @@ function getMarkupMultiplierFromMargin(avgMargin: number) {
 
 function formatMarkupFromMargin(avgMargin: number) {
   const markupX = getMarkupMultiplierFromMargin(avgMargin);
-  return `${markupX > 0 ? markupX.toFixed(2).replace('.', ',') : '0,00'}x`;
+  return markupX > 0 ? markupX.toFixed(2).replace('.', ',') : '0,00';
 }
 
 // Real markup based on total value / total cost (weighted by every product)
@@ -83,7 +83,7 @@ function computeRealMarkup(totalValue: number, totalCost: number) {
 
 function formatRealMarkup(totalValue: number, totalCost: number, fallbackAvgMargin = 0) {
   const mk = computeRealMarkup(totalValue, totalCost);
-  if (mk > 0) return `${mk.toFixed(2).replace('.', ',')}x`;
+  if (mk > 0) return mk.toFixed(2).replace('.', ',');
   return formatMarkupFromMargin(fallbackAvgMargin);
 }
 
@@ -425,12 +425,8 @@ export default function CRMMetas() {
                         const val = (gd.pedido as any)?.value_with_cost || 0;
                         const cost = (gd.pedido as any)?.total_cost || 0;
                         const m = gd.pedido?.avg_margin || 0;
-                        const realMargin = computeRealMarginPct(val, cost);
                         return (
-                          <>
-                            <p className="text-lg sm:text-2xl font-bold text-green-600 truncate">{formatRealMarkup(val, cost, m)}</p>
-                            <p className="text-xs text-muted-foreground">Margem {realMargin > 0 ? realMargin.toFixed(1) : m.toFixed(1)}%</p>
-                          </>
+                          <p className="text-lg sm:text-2xl font-bold text-green-600 truncate">{formatRealMarkup(val, cost, m)}</p>
                         );
                       })()}
                     </CardContent>
@@ -449,12 +445,8 @@ export default function CRMMetas() {
                         const val = (gd.faturamento as any)?.value_with_cost || 0;
                         const cost = (gd.faturamento as any)?.total_cost || 0;
                         const m = gd.faturamento?.avg_margin || 0;
-                        const realMargin = computeRealMarginPct(val, cost);
                         return (
-                          <>
-                            <p className="text-lg sm:text-2xl font-bold text-orange-600 truncate">{formatRealMarkup(val, cost, m)}</p>
-                            <p className="text-xs text-muted-foreground">Margem {realMargin > 0 ? realMargin.toFixed(1) : m.toFixed(1)}%</p>
-                          </>
+                          <p className="text-lg sm:text-2xl font-bold text-orange-600 truncate">{formatRealMarkup(val, cost, m)}</p>
                         );
                       })()}
                     </CardContent>
@@ -895,7 +887,6 @@ export default function CRMMetas() {
                               <TableHead className="text-right cursor-pointer select-none" onClick={() => toggleChannelSort("billing_value")}>
                                 <div className="flex items-center justify-end">Faturamento <SortIcon field="billing_value" currentField={channelSortBy} direction={channelSortDir} /></div>
                               </TableHead>
-                              <TableHead className="text-right">Margem Média</TableHead>
                               <TableHead className="text-right">Markup</TableHead>
                               <TableHead className="text-center">Conversão</TableHead>
                             </TableRow>
@@ -909,13 +900,6 @@ export default function CRMMetas() {
                                 <TableCell className="text-center text-green-600 font-medium">{ch.orders}</TableCell>
                                 <TableCell className="text-right text-sm">{fmt(ch.orders_value)}</TableCell>
                                 <TableCell className="text-right text-amber-600 font-medium">{fmt(ch.billing_value)}</TableCell>
-                                <TableCell className="text-right font-medium text-emerald-600">
-                                  {(() => {
-                                    const real = computeRealMarginPct(ch.value_with_cost, ch.total_cost);
-                                    if (real > 0) return `${real.toFixed(1)}%`;
-                                    return ch.margin_count > 0 ? `${(ch.total_margin / ch.margin_count).toFixed(1)}%` : "0%";
-                                  })()}
-                                </TableCell>
                                 <TableCell className="text-right font-medium text-teal-600">
                                   {(() => {
                                     const avgMargin = ch.margin_count > 0 ? (ch.total_margin / ch.margin_count) : 0;
@@ -936,17 +920,6 @@ export default function CRMMetas() {
                               <TableCell className="text-center text-green-600">{channels.reduce((s, c) => s + c.orders, 0)}</TableCell>
                               <TableCell className="text-right">{fmt(channels.reduce((s, c) => s + c.orders_value, 0))}</TableCell>
                               <TableCell className="text-right text-amber-600">{fmt(channels.reduce((s, c) => s + c.billing_value, 0))}</TableCell>
-                               <TableCell className="text-right text-emerald-600">
-                                {(() => {
-                                  const val = channels.reduce((s, c) => s + (c.value_with_cost || 0), 0);
-                                  const cost = channels.reduce((s, c) => s + (c.total_cost || 0), 0);
-                                  const real = computeRealMarginPct(val, cost);
-                                  if (real > 0) return `${real.toFixed(1)}%`;
-                                  const filtered = channels.filter(c => c.margin_count > 0);
-                                  if (filtered.length === 0) return "0%";
-                                  return `${(filtered.reduce((s, c) => s + c.total_margin / c.margin_count, 0) / filtered.length).toFixed(1)}%`;
-                                })()}
-                              </TableCell>
                               <TableCell className="text-right text-teal-600">
                                 {(() => {
                                   const val = channels.reduce((s, c) => s + (c.value_with_cost || 0), 0);
@@ -1051,7 +1024,6 @@ export default function CRMMetas() {
                             <TableHead className="text-right cursor-pointer select-none" onClick={() => toggleSellerSort("billing_value")}>
                               <div className="flex items-center justify-end">Faturamento <SortIcon field="billing_value" currentField={sellerSortBy} direction={sellerSortDir} /></div>
                             </TableHead>
-                            <TableHead className="text-right">Margem Média</TableHead>
                             <TableHead className="text-center">Conversão</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -1070,13 +1042,6 @@ export default function CRMMetas() {
                               <TableCell className="text-center text-green-600 font-medium">{r.orders}</TableCell>
                               <TableCell className="text-right text-sm">{fmt(r.orders_value)}</TableCell>
                               <TableCell className="text-right text-amber-600 font-medium">{fmt(r.billing_value)}</TableCell>
-                              <TableCell className="text-right font-medium text-emerald-600">
-                                {(() => {
-                                  const real = computeRealMarginPct(r.value_with_cost, r.total_cost);
-                                  if (real > 0) return `${real.toFixed(1)}%`;
-                                  return r.margin_count > 0 ? `${(r.avg_margin / r.margin_count).toFixed(1)}%` : "0%";
-                                })()}
-                              </TableCell>
                               <TableCell className="text-center">
                                 <Badge variant={r.quotes > 0 && (r.orders / r.quotes) >= 0.3 ? "default" : "secondary"}>
                                   {r.quotes > 0 ? ((r.orders / r.quotes) * 100).toFixed(0) : 0}%
@@ -1092,17 +1057,6 @@ export default function CRMMetas() {
                             <TableCell className="text-center text-green-600">{sellers.reduce((s, r) => s + r.orders, 0)}</TableCell>
                             <TableCell className="text-right">{fmt(sellers.reduce((s, r) => s + r.orders_value, 0))}</TableCell>
                             <TableCell className="text-right text-amber-600">{fmt(sellers.reduce((s, r) => s + r.billing_value, 0))}</TableCell>
-                            <TableCell className="text-right text-emerald-600">
-                              {(() => {
-                                const val = sellers.reduce((s, r) => s + (r.value_with_cost || 0), 0);
-                                const cost = sellers.reduce((s, r) => s + (r.total_cost || 0), 0);
-                                const real = computeRealMarginPct(val, cost);
-                                if (real > 0) return `${real.toFixed(1)}%`;
-                                const filtered = sellers.filter(s => s.margin_count > 0);
-                                if (filtered.length === 0) return "0%";
-                                return `${(filtered.reduce((sum, s) => sum + s.avg_margin / s.margin_count, 0) / filtered.length).toFixed(1)}%`;
-                              })()}
-                            </TableCell>
                             <TableCell className="text-center">—</TableCell>
                           </TableRow>
                         </TableBody>
@@ -1286,7 +1240,7 @@ export default function CRMMetas() {
                             {recordsType === "faturamento" && <TableHead>Data Faturamento</TableHead>}
                             <TableHead>UF</TableHead>
                             <TableHead>Cidade</TableHead>
-                            {recordsType !== "orcamento" && <TableHead className="text-right">Margem</TableHead>}
+                            
                             {recordsType !== "orcamento" && <TableHead className="text-right">Markup</TableHead>}
                             {recordsType !== "orcamento" && <TableHead className="text-center"><Truck className="h-4 w-4 inline" /> Frete</TableHead>}
                           </TableRow>
@@ -1337,13 +1291,8 @@ export default function CRMMetas() {
                               <TableCell className="text-sm">{r.state || "—"}</TableCell>
                               <TableCell className="text-sm">{r.city || "—"}</TableCell>
                               {recordsType !== "orcamento" && (
-                                <TableCell className="text-right text-sm">
-                                  {r.margin != null ? `${r.margin.toFixed(1)}%` : "—"}
-                                </TableCell>
-                              )}
-                              {recordsType !== "orcamento" && (
                                 <TableCell className="text-right text-sm font-medium text-emerald-600">
-                                  {rowMarkup ? `${rowMarkup.toFixed(2).replace('.', ',')}x` : "—"}
+                                  {rowMarkup ? rowMarkup.toFixed(2).replace('.', ',') : "—"}
                                 </TableCell>
                               )}
                               {recordsType !== "orcamento" && (
@@ -1369,16 +1318,9 @@ export default function CRMMetas() {
                               )}
                               <TableHead colSpan={recordsType === "orcamento" ? 3 : 4}></TableHead>
                               {recordsType !== "orcamento" && (
-                                <TableHead className="text-right font-semibold">
-                                  {recordsData.totals.total_cost > 0 && recordsData.totals.value_with_cost > 0
-                                    ? `${(((recordsData.totals.value_with_cost - recordsData.totals.total_cost) / recordsData.totals.value_with_cost) * 100).toFixed(1).replace('.', ',')}%`
-                                    : "—"}
-                                </TableHead>
-                              )}
-                              {recordsType !== "orcamento" && (
                                 <TableHead className="text-right font-semibold text-emerald-600">
                                   {recordsData.totals.total_cost > 0 && recordsData.totals.value_with_cost > 0
-                                    ? `${(recordsData.totals.value_with_cost / recordsData.totals.total_cost).toFixed(2).replace('.', ',')}x`
+                                    ? (recordsData.totals.value_with_cost / recordsData.totals.total_cost).toFixed(2).replace('.', ',')
                                     : "—"}
                                 </TableHead>
                               )}
