@@ -1295,12 +1295,13 @@ export default function CRMMetas() {
                           {recordsData.records.map((r: any) => {
                             const orderNum = r.order_number || r.number;
                             const canShowFreight = recordsType !== "orcamento" && orderNum;
-                            const rowMarkup = (r.margin != null && r.margin !== 100)
-                              ? 1 / (1 - r.margin / 100)
+                            const rowMarkup = (r.margin != null && (1 + r.margin / 100) !== 0)
+                              ? (1 + r.margin / 100)
                               : null;
-                            const rowCost = (r.margin != null)
-                              ? Number(r.value || 0) * (1 - r.margin / 100)
+                            const rowCost = (r.margin != null && (1 + r.margin / 100) !== 0)
+                              ? Number(r.value || 0) / (1 + r.margin / 100)
                               : null;
+
                             return (
                             <TableRow key={r.id} className={canShowFreight ? "cursor-pointer hover:bg-muted/50" : ""} onClick={() => canShowFreight && setFreightDetailOrder(orderNum)}>
                               <TableCell className="font-mono text-sm">{r.number || "—"}</TableCell>
