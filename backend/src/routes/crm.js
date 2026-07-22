@@ -7287,7 +7287,8 @@ router.post('/goals/import', async (req, res) => {
         const channel = rawChannel ? rawChannel.trim().toUpperCase() : null;
         const marginNum = row.margin != null && row.margin !== '' ? parseFloat(row.margin) : null;
         const valueNum = parseFloat(row.value) || 0;
-        const cost = (marginNum !== null && Number.isFinite(marginNum) && marginNum < 100 && valueNum > 0)
+        // Cost = value * (1 - margin/100). Allow margin >= 100 (cost <= 0) so nothing is silently zeroed.
+        const cost = (marginNum !== null && Number.isFinite(marginNum) && valueNum > 0)
           ? +(valueNum * (1 - marginNum / 100)).toFixed(2)
           : null;
         await query(
