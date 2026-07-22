@@ -887,7 +887,19 @@ export default function CRMMetas() {
                               <TableHead className="text-right cursor-pointer select-none" onClick={() => toggleChannelSort("billing_value")}>
                                 <div className="flex items-center justify-end">Faturamento <SortIcon field="billing_value" currentField={channelSortBy} direction={channelSortDir} /></div>
                               </TableHead>
-                              <TableHead className="text-right">Margem Média</TableHead>
+                              <TableHead className="text-right">Markup</TableHead>
+                              <TableHead className="text-center">Conversão</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {channels.map(ch => (
+                              <TableRow key={ch.channel}>
+                                <TableCell className="font-medium">{ch.channel}</TableCell>
+                                <TableCell className="text-center text-blue-600 font-medium">{ch.quotes}</TableCell>
+                                <TableCell className="text-right text-sm">{fmt(ch.quotes_value)}</TableCell>
+                                <TableCell className="text-center text-green-600 font-medium">{ch.orders}</TableCell>
+                                <TableCell className="text-right text-sm">{fmt(ch.orders_value)}</TableCell>
+                                <TableCell className="text-right text-amber-600 font-medium">{fmt(ch.billing_value)}</TableCell>
                               <TableHead className="text-right">Markup</TableHead>
                               <TableHead className="text-center">Conversão</TableHead>
                             </TableRow>
