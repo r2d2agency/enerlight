@@ -7127,9 +7127,12 @@ async function ensureGoalsDataTable() {
       created_at TIMESTAMPTZ DEFAULT NOW()
     )`);
     await query(`ALTER TABLE crm_goals_data ADD COLUMN IF NOT EXISTS cost NUMERIC(15,2)`);
-    // Backfill cost for existing rows using margin
+    // Backfill cost for existing rows using margin (allow margin >= 100 → cost <= 0)
     await query(`UPDATE crm_goals_data SET cost = ROUND(value * (1 - margin/100.0), 2)
-                 WHERE cost IS NULL AND margin IS NOT NULL AND margin < 100 AND value > 0`);
+                 WHERE cost IS NULL AND margin IS NOT NULL AND value > 0`);
+    // Recompute previously-skipped rows where margin >= 100 (they were left NULL by the old rule)
+    await query(`UPDATE crm_goals_data SET cost = ROUND(value * (1 - margin/100.0), 2)
+                 WHERE margin IS NOT NULL AND margin >= 100 AND value > 0 AND cost IS NULL`);
     await query(`CREATE INDEX IF NOT EXISTS idx_goals_data_org ON crm_goals_data(organization_id)`);
     await query(`CREATE INDEX IF NOT EXISTS idx_goals_data_type ON crm_goals_data(data_type)`);
     await query(`CREATE INDEX IF NOT EXISTS idx_goals_data_date ON crm_goals_data(emission_date)`);
@@ -7287,7 +7290,8 @@ router.post('/goals/import', async (req, res) => {
         const channel = rawChannel ? rawChannel.trim().toUpperCase() : null;
         const marginNum = row.margin != null && row.margin !== '' ? parseFloat(row.margin) : null;
         const valueNum = parseFloat(row.value) || 0;
-        const cost = (marginNum !== null && Number.isFinite(marginNum) && marginNum < 100 && valueNum > 0)
+        // Cost = value * (1 - margin/100). Allow margin >= 100 (cost <= 0) so nothing is silently zeroed.
+        const cost = (marginNum !== null && Number.isFinite(marginNum) && valueNum > 0)
           ? +(valueNum * (1 - marginNum / 100)).toFixed(2)
           : null;
         await query(
