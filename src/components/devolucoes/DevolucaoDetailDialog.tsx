@@ -679,3 +679,78 @@ function StatusWorkflow({
   );
 }
 
+function SupplierLinkPanel({ devolucaoId }: { devolucaoId: string }) {
+  const { linkSupplier } = useDevolucaoMutations();
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState<any>({
+    supplier_name: '', supplier_document: '', supplier_contact_name: '',
+    supplier_whatsapp: '', supplier_email: '', supplier_rma_number: '',
+    supplier_expected_return_date: '', warranty_type: 'garantia_fabrica',
+    supplier_charge_status: 'pendente', description: '',
+  });
+  const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
+
+  if (!open) {
+    return (
+      <div className="border border-dashed rounded-lg p-3 flex items-center justify-between">
+        <div className="text-sm text-muted-foreground flex items-center gap-2">
+          <Truck className="h-4 w-4" /> Precisa acionar garantia com o fabricante?
+        </div>
+        <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
+          <Plus className="h-4 w-4 mr-1" /> Abrir RMA no Fornecedor
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="border rounded-lg p-3 space-y-3 bg-muted/30">
+      <div className="font-medium text-sm flex items-center gap-2"><Truck className="h-4 w-4" />Abrir RMA no Fornecedor (cross-link)</div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div><Label>Fornecedor *</Label><Input value={form.supplier_name} onChange={e => set('supplier_name', e.target.value)} /></div>
+        <div><Label>CNPJ</Label><Input value={form.supplier_document} onChange={e => set('supplier_document', e.target.value)} /></div>
+        <div><Label>Contato</Label><Input value={form.supplier_contact_name} onChange={e => set('supplier_contact_name', e.target.value)} /></div>
+        <div><Label>WhatsApp</Label><Input value={form.supplier_whatsapp} onChange={e => set('supplier_whatsapp', e.target.value)} /></div>
+        <div><Label>E-mail</Label><Input value={form.supplier_email} onChange={e => set('supplier_email', e.target.value)} /></div>
+        <div><Label>Nº RMA fornecedor</Label><Input value={form.supplier_rma_number} onChange={e => set('supplier_rma_number', e.target.value)} /></div>
+        <div><Label>Retorno previsto</Label><Input type="date" value={form.supplier_expected_return_date} onChange={e => set('supplier_expected_return_date', e.target.value)} /></div>
+        <div>
+          <Label>Tipo de garantia</Label>
+          <Select value={form.warranty_type} onValueChange={v => set('warranty_type', v)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="garantia_fabrica">Garantia de fábrica</SelectItem>
+              <SelectItem value="garantia_estendida">Garantia estendida</SelectItem>
+              <SelectItem value="troca_comercial">Troca comercial</SelectItem>
+              <SelectItem value="bonificacao">Bonificação</SelectItem>
+              <SelectItem value="outro">Outro</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div>
+        <Label>Observações</Label>
+        <Textarea rows={2} value={form.description} onChange={e => set('description', e.target.value)} placeholder="Contexto adicional para o fornecedor..." />
+      </div>
+      <div className="flex justify-end gap-2">
+        <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
+        <Button
+          size="sm"
+          disabled={!form.supplier_name.trim() || linkSupplier.isPending}
+          onClick={async () => {
+            await linkSupplier.mutateAsync({
+              id: devolucaoId,
+              ...form,
+              supplier_expected_return_date: form.supplier_expected_return_date || null,
+            });
+            setOpen(false);
+          }}
+        >
+          {linkSupplier.isPending ? 'Vinculando...' : 'Abrir e vincular'}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+
