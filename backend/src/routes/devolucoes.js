@@ -309,47 +309,6 @@ router.post('/', async (req, res) => {
   } catch (e) { console.error('create devolucao', e); res.status(500).json({ error: e.message }); }
 });
 
-// ============================================ CREATE
-router.post('/', async (req, res) => {
-  try {
-    const org = await getUserOrg(req.userId);
-    if (!org) return res.status(403).json({ error: 'Sem organização' });
-
-    const b = req.body || {};
-    if (!b.customer_name) return res.status(400).json({ error: 'Nome do cliente é obrigatório' });
-
-    const r = await query(`
-      INSERT INTO devolucoes (
-        organization_id, contact_id, deal_id, customer_name, customer_document, customer_whatsapp,
-        customer_email, customer_address, opened_channel, seller_user_id, created_by, priority,
-        reason, description, original_order_number, original_invoice_number, original_invoice_date
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
-      RETURNING *
-    `, [
-      org.organization_id, b.contact_id || null, b.deal_id || null, b.customer_name,
-      b.customer_document || null, b.customer_whatsapp || null, b.customer_email || null,
-      b.customer_address || null, b.opened_channel || 'sac', b.seller_user_id || req.userId,
-      req.userId, b.priority || 'normal', b.reason || 'defeito', b.description || null,
-      b.original_order_number || null, b.original_invoice_number || null, b.original_invoice_date || null,
-    ]);
-    const dev = r.rows[0];
-
-    if (Array.isArray(b.itens)) {
-      for (const it of b.itens) {
-        if (!it.product_name) continue;
-        await query(
-          `INSERT INTO devolucao_itens (devolucao_id, sku, product_name, quantity, serial_number, unit_value, notes)
-           VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-          [dev.id, it.sku || null, it.product_name, it.quantity || 1, it.serial_number || null, it.unit_value || null, it.notes || null]
-        );
-      }
-    }
-
-    await logEvent(dev.id, req.userId, 'status_change', { to_status: dev.status, message: 'Devolução aberta' });
-    res.status(201).json(dev);
-  } catch (e) { console.error('create devolucao', e); res.status(500).json({ error: e.message }); }
-});
-
 // ============================================ UPDATE
 router.put('/:id', async (req, res) => {
   try {
