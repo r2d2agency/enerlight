@@ -7906,12 +7906,19 @@ router.post('/goals/report-preview', async (req, res) => {
     }
 
     const summary = await query(
-      `SELECT data_type, COUNT(*) as count, COALESCE(SUM(value),0) as total_value
+      `SELECT data_type,
+              COUNT(*) as count,
+              COALESCE(SUM(value),0) as total_value,
+              COALESCE(SUM(
+                COALESCE(cost,
+                  CASE WHEN margin IS NOT NULL AND (1 + margin/100.0) <> 0
+                       THEN value / (1 + margin/100.0) END)
+              ),0) as total_cost
        FROM crm_goals_data WHERE ${baseWhere}${userFilter} GROUP BY data_type`, params
     );
-    const gd = { orcamento: { count: 0, value: 0 }, pedido: { count: 0, value: 0 }, faturamento: { count: 0, value: 0 } };
+    const gd = { orcamento: { count: 0, value: 0, cost: 0 }, pedido: { count: 0, value: 0, cost: 0 }, faturamento: { count: 0, value: 0, cost: 0 } };
     for (const row of summary.rows) {
-      gd[row.data_type] = { count: parseInt(row.count), value: parseFloat(row.total_value) };
+      gd[row.data_type] = { count: parseInt(row.count), value: parseFloat(row.total_value), cost: parseFloat(row.total_cost || 0) };
     }
 
     const goalsResult = await query(
@@ -7974,6 +7981,11 @@ router.post('/goals/report-preview', async (req, res) => {
       if (planned > 0) {
         text += `  MTD: ${fmt(mtd)}\n`;
         text += `  Saldo: ${saldoMtd >= 0 ? '✅' : '❌'} ${fmt(saldoMtd)}\n`;
+      }
+      if (s.type !== 'orcamento' && s.data.cost !== 0) {
+        const markup = s.data.value / s.data.cost;
+        const markupStr = markup.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        text += `  Markup: ${markupStr}\n`;
       }
       const enerlightVal = enerlightByType[s.type] || 0;
       if (enerlightVal > 0 && reportType === 'full') {
@@ -8063,12 +8075,19 @@ router.post('/goals/report-send-now', async (req, res) => {
         }
 
         const summary = await query(
-          `SELECT data_type, COUNT(*) as count, COALESCE(SUM(value),0) as total_value
+          `SELECT data_type,
+                  COUNT(*) as count,
+                  COALESCE(SUM(value),0) as total_value,
+                  COALESCE(SUM(
+                    COALESCE(cost,
+                      CASE WHEN margin IS NOT NULL AND (1 + margin/100.0) <> 0
+                           THEN value / (1 + margin/100.0) END)
+                  ),0) as total_cost
            FROM crm_goals_data WHERE ${baseWhere}${userFilter} GROUP BY data_type`, params
         );
-        const gd = { orcamento: { count: 0, value: 0 }, pedido: { count: 0, value: 0 }, faturamento: { count: 0, value: 0 } };
+        const gd = { orcamento: { count: 0, value: 0, cost: 0 }, pedido: { count: 0, value: 0, cost: 0 }, faturamento: { count: 0, value: 0, cost: 0 } };
         for (const row of summary.rows) {
-          gd[row.data_type] = { count: parseInt(row.count), value: parseFloat(row.total_value) };
+          gd[row.data_type] = { count: parseInt(row.count), value: parseFloat(row.total_value), cost: parseFloat(row.total_cost || 0) };
         }
 
         const goalsResult = await query(
@@ -8122,6 +8141,12 @@ router.post('/goals/report-send-now', async (req, res) => {
           if (planned > 0) {
             text += `  MTD: ${fmt(mtd)}\n`;
             text += `  Saldo: ${saldoMtd >= 0 ? '✅' : '❌'} ${fmt(saldoMtd)}\n`;
+          }
+
+          if (s.type !== 'orcamento' && s.data.cost !== 0) {
+            const markup = s.data.value / s.data.cost;
+            const markupStr = markup.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            text += `  Markup: ${markupStr}\n`;
           }
 
           if (config.include_enerlight && recipient.report_type === 'full') {
