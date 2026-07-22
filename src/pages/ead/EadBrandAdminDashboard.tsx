@@ -678,8 +678,16 @@ export default function EadBrandAdminDashboard() {
                       className="h-9"
                     />
                   </div>
-                  {(certFilter !== 'all' || installerSearch) && (
-                    <Button size="sm" variant="ghost" onClick={() => { setCertFilter('all'); setInstallerSearch(''); }}>
+                  <div className="grid gap-1">
+                    <Label className="text-xs">Cadastro de</Label>
+                    <Input type="date" value={installerFrom} onChange={(e) => setInstallerFrom(e.target.value)} className="h-9 w-[150px]" />
+                  </div>
+                  <div className="grid gap-1">
+                    <Label className="text-xs">até</Label>
+                    <Input type="date" value={installerTo} onChange={(e) => setInstallerTo(e.target.value)} className="h-9 w-[150px]" />
+                  </div>
+                  {(certFilter !== 'all' || installerSearch || installerFrom || installerTo) && (
+                    <Button size="sm" variant="ghost" onClick={() => { setCertFilter('all'); setInstallerSearch(''); setInstallerFrom(''); setInstallerTo(''); }}>
                       <X className="h-4 w-4 mr-1" /> Limpar
                     </Button>
                   )}
