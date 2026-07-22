@@ -362,6 +362,10 @@ router.put('/:id', async (req, res) => {
 
     if (b.status && b.status !== prev.status) {
       await logEvent(dev.id, req.userId, 'status_change', { from_status: prev.status, to_status: dev.status });
+      if (prev.linked_devolucao_id) {
+        const kind = (prev.rma_type === 'fornecedor') ? 'fornecedor' : 'cliente';
+        await logEvent(prev.linked_devolucao_id, req.userId, 'note', { message: `RMA ${kind} vinculado mudou de ${prev.status} → ${dev.status}` });
+      }
     }
     if (b.inbound_invoice_number && b.inbound_invoice_number !== prev.inbound_invoice_number) {
       await logEvent(dev.id, req.userId, 'invoice', { message: `NF de entrada registrada: ${b.inbound_invoice_number}` });
