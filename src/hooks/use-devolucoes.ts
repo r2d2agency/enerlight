@@ -40,14 +40,17 @@ export interface DevolucaoEvento {
   created_at: string;
 }
 
+export type RmaType = 'cliente' | 'fornecedor';
+
 export interface Devolucao {
   id: string;
   organization_id: string;
   numero: number;
+  rma_type: RmaType;
   contact_id?: string;
   contact_name?: string;
   deal_id?: string;
-  customer_name: string;
+  customer_name?: string;
   customer_document?: string;
   customer_whatsapp?: string;
   customer_email?: string;
@@ -97,6 +100,24 @@ export interface Devolucao {
   total_freight_cost?: number;
   item_count?: number;
   attachment_count?: number;
+  // Fornecedor / cross-link
+  supplier_name?: string;
+  supplier_document?: string;
+  supplier_contact_name?: string;
+  supplier_whatsapp?: string;
+  supplier_email?: string;
+  supplier_address?: string;
+  supplier_rma_number?: string;
+  supplier_expected_return_date?: string;
+  warranty_type?: string;
+  supplier_charge_status?: string;
+  supplier_credit_value?: number;
+  linked_devolucao_id?: string;
+  linked_numero?: number;
+  linked_rma_type?: RmaType;
+  linked_customer_name?: string;
+  linked_supplier_name?: string;
+  linked_status?: string;
   itens?: DevolucaoItem[];
   anexos?: DevolucaoAnexo[];
   eventos?: DevolucaoEvento[];
@@ -112,6 +133,8 @@ export interface DevolucaoFilters {
   date_from?: string;
   date_to?: string;
   only_mine?: boolean;
+  rma_type?: 'cliente' | 'fornecedor' | 'all';
+  supplier?: string;
 }
 
 export function useDevolucoes(filters?: DevolucaoFilters) {
