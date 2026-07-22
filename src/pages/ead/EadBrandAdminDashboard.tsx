@@ -50,6 +50,8 @@ export default function EadBrandAdminDashboard() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [certFilter, setCertFilter] = useState<'all' | 'with' | 'without'>('all');
   const [installerSearch, setInstallerSearch] = useState('');
+  const [installerFrom, setInstallerFrom] = useState('');
+  const [installerTo, setInstallerTo] = useState('');
 
 
   async function loadDashboard(f?: string, t?: string, c?: string, ci?: string) {
