@@ -1291,13 +1291,8 @@ export default function CRMMetas() {
                               <TableCell className="text-sm">{r.state || "—"}</TableCell>
                               <TableCell className="text-sm">{r.city || "—"}</TableCell>
                               {recordsType !== "orcamento" && (
-                                <TableCell className="text-right text-sm">
-                                  {r.margin != null ? `${r.margin.toFixed(1)}%` : "—"}
-                                </TableCell>
-                              )}
-                              {recordsType !== "orcamento" && (
                                 <TableCell className="text-right text-sm font-medium text-emerald-600">
-                                  {rowMarkup ? `${rowMarkup.toFixed(2).replace('.', ',')}x` : "—"}
+                                  {rowMarkup ? rowMarkup.toFixed(2).replace('.', ',') : "—"}
                                 </TableCell>
                               )}
                               {recordsType !== "orcamento" && (
