@@ -149,7 +149,97 @@ router.get('/stats', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ============================================ SLA CONFIG
+// ============================================ SUPPLIERS (cadastro reutilizável)
+let suppliersReady = null;
+async function ensureSuppliersTable() {
+  if (suppliersReady) return suppliersReady;
+  suppliersReady = (async () => {
+    await query(`
+      CREATE TABLE IF NOT EXISTS devolucao_suppliers (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        organization_id UUID NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        document VARCHAR(40),
+        contact_name VARCHAR(255),
+        whatsapp VARCHAR(50),
+        email VARCHAR(255),
+        address TEXT,
+        notes TEXT,
+        created_by UUID,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    await query(`CREATE INDEX IF NOT EXISTS idx_dev_suppliers_org ON devolucao_suppliers(organization_id)`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_dev_suppliers_name ON devolucao_suppliers(organization_id, name)`);
+  })();
+  return suppliersReady;
+}
+ensureSuppliersTable().catch(() => {});
+
+router.get('/suppliers', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+    await ensureSuppliersTable();
+    const { search } = req.query;
+    const params = [org.organization_id];
+    let sql = `SELECT * FROM devolucao_suppliers WHERE organization_id = $1`;
+    if (search) { sql += ` AND (name ILIKE $2 OR COALESCE(document,'') ILIKE $2)`; params.push(`%${search}%`); }
+    sql += ` ORDER BY name ASC LIMIT 50`;
+    const r = await query(sql, params);
+    res.json(r.rows);
+  } catch (e) { console.error('list suppliers', e); res.status(500).json({ error: e.message }); }
+});
+
+router.post('/suppliers', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+    await ensureSuppliersTable();
+    const b = req.body || {};
+    if (!b.name || !String(b.name).trim()) return res.status(400).json({ error: 'Nome obrigatório' });
+    const r = await query(
+      `INSERT INTO devolucao_suppliers (organization_id, name, document, contact_name, whatsapp, email, address, notes, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+      [org.organization_id, String(b.name).trim(), b.document || null, b.contact_name || null,
+       b.whatsapp || null, b.email || null, b.address || null, b.notes || null, req.userId]
+    );
+    res.status(201).json(r.rows[0]);
+  } catch (e) { console.error('create supplier', e); res.status(500).json({ error: e.message }); }
+});
+
+router.put('/suppliers/:id', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+    await ensureSuppliersTable();
+    const b = req.body || {};
+    const r = await query(
+      `UPDATE devolucao_suppliers SET
+        name = COALESCE($1, name),
+        document = $2, contact_name = $3, whatsapp = $4,
+        email = $5, address = $6, notes = $7, updated_at = NOW()
+       WHERE id = $8 AND organization_id = $9 RETURNING *`,
+      [b.name || null, b.document || null, b.contact_name || null, b.whatsapp || null,
+       b.email || null, b.address || null, b.notes || null, req.params.id, org.organization_id]
+    );
+    if (!r.rows[0]) return res.status(404).json({ error: 'Fornecedor não encontrado' });
+    res.json(r.rows[0]);
+  } catch (e) { console.error('update supplier', e); res.status(500).json({ error: e.message }); }
+});
+
+router.delete('/suppliers/:id', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+    await ensureSuppliersTable();
+    await query(`DELETE FROM devolucao_suppliers WHERE id = $1 AND organization_id = $2`, [req.params.id, org.organization_id]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+
 async function ensureSlaTable() {
   await query(`
     CREATE TABLE IF NOT EXISTS devolucao_sla_configs (
