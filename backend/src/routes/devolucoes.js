@@ -107,6 +107,43 @@ router.get('/', async (req, res) => {
     if (date_from) { sql += ` AND d.created_at >= $${i}`; params.push(date_from); i++; }
     if (date_to) { sql += ` AND d.created_at <= ($${i}::date + INTERVAL '1 day')`; params.push(date_to); i++; }
 
+    const { search, status, seller, reason, date_from, date_to, only_mine, rma_type, supplier } = req.query;
+    let sql = `
+      SELECT d.*,
+        u.name as seller_name,
+        c.name as created_by_name,
+        ct.name as contact_name,
+        ld.numero as linked_numero,
+        ld.rma_type as linked_rma_type,
+        ld.customer_name as linked_customer_name,
+        ld.supplier_name as linked_supplier_name,
+        (SELECT COUNT(*)::int FROM devolucao_itens i WHERE i.devolucao_id = d.id) as item_count,
+        (SELECT COUNT(*)::int FROM devolucao_anexos a WHERE a.devolucao_id = d.id) as attachment_count,
+        (COALESCE(d.inbound_freight_cost,0) + COALESCE(d.outbound_freight_cost,0)) as total_freight_cost
+      FROM devolucoes d
+      LEFT JOIN users u ON u.id = d.seller_user_id
+      LEFT JOIN users c ON c.id = d.created_by
+      LEFT JOIN contacts ct ON ct.id = d.contact_id
+      LEFT JOIN devolucoes ld ON ld.id = d.linked_devolucao_id
+      WHERE d.organization_id = $1
+    `;
+    const params = [org.organization_id];
+    let i = 2;
+
+    const elevated = ['owner', 'admin', 'superadmin', 'manager'].includes(org.role);
+    if (only_mine === '1' || (!elevated && !seller)) {
+      sql += ` AND (d.seller_user_id = $${i} OR d.created_by = $${i})`;
+      params.push(req.userId); i++;
+    }
+    if (search) { sql += ` AND (COALESCE(d.customer_name,'') ILIKE $${i} OR COALESCE(d.supplier_name,'') ILIKE $${i} OR d.description ILIKE $${i} OR CAST(d.numero AS TEXT) ILIKE $${i})`; params.push(`%${search}%`); i++; }
+    if (status) { sql += ` AND d.status = $${i}`; params.push(status); i++; }
+    if (seller) { sql += ` AND d.seller_user_id = $${i}`; params.push(seller); i++; }
+    if (reason) { sql += ` AND d.reason = $${i}`; params.push(reason); i++; }
+    if (rma_type && rma_type !== 'all') { sql += ` AND COALESCE(d.rma_type,'cliente') = $${i}`; params.push(rma_type); i++; }
+    if (supplier) { sql += ` AND d.supplier_name ILIKE $${i}`; params.push(`%${supplier}%`); i++; }
+    if (date_from) { sql += ` AND d.created_at >= $${i}`; params.push(date_from); i++; }
+    if (date_to) { sql += ` AND d.created_at <= ($${i}::date + INTERVAL '1 day')`; params.push(date_to); i++; }
+
     sql += ` ORDER BY d.created_at DESC`;
     const r = await query(sql, params);
     res.json(r.rows);
@@ -118,6 +155,10 @@ router.get('/stats', async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'Sem organização' });
+    const { rma_type } = req.query;
+    const params = [org.organization_id];
+    let where = 'organization_id = $1';
+    if (rma_type && rma_type !== 'all') { where += ` AND COALESCE(rma_type,'cliente') = $2`; params.push(rma_type); }
     const r = await query(`
       SELECT
         COUNT(*)::int as total,
@@ -126,9 +167,13 @@ router.get('/stats', async (req, res) => {
         COUNT(*) FILTER (WHERE status = 'aguardando_nf_produto')::int as waiting_nf,
         COUNT(*) FILTER (WHERE status = 'concluido' AND closed_at >= date_trunc('month', NOW()))::int as closed_this_month,
         COALESCE(SUM(inbound_freight_cost + outbound_freight_cost) FILTER (WHERE status = 'concluido' AND closed_at >= date_trunc('month', NOW())),0) as freight_cost_month,
-        COALESCE(SUM(inbound_freight_cost + outbound_freight_cost),0) as freight_cost_total
-      FROM devolucoes WHERE organization_id = $1
-    `, [org.organization_id]);
+        COALESCE(SUM(inbound_freight_cost + outbound_freight_cost),0) as freight_cost_total,
+        COUNT(*) FILTER (WHERE COALESCE(rma_type,'cliente') = 'cliente')::int as total_cliente,
+        COUNT(*) FILTER (WHERE COALESCE(rma_type,'cliente') = 'fornecedor')::int as total_fornecedor,
+        COUNT(*) FILTER (WHERE COALESCE(rma_type,'cliente') = 'fornecedor' AND status NOT IN ('concluido','recusado','cancelado'))::int as open_fornecedor,
+        COALESCE(SUM(supplier_credit_value) FILTER (WHERE COALESCE(rma_type,'cliente') = 'fornecedor' AND COALESCE(supplier_charge_status,'pendente') NOT IN ('recebido_credito','recebido_produto','perdido')),0) as supplier_credit_pending
+      FROM devolucoes WHERE ${where}
+    `, params);
     res.json(r.rows[0]);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
