@@ -583,9 +583,16 @@ export default function EadBrandAdminDashboard() {
             avg_attempts_active: 0,
           };
           const q = installerSearch.trim().toLowerCase();
+          const fromTs = installerFrom ? new Date(installerFrom + 'T00:00:00').getTime() : null;
+          const toTs = installerTo ? new Date(installerTo + 'T23:59:59').getTime() : null;
           const filtered = list.filter((r: any) => {
             if (certFilter === 'with' && !(r.certificate_count > 0)) return false;
             if (certFilter === 'without' && (r.certificate_count > 0)) return false;
+            if (fromTs || toTs) {
+              const ts = r.created_at ? new Date(r.created_at).getTime() : 0;
+              if (fromTs && ts < fromTs) return false;
+              if (toTs && ts > toTs) return false;
+            }
             if (!q) return true;
             return [r.name, r.email, r.company, r.city, r.state, r.phone]
               .filter(Boolean).some((v: string) => String(v).toLowerCase().includes(q));
