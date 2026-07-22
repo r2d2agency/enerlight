@@ -224,7 +224,10 @@ router.get('/:id', async (req, res) => {
 
     const r = await query(`
       SELECT d.*, u.name as seller_name, c.name as created_by_name, ct.name as contact_name,
-        rb.name as received_by_name, ab.name as analyzed_by_name, cb.name as closed_by_name
+        rb.name as received_by_name, ab.name as analyzed_by_name, cb.name as closed_by_name,
+        ld.numero as linked_numero, ld.rma_type as linked_rma_type,
+        ld.customer_name as linked_customer_name, ld.supplier_name as linked_supplier_name,
+        ld.status as linked_status
       FROM devolucoes d
       LEFT JOIN users u ON u.id = d.seller_user_id
       LEFT JOIN users c ON c.id = d.created_by
@@ -232,6 +235,7 @@ router.get('/:id', async (req, res) => {
       LEFT JOIN users ab ON ab.id = d.analyzed_by
       LEFT JOIN users cb ON cb.id = d.closed_by
       LEFT JOIN contacts ct ON ct.id = d.contact_id
+      LEFT JOIN devolucoes ld ON ld.id = d.linked_devolucao_id
       WHERE d.id = $1 AND d.organization_id = $2
     `, [req.params.id, org.organization_id]);
 
@@ -244,6 +248,65 @@ router.get('/:id', async (req, res) => {
 
     res.json(dev);
   } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============================================ CREATE
+router.post('/', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+
+    const b = req.body || {};
+    const rmaType = b.rma_type === 'fornecedor' ? 'fornecedor' : 'cliente';
+    if (rmaType === 'cliente' && !b.customer_name) {
+      return res.status(400).json({ error: 'Nome do cliente é obrigatório' });
+    }
+    if (rmaType === 'fornecedor' && !b.supplier_name) {
+      return res.status(400).json({ error: 'Nome do fornecedor é obrigatório' });
+    }
+
+    const r = await query(`
+      INSERT INTO devolucoes (
+        organization_id, contact_id, deal_id, customer_name, customer_document, customer_whatsapp,
+        customer_email, customer_address, opened_channel, seller_user_id, created_by, priority,
+        reason, description, original_order_number, original_invoice_number, original_invoice_date,
+        rma_type, linked_devolucao_id,
+        supplier_name, supplier_document, supplier_contact_name, supplier_whatsapp, supplier_email,
+        supplier_address, supplier_rma_number, supplier_expected_return_date, warranty_type,
+        supplier_charge_status, supplier_credit_value
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30)
+      RETURNING *
+    `, [
+      org.organization_id, b.contact_id || null, b.deal_id || null, b.customer_name || null,
+      b.customer_document || null, b.customer_whatsapp || null, b.customer_email || null,
+      b.customer_address || null, b.opened_channel || 'sac', b.seller_user_id || req.userId,
+      req.userId, b.priority || 'normal', b.reason || 'defeito', b.description || null,
+      b.original_order_number || null, b.original_invoice_number || null, b.original_invoice_date || null,
+      rmaType, b.linked_devolucao_id || null,
+      b.supplier_name || null, b.supplier_document || null, b.supplier_contact_name || null,
+      b.supplier_whatsapp || null, b.supplier_email || null, b.supplier_address || null,
+      b.supplier_rma_number || null, b.supplier_expected_return_date || null, b.warranty_type || null,
+      b.supplier_charge_status || null, b.supplier_credit_value ?? null,
+    ]);
+    const dev = r.rows[0];
+
+    if (Array.isArray(b.itens)) {
+      for (const it of b.itens) {
+        if (!it.product_name) continue;
+        await query(
+          `INSERT INTO devolucao_itens (devolucao_id, sku, product_name, quantity, serial_number, unit_value, notes)
+           VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+          [dev.id, it.sku || null, it.product_name, it.quantity || 1, it.serial_number || null, it.unit_value || null, it.notes || null]
+        );
+      }
+    }
+
+    await logEvent(dev.id, req.userId, 'status_change', { to_status: dev.status, message: rmaType === 'fornecedor' ? 'RMA de fornecedor aberto' : 'Devolução aberta' });
+    if (b.linked_devolucao_id) {
+      await logEvent(b.linked_devolucao_id, req.userId, 'note', { message: `RMA de fornecedor #${dev.numero} vinculado a esta devolução` });
+    }
+    res.status(201).json(dev);
+  } catch (e) { console.error('create devolucao', e); res.status(500).json({ error: e.message }); }
 });
 
 // ============================================ CREATE
