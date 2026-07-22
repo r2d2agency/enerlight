@@ -38,7 +38,8 @@ export function DevolucaoFormDialog({ open, onOpenChange, devolucao }: Props) {
     if (open) {
       if (devolucao) {
         setForm({
-          customer_name: devolucao.customer_name,
+          rma_type: devolucao.rma_type || 'cliente',
+          customer_name: devolucao.customer_name || '',
           customer_document: devolucao.customer_document || '',
           customer_whatsapp: devolucao.customer_whatsapp || '',
           customer_email: devolucao.customer_email || '',
@@ -51,13 +52,28 @@ export function DevolucaoFormDialog({ open, onOpenChange, devolucao }: Props) {
           original_order_number: devolucao.original_order_number || '',
           original_invoice_number: devolucao.original_invoice_number || '',
           original_invoice_date: devolucao.original_invoice_date || '',
+          supplier_name: devolucao.supplier_name || '',
+          supplier_document: devolucao.supplier_document || '',
+          supplier_contact_name: devolucao.supplier_contact_name || '',
+          supplier_whatsapp: devolucao.supplier_whatsapp || '',
+          supplier_email: devolucao.supplier_email || '',
+          supplier_address: devolucao.supplier_address || '',
+          supplier_rma_number: devolucao.supplier_rma_number || '',
+          supplier_expected_return_date: devolucao.supplier_expected_return_date?.slice(0,10) || '',
+          warranty_type: devolucao.warranty_type || '',
+          supplier_charge_status: devolucao.supplier_charge_status || '',
+          supplier_credit_value: devolucao.supplier_credit_value ?? '',
         });
         setItens(devolucao.itens?.length ? devolucao.itens.map(i => ({ ...i })) : [{ product_name: '', quantity: 1 }]);
       } else {
         setForm({
+          rma_type: 'cliente',
           customer_name: '', customer_document: '', customer_whatsapp: '', customer_email: '', customer_address: '',
           opened_channel: 'sac', seller_user_id: user?.id, priority: 'normal', reason: 'defeito',
           description: '', original_order_number: '', original_invoice_number: '', original_invoice_date: '',
+          supplier_name: '', supplier_document: '', supplier_contact_name: '', supplier_whatsapp: '',
+          supplier_email: '', supplier_address: '', supplier_rma_number: '', supplier_expected_return_date: '',
+          warranty_type: 'garantia_fabrica', supplier_charge_status: 'pendente', supplier_credit_value: '',
         });
         setItens([{ product_name: '', quantity: 1, sku: '', serial_number: '' }]);
       }
@@ -69,9 +85,21 @@ export function DevolucaoFormDialog({ open, onOpenChange, devolucao }: Props) {
   const addItem = () => setItens(arr => [...arr, { product_name: '', quantity: 1 }]);
   const removeItem = (i: number) => setItens(arr => arr.filter((_, idx) => idx !== i));
 
+  const isSupplier = form.rma_type === 'fornecedor';
+
   const handleSubmit = async () => {
-    if (!form.customer_name?.trim()) return;
-    const payload = { ...form, original_invoice_date: form.original_invoice_date || null, itens: itens.filter(it => it.product_name?.trim()) };
+    if (isSupplier) {
+      if (!form.supplier_name?.trim()) return;
+    } else {
+      if (!form.customer_name?.trim()) return;
+    }
+    const payload = {
+      ...form,
+      original_invoice_date: form.original_invoice_date || null,
+      supplier_expected_return_date: form.supplier_expected_return_date || null,
+      supplier_credit_value: form.supplier_credit_value === '' ? null : Number(form.supplier_credit_value),
+      itens: itens.filter(it => it.product_name?.trim()),
+    };
     if (isEdit) await update.mutateAsync({ id: devolucao!.id, ...payload });
     else await create.mutateAsync(payload);
     onOpenChange(false);
@@ -81,28 +109,87 @@ export function DevolucaoFormDialog({ open, onOpenChange, devolucao }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEdit ? `Editar Devolução #${devolucao?.numero}` : 'Nova Devolução'}</DialogTitle>
-          <DialogDescription>Preencha as informações do cliente, motivo e produtos.</DialogDescription>
+          <DialogTitle>{isEdit ? `Editar ${isSupplier ? 'RMA Fornecedor' : 'Devolução'} #${devolucao?.numero}` : (isSupplier ? 'Novo RMA no Fornecedor' : 'Nova Devolução')}</DialogTitle>
+          <DialogDescription>Preencha as informações do {isSupplier ? 'fornecedor' : 'cliente'}, motivo e produtos.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <ClientSearchField
-              currentName={form.customer_name}
-              onSelect={(c) => setForm((f: any) => ({
-                ...f,
-                customer_name: c.name,
-                ...(c.document !== undefined ? { customer_document: c.document } : {}),
-                ...(c.email !== undefined ? { customer_email: c.email } : {}),
-                ...(c.phone !== undefined ? { customer_whatsapp: c.phone } : {}),
-                ...(c.address !== undefined ? { customer_address: c.address } : {}),
-              }))}
-            />
-            <div><Label>CPF/CNPJ</Label><Input value={form.customer_document || ''} onChange={e => set('customer_document', e.target.value)} /></div>
-            <div><Label>WhatsApp</Label><Input value={form.customer_whatsapp || ''} onChange={e => set('customer_whatsapp', e.target.value)} /></div>
-            <div><Label>E-mail</Label><Input value={form.customer_email || ''} onChange={e => set('customer_email', e.target.value)} /></div>
-            <div><Label>Endereço</Label><Input value={form.customer_address || ''} onChange={e => set('customer_address', e.target.value)} /></div>
+            <div>
+              <Label>Tipo de RMA</Label>
+              <Select value={form.rma_type || 'cliente'} onValueChange={v => set('rma_type', v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cliente">Cliente (venda)</SelectItem>
+                  <SelectItem value="fornecedor">Fornecedor (garantia/troca)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="hidden md:block" />
           </div>
+
+          {!isSupplier && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <ClientSearchField
+                currentName={form.customer_name}
+                onSelect={(c) => setForm((f: any) => ({
+                  ...f,
+                  customer_name: c.name,
+                  ...(c.document !== undefined ? { customer_document: c.document } : {}),
+                  ...(c.email !== undefined ? { customer_email: c.email } : {}),
+                  ...(c.phone !== undefined ? { customer_whatsapp: c.phone } : {}),
+                  ...(c.address !== undefined ? { customer_address: c.address } : {}),
+                }))}
+              />
+              <div><Label>CPF/CNPJ</Label><Input value={form.customer_document || ''} onChange={e => set('customer_document', e.target.value)} /></div>
+              <div><Label>WhatsApp</Label><Input value={form.customer_whatsapp || ''} onChange={e => set('customer_whatsapp', e.target.value)} /></div>
+              <div><Label>E-mail</Label><Input value={form.customer_email || ''} onChange={e => set('customer_email', e.target.value)} /></div>
+              <div><Label>Endereço</Label><Input value={form.customer_address || ''} onChange={e => set('customer_address', e.target.value)} /></div>
+            </div>
+          )}
+
+          {isSupplier && (
+            <div className="border rounded-lg p-3 space-y-3 bg-muted/30">
+              <div className="font-medium text-sm">Dados do fornecedor / fabricante</div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div><Label>Fornecedor *</Label><Input value={form.supplier_name || ''} onChange={e => set('supplier_name', e.target.value)} placeholder="Ex.: Blumenau Iluminação" /></div>
+                <div><Label>CNPJ</Label><Input value={form.supplier_document || ''} onChange={e => set('supplier_document', e.target.value)} /></div>
+                <div><Label>Contato (nome)</Label><Input value={form.supplier_contact_name || ''} onChange={e => set('supplier_contact_name', e.target.value)} /></div>
+                <div><Label>WhatsApp</Label><Input value={form.supplier_whatsapp || ''} onChange={e => set('supplier_whatsapp', e.target.value)} /></div>
+                <div><Label>E-mail</Label><Input value={form.supplier_email || ''} onChange={e => set('supplier_email', e.target.value)} /></div>
+                <div><Label>Endereço</Label><Input value={form.supplier_address || ''} onChange={e => set('supplier_address', e.target.value)} /></div>
+                <div><Label>Nº RMA do fornecedor</Label><Input value={form.supplier_rma_number || ''} onChange={e => set('supplier_rma_number', e.target.value)} /></div>
+                <div><Label>Retorno previsto</Label><Input type="date" value={form.supplier_expected_return_date || ''} onChange={e => set('supplier_expected_return_date', e.target.value)} /></div>
+                <div>
+                  <Label>Tipo de garantia</Label>
+                  <Select value={form.warranty_type || ''} onValueChange={v => set('warranty_type', v)}>
+                    <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="garantia_fabrica">Garantia de fábrica</SelectItem>
+                      <SelectItem value="garantia_estendida">Garantia estendida</SelectItem>
+                      <SelectItem value="troca_comercial">Troca comercial</SelectItem>
+                      <SelectItem value="bonificacao">Bonificação</SelectItem>
+                      <SelectItem value="outro">Outro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Status financeiro</Label>
+                  <Select value={form.supplier_charge_status || ''} onValueChange={v => set('supplier_charge_status', v)}>
+                    <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pendente">Pendente</SelectItem>
+                      <SelectItem value="cobrado">Cobrado</SelectItem>
+                      <SelectItem value="creditado">Creditado</SelectItem>
+                      <SelectItem value="reposto">Reposto</SelectItem>
+                      <SelectItem value="recusado">Recusado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div><Label>Valor a crédito (R$)</Label><Input type="number" step="0.01" value={form.supplier_credit_value ?? ''} onChange={e => set('supplier_credit_value', e.target.value)} /></div>
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             <div>
@@ -118,7 +205,7 @@ export function DevolucaoFormDialog({ open, onOpenChange, devolucao }: Props) {
               </Select>
             </div>
             <div>
-              <Label>Vendedor responsável</Label>
+              <Label>Responsável interno</Label>
               <Select value={form.seller_user_id || ''} onValueChange={v => set('seller_user_id', v)}>
                 <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>

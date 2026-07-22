@@ -46,6 +46,7 @@ export default function Devolucoes() {
   const [status, setStatus] = useState<string>('all');
   const [reason, setReason] = useState<string>('all');
   const [sla, setSla] = useState<string>('all');
+  const [rmaType, setRmaType] = useState<'all' | 'cliente' | 'fornecedor'>('all');
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -56,6 +57,7 @@ export default function Devolucoes() {
     search: search || undefined,
     status: status !== 'all' ? status : undefined,
     reason: reason !== 'all' ? reason : undefined,
+    rma_type: rmaType,
   };
   const { data: allDevolucoes = [], isLoading } = useDevolucoes(filters);
   const { data: stats } = useDevolucoesStats();
@@ -140,12 +142,23 @@ export default function Devolucoes() {
           </div>
         )}
 
+        {/* Type tabs */}
+        {!simplified && (
+          <Tabs value={rmaType} onValueChange={(v: any) => setRmaType(v)}>
+            <TabsList>
+              <TabsTrigger value="all">Todos</TabsTrigger>
+              <TabsTrigger value="cliente">RMA Cliente</TabsTrigger>
+              <TabsTrigger value="fornecedor">RMA Fornecedor</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        )}
+
         {/* Filters + view toggle */}
         <Card>
           <CardContent className="pt-4 flex flex-col md:flex-row gap-3">
             <div className="relative flex-1">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input className="pl-8" placeholder="Buscar por cliente, descrição ou número..." value={search} onChange={e => setSearch(e.target.value)} />
+              <Input className="pl-8" placeholder={rmaType === 'fornecedor' ? 'Buscar por fornecedor, descrição ou número...' : 'Buscar por cliente, descrição ou número...'} value={search} onChange={e => setSearch(e.target.value)} />
             </div>
             <Select value={status} onValueChange={setStatus}>
               <SelectTrigger className="md:w-52"><SelectValue placeholder="Status" /></SelectTrigger>
@@ -196,7 +209,8 @@ export default function Devolucoes() {
                 <thead className="bg-muted/40 text-left">
                   <tr>
                     <th className="px-3 py-2">#</th>
-                    <th className="px-3 py-2">Cliente</th>
+                    <th className="px-3 py-2">Tipo</th>
+                    <th className="px-3 py-2">Cliente / Fornecedor</th>
                     <th className="px-3 py-2">Motivo</th>
                     <th className="px-3 py-2">Status</th>
                     <th className="px-3 py-2">SLA</th>
@@ -211,7 +225,17 @@ export default function Devolucoes() {
                     return (
                       <tr key={d.id} className="hover:bg-muted/30 cursor-pointer" onClick={() => setSelectedId(d.id)}>
                         <td className="px-3 py-2 font-mono">#{d.numero}</td>
-                        <td className="px-3 py-2 font-medium">{d.customer_name}</td>
+                        <td className="px-3 py-2">
+                          <Badge variant={d.rma_type === 'fornecedor' ? 'default' : 'secondary'} className="text-[10px]">
+                            {d.rma_type === 'fornecedor' ? 'Fornecedor' : 'Cliente'}
+                          </Badge>
+                        </td>
+                        <td className="px-3 py-2 font-medium">
+                          {d.rma_type === 'fornecedor' ? (d.supplier_name || '—') : (d.customer_name || '—')}
+                          {d.linked_numero && (
+                            <span className="ml-2 text-[10px] text-muted-foreground">↔ #{d.linked_numero}</span>
+                          )}
+                        </td>
                         <td className="px-3 py-2"><Badge variant="outline" className="text-xs">{REASON_LABELS[d.reason] || d.reason}</Badge></td>
                         <td className="px-3 py-2"><Badge className={`${STATUS_COLORS[d.status]} text-xs`}>{STATUS_LABELS[d.status as DevolucaoStatus]}</Badge></td>
                         <td className="px-3 py-2">{s.level === 'none' ? <span className="text-muted-foreground text-xs">—</span> : <Badge variant="outline" className={`text-[10px] ${s.color}`}>{s.label}</Badge>}</td>

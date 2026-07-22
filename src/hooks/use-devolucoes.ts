@@ -40,14 +40,17 @@ export interface DevolucaoEvento {
   created_at: string;
 }
 
+export type RmaType = 'cliente' | 'fornecedor';
+
 export interface Devolucao {
   id: string;
   organization_id: string;
   numero: number;
+  rma_type: RmaType;
   contact_id?: string;
   contact_name?: string;
   deal_id?: string;
-  customer_name: string;
+  customer_name?: string;
   customer_document?: string;
   customer_whatsapp?: string;
   customer_email?: string;
@@ -97,6 +100,24 @@ export interface Devolucao {
   total_freight_cost?: number;
   item_count?: number;
   attachment_count?: number;
+  // Fornecedor / cross-link
+  supplier_name?: string;
+  supplier_document?: string;
+  supplier_contact_name?: string;
+  supplier_whatsapp?: string;
+  supplier_email?: string;
+  supplier_address?: string;
+  supplier_rma_number?: string;
+  supplier_expected_return_date?: string;
+  warranty_type?: string;
+  supplier_charge_status?: string;
+  supplier_credit_value?: number;
+  linked_devolucao_id?: string;
+  linked_numero?: number;
+  linked_rma_type?: RmaType;
+  linked_customer_name?: string;
+  linked_supplier_name?: string;
+  linked_status?: string;
   itens?: DevolucaoItem[];
   anexos?: DevolucaoAnexo[];
   eventos?: DevolucaoEvento[];
@@ -112,6 +133,8 @@ export interface DevolucaoFilters {
   date_from?: string;
   date_to?: string;
   only_mine?: boolean;
+  rma_type?: 'cliente' | 'fornecedor' | 'all';
+  supplier?: string;
 }
 
 export function useDevolucoes(filters?: DevolucaoFilters) {
@@ -123,6 +146,8 @@ export function useDevolucoes(filters?: DevolucaoFilters) {
   if (filters?.date_from) params.set('date_from', filters.date_from);
   if (filters?.date_to) params.set('date_to', filters.date_to);
   if (filters?.only_mine) params.set('only_mine', '1');
+  if (filters?.rma_type && filters.rma_type !== 'all') params.set('rma_type', filters.rma_type);
+  if (filters?.supplier) params.set('supplier', filters.supplier);
   const qs = params.toString();
   return useQuery<Devolucao[]>({
     queryKey: ['devolucoes', filters],
@@ -142,6 +167,7 @@ export function useDevolucoesStats() {
   return useQuery<{
     total: number; open_count: number; in_analysis: number; waiting_nf: number;
     closed_this_month: number; freight_cost_month: number; freight_cost_total: number;
+    supplier_open?: number; supplier_pending_credit?: number;
   }>({
     queryKey: ['devolucoes-stats'],
     queryFn: () => api('/api/devolucoes/stats'),
@@ -201,7 +227,17 @@ export function useDevolucaoMutations() {
     mutationFn: (id: string) => api(`/api/devolucoes/${id}`, { method: 'DELETE' }),
     onSuccess: () => { inv(); toast.success('Devolução excluída'); },
   });
-  return { create, update, changeStatus, remove };
+  const linkSupplier = useMutation({
+    mutationFn: ({ id, ...data }: any) =>
+      api(`/api/devolucoes/${id}/link-supplier`, { method: 'POST', body: data }),
+    onSuccess: (_r, v: any) => {
+      inv();
+      qc.invalidateQueries({ queryKey: ['devolucao', v.id] });
+      toast.success('RMA de fornecedor vinculado!');
+    },
+    onError: (e: any) => toast.error(e.message || 'Erro ao vincular fornecedor'),
+  });
+  return { create, update, changeStatus, remove, linkSupplier };
 }
 
 export function useDevolucaoItemMutations() {

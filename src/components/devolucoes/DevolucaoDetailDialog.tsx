@@ -136,14 +136,30 @@ export function DevolucaoDetailDialog({ open, onOpenChange, devolucaoId }: Props
           <>
             <DialogHeader className="space-y-2">
               <div className="flex flex-wrap items-center gap-2">
-                <DialogTitle className="text-xl">Devolução #{dev.numero}</DialogTitle>
+                <DialogTitle className="text-xl">
+                  {dev.rma_type === 'fornecedor' ? 'RMA Fornecedor' : 'Devolução'} #{dev.numero}
+                </DialogTitle>
+                <Badge variant={dev.rma_type === 'fornecedor' ? 'default' : 'secondary'}>
+                  {dev.rma_type === 'fornecedor' ? 'Fornecedor' : 'Cliente'}
+                </Badge>
                 <Badge className={STATUS_COLORS[dev.status]}>{STATUS_LABELS[dev.status]}</Badge>
                 <Badge variant="outline">{REASON_LABELS[dev.reason] || dev.reason}</Badge>
                 {dev.priority === 'urgent' && <Badge variant="destructive">URGENTE</Badge>}
               </div>
               <DialogDescription>
-                Cliente: <b>{dev.customer_name}</b> · Vendedor: {dev.seller_name || '—'} · Aberto em {safeFormatDate(dev.created_at, 'dd/MM/yyyy HH:mm')}
+                {dev.rma_type === 'fornecedor'
+                  ? <>Fornecedor: <b>{dev.supplier_name || '—'}</b> · Responsável: {dev.seller_name || '—'} · Aberto em {safeFormatDate(dev.created_at, 'dd/MM/yyyy HH:mm')}</>
+                  : <>Cliente: <b>{dev.customer_name || '—'}</b> · Vendedor: {dev.seller_name || '—'} · Aberto em {safeFormatDate(dev.created_at, 'dd/MM/yyyy HH:mm')}</>
+                }
               </DialogDescription>
+              {dev.linked_devolucao_id && (
+                <div className="rounded-md border bg-muted/40 px-3 py-2 text-xs flex items-center gap-2">
+                  <History className="h-3.5 w-3.5" />
+                  Vinculado a {dev.linked_rma_type === 'fornecedor' ? 'RMA Fornecedor' : 'Devolução Cliente'} <b>#{dev.linked_numero}</b>
+                  {dev.linked_rma_type === 'fornecedor' ? (dev.linked_supplier_name ? ` — ${dev.linked_supplier_name}` : '') : (dev.linked_customer_name ? ` — ${dev.linked_customer_name}` : '')}
+                  {dev.linked_status && <Badge variant="outline" className="text-[10px] ml-1">{STATUS_LABELS[dev.linked_status as DevolucaoStatus] || dev.linked_status}</Badge>}
+                </div>
+              )}
             </DialogHeader>
 
             {/* Workflow header: stepper + grouped actions */}
@@ -166,29 +182,74 @@ export function DevolucaoDetailDialog({ open, onOpenChange, devolucaoId }: Props
 
               {/* RESUMO */}
               <TabsContent value="resumo" className="space-y-3 pt-3">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <InfoRow label="Cliente" value={dev.customer_name} />
-                  <InfoRow label="CPF/CNPJ" value={dev.customer_document} />
-                  <InfoRow label="WhatsApp" value={dev.customer_whatsapp} />
-                  <InfoRow label="E-mail" value={dev.customer_email} />
-                  <InfoRow label="Endereço" value={dev.customer_address} />
-                  <InfoRow label="Canal" value={dev.opened_channel?.toUpperCase()} />
-                  <InfoRow label="Pedido original" value={dev.original_order_number} />
-                  <InfoRow label="NF original" value={dev.original_invoice_number} />
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Vendedor responsável</Label>
-                    <Select value={dev.seller_user_id || ''} onValueChange={v => save({ seller_user_id: v })}>
-                      <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                      <SelectContent>
-                        {members.map(m => <SelectItem key={m.user_id} value={m.user_id}>{m.name}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                {dev.rma_type === 'fornecedor' ? (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <InfoRow label="Fornecedor" value={dev.supplier_name} />
+                    <InfoRow label="CNPJ" value={dev.supplier_document} />
+                    <InfoRow label="Contato" value={dev.supplier_contact_name} />
+                    <InfoRow label="WhatsApp" value={dev.supplier_whatsapp} />
+                    <InfoRow label="E-mail" value={dev.supplier_email} />
+                    <InfoRow label="Endereço" value={dev.supplier_address} />
+                    <InfoRow label="Nº RMA fornecedor" value={dev.supplier_rma_number} />
+                    <InfoRow label="Retorno previsto" value={dev.supplier_expected_return_date ? safeFormatDate(dev.supplier_expected_return_date, 'dd/MM/yyyy') : ''} />
+                    <InfoRow label="Garantia" value={dev.warranty_type} />
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Status financeiro</Label>
+                      <Select value={dev.supplier_charge_status || ''} onValueChange={v => save({ supplier_charge_status: v })}>
+                        <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pendente">Pendente</SelectItem>
+                          <SelectItem value="cobrado">Cobrado</SelectItem>
+                          <SelectItem value="creditado">Creditado</SelectItem>
+                          <SelectItem value="reposto">Reposto</SelectItem>
+                          <SelectItem value="recusado">Recusado</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Valor a crédito (R$)</Label>
+                      <Input type="number" step="0.01" defaultValue={dev.supplier_credit_value ?? ''} onBlur={e => save({ supplier_credit_value: e.target.value === '' ? null : Number(e.target.value) })} />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Responsável interno</Label>
+                      <Select value={dev.seller_user_id || ''} onValueChange={v => save({ seller_user_id: v })}>
+                        <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                        <SelectContent>
+                          {members.map(m => <SelectItem key={m.user_id} value={m.user_id}>{m.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <InfoRow label="Cliente" value={dev.customer_name} />
+                    <InfoRow label="CPF/CNPJ" value={dev.customer_document} />
+                    <InfoRow label="WhatsApp" value={dev.customer_whatsapp} />
+                    <InfoRow label="E-mail" value={dev.customer_email} />
+                    <InfoRow label="Endereço" value={dev.customer_address} />
+                    <InfoRow label="Canal" value={dev.opened_channel?.toUpperCase()} />
+                    <InfoRow label="Pedido original" value={dev.original_order_number} />
+                    <InfoRow label="NF original" value={dev.original_invoice_number} />
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Vendedor responsável</Label>
+                      <Select value={dev.seller_user_id || ''} onValueChange={v => save({ seller_user_id: v })}>
+                        <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                        <SelectContent>
+                          {members.map(m => <SelectItem key={m.user_id} value={m.user_id}>{m.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
                 <div>
                   <Label>Descrição</Label>
                   <Textarea defaultValue={dev.description || ''} onBlur={e => save({ description: e.target.value })} rows={3} />
                 </div>
+
+                {/* Cross-link supplier RMA (only for cliente without an existing link) */}
+                {dev.rma_type === 'cliente' && !dev.linked_devolucao_id && (
+                  <SupplierLinkPanel devolucaoId={dev.id} />
+                )}
                 <div className="border rounded-lg">
                   <div className="px-3 py-2 border-b font-medium text-sm flex items-center gap-2"><FileText className="h-4 w-4" />Produtos ({dev.itens?.length || 0})</div>
                   <div className="divide-y">
@@ -617,4 +678,79 @@ function StatusWorkflow({
     </div>
   );
 }
+
+function SupplierLinkPanel({ devolucaoId }: { devolucaoId: string }) {
+  const { linkSupplier } = useDevolucaoMutations();
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState<any>({
+    supplier_name: '', supplier_document: '', supplier_contact_name: '',
+    supplier_whatsapp: '', supplier_email: '', supplier_rma_number: '',
+    supplier_expected_return_date: '', warranty_type: 'garantia_fabrica',
+    supplier_charge_status: 'pendente', description: '',
+  });
+  const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
+
+  if (!open) {
+    return (
+      <div className="border border-dashed rounded-lg p-3 flex items-center justify-between">
+        <div className="text-sm text-muted-foreground flex items-center gap-2">
+          <Truck className="h-4 w-4" /> Precisa acionar garantia com o fabricante?
+        </div>
+        <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
+          <Plus className="h-4 w-4 mr-1" /> Abrir RMA no Fornecedor
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="border rounded-lg p-3 space-y-3 bg-muted/30">
+      <div className="font-medium text-sm flex items-center gap-2"><Truck className="h-4 w-4" />Abrir RMA no Fornecedor (cross-link)</div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div><Label>Fornecedor *</Label><Input value={form.supplier_name} onChange={e => set('supplier_name', e.target.value)} /></div>
+        <div><Label>CNPJ</Label><Input value={form.supplier_document} onChange={e => set('supplier_document', e.target.value)} /></div>
+        <div><Label>Contato</Label><Input value={form.supplier_contact_name} onChange={e => set('supplier_contact_name', e.target.value)} /></div>
+        <div><Label>WhatsApp</Label><Input value={form.supplier_whatsapp} onChange={e => set('supplier_whatsapp', e.target.value)} /></div>
+        <div><Label>E-mail</Label><Input value={form.supplier_email} onChange={e => set('supplier_email', e.target.value)} /></div>
+        <div><Label>Nº RMA fornecedor</Label><Input value={form.supplier_rma_number} onChange={e => set('supplier_rma_number', e.target.value)} /></div>
+        <div><Label>Retorno previsto</Label><Input type="date" value={form.supplier_expected_return_date} onChange={e => set('supplier_expected_return_date', e.target.value)} /></div>
+        <div>
+          <Label>Tipo de garantia</Label>
+          <Select value={form.warranty_type} onValueChange={v => set('warranty_type', v)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="garantia_fabrica">Garantia de fábrica</SelectItem>
+              <SelectItem value="garantia_estendida">Garantia estendida</SelectItem>
+              <SelectItem value="troca_comercial">Troca comercial</SelectItem>
+              <SelectItem value="bonificacao">Bonificação</SelectItem>
+              <SelectItem value="outro">Outro</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div>
+        <Label>Observações</Label>
+        <Textarea rows={2} value={form.description} onChange={e => set('description', e.target.value)} placeholder="Contexto adicional para o fornecedor..." />
+      </div>
+      <div className="flex justify-end gap-2">
+        <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
+        <Button
+          size="sm"
+          disabled={!form.supplier_name.trim() || linkSupplier.isPending}
+          onClick={async () => {
+            await linkSupplier.mutateAsync({
+              id: devolucaoId,
+              ...form,
+              supplier_expected_return_date: form.supplier_expected_return_date || null,
+            });
+            setOpen(false);
+          }}
+        >
+          {linkSupplier.isPending ? 'Vinculando...' : 'Abrir e vincular'}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 

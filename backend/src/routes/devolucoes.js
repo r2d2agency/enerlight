@@ -5,6 +5,38 @@ import { authenticate } from '../middleware/auth.js';
 const router = express.Router();
 router.use(authenticate);
 
+// ============================================ BOOTSTRAP: colunas fornecedor / cross-link
+let supplierColumnsReady = null;
+async function ensureSupplierColumns() {
+  if (supplierColumnsReady) return supplierColumnsReady;
+  supplierColumnsReady = (async () => {
+    const stmts = [
+      `ALTER TABLE devolucoes ADD COLUMN IF NOT EXISTS rma_type VARCHAR(15) DEFAULT 'cliente'`,
+      `ALTER TABLE devolucoes ADD COLUMN IF NOT EXISTS linked_devolucao_id UUID REFERENCES devolucoes(id) ON DELETE SET NULL`,
+      `ALTER TABLE devolucoes ADD COLUMN IF NOT EXISTS supplier_name VARCHAR(255)`,
+      `ALTER TABLE devolucoes ADD COLUMN IF NOT EXISTS supplier_document VARCHAR(40)`,
+      `ALTER TABLE devolucoes ADD COLUMN IF NOT EXISTS supplier_contact_name VARCHAR(255)`,
+      `ALTER TABLE devolucoes ADD COLUMN IF NOT EXISTS supplier_whatsapp VARCHAR(50)`,
+      `ALTER TABLE devolucoes ADD COLUMN IF NOT EXISTS supplier_email VARCHAR(255)`,
+      `ALTER TABLE devolucoes ADD COLUMN IF NOT EXISTS supplier_address TEXT`,
+      `ALTER TABLE devolucoes ADD COLUMN IF NOT EXISTS supplier_rma_number VARCHAR(80)`,
+      `ALTER TABLE devolucoes ADD COLUMN IF NOT EXISTS supplier_expected_return_date DATE`,
+      `ALTER TABLE devolucoes ADD COLUMN IF NOT EXISTS warranty_type VARCHAR(40)`,
+      `ALTER TABLE devolucoes ADD COLUMN IF NOT EXISTS supplier_charge_status VARCHAR(30)`,
+      `ALTER TABLE devolucoes ADD COLUMN IF NOT EXISTS supplier_credit_value NUMERIC(14,2)`,
+      `ALTER TABLE devolucoes ALTER COLUMN customer_name DROP NOT NULL`,
+      `CREATE INDEX IF NOT EXISTS idx_devolucoes_rma_type ON devolucoes(rma_type)`,
+      `CREATE INDEX IF NOT EXISTS idx_devolucoes_linked ON devolucoes(linked_devolucao_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_devolucoes_supplier ON devolucoes(supplier_name)`,
+    ];
+    for (const s of stmts) {
+      try { await query(s); } catch (e) { console.error('ensureSupplierColumns', s, e.message); }
+    }
+  })();
+  return supplierColumnsReady;
+}
+ensureSupplierColumns().catch(() => {});
+
 async function getUserOrg(userId) {
   const r = await query(
     `SELECT om.organization_id, om.role FROM organization_members om WHERE om.user_id = $1 LIMIT 1`,
@@ -45,12 +77,17 @@ router.get('/', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'Sem organização' });
 
-    const { search, status, seller, reason, date_from, date_to, only_mine } = req.query;
+
+    const { search, status, seller, reason, date_from, date_to, only_mine, rma_type, supplier } = req.query;
     let sql = `
       SELECT d.*,
         u.name as seller_name,
         c.name as created_by_name,
         ct.name as contact_name,
+        ld.numero as linked_numero,
+        ld.rma_type as linked_rma_type,
+        ld.customer_name as linked_customer_name,
+        ld.supplier_name as linked_supplier_name,
         (SELECT COUNT(*)::int FROM devolucao_itens i WHERE i.devolucao_id = d.id) as item_count,
         (SELECT COUNT(*)::int FROM devolucao_anexos a WHERE a.devolucao_id = d.id) as attachment_count,
         (COALESCE(d.inbound_freight_cost,0) + COALESCE(d.outbound_freight_cost,0)) as total_freight_cost
@@ -58,6 +95,7 @@ router.get('/', async (req, res) => {
       LEFT JOIN users u ON u.id = d.seller_user_id
       LEFT JOIN users c ON c.id = d.created_by
       LEFT JOIN contacts ct ON ct.id = d.contact_id
+      LEFT JOIN devolucoes ld ON ld.id = d.linked_devolucao_id
       WHERE d.organization_id = $1
     `;
     const params = [org.organization_id];
@@ -68,10 +106,12 @@ router.get('/', async (req, res) => {
       sql += ` AND (d.seller_user_id = $${i} OR d.created_by = $${i})`;
       params.push(req.userId); i++;
     }
-    if (search) { sql += ` AND (d.customer_name ILIKE $${i} OR d.description ILIKE $${i} OR CAST(d.numero AS TEXT) ILIKE $${i})`; params.push(`%${search}%`); i++; }
+    if (search) { sql += ` AND (COALESCE(d.customer_name,'') ILIKE $${i} OR COALESCE(d.supplier_name,'') ILIKE $${i} OR d.description ILIKE $${i} OR CAST(d.numero AS TEXT) ILIKE $${i})`; params.push(`%${search}%`); i++; }
     if (status) { sql += ` AND d.status = $${i}`; params.push(status); i++; }
     if (seller) { sql += ` AND d.seller_user_id = $${i}`; params.push(seller); i++; }
     if (reason) { sql += ` AND d.reason = $${i}`; params.push(reason); i++; }
+    if (rma_type && rma_type !== 'all') { sql += ` AND COALESCE(d.rma_type,'cliente') = $${i}`; params.push(rma_type); i++; }
+    if (supplier) { sql += ` AND d.supplier_name ILIKE $${i}`; params.push(`%${supplier}%`); i++; }
     if (date_from) { sql += ` AND d.created_at >= $${i}`; params.push(date_from); i++; }
     if (date_to) { sql += ` AND d.created_at <= ($${i}::date + INTERVAL '1 day')`; params.push(date_to); i++; }
 
@@ -86,6 +126,10 @@ router.get('/stats', async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'Sem organização' });
+    const { rma_type } = req.query;
+    const params = [org.organization_id];
+    let where = 'organization_id = $1';
+    if (rma_type && rma_type !== 'all') { where += ` AND COALESCE(rma_type,'cliente') = $2`; params.push(rma_type); }
     const r = await query(`
       SELECT
         COUNT(*)::int as total,
@@ -94,9 +138,13 @@ router.get('/stats', async (req, res) => {
         COUNT(*) FILTER (WHERE status = 'aguardando_nf_produto')::int as waiting_nf,
         COUNT(*) FILTER (WHERE status = 'concluido' AND closed_at >= date_trunc('month', NOW()))::int as closed_this_month,
         COALESCE(SUM(inbound_freight_cost + outbound_freight_cost) FILTER (WHERE status = 'concluido' AND closed_at >= date_trunc('month', NOW())),0) as freight_cost_month,
-        COALESCE(SUM(inbound_freight_cost + outbound_freight_cost),0) as freight_cost_total
-      FROM devolucoes WHERE organization_id = $1
-    `, [org.organization_id]);
+        COALESCE(SUM(inbound_freight_cost + outbound_freight_cost),0) as freight_cost_total,
+        COUNT(*) FILTER (WHERE COALESCE(rma_type,'cliente') = 'cliente')::int as total_cliente,
+        COUNT(*) FILTER (WHERE COALESCE(rma_type,'cliente') = 'fornecedor')::int as total_fornecedor,
+        COUNT(*) FILTER (WHERE COALESCE(rma_type,'cliente') = 'fornecedor' AND status NOT IN ('concluido','recusado','cancelado'))::int as open_fornecedor,
+        COALESCE(SUM(supplier_credit_value) FILTER (WHERE COALESCE(rma_type,'cliente') = 'fornecedor' AND COALESCE(supplier_charge_status,'pendente') NOT IN ('recebido_credito','recebido_produto','perdido')),0) as supplier_credit_pending
+      FROM devolucoes WHERE ${where}
+    `, params);
     res.json(r.rows[0]);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -176,7 +224,10 @@ router.get('/:id', async (req, res) => {
 
     const r = await query(`
       SELECT d.*, u.name as seller_name, c.name as created_by_name, ct.name as contact_name,
-        rb.name as received_by_name, ab.name as analyzed_by_name, cb.name as closed_by_name
+        rb.name as received_by_name, ab.name as analyzed_by_name, cb.name as closed_by_name,
+        ld.numero as linked_numero, ld.rma_type as linked_rma_type,
+        ld.customer_name as linked_customer_name, ld.supplier_name as linked_supplier_name,
+        ld.status as linked_status
       FROM devolucoes d
       LEFT JOIN users u ON u.id = d.seller_user_id
       LEFT JOIN users c ON c.id = d.created_by
@@ -184,6 +235,7 @@ router.get('/:id', async (req, res) => {
       LEFT JOIN users ab ON ab.id = d.analyzed_by
       LEFT JOIN users cb ON cb.id = d.closed_by
       LEFT JOIN contacts ct ON ct.id = d.contact_id
+      LEFT JOIN devolucoes ld ON ld.id = d.linked_devolucao_id
       WHERE d.id = $1 AND d.organization_id = $2
     `, [req.params.id, org.organization_id]);
 
@@ -205,21 +257,36 @@ router.post('/', async (req, res) => {
     if (!org) return res.status(403).json({ error: 'Sem organização' });
 
     const b = req.body || {};
-    if (!b.customer_name) return res.status(400).json({ error: 'Nome do cliente é obrigatório' });
+    const rmaType = b.rma_type === 'fornecedor' ? 'fornecedor' : 'cliente';
+    if (rmaType === 'cliente' && !b.customer_name) {
+      return res.status(400).json({ error: 'Nome do cliente é obrigatório' });
+    }
+    if (rmaType === 'fornecedor' && !b.supplier_name) {
+      return res.status(400).json({ error: 'Nome do fornecedor é obrigatório' });
+    }
 
     const r = await query(`
       INSERT INTO devolucoes (
         organization_id, contact_id, deal_id, customer_name, customer_document, customer_whatsapp,
         customer_email, customer_address, opened_channel, seller_user_id, created_by, priority,
-        reason, description, original_order_number, original_invoice_number, original_invoice_date
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+        reason, description, original_order_number, original_invoice_number, original_invoice_date,
+        rma_type, linked_devolucao_id,
+        supplier_name, supplier_document, supplier_contact_name, supplier_whatsapp, supplier_email,
+        supplier_address, supplier_rma_number, supplier_expected_return_date, warranty_type,
+        supplier_charge_status, supplier_credit_value
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30)
       RETURNING *
     `, [
-      org.organization_id, b.contact_id || null, b.deal_id || null, b.customer_name,
+      org.organization_id, b.contact_id || null, b.deal_id || null, b.customer_name || null,
       b.customer_document || null, b.customer_whatsapp || null, b.customer_email || null,
       b.customer_address || null, b.opened_channel || 'sac', b.seller_user_id || req.userId,
       req.userId, b.priority || 'normal', b.reason || 'defeito', b.description || null,
       b.original_order_number || null, b.original_invoice_number || null, b.original_invoice_date || null,
+      rmaType, b.linked_devolucao_id || null,
+      b.supplier_name || null, b.supplier_document || null, b.supplier_contact_name || null,
+      b.supplier_whatsapp || null, b.supplier_email || null, b.supplier_address || null,
+      b.supplier_rma_number || null, b.supplier_expected_return_date || null, b.warranty_type || null,
+      b.supplier_charge_status || null, b.supplier_credit_value ?? null,
     ]);
     const dev = r.rows[0];
 
@@ -234,7 +301,10 @@ router.post('/', async (req, res) => {
       }
     }
 
-    await logEvent(dev.id, req.userId, 'status_change', { to_status: dev.status, message: 'Devolução aberta' });
+    await logEvent(dev.id, req.userId, 'status_change', { to_status: dev.status, message: rmaType === 'fornecedor' ? 'RMA de fornecedor aberto' : 'Devolução aberta' });
+    if (b.linked_devolucao_id) {
+      await logEvent(b.linked_devolucao_id, req.userId, 'note', { message: `RMA de fornecedor #${dev.numero} vinculado a esta devolução` });
+    }
     res.status(201).json(dev);
   } catch (e) { console.error('create devolucao', e); res.status(500).json({ error: e.message }); }
 });
@@ -262,7 +332,12 @@ router.put('/:id', async (req, res) => {
       'outbound_invoice_number','outbound_invoice_date','outbound_invoice_value',
       'outbound_tracking_code','outbound_carrier','outbound_sent_at',
       'outbound_freight_cost','outbound_freight_status',
-      'resolution_summary','status'
+      'resolution_summary','status',
+      // Fornecedor / cross-link
+      'rma_type','linked_devolucao_id',
+      'supplier_name','supplier_document','supplier_contact_name','supplier_whatsapp',
+      'supplier_email','supplier_address','supplier_rma_number','supplier_expected_return_date',
+      'warranty_type','supplier_charge_status','supplier_credit_value'
     ];
     const sets = []; const params = []; let i = 1;
     for (const f of fields) {
@@ -287,6 +362,10 @@ router.put('/:id', async (req, res) => {
 
     if (b.status && b.status !== prev.status) {
       await logEvent(dev.id, req.userId, 'status_change', { from_status: prev.status, to_status: dev.status });
+      if (prev.linked_devolucao_id) {
+        const kind = (prev.rma_type === 'fornecedor') ? 'fornecedor' : 'cliente';
+        await logEvent(prev.linked_devolucao_id, req.userId, 'note', { message: `RMA ${kind} vinculado mudou de ${prev.status} → ${dev.status}` });
+      }
     }
     if (b.inbound_invoice_number && b.inbound_invoice_number !== prev.inbound_invoice_number) {
       await logEvent(dev.id, req.userId, 'invoice', { message: `NF de entrada registrada: ${b.inbound_invoice_number}` });
@@ -318,8 +397,66 @@ router.patch('/:id/status', async (req, res) => {
     const sql = `UPDATE devolucoes SET status = $1, updated_at = NOW() ${closedSql} WHERE id = $2 AND organization_id = $${orgIdx} RETURNING *`;
     const r = await query(sql, args);
     await logEvent(req.params.id, req.userId, 'status_change', { from_status: prev.status, to_status: status, message: note || null });
+    if (prev.linked_devolucao_id) {
+      const kind = (prev.rma_type === 'fornecedor') ? 'fornecedor' : 'cliente';
+      await logEvent(prev.linked_devolucao_id, req.userId, 'note', { message: `RMA ${kind} vinculado mudou de ${prev.status} → ${status}` });
+    }
     res.json(r.rows[0]);
   } catch (e) { console.error('status change', e); res.status(500).json({ error: e.message }); }
+});
+
+// ============================================ LINK SUPPLIER (cross-link cliente → fornecedor)
+router.post('/:id/link-supplier', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+    const src = await query('SELECT * FROM devolucoes WHERE id = $1 AND organization_id = $2', [req.params.id, org.organization_id]);
+    if (!src.rows[0]) return res.status(404).json({ error: 'Devolução não encontrada' });
+    const s = src.rows[0];
+
+    const b = req.body || {};
+    if (!b.supplier_name) return res.status(400).json({ error: 'Nome do fornecedor é obrigatório' });
+
+    const r = await query(`
+      INSERT INTO devolucoes (
+        organization_id, created_by, seller_user_id, priority, reason, description,
+        rma_type, linked_devolucao_id, opened_channel,
+        supplier_name, supplier_document, supplier_contact_name, supplier_whatsapp,
+        supplier_email, supplier_address, supplier_rma_number, supplier_expected_return_date,
+        warranty_type, supplier_charge_status
+      ) VALUES ($1,$2,$3,$4,$5,$6,'fornecedor',$7,'sac',$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+      RETURNING *
+    `, [
+      org.organization_id, req.userId, s.seller_user_id, s.priority || 'normal',
+      s.reason || 'garantia',
+      b.description || `Garantia solicitada ao fornecedor referente à devolução #${s.numero} do cliente ${s.customer_name || ''}`.trim(),
+      s.id,
+      b.supplier_name, b.supplier_document || null, b.supplier_contact_name || null,
+      b.supplier_whatsapp || null, b.supplier_email || null, b.supplier_address || null,
+      b.supplier_rma_number || null, b.supplier_expected_return_date || null,
+      b.warranty_type || 'garantia_fabrica', b.supplier_charge_status || 'pendente',
+    ]);
+    const dev = r.rows[0];
+
+    // Copia itens
+    const itens = (await query('SELECT * FROM devolucao_itens WHERE devolucao_id = $1', [s.id])).rows;
+    for (const it of itens) {
+      await query(
+        `INSERT INTO devolucao_itens (devolucao_id, sku, product_name, quantity, serial_number, unit_value, notes)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [dev.id, it.sku, it.product_name, it.quantity, it.serial_number, it.unit_value, it.notes]
+      );
+    }
+
+    await logEvent(dev.id, req.userId, 'status_change', { to_status: dev.status, message: `RMA fornecedor aberto (vinculado ao RMA cliente #${s.numero})` });
+    await logEvent(s.id, req.userId, 'note', { message: `RMA de fornecedor #${dev.numero} aberto para ${b.supplier_name}` });
+    // Se a devolução de cliente ainda não tinha link, aponta pra este novo RMA de fornecedor
+    if (!s.linked_devolucao_id) {
+      await query('UPDATE devolucoes SET linked_devolucao_id = $1, updated_at = NOW() WHERE id = $2', [dev.id, s.id]);
+    }
+
+    res.status(201).json(dev);
+  } catch (e) { console.error('link supplier', e); res.status(500).json({ error: e.message }); }
 });
 
 // ============================================ DELETE
