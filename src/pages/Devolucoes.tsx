@@ -46,6 +46,7 @@ export default function Devolucoes() {
   const [status, setStatus] = useState<string>('all');
   const [reason, setReason] = useState<string>('all');
   const [sla, setSla] = useState<string>('all');
+  const [rmaType, setRmaType] = useState<'all' | 'cliente' | 'fornecedor'>('all');
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -56,6 +57,7 @@ export default function Devolucoes() {
     search: search || undefined,
     status: status !== 'all' ? status : undefined,
     reason: reason !== 'all' ? reason : undefined,
+    rma_type: rmaType,
   };
   const { data: allDevolucoes = [], isLoading } = useDevolucoes(filters);
   const { data: stats } = useDevolucoesStats();
