@@ -900,13 +900,6 @@ export default function CRMMetas() {
                                 <TableCell className="text-center text-green-600 font-medium">{ch.orders}</TableCell>
                                 <TableCell className="text-right text-sm">{fmt(ch.orders_value)}</TableCell>
                                 <TableCell className="text-right text-amber-600 font-medium">{fmt(ch.billing_value)}</TableCell>
-                                <TableCell className="text-right font-medium text-emerald-600">
-                                  {(() => {
-                                    const real = computeRealMarginPct(ch.value_with_cost, ch.total_cost);
-                                    if (real > 0) return `${real.toFixed(1)}%`;
-                                    return ch.margin_count > 0 ? `${(ch.total_margin / ch.margin_count).toFixed(1)}%` : "0%";
-                                  })()}
-                                </TableCell>
                                 <TableCell className="text-right font-medium text-teal-600">
                                   {(() => {
                                     const avgMargin = ch.margin_count > 0 ? (ch.total_margin / ch.margin_count) : 0;
