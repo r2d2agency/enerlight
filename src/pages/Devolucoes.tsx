@@ -142,12 +142,23 @@ export default function Devolucoes() {
           </div>
         )}
 
+        {/* Type tabs */}
+        {!simplified && (
+          <Tabs value={rmaType} onValueChange={(v: any) => setRmaType(v)}>
+            <TabsList>
+              <TabsTrigger value="all">Todos</TabsTrigger>
+              <TabsTrigger value="cliente">RMA Cliente</TabsTrigger>
+              <TabsTrigger value="fornecedor">RMA Fornecedor</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        )}
+
         {/* Filters + view toggle */}
         <Card>
           <CardContent className="pt-4 flex flex-col md:flex-row gap-3">
             <div className="relative flex-1">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input className="pl-8" placeholder="Buscar por cliente, descrição ou número..." value={search} onChange={e => setSearch(e.target.value)} />
+              <Input className="pl-8" placeholder={rmaType === 'fornecedor' ? 'Buscar por fornecedor, descrição ou número...' : 'Buscar por cliente, descrição ou número...'} value={search} onChange={e => setSearch(e.target.value)} />
             </div>
             <Select value={status} onValueChange={setStatus}>
               <SelectTrigger className="md:w-52"><SelectValue placeholder="Status" /></SelectTrigger>
