@@ -38,7 +38,8 @@ export function DevolucaoFormDialog({ open, onOpenChange, devolucao }: Props) {
     if (open) {
       if (devolucao) {
         setForm({
-          customer_name: devolucao.customer_name,
+          rma_type: devolucao.rma_type || 'cliente',
+          customer_name: devolucao.customer_name || '',
           customer_document: devolucao.customer_document || '',
           customer_whatsapp: devolucao.customer_whatsapp || '',
           customer_email: devolucao.customer_email || '',
@@ -51,13 +52,28 @@ export function DevolucaoFormDialog({ open, onOpenChange, devolucao }: Props) {
           original_order_number: devolucao.original_order_number || '',
           original_invoice_number: devolucao.original_invoice_number || '',
           original_invoice_date: devolucao.original_invoice_date || '',
+          supplier_name: devolucao.supplier_name || '',
+          supplier_document: devolucao.supplier_document || '',
+          supplier_contact_name: devolucao.supplier_contact_name || '',
+          supplier_whatsapp: devolucao.supplier_whatsapp || '',
+          supplier_email: devolucao.supplier_email || '',
+          supplier_address: devolucao.supplier_address || '',
+          supplier_rma_number: devolucao.supplier_rma_number || '',
+          supplier_expected_return_date: devolucao.supplier_expected_return_date?.slice(0,10) || '',
+          warranty_type: devolucao.warranty_type || '',
+          supplier_charge_status: devolucao.supplier_charge_status || '',
+          supplier_credit_value: devolucao.supplier_credit_value ?? '',
         });
         setItens(devolucao.itens?.length ? devolucao.itens.map(i => ({ ...i })) : [{ product_name: '', quantity: 1 }]);
       } else {
         setForm({
+          rma_type: 'cliente',
           customer_name: '', customer_document: '', customer_whatsapp: '', customer_email: '', customer_address: '',
           opened_channel: 'sac', seller_user_id: user?.id, priority: 'normal', reason: 'defeito',
           description: '', original_order_number: '', original_invoice_number: '', original_invoice_date: '',
+          supplier_name: '', supplier_document: '', supplier_contact_name: '', supplier_whatsapp: '',
+          supplier_email: '', supplier_address: '', supplier_rma_number: '', supplier_expected_return_date: '',
+          warranty_type: 'garantia_fabrica', supplier_charge_status: 'pendente', supplier_credit_value: '',
         });
         setItens([{ product_name: '', quantity: 1, sku: '', serial_number: '' }]);
       }
