@@ -154,6 +154,12 @@ async function generateReportText(orgId, userId, reportType, includeChannels, in
       text += `  Saldo: ${saldoMtd >= 0 ? '✅' : '❌'} ${fmt(saldoMtd)}\n`;
     }
 
+    if (s.type !== 'orcamento' && s.data.cost > 0) {
+      const markup = s.data.value / s.data.cost;
+      const markupStr = markup.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      text += `  Markup: ${markupStr}\n`;
+    }
+
     const enerlightVal = enerlightByType[s.type] || 0;
     if (enerlightVal > 0 && reportType === 'full') {
       const realSemEnerlight = s.data.value - enerlightVal;
@@ -163,6 +169,7 @@ async function generateReportText(orgId, userId, reportType, includeChannels, in
     }
     text += '\n';
   }
+
 
   // Channel breakdown
   if (includeChannels && reportType === 'full') {
