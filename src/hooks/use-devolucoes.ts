@@ -146,6 +146,8 @@ export function useDevolucoes(filters?: DevolucaoFilters) {
   if (filters?.date_from) params.set('date_from', filters.date_from);
   if (filters?.date_to) params.set('date_to', filters.date_to);
   if (filters?.only_mine) params.set('only_mine', '1');
+  if (filters?.rma_type && filters.rma_type !== 'all') params.set('rma_type', filters.rma_type);
+  if (filters?.supplier) params.set('supplier', filters.supplier);
   const qs = params.toString();
   return useQuery<Devolucao[]>({
     queryKey: ['devolucoes', filters],
@@ -165,6 +167,7 @@ export function useDevolucoesStats() {
   return useQuery<{
     total: number; open_count: number; in_analysis: number; waiting_nf: number;
     closed_this_month: number; freight_cost_month: number; freight_cost_total: number;
+    supplier_open?: number; supplier_pending_credit?: number;
   }>({
     queryKey: ['devolucoes-stats'],
     queryFn: () => api('/api/devolucoes/stats'),
