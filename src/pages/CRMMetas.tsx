@@ -1318,16 +1318,9 @@ export default function CRMMetas() {
                               )}
                               <TableHead colSpan={recordsType === "orcamento" ? 3 : 4}></TableHead>
                               {recordsType !== "orcamento" && (
-                                <TableHead className="text-right font-semibold">
-                                  {recordsData.totals.total_cost > 0 && recordsData.totals.value_with_cost > 0
-                                    ? `${(((recordsData.totals.value_with_cost - recordsData.totals.total_cost) / recordsData.totals.value_with_cost) * 100).toFixed(1).replace('.', ',')}%`
-                                    : "—"}
-                                </TableHead>
-                              )}
-                              {recordsType !== "orcamento" && (
                                 <TableHead className="text-right font-semibold text-emerald-600">
                                   {recordsData.totals.total_cost > 0 && recordsData.totals.value_with_cost > 0
-                                    ? `${(recordsData.totals.value_with_cost / recordsData.totals.total_cost).toFixed(2).replace('.', ',')}x`
+                                    ? (recordsData.totals.value_with_cost / recordsData.totals.total_cost).toFixed(2).replace('.', ',')
                                     : "—"}
                                 </TableHead>
                               )}
