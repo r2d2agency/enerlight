@@ -69,8 +69,11 @@ async function generateReportText(orgId, userId, reportType, includeChannels, in
     `SELECT data_type,
             COUNT(*) as count,
             COALESCE(SUM(value),0) as total_value,
-            COALESCE(SUM(CASE WHEN margin IS NOT NULL AND (1 + margin/100.0) <> 0
-                              THEN value / (1 + margin/100.0) END),0) as total_cost
+            COALESCE(SUM(
+              COALESCE(cost,
+                CASE WHEN margin IS NOT NULL AND (1 + margin/100.0) <> 0
+                     THEN value / (1 + margin/100.0) END)
+            ),0) as total_cost
      FROM crm_goals_data WHERE ${baseWhere}${userFilter} GROUP BY data_type`, params
   );
   const gd = {
