@@ -51,6 +51,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import FacialValidation from "../FacialValidation";
+import EmployeeRhDialog from "./EmployeeRhDialog";
 
 interface Employee {
   id: string;
@@ -94,6 +95,8 @@ export default function EmployeeManagement() {
   const [isLocationDialogOpen, setIsLocationDialogOpen] = useState(false);
   const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
   const [isFacialDialogOpen, setIsFacialDialogOpen] = useState(false);
+  const [isRhDialogOpen, setIsRhDialogOpen] = useState(false);
+  
   
   // New Location state
   const [newLocation, setNewLocation] = useState({
