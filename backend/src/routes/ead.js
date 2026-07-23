@@ -1616,11 +1616,134 @@ admin.post('/students/:id/issue-certificate', gate('can_manage_ead'), async (req
   }
 });
 
+// ---- Notifica o aluno com o link do certificado (WhatsApp + e-mail) ----
+async function notifyCertificate(student, brand, certUrl, courseTitle) {
+  const result = { whatsapp: null, email: null };
+  const nome = student.name || '';
+  const marca = brand?.name || '';
+  const curso = courseTitle || '';
+  const message = `Olá ${nome}! 🎓\n\nSeu certificado do curso *${curso}*${marca ? ` (${marca})` : ''} está disponível.\n\n📄 Baixe aqui: ${certUrl}\n\nParabéns pela conquista!`;
 
+  if (student.phone) {
+    try {
+      let conn = null;
+      if (brand?.notify_connection_id) {
+        const c = await query('SELECT * FROM connections WHERE id = $1', [brand.notify_connection_id]);
+        conn = c.rows[0] || null;
+      }
+      if (!conn) {
+        const orgId = brand?.organization_id || student.organization_id;
+        if (orgId) {
+          const c = await query(
+            `SELECT * FROM connections WHERE organization_id = $1
+             ORDER BY CASE WHEN status = 'connected' THEN 0 ELSE 1 END, created_at ASC LIMIT 1`,
+            [orgId]
+          );
+          conn = c.rows[0] || null;
+        }
+      }
+      if (conn) {
+        const r = await sendWhatsapp(conn, student.phone, message, 'text');
+        result.whatsapp = r;
+      } else {
+        result.whatsapp = { success: false, error: 'Nenhuma conexão WhatsApp disponível' };
+      }
+    } catch (e) {
+      result.whatsapp = { success: false, error: e.message };
+    }
+  } else {
+    result.whatsapp = { success: false, error: 'Aluno sem telefone' };
+  }
 
+  if (student.email && brand?.organization_id) {
+    try {
+      const cfg = await query('SELECT * FROM email_smtp_configs WHERE organization_id = $1 LIMIT 1', [brand.organization_id]);
+      const smtp = cfg.rows[0];
+      if (smtp) {
+        const ENC = process.env.EMAIL_ENCRYPTION_KEY || 'whatsale-email-key-32chars!!';
+        const [ivHex, enc] = String(smtp.password_encrypted).split(':');
+        const iv = Buffer.from(ivHex, 'hex');
+        const key = crypto.scryptSync(ENC, 'salt', 32);
+        const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+        let pass = decipher.update(enc, 'hex', 'utf8'); pass += decipher.final('utf8');
+        const transporter = nodemailer.createTransport({
+          host: smtp.host, port: smtp.port, secure: smtp.secure,
+          auth: { user: smtp.username, pass },
+          tls: { rejectUnauthorized: false },
+          connectionTimeout: 8000, greetingTimeout: 8000, socketTimeout: 8000,
+        });
+        await transporter.sendMail({
+          from: `"${smtp.from_name || brand?.name || 'Academia'}" <${smtp.from_email}>`,
+          to: student.email,
+          subject: `Seu certificado - ${curso}`,
+          html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:24px;border:1px solid #eee;border-radius:8px">
+            ${brand?.logo_url ? `<div style="text-align:center;margin-bottom:16px"><img src="${brand.logo_url}" alt="${brand.name}" style="max-height:80px"/></div>` : ''}
+            <h2 style="color:${brand?.primary_color || '#0ea5e9'}">Parabéns, ${nome}!</h2>
+            <p>Seu certificado do curso <strong>${curso}</strong> está pronto.</p>
+            <p style="margin-top:24px"><a href="${certUrl}" style="background:${brand?.primary_color || '#0ea5e9'};color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;display:inline-block">Baixar certificado</a></p>
+            <p style="color:#666;font-size:12px;margin-top:24px">Se o botão não funcionar, copie e cole: ${certUrl}</p>
+          </div>`,
+        });
+        result.email = { success: true };
+      } else result.email = { success: false, error: 'Sem SMTP configurado' };
+    } catch (e) { result.email = { success: false, error: e.message }; }
+  } else {
+    result.email = { success: false, error: 'Sem e-mail ou organização' };
+  }
+  return result;
+}
 
+// ---- Regerar certificado e reenviar ao aluno ----
+admin.post('/certificates/regenerate', gate('can_manage_ead'), async (req, res) => {
+  try {
+    await ensureEadApprovalSchema();
+    const { student_id, course_id, certificate_id, resend = true } = req.body || {};
+    let sid = student_id, cid = course_id;
+    if (!sid || !cid) {
+      if (!certificate_id) return res.status(400).json({ error: 'Informe student_id + course_id, ou certificate_id' });
+      const c = await query('SELECT student_id, course_id FROM ead_certificates WHERE id=$1', [certificate_id]);
+      if (!c.rows.length) return res.status(404).json({ error: 'Certificado não encontrado' });
+      sid = c.rows[0].student_id; cid = c.rows[0].course_id;
+    }
 
+    const sQ = await runWithEadSchemaRetry(() => query('SELECT * FROM ead_students WHERE id=$1', [sid]));
+    if (!sQ.rows.length) return res.status(404).json({ error: 'Aluno não encontrado' });
+    const student = sQ.rows[0];
 
+    const coQ = await query('SELECT id, title, has_certificate FROM ead_courses WHERE id=$1', [cid]);
+    if (!coQ.rows.length) return res.status(404).json({ error: 'Curso não encontrado' });
+    const course = coQ.rows[0];
+    if (course.has_certificate === false) return res.status(400).json({ error: 'Curso não emite certificado' });
+
+    const brand = student.brand_id
+      ? (await runWithEadSchemaRetry(() => query('SELECT * FROM ead_brands WHERE id=$1', [student.brand_id]))).rows[0]
+      : null;
+
+    await query(
+      `INSERT INTO ead_enrollments (student_id, course_id, status, approved_at)
+       VALUES ($1,$2,'approved',NOW())
+       ON CONFLICT (student_id, course_id) DO UPDATE SET
+         status='approved',
+         approved_at=COALESCE(ead_enrollments.approved_at, EXCLUDED.approved_at)`,
+      [sid, cid]
+    );
+
+    const certificate = await generateCertificate(sid, cid);
+
+    let notify = null;
+    if (resend) {
+      notify = await withTimeout(
+        notifyCertificate(student, brand, certificate.pdf_url, course.title),
+        10000, 'Notificação de certificado'
+      ).catch((e) => ({ whatsapp: { success: false, error: e.message }, email: { success: false, error: e.message } }));
+    }
+
+    res.json({ ok: true, certificate, notify });
+  } catch (e) {
+    console.error('regenerate-certificate', e);
+    res.status(500).json({ error: e?.message || 'Erro ao regerar certificado' });
+  }
+});
 
 
 admin.patch('/students/:id', gate('can_manage_ead'), async (req, res) => {
