@@ -3,10 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import {
   Clock,
-  Play,
-  Coffee,
-  History as HistoryIcon,
-  LogOut,
+  Fingerprint,
   Loader2,
   CheckCircle2,
   XCircle,
@@ -25,7 +22,15 @@ import {
 } from '@/lib/face-recognition';
 import { getAssignedJourney } from '@/lib/rh-journeys';
 
-type PointType = 'Entrada' | 'Café' | 'Volta Café' | 'Almoço' | 'Volta' | 'Saída';
+const LABEL_MAP: Record<string, string> = {
+  entrada: 'Entrada',
+  cafe_ini: 'Intervalo',
+  cafe_fim: 'Retorno intervalo',
+  almoco_ini: 'Almoço (saída)',
+  almoco_fim: 'Almoço (volta)',
+  saida: 'Saída',
+  extra: 'Extra',
+};
 
 const MATCH_THRESHOLD = 0.55; // rigoroso para kiosk
 
