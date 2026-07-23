@@ -307,6 +307,8 @@ export default function PunchAdmin() {
                       <div className="text-xs text-muted-foreground">{row.email}</div>
                     </TableCell>
                     <TableCell>{cell('entrada')}</TableCell>
+                    <TableCell>{cell('cafe_ini')}</TableCell>
+                    <TableCell>{cell('cafe_fim')}</TableCell>
                     <TableCell>{cell('almoco_ini')}</TableCell>
                     <TableCell>{cell('almoco_fim')}</TableCell>
                     <TableCell>{cell('saida')}</TableCell>
