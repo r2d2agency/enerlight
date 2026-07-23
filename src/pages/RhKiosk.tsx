@@ -99,14 +99,14 @@ export default function RhKiosk() {
   }, [getEmployees, stopCamera]);
 
   const registerPoint = useCallback(
-    async (type: PointType) => {
+    async () => {
       if (busyRef.current || !videoRef.current) return;
       if (!candidates.length) {
         toast.error('Nenhum colaborador cadastrado facialmente.');
         return;
       }
       busyRef.current = true;
-      setPending(type);
+      setPending(true);
       setStatus('Identificando rosto...');
 
       let descriptor: number[] | null = null;
@@ -122,7 +122,7 @@ export default function RhKiosk() {
         setStatus('Nenhum rosto detectado. Tente novamente.');
         toast.error('Não foi possível detectar seu rosto.');
         busyRef.current = false;
-        setPending(null);
+        setPending(false);
         return;
       }
 
@@ -131,56 +131,44 @@ export default function RhKiosk() {
         setStatus(`Colaborador não reconhecido (score ${match ? match.score.toFixed(0) : '0'}).`);
         toast.error('Rosto não reconhecido. Aproxime-se e tente novamente.');
         busyRef.current = false;
-        setPending(null);
+        setPending(false);
         return;
       }
 
       const time = new Date().toLocaleTimeString('pt-BR');
-      setRecognized({ name: match.candidate.name, type, score: match.score, time });
-      setLastRegisters((prev) => [{ name: match.candidate.name, type, time }, ...prev].slice(0, 6));
-      toast.success(`${type} de ${match.candidate.name} registrado!`);
-      setStatus('Selecione o tipo de ponto e olhe para a câmera');
 
-      // Persistir batida no backend
+      // Persistir batida no backend (auto-classifica tipo)
+      let typeLabel = 'Batida';
       try {
-        const typeMap: Record<PointType, string> = {
-          'Entrada': 'entrada',
-          'Café': 'cafe_ini',
-          'Volta Café': 'cafe_fim',
-          'Almoço': 'almoco_ini',
-          'Volta': 'almoco_fim',
-          'Saída': 'saida',
-        };
         const { api } = await import('@/lib/api');
-        await api('/api/rh/punches', {
+        const p: any = await api('/api/rh/punches', {
           method: 'POST',
           body: {
             user_id: match.candidate.id,
-            punch_type: typeMap[type],
             source: 'kiosk',
           },
         });
+        typeLabel = LABEL_MAP[p?.punch_type] || 'Batida';
       } catch (err: any) {
         console.error('Erro ao salvar batida', err);
         toast.error('Batida reconhecida, mas falhou ao salvar: ' + (err?.message || 'erro'));
+        busyRef.current = false;
+        setPending(false);
+        return;
       }
       void getAssignedJourney(match.candidate.id);
 
+      setRecognized({ name: match.candidate.name, type: typeLabel, score: match.score, time });
+      setLastRegisters((prev) => [{ name: match.candidate.name, type: typeLabel, time }, ...prev].slice(0, 6));
+      toast.success(`${typeLabel} de ${match.candidate.name} registrado!`);
+      setStatus('Toque em "Bater Ponto" e olhe para a câmera');
+
       setTimeout(() => setRecognized(null), 5000);
       busyRef.current = false;
-      setPending(null);
+      setPending(false);
     },
     [candidates],
   );
-
-  const btns: { type: PointType; icon: any; variant: any }[] = [
-    { type: 'Entrada', icon: Play, variant: 'default' },
-    { type: 'Café', icon: Coffee, variant: 'secondary' },
-    { type: 'Volta Café', icon: HistoryIcon, variant: 'secondary' },
-    { type: 'Almoço', icon: Coffee, variant: 'secondary' },
-    { type: 'Volta', icon: HistoryIcon, variant: 'secondary' },
-    { type: 'Saída', icon: LogOut, variant: 'destructive' },
-  ];
 
   return (
     <div className="fixed inset-0 z-50 bg-background flex flex-col">
