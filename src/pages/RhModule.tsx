@@ -15,6 +15,8 @@ import JourneyManagement from "@/components/rh/admin/JourneyManagement";
 import PunchAdmin from "@/components/rh/admin/PunchAdmin";
 import RhDashboard from "@/components/rh/RhDashboard";
 import { useAuth } from "@/contexts/AuthContext";
+import { MainLayout } from "@/components/layout/MainLayout";
+
 
 type SectionId =
   | "dashboard" | "my-point" | "punches" | "employees"
