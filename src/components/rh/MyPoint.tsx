@@ -3,8 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  Clock, MapPin, User, Play, Coffee, LogOut,
-  CheckCircle2, History, AlertTriangle, RefreshCw,
+  Clock, MapPin, User, Fingerprint,
+  CheckCircle2, AlertTriangle, RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -12,26 +12,17 @@ import FacialValidation from "./FacialValidation";
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
 
-type PunchType = 'Entrada' | 'Café' | 'Volta Café' | 'Almoço' | 'Volta' | 'Saída';
-
-const TYPE_MAP: Record<PunchType, string> = {
-  'Entrada': 'entrada',
-  'Café': 'cafe_ini',
-  'Volta Café': 'cafe_fim',
-  'Almoço': 'almoco_ini',
-  'Volta': 'almoco_fim',
-  'Saída': 'saida',
-};
-
 const LABEL_MAP: Record<string, string> = {
   entrada: 'Entrada',
-  cafe_ini: 'Café (saída)',
-  cafe_fim: 'Volta do café',
+  cafe_ini: 'Intervalo',
+  cafe_fim: 'Retorno intervalo',
   almoco_ini: 'Almoço (saída)',
-  almoco_fim: 'Volta do almoço',
+  almoco_fim: 'Almoço (volta)',
   saida: 'Saída',
   extra: 'Extra',
 };
+
+const MAX_PER_DAY = 6;
 
 function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 6371e3;
@@ -52,7 +43,7 @@ export default function MyPoint() {
   const [now, setNow] = useState(new Date());
   const [gpsStatus, setGpsStatus] = useState<'active' | 'inactive' | 'checking'>('checking');
   const [showFacial, setShowFacial] = useState(false);
-  const [pendingPoint, setPendingPoint] = useState<PunchType | null>(null);
+  const [pendingClick, setPendingClick] = useState(false);
   const [myPunches, setMyPunches] = useState<any[]>([]);
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
 
@@ -103,38 +94,41 @@ export default function MyPoint() {
       );
     });
 
-  const handleRegisterClick = async (type: PunchType) => {
+  const handleRegisterClick = async () => {
+    if (todayPunches.length >= MAX_PER_DAY) {
+      toast.error(`Limite de ${MAX_PER_DAY} batidas por dia atingido.`);
+      return;
+    }
     if (gpsStatus !== 'active') { toast.error("Ative o GPS"); checkGPS(); return; }
     const loc = await validateLocation();
     if (!loc.ok) return;
     setCoords({ lat: loc.lat!, lng: loc.lng! });
-    setPendingPoint(type);
+    setPendingClick(true);
     setShowFacial(true);
   };
 
   const onFacialValidated = async (success: boolean) => {
     setShowFacial(false);
-    if (!success || !pendingPoint) {
+    if (!success || !pendingClick) {
       if (!success) toast.error("Não foi possível validar sua identidade.");
-      setPendingPoint(null);
+      setPendingClick(false);
       return;
     }
     try {
-      await api('/api/rh/punches', {
+      const p: any = await api('/api/rh/punches', {
         method: 'POST',
         body: {
-          punch_type: TYPE_MAP[pendingPoint],
           source: 'app',
           latitude: coords?.lat,
           longitude: coords?.lng,
         },
       });
-      toast.success(`${pendingPoint} registrado com sucesso!`);
+      toast.success(`Ponto registrado: ${LABEL_MAP[p?.punch_type] || 'Batida'}`);
       loadPunches();
     } catch (e: any) {
       toast.error(e?.message || 'Erro ao registrar batida');
     }
-    setPendingPoint(null);
+    setPendingClick(false);
   };
 
   // Agrupa por dia
@@ -153,7 +147,7 @@ export default function MyPoint() {
     <div className="container max-w-lg mx-auto p-4 space-y-6 pb-20">
       {showFacial && (
         <FacialValidation mode="validate" targetId={user?.id}
-          onValidated={onFacialValidated} onCancel={() => { setShowFacial(false); setPendingPoint(null); }} />
+          onValidated={onFacialValidated} onCancel={() => { setShowFacial(false); setPendingClick(false); }} />
       )}
 
       <Card className="border-none shadow-lg bg-gradient-to-br from-primary/10 via-background to-background">
@@ -189,32 +183,20 @@ export default function MyPoint() {
         </CardContent></Card>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
-        <Button size="lg" className="h-20 flex flex-col gap-1 rounded-2xl"
-          disabled={lastType === 'entrada'} onClick={() => handleRegisterClick("Entrada")}>
-          <Play className="h-5 w-5" /><span className="font-bold text-xs">Entrada</span>
-        </Button>
-        <Button size="lg" variant="secondary" className="h-20 flex flex-col gap-1 rounded-2xl"
-          onClick={() => handleRegisterClick("Café")}>
-          <Coffee className="h-5 w-5" /><span className="font-bold text-xs">Café</span>
-        </Button>
-        <Button size="lg" variant="secondary" className="h-20 flex flex-col gap-1 rounded-2xl"
-          onClick={() => handleRegisterClick("Volta Café")}>
-          <History className="h-5 w-5" /><span className="font-bold text-xs">Volta Café</span>
-        </Button>
-        <Button size="lg" variant="secondary" className="h-20 flex flex-col gap-1 rounded-2xl"
-          onClick={() => handleRegisterClick("Almoço")}>
-          <Coffee className="h-5 w-5" /><span className="font-bold text-xs">Almoço</span>
-        </Button>
-        <Button size="lg" variant="secondary" className="h-20 flex flex-col gap-1 rounded-2xl"
-          onClick={() => handleRegisterClick("Volta")}>
-          <History className="h-5 w-5" /><span className="font-bold text-xs">Volta</span>
-        </Button>
-        <Button size="lg" variant="destructive" className="h-20 flex flex-col gap-1 rounded-2xl"
-          onClick={() => handleRegisterClick("Saída")}>
-          <LogOut className="h-5 w-5" /><span className="font-bold text-xs">Saída</span>
-        </Button>
-      </div>
+      <Button
+        size="lg"
+        className="h-24 w-full flex flex-col gap-1 rounded-2xl text-lg"
+        disabled={todayPunches.length >= MAX_PER_DAY}
+        onClick={handleRegisterClick}
+      >
+        <Fingerprint className="h-6 w-6" />
+        <span className="font-bold">
+          {todayPunches.length >= MAX_PER_DAY ? 'Limite atingido' : 'Bater Ponto'}
+        </span>
+        <span className="text-[11px] opacity-80">
+          {todayPunches.length}/{MAX_PER_DAY} batidas hoje
+        </span>
+      </Button>
 
       <Card>
         <CardHeader className="pb-2 flex flex-row items-center justify-between">

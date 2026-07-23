@@ -3,10 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import {
   Clock,
-  Play,
-  Coffee,
-  History as HistoryIcon,
-  LogOut,
+  Fingerprint,
   Loader2,
   CheckCircle2,
   XCircle,
@@ -25,7 +22,15 @@ import {
 } from '@/lib/face-recognition';
 import { getAssignedJourney } from '@/lib/rh-journeys';
 
-type PointType = 'Entrada' | 'Café' | 'Volta Café' | 'Almoço' | 'Volta' | 'Saída';
+const LABEL_MAP: Record<string, string> = {
+  entrada: 'Entrada',
+  cafe_ini: 'Intervalo',
+  cafe_fim: 'Retorno intervalo',
+  almoco_ini: 'Almoço (saída)',
+  almoco_fim: 'Almoço (volta)',
+  saida: 'Saída',
+  extra: 'Extra',
+};
 
 const MATCH_THRESHOLD = 0.55; // rigoroso para kiosk
 
@@ -40,9 +45,9 @@ export default function RhKiosk() {
   const [loading, setLoading] = useState(true);
   const [candidates, setCandidates] = useState<FaceCandidate[]>([]);
   const [status, setStatus] = useState('Carregando modelos faciais...');
-  const [pending, setPending] = useState<PointType | null>(null);
-  const [recognized, setRecognized] = useState<{ name: string; type: PointType; score: number; time: string } | null>(null);
-  const [lastRegisters, setLastRegisters] = useState<Array<{ name: string; type: PointType; time: string }>>([]);
+  const [pending, setPending] = useState(false);
+  const [recognized, setRecognized] = useState<{ name: string; type: string; score: number; time: string } | null>(null);
+  const [lastRegisters, setLastRegisters] = useState<Array<{ name: string; type: string; time: string }>>([]);
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000);
@@ -94,14 +99,14 @@ export default function RhKiosk() {
   }, [getEmployees, stopCamera]);
 
   const registerPoint = useCallback(
-    async (type: PointType) => {
+    async () => {
       if (busyRef.current || !videoRef.current) return;
       if (!candidates.length) {
         toast.error('Nenhum colaborador cadastrado facialmente.');
         return;
       }
       busyRef.current = true;
-      setPending(type);
+      setPending(true);
       setStatus('Identificando rosto...');
 
       let descriptor: number[] | null = null;
@@ -117,7 +122,7 @@ export default function RhKiosk() {
         setStatus('Nenhum rosto detectado. Tente novamente.');
         toast.error('Não foi possível detectar seu rosto.');
         busyRef.current = false;
-        setPending(null);
+        setPending(false);
         return;
       }
 
@@ -126,56 +131,44 @@ export default function RhKiosk() {
         setStatus(`Colaborador não reconhecido (score ${match ? match.score.toFixed(0) : '0'}).`);
         toast.error('Rosto não reconhecido. Aproxime-se e tente novamente.');
         busyRef.current = false;
-        setPending(null);
+        setPending(false);
         return;
       }
 
       const time = new Date().toLocaleTimeString('pt-BR');
-      setRecognized({ name: match.candidate.name, type, score: match.score, time });
-      setLastRegisters((prev) => [{ name: match.candidate.name, type, time }, ...prev].slice(0, 6));
-      toast.success(`${type} de ${match.candidate.name} registrado!`);
-      setStatus('Selecione o tipo de ponto e olhe para a câmera');
 
-      // Persistir batida no backend
+      // Persistir batida no backend (auto-classifica tipo)
+      let typeLabel = 'Batida';
       try {
-        const typeMap: Record<PointType, string> = {
-          'Entrada': 'entrada',
-          'Café': 'cafe_ini',
-          'Volta Café': 'cafe_fim',
-          'Almoço': 'almoco_ini',
-          'Volta': 'almoco_fim',
-          'Saída': 'saida',
-        };
         const { api } = await import('@/lib/api');
-        await api('/api/rh/punches', {
+        const p: any = await api('/api/rh/punches', {
           method: 'POST',
           body: {
             user_id: match.candidate.id,
-            punch_type: typeMap[type],
             source: 'kiosk',
           },
         });
+        typeLabel = LABEL_MAP[p?.punch_type] || 'Batida';
       } catch (err: any) {
         console.error('Erro ao salvar batida', err);
         toast.error('Batida reconhecida, mas falhou ao salvar: ' + (err?.message || 'erro'));
+        busyRef.current = false;
+        setPending(false);
+        return;
       }
       void getAssignedJourney(match.candidate.id);
 
+      setRecognized({ name: match.candidate.name, type: typeLabel, score: match.score, time });
+      setLastRegisters((prev) => [{ name: match.candidate.name, type: typeLabel, time }, ...prev].slice(0, 6));
+      toast.success(`${typeLabel} de ${match.candidate.name} registrado!`);
+      setStatus('Toque em "Bater Ponto" e olhe para a câmera');
+
       setTimeout(() => setRecognized(null), 5000);
       busyRef.current = false;
-      setPending(null);
+      setPending(false);
     },
     [candidates],
   );
-
-  const btns: { type: PointType; icon: any; variant: any }[] = [
-    { type: 'Entrada', icon: Play, variant: 'default' },
-    { type: 'Café', icon: Coffee, variant: 'secondary' },
-    { type: 'Volta Café', icon: HistoryIcon, variant: 'secondary' },
-    { type: 'Almoço', icon: Coffee, variant: 'secondary' },
-    { type: 'Volta', icon: HistoryIcon, variant: 'secondary' },
-    { type: 'Saída', icon: LogOut, variant: 'destructive' },
-  ];
 
   return (
     <div className="fixed inset-0 z-50 bg-background flex flex-col">
@@ -214,7 +207,7 @@ export default function RhKiosk() {
                 {pending && (
                   <div className="absolute inset-0 bg-background/70 flex flex-col items-center justify-center gap-3">
                     <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                    <p className="font-semibold">Registrando {pending}...</p>
+                    <p className="font-semibold">Registrando batida...</p>
                   </div>
                 )}
                 {recognized && (
@@ -231,21 +224,15 @@ export default function RhKiosk() {
           </div>
           <p className="text-center text-muted-foreground text-sm min-h-[20px]">{status}</p>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full max-w-[720px]">
-            {btns.map((b) => (
-              <Button
-                key={b.type}
-                size="lg"
-                variant={b.variant}
-                onClick={() => registerPoint(b.type)}
-                disabled={loading || !!pending || !candidates.length}
-                className="h-24 flex flex-col gap-2 rounded-2xl text-base font-bold"
-              >
-                <b.icon className="h-6 w-6" />
-                {b.type}
-              </Button>
-            ))}
-          </div>
+          <Button
+            size="lg"
+            onClick={() => registerPoint()}
+            disabled={loading || pending || !candidates.length}
+            className="h-24 w-full max-w-[480px] rounded-2xl text-xl font-bold flex flex-col gap-1"
+          >
+            <Fingerprint className="h-7 w-7" />
+            Bater Ponto
+          </Button>
         </div>
 
         <aside className="hidden md:flex flex-col gap-3 overflow-hidden">
