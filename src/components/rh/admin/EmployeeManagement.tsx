@@ -120,6 +120,7 @@ export default function EmployeeManagement() {
     email: "",
     role: "",
     journey: "08:00 - 12:00 | 13:00 - 17:00",
+    journey_id: "" as string,
     user_id: "",
     cpf: "",
     birth_date: "",
@@ -131,6 +132,7 @@ export default function EmployeeManagement() {
     authorized_latitude: 0,
     authorized_longitude: 0
   });
+  const journeys = listJourneys();
 
   useEffect(() => {
     loadData();
