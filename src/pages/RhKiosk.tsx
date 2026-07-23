@@ -207,7 +207,7 @@ export default function RhKiosk() {
                 {pending && (
                   <div className="absolute inset-0 bg-background/70 flex flex-col items-center justify-center gap-3">
                     <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                    <p className="font-semibold">Registrando {pending}...</p>
+                    <p className="font-semibold">Registrando batida...</p>
                   </div>
                 )}
                 {recognized && (
@@ -224,21 +224,15 @@ export default function RhKiosk() {
           </div>
           <p className="text-center text-muted-foreground text-sm min-h-[20px]">{status}</p>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full max-w-[720px]">
-            {btns.map((b) => (
-              <Button
-                key={b.type}
-                size="lg"
-                variant={b.variant}
-                onClick={() => registerPoint(b.type)}
-                disabled={loading || !!pending || !candidates.length}
-                className="h-24 flex flex-col gap-2 rounded-2xl text-base font-bold"
-              >
-                <b.icon className="h-6 w-6" />
-                {b.type}
-              </Button>
-            ))}
-          </div>
+          <Button
+            size="lg"
+            onClick={() => registerPoint()}
+            disabled={loading || pending || !candidates.length}
+            className="h-24 w-full max-w-[480px] rounded-2xl text-xl font-bold flex flex-col gap-1"
+          >
+            <Fingerprint className="h-7 w-7" />
+            Bater Ponto
+          </Button>
         </div>
 
         <aside className="hidden md:flex flex-col gap-3 overflow-hidden">
