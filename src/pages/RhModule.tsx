@@ -66,6 +66,8 @@ export default function RhModule() {
         return <MyPoint />;
       case "punches":
         return canDashboard ? <PunchAdmin /> : null;
+      case "timesheet":
+        return canDashboard ? <TimesheetAdmin /> : null;
       case "employees":
         return isAdmin ? <EmployeeManagement /> : null;
       case "registers":
