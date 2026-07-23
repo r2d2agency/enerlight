@@ -52,6 +52,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import FacialValidation from "../FacialValidation";
 import EmployeeRhDialog from "./EmployeeRhDialog";
+import { listJourneys, assignJourney, getAssignedJourney, WEEKDAYS } from "@/lib/rh-journeys";
 
 interface Employee {
   id: string;
