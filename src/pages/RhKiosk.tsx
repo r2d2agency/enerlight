@@ -25,7 +25,7 @@ import {
 } from '@/lib/face-recognition';
 import { getAssignedJourney } from '@/lib/rh-journeys';
 
-type PointType = 'Entrada' | 'Almoço' | 'Volta' | 'Saída';
+type PointType = 'Entrada' | 'Café' | 'Volta Café' | 'Almoço' | 'Volta' | 'Saída';
 
 const MATCH_THRESHOLD = 0.55; // rigoroso para kiosk
 
@@ -140,6 +140,8 @@ export default function RhKiosk() {
       try {
         const typeMap: Record<PointType, string> = {
           'Entrada': 'entrada',
+          'Café': 'cafe_ini',
+          'Volta Café': 'cafe_fim',
           'Almoço': 'almoco_ini',
           'Volta': 'almoco_fim',
           'Saída': 'saida',
@@ -168,6 +170,8 @@ export default function RhKiosk() {
 
   const btns: { type: PointType; icon: any; variant: any }[] = [
     { type: 'Entrada', icon: Play, variant: 'default' },
+    { type: 'Café', icon: Coffee, variant: 'secondary' },
+    { type: 'Volta Café', icon: HistoryIcon, variant: 'secondary' },
     { type: 'Almoço', icon: Coffee, variant: 'secondary' },
     { type: 'Volta', icon: HistoryIcon, variant: 'secondary' },
     { type: 'Saída', icon: LogOut, variant: 'destructive' },

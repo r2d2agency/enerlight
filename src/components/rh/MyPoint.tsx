@@ -12,10 +12,12 @@ import FacialValidation from "./FacialValidation";
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
 
-type PunchType = 'Entrada' | 'Almoço' | 'Volta' | 'Saída';
+type PunchType = 'Entrada' | 'Café' | 'Volta Café' | 'Almoço' | 'Volta' | 'Saída';
 
 const TYPE_MAP: Record<PunchType, string> = {
   'Entrada': 'entrada',
+  'Café': 'cafe_ini',
+  'Volta Café': 'cafe_fim',
   'Almoço': 'almoco_ini',
   'Volta': 'almoco_fim',
   'Saída': 'saida',
@@ -23,6 +25,8 @@ const TYPE_MAP: Record<PunchType, string> = {
 
 const LABEL_MAP: Record<string, string> = {
   entrada: 'Entrada',
+  cafe_ini: 'Café (saída)',
+  cafe_fim: 'Volta do café',
   almoco_ini: 'Almoço (saída)',
   almoco_fim: 'Volta do almoço',
   saida: 'Saída',
@@ -185,22 +189,30 @@ export default function MyPoint() {
         </CardContent></Card>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-3 gap-3">
         <Button size="lg" className="h-20 flex flex-col gap-1 rounded-2xl"
           disabled={lastType === 'entrada'} onClick={() => handleRegisterClick("Entrada")}>
-          <Play className="h-5 w-5" /><span className="font-bold text-sm">Entrada</span>
+          <Play className="h-5 w-5" /><span className="font-bold text-xs">Entrada</span>
+        </Button>
+        <Button size="lg" variant="secondary" className="h-20 flex flex-col gap-1 rounded-2xl"
+          onClick={() => handleRegisterClick("Café")}>
+          <Coffee className="h-5 w-5" /><span className="font-bold text-xs">Café</span>
+        </Button>
+        <Button size="lg" variant="secondary" className="h-20 flex flex-col gap-1 rounded-2xl"
+          onClick={() => handleRegisterClick("Volta Café")}>
+          <History className="h-5 w-5" /><span className="font-bold text-xs">Volta Café</span>
         </Button>
         <Button size="lg" variant="secondary" className="h-20 flex flex-col gap-1 rounded-2xl"
           onClick={() => handleRegisterClick("Almoço")}>
-          <Coffee className="h-5 w-5" /><span className="font-bold text-sm">Almoço</span>
+          <Coffee className="h-5 w-5" /><span className="font-bold text-xs">Almoço</span>
         </Button>
         <Button size="lg" variant="secondary" className="h-20 flex flex-col gap-1 rounded-2xl"
           onClick={() => handleRegisterClick("Volta")}>
-          <History className="h-5 w-5" /><span className="font-bold text-sm">Volta</span>
+          <History className="h-5 w-5" /><span className="font-bold text-xs">Volta</span>
         </Button>
         <Button size="lg" variant="destructive" className="h-20 flex flex-col gap-1 rounded-2xl"
           onClick={() => handleRegisterClick("Saída")}>
-          <LogOut className="h-5 w-5" /><span className="font-bold text-sm">Saída</span>
+          <LogOut className="h-5 w-5" /><span className="font-bold text-xs">Saída</span>
         </Button>
       </div>
 

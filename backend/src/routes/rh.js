@@ -283,13 +283,20 @@ router.delete('/locations/:id', async (req, res) => {
 // PUNCHES (registros de ponto reais, com auditoria)
 // =============================================================
 
-const PUNCH_TYPES = ['entrada', 'almoco_ini', 'almoco_fim', 'saida', 'extra'];
+const PUNCH_TYPES = ['entrada', 'cafe_ini', 'cafe_fim', 'almoco_ini', 'almoco_fim', 'saida', 'extra'];
 
 function normalizePunchType(t) {
   if (!t) return null;
   const key = String(t).toLowerCase().trim();
   const map = {
     'entrada': 'entrada',
+    'café': 'cafe_ini',
+    'cafe': 'cafe_ini',
+    'cafe_ini': 'cafe_ini',
+    'cafe_inicio': 'cafe_ini',
+    'cafe_fim': 'cafe_fim',
+    'cafe_volta': 'cafe_fim',
+    'volta_cafe': 'cafe_fim',
     'almoço': 'almoco_ini',
     'almoco': 'almoco_ini',
     'almoco_ini': 'almoco_ini',

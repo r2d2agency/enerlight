@@ -52,6 +52,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import FacialValidation from "../FacialValidation";
 import EmployeeRhDialog from "./EmployeeRhDialog";
+import { listJourneys, assignJourney, getAssignedJourney, WEEKDAYS } from "@/lib/rh-journeys";
 
 interface Employee {
   id: string;
@@ -119,6 +120,7 @@ export default function EmployeeManagement() {
     email: "",
     role: "",
     journey: "08:00 - 12:00 | 13:00 - 17:00",
+    journey_id: "" as string,
     user_id: "",
     cpf: "",
     birth_date: "",
@@ -130,6 +132,7 @@ export default function EmployeeManagement() {
     authorized_latitude: 0,
     authorized_longitude: 0
   });
+  const journeys = listJourneys();
 
   useEffect(() => {
     loadData();
@@ -215,6 +218,7 @@ export default function EmployeeManagement() {
         });
 
         if (success) {
+          assignJourney(selectedEmployee.user_id, formData.journey_id || null);
           toast.success("Colaborador atualizado!");
           setIsAddDialogOpen(false);
           setSelectedEmployee(null);
@@ -242,7 +246,7 @@ export default function EmployeeManagement() {
           toast.success("Colaborador cadastrado!");
           setIsAddDialogOpen(false);
           setFormData({ 
-            name: "", email: "", role: "", journey: "08:00 - 12:00 | 13:00 - 17:00", user_id: "",
+            name: "", email: "", role: "", journey: "08:00 - 12:00 | 13:00 - 17:00", journey_id: "", user_id: "",
             cpf: "", birth_date: "", work_start_time: "08:00", work_end_time: "18:00", 
             lunch_start_time: "12:00", lunch_end_time: "13:00",
             authorized_radius_meters: 100, authorized_latitude: 0, authorized_longitude: 0
@@ -542,26 +546,28 @@ export default function EmployeeManagement() {
                         variant="ghost" 
                         size="icon" 
                         className="h-8 w-8"
-                        onClick={() => {
-                          setSelectedEmployee(emp);
-                          setFormData({
-                            name: emp.name,
-                            email: emp.email,
-                            role: emp.role,
-                            user_id: emp.user_id,
-                            cpf: emp.cpf || "",
-                            birth_date: emp.birth_date ? new Date(emp.birth_date).toISOString().split('T')[0] : "",
-                            work_start_time: emp.work_start_time || "08:00",
-                            work_end_time: emp.work_end_time || "18:00",
-                            lunch_start_time: emp.lunch_start_time || "12:00",
-                            lunch_end_time: emp.lunch_end_time || "13:00",
-                            authorized_radius_meters: emp.authorized_radius_meters || 100,
-                            authorized_latitude: emp.authorized_latitude || 0,
-                            authorized_longitude: emp.authorized_longitude || 0,
-                            journey: emp.journey
-                          });
-                          setIsAddDialogOpen(true);
-                        }}
+                         onClick={() => {
+                           setSelectedEmployee(emp);
+                           const assigned = getAssignedJourney(emp.user_id);
+                           setFormData({
+                             name: emp.name,
+                             email: emp.email,
+                             role: emp.role,
+                             user_id: emp.user_id,
+                             cpf: emp.cpf || "",
+                             birth_date: emp.birth_date ? new Date(emp.birth_date).toISOString().split('T')[0] : "",
+                             work_start_time: emp.work_start_time || assigned?.workStart || "08:00",
+                             work_end_time: emp.work_end_time || assigned?.workEnd || "18:00",
+                             lunch_start_time: emp.lunch_start_time || assigned?.lunchStart || "12:00",
+                             lunch_end_time: emp.lunch_end_time || assigned?.lunchEnd || "13:00",
+                             authorized_radius_meters: emp.authorized_radius_meters || 100,
+                             authorized_latitude: emp.authorized_latitude || 0,
+                             authorized_longitude: emp.authorized_longitude || 0,
+                             journey: emp.journey,
+                             journey_id: assigned?.id || ""
+                           });
+                           setIsAddDialogOpen(true);
+                         }}
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
@@ -645,48 +651,68 @@ export default function EmployeeManagement() {
             </div>
 
             <div className="border-t pt-4 mt-2">
-              <h4 className="text-sm font-semibold mb-3">Horários de Trabalho</h4>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="work_start">Entrada</Label>
-                  <Input 
-                    id="work_start" 
-                    type="time"
-                    value={formData.work_start_time} 
-                    onChange={e => setFormData({...formData, work_start_time: e.target.value})} 
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="work_end">Saída</Label>
-                  <Input 
-                    id="work_end" 
-                    type="time"
-                    value={formData.work_end_time} 
-                    onChange={e => setFormData({...formData, work_end_time: e.target.value})} 
-                  />
-                </div>
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-sm font-semibold">Jornada de Trabalho</h4>
+                <a href="/rh?view=journeys" className="text-[10px] text-primary hover:underline">
+                  Gerenciar jornadas
+                </a>
               </div>
-              
-              <div className="grid grid-cols-2 gap-4 mt-3">
-                <div className="grid gap-2">
-                  <Label htmlFor="lunch_start">Início Almoço</Label>
-                  <Input 
-                    id="lunch_start" 
-                    type="time"
-                    value={formData.lunch_start_time} 
-                    onChange={e => setFormData({...formData, lunch_start_time: e.target.value})} 
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="lunch_end">Fim Almoço</Label>
-                  <Input 
-                    id="lunch_end" 
-                    type="time"
-                    value={formData.lunch_end_time} 
-                    onChange={e => setFormData({...formData, lunch_end_time: e.target.value})} 
-                  />
-                </div>
-              </div>
+              <Select
+                value={formData.journey_id || "none"}
+                onValueChange={(v) => {
+                  if (v === "none") {
+                    setFormData({ ...formData, journey_id: "" });
+                    return;
+                  }
+                  const j = journeys.find((x) => x.id === v);
+                  if (!j) return;
+                  setFormData({
+                    ...formData,
+                    journey_id: j.id,
+                    work_start_time: j.workStart,
+                    work_end_time: j.workEnd,
+                    lunch_start_time: j.lunchStart,
+                    lunch_end_time: j.lunchEnd,
+                    journey: `${j.workStart} - ${j.lunchStart} | ${j.lunchEnd} - ${j.workEnd}`,
+                  });
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={journeys.length ? "Selecione uma jornada" : "Nenhuma jornada cadastrada"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">— Nenhuma —</SelectItem>
+                  {journeys.map((j) => (
+                    <SelectItem key={j.id} value={j.id}>
+                      {j.name} · {j.workStart}–{j.workEnd}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {formData.journey_id && (() => {
+                const j = journeys.find((x) => x.id === formData.journey_id);
+                if (!j) return null;
+                return (
+                  <div className="mt-2 text-xs bg-muted/40 rounded-md p-2 space-y-1">
+                    <div className="flex flex-wrap gap-1">
+                      {WEEKDAYS.map((w, i) => (
+                        <span
+                          key={i}
+                          className={cn(
+                            "px-1.5 py-0.5 rounded text-[10px]",
+                            j.days.includes(i) ? "bg-primary text-primary-foreground" : "bg-background border"
+                          )}
+                        >
+                          {w}
+                        </span>
+                      ))}
+                    </div>
+                    <div className="font-mono">
+                      {j.workStart} → {j.lunchStart} | {j.lunchEnd} → {j.workEnd} · tol. {j.toleranceMinutes}min
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             <div className="border-t pt-4 mt-2">

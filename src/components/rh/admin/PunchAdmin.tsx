@@ -35,6 +35,8 @@ type Missing = { user_id: string; name: string; email: string; work_start_time?:
 
 const TYPE_LABEL: Record<string, string> = {
   entrada: 'Entrada',
+  cafe_ini: 'Café (saída)',
+  cafe_fim: 'Café (volta)',
   almoco_ini: 'Almoço (saída)',
   almoco_fim: 'Almoço (volta)',
   saida: 'Saída',
@@ -257,6 +259,8 @@ export default function PunchAdmin() {
               <TableRow>
                 <TableHead>Colaborador</TableHead>
                 <TableHead>Entrada</TableHead>
+                <TableHead>Café (saída)</TableHead>
+                <TableHead>Café (volta)</TableHead>
                 <TableHead>Almoço (saída)</TableHead>
                 <TableHead>Almoço (volta)</TableHead>
                 <TableHead>Saída</TableHead>
@@ -266,7 +270,7 @@ export default function PunchAdmin() {
             </TableHeader>
             <TableBody>
               {grouped.length === 0 ? (
-                <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                   Nenhuma batida neste dia.
                 </TableCell></TableRow>
               ) : grouped.map(([uid, row]) => {
@@ -303,6 +307,8 @@ export default function PunchAdmin() {
                       <div className="text-xs text-muted-foreground">{row.email}</div>
                     </TableCell>
                     <TableCell>{cell('entrada')}</TableCell>
+                    <TableCell>{cell('cafe_ini')}</TableCell>
+                    <TableCell>{cell('cafe_fim')}</TableCell>
                     <TableCell>{cell('almoco_ini')}</TableCell>
                     <TableCell>{cell('almoco_fim')}</TableCell>
                     <TableCell>{cell('saida')}</TableCell>
