@@ -165,6 +165,8 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
     items: [
       { key: 'can_view_rh', label: 'RH / Ponto', description: 'Registro de ponto e gestão de RH' },
       { key: 'can_approve_rh', label: 'Aprovar Pontos', description: 'Permite aprovar registros de ponto' },
+      { key: 'can_view_hr_dashboard', label: 'Painel de Pontos', description: 'Ver painel diário de pontos e alertas de quem não bateu' },
+      { key: 'can_manage_rh_punches', label: 'Ajustar Pontos', description: 'Criar/editar/excluir batidas manualmente com auditoria' },
     ],
   },
   {

@@ -1,80 +1,55 @@
-# RMA de Fornecedor (Garantia com Fabricante)
+## Escopo
 
-Estender o módulo de Devoluções para cobrir também os RMAs abertos junto aos **fornecedores/fabricantes**, com opção de **cross-link** com um RMA de cliente (ex.: troca de luminária Blumenau — abrir garantia no fabricante e amarrar as duas ocorrências) ou **avulso** (pedido direto ao fabricante sem cliente).
+Fechar o módulo RH em 5 frentes, integradas ao backend real (fim do TODO no Kiosk e no MyPoint).
 
-## O que muda
+### 1. Registro de ponto (backend real)
+- Nova tabela `rh_punches`: `id, organization_id, user_id, punch_type (entrada|almoco_ini|almoco_fim|saida|extra), punched_at (timestamptz), source (kiosk|app|manual), latitude, longitude, location_id, notes, created_by, created_at`.
+- Nova tabela `rh_punch_audit`: `id, punch_id, action (create|update|delete), before jsonb, after jsonb, reason, actor_user_id, created_at`.
+- Endpoints em `backend/src/routes/rh.js`:
+  - `POST /api/rh/punches` — kiosk/app cria batida (grava reconhecido por facial ou usuário logado).
+  - `GET /api/rh/punches/me?from=&to=` — colaborador vê só as próprias batidas do período (sem soma de horas).
+  - `GET /api/rh/punches?date=&user_id=` — admin/RH vê todas as batidas do dia, com filtro por colaborador.
+  - `POST /api/rh/punches/manual` — admin cria batida manual com `reason` obrigatório (grava auditoria).
+  - `PATCH /api/rh/punches/:id` e `DELETE /api/rh/punches/:id` — edita/apaga com `reason`, grava auditoria.
+  - `GET /api/rh/punches/:id/audit` — histórico do ponto.
+  - `GET /api/rh/dashboard/missing-today` — lista quem tem jornada hoje e ainda não bateu entrada (ou já passou do horário e não bateu saída).
 
-### 1. Tipo de RMA
-Novo campo `rma_type` em `devolucoes`:
-- `cliente` (atual — cliente devolvendo para nós)
-- `fornecedor` (nós devolvendo para o fornecedor/fabricante)
+### 2. Minhas batidas (colaborador)
+- `MyPoint.tsx`: seção "Minhas batidas" listando cronologicamente as batidas do dia/semana com hora, tipo, origem (Kiosk/App/Manual) e ícone se foi manual. **Sem** soma de horas.
 
-A tela de Devoluções ganha um **toggle no topo**: "RMA de Cliente" / "RMA de Fornecedor" / "Todos", filtrando o Kanban, lista e estatísticas.
+### 3. Dashboard e ajuste manual (admin)
+- Nova tela dentro da aba **Registros** de `RhModule` para quem tiver a permissão:
+  - Card "Sem bater ponto hoje" (usa `/dashboard/missing-today`) com badge de alerta e botão de notificar.
+  - Tabela do dia: colaborador, entrada, almoço ini/fim, saída, origem, ações (editar/adicionar manualmente).
+  - Dialog de ajuste manual pede tipo, data/hora, motivo obrigatório → grava com `source=manual` e auditoria.
+  - Aba de auditoria por batida (quem alterou, quando, antes/depois, motivo).
 
-### 2. Dados do Fornecedor
-Novos campos para RMAs tipo `fornecedor`:
-- `supplier_name`, `supplier_document` (CNPJ), `supplier_contact_name`
-- `supplier_whatsapp`, `supplier_email`, `supplier_address`
-- `supplier_rma_number` (número do RMA que o fornecedor gerou lá)
-- `supplier_expected_return_date`
-- `warranty_type` (garantia_fabrica | cortesia | troca_comercial | outro)
+### 4. Ficha do colaborador (dados de contratação)
+- Novos campos em `organization_members`: `hire_date`, `contract_type` (CLT|PJ|Estagio|Terceiro), `base_salary numeric`, `salary_composition jsonb` (lista de itens `{label, value, type: 'fixo'|'variavel'|'beneficio'|'desconto'}`), `access_active boolean default true`.
+- `EmployeeRhDialog`: nova aba **Contratação** com edição desses campos + toggle **Acesso ativo no app**.
+- Ao desativar acesso: chama `PATCH /api/organizations/:id/members/:userId` com `is_active=false` (fluxo existente).
 
-No formulário, quando `rma_type = fornecedor`, os campos de **cliente** somem e aparecem os campos de **fornecedor**. Quando `cliente` (padrão) segue igual.
+### 5. Cascata de inativação
+- Já existe a regra "Inactive users stripped from selections" em memória. Auditar e reforçar em:
+  - CRM: seletores de owner/vendedor, filtros de equipe.
+  - Metas: listas de colaboradores.
+  - Relatórios agendados: pular usuários com `is_active=false`.
+  - Notificações: filtrar destinatários por `is_active=true`.
+- Onde faltar, adicionar `AND om.is_active = true` nas queries de listagem.
 
-### 3. Cross-link Cliente ↔ Fornecedor
-Novo campo `linked_devolucao_id` (auto-referência em `devolucoes`).
+### 6. Permissões
+- Adicionar chaves no template de acessos: `rh.view_all_punches`, `rh.manage_punches` (ajuste manual), `rh.view_hr_dashboard`.
+- Menu/aba admin do RH só aparece com essas permissões (Owner/Admin já herdam tudo).
 
-Fluxo:
-- Dentro de um RMA de cliente, botão **"Abrir RMA no Fornecedor"** — abre o dialog já com produto/serial/motivo pré-preenchidos e cria o novo RMA amarrado.
-- Dentro do RMA de fornecedor, mostra card **"Vinculado ao RMA #123 do cliente X"** com link.
-- Mudanças de status no RMA de fornecedor geram evento no RMA de cliente vinculado (e vice-versa).
+## Técnicas
+- Timezone `America/Sao_Paulo`, gravar `timestamptz` e exibir com formato `HH:mm` local.
+- Toda mutação de ponto por admin exige `reason` (400 se ausente) e escreve em `rh_punch_audit` na mesma transação.
+- Kiosk passa `recognized_user_id` (via face-api) e `source='kiosk'`; se colaborador desconhecido, retorna 404 sem gravar.
+- Migrações com `GRANT` explícito para `authenticated` e `service_role`.
 
-### 4. Kanban / SLA
-Reutiliza o mesmo Kanban, mas os status ganham labels contextuais quando `rma_type = fornecedor`:
-- `solicitado` → "Solicitado ao Fornecedor"
-- `aguardando_nf_produto` → "Aguardando NF/Produto p/ Envio"
-- `enviado` → "Enviado ao Fornecedor"
-- `recebido` → "Recebido pelo Fornecedor"
-- `em_analise` → "Em Análise (Fornecedor)"
-- `troca_conserto` → "Fornecedor aprovou troca/conserto"
-- `concluido` → "Concluído (Recebido de volta)"
+## Fora de escopo (para próximas iterações)
+- Cálculo de banco de horas / totalizadores diários (você pediu explicitamente sem soma).
+- Folha de pagamento — só armazenamento da composição salarial, sem geração de holerite.
+- Reconhecimento facial no Kiosk já foi entregue e é reaproveitado como está.
 
-SLA config existente segue funcionando para os dois tipos.
-
-### 5. Filtros e Estatísticas
-Na página `Devoluções`:
-- Filtro adicional por **Fornecedor** (quando view = fornecedor).
-- Stats separados por tipo: total abertos com cliente vs. total abertos com fornecedor, valor em garantia pendente no fornecedor.
-- Coluna "Vinculado" na tabela mostrando ícone quando há cross-link.
-
-### 6. Cobrança de Fornecedor
-Campo `supplier_charge_status` (pendente | cobrado | recebido_credito | recebido_produto | perdido) + `supplier_credit_value` para acompanhar quanto o fornecedor deve em crédito/produto — permite fechar o ciclo financeiro.
-
-## Detalhes técnicos
-
-### Backend
-- **Migração** (`backend/schema-devolucoes-supplier.sql`, aplicada via `IF NOT EXISTS` para os `ALTER TABLE`):
-  - `ALTER TABLE devolucoes ADD COLUMN rma_type VARCHAR(15) DEFAULT 'cliente'`
-  - Colunas de fornecedor listadas acima + `linked_devolucao_id UUID REFERENCES devolucoes(id) ON DELETE SET NULL`
-  - `supplier_charge_status`, `supplier_credit_value`
-  - Índices em `rma_type`, `linked_devolucao_id`, `supplier_name`
-  - Relaxar `customer_name NOT NULL` → default vazio (fornecedor não precisa)
-- **Rotas** (`backend/src/routes/devolucoes.js`):
-  - `GET /api/devolucoes` — aceitar `?rma_type=fornecedor|cliente|all` e `?supplier=`
-  - `POST /api/devolucoes` — validar campos conforme `rma_type`
-  - `GET /api/devolucoes/:id` — retornar dados do RMA vinculado (via JOIN em `linked_devolucao_id`)
-  - `POST /api/devolucoes/:id/link-supplier` — cria RMA de fornecedor herdando dados
-  - Stats endpoint segregado por tipo
-
-### Frontend
-- `use-devolucoes.ts`: novo campo `rma_type` no tipo `Devolucao`, filtros extras
-- `src/pages/Devolucoes.tsx`: tabs/toggle "Cliente | Fornecedor | Todos", filtro Fornecedor
-- `DevolucaoFormDialog.tsx`: seção condicional Cliente vs. Fornecedor, seleção de tipo no topo
-- `DevolucaoKanban.tsx`: labels contextuais + badge "Fornecedor" no card
-- `DevolucaoDetail` (dialog existente): botão "Abrir RMA no Fornecedor" + card de vínculo
-
-## Não incluso (fora do escopo)
-- Integração automática com sistema/portal de RMA do fornecedor (é registro manual).
-- Emissão de NF de remessa ao fornecedor (segue nos campos já existentes de NF de saída, mas rotulados como "NF para Fornecedor" quando `rma_type = fornecedor`).
-
-Posso seguir com a implementação?
+Confirma que sigo com essa entrega completa?

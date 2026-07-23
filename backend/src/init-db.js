@@ -5324,6 +5324,56 @@ CREATE INDEX IF NOT EXISTS idx_ead_lesson_progress_course ON ead_lesson_progress
 `;
 
 
+const step71RhPunches = `
+DO $$ BEGIN
+  ALTER TABLE organization_members ADD COLUMN IF NOT EXISTS hire_date DATE;
+  ALTER TABLE organization_members ADD COLUMN IF NOT EXISTS contract_type VARCHAR(20);
+  ALTER TABLE organization_members ADD COLUMN IF NOT EXISTS base_salary NUMERIC(12,2);
+  ALTER TABLE organization_members ADD COLUMN IF NOT EXISTS salary_composition JSONB DEFAULT '[]'::jsonb;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+CREATE TABLE IF NOT EXISTS rh_punches (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  punch_type VARCHAR(20) NOT NULL,
+  punched_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  source VARCHAR(20) NOT NULL DEFAULT 'app',
+  latitude DECIMAL(10, 8),
+  longitude DECIMAL(11, 8),
+  location_id UUID REFERENCES rh_authorized_locations(id) ON DELETE SET NULL,
+  notes TEXT,
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_rh_punches_org_date ON rh_punches(organization_id, punched_at);
+CREATE INDEX IF NOT EXISTS idx_rh_punches_user_date ON rh_punches(user_id, punched_at);
+
+CREATE TABLE IF NOT EXISTS rh_punch_audit (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  punch_id UUID REFERENCES rh_punches(id) ON DELETE CASCADE,
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  action VARCHAR(20) NOT NULL,
+  before_data JSONB,
+  after_data JSONB,
+  reason TEXT,
+  actor_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_rh_punch_audit_punch ON rh_punch_audit(punch_id);
+CREATE INDEX IF NOT EXISTS idx_rh_punch_audit_org ON rh_punch_audit(organization_id, created_at DESC);
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON rh_punches TO authenticated;
+GRANT ALL ON rh_punches TO service_role;
+GRANT SELECT, INSERT ON rh_punch_audit TO authenticated;
+GRANT ALL ON rh_punch_audit TO service_role;
+`;
+
+
+
+
+
 const step69Devolucoes = `
 CREATE TABLE IF NOT EXISTS devolucoes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -5528,6 +5578,7 @@ const migrationSteps = [
   { name: 'NFC Cards Module', sql: step68NFC, critical: false },
   { name: 'Devoluções (RMA)', sql: step69Devolucoes, critical: false },
   { name: 'EAD (Cursos & Certificados)', sql: step70EAD, critical: false },
+  { name: 'RH Punches & Employment', sql: step71RhPunches, critical: false },
 ];
 
 

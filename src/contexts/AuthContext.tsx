@@ -79,6 +79,8 @@ export interface UserPermissions {
   can_view_representatives: boolean;
   can_view_rh: boolean;
   can_approve_rh: boolean;
+  can_manage_rh_punches?: boolean;
+  can_view_hr_dashboard?: boolean;
   can_view_devolucoes: boolean;
   can_create_devolucoes: boolean;
   can_edit_devolucoes: boolean;

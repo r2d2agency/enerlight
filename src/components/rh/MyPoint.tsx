@@ -1,164 +1,159 @@
-import { useState, useEffect } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { useState, useEffect, useCallback } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { 
-  Clock, 
-  MapPin, 
-  User, 
-  Play, 
-  Coffee, 
-  LogOut, 
-  CheckCircle2,
-  History,
-  AlertTriangle
+import { Badge } from "@/components/ui/badge";
+import {
+  Clock, MapPin, User, Play, Coffee, LogOut,
+  CheckCircle2, History, AlertTriangle, RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import FacialValidation from "./FacialValidation";
 import { useAuth } from "@/contexts/AuthContext";
+import { api } from "@/lib/api";
 
-// Haversine formula for distance
+type PunchType = 'Entrada' | 'Almoço' | 'Volta' | 'Saída';
+
+const TYPE_MAP: Record<PunchType, string> = {
+  'Entrada': 'entrada',
+  'Almoço': 'almoco_ini',
+  'Volta': 'almoco_fim',
+  'Saída': 'saida',
+};
+
+const LABEL_MAP: Record<string, string> = {
+  entrada: 'Entrada',
+  almoco_ini: 'Almoço (saída)',
+  almoco_fim: 'Volta do almoço',
+  saida: 'Saída',
+  extra: 'Extra',
+};
+
 function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
-  const R = 6371e3; // metres
-  const φ1 = lat1 * Math.PI/180;
-  const φ2 = lat2 * Math.PI/180;
-  const Δφ = (lat2-lat1) * Math.PI/180;
-  const Δλ = (lon2-lon1) * Math.PI/180;
+  const R = 6371e3;
+  const φ1 = lat1 * Math.PI/180, φ2 = lat2 * Math.PI/180;
+  const Δφ = (lat2-lat1) * Math.PI/180, Δλ = (lon2-lon1) * Math.PI/180;
+  const a = Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
 
-  const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-          Math.cos(φ1) * Math.cos(φ2) *
-          Math.sin(Δλ/2) * Math.sin(Δλ/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-
-  return R * c; // in metres
+function fmtTime(iso: string) {
+  try {
+    return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  } catch { return '—'; }
 }
 
 export default function MyPoint() {
   const { user } = useAuth();
   const [now, setNow] = useState(new Date());
   const [gpsStatus, setGpsStatus] = useState<'active' | 'inactive' | 'checking'>('checking');
-  const [lastRegister, setLastRegister] = useState<string | null>(null);
-  const [dailyStatus, setDailyStatus] = useState<'idle' | 'working' | 'break' | 'finished'>('idle');
   const [showFacial, setShowFacial] = useState(false);
-  const [pendingPoint, setPendingPoint] = useState<string | null>(null);
-  
-  // Real data from authenticated user
+  const [pendingPoint, setPendingPoint] = useState<PunchType | null>(null);
+  const [myPunches, setMyPunches] = useState<any[]>([]);
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+
   const employeeName = user?.name || "Colaborador";
-  const employeeRole = user?.role || "Enerlight";
-  const journey = "08:00 - 12:00 | 13:00 - 17:00";
-  
+  const employeeRole = user?.role || "";
+
   const authorizedLocation = {
     name: "Sede Enerlight",
-    lat: -23.55052,
-    lng: -46.633308,
-    radius: 500 // Increased radius for better testing experience
+    lat: -23.55052, lng: -46.633308, radius: 500,
   };
+
+  const loadPunches = useCallback(async () => {
+    try {
+      const from = new Date();
+      from.setDate(from.getDate() - 6);
+      from.setHours(0, 0, 0, 0);
+      const r = await api<any[]>(`/api/rh/punches/me?from=${from.toISOString()}`);
+      setMyPunches(Array.isArray(r) ? r : []);
+    } catch { /* silent */ }
+  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
     checkGPS();
+    loadPunches();
     return () => clearInterval(timer);
-  }, []);
+  }, [loadPunches]);
 
   const checkGPS = () => {
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
-        () => setGpsStatus('active'),
+        (pos) => { setGpsStatus('active'); setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }); },
         () => setGpsStatus('inactive')
       );
-    } else {
-      setGpsStatus('inactive');
-    }
+    } else setGpsStatus('inactive');
   };
 
-  const validateLocation = (): Promise<boolean> => {
-    return new Promise((resolve) => {
-      if (!("geolocation" in navigator)) {
-        toast.error("GPS não suportado no seu dispositivo");
-        resolve(false);
-        return;
-      }
-
+  const validateLocation = (): Promise<{ok: boolean; lat?: number; lng?: number}> =>
+    new Promise((resolve) => {
+      if (!("geolocation" in navigator)) return resolve({ ok: false });
       navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const distance = getDistance(
-            position.coords.latitude,
-            position.coords.longitude,
-            authorizedLocation.lat,
-            authorizedLocation.lng
-          );
-
-          if (distance <= authorizedLocation.radius) {
-            resolve(true);
-          } else {
-            toast.error("Você está fora da área autorizada para registro de ponto.");
-            console.warn(`Tentativa fora do raio: ${distance.toFixed(2)}m`);
-            resolve(false);
-          }
+        (pos) => {
+          const d = getDistance(pos.coords.latitude, pos.coords.longitude, authorizedLocation.lat, authorizedLocation.lng);
+          if (d <= authorizedLocation.radius) resolve({ ok: true, lat: pos.coords.latitude, lng: pos.coords.longitude });
+          else { toast.error("Você está fora da área autorizada."); resolve({ ok: false }); }
         },
-        (error) => {
-          toast.error("Não foi possível obter sua localização. Ative o GPS.");
-          resolve(false);
-        }
+        () => { toast.error("Ative o GPS."); resolve({ ok: false }); }
       );
     });
-  };
 
-  const handleRegisterClick = async (type: string) => {
-    if (gpsStatus !== 'active') {
-      toast.error("Ative o GPS para registrar o ponto");
-      checkGPS();
-      return;
-    }
-
-    const isInArea = await validateLocation();
-    if (!isInArea) return;
-
+  const handleRegisterClick = async (type: PunchType) => {
+    if (gpsStatus !== 'active') { toast.error("Ative o GPS"); checkGPS(); return; }
+    const loc = await validateLocation();
+    if (!loc.ok) return;
+    setCoords({ lat: loc.lat!, lng: loc.lng! });
     setPendingPoint(type);
     setShowFacial(true);
   };
 
-  const onFacialValidated = (success: boolean) => {
+  const onFacialValidated = async (success: boolean) => {
     setShowFacial(false);
-    if (success && pendingPoint) {
-      // Check if user has facial registered (simulated)
-      const isRegistered = localStorage.getItem(`facial_reg_${user?.id}`) === 'true';
-      
-      if (!isRegistered) {
-        toast.error("Sua face não está cadastrada no sistema. Procure o RH.");
-        return;
-      }
-
-      completeRegistration(pendingPoint);
-    } else {
-      toast.error("Não foi possível validar sua identidade.");
+    if (!success || !pendingPoint) {
+      if (!success) toast.error("Não foi possível validar sua identidade.");
+      setPendingPoint(null);
+      return;
+    }
+    try {
+      await api('/api/rh/punches', {
+        method: 'POST',
+        body: {
+          punch_type: TYPE_MAP[pendingPoint],
+          source: 'app',
+          latitude: coords?.lat,
+          longitude: coords?.lng,
+        },
+      });
+      toast.success(`${pendingPoint} registrado com sucesso!`);
+      loadPunches();
+    } catch (e: any) {
+      toast.error(e?.message || 'Erro ao registrar batida');
     }
     setPendingPoint(null);
   };
 
-  const completeRegistration = (type: string) => {
-    setLastRegister(`${type} - ${now.toLocaleTimeString()}`);
-    toast.success(`${type} registrado com sucesso!`);
-    
-    if (type === "Entrada") setDailyStatus('working');
-    if (type === "Almoço") setDailyStatus('break');
-    if (type === "Volta") setDailyStatus('working');
-    if (type === "Saída") setDailyStatus('finished');
-  };
+  // Agrupa por dia
+  const byDay: Record<string, any[]> = {};
+  for (const p of myPunches) {
+    const d = new Date(p.punched_at).toLocaleDateString('pt-BR');
+    (byDay[d] = byDay[d] || []).push(p);
+  }
+  const days = Object.keys(byDay);
+
+  const todayStr = new Date().toLocaleDateString('pt-BR');
+  const todayPunches = byDay[todayStr] || [];
+  const lastType = todayPunches[0]?.punch_type;
 
   return (
     <div className="container max-w-lg mx-auto p-4 space-y-6 pb-20">
       {showFacial && (
-        <FacialValidation 
-          mode="validate"
-          targetId={user?.id}
-          onValidated={onFacialValidated} 
-          onCancel={() => setShowFacial(false)} 
-        />
+        <FacialValidation mode="validate" targetId={user?.id}
+          onValidated={onFacialValidated} onCancel={() => { setShowFacial(false); setPendingPoint(null); }} />
       )}
 
       <Card className="border-none shadow-lg bg-gradient-to-br from-primary/10 via-background to-background">
-        <CardContent className="pt-6 text-center space-y-4">
+        <CardContent className="pt-6 text-center space-y-3">
           <div className="flex justify-center">
             <div className="h-20 w-20 rounded-full bg-primary/20 flex items-center justify-center">
               <User className="h-10 w-10 text-primary" />
@@ -166,112 +161,87 @@ export default function MyPoint() {
           </div>
           <div>
             <h2 className="text-2xl font-bold">{employeeName}</h2>
-            <p className="text-muted-foreground">{employeeRole}</p>
+            <p className="text-muted-foreground text-sm">{employeeRole}</p>
           </div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary text-xs font-medium">
-            <Clock className="h-3 w-3" />
-            {journey}
+          <div className="text-4xl font-mono font-bold tracking-tighter">
+            {now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+          </div>
+          <div className="text-muted-foreground text-sm">
+            {now.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}
           </div>
         </CardContent>
       </Card>
 
       <div className="grid grid-cols-2 gap-4">
-        <Card>
-          <CardContent className="pt-6 flex flex-col items-center gap-2">
-            <MapPin className={cn("h-5 w-5", gpsStatus === 'active' ? "text-green-500" : "text-red-500")} />
-            <span className="text-xs text-muted-foreground">GPS</span>
-            <span className="text-sm font-semibold">{gpsStatus === 'active' ? "Ativo" : "Inativo"}</span>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6 flex flex-col items-center gap-2">
-            <AlertTriangle className={cn(
-              "h-5 w-5", 
-              dailyStatus === 'idle' ? "text-muted-foreground" : 
-              dailyStatus === 'finished' ? "text-blue-500" : "text-green-500"
-            )} />
-            <span className="text-xs text-muted-foreground">Status do Dia</span>
-            <span className="text-sm font-semibold capitalize">
-              {dailyStatus === 'idle' ? 'Não iniciado' : 
-               dailyStatus === 'working' ? 'Em andamento' :
-               dailyStatus === 'break' ? 'Em intervalo' : 'Finalizado'}
-            </span>
-          </CardContent>
-        </Card>
+        <Card><CardContent className="pt-6 flex flex-col items-center gap-1">
+          <MapPin className={cn("h-5 w-5", gpsStatus === 'active' ? "text-green-500" : "text-red-500")} />
+          <span className="text-xs text-muted-foreground">GPS</span>
+          <span className="text-sm font-semibold">{gpsStatus === 'active' ? "Ativo" : "Inativo"}</span>
+        </CardContent></Card>
+        <Card><CardContent className="pt-6 flex flex-col items-center gap-1">
+          <AlertTriangle className="h-5 w-5 text-primary" />
+          <span className="text-xs text-muted-foreground">Batidas hoje</span>
+          <span className="text-sm font-semibold">{todayPunches.length}</span>
+        </CardContent></Card>
       </div>
 
-      <div className="flex flex-col items-center py-8 space-y-2">
-        <div className="text-5xl font-mono font-bold tracking-tighter">
-          {now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-        </div>
-        <div className="text-muted-foreground font-medium">
-          {now.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4">
-        <div className="grid grid-cols-2 gap-4">
-          <Button 
-            size="lg" 
-            className="h-24 flex flex-col gap-2 rounded-2xl shadow-md transition-all active:scale-95"
-            disabled={dailyStatus !== 'idle'}
-            onClick={() => handleRegisterClick("Entrada")}
-          >
-            <Play className="h-6 w-6" />
-            <span className="font-bold">Entrada</span>
-          </Button>
-          <Button 
-            size="lg" 
-            variant="secondary"
-            className="h-24 flex flex-col gap-2 rounded-2xl shadow-sm transition-all active:scale-95"
-            disabled={dailyStatus !== 'working'}
-            onClick={() => handleRegisterClick("Almoço")}
-          >
-            <Coffee className="h-6 w-6" />
-            <span className="font-bold">Almoço</span>
-          </Button>
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          <Button 
-            size="lg" 
-            variant="secondary"
-            className="h-24 flex flex-col gap-2 rounded-2xl shadow-sm transition-all active:scale-95"
-            disabled={dailyStatus !== 'break'}
-            onClick={() => handleRegisterClick("Volta")}
-          >
-            <History className="h-6 w-6" />
-            <span className="font-bold">Volta</span>
-          </Button>
-          <Button 
-            size="lg" 
-            variant="destructive"
-            className="h-24 flex flex-col gap-2 rounded-2xl shadow-md transition-all active:scale-95"
-            disabled={dailyStatus !== 'working'}
-            onClick={() => handleRegisterClick("Saída")}
-          >
-            <LogOut className="h-6 w-6" />
-            <span className="font-bold">Saída</span>
-          </Button>
-        </div>
-        
-        <Button variant="outline" className="w-full mt-2 h-12">
-          Solicitar Hora Extra
+      <div className="grid grid-cols-2 gap-3">
+        <Button size="lg" className="h-20 flex flex-col gap-1 rounded-2xl"
+          disabled={lastType === 'entrada'} onClick={() => handleRegisterClick("Entrada")}>
+          <Play className="h-5 w-5" /><span className="font-bold text-sm">Entrada</span>
+        </Button>
+        <Button size="lg" variant="secondary" className="h-20 flex flex-col gap-1 rounded-2xl"
+          onClick={() => handleRegisterClick("Almoço")}>
+          <Coffee className="h-5 w-5" /><span className="font-bold text-sm">Almoço</span>
+        </Button>
+        <Button size="lg" variant="secondary" className="h-20 flex flex-col gap-1 rounded-2xl"
+          onClick={() => handleRegisterClick("Volta")}>
+          <History className="h-5 w-5" /><span className="font-bold text-sm">Volta</span>
+        </Button>
+        <Button size="lg" variant="destructive" className="h-20 flex flex-col gap-1 rounded-2xl"
+          onClick={() => handleRegisterClick("Saída")}>
+          <LogOut className="h-5 w-5" /><span className="font-bold text-sm">Saída</span>
         </Button>
       </div>
 
-      {lastRegister && (
-        <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground bg-muted p-4 rounded-xl border border-border">
-          <CheckCircle2 className="h-4 w-4 text-green-500" />
-          Último registro: <span className="font-bold text-foreground">{lastRegister}</span>
-        </div>
-      )}
-
-      <div className="text-center">
-        <p className="text-xs text-muted-foreground flex items-center justify-center gap-1 opacity-70">
-          <MapPin className="h-3 w-3" />
-          Local: {authorizedLocation.name}
-        </p>
-      </div>
+      <Card>
+        <CardHeader className="pb-2 flex flex-row items-center justify-between">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Clock className="h-4 w-4" /> Minhas batidas
+          </CardTitle>
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={loadPunches}>
+            <RefreshCw className="h-3.5 w-3.5" />
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {days.length === 0 ? (
+            <div className="text-center text-sm text-muted-foreground py-6">
+              Nenhuma batida nos últimos 7 dias.
+            </div>
+          ) : days.map((d) => (
+            <div key={d} className="space-y-1">
+              <div className="text-xs font-semibold text-muted-foreground">{d}</div>
+              <div className="space-y-1">
+                {byDay[d].slice().reverse().map((p) => (
+                  <div key={p.id} className="flex items-center justify-between border rounded-md px-3 py-2 text-sm">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-green-500" />
+                      <span>{LABEL_MAP[p.punch_type] || p.punch_type}</span>
+                      {p.source === 'manual' && (
+                        <Badge variant="outline" className="text-[10px]">manual</Badge>
+                      )}
+                      {p.source === 'kiosk' && (
+                        <Badge variant="secondary" className="text-[10px]">kiosk</Badge>
+                      )}
+                    </div>
+                    <span className="font-mono text-sm">{fmtTime(p.punched_at)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
     </div>
   );
 }
