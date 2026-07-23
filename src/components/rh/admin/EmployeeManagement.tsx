@@ -494,10 +494,18 @@ export default function EmployeeManagement() {
                 <TableCell className="text-xs">{emp.journey}</TableCell>
                 <TableCell>
                   {emp.facial_registered ? (
-                    <div className="flex items-center gap-1 text-green-600 text-xs">
-                      <CheckCircle2 className="h-4 w-4" />
-                      Cadastrado
-                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs h-7 gap-1 text-green-600 hover:text-green-700"
+                      onClick={() => {
+                        setSelectedEmployee(emp);
+                        setIsFacialDialogOpen(true);
+                      }}
+                      title="Face cadastrada — clique para recadastrar"
+                    >
+                      <CheckCircle2 className="h-4 w-4" /> Recadastrar
+                    </Button>
                   ) : (
                     <Button 
                       variant="outline" 
