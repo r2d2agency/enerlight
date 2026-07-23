@@ -25,7 +25,7 @@ import {
 } from '@/lib/face-recognition';
 import { getAssignedJourney } from '@/lib/rh-journeys';
 
-type PointType = 'Entrada' | 'Almoço' | 'Volta' | 'Saída';
+type PointType = 'Entrada' | 'Café' | 'Volta Café' | 'Almoço' | 'Volta' | 'Saída';
 
 const MATCH_THRESHOLD = 0.55; // rigoroso para kiosk
 
