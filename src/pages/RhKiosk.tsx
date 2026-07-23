@@ -45,9 +45,9 @@ export default function RhKiosk() {
   const [loading, setLoading] = useState(true);
   const [candidates, setCandidates] = useState<FaceCandidate[]>([]);
   const [status, setStatus] = useState('Carregando modelos faciais...');
-  const [pending, setPending] = useState<PointType | null>(null);
-  const [recognized, setRecognized] = useState<{ name: string; type: PointType; score: number; time: string } | null>(null);
-  const [lastRegisters, setLastRegisters] = useState<Array<{ name: string; type: PointType; time: string }>>([]);
+  const [pending, setPending] = useState(false);
+  const [recognized, setRecognized] = useState<{ name: string; type: string; score: number; time: string } | null>(null);
+  const [lastRegisters, setLastRegisters] = useState<Array<{ name: string; type: string; time: string }>>([]);
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000);
