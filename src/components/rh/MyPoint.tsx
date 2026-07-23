@@ -147,7 +147,7 @@ export default function MyPoint() {
     <div className="container max-w-lg mx-auto p-4 space-y-6 pb-20">
       {showFacial && (
         <FacialValidation mode="validate" targetId={user?.id}
-          onValidated={onFacialValidated} onCancel={() => { setShowFacial(false); setPendingPoint(null); }} />
+          onValidated={onFacialValidated} onCancel={() => { setShowFacial(false); setPendingClick(false); }} />
       )}
 
       <Card className="border-none shadow-lg bg-gradient-to-br from-primary/10 via-background to-background">
