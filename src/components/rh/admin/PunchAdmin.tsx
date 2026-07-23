@@ -35,6 +35,8 @@ type Missing = { user_id: string; name: string; email: string; work_start_time?:
 
 const TYPE_LABEL: Record<string, string> = {
   entrada: 'Entrada',
+  cafe_ini: 'Café (saída)',
+  cafe_fim: 'Café (volta)',
   almoco_ini: 'Almoço (saída)',
   almoco_fim: 'Almoço (volta)',
   saida: 'Saída',
