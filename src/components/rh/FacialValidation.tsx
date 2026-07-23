@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Camera, RefreshCw, X, Loader2 } from "lucide-react";
 import * as faceapi from '@vladmandic/face-api';
-import * as tf from '@vladmandic/face-api/dist/tfjs.esm.js';
+const tf: any = (faceapi as any).tf;
 
 interface FacialValidationProps {
   onValidated: (success: boolean) => void;
