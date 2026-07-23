@@ -94,38 +94,41 @@ export default function MyPoint() {
       );
     });
 
-  const handleRegisterClick = async (type: PunchType) => {
+  const handleRegisterClick = async () => {
+    if (todayPunches.length >= MAX_PER_DAY) {
+      toast.error(`Limite de ${MAX_PER_DAY} batidas por dia atingido.`);
+      return;
+    }
     if (gpsStatus !== 'active') { toast.error("Ative o GPS"); checkGPS(); return; }
     const loc = await validateLocation();
     if (!loc.ok) return;
     setCoords({ lat: loc.lat!, lng: loc.lng! });
-    setPendingPoint(type);
+    setPendingClick(true);
     setShowFacial(true);
   };
 
   const onFacialValidated = async (success: boolean) => {
     setShowFacial(false);
-    if (!success || !pendingPoint) {
+    if (!success || !pendingClick) {
       if (!success) toast.error("Não foi possível validar sua identidade.");
-      setPendingPoint(null);
+      setPendingClick(false);
       return;
     }
     try {
-      await api('/api/rh/punches', {
+      const p: any = await api('/api/rh/punches', {
         method: 'POST',
         body: {
-          punch_type: TYPE_MAP[pendingPoint],
           source: 'app',
           latitude: coords?.lat,
           longitude: coords?.lng,
         },
       });
-      toast.success(`${pendingPoint} registrado com sucesso!`);
+      toast.success(`Ponto registrado: ${LABEL_MAP[p?.punch_type] || 'Batida'}`);
       loadPunches();
     } catch (e: any) {
       toast.error(e?.message || 'Erro ao registrar batida');
     }
-    setPendingPoint(null);
+    setPendingClick(false);
   };
 
   // Agrupa por dia
