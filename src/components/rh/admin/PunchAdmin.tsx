@@ -270,7 +270,7 @@ export default function PunchAdmin() {
             </TableHeader>
             <TableBody>
               {grouped.length === 0 ? (
-                <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                   Nenhuma batida neste dia.
                 </TableCell></TableRow>
               ) : grouped.map(([uid, row]) => {
