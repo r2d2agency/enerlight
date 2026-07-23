@@ -1090,26 +1090,60 @@ function StudentDetailView({ data }: { data: any }) {
 }
 
 function CertsTab({ certs }: { certs: any[] }) {
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [list, setList] = useState(certs);
+  useEffect(() => { setList(certs); }, [certs]);
+
+  async function regenerate(c: any, resend: boolean) {
+    if (resend && !confirm(`Regerar e reenviar o certificado para ${c.student_name}?`)) return;
+    if (!resend && !confirm(`Regerar o PDF do certificado para ${c.student_name}? (sem reenviar notificação)`)) return;
+    setBusyId(c.id);
+    try {
+      const r = await eadAdminApi.regenerateCertificate({ certificate_id: c.id, resend });
+      setList(prev => prev.map(x => x.id === c.id ? { ...x, pdf_url: r.certificate.pdf_url, issued_at: r.certificate.issued_at } : x));
+      if (resend) {
+        const wa = r.notify?.whatsapp?.success ? 'WhatsApp ✓' : `WhatsApp ✗ (${r.notify?.whatsapp?.error || '-'})`;
+        const em = r.notify?.email?.success ? 'E-mail ✓' : `E-mail ✗ (${r.notify?.email?.error || '-'})`;
+        toast.success(`Certificado regerado. ${wa} · ${em}`);
+      } else {
+        toast.success('Certificado regerado');
+      }
+    } catch (e: any) { toast.error(e.message); }
+    finally { setBusyId(null); }
+  }
+
   return (
     <Card><CardContent className="p-0">
       <Table>
-        <TableHeader><TableRow><TableHead>Instalador</TableHead><TableHead>Empresa</TableHead><TableHead>Curso</TableHead><TableHead>Emitido em</TableHead><TableHead></TableHead></TableRow></TableHeader>
+        <TableHeader><TableRow><TableHead>Instalador</TableHead><TableHead>Empresa</TableHead><TableHead>Curso</TableHead><TableHead>Emitido em</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader>
         <TableBody>
-          {certs.map(c => (
+          {list.map(c => (
             <TableRow key={c.id}>
               <TableCell><div className="font-medium">{c.student_name}</div><div className="text-xs text-muted-foreground">{c.cpf}</div></TableCell>
               <TableCell>{c.company || '-'}</TableCell>
               <TableCell>{c.course_title}</TableCell>
               <TableCell>{new Date(c.issued_at).toLocaleString('pt-BR')}</TableCell>
-              <TableCell><a href={c.pdf_url} target="_blank" rel="noreferrer"><Button size="sm" variant="outline"><Download className="h-4 w-4 mr-1" />PDF</Button></a></TableCell>
+              <TableCell className="text-right">
+                <div className="flex justify-end gap-1 flex-wrap">
+                  <a href={c.pdf_url} target="_blank" rel="noreferrer"><Button size="sm" variant="outline"><Download className="h-4 w-4 mr-1" />PDF</Button></a>
+                  <Button size="sm" variant="outline" disabled={busyId === c.id} onClick={() => regenerate(c, false)}>
+                    {busyId === c.id ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Regerar PDF'}
+                  </Button>
+                  <Button size="sm" disabled={busyId === c.id} onClick={() => regenerate(c, true)}>
+                    {busyId === c.id ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Award className="h-4 w-4 mr-1" />}
+                    Regerar e reenviar
+                  </Button>
+                </div>
+              </TableCell>
             </TableRow>
           ))}
-          {!certs.length && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhum certificado emitido.</TableCell></TableRow>}
+          {!list.length && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhum certificado emitido.</TableCell></TableRow>}
         </TableBody>
       </Table>
     </CardContent></Card>
   );
 }
+
 
 // =========================================================================
 // BRANDS TAB
