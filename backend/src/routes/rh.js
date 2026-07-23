@@ -333,6 +333,20 @@ async function getUserOrgId(userId) {
   return r.rows[0]?.organization_id || null;
 }
 
+// Auto-classifica o tipo com base na contagem de batidas do dia (1..6).
+const AUTO_SEQUENCE = ['entrada', 'almoco_ini', 'almoco_fim', 'saida', 'extra', 'extra'];
+const MAX_PUNCHES_PER_DAY = 6;
+
+async function isMonthClosed(orgId, userId, dateISO) {
+  const ym = String(dateISO).slice(0, 7); // YYYY-MM
+  const r = await query(
+    `SELECT 1 FROM rh_timesheet_closures
+      WHERE organization_id = $1 AND user_id = $2 AND year_month = $3 AND reopened_at IS NULL`,
+    [orgId, userId, ym]
+  );
+  return r.rows.length > 0;
+}
+
 // Kiosk/App: cria a batida (para si mesmo OU um user_id reconhecido facialmente)
 router.post('/punches', async (req, res) => {
   try {
@@ -340,10 +354,8 @@ router.post('/punches', async (req, res) => {
     if (!orgId) return res.status(403).json({ error: 'Usuário sem organização' });
 
     const { user_id, punch_type, latitude, longitude, location_id, notes, source } = req.body || {};
-    const punchType = normalizePunchType(punch_type);
-    if (!punchType) return res.status(400).json({ error: 'Tipo de batida inválido' });
-
     const targetUserId = user_id || req.userId;
+
     // valida que o target pertence a mesma org
     const inOrg = await query(
       `SELECT 1 FROM organization_members WHERE user_id = $1 AND organization_id = $2 AND COALESCE(is_active, true) = true`,
@@ -354,11 +366,31 @@ router.post('/punches', async (req, res) => {
     }
 
     const src = ['kiosk', 'app', 'manual'].includes(source) ? source : 'app';
-    // Se for outro user, exige kiosk (facial) — protege contra spoofing manual disfarçado
     if (targetUserId !== req.userId && src !== 'kiosk') {
       if (!await isRhManager(req.userId)) {
         return res.status(403).json({ error: 'Sem permissão para bater ponto por outro colaborador' });
       }
+    }
+
+    // Conta batidas de hoje para o alvo (fuso BR)
+    const countRes = await query(
+      `SELECT COUNT(*)::int AS c FROM rh_punches
+        WHERE user_id = $1 AND organization_id = $2
+          AND (punched_at AT TIME ZONE 'America/Sao_Paulo')::date
+            = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date`,
+      [targetUserId, orgId]
+    );
+    const todayCount = countRes.rows[0].c;
+    if (todayCount >= MAX_PUNCHES_PER_DAY) {
+      return res.status(400).json({ error: `Limite de ${MAX_PUNCHES_PER_DAY} batidas por dia atingido.` });
+    }
+
+    // Classifica: se veio tipo, respeita; senão auto por sequência.
+    const punchType = normalizePunchType(punch_type) || AUTO_SEQUENCE[todayCount] || 'extra';
+
+    // Bloqueio se mês está fechado
+    if (await isMonthClosed(orgId, targetUserId, new Date().toISOString())) {
+      return res.status(400).json({ error: 'Folha do mês já foi fechada. Reabra para novas batidas.' });
     }
 
     const ins = await query(
