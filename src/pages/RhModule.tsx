@@ -135,5 +135,7 @@ export default function RhModule() {
         </main>
       </div>
     </div>
+    </MainLayout>
   );
+
 }
