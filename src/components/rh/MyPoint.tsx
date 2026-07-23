@@ -151,6 +151,7 @@ export default function MyPoint() {
       {showFacial && (
         <FacialValidation 
           mode="validate"
+          targetId={user?.id}
           onValidated={onFacialValidated} 
           onCancel={() => setShowFacial(false)} 
         />
