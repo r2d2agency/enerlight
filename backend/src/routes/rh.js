@@ -3,6 +3,84 @@ import { query } from '../db.js';
 import { authenticate } from '../middleware/auth.js';
 
 const router = Router();
+
+// Idempotent schema bootstrap – garante tabelas/colunas de RH mesmo se a migração inicial não rodou.
+let schemaReady = null;
+async function ensureRhSchema() {
+  if (schemaReady) return schemaReady;
+  schemaReady = (async () => {
+    try {
+      await query(`CREATE TABLE IF NOT EXISTS rh_authorized_locations (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        name VARCHAR(255) NOT NULL,
+        latitude DECIMAL(10,8),
+        longitude DECIMAL(11,8),
+        radius_meters INTEGER DEFAULT 150,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );`);
+      const memberCols = [
+        ['is_active', 'BOOLEAN DEFAULT true'],
+        ['hire_date', 'DATE'],
+        ['contract_type', 'VARCHAR(20)'],
+        ['base_salary', 'NUMERIC(12,2)'],
+        ["salary_composition", "JSONB DEFAULT '[]'::jsonb"],
+        ['work_start_time', 'TIME'],
+        ['work_end_time', 'TIME'],
+        ['lunch_start_time', 'TIME'],
+        ['lunch_end_time', 'TIME'],
+        ['authorized_radius_meters', 'INTEGER'],
+        ['authorized_latitude', 'DECIMAL(10,8)'],
+        ['authorized_longitude', 'DECIMAL(11,8)'],
+      ];
+      for (const [name, type] of memberCols) {
+        await query(`ALTER TABLE organization_members ADD COLUMN IF NOT EXISTS ${name} ${type};`);
+      }
+      await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS cpf VARCHAR(20);`);
+      await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS birth_date DATE;`);
+      await query(`CREATE TABLE IF NOT EXISTS rh_punches (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        punch_type VARCHAR(20) NOT NULL,
+        punched_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        source VARCHAR(20) NOT NULL DEFAULT 'app',
+        latitude DECIMAL(10, 8),
+        longitude DECIMAL(11, 8),
+        location_id UUID REFERENCES rh_authorized_locations(id) ON DELETE SET NULL,
+        notes TEXT,
+        created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      );`);
+      await query(`CREATE INDEX IF NOT EXISTS idx_rh_punches_org_date ON rh_punches(organization_id, punched_at);`);
+      await query(`CREATE INDEX IF NOT EXISTS idx_rh_punches_user_date ON rh_punches(user_id, punched_at);`);
+      await query(`CREATE TABLE IF NOT EXISTS rh_punch_audit (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        punch_id UUID REFERENCES rh_punches(id) ON DELETE CASCADE,
+        organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        action VARCHAR(20) NOT NULL,
+        before_data JSONB,
+        after_data JSONB,
+        reason TEXT,
+        actor_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );`);
+      console.log('[rh] schema ensured');
+    } catch (err) {
+      console.error('[rh] ensureRhSchema failed:', err.message);
+      schemaReady = null;
+      throw err;
+    }
+  })();
+  return schemaReady;
+}
+
+router.use(async (_req, _res, next) => {
+  try { await ensureRhSchema(); } catch (_e) { /* segue: endpoint responderá o erro real */ }
+  next();
+});
+
 router.use(authenticate);
 
 // Helper: check if user is RH manager (owner/admin/manager)
