@@ -651,48 +651,68 @@ export default function EmployeeManagement() {
             </div>
 
             <div className="border-t pt-4 mt-2">
-              <h4 className="text-sm font-semibold mb-3">Horários de Trabalho</h4>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="work_start">Entrada</Label>
-                  <Input 
-                    id="work_start" 
-                    type="time"
-                    value={formData.work_start_time} 
-                    onChange={e => setFormData({...formData, work_start_time: e.target.value})} 
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="work_end">Saída</Label>
-                  <Input 
-                    id="work_end" 
-                    type="time"
-                    value={formData.work_end_time} 
-                    onChange={e => setFormData({...formData, work_end_time: e.target.value})} 
-                  />
-                </div>
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-sm font-semibold">Jornada de Trabalho</h4>
+                <a href="/rh?view=journeys" className="text-[10px] text-primary hover:underline">
+                  Gerenciar jornadas
+                </a>
               </div>
-              
-              <div className="grid grid-cols-2 gap-4 mt-3">
-                <div className="grid gap-2">
-                  <Label htmlFor="lunch_start">Início Almoço</Label>
-                  <Input 
-                    id="lunch_start" 
-                    type="time"
-                    value={formData.lunch_start_time} 
-                    onChange={e => setFormData({...formData, lunch_start_time: e.target.value})} 
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="lunch_end">Fim Almoço</Label>
-                  <Input 
-                    id="lunch_end" 
-                    type="time"
-                    value={formData.lunch_end_time} 
-                    onChange={e => setFormData({...formData, lunch_end_time: e.target.value})} 
-                  />
-                </div>
-              </div>
+              <Select
+                value={formData.journey_id || "none"}
+                onValueChange={(v) => {
+                  if (v === "none") {
+                    setFormData({ ...formData, journey_id: "" });
+                    return;
+                  }
+                  const j = journeys.find((x) => x.id === v);
+                  if (!j) return;
+                  setFormData({
+                    ...formData,
+                    journey_id: j.id,
+                    work_start_time: j.workStart,
+                    work_end_time: j.workEnd,
+                    lunch_start_time: j.lunchStart,
+                    lunch_end_time: j.lunchEnd,
+                    journey: `${j.workStart} - ${j.lunchStart} | ${j.lunchEnd} - ${j.workEnd}`,
+                  });
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={journeys.length ? "Selecione uma jornada" : "Nenhuma jornada cadastrada"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">— Nenhuma —</SelectItem>
+                  {journeys.map((j) => (
+                    <SelectItem key={j.id} value={j.id}>
+                      {j.name} · {j.workStart}–{j.workEnd}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {formData.journey_id && (() => {
+                const j = journeys.find((x) => x.id === formData.journey_id);
+                if (!j) return null;
+                return (
+                  <div className="mt-2 text-xs bg-muted/40 rounded-md p-2 space-y-1">
+                    <div className="flex flex-wrap gap-1">
+                      {WEEKDAYS.map((w, i) => (
+                        <span
+                          key={i}
+                          className={cn(
+                            "px-1.5 py-0.5 rounded text-[10px]",
+                            j.days.includes(i) ? "bg-primary text-primary-foreground" : "bg-background border"
+                          )}
+                        >
+                          {w}
+                        </span>
+                      ))}
+                    </div>
+                    <div className="font-mono">
+                      {j.workStart} → {j.lunchStart} | {j.lunchEnd} → {j.workEnd} · tol. {j.toleranceMinutes}min
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             <div className="border-t pt-4 mt-2">
