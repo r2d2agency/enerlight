@@ -259,6 +259,8 @@ export default function PunchAdmin() {
               <TableRow>
                 <TableHead>Colaborador</TableHead>
                 <TableHead>Entrada</TableHead>
+                <TableHead>Café (saída)</TableHead>
+                <TableHead>Café (volta)</TableHead>
                 <TableHead>Almoço (saída)</TableHead>
                 <TableHead>Almoço (volta)</TableHead>
                 <TableHead>Saída</TableHead>
