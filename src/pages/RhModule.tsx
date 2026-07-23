@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import {
-  Clock, History, Map as MapIcon, Settings as SettingsIcon,
-  UserPlus, Monitor, BarChart3,
+  LayoutDashboard, Clock, History, Map as MapIcon, Settings as SettingsIcon,
+  UserPlus, Monitor, ShieldCheck, ChevronRight,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import MyPoint from "@/components/rh/MyPoint";
@@ -13,114 +13,123 @@ import EmployeeManagement from "@/components/rh/admin/EmployeeManagement";
 import RhLocations from "@/components/rh/admin/RhLocations";
 import JourneyManagement from "@/components/rh/admin/JourneyManagement";
 import PunchAdmin from "@/components/rh/admin/PunchAdmin";
+import RhDashboard from "@/components/rh/RhDashboard";
 import { useAuth } from "@/contexts/AuthContext";
+
+type SectionId =
+  | "dashboard" | "my-point" | "punches" | "employees"
+  | "registers" | "locations" | "journeys";
+
+interface SectionDef {
+  id: SectionId;
+  label: string;
+  description: string;
+  icon: any;
+  group: string;
+  visible: boolean;
+}
 
 export default function RhModule() {
   const { user, permissions } = useAuth() as any;
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("my-point");
+  const [active, setActive] = useState<SectionId>("dashboard");
 
-  const isAdmin = user?.role === 'owner' || user?.role === 'admin';
+  const isAdmin = user?.role === "owner" || user?.role === "admin";
   const canDashboard = isAdmin || permissions?.can_view_hr_dashboard || permissions?.can_manage_rh_punches || permissions?.can_approve_rh;
 
+  const sections: SectionDef[] = [
+    { id: "dashboard", label: "Dashboard", description: "Visão geral do RH", icon: LayoutDashboard, group: "Pessoal", visible: true },
+    { id: "my-point", label: "Meu Ponto", description: "Registrar e ver minhas batidas", icon: Clock, group: "Pessoal", visible: true },
+    { id: "punches", label: "Painel de Pontos", description: "Batidas do dia e ajustes", icon: ShieldCheck, group: "Gestão", visible: !!canDashboard },
+    { id: "employees", label: "Colaboradores", description: "Cadastro e ficha completa", icon: UserPlus, group: "Gestão", visible: isAdmin },
+    { id: "registers", label: "Registros", description: "Histórico e aniversariantes", icon: History, group: "Gestão", visible: isAdmin },
+    { id: "locations", label: "Locais", description: "Locais autorizados de atuação", icon: MapIcon, group: "Configurações", visible: isAdmin },
+    { id: "journeys", label: "Jornadas", description: "Escalas e horários de trabalho", icon: SettingsIcon, group: "Configurações", visible: isAdmin },
+  ];
+
+  const visibleSections = sections.filter((s) => s.visible);
+  const grouped = visibleSections.reduce<Record<string, SectionDef[]>>((acc, s) => {
+    (acc[s.group] ||= []).push(s);
+    return acc;
+  }, {});
+  const currentSection = visibleSections.find((s) => s.id === active) || visibleSections[0];
+
+  const renderContent = () => {
+    switch (active) {
+      case "dashboard":
+        return <RhDashboard onNavigate={(id) => setActive(id as SectionId)} />;
+      case "my-point":
+        return <MyPoint />;
+      case "punches":
+        return canDashboard ? <PunchAdmin /> : null;
+      case "employees":
+        return isAdmin ? <EmployeeManagement /> : null;
+      case "registers":
+        return isAdmin ? <RhRegisters /> : null;
+      case "locations":
+        return isAdmin ? <RhLocations /> : null;
+      case "journeys":
+        return isAdmin ? <JourneyManagement /> : null;
+    }
+  };
+
   return (
-    <div className="p-4 md:p-6 space-y-6">
-      <div className="flex justify-between items-center flex-wrap gap-3">
+    <div className="p-4 md:p-6">
+      <div className="flex justify-between items-start flex-wrap gap-3 mb-6">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">RH / Registro de Ponto</h1>
-          <p className="text-muted-foreground text-sm">Gestão de jornada e controle de frequência</p>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">RH</h1>
+          <p className="text-muted-foreground text-sm">Gestão de pessoas, jornada e ponto</p>
         </div>
-        <Button onClick={() => navigate('/rh/kiosk')} className="gap-2">
+        <Button onClick={() => navigate("/rh/kiosk")} className="gap-2">
           <Monitor className="h-4 w-4" />
           Modo Kiosk
         </Button>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <div className="overflow-x-auto pb-2 scrollbar-none">
-          <TabsList className="inline-flex min-w-full md:min-w-0 md:grid md:w-full md:grid-cols-6 h-auto p-1 bg-muted/50">
-            <TabsTrigger value="my-point" className="gap-2 py-2.5">
-              <Clock className="h-4 w-4" />
-              <span className="hidden sm:inline">Meu Ponto</span>
-              <span className="sm:hidden">Ponto</span>
-            </TabsTrigger>
-            {canDashboard && (
-              <TabsTrigger value="dashboard" className="gap-2 py-2.5">
-                <BarChart3 className="h-4 w-4" />
-                <span className="hidden sm:inline">Painel de Pontos</span>
-                <span className="sm:hidden">Painel</span>
-              </TabsTrigger>
-            )}
-            {isAdmin && (
-              <>
-                <TabsTrigger value="employees" className="gap-2 py-2.5">
-                  <UserPlus className="h-4 w-4" />
-                  <span className="hidden sm:inline">Colaboradores</span>
-                  <span className="sm:hidden">Equipe</span>
-                </TabsTrigger>
-                <TabsTrigger value="registers" className="gap-2 py-2.5">
-                  <History className="h-4 w-4" />
-                  <span className="hidden sm:inline">Registros</span>
-                  <span className="sm:hidden">Logs</span>
-                </TabsTrigger>
-                <TabsTrigger value="locations" className="gap-2 py-2.5">
-                  <MapIcon className="h-4 w-4" />
-                  <span className="hidden sm:inline">Locais</span>
-                  <span className="sm:hidden">Obras</span>
-                </TabsTrigger>
-                <TabsTrigger value="settings" className="gap-2 py-2.5">
-                  <SettingsIcon className="h-4 w-4" />
-                  <span className="hidden sm:inline">Jornadas</span>
-                  <span className="sm:hidden">Cfg</span>
-                </TabsTrigger>
-              </>
-            )}
-          </TabsList>
-        </div>
+      <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-6">
+        <aside className="lg:sticky lg:top-4 self-start">
+          <Card className="p-2">
+            <nav className="space-y-4">
+              {Object.entries(grouped).map(([group, items]) => (
+                <div key={group}>
+                  <p className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    {group}
+                  </p>
+                  <div className="space-y-0.5">
+                    {items.map((s) => {
+                      const isActive = active === s.id;
+                      return (
+                        <button
+                          key={s.id}
+                          onClick={() => setActive(s.id)}
+                          className={cn(
+                            "w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm text-left transition-colors",
+                            isActive
+                              ? "bg-primary text-primary-foreground font-medium shadow-sm"
+                              : "hover:bg-muted text-foreground/80"
+                          )}
+                        >
+                          <s.icon className="h-4 w-4 shrink-0" />
+                          <span className="flex-1 truncate">{s.label}</span>
+                          {isActive && <ChevronRight className="h-3.5 w-3.5" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </nav>
+          </Card>
+        </aside>
 
-        <TabsContent value="my-point" className="mt-6">
-          <MyPoint />
-        </TabsContent>
-
-        {canDashboard && (
-          <TabsContent value="dashboard" className="mt-6">
-            <PunchAdmin />
-          </TabsContent>
-        )}
-
-        {isAdmin && (
-          <>
-            <TabsContent value="employees" className="mt-6">
-              <Card className="border-none shadow-sm">
-                <CardHeader className="pb-3"><CardTitle>Gestão de Colaboradores</CardTitle></CardHeader>
-                <CardContent><EmployeeManagement /></CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="registers" className="mt-6">
-              <Card className="border-none shadow-sm">
-                <CardHeader className="pb-3"><CardTitle>Gestão de Registros</CardTitle></CardHeader>
-                <CardContent><RhRegisters /></CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="locations" className="mt-6">
-              <Card className="border-none shadow-sm">
-                <CardHeader className="pb-3"><CardTitle>Gestão de Locais de Atuação</CardTitle></CardHeader>
-                <CardContent><RhLocations /></CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="settings" className="mt-6">
-              <Card>
-                <CardHeader><CardTitle>Configurações de Jornada</CardTitle></CardHeader>
-                <CardContent><JourneyManagement /></CardContent>
-              </Card>
-            </TabsContent>
-          </>
-        )}
-      </Tabs>
+        <main className="min-w-0">
+          <div className="mb-4">
+            <h2 className="text-lg font-semibold">{currentSection?.label}</h2>
+            <p className="text-sm text-muted-foreground">{currentSection?.description}</p>
+          </div>
+          <div>{renderContent()}</div>
+        </main>
+      </div>
     </div>
   );
 }
-
