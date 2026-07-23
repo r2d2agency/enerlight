@@ -43,7 +43,7 @@ export default function MyPoint() {
   const [now, setNow] = useState(new Date());
   const [gpsStatus, setGpsStatus] = useState<'active' | 'inactive' | 'checking'>('checking');
   const [showFacial, setShowFacial] = useState(false);
-  const [pendingPoint, setPendingPoint] = useState<PunchType | null>(null);
+  const [pendingClick, setPendingClick] = useState(false);
   const [myPunches, setMyPunches] = useState<any[]>([]);
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
 
