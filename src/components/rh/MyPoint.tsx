@@ -183,32 +183,20 @@ export default function MyPoint() {
         </CardContent></Card>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
-        <Button size="lg" className="h-20 flex flex-col gap-1 rounded-2xl"
-          disabled={lastType === 'entrada'} onClick={() => handleRegisterClick("Entrada")}>
-          <Play className="h-5 w-5" /><span className="font-bold text-xs">Entrada</span>
-        </Button>
-        <Button size="lg" variant="secondary" className="h-20 flex flex-col gap-1 rounded-2xl"
-          onClick={() => handleRegisterClick("Café")}>
-          <Coffee className="h-5 w-5" /><span className="font-bold text-xs">Café</span>
-        </Button>
-        <Button size="lg" variant="secondary" className="h-20 flex flex-col gap-1 rounded-2xl"
-          onClick={() => handleRegisterClick("Volta Café")}>
-          <History className="h-5 w-5" /><span className="font-bold text-xs">Volta Café</span>
-        </Button>
-        <Button size="lg" variant="secondary" className="h-20 flex flex-col gap-1 rounded-2xl"
-          onClick={() => handleRegisterClick("Almoço")}>
-          <Coffee className="h-5 w-5" /><span className="font-bold text-xs">Almoço</span>
-        </Button>
-        <Button size="lg" variant="secondary" className="h-20 flex flex-col gap-1 rounded-2xl"
-          onClick={() => handleRegisterClick("Volta")}>
-          <History className="h-5 w-5" /><span className="font-bold text-xs">Volta</span>
-        </Button>
-        <Button size="lg" variant="destructive" className="h-20 flex flex-col gap-1 rounded-2xl"
-          onClick={() => handleRegisterClick("Saída")}>
-          <LogOut className="h-5 w-5" /><span className="font-bold text-xs">Saída</span>
-        </Button>
-      </div>
+      <Button
+        size="lg"
+        className="h-24 w-full flex flex-col gap-1 rounded-2xl text-lg"
+        disabled={todayPunches.length >= MAX_PER_DAY}
+        onClick={handleRegisterClick}
+      >
+        <Fingerprint className="h-6 w-6" />
+        <span className="font-bold">
+          {todayPunches.length >= MAX_PER_DAY ? 'Limite atingido' : 'Bater Ponto'}
+        </span>
+        <span className="text-[11px] opacity-80">
+          {todayPunches.length}/{MAX_PER_DAY} batidas hoje
+        </span>
+      </Button>
 
       <Card>
         <CardHeader className="pb-2 flex flex-row items-center justify-between">
