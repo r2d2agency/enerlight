@@ -201,4 +201,368 @@ router.delete('/locations/:id', async (req, res) => {
   }
 });
 
+// =============================================================
+// PUNCHES (registros de ponto reais, com auditoria)
+// =============================================================
+
+const PUNCH_TYPES = ['entrada', 'almoco_ini', 'almoco_fim', 'saida', 'extra'];
+
+function normalizePunchType(t) {
+  if (!t) return null;
+  const key = String(t).toLowerCase().trim();
+  const map = {
+    'entrada': 'entrada',
+    'almoço': 'almoco_ini',
+    'almoco': 'almoco_ini',
+    'almoco_ini': 'almoco_ini',
+    'almoco_inicio': 'almoco_ini',
+    'volta': 'almoco_fim',
+    'almoco_fim': 'almoco_fim',
+    'almoco_volta': 'almoco_fim',
+    'saída': 'saida',
+    'saida': 'saida',
+    'extra': 'extra',
+  };
+  return map[key] || null;
+}
+
+async function getUserOrgId(userId) {
+  const r = await query(
+    `SELECT organization_id FROM organization_members WHERE user_id = $1 LIMIT 1`,
+    [userId]
+  );
+  return r.rows[0]?.organization_id || null;
+}
+
+// Kiosk/App: cria a batida (para si mesmo OU um user_id reconhecido facialmente)
+router.post('/punches', async (req, res) => {
+  try {
+    const orgId = await getUserOrgId(req.userId);
+    if (!orgId) return res.status(403).json({ error: 'Usuário sem organização' });
+
+    const { user_id, punch_type, latitude, longitude, location_id, notes, source } = req.body || {};
+    const punchType = normalizePunchType(punch_type);
+    if (!punchType) return res.status(400).json({ error: 'Tipo de batida inválido' });
+
+    const targetUserId = user_id || req.userId;
+    // valida que o target pertence a mesma org
+    const inOrg = await query(
+      `SELECT 1 FROM organization_members WHERE user_id = $1 AND organization_id = $2 AND COALESCE(is_active, true) = true`,
+      [targetUserId, orgId]
+    );
+    if (inOrg.rows.length === 0) {
+      return res.status(404).json({ error: 'Colaborador não encontrado ou inativo' });
+    }
+
+    const src = ['kiosk', 'app', 'manual'].includes(source) ? source : 'app';
+    // Se for outro user, exige kiosk (facial) — protege contra spoofing manual disfarçado
+    if (targetUserId !== req.userId && src !== 'kiosk') {
+      if (!await isRhManager(req.userId)) {
+        return res.status(403).json({ error: 'Sem permissão para bater ponto por outro colaborador' });
+      }
+    }
+
+    const ins = await query(
+      `INSERT INTO rh_punches (organization_id, user_id, punch_type, source, latitude, longitude, location_id, notes, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+       RETURNING *`,
+      [orgId, targetUserId, punchType, src, latitude || null, longitude || null, location_id || null, notes || null, req.userId]
+    );
+    const punch = ins.rows[0];
+    await query(
+      `INSERT INTO rh_punch_audit (punch_id, organization_id, action, after_data, actor_user_id, reason)
+       VALUES ($1,$2,'create',$3,$4,$5)`,
+      [punch.id, orgId, JSON.stringify(punch), req.userId, src === 'manual' ? (notes || 'Batida manual') : null]
+    );
+    res.status(201).json(punch);
+  } catch (error) {
+    console.error('Create punch error:', error);
+    res.status(500).json({ error: 'Erro ao registrar batida' });
+  }
+});
+
+// Colaborador vê apenas suas próprias batidas
+router.get('/punches/me', async (req, res) => {
+  try {
+    const orgId = await getUserOrgId(req.userId);
+    if (!orgId) return res.status(403).json({ error: 'Usuário sem organização' });
+    const { from, to } = req.query;
+    const params = [req.userId, orgId];
+    let where = `user_id = $1 AND organization_id = $2`;
+    if (from) { params.push(from); where += ` AND punched_at >= $${params.length}`; }
+    if (to)   { params.push(to);   where += ` AND punched_at <= $${params.length}`; }
+    const r = await query(
+      `SELECT id, user_id, punch_type, punched_at, source, latitude, longitude, notes, created_at
+         FROM rh_punches WHERE ${where}
+         ORDER BY punched_at DESC LIMIT 500`,
+      params
+    );
+    res.json(r.rows);
+  } catch (error) {
+    console.error('Get my punches error:', error);
+    res.status(500).json({ error: 'Erro ao carregar batidas' });
+  }
+});
+
+// Admin/RH: lista todas as batidas do dia (ou por período), com filtros
+router.get('/punches', async (req, res) => {
+  try {
+    if (!await isRhManager(req.userId)) {
+      return res.status(403).json({ error: 'Acesso negado' });
+    }
+    const orgId = await getUserOrgId(req.userId);
+    if (!orgId) return res.status(403).json({ error: 'Usuário sem organização' });
+
+    const { date, from, to, user_id } = req.query;
+    const params = [orgId];
+    let where = `p.organization_id = $1`;
+    if (date) {
+      params.push(date + ' 00:00:00');
+      where += ` AND p.punched_at >= $${params.length}`;
+      params.push(date + ' 23:59:59');
+      where += ` AND p.punched_at <= $${params.length}`;
+    } else {
+      if (from) { params.push(from); where += ` AND p.punched_at >= $${params.length}`; }
+      if (to)   { params.push(to);   where += ` AND p.punched_at <= $${params.length}`; }
+    }
+    if (user_id) { params.push(user_id); where += ` AND p.user_id = $${params.length}`; }
+
+    const r = await query(
+      `SELECT p.*, u.name as user_name, u.email as user_email
+         FROM rh_punches p
+         JOIN users u ON u.id = p.user_id
+         WHERE ${where}
+         ORDER BY p.punched_at DESC LIMIT 2000`,
+      params
+    );
+    res.json(r.rows);
+  } catch (error) {
+    console.error('Get punches error:', error);
+    res.status(500).json({ error: 'Erro ao carregar batidas' });
+  }
+});
+
+// Admin/RH: quem tem jornada hoje e ainda não bateu entrada
+router.get('/punches/dashboard/missing-today', async (req, res) => {
+  try {
+    if (!await isRhManager(req.userId)) {
+      return res.status(403).json({ error: 'Acesso negado' });
+    }
+    const orgId = await getUserOrgId(req.userId);
+    if (!orgId) return res.status(403).json({ error: 'Usuário sem organização' });
+
+    const r = await query(
+      `SELECT om.user_id, u.name, u.email, om.work_start_time,
+              (SELECT COUNT(*) FROM rh_punches p
+                 WHERE p.user_id = om.user_id
+                   AND p.organization_id = om.organization_id
+                   AND p.punched_at::date = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
+              ) as punches_today
+         FROM organization_members om
+         JOIN users u ON u.id = om.user_id
+        WHERE om.organization_id = $1
+          AND COALESCE(om.is_active, true) = true
+        ORDER BY u.name`,
+      [orgId]
+    );
+    const missing = r.rows.filter(row => Number(row.punches_today) === 0);
+    res.json({ missing, total: r.rows.length, present: r.rows.length - missing.length });
+  } catch (error) {
+    console.error('Missing punches error:', error);
+    res.status(500).json({ error: 'Erro ao calcular pendências' });
+  }
+});
+
+// Admin/RH: criar batida manual com motivo obrigatório
+router.post('/punches/manual', async (req, res) => {
+  try {
+    if (!await isRhManager(req.userId)) {
+      return res.status(403).json({ error: 'Acesso negado' });
+    }
+    const orgId = await getUserOrgId(req.userId);
+    if (!orgId) return res.status(403).json({ error: 'Usuário sem organização' });
+
+    const { user_id, punch_type, punched_at, reason, notes } = req.body || {};
+    if (!user_id || !punched_at || !reason) {
+      return res.status(400).json({ error: 'user_id, punched_at e reason são obrigatórios' });
+    }
+    const punchType = normalizePunchType(punch_type);
+    if (!punchType) return res.status(400).json({ error: 'Tipo de batida inválido' });
+
+    const inOrg = await query(
+      `SELECT 1 FROM organization_members WHERE user_id = $1 AND organization_id = $2`,
+      [user_id, orgId]
+    );
+    if (inOrg.rows.length === 0) return res.status(404).json({ error: 'Colaborador não encontrado' });
+
+    const ins = await query(
+      `INSERT INTO rh_punches (organization_id, user_id, punch_type, punched_at, source, notes, created_by)
+       VALUES ($1,$2,$3,$4,'manual',$5,$6) RETURNING *`,
+      [orgId, user_id, punchType, punched_at, notes || null, req.userId]
+    );
+    const punch = ins.rows[0];
+    await query(
+      `INSERT INTO rh_punch_audit (punch_id, organization_id, action, after_data, actor_user_id, reason)
+       VALUES ($1,$2,'create',$3,$4,$5)`,
+      [punch.id, orgId, JSON.stringify(punch), req.userId, reason]
+    );
+    res.status(201).json(punch);
+  } catch (error) {
+    console.error('Manual punch error:', error);
+    res.status(500).json({ error: 'Erro ao registrar batida manual' });
+  }
+});
+
+// Admin/RH: editar batida (motivo obrigatório)
+router.patch('/punches/:id', async (req, res) => {
+  try {
+    if (!await isRhManager(req.userId)) return res.status(403).json({ error: 'Acesso negado' });
+    const orgId = await getUserOrgId(req.userId);
+    if (!orgId) return res.status(403).json({ error: 'Usuário sem organização' });
+    const { id } = req.params;
+    const { punch_type, punched_at, notes, reason } = req.body || {};
+    if (!reason) return res.status(400).json({ error: 'Motivo (reason) obrigatório' });
+
+    const before = await query(
+      `SELECT * FROM rh_punches WHERE id = $1 AND organization_id = $2`,
+      [id, orgId]
+    );
+    if (before.rows.length === 0) return res.status(404).json({ error: 'Batida não encontrada' });
+
+    const newType = punch_type ? normalizePunchType(punch_type) : before.rows[0].punch_type;
+    if (!newType) return res.status(400).json({ error: 'Tipo inválido' });
+
+    const upd = await query(
+      `UPDATE rh_punches SET
+         punch_type = $1,
+         punched_at = COALESCE($2, punched_at),
+         notes = COALESCE($3, notes),
+         updated_at = NOW()
+       WHERE id = $4 AND organization_id = $5 RETURNING *`,
+      [newType, punched_at || null, notes ?? null, id, orgId]
+    );
+    await query(
+      `INSERT INTO rh_punch_audit (punch_id, organization_id, action, before_data, after_data, actor_user_id, reason)
+       VALUES ($1,$2,'update',$3,$4,$5,$6)`,
+      [id, orgId, JSON.stringify(before.rows[0]), JSON.stringify(upd.rows[0]), req.userId, reason]
+    );
+    res.json(upd.rows[0]);
+  } catch (error) {
+    console.error('Update punch error:', error);
+    res.status(500).json({ error: 'Erro ao atualizar batida' });
+  }
+});
+
+router.delete('/punches/:id', async (req, res) => {
+  try {
+    if (!await isRhManager(req.userId)) return res.status(403).json({ error: 'Acesso negado' });
+    const orgId = await getUserOrgId(req.userId);
+    if (!orgId) return res.status(403).json({ error: 'Usuário sem organização' });
+    const { id } = req.params;
+    const reason = req.body?.reason || req.query?.reason;
+    if (!reason) return res.status(400).json({ error: 'Motivo (reason) obrigatório' });
+
+    const before = await query(
+      `SELECT * FROM rh_punches WHERE id = $1 AND organization_id = $2`,
+      [id, orgId]
+    );
+    if (before.rows.length === 0) return res.status(404).json({ error: 'Batida não encontrada' });
+
+    await query(
+      `INSERT INTO rh_punch_audit (punch_id, organization_id, action, before_data, actor_user_id, reason)
+       VALUES ($1,$2,'delete',$3,$4,$5)`,
+      [id, orgId, JSON.stringify(before.rows[0]), req.userId, reason]
+    );
+    await query(`DELETE FROM rh_punches WHERE id = $1 AND organization_id = $2`, [id, orgId]);
+    res.status(204).send();
+  } catch (error) {
+    console.error('Delete punch error:', error);
+    res.status(500).json({ error: 'Erro ao excluir batida' });
+  }
+});
+
+router.get('/punches/:id/audit', async (req, res) => {
+  try {
+    if (!await isRhManager(req.userId)) return res.status(403).json({ error: 'Acesso negado' });
+    const orgId = await getUserOrgId(req.userId);
+    if (!orgId) return res.status(403).json({ error: 'Usuário sem organização' });
+    const r = await query(
+      `SELECT a.*, u.name as actor_name
+         FROM rh_punch_audit a
+         LEFT JOIN users u ON u.id = a.actor_user_id
+        WHERE a.punch_id = $1 AND a.organization_id = $2
+        ORDER BY a.created_at DESC`,
+      [req.params.id, orgId]
+    );
+    res.json(r.rows);
+  } catch (error) {
+    console.error('Audit punch error:', error);
+    res.status(500).json({ error: 'Erro ao carregar auditoria' });
+  }
+});
+
+// =============================================================
+// FICHA DE CONTRATAÇÃO
+// =============================================================
+
+router.patch('/employment/:userId', async (req, res) => {
+  try {
+    if (!await isRhManager(req.userId)) return res.status(403).json({ error: 'Acesso negado' });
+    const orgId = await getUserOrgId(req.userId);
+    if (!orgId) return res.status(403).json({ error: 'Usuário sem organização' });
+
+    const { userId } = req.params;
+    const { hire_date, contract_type, base_salary, salary_composition, is_active } = req.body || {};
+
+    const upd = await query(
+      `UPDATE organization_members SET
+         hire_date = COALESCE($1, hire_date),
+         contract_type = COALESCE($2, contract_type),
+         base_salary = COALESCE($3, base_salary),
+         salary_composition = COALESCE($4::jsonb, salary_composition),
+         is_active = COALESCE($5, is_active),
+         updated_at = NOW()
+       WHERE user_id = $6 AND organization_id = $7
+       RETURNING *`,
+      [
+        hire_date || null,
+        contract_type || null,
+        base_salary === undefined ? null : base_salary,
+        salary_composition ? JSON.stringify(salary_composition) : null,
+        is_active === undefined ? null : is_active,
+        userId,
+        orgId,
+      ]
+    );
+    if (upd.rows.length === 0) return res.status(404).json({ error: 'Membro não encontrado' });
+    res.json(upd.rows[0]);
+  } catch (error) {
+    console.error('Update employment error:', error);
+    res.status(500).json({ error: 'Erro ao atualizar dados de contratação' });
+  }
+});
+
+// Employee list (extendido) — inclui campos de contratação
+router.get('/employees/full', async (req, res) => {
+  try {
+    const orgId = await getUserOrgId(req.userId);
+    if (!orgId) return res.status(403).json({ error: 'Usuário sem organização' });
+    const result = await query(
+      `SELECT om.user_id, u.name, u.email, om.role, om.is_active,
+              om.hire_date, om.contract_type, om.base_salary, om.salary_composition,
+              om.work_start_time, om.work_end_time
+         FROM organization_members om
+         JOIN users u ON u.id = om.user_id
+        WHERE om.organization_id = $1
+        ORDER BY u.name`,
+      [orgId]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Full employees error:', error);
+    res.status(500).json({ error: 'Erro ao listar colaboradores' });
+  }
+});
+
 export default router;
+

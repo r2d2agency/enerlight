@@ -136,8 +136,27 @@ export default function RhKiosk() {
       toast.success(`${type} de ${match.candidate.name} registrado!`);
       setStatus('Selecione o tipo de ponto e olhe para a câmera');
 
-      // TODO: POST /api/rh/punches quando o endpoint estiver disponível.
-      // Também poderia validar jornada via getAssignedJourney(match.candidate.id)
+      // Persistir batida no backend
+      try {
+        const typeMap: Record<PointType, string> = {
+          'Entrada': 'entrada',
+          'Almoço': 'almoco_ini',
+          'Volta': 'almoco_fim',
+          'Saída': 'saida',
+        };
+        const { api } = await import('@/lib/api');
+        await api('/api/rh/punches', {
+          method: 'POST',
+          body: {
+            user_id: match.candidate.id,
+            punch_type: typeMap[type],
+            source: 'kiosk',
+          },
+        });
+      } catch (err: any) {
+        console.error('Erro ao salvar batida', err);
+        toast.error('Batida reconhecida, mas falhou ao salvar: ' + (err?.message || 'erro'));
+      }
       void getAssignedJourney(match.candidate.id);
 
       setTimeout(() => setRecognized(null), 5000);
