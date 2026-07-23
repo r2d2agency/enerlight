@@ -953,10 +953,11 @@ export default function EmployeeManagement() {
       </Dialog>
 
       {/* Facial Registration Dialog */}
-      {isFacialDialogOpen && (
+      {isFacialDialogOpen && selectedEmployee && (
         <FacialValidation 
           mode="register"
           sensitivity={sensitivity}
+          targetId={selectedEmployee.user_id || selectedEmployee.id}
           onValidated={handleFacialValidation} 
           onCancel={() => setIsFacialDialogOpen(false)} 
         />
