@@ -40,7 +40,6 @@ interface Props {
 }
 
 export default function EmployeeRhDialog({ open, onOpenChange, employee }: Props) {
-  const { getRegisters } = useRh();
   const [registers, setRegisters] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [assignedId, setAssignedId] = useState<string>('none');
@@ -51,11 +50,12 @@ export default function EmployeeRhDialog({ open, onOpenChange, employee }: Props
     const a = getAssignedJourney(employee.user_id || employee.id);
     setAssignedId(a?.id || 'none');
     setLoading(true);
-    getRegisters?.({ userId: employee.user_id, limit: 30 })
+    api
+      .get(`/api/rh/registers?userId=${encodeURIComponent(employee.user_id || '')}&limit=30`)
       .then((r: any) => setRegisters(Array.isArray(r) ? r : r?.registers || []))
       .catch(() => setRegisters([]))
       .finally(() => setLoading(false));
-  }, [open, employee, getRegisters]);
+  }, [open, employee]);
 
   const saveAssignment = () => {
     if (!employee) return;
