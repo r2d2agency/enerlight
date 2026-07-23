@@ -140,6 +140,8 @@ export default function RhKiosk() {
       try {
         const typeMap: Record<PointType, string> = {
           'Entrada': 'entrada',
+          'Café': 'cafe_ini',
+          'Volta Café': 'cafe_fim',
           'Almoço': 'almoco_ini',
           'Volta': 'almoco_fim',
           'Saída': 'saida',
