@@ -170,6 +170,8 @@ export default function RhKiosk() {
 
   const btns: { type: PointType; icon: any; variant: any }[] = [
     { type: 'Entrada', icon: Play, variant: 'default' },
+    { type: 'Café', icon: Coffee, variant: 'secondary' },
+    { type: 'Volta Café', icon: HistoryIcon, variant: 'secondary' },
     { type: 'Almoço', icon: Coffee, variant: 'secondary' },
     { type: 'Volta', icon: HistoryIcon, variant: 'secondary' },
     { type: 'Saída', icon: LogOut, variant: 'destructive' },
