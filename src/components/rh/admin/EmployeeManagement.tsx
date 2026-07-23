@@ -985,6 +985,12 @@ export default function EmployeeManagement() {
           onCancel={() => setIsFacialDialogOpen(false)} 
         />
       )}
+
+      <EmployeeRhDialog
+        open={isRhDialogOpen}
+        onOpenChange={(o) => { setIsRhDialogOpen(o); if (!o) setSelectedEmployee(null); }}
+        employee={selectedEmployee}
+      />
     </div>
   );
 }
