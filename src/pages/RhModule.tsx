@@ -76,7 +76,9 @@ export default function RhModule() {
   };
 
   return (
+    <MainLayout>
     <div className="p-4 md:p-6">
+
       <div className="flex justify-between items-start flex-wrap gap-3 mb-6">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">RH</h1>
