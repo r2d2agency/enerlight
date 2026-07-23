@@ -695,5 +695,116 @@ router.get('/employees/full', async (req, res) => {
   }
 });
 
+// =============================================================
+// FOLHA DE PONTO (fechamento mensal)
+// =============================================================
+
+// Detalhes da folha: batidas do mês agrupadas por dia + status de fechamento
+router.get('/timesheet', async (req, res) => {
+  try {
+    const orgId = await getUserOrgId(req.userId);
+    if (!orgId) return res.status(403).json({ error: 'Usuário sem organização' });
+
+    const { user_id, month } = req.query; // month = YYYY-MM
+    if (!month || !/^\d{4}-\d{2}$/.test(String(month))) {
+      return res.status(400).json({ error: 'Parâmetro month=YYYY-MM obrigatório' });
+    }
+    const targetUserId = user_id || req.userId;
+    if (targetUserId !== req.userId && !await isRhManager(req.userId)) {
+      return res.status(403).json({ error: 'Acesso negado' });
+    }
+
+    const from = `${month}-01`;
+    // Último dia do mês
+    const [y, m] = month.split('-').map(Number);
+    const last = new Date(y, m, 0).getDate();
+    const to = `${month}-${String(last).padStart(2, '0')} 23:59:59`;
+
+    const punches = await query(
+      `SELECT id, user_id, punch_type, punched_at, source, notes
+         FROM rh_punches
+        WHERE organization_id = $1 AND user_id = $2
+          AND punched_at >= $3 AND punched_at <= $4
+        ORDER BY punched_at ASC`,
+      [orgId, targetUserId, from, to]
+    );
+
+    const closure = await query(
+      `SELECT c.*, u.name AS closed_by_name
+         FROM rh_timesheet_closures c
+         LEFT JOIN users u ON u.id = c.closed_by
+        WHERE c.organization_id = $1 AND c.user_id = $2 AND c.year_month = $3`,
+      [orgId, targetUserId, month]
+    );
+
+    res.json({
+      user_id: targetUserId,
+      month,
+      punches: punches.rows,
+      closure: closure.rows[0] || null,
+      closed: !!(closure.rows[0] && !closure.rows[0].reopened_at),
+    });
+  } catch (error) {
+    console.error('Timesheet get error:', error);
+    res.status(500).json({ error: 'Erro ao carregar folha' });
+  }
+});
+
+// Fecha a folha do mês
+router.post('/timesheet/close', async (req, res) => {
+  try {
+    if (!await isRhManager(req.userId)) return res.status(403).json({ error: 'Acesso negado' });
+    const orgId = await getUserOrgId(req.userId);
+    if (!orgId) return res.status(403).json({ error: 'Usuário sem organização' });
+
+    const { user_id, month, notes } = req.body || {};
+    if (!user_id || !month || !/^\d{4}-\d{2}$/.test(String(month))) {
+      return res.status(400).json({ error: 'user_id e month=YYYY-MM obrigatórios' });
+    }
+
+    const r = await query(
+      `INSERT INTO rh_timesheet_closures (organization_id, user_id, year_month, closed_by, notes)
+       VALUES ($1,$2,$3,$4,$5)
+       ON CONFLICT (organization_id, user_id, year_month)
+       DO UPDATE SET closed_at = NOW(), closed_by = EXCLUDED.closed_by,
+                     reopened_at = NULL, reopened_by = NULL, reopen_reason = NULL,
+                     notes = EXCLUDED.notes
+       RETURNING *`,
+      [orgId, user_id, month, req.userId, notes || null]
+    );
+    res.status(201).json(r.rows[0]);
+  } catch (error) {
+    console.error('Timesheet close error:', error);
+    res.status(500).json({ error: 'Erro ao fechar folha' });
+  }
+});
+
+// Reabre a folha
+router.post('/timesheet/reopen', async (req, res) => {
+  try {
+    if (!await isRhManager(req.userId)) return res.status(403).json({ error: 'Acesso negado' });
+    const orgId = await getUserOrgId(req.userId);
+    if (!orgId) return res.status(403).json({ error: 'Usuário sem organização' });
+
+    const { user_id, month, reason } = req.body || {};
+    if (!user_id || !month || !reason) {
+      return res.status(400).json({ error: 'user_id, month e reason obrigatórios' });
+    }
+
+    const r = await query(
+      `UPDATE rh_timesheet_closures
+          SET reopened_at = NOW(), reopened_by = $1, reopen_reason = $2
+        WHERE organization_id = $3 AND user_id = $4 AND year_month = $5
+        RETURNING *`,
+      [req.userId, reason, orgId, user_id, month]
+    );
+    if (r.rows.length === 0) return res.status(404).json({ error: 'Folha não encontrada' });
+    res.json(r.rows[0]);
+  } catch (error) {
+    console.error('Timesheet reopen error:', error);
+    res.status(500).json({ error: 'Erro ao reabrir folha' });
+  }
+});
+
 export default router;
 
