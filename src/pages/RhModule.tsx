@@ -15,6 +15,8 @@ import JourneyManagement from "@/components/rh/admin/JourneyManagement";
 import PunchAdmin from "@/components/rh/admin/PunchAdmin";
 import RhDashboard from "@/components/rh/RhDashboard";
 import { useAuth } from "@/contexts/AuthContext";
+import { MainLayout } from "@/components/layout/MainLayout";
+
 
 type SectionId =
   | "dashboard" | "my-point" | "punches" | "employees"
@@ -74,7 +76,9 @@ export default function RhModule() {
   };
 
   return (
+    <MainLayout>
     <div className="p-4 md:p-6">
+
       <div className="flex justify-between items-start flex-wrap gap-3 mb-6">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">RH</h1>
@@ -131,5 +135,7 @@ export default function RhModule() {
         </main>
       </div>
     </div>
+    </MainLayout>
   );
+
 }
