@@ -65,6 +65,7 @@ async function ensureRhSchema() {
         reason TEXT,
         actor_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
         created_at TIMESTAMPTZ DEFAULT NOW()
+      );`);
       await query(`CREATE TABLE IF NOT EXISTS rh_timesheet_closures (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
