@@ -218,6 +218,7 @@ export default function EmployeeManagement() {
         });
 
         if (success) {
+          assignJourney(selectedEmployee.user_id, formData.journey_id || null);
           toast.success("Colaborador atualizado!");
           setIsAddDialogOpen(false);
           setSelectedEmployee(null);
