@@ -12,10 +12,12 @@ import FacialValidation from "./FacialValidation";
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
 
-type PunchType = 'Entrada' | 'Almoço' | 'Volta' | 'Saída';
+type PunchType = 'Entrada' | 'Café' | 'Volta Café' | 'Almoço' | 'Volta' | 'Saída';
 
 const TYPE_MAP: Record<PunchType, string> = {
   'Entrada': 'entrada',
+  'Café': 'cafe_ini',
+  'Volta Café': 'cafe_fim',
   'Almoço': 'almoco_ini',
   'Volta': 'almoco_fim',
   'Saída': 'saida',
@@ -23,6 +25,8 @@ const TYPE_MAP: Record<PunchType, string> = {
 
 const LABEL_MAP: Record<string, string> = {
   entrada: 'Entrada',
+  cafe_ini: 'Café (saída)',
+  cafe_fim: 'Volta do café',
   almoco_ini: 'Almoço (saída)',
   almoco_fim: 'Volta do almoço',
   saida: 'Saída',
