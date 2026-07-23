@@ -44,6 +44,7 @@ export default function RhModule() {
     { id: "dashboard", label: "Dashboard", description: "Visão geral do RH", icon: LayoutDashboard, group: "Pessoal", visible: true },
     { id: "my-point", label: "Meu Ponto", description: "Registrar e ver minhas batidas", icon: Clock, group: "Pessoal", visible: true },
     { id: "punches", label: "Painel de Pontos", description: "Batidas do dia e ajustes", icon: ShieldCheck, group: "Gestão", visible: !!canDashboard },
+    { id: "timesheet", label: "Folha de Ponto", description: "Fechamento mensal por colaborador", icon: FileSpreadsheet, group: "Gestão", visible: !!canDashboard },
     { id: "employees", label: "Colaboradores", description: "Cadastro e ficha completa", icon: UserPlus, group: "Gestão", visible: isAdmin },
     { id: "registers", label: "Registros", description: "Histórico e aniversariantes", icon: History, group: "Gestão", visible: isAdmin },
     { id: "locations", label: "Locais", description: "Locais autorizados de atuação", icon: MapIcon, group: "Configurações", visible: isAdmin },
