@@ -521,6 +521,18 @@ export default function EmployeeManagement() {
                   )}
                 </TableCell>
                  <TableCell className="text-right flex gap-1 justify-end">
+                   <Button
+                     variant="ghost"
+                     size="icon"
+                     className="h-8 w-8"
+                     title="Ver RH do colaborador"
+                     onClick={() => {
+                       setSelectedEmployee(emp);
+                       setIsRhDialogOpen(true);
+                     }}
+                   >
+                     <UserIcon className="h-4 w-4" />
+                   </Button>
                    {(user?.role === 'admin' || user?.role === 'owner') && (
                      <>
                        <Button 
