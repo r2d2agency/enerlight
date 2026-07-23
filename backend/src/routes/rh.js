@@ -65,7 +65,20 @@ async function ensureRhSchema() {
         reason TEXT,
         actor_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
         created_at TIMESTAMPTZ DEFAULT NOW()
+      await query(`CREATE TABLE IF NOT EXISTS rh_timesheet_closures (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        year_month CHAR(7) NOT NULL,
+        closed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        closed_by UUID REFERENCES users(id) ON DELETE SET NULL,
+        reopened_at TIMESTAMPTZ,
+        reopened_by UUID REFERENCES users(id) ON DELETE SET NULL,
+        reopen_reason TEXT,
+        notes TEXT,
+        UNIQUE (organization_id, user_id, year_month)
       );`);
+      await query(`CREATE INDEX IF NOT EXISTS idx_rh_timesheet_closures_lookup ON rh_timesheet_closures(organization_id, user_id, year_month);`);
       console.log('[rh] schema ensured');
     } catch (err) {
       console.error('[rh] ensureRhSchema failed:', err.message);
