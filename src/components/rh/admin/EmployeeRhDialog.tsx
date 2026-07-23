@@ -21,7 +21,7 @@ import {
 import { User, Clock, History, ShieldCheck, CalendarClock } from 'lucide-react';
 import { toast } from 'sonner';
 import { listJourneys, assignJourney, getAssignedJourney, WEEKDAYS } from '@/lib/rh-journeys';
-import { useRh } from '@/hooks/use-rh';
+import { api } from '@/lib/api';
 
 interface Props {
   open: boolean;
