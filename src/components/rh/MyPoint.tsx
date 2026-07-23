@@ -3,8 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  Clock, MapPin, User, Play, Coffee, LogOut,
-  CheckCircle2, History, AlertTriangle, RefreshCw,
+  Clock, MapPin, User, Fingerprint,
+  CheckCircle2, AlertTriangle, RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -12,26 +12,17 @@ import FacialValidation from "./FacialValidation";
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
 
-type PunchType = 'Entrada' | 'Café' | 'Volta Café' | 'Almoço' | 'Volta' | 'Saída';
-
-const TYPE_MAP: Record<PunchType, string> = {
-  'Entrada': 'entrada',
-  'Café': 'cafe_ini',
-  'Volta Café': 'cafe_fim',
-  'Almoço': 'almoco_ini',
-  'Volta': 'almoco_fim',
-  'Saída': 'saida',
-};
-
 const LABEL_MAP: Record<string, string> = {
   entrada: 'Entrada',
-  cafe_ini: 'Café (saída)',
-  cafe_fim: 'Volta do café',
+  cafe_ini: 'Intervalo',
+  cafe_fim: 'Retorno intervalo',
   almoco_ini: 'Almoço (saída)',
-  almoco_fim: 'Volta do almoço',
+  almoco_fim: 'Almoço (volta)',
   saida: 'Saída',
   extra: 'Extra',
 };
+
+const MAX_PER_DAY = 6;
 
 function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 6371e3;
