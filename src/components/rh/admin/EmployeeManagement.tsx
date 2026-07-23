@@ -51,6 +51,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import FacialValidation from "../FacialValidation";
+import EmployeeRhDialog from "./EmployeeRhDialog";
 
 interface Employee {
   id: string;
@@ -94,6 +95,8 @@ export default function EmployeeManagement() {
   const [isLocationDialogOpen, setIsLocationDialogOpen] = useState(false);
   const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
   const [isFacialDialogOpen, setIsFacialDialogOpen] = useState(false);
+  const [isRhDialogOpen, setIsRhDialogOpen] = useState(false);
+  
   
   // New Location state
   const [newLocation, setNewLocation] = useState({
@@ -494,10 +497,18 @@ export default function EmployeeManagement() {
                 <TableCell className="text-xs">{emp.journey}</TableCell>
                 <TableCell>
                   {emp.facial_registered ? (
-                    <div className="flex items-center gap-1 text-green-600 text-xs">
-                      <CheckCircle2 className="h-4 w-4" />
-                      Cadastrado
-                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs h-7 gap-1 text-green-600 hover:text-green-700"
+                      onClick={() => {
+                        setSelectedEmployee(emp);
+                        setIsFacialDialogOpen(true);
+                      }}
+                      title="Face cadastrada — clique para recadastrar"
+                    >
+                      <CheckCircle2 className="h-4 w-4" /> Recadastrar
+                    </Button>
                   ) : (
                     <Button 
                       variant="outline" 
@@ -513,6 +524,18 @@ export default function EmployeeManagement() {
                   )}
                 </TableCell>
                  <TableCell className="text-right flex gap-1 justify-end">
+                   <Button
+                     variant="ghost"
+                     size="icon"
+                     className="h-8 w-8"
+                     title="Ver RH do colaborador"
+                     onClick={() => {
+                       setSelectedEmployee(emp);
+                       setIsRhDialogOpen(true);
+                     }}
+                   >
+                     <UserIcon className="h-4 w-4" />
+                   </Button>
                    {(user?.role === 'admin' || user?.role === 'owner') && (
                      <>
                        <Button 
@@ -962,6 +985,12 @@ export default function EmployeeManagement() {
           onCancel={() => setIsFacialDialogOpen(false)} 
         />
       )}
+
+      <EmployeeRhDialog
+        open={isRhDialogOpen}
+        onOpenChange={(o) => { setIsRhDialogOpen(o); if (!o) setSelectedEmployee(null); }}
+        employee={selectedEmployee}
+      />
     </div>
   );
 }

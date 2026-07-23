@@ -15,17 +15,21 @@ import {
   Map as MapIcon,
   Settings as SettingsIcon,
   Clock8,
-  UserPlus
+  UserPlus,
+  Monitor
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import MyPoint from "@/components/rh/MyPoint";
 import RhRegisters from "@/components/rh/RhRegisters";
 import EmployeeManagement from "@/components/rh/admin/EmployeeManagement";
 import RhLocations from "@/components/rh/admin/RhLocations";
+import JourneyManagement from "@/components/rh/admin/JourneyManagement";
 import { useAuth } from "@/contexts/AuthContext";
 
 
 export default function RhModule() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("my-point");
 
 
@@ -43,6 +47,10 @@ export default function RhModule() {
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">RH / Registro de Ponto</h1>
           <p className="text-muted-foreground text-sm">Gestão de jornada e controle de frequência Enerlight</p>
         </div>
+        <Button onClick={() => navigate('/rh/kiosk')} className="gap-2">
+          <Monitor className="h-4 w-4" />
+          Modo Kiosk
+        </Button>
       </div>
 
       <Tabs defaultValue="my-point" className="w-full" onValueChange={setActiveTab}>
@@ -179,10 +187,7 @@ export default function RhModule() {
               <CardTitle>Configurações de Jornada</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-10 text-muted-foreground">
-                <SettingsIcon className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                Configurações de jornada serão exibidas aqui.
-              </div>
+              <JourneyManagement />
             </CardContent>
           </Card>
         </TabsContent>
