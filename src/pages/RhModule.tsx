@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard, Clock, History, Map as MapIcon, Settings as SettingsIcon,
-  UserPlus, Monitor, ShieldCheck, ChevronRight,
+  UserPlus, Monitor, ShieldCheck, ChevronRight, FileSpreadsheet,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import MyPoint from "@/components/rh/MyPoint";
@@ -13,13 +13,14 @@ import EmployeeManagement from "@/components/rh/admin/EmployeeManagement";
 import RhLocations from "@/components/rh/admin/RhLocations";
 import JourneyManagement from "@/components/rh/admin/JourneyManagement";
 import PunchAdmin from "@/components/rh/admin/PunchAdmin";
+import TimesheetAdmin from "@/components/rh/admin/TimesheetAdmin";
 import RhDashboard from "@/components/rh/RhDashboard";
 import { useAuth } from "@/contexts/AuthContext";
 import { MainLayout } from "@/components/layout/MainLayout";
 
 
 type SectionId =
-  | "dashboard" | "my-point" | "punches" | "employees"
+  | "dashboard" | "my-point" | "punches" | "timesheet" | "employees"
   | "registers" | "locations" | "journeys";
 
 interface SectionDef {
