@@ -1092,29 +1092,55 @@ function StudentDetailView({ data }: { data: any }) {
 function CertsTab({ certs }: { certs: any[] }) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [list, setList] = useState(certs);
-  const [resendTarget, setResendTarget] = useState<any | null>(null);
   const [templates, setTemplates] = useState<any[]>([]);
   const [connections, setConnections] = useState<any[]>([]);
-  const [manuals, setManuals] = useState<any[]>([]);
+  const [manualsByCourse, setManualsByCourse] = useState<Record<string, any[]>>({});
+  const [courseFilter, setCourseFilter] = useState<string>('__all__');
   const [selTemplate, setSelTemplate] = useState<string>('__default__');
   const [selConnection, setSelConnection] = useState<string>('__auto__');
   const [selManuals, setSelManuals] = useState<string[]>([]);
   const [customMsg, setCustomMsg] = useState<string>('');
-  const [sending, setSending] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkSending, setBulkSending] = useState(false);
 
   useEffect(() => { setList(certs); }, [certs]);
 
-  async function openResend(c: any) {
-    setResendTarget(c);
-    setSelTemplate('__default__'); setSelConnection('__auto__'); setSelManuals([]); setCustomMsg('');
-    try {
-      const [t, cn, mn] = await Promise.all([
-        eadAdminApi.messageTemplates().catch(() => []),
-        eadAdminApi.brandConnections().catch(() => []),
-        eadAdminApi.manuals(c.course_id).catch(() => []),
-      ]);
-      setTemplates(t); setConnections(cn); setManuals(mn);
-    } catch (e: any) { toast.error(e.message); }
+  // Load templates + connections once
+  useEffect(() => {
+    (async () => {
+      try {
+        const [t, cn] = await Promise.all([
+          eadAdminApi.messageTemplates().catch(() => []),
+          eadAdminApi.brandConnections().catch(() => []),
+        ]);
+        setTemplates(t); setConnections(cn);
+      } catch {}
+    })();
+  }, []);
+
+  // Load manuals for filtered course
+  useEffect(() => {
+    if (courseFilter === '__all__') return;
+    if (manualsByCourse[courseFilter]) return;
+    eadAdminApi.manuals(courseFilter)
+      .then(mn => setManualsByCourse(prev => ({ ...prev, [courseFilter]: mn })))
+      .catch(() => {});
+  }, [courseFilter]);
+
+  const uniqueCourses = Array.from(new Map(list.map(c => [c.course_id, c.course_title])).entries());
+  const filtered = courseFilter === '__all__' ? list : list.filter(c => c.course_id === courseFilter);
+  const currentManuals = courseFilter !== '__all__' ? (manualsByCourse[courseFilter] || []) : [];
+
+  function buildPayload(certId: string, courseId: string) {
+    const validManuals = courseFilter !== '__all__' && courseId === courseFilter ? selManuals : [];
+    return {
+      certificate_id: certId,
+      resend: true,
+      connection_id: selConnection === '__auto__' ? null : selConnection,
+      template_id: selTemplate === '__default__' ? null : selTemplate,
+      message: selTemplate === '__default__' && customMsg.trim() ? customMsg.trim() : null,
+      manual_ids: validManuals,
+    };
   }
 
   async function regeneratePdfOnly(c: any) {
@@ -1128,35 +1154,162 @@ function CertsTab({ certs }: { certs: any[] }) {
     finally { setBusyId(null); }
   }
 
-  async function confirmResend() {
-    if (!resendTarget) return;
-    setSending(true);
+  async function resendOne(c: any) {
+    setBusyId(c.id);
     try {
-      const r = await eadAdminApi.regenerateCertificate({
-        certificate_id: resendTarget.id,
-        resend: true,
-        connection_id: selConnection === '__auto__' ? null : selConnection,
-        template_id: selTemplate === '__default__' ? null : selTemplate,
-        message: selTemplate === '__default__' && customMsg.trim() ? customMsg.trim() : null,
-        manual_ids: selManuals,
-      });
-      setList(prev => prev.map(x => x.id === resendTarget.id ? { ...x, pdf_url: r.certificate.pdf_url, issued_at: r.certificate.issued_at } : x));
-      const wa = r.notify?.whatsapp?.success ? 'WhatsApp ✓' : `WhatsApp ✗ (${r.notify?.whatsapp?.error || '-'})`;
-      const em = r.notify?.email?.success ? 'E-mail ✓' : `E-mail ✗ (${r.notify?.email?.error || '-'})`;
-      toast.success(`Certificado regerado. ${wa} · ${em}`);
-      setResendTarget(null);
-    } catch (e: any) { toast.error(e.message); }
-    finally { setSending(false); }
+      const r = await eadAdminApi.regenerateCertificate(buildPayload(c.id, c.course_id));
+      setList(prev => prev.map(x => x.id === c.id ? { ...x, pdf_url: r.certificate.pdf_url, issued_at: r.certificate.issued_at } : x));
+      const wa = r.notify?.whatsapp?.success ? 'WhatsApp ✓' : `WhatsApp ✗`;
+      const em = r.notify?.email?.success ? 'E-mail ✓' : `E-mail ✗`;
+      toast.success(`${c.student_name}: ${wa} · ${em}`);
+    } catch (e: any) { toast.error(`${c.student_name}: ${e.message}`); }
+    finally { setBusyId(null); }
   }
 
+  async function bulkResend() {
+    const targets = filtered.filter(c => selectedIds.includes(c.id));
+    if (!targets.length) return;
+    if (!confirm(`Regerar e reenviar ${targets.length} certificado(s) com a configuração acima?`)) return;
+    setBulkSending(true);
+    let ok = 0, fail = 0;
+    for (const c of targets) {
+      try {
+        const r = await eadAdminApi.regenerateCertificate(buildPayload(c.id, c.course_id));
+        setList(prev => prev.map(x => x.id === c.id ? { ...x, pdf_url: r.certificate.pdf_url, issued_at: r.certificate.issued_at } : x));
+        ok++;
+      } catch { fail++; }
+    }
+    setBulkSending(false);
+    setSelectedIds([]);
+    toast.success(`Concluído: ${ok} ok, ${fail} falhas`);
+  }
+
+  const allChecked = filtered.length > 0 && filtered.every(c => selectedIds.includes(c.id));
+
   return (
-    <>
+    <div className="space-y-4">
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Configuração de envio</CardTitle>
+          <p className="text-xs text-muted-foreground">Defina aqui a conexão, mensagem e catálogos. Os botões "Enviar" da tabela usarão estas configurações.</p>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-2">
+          <div>
+            <Label>Conexão WhatsApp</Label>
+            <Select value={selConnection} onValueChange={setSelConnection}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__auto__">Automática (padrão da marca)</SelectItem>
+                {connections.map((c: any) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.instance_name || c.instance_id || c.phone_number || c.id.slice(0, 8)}
+                    {c.status === 'connected' ? ' • conectado' : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label>Mensagem padrão</Label>
+            <Select value={selTemplate} onValueChange={setSelTemplate}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__default__">Mensagem padrão do sistema</SelectItem>
+                {templates.map((t: any) => (
+                  <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {selTemplate === '__default__' && (
+            <div className="md:col-span-2">
+              <Label className="text-xs text-muted-foreground">Personalize a mensagem (variáveis: {'{nome}, {curso}, {marca}, {link}'})</Label>
+              <Textarea
+                className="mt-1"
+                rows={3}
+                placeholder="Deixe em branco para usar a mensagem padrão"
+                value={customMsg}
+                onChange={(e) => setCustomMsg(e.target.value)}
+              />
+            </div>
+          )}
+
+          <div className="md:col-span-2">
+            <Label>Filtrar por curso (para anexar catálogos)</Label>
+            <Select value={courseFilter} onValueChange={(v) => { setCourseFilter(v); setSelManuals([]); setSelectedIds([]); }}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">Todos os cursos</SelectItem>
+                {uniqueCourses.map(([id, title]) => (
+                  <SelectItem key={id} value={id}>{title}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {courseFilter !== '__all__' && (
+              <div className="mt-2">
+                <Label className="text-xs text-muted-foreground">Anexar catálogos deste curso</Label>
+                {currentManuals.length === 0 ? (
+                  <p className="text-xs text-muted-foreground mt-1">Este curso não tem catálogos cadastrados.</p>
+                ) : (
+                  <div className="mt-1 space-y-1 max-h-40 overflow-y-auto border rounded-md p-2">
+                    {currentManuals.map((m: any) => {
+                      const checked = selManuals.includes(m.id);
+                      return (
+                        <label key={m.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 p-1 rounded">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => setSelManuals(prev => e.target.checked ? [...prev, m.id] : prev.filter(x => x !== m.id))}
+                          />
+                          <span className="truncate">{m.title}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {selectedIds.length > 0 && (
+        <div className="flex items-center justify-between bg-muted/40 border rounded-md px-3 py-2">
+          <span className="text-sm">{selectedIds.length} selecionado(s)</span>
+          <div className="flex gap-2">
+            <Button size="sm" variant="ghost" onClick={() => setSelectedIds([])} disabled={bulkSending}>Limpar</Button>
+            <Button size="sm" onClick={bulkResend} disabled={bulkSending}>
+              {bulkSending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              <Award className="h-4 w-4 mr-1" /> Regerar e reenviar selecionados
+            </Button>
+          </div>
+        </div>
+      )}
+
       <Card><CardContent className="p-0">
         <Table>
-          <TableHeader><TableRow><TableHead>Instalador</TableHead><TableHead>Empresa</TableHead><TableHead>Curso</TableHead><TableHead>Emitido em</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader>
+          <TableHeader><TableRow>
+            <TableHead className="w-10">
+              <input
+                type="checkbox"
+                checked={allChecked}
+                onChange={(e) => setSelectedIds(e.target.checked ? filtered.map(c => c.id) : [])}
+              />
+            </TableHead>
+            <TableHead>Instalador</TableHead><TableHead>Empresa</TableHead><TableHead>Curso</TableHead><TableHead>Emitido em</TableHead><TableHead className="text-right">Ações</TableHead>
+          </TableRow></TableHeader>
           <TableBody>
-            {list.map(c => (
+            {filtered.map(c => (
               <TableRow key={c.id}>
+                <TableCell>
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.includes(c.id)}
+                    onChange={(e) => setSelectedIds(prev => e.target.checked ? [...prev, c.id] : prev.filter(x => x !== c.id))}
+                  />
+                </TableCell>
                 <TableCell><div className="font-medium">{c.student_name}</div><div className="text-xs text-muted-foreground">{c.cpf}</div></TableCell>
                 <TableCell>{c.company || '-'}</TableCell>
                 <TableCell>{c.course_title}</TableCell>
@@ -1167,101 +1320,19 @@ function CertsTab({ certs }: { certs: any[] }) {
                     <Button size="sm" variant="outline" disabled={busyId === c.id} onClick={() => regeneratePdfOnly(c)}>
                       {busyId === c.id ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Regerar PDF'}
                     </Button>
-                    <Button size="sm" onClick={() => openResend(c)}>
-                      <Award className="h-4 w-4 mr-1" /> Regerar e reenviar
+                    <Button size="sm" disabled={busyId === c.id} onClick={() => resendOne(c)}>
+                      {busyId === c.id ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Award className="h-4 w-4 mr-1" />}
+                      Regerar e reenviar
                     </Button>
                   </div>
                 </TableCell>
               </TableRow>
             ))}
-            {!list.length && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhum certificado emitido.</TableCell></TableRow>}
+            {!filtered.length && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nenhum certificado emitido.</TableCell></TableRow>}
           </TableBody>
         </Table>
       </CardContent></Card>
-
-      <Dialog open={!!resendTarget} onOpenChange={(v) => !v && setResendTarget(null)}>
-        <DialogContent className="max-w-lg" aria-describedby="resend-desc">
-          <DialogHeader>
-            <DialogTitle>Reenviar certificado</DialogTitle>
-            <p id="resend-desc" className="text-sm text-muted-foreground">
-              {resendTarget?.student_name} — {resendTarget?.course_title}
-            </p>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Conexão WhatsApp</Label>
-              <Select value={selConnection} onValueChange={setSelConnection}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__auto__">Automática (padrão da marca)</SelectItem>
-                  {connections.map((c: any) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.instance_name || c.instance_id || c.phone_number || c.id.slice(0, 8)}
-                      {c.status === 'connected' ? ' • conectado' : ''}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label>Mensagem padrão</Label>
-              <Select value={selTemplate} onValueChange={setSelTemplate}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__default__">Mensagem padrão do sistema</SelectItem>
-                  {templates.map((t: any) => (
-                    <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {selTemplate === '__default__' && (
-                <>
-                  <Label className="mt-2 text-xs text-muted-foreground">Ou personalize a mensagem (variáveis: {'{nome}, {curso}, {marca}, {link}'})</Label>
-                  <Textarea
-                    className="mt-1"
-                    rows={4}
-                    placeholder="Deixe em branco para usar a mensagem padrão"
-                    value={customMsg}
-                    onChange={(e) => setCustomMsg(e.target.value)}
-                  />
-                </>
-              )}
-            </div>
-
-            <div>
-              <Label>Anexar catálogos</Label>
-              {manuals.length === 0 ? (
-                <p className="text-xs text-muted-foreground mt-1">Este curso não tem catálogos cadastrados.</p>
-              ) : (
-                <div className="mt-1 space-y-1 max-h-40 overflow-y-auto border rounded-md p-2">
-                  {manuals.map((m: any) => {
-                    const checked = selManuals.includes(m.id);
-                    return (
-                      <label key={m.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 p-1 rounded">
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={(e) => setSelManuals(prev => e.target.checked ? [...prev, m.id] : prev.filter(x => x !== m.id))}
-                        />
-                        <span className="truncate">{m.title}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setResendTarget(null)} disabled={sending}>Cancelar</Button>
-            <Button onClick={confirmResend} disabled={sending}>
-              {sending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              Regerar e reenviar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
+    </div>
   );
 }
 
