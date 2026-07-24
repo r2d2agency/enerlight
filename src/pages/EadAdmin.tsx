@@ -1092,57 +1092,179 @@ function StudentDetailView({ data }: { data: any }) {
 function CertsTab({ certs }: { certs: any[] }) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [list, setList] = useState(certs);
+  const [resendTarget, setResendTarget] = useState<any | null>(null);
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [connections, setConnections] = useState<any[]>([]);
+  const [manuals, setManuals] = useState<any[]>([]);
+  const [selTemplate, setSelTemplate] = useState<string>('__default__');
+  const [selConnection, setSelConnection] = useState<string>('__auto__');
+  const [selManuals, setSelManuals] = useState<string[]>([]);
+  const [customMsg, setCustomMsg] = useState<string>('');
+  const [sending, setSending] = useState(false);
+
   useEffect(() => { setList(certs); }, [certs]);
 
-  async function regenerate(c: any, resend: boolean) {
-    if (resend && !confirm(`Regerar e reenviar o certificado para ${c.student_name}?`)) return;
-    if (!resend && !confirm(`Regerar o PDF do certificado para ${c.student_name}? (sem reenviar notificação)`)) return;
+  async function openResend(c: any) {
+    setResendTarget(c);
+    setSelTemplate('__default__'); setSelConnection('__auto__'); setSelManuals([]); setCustomMsg('');
+    try {
+      const [t, cn, mn] = await Promise.all([
+        eadAdminApi.messageTemplates().catch(() => []),
+        eadAdminApi.brandConnections().catch(() => []),
+        eadAdminApi.manuals(c.course_id).catch(() => []),
+      ]);
+      setTemplates(t); setConnections(cn); setManuals(mn);
+    } catch (e: any) { toast.error(e.message); }
+  }
+
+  async function regeneratePdfOnly(c: any) {
+    if (!confirm(`Regerar o PDF do certificado para ${c.student_name}? (sem reenviar notificação)`)) return;
     setBusyId(c.id);
     try {
-      const r = await eadAdminApi.regenerateCertificate({ certificate_id: c.id, resend });
+      const r = await eadAdminApi.regenerateCertificate({ certificate_id: c.id, resend: false });
       setList(prev => prev.map(x => x.id === c.id ? { ...x, pdf_url: r.certificate.pdf_url, issued_at: r.certificate.issued_at } : x));
-      if (resend) {
-        const wa = r.notify?.whatsapp?.success ? 'WhatsApp ✓' : `WhatsApp ✗ (${r.notify?.whatsapp?.error || '-'})`;
-        const em = r.notify?.email?.success ? 'E-mail ✓' : `E-mail ✗ (${r.notify?.email?.error || '-'})`;
-        toast.success(`Certificado regerado. ${wa} · ${em}`);
-      } else {
-        toast.success('Certificado regerado');
-      }
+      toast.success('Certificado regerado');
     } catch (e: any) { toast.error(e.message); }
     finally { setBusyId(null); }
   }
 
+  async function confirmResend() {
+    if (!resendTarget) return;
+    setSending(true);
+    try {
+      const r = await eadAdminApi.regenerateCertificate({
+        certificate_id: resendTarget.id,
+        resend: true,
+        connection_id: selConnection === '__auto__' ? null : selConnection,
+        template_id: selTemplate === '__default__' ? null : selTemplate,
+        message: selTemplate === '__default__' && customMsg.trim() ? customMsg.trim() : null,
+        manual_ids: selManuals,
+      });
+      setList(prev => prev.map(x => x.id === resendTarget.id ? { ...x, pdf_url: r.certificate.pdf_url, issued_at: r.certificate.issued_at } : x));
+      const wa = r.notify?.whatsapp?.success ? 'WhatsApp ✓' : `WhatsApp ✗ (${r.notify?.whatsapp?.error || '-'})`;
+      const em = r.notify?.email?.success ? 'E-mail ✓' : `E-mail ✗ (${r.notify?.email?.error || '-'})`;
+      toast.success(`Certificado regerado. ${wa} · ${em}`);
+      setResendTarget(null);
+    } catch (e: any) { toast.error(e.message); }
+    finally { setSending(false); }
+  }
+
   return (
-    <Card><CardContent className="p-0">
-      <Table>
-        <TableHeader><TableRow><TableHead>Instalador</TableHead><TableHead>Empresa</TableHead><TableHead>Curso</TableHead><TableHead>Emitido em</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader>
-        <TableBody>
-          {list.map(c => (
-            <TableRow key={c.id}>
-              <TableCell><div className="font-medium">{c.student_name}</div><div className="text-xs text-muted-foreground">{c.cpf}</div></TableCell>
-              <TableCell>{c.company || '-'}</TableCell>
-              <TableCell>{c.course_title}</TableCell>
-              <TableCell>{new Date(c.issued_at).toLocaleString('pt-BR')}</TableCell>
-              <TableCell className="text-right">
-                <div className="flex justify-end gap-1 flex-wrap">
-                  <a href={c.pdf_url} target="_blank" rel="noreferrer"><Button size="sm" variant="outline"><Download className="h-4 w-4 mr-1" />PDF</Button></a>
-                  <Button size="sm" variant="outline" disabled={busyId === c.id} onClick={() => regenerate(c, false)}>
-                    {busyId === c.id ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Regerar PDF'}
-                  </Button>
-                  <Button size="sm" disabled={busyId === c.id} onClick={() => regenerate(c, true)}>
-                    {busyId === c.id ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Award className="h-4 w-4 mr-1" />}
-                    Regerar e reenviar
-                  </Button>
+    <>
+      <Card><CardContent className="p-0">
+        <Table>
+          <TableHeader><TableRow><TableHead>Instalador</TableHead><TableHead>Empresa</TableHead><TableHead>Curso</TableHead><TableHead>Emitido em</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader>
+          <TableBody>
+            {list.map(c => (
+              <TableRow key={c.id}>
+                <TableCell><div className="font-medium">{c.student_name}</div><div className="text-xs text-muted-foreground">{c.cpf}</div></TableCell>
+                <TableCell>{c.company || '-'}</TableCell>
+                <TableCell>{c.course_title}</TableCell>
+                <TableCell>{new Date(c.issued_at).toLocaleString('pt-BR')}</TableCell>
+                <TableCell className="text-right">
+                  <div className="flex justify-end gap-1 flex-wrap">
+                    <a href={c.pdf_url} target="_blank" rel="noreferrer"><Button size="sm" variant="outline"><Download className="h-4 w-4 mr-1" />PDF</Button></a>
+                    <Button size="sm" variant="outline" disabled={busyId === c.id} onClick={() => regeneratePdfOnly(c)}>
+                      {busyId === c.id ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Regerar PDF'}
+                    </Button>
+                    <Button size="sm" onClick={() => openResend(c)}>
+                      <Award className="h-4 w-4 mr-1" /> Regerar e reenviar
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+            {!list.length && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhum certificado emitido.</TableCell></TableRow>}
+          </TableBody>
+        </Table>
+      </CardContent></Card>
+
+      <Dialog open={!!resendTarget} onOpenChange={(v) => !v && setResendTarget(null)}>
+        <DialogContent className="max-w-lg" aria-describedby="resend-desc">
+          <DialogHeader>
+            <DialogTitle>Reenviar certificado</DialogTitle>
+            <p id="resend-desc" className="text-sm text-muted-foreground">
+              {resendTarget?.student_name} — {resendTarget?.course_title}
+            </p>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Conexão WhatsApp</Label>
+              <Select value={selConnection} onValueChange={setSelConnection}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__auto__">Automática (padrão da marca)</SelectItem>
+                  {connections.map((c: any) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.instance_name || c.instance_id || c.phone_number || c.id.slice(0, 8)}
+                      {c.status === 'connected' ? ' • conectado' : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Mensagem padrão</Label>
+              <Select value={selTemplate} onValueChange={setSelTemplate}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__default__">Mensagem padrão do sistema</SelectItem>
+                  {templates.map((t: any) => (
+                    <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selTemplate === '__default__' && (
+                <>
+                  <Label className="mt-2 text-xs text-muted-foreground">Ou personalize a mensagem (variáveis: {'{nome}, {curso}, {marca}, {link}'})</Label>
+                  <Textarea
+                    className="mt-1"
+                    rows={4}
+                    placeholder="Deixe em branco para usar a mensagem padrão"
+                    value={customMsg}
+                    onChange={(e) => setCustomMsg(e.target.value)}
+                  />
+                </>
+              )}
+            </div>
+
+            <div>
+              <Label>Anexar catálogos</Label>
+              {manuals.length === 0 ? (
+                <p className="text-xs text-muted-foreground mt-1">Este curso não tem catálogos cadastrados.</p>
+              ) : (
+                <div className="mt-1 space-y-1 max-h-40 overflow-y-auto border rounded-md p-2">
+                  {manuals.map((m: any) => {
+                    const checked = selManuals.includes(m.id);
+                    return (
+                      <label key={m.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 p-1 rounded">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => setSelManuals(prev => e.target.checked ? [...prev, m.id] : prev.filter(x => x !== m.id))}
+                        />
+                        <span className="truncate">{m.title}</span>
+                      </label>
+                    );
+                  })}
                 </div>
-              </TableCell>
-            </TableRow>
-          ))}
-          {!list.length && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhum certificado emitido.</TableCell></TableRow>}
-        </TableBody>
-      </Table>
-    </CardContent></Card>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResendTarget(null)} disabled={sending}>Cancelar</Button>
+            <Button onClick={confirmResend} disabled={sending}>
+              {sending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Regerar e reenviar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
+
 
 
 // =========================================================================
