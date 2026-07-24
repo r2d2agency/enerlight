@@ -1762,6 +1762,7 @@ admin.post('/certificates/regenerate', gate('can_manage_ead'), async (req, res) 
       template_id = null,
       message = null,
       manual_ids = [],
+      extra_attachments = [],
     } = req.body || {};
     let sid = student_id, cid = course_id;
     if (!sid || !cid) {
