@@ -146,7 +146,8 @@ export const eadAdminApi = {
   certificates: () => adminCall<any[]>('/api/ead/admin/certificates'),
   regenerateCertificate: (b: {
     student_id?: string; course_id?: string; certificate_id?: string; resend?: boolean;
-    connection_id?: string | null; template_id?: string | null; message?: string | null; manual_ids?: string[];
+    connection_id?: string | null; template_id?: string | null; message?: string | null;
+    manual_ids?: string[]; extra_attachments?: Array<{ title?: string; file_url: string }>;
   }) =>
     adminCall<any>('/api/ead/admin/certificates/regenerate', { method: 'POST', body: b }),
   messageTemplates: () => adminCall<Array<{ id: string; name: string; items: any[] }>>('/api/ead/admin/messages/templates'),
