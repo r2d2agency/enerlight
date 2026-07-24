@@ -1099,6 +1099,8 @@ function CertsTab({ certs }: { certs: any[] }) {
   const [selTemplate, setSelTemplate] = useState<string>('__default__');
   const [selConnection, setSelConnection] = useState<string>('__auto__');
   const [selManuals, setSelManuals] = useState<string[]>([]);
+  const [extraAttachments, setExtraAttachments] = useState<Array<{ title: string; file_url: string }>>([]);
+  const [uploadingExtra, setUploadingExtra] = useState(false);
   const [customMsg, setCustomMsg] = useState<string>('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkSending, setBulkSending] = useState(false);
