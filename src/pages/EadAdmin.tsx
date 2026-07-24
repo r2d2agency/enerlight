@@ -1202,7 +1202,7 @@ function CertsTab({ certs }: { certs: any[] }) {
                 <SelectItem value="__auto__">Automática (padrão da marca)</SelectItem>
                 {connections.map((c: any) => (
                   <SelectItem key={c.id} value={c.id}>
-                    {c.instance_name || c.instance_id || c.phone_number || c.id.slice(0, 8)}
+                    {c.name || c.instance_name || c.instance_id || c.phone_number || c.id.slice(0, 8)}
                     {c.status === 'connected' ? ' • conectado' : ''}
                   </SelectItem>
                 ))}
@@ -1656,7 +1656,7 @@ function BrandEditor({ brand, onClose }: { brand: any; onClose: () => void }) {
                 <SelectContent>
                   <SelectItem value="none">Sem WhatsApp</SelectItem>
                   {connections.map(c => {
-                    const label = c.instance_name || c.phone_number || c.instance_id || c.provider || 'Conexão';
+                    const label = c.name || c.instance_name || c.phone_number || c.instance_id || c.provider || 'Conexão';
                     return <SelectItem key={c.id} value={c.id}>{label} · {c.status}</SelectItem>;
                   })}
 
