@@ -1825,6 +1825,13 @@ admin.post('/certificates/regenerate', gate('can_manage_ead'), async (req, res) 
         );
         manuals = m.rows;
       }
+      if (Array.isArray(extra_attachments) && extra_attachments.length) {
+        for (const a of extra_attachments) {
+          if (a && a.file_url) {
+            manuals.push({ id: null, title: a.title || 'Catálogo', file_url: a.file_url });
+          }
+        }
+      }
 
       notify = await withTimeout(
         notifyCertificate(student, brand, certificate.pdf_url, course.title, {
