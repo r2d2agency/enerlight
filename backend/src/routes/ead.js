@@ -1617,17 +1617,29 @@ admin.post('/students/:id/issue-certificate', gate('can_manage_ead'), async (req
 });
 
 // ---- Notifica o aluno com o link do certificado (WhatsApp + e-mail) ----
-async function notifyCertificate(student, brand, certUrl, courseTitle) {
+// opts: { connectionId?, customMessage?, templateItems?: Array<{type,content,mediaUrl}>, manuals?: Array<{title,file_url}> }
+async function notifyCertificate(student, brand, certUrl, courseTitle, opts = {}) {
   const result = { whatsapp: null, email: null };
   const nome = student.name || '';
   const marca = brand?.name || '';
   const curso = courseTitle || '';
-  const message = `Olá ${nome}! 🎓\n\nSeu certificado do curso *${curso}*${marca ? ` (${marca})` : ''} está disponível.\n\n📄 Baixe aqui: ${certUrl}\n\nParabéns pela conquista!`;
+  const defaultMessage = `Olá ${nome}! 🎓\n\nSeu certificado do curso *${curso}*${marca ? ` (${marca})` : ''} está disponível.\n\n📄 Baixe aqui: ${certUrl}\n\nParabéns pela conquista!`;
+
+  const renderVars = (text) => String(text || '')
+    .replace(/\{nome\}/gi, nome)
+    .replace(/\{curso\}/gi, curso)
+    .replace(/\{marca\}/gi, marca)
+    .replace(/\{link\}/gi, certUrl)
+    .replace(/\{certificado\}/gi, certUrl);
 
   if (student.phone) {
     try {
       let conn = null;
-      if (brand?.notify_connection_id) {
+      if (opts.connectionId) {
+        const c = await query('SELECT * FROM connections WHERE id = $1', [opts.connectionId]);
+        conn = c.rows[0] || null;
+      }
+      if (!conn && brand?.notify_connection_id) {
         const c = await query('SELECT * FROM connections WHERE id = $1', [brand.notify_connection_id]);
         conn = c.rows[0] || null;
       }
@@ -1643,8 +1655,34 @@ async function notifyCertificate(student, brand, certUrl, courseTitle) {
         }
       }
       if (conn) {
-        const r = await sendWhatsapp(conn, student.phone, message, 'text');
-        result.whatsapp = r;
+        const sent = [];
+        const items = Array.isArray(opts.templateItems) && opts.templateItems.length
+          ? opts.templateItems
+          : [{ type: 'text', content: opts.customMessage ? renderVars(opts.customMessage) : defaultMessage }];
+
+        for (const it of items) {
+          const type = it.type || 'text';
+          const content = renderVars(it.content || '');
+          const mediaUrl = it.mediaUrl || it.media_url || null;
+          const r = await sendWhatsapp(conn, student.phone, content, type, mediaUrl);
+          sent.push(r);
+          await new Promise((res) => setTimeout(res, 800));
+        }
+
+        // Anexar catálogos (manuais) como documentos
+        if (Array.isArray(opts.manuals)) {
+          for (const m of opts.manuals) {
+            if (!m?.file_url) continue;
+            const r = await sendWhatsapp(conn, student.phone, m.title || '', 'document', m.file_url);
+            sent.push(r);
+            await new Promise((res) => setTimeout(res, 800));
+          }
+        }
+
+        const anyFail = sent.find((s) => !s?.success);
+        result.whatsapp = anyFail
+          ? { success: false, error: anyFail.error || 'Falha em uma das mensagens', sent }
+          : { success: true, count: sent.length };
       } else {
         result.whatsapp = { success: false, error: 'Nenhuma conexão WhatsApp disponível' };
       }
@@ -1693,11 +1731,38 @@ async function notifyCertificate(student, brand, certUrl, courseTitle) {
   return result;
 }
 
+// ---- Listar templates de mensagem da organização do admin (para reenvio de certificado) ----
+admin.get('/messages/templates', gate('can_view_ead'), async (req, res) => {
+  try {
+    const orgId = await getAdminOrgId(req.userId);
+    if (!orgId) return res.json([]);
+    const r = await query(
+      `SELECT mt.id, mt.name, mt.items, mt.created_at, u.name AS created_by_name
+       FROM message_templates mt
+       LEFT JOIN users u ON u.id = mt.user_id
+       WHERE mt.user_id IN (SELECT user_id FROM organization_members WHERE organization_id = $1)
+       ORDER BY mt.name ASC`,
+      [orgId]
+    );
+    res.json(r.rows);
+  } catch (e) {
+    console.error('list message templates (ead)', e);
+    res.status(500).json({ error: 'Erro ao listar mensagens padrão' });
+  }
+});
+
 // ---- Regerar certificado e reenviar ao aluno ----
 admin.post('/certificates/regenerate', gate('can_manage_ead'), async (req, res) => {
   try {
     await ensureEadApprovalSchema();
-    const { student_id, course_id, certificate_id, resend = true } = req.body || {};
+    const {
+      student_id, course_id, certificate_id,
+      resend = true,
+      connection_id = null,
+      template_id = null,
+      message = null,
+      manual_ids = [],
+    } = req.body || {};
     let sid = student_id, cid = course_id;
     if (!sid || !cid) {
       if (!certificate_id) return res.status(400).json({ error: 'Informe student_id + course_id, ou certificate_id' });
@@ -1732,9 +1797,42 @@ admin.post('/certificates/regenerate', gate('can_manage_ead'), async (req, res) 
 
     let notify = null;
     if (resend) {
+      // Carrega template selecionado
+      let templateItems = null;
+      if (template_id) {
+        const t = await query('SELECT items FROM message_templates WHERE id=$1', [template_id]);
+        if (t.rows.length) {
+          try {
+            const items = typeof t.rows[0].items === 'string' ? JSON.parse(t.rows[0].items) : t.rows[0].items;
+            if (Array.isArray(items)) {
+              templateItems = items.map((it) => ({
+                type: it.type || 'text',
+                content: it.content || it.text || '',
+                mediaUrl: it.mediaUrl || it.media_url || it.url || null,
+              }));
+            }
+          } catch {}
+        }
+      }
+
+      // Carrega manuais selecionados
+      let manuals = [];
+      if (Array.isArray(manual_ids) && manual_ids.length) {
+        const m = await query(
+          `SELECT id, title, file_url FROM ead_manuals WHERE id = ANY($1::uuid[])`,
+          [manual_ids]
+        );
+        manuals = m.rows;
+      }
+
       notify = await withTimeout(
-        notifyCertificate(student, brand, certificate.pdf_url, course.title),
-        10000, 'Notificação de certificado'
+        notifyCertificate(student, brand, certificate.pdf_url, course.title, {
+          connectionId: connection_id,
+          customMessage: message,
+          templateItems,
+          manuals,
+        }),
+        20000, 'Notificação de certificado'
       ).catch((e) => ({ whatsapp: { success: false, error: e.message }, email: { success: false, error: e.message } }));
     }
 
@@ -1744,6 +1842,7 @@ admin.post('/certificates/regenerate', gate('can_manage_ead'), async (req, res) 
     res.status(500).json({ error: e?.message || 'Erro ao regerar certificado' });
   }
 });
+
 
 
 admin.patch('/students/:id', gate('can_manage_ead'), async (req, res) => {
