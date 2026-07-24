@@ -1142,7 +1142,22 @@ function CertsTab({ certs }: { certs: any[] }) {
       template_id: selTemplate === '__default__' ? null : selTemplate,
       message: selTemplate === '__default__' && customMsg.trim() ? customMsg.trim() : null,
       manual_ids: validManuals,
+      extra_attachments: extraAttachments,
     };
+  }
+
+  async function handleExtraUpload(file: File) {
+    if (!file) return;
+    setUploadingExtra(true);
+    try {
+      const r = await eadAdminApi.uploadCatalogFile(file);
+      setExtraAttachments(prev => [...prev, { title: file.name, file_url: r.url }]);
+      toast.success('Catálogo carregado');
+    } catch (e: any) {
+      toast.error(e.message || 'Erro ao enviar arquivo');
+    } finally {
+      setUploadingExtra(false);
+    }
   }
 
   async function regeneratePdfOnly(c: any) {
