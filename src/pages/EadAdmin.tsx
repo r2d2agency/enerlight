@@ -1099,6 +1099,8 @@ function CertsTab({ certs }: { certs: any[] }) {
   const [selTemplate, setSelTemplate] = useState<string>('__default__');
   const [selConnection, setSelConnection] = useState<string>('__auto__');
   const [selManuals, setSelManuals] = useState<string[]>([]);
+  const [extraAttachments, setExtraAttachments] = useState<Array<{ title: string; file_url: string }>>([]);
+  const [uploadingExtra, setUploadingExtra] = useState(false);
   const [customMsg, setCustomMsg] = useState<string>('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkSending, setBulkSending] = useState(false);
@@ -1140,7 +1142,22 @@ function CertsTab({ certs }: { certs: any[] }) {
       template_id: selTemplate === '__default__' ? null : selTemplate,
       message: selTemplate === '__default__' && customMsg.trim() ? customMsg.trim() : null,
       manual_ids: validManuals,
+      extra_attachments: extraAttachments,
     };
+  }
+
+  async function handleExtraUpload(file: File) {
+    if (!file) return;
+    setUploadingExtra(true);
+    try {
+      const r = await eadAdminApi.uploadCatalogFile(file);
+      setExtraAttachments(prev => [...prev, { title: file.name, file_url: r.url }]);
+      toast.success('Catálogo carregado');
+    } catch (e: any) {
+      toast.error(e.message || 'Erro ao enviar arquivo');
+    } finally {
+      setUploadingExtra(false);
+    }
   }
 
   async function regeneratePdfOnly(c: any) {
@@ -1271,6 +1288,36 @@ function CertsTab({ certs }: { certs: any[] }) {
                 )}
               </div>
             )}
+          </div>
+
+          <div className="md:col-span-2">
+            <Label>Anexar catálogo do computador (PDF/imagem)</Label>
+            <div className="mt-1 flex items-center gap-2">
+              <Input
+                type="file"
+                accept="application/pdf,image/*,.pdf,.png,.jpg,.jpeg,.webp"
+                disabled={uploadingExtra}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleExtraUpload(f);
+                  e.target.value = '';
+                }}
+              />
+              {uploadingExtra && <Loader2 className="h-4 w-4 animate-spin" />}
+            </div>
+            {extraAttachments.length > 0 && (
+              <div className="mt-2 space-y-1">
+                {extraAttachments.map((a, i) => (
+                  <div key={i} className="flex items-center justify-between text-sm border rounded-md px-2 py-1">
+                    <span className="truncate">{a.title}</span>
+                    <Button size="sm" variant="ghost" onClick={() => setExtraAttachments(prev => prev.filter((_, j) => j !== i))}>
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground mt-1">Estes anexos serão enviados junto ao certificado, além dos catálogos do curso selecionados acima.</p>
           </div>
         </CardContent>
       </Card>
