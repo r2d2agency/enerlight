@@ -1289,6 +1289,36 @@ function CertsTab({ certs }: { certs: any[] }) {
               </div>
             )}
           </div>
+
+          <div className="md:col-span-2">
+            <Label>Anexar catálogo do computador (PDF/imagem)</Label>
+            <div className="mt-1 flex items-center gap-2">
+              <Input
+                type="file"
+                accept="application/pdf,image/*,.pdf,.png,.jpg,.jpeg,.webp"
+                disabled={uploadingExtra}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleExtraUpload(f);
+                  e.target.value = '';
+                }}
+              />
+              {uploadingExtra && <Loader2 className="h-4 w-4 animate-spin" />}
+            </div>
+            {extraAttachments.length > 0 && (
+              <div className="mt-2 space-y-1">
+                {extraAttachments.map((a, i) => (
+                  <div key={i} className="flex items-center justify-between text-sm border rounded-md px-2 py-1">
+                    <span className="truncate">{a.title}</span>
+                    <Button size="sm" variant="ghost" onClick={() => setExtraAttachments(prev => prev.filter((_, j) => j !== i))}>
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground mt-1">Estes anexos serão enviados junto ao certificado, além dos catálogos do curso selecionados acima.</p>
+          </div>
         </CardContent>
       </Card>
 
