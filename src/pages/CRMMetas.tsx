@@ -571,17 +571,50 @@ export default function CRMMetas() {
                                   </div>
                                 </>
                               )}
-                              <div className="mt-2">
-                                <progress 
-                                  value={Math.min((s.realized / planned) * 100, 100)} 
-                                  max={100}
-                                  className={`h-2 w-full appearance-none [&::-webkit-progress-bar]:bg-muted [&::-webkit-progress-bar]:rounded-full [&::-webkit-progress-value]:rounded-full ${
-                                    (s.realized / planned) * 100 >= 100 
-                                      ? "[&::-webkit-progress-value]:bg-green-600" 
-                                      : "[&::-webkit-progress-value]:bg-amber-500"
-                                  }`}
-                                />
-                                <p className="text-xs text-muted-foreground text-right mt-1">{((s.realized / planned) * 100).toFixed(1)}% da meta</p>
+                              <div className="mt-2 space-y-2">
+                                <div>
+                                  <div className="flex items-center justify-between mb-1">
+                                    <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Realizado</span>
+                                    <span className="text-xs text-muted-foreground">{((s.realized / planned) * 100).toFixed(1)}% da meta</span>
+                                  </div>
+                                  <progress
+                                    value={Math.min((s.realized / planned) * 100, 100)}
+                                    max={100}
+                                    className={`h-2 w-full appearance-none [&::-webkit-progress-bar]:bg-muted [&::-webkit-progress-bar]:rounded-full [&::-webkit-progress-value]:rounded-full ${
+                                      (s.realized / planned) * 100 >= 100
+                                        ? "[&::-webkit-progress-value]:bg-green-600"
+                                        : "[&::-webkit-progress-value]:bg-amber-500"
+                                    }`}
+                                  />
+                                </div>
+                                {(() => {
+                                  const projected = elapsedBizDays > 0
+                                    ? (s.realized / elapsedBizDays) * totalBizDays
+                                    : 0;
+                                  const projPct = planned > 0 ? (projected / planned) * 100 : 0;
+                                  return (
+                                    <div>
+                                      <div className="flex items-center justify-between mb-1">
+                                        <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Projeção fim do mês</span>
+                                        <span className="text-xs text-muted-foreground">{fmt(projected)} ({projPct.toFixed(1)}%)</span>
+                                      </div>
+                                      <progress
+                                        value={Math.min(projPct, 100)}
+                                        max={100}
+                                        className={`h-2 w-full appearance-none [&::-webkit-progress-bar]:bg-muted [&::-webkit-progress-bar]:rounded-full [&::-webkit-progress-value]:rounded-full ${
+                                          projPct >= 100
+                                            ? "[&::-webkit-progress-value]:bg-emerald-500"
+                                            : projPct >= 80
+                                            ? "[&::-webkit-progress-value]:bg-sky-500"
+                                            : "[&::-webkit-progress-value]:bg-red-500"
+                                        }`}
+                                      />
+                                      <p className={`text-[11px] text-right mt-1 font-medium ${projPct >= 100 ? "text-emerald-600" : projPct >= 80 ? "text-sky-600" : "text-red-600"}`}>
+                                        {projPct >= 100 ? "No ritmo atual, a meta será batida" : `No ritmo atual, faltará ${fmt(Math.max(planned - projected, 0))}`}
+                                      </p>
+                                    </div>
+                                  );
+                                })()}
                               </div>
                             </CardContent>
                           </Card>
