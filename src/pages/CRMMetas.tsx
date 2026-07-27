@@ -746,6 +746,45 @@ export default function CRMMetas() {
                       const renderProgressCard = (p: any) => {
                         const remaining = p.target_value - p.current_value;
                         const isMet = remaining <= 0;
+                        // Projeção fim do mês (apenas para metas mensais)
+                        let projBlock: JSX.Element | null = null;
+                        if (p.period === "monthly") {
+                          const today = new Date();
+                          const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+                          const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                          const days: Date[] = [];
+                          for (let d = new Date(monthStart); d <= monthEnd; d.setDate(d.getDate() + 1)) days.push(new Date(d));
+                          const totalBiz = days.filter(d => isBusinessDay(d)).length;
+                          const elapsedBiz = days.filter(d => d <= today && isBusinessDay(d)).length;
+                          const projected = elapsedBiz > 0 ? (p.current_value / elapsedBiz) * totalBiz : 0;
+                          const projPct = p.target_value > 0 ? (projected / p.target_value) * 100 : 0;
+                          projBlock = (
+                            <div className="space-y-1">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Projeção fim do mês</span>
+                                <span className="text-[11px] text-muted-foreground">
+                                  {isMoneyMetric(p.metric) ? fmt(projected) : Math.round(projected)} ({projPct.toFixed(1)}%)
+                                </span>
+                              </div>
+                              <progress
+                                value={Math.min(projPct, 100)}
+                                max={100}
+                                className={`h-2 w-full appearance-none [&::-webkit-progress-bar]:bg-muted [&::-webkit-progress-bar]:rounded-full [&::-webkit-progress-value]:rounded-full ${
+                                  projPct >= 100
+                                    ? "[&::-webkit-progress-value]:bg-emerald-500"
+                                    : projPct >= 80
+                                    ? "[&::-webkit-progress-value]:bg-sky-500"
+                                    : "[&::-webkit-progress-value]:bg-red-500"
+                                }`}
+                              />
+                              <p className={`text-[11px] text-right font-medium ${projPct >= 100 ? "text-emerald-600" : projPct >= 80 ? "text-sky-600" : "text-red-600"}`}>
+                                {projPct >= 100
+                                  ? "No ritmo atual, a meta será batida"
+                                  : `No ritmo atual, faltará ${isMoneyMetric(p.metric) ? fmt(Math.max(p.target_value - projected, 0)) : Math.max(Math.round(p.target_value - projected), 0)}`}
+                              </p>
+                            </div>
+                          );
+                        }
                         return (
                           <Card key={p.goal_id} className={isMet ? "ring-2 ring-green-500/30" : ""}>
                             <CardContent className="pt-4 space-y-3">
@@ -780,11 +819,15 @@ export default function CRMMetas() {
                                 </div>
                               </div>
                               <div className="space-y-1">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Realizado</span>
+                                  <p className={`text-xs font-medium ${getProgressColor(p.percentage)}`}>
+                                    {p.percentage}%
+                                  </p>
+                                </div>
                                 <Progress value={Math.min(p.percentage, 100)} className="h-2" />
-                                <p className={`text-xs font-medium text-right ${getProgressColor(p.percentage)}`}>
-                                  {p.percentage}%
-                                </p>
                               </div>
+                              {projBlock}
                             </CardContent>
                           </Card>
                         );
