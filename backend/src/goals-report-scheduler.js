@@ -164,7 +164,8 @@ async function generateReportText(orgId, userId, reportType, includeChannels, in
     }
 
     if (s.type !== 'orcamento' && s.data.cost > 0) {
-      const markup = s.data.value / s.data.cost;
+      const markupBase = s.data.value_with_cost > 0 ? s.data.value_with_cost : s.data.value;
+      const markup = markupBase / s.data.cost;
       const markupStr = markup.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       text += `  Markup: ${markupStr}\n`;
     }
