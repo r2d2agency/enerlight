@@ -7894,7 +7894,7 @@ router.post('/goals/report-preview', async (req, res) => {
 
     const now = new Date();
     const sd = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-    const ed = now.toISOString().split('T')[0];
+    const ed = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
     const dateExpr = `COALESCE(CASE WHEN data_type = 'faturamento' THEN billing_date WHEN data_type = 'pedido' THEN COALESCE(emission_date, delivery_date) ELSE emission_date END, emission_date, delivery_date, created_at::date)`;
     const baseWhere = `organization_id = $1 AND ${dateExpr} >= $2::date AND ${dateExpr} <= $3::date`;
 
