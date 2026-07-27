@@ -53,7 +53,7 @@ function countBusinessDays(startDate, endDate) {
 async function generateReportText(orgId, userId, reportType, includeChannels, includeEnerlight) {
   const now = new Date();
   const sd = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-  const ed = now.toISOString().split('T')[0];
+  const ed = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
   const dateExpr = getDateExpr();
   const baseWhere = `organization_id = $1 AND ${dateExpr} >= $2::date AND ${dateExpr} <= $3::date`;
 
