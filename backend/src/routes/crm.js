@@ -7913,12 +7913,17 @@ router.post('/goals/report-preview', async (req, res) => {
                 COALESCE(cost,
                   CASE WHEN margin IS NOT NULL AND (1 + margin/100.0) <> 0
                        THEN value / (1 + margin/100.0) END)
-              ),0) as total_cost
+              ),0) as total_cost,
+              COALESCE(SUM(
+                CASE WHEN cost IS NOT NULL
+                          OR (margin IS NOT NULL AND (1 + margin/100.0) <> 0)
+                     THEN value ELSE 0 END
+              ),0) as value_with_cost
        FROM crm_goals_data WHERE ${baseWhere}${userFilter} GROUP BY data_type`, params
     );
-    const gd = { orcamento: { count: 0, value: 0, cost: 0 }, pedido: { count: 0, value: 0, cost: 0 }, faturamento: { count: 0, value: 0, cost: 0 } };
+    const gd = { orcamento: { count: 0, value: 0, cost: 0, value_with_cost: 0 }, pedido: { count: 0, value: 0, cost: 0, value_with_cost: 0 }, faturamento: { count: 0, value: 0, cost: 0, value_with_cost: 0 } };
     for (const row of summary.rows) {
-      gd[row.data_type] = { count: parseInt(row.count), value: parseFloat(row.total_value), cost: parseFloat(row.total_cost || 0) };
+      gd[row.data_type] = { count: parseInt(row.count), value: parseFloat(row.total_value), cost: parseFloat(row.total_cost || 0), value_with_cost: parseFloat(row.value_with_cost || 0) };
     }
 
     const goalsResult = await query(
@@ -7983,7 +7988,8 @@ router.post('/goals/report-preview', async (req, res) => {
         text += `  Saldo: ${saldoMtd >= 0 ? '✅' : '❌'} ${fmt(saldoMtd)}\n`;
       }
       if (s.type !== 'orcamento' && s.data.cost !== 0) {
-        const markup = s.data.value / s.data.cost;
+        const markupBase = s.data.value_with_cost > 0 ? s.data.value_with_cost : s.data.value;
+        const markup = markupBase / s.data.cost;
         const markupStr = markup.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         text += `  Markup: ${markupStr}\n`;
       }
@@ -8082,12 +8088,17 @@ router.post('/goals/report-send-now', async (req, res) => {
                     COALESCE(cost,
                       CASE WHEN margin IS NOT NULL AND (1 + margin/100.0) <> 0
                            THEN value / (1 + margin/100.0) END)
-                  ),0) as total_cost
+                  ),0) as total_cost,
+                  COALESCE(SUM(
+                    CASE WHEN cost IS NOT NULL
+                              OR (margin IS NOT NULL AND (1 + margin/100.0) <> 0)
+                         THEN value ELSE 0 END
+                  ),0) as value_with_cost
            FROM crm_goals_data WHERE ${baseWhere}${userFilter} GROUP BY data_type`, params
         );
-        const gd = { orcamento: { count: 0, value: 0, cost: 0 }, pedido: { count: 0, value: 0, cost: 0 }, faturamento: { count: 0, value: 0, cost: 0 } };
+        const gd = { orcamento: { count: 0, value: 0, cost: 0, value_with_cost: 0 }, pedido: { count: 0, value: 0, cost: 0, value_with_cost: 0 }, faturamento: { count: 0, value: 0, cost: 0, value_with_cost: 0 } };
         for (const row of summary.rows) {
-          gd[row.data_type] = { count: parseInt(row.count), value: parseFloat(row.total_value), cost: parseFloat(row.total_cost || 0) };
+          gd[row.data_type] = { count: parseInt(row.count), value: parseFloat(row.total_value), cost: parseFloat(row.total_cost || 0), value_with_cost: parseFloat(row.value_with_cost || 0) };
         }
 
         const goalsResult = await query(
@@ -8144,7 +8155,8 @@ router.post('/goals/report-send-now', async (req, res) => {
           }
 
           if (s.type !== 'orcamento' && s.data.cost !== 0) {
-            const markup = s.data.value / s.data.cost;
+            const markupBase = s.data.value_with_cost > 0 ? s.data.value_with_cost : s.data.value;
+            const markup = markupBase / s.data.cost;
             const markupStr = markup.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             text += `  Markup: ${markupStr}\n`;
           }
