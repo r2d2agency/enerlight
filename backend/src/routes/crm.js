@@ -4,6 +4,9 @@ import { query } from '../db.js';
 import { authenticate } from '../middleware/auth.js';
 import { logInfo, logError } from '../logger.js';
 
+// Metas fixas usadas no relatório de WhatsApp (sobrepõem crm_goals)
+const REPORT_GOAL_OVERRIDES = { billing_value: 1200000 };
+
 const router = express.Router();
 router.use(authenticate);
 
@@ -7971,7 +7974,7 @@ router.post('/goals/report-preview', async (req, res) => {
     ];
 
     for (const s of sections) {
-      const planned = goalMap[s.metricValue] || 0;
+      const planned = REPORT_GOAL_OVERRIDES[s.metricValue] ?? (goalMap[s.metricValue] || 0);
       const mtd = totalBizDays > 0 ? (planned / totalBizDays) * elapsedBizDays : 0;
       const saldoMtd = s.data.value - mtd;
       const pct = planned > 0 ? ((s.data.value / planned) * 100).toFixed(1) : '—';
@@ -8137,7 +8140,7 @@ router.post('/goals/report-send-now', async (req, res) => {
         ];
 
         for (const s of sections) {
-          const planned = goalMap[s.metricValue] || 0;
+          const planned = REPORT_GOAL_OVERRIDES[s.metricValue] ?? (goalMap[s.metricValue] || 0);
           const mtd = totalBizDays > 0 ? (planned / totalBizDays) * elapsedBizDays : 0;
           const saldoMtd = s.data.value - mtd;
           const pct = planned > 0 ? ((s.data.value / planned) * 100).toFixed(1) : '—';

@@ -2,6 +2,9 @@ import { query } from './db.js';
 import { sendMessage } from './lib/whatsapp-provider.js';
 import { logInfo, logError } from './logger.js';
 
+// Metas fixas usadas no relatório de WhatsApp (sobrepõem crm_goals)
+const REPORT_GOAL_OVERRIDES = { billing_value: 1200000 };
+
 function fmt(v) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0 }).format(v);
 }
@@ -144,7 +147,7 @@ async function generateReportText(orgId, userId, reportType, includeChannels, in
   ];
 
   for (const s of sections) {
-    const planned = goalMap[s.metricValue] || 0;
+    const planned = REPORT_GOAL_OVERRIDES[s.metricValue] ?? (goalMap[s.metricValue] || 0);
     const mtd = totalBizDays > 0 ? (planned / totalBizDays) * elapsedBizDays : 0;
     const saldoMtd = s.data.value - mtd;
     const pct = planned > 0 ? ((s.data.value / planned) * 100).toFixed(1) : '—';
