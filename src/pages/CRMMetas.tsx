@@ -54,6 +54,9 @@ const METRICS = [
   { value: "conversion_rate", label: "Taxa de Conversão (%)", icon: Target, group: "outros" },
 ];
 
+// Override de meta usado apenas no dashboard/relatório de Faturamento
+const DASHBOARD_GOAL_OVERRIDES = { billing_value: 1200000 };
+
 const PERIODS = [
   { value: "daily", label: "Diária" },
   { value: "weekly", label: "Semanal" },
@@ -496,6 +499,7 @@ export default function CRMMetas() {
                    const elapsedBizDays = allMonthDays.filter(d => d <= today && isBusinessDay(d)).length;
 
                   const getGeralGoal = (metricValue: string) => {
+                    if (metricValue === "billing_value") return DASHBOARD_GOAL_OVERRIDES.billing_value;
                     if (!goals) return 0;
                     const geral = goals.filter(g => g.metric === metricValue && g.is_active && g.type === "geral");
                     if (geral.length > 0) return geral.reduce((s, g) => s + g.target_value, 0);
@@ -627,6 +631,7 @@ export default function CRMMetas() {
                 {/* Projeção do mês — ritmo atual */}
                 {(() => {
                   const sumGoal = (metric: string) => {
+                    if (metric === "billing_value" && filterChannel === "all") return DASHBOARD_GOAL_OVERRIDES.billing_value;
                     if (!goals) return 0;
                     const active = goals.filter(g => g.metric === metric && g.is_active && g.period === "monthly" && g.type === "geral");
                     const scoped = filterChannel !== "all"
