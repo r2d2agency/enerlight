@@ -8575,33 +8575,32 @@ function normFollowup(v) {
 
 // Bloco "Pedidos em Carteira" para os relatórios de WhatsApp
 async function buildCarteiraSection(orgId, userId, fmt) {
+  const NORM = `UPPER(TRANSLATE(TRIM(COALESCE(followup,'')), 'áàâãäéèêëíìîïóòôõöúùûüçÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇ', 'aaaaaeeeeiiiiooooouuuucAAAAAEEEEIIIIOOOOOUUUUC'))`;
+  let values = [];
   try {
-    await ensureFollowupTables();
     const cfg = await query(`SELECT carteira_values FROM crm_followup_config WHERE organization_id = $1`, [orgId]);
-    let values = cfg.rows[0]?.carteira_values || [];
+    values = (cfg.rows[0]?.carteira_values || []).filter(Boolean);
+  } catch (e) {
+    console.error('[carteira-section] config indisponível:', e.message);
+  }
 
-    // Fallback: se o admin ainda não configurou a guia, usa todos os followups que contenham "CARTEIRA"
-    if (!values.length) {
-      const auto = await query(
-        `SELECT DISTINCT followup FROM crm_goals_data
-         WHERE organization_id = $1 AND data_type = 'pedido' AND followup IS NOT NULL AND followup <> ''
-           AND UPPER(TRANSLATE(followup, 'ÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇ', 'AAAAAEEEEIIIIOOOOOUUUUC')) LIKE '%CARTEIRA%'`,
-        [orgId]
-      );
-      values = auto.rows.map(r => r.followup);
+  try {
+    const params = [orgId];
+    let match;
+    if (values.length) {
+      params.push(values.map(normFollowup));
+      match = `${NORM} = ANY($2::text[])`;
+    } else {
+      // Fallback: qualquer followup que contenha "CARTEIRA"
+      match = `${NORM} LIKE '%CARTEIRA%'`;
     }
-    if (!values.length) return '';
-
-    const norm = values.map(normFollowup);
-    const params = [orgId, norm];
     let userFilter = '';
     if (userId) { params.push(userId); userFilter = ` AND user_id = $${params.length}`; }
+
     const r = await query(
       `SELECT COUNT(*)::int AS cnt, COALESCE(SUM(value),0) AS total
        FROM crm_goals_data
-       WHERE organization_id = $1 AND data_type = 'pedido'
-         AND UPPER(TRANSLATE(TRIM(COALESCE(followup,'')), 'ÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇ', 'AAAAAEEEEIIIIOOOOOUUUUC')) = ANY($2::text[])
-         ${userFilter}`,
+       WHERE organization_id = $1 AND data_type = 'pedido' AND ${match}${userFilter}`,
       params
     );
     const cnt = r.rows[0]?.cnt || 0;
@@ -8609,9 +8608,10 @@ async function buildCarteiraSection(orgId, userId, fmt) {
     return `📦 *Pedidos em Carteira*\n  Qtd: ${cnt} | Total: ${fmt(total)}\n\n`;
   } catch (e) {
     console.error('[carteira-section] erro:', e.message);
-    return '';
+    return `📦 *Pedidos em Carteira*\n  Indisponível\n\n`;
   }
 }
+
 
 
 async function ensureFollowupTables() {
