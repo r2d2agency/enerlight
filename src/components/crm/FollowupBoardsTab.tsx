@@ -166,50 +166,57 @@ export function FollowupBoardsTab({ startDate, endDate, userId, channel, groupId
                     onChange={(e) => setSearch(e.target.value)}
                     className="h-9 w-[240px]"
                   />
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" size="sm" className="gap-2">
-                        <Filter className="h-4 w-4" />
-                        FollowUps ({selected.length})
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent align="end" className="w-[320px] p-0">
-                      <div className="flex items-center justify-between border-b px-3 py-2">
-                        <span className="text-sm font-medium">Selecionar FollowUps</span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 text-xs"
-                          onClick={() => persist({ ...selection, [b.key]: [] })}
-                        >
-                          Limpar
+                  {canEditFilters ? (
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className="gap-2">
+                          <Filter className="h-4 w-4" />
+                          FollowUps ({selected.length})
                         </Button>
-                      </div>
-                      <ScrollArea className="h-[300px]">
-                        <div className="p-2 space-y-1">
-                          {(followups || []).length === 0 && (
-                            <p className="p-3 text-sm text-muted-foreground">
-                              Nenhum FollowUp encontrado nas importações.
-                            </p>
-                          )}
-                          {(followups || []).map((f) => (
-                            <label
-                              key={f.followup}
-                              className="flex items-start gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted cursor-pointer"
-                            >
-                              <Checkbox
-                                checked={selected.includes(f.followup)}
-                                onCheckedChange={() => toggle(f.followup)}
-                                className="mt-0.5"
-                              />
-                              <span className="flex-1">{f.followup}</span>
-                              <span className="text-xs text-muted-foreground">{f.count}</span>
-                            </label>
-                          ))}
+                      </PopoverTrigger>
+                      <PopoverContent align="end" className="w-[320px] p-0">
+                        <div className="flex items-center justify-between border-b px-3 py-2">
+                          <span className="text-sm font-medium">Selecionar FollowUps</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={() => persist({ ...selection, [b.key]: [] })}
+                          >
+                            Limpar
+                          </Button>
                         </div>
-                      </ScrollArea>
-                    </PopoverContent>
-                  </Popover>
+                        <ScrollArea className="h-[300px]">
+                          <div className="p-2 space-y-1">
+                            {(followups || []).length === 0 && (
+                              <p className="p-3 text-sm text-muted-foreground">
+                                Nenhum FollowUp encontrado nas importações.
+                              </p>
+                            )}
+                            {(followups || []).map((f) => (
+                              <label
+                                key={f.followup}
+                                className="flex items-start gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted cursor-pointer"
+                              >
+                                <Checkbox
+                                  checked={selected.includes(f.followup)}
+                                  onCheckedChange={() => toggle(f.followup)}
+                                  className="mt-0.5"
+                                />
+                                <span className="flex-1">{f.followup}</span>
+                                <span className="text-xs text-muted-foreground">{f.count}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </ScrollArea>
+                      </PopoverContent>
+                    </Popover>
+                  ) : (
+                    <Badge variant="secondary" className="gap-1 text-[11px]">
+                      <Filter className="h-3 w-3" />
+                      FollowUps definidos pelo admin ({selected.length})
+                    </Badge>
+                  )}
                 </div>
               </div>
               {selected.length > 0 && (
