@@ -8247,6 +8247,10 @@ router.post('/goals/report-send-now', async (req, res) => {
           text += '\n';
         }
 
+        text += await buildCarteiraSection(org.organization_id, recipient.report_type === 'individual' ? recipient.user_id : null, fmt);
+
+
+
         if (config.include_channel_breakdown && recipient.report_type === 'full') {
           const channelResult = await query(
             `SELECT data_type, COALESCE(channel, 'Sem Canal') as channel, COUNT(*) as count, COALESCE(SUM(value),0) as total_value
