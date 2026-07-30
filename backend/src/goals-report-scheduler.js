@@ -185,39 +185,41 @@ async function generateReportText(orgId, userId, reportType, includeChannels, in
 
   // Pedidos em Carteira (followups configurados na aba FollowUps)
   try {
-    const cfg = await query(`SELECT carteira_values FROM crm_followup_config WHERE organization_id = $1`, [orgId]);
-    let carteiraValues = cfg.rows[0]?.carteira_values || [];
-    if (!carteiraValues.length) {
-      const auto = await query(
-        `SELECT DISTINCT followup FROM crm_goals_data
-         WHERE organization_id = $1 AND data_type = 'pedido' AND followup IS NOT NULL AND followup <> ''
-           AND UPPER(TRANSLATE(followup, 'ÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇ', 'AAAAAEEEEIIIIOOOOOUUUUC')) LIKE '%CARTEIRA%'`,
-        [orgId]
-      );
-      carteiraValues = auto.rows.map((r) => r.followup);
+    const NORM = `UPPER(TRANSLATE(TRIM(COALESCE(followup,'')), 'áàâãäéèêëíìîïóòôõöúùûüçÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇ', 'aaaaaeeeeiiiiooooouuuucAAAAAEEEEIIIIOOOOOUUUUC'))`;
+    let carteiraValues = [];
+    try {
+      const cfg = await query(`SELECT carteira_values FROM crm_followup_config WHERE organization_id = $1`, [orgId]);
+      carteiraValues = (cfg.rows[0]?.carteira_values || []).filter(Boolean);
+    } catch (e) {
+      console.error('[carteira-report] config indisponível:', e.message);
     }
-    if (carteiraValues.length > 0) {
 
-      const norm = carteiraValues.map((v) =>
+    const cParams = [orgId];
+    let match;
+    if (carteiraValues.length) {
+      cParams.push(carteiraValues.map((v) =>
         String(v || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim()
-      );
-      const cParams = [orgId, norm];
-      let cUserFilter = '';
-      if (reportType === 'individual' && userId) { cParams.push(userId); cUserFilter = ` AND user_id = $${cParams.length}`; }
-      const cRes = await query(
-        `SELECT COUNT(*)::int AS cnt, COALESCE(SUM(value),0) AS total
-         FROM crm_goals_data
-         WHERE organization_id = $1 AND data_type = 'pedido'
-           AND UPPER(TRANSLATE(TRIM(COALESCE(followup,'')), 'ÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇ', 'AAAAAEEEEIIIIOOOOOUUUUC')) = ANY($2::text[])
-           ${cUserFilter}`,
-        cParams
-      );
-      const cnt = cRes.rows[0]?.cnt || 0;
-      const totalCarteira = parseFloat(cRes.rows[0]?.total || 0);
-      text += `📦 *Pedidos em Carteira*\n`;
-      text += `  Qtd: ${cnt} | Total: ${fmt(totalCarteira)}\n\n`;
+      ));
+      match = `${NORM} = ANY($2::text[])`;
+    } else {
+      match = `${NORM} LIKE '%CARTEIRA%'`;
     }
-  } catch (_) { /* ignore */ }
+    let cUserFilter = '';
+    if (reportType === 'individual' && userId) { cParams.push(userId); cUserFilter = ` AND user_id = $${cParams.length}`; }
+    const cRes = await query(
+      `SELECT COUNT(*)::int AS cnt, COALESCE(SUM(value),0) AS total
+       FROM crm_goals_data
+       WHERE organization_id = $1 AND data_type = 'pedido' AND ${match}${cUserFilter}`,
+      cParams
+    );
+    const cnt = cRes.rows[0]?.cnt || 0;
+    const totalCarteira = parseFloat(cRes.rows[0]?.total || 0);
+    text += `📦 *Pedidos em Carteira*\n`;
+    text += `  Qtd: ${cnt} | Total: ${fmt(totalCarteira)}\n\n`;
+  } catch (e) {
+    console.error('[carteira-report] erro:', e.message);
+  }
+
 
 
 
