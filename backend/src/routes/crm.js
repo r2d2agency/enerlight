@@ -8601,26 +8601,31 @@ async function ensureFollowupTables() {
     )`);
     await query(`CREATE INDEX IF NOT EXISTS idx_followup_status_org ON crm_order_followup_status(organization_id)`);
     await query(`CREATE INDEX IF NOT EXISTS idx_followup_logs_order ON crm_order_followup_logs(organization_id, order_key)`);
+    await query(`ALTER TABLE crm_followup_config ADD COLUMN IF NOT EXISTS carteira_values TEXT[] DEFAULT '{}'`);
+    await query(`ALTER TABLE crm_followup_config ADD COLUMN IF NOT EXISTS prontos_values TEXT[] DEFAULT '{}'`);
   } catch (_) {}
 }
 
 async function getFollowupConfig(orgId) {
   await ensureFollowupTables();
-  const r = await query(`SELECT waiting_values, released_values FROM crm_followup_config WHERE organization_id = $1`, [orgId]);
+  const r = await query(`SELECT waiting_values, released_values, carteira_values, prontos_values FROM crm_followup_config WHERE organization_id = $1`, [orgId]);
   const row = r.rows[0];
   const waiting = (row?.waiting_values?.length ? row.waiting_values : DEFAULT_WAITING).map(normFollowup);
   const released = (row?.released_values?.length ? row.released_values : DEFAULT_RELEASED).map(normFollowup);
-  return { waiting, released };
+  return { waiting, released, carteira: row?.carteira_values || [], prontos: row?.prontos_values || [] };
 }
 
 router.get('/goals/followup-config', async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
-    const r = await query(`SELECT waiting_values, released_values FROM crm_followup_config WHERE organization_id = $1`, [org.organization_id]);
+    await ensureFollowupTables();
+    const r = await query(`SELECT waiting_values, released_values, carteira_values, prontos_values FROM crm_followup_config WHERE organization_id = $1`, [org.organization_id]);
     res.json({
       waiting_values: r.rows[0]?.waiting_values?.length ? r.rows[0].waiting_values : DEFAULT_WAITING,
       released_values: r.rows[0]?.released_values?.length ? r.rows[0].released_values : DEFAULT_RELEASED,
+      carteira_values: r.rows[0]?.carteira_values || [],
+      prontos_values: r.rows[0]?.prontos_values || [],
     });
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
@@ -8630,17 +8635,22 @@ router.put('/goals/followup-config', async (req, res) => {
     await ensureFollowupTables();
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
-    const waiting = Array.isArray(req.body.waiting_values) ? req.body.waiting_values : [];
-    const released = Array.isArray(req.body.released_values) ? req.body.released_values : [];
+    const cur = await query(`SELECT waiting_values, released_values, carteira_values, prontos_values FROM crm_followup_config WHERE organization_id = $1`, [org.organization_id]);
+    const prev = cur.rows[0] || {};
+    const waiting = Array.isArray(req.body.waiting_values) ? req.body.waiting_values : (prev.waiting_values || []);
+    const released = Array.isArray(req.body.released_values) ? req.body.released_values : (prev.released_values || []);
+    const carteira = Array.isArray(req.body.carteira_values) ? req.body.carteira_values : (prev.carteira_values || []);
+    const prontos = Array.isArray(req.body.prontos_values) ? req.body.prontos_values : (prev.prontos_values || []);
     await query(
-      `INSERT INTO crm_followup_config (organization_id, waiting_values, released_values, updated_at)
-       VALUES ($1, $2, $3, NOW())
-       ON CONFLICT (organization_id) DO UPDATE SET waiting_values = $2, released_values = $3, updated_at = NOW()`,
-      [org.organization_id, waiting, released]
+      `INSERT INTO crm_followup_config (organization_id, waiting_values, released_values, carteira_values, prontos_values, updated_at)
+       VALUES ($1, $2, $3, $4, $5, NOW())
+       ON CONFLICT (organization_id) DO UPDATE SET waiting_values = $2, released_values = $3, carteira_values = $4, prontos_values = $5, updated_at = NOW()`,
+      [org.organization_id, waiting, released, carteira, prontos]
     );
     res.json({ success: true });
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
+
 
 // Build the list of waiting orders with their followup control state
 async function loadWaitingOrders(orgId, { userId } = {}) {
