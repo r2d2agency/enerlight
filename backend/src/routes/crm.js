@@ -8669,6 +8669,9 @@ router.put('/goals/followup-config', async (req, res) => {
     await ensureFollowupTables();
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
+    const su = await query(`SELECT is_superadmin FROM users WHERE id = $1`, [req.userId]);
+    const isAdmin = su.rows[0]?.is_superadmin === true || ['owner', 'admin'].includes(org.role);
+    if (!isAdmin) return res.status(403).json({ error: 'Apenas administradores podem alterar os filtros de FollowUp' });
     const cur = await query(`SELECT waiting_values, released_values, carteira_values, prontos_values FROM crm_followup_config WHERE organization_id = $1`, [org.organization_id]);
     const prev = cur.rows[0] || {};
     const waiting = Array.isArray(req.body.waiting_values) ? req.body.waiting_values : (prev.waiting_values || []);

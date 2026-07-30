@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -42,6 +43,8 @@ function safeDate(v: any) {
 }
 
 export function FollowupBoardsTab({ startDate, endDate, userId, channel, groupId }: Props) {
+  const { user } = useAuth();
+  const canEditFilters = !!(user?.is_superadmin || user?.role === "owner" || user?.role === "admin");
   const [active, setActive] = useState<BoardKey>("carteira");
   const [selection, setSelection] = useState<Record<BoardKey, string[]>>({
     carteira: [],
@@ -51,24 +54,27 @@ export function FollowupBoardsTab({ startDate, endDate, userId, channel, groupId
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) setSelection((prev) => ({ ...prev, ...JSON.parse(raw) }));
-    } catch (_) { /* ignore */ }
-    // Server config (usado também no relatório de WhatsApp)
+    if (canEditFilters) {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) setSelection((prev) => ({ ...prev, ...JSON.parse(raw) }));
+      } catch (_) { /* ignore */ }
+    }
+    // Server config (usado também no relatório de WhatsApp) — fonte da verdade
     api<any>("/api/crm/goals/followup-config")
       .then((cfg) => {
         setSelection((prev) => ({
           ...prev,
-          carteira: cfg?.carteira_values?.length ? cfg.carteira_values : prev.carteira,
-          prontos: cfg?.prontos_values?.length ? cfg.prontos_values : prev.prontos,
-          aguardando: cfg?.waiting_values?.length ? cfg.waiting_values : prev.aguardando,
+          carteira: cfg?.carteira_values?.length ? cfg.carteira_values : (canEditFilters ? prev.carteira : []),
+          prontos: cfg?.prontos_values?.length ? cfg.prontos_values : (canEditFilters ? prev.prontos : []),
+          aguardando: cfg?.waiting_values?.length ? cfg.waiting_values : (canEditFilters ? prev.aguardando : []),
         }));
       })
       .catch(() => { /* ignore */ });
-  }, []);
+  }, [canEditFilters]);
 
   const persist = (next: Record<BoardKey, string[]>) => {
+    if (!canEditFilters) return;
     setSelection(next);
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch (_) { /* ignore */ }
     api("/api/crm/goals/followup-config", {
@@ -160,50 +166,57 @@ export function FollowupBoardsTab({ startDate, endDate, userId, channel, groupId
                     onChange={(e) => setSearch(e.target.value)}
                     className="h-9 w-[240px]"
                   />
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" size="sm" className="gap-2">
-                        <Filter className="h-4 w-4" />
-                        FollowUps ({selected.length})
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent align="end" className="w-[320px] p-0">
-                      <div className="flex items-center justify-between border-b px-3 py-2">
-                        <span className="text-sm font-medium">Selecionar FollowUps</span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 text-xs"
-                          onClick={() => persist({ ...selection, [b.key]: [] })}
-                        >
-                          Limpar
+                  {canEditFilters ? (
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className="gap-2">
+                          <Filter className="h-4 w-4" />
+                          FollowUps ({selected.length})
                         </Button>
-                      </div>
-                      <ScrollArea className="h-[300px]">
-                        <div className="p-2 space-y-1">
-                          {(followups || []).length === 0 && (
-                            <p className="p-3 text-sm text-muted-foreground">
-                              Nenhum FollowUp encontrado nas importações.
-                            </p>
-                          )}
-                          {(followups || []).map((f) => (
-                            <label
-                              key={f.followup}
-                              className="flex items-start gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted cursor-pointer"
-                            >
-                              <Checkbox
-                                checked={selected.includes(f.followup)}
-                                onCheckedChange={() => toggle(f.followup)}
-                                className="mt-0.5"
-                              />
-                              <span className="flex-1">{f.followup}</span>
-                              <span className="text-xs text-muted-foreground">{f.count}</span>
-                            </label>
-                          ))}
+                      </PopoverTrigger>
+                      <PopoverContent align="end" className="w-[320px] p-0">
+                        <div className="flex items-center justify-between border-b px-3 py-2">
+                          <span className="text-sm font-medium">Selecionar FollowUps</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={() => persist({ ...selection, [b.key]: [] })}
+                          >
+                            Limpar
+                          </Button>
                         </div>
-                      </ScrollArea>
-                    </PopoverContent>
-                  </Popover>
+                        <ScrollArea className="h-[300px]">
+                          <div className="p-2 space-y-1">
+                            {(followups || []).length === 0 && (
+                              <p className="p-3 text-sm text-muted-foreground">
+                                Nenhum FollowUp encontrado nas importações.
+                              </p>
+                            )}
+                            {(followups || []).map((f) => (
+                              <label
+                                key={f.followup}
+                                className="flex items-start gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted cursor-pointer"
+                              >
+                                <Checkbox
+                                  checked={selected.includes(f.followup)}
+                                  onCheckedChange={() => toggle(f.followup)}
+                                  className="mt-0.5"
+                                />
+                                <span className="flex-1">{f.followup}</span>
+                                <span className="text-xs text-muted-foreground">{f.count}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </ScrollArea>
+                      </PopoverContent>
+                    </Popover>
+                  ) : (
+                    <Badge variant="secondary" className="gap-1 text-[11px]">
+                      <Filter className="h-3 w-3" />
+                      FollowUps definidos pelo admin ({selected.length})
+                    </Badge>
+                  )}
                 </div>
               </div>
               {selected.length > 0 && (
@@ -217,7 +230,9 @@ export function FollowupBoardsTab({ startDate, endDate, userId, channel, groupId
             <CardContent className="space-y-4">
               {selected.length === 0 ? (
                 <p className="py-8 text-center text-sm text-muted-foreground">
-                  Selecione os FollowUps que compõem esta guia.
+                  {canEditFilters
+                    ? "Selecione os FollowUps que compõem esta guia."
+                    : "Nenhum FollowUp configurado pelo administrador para esta guia."}
                 </p>
               ) : isLoading ? (
                 <div className="flex justify-center py-10">
