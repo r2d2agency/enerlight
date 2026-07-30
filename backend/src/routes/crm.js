@@ -7287,6 +7287,21 @@ router.post('/goals/import', async (req, res) => {
       );
     }
 
+    // Clean up any pre-existing duplicates for this org/data_type (keeps the newest row per key)
+    try {
+      await query(
+        `DELETE FROM crm_goals_data a USING crm_goals_data b
+          WHERE a.organization_id = $1 AND a.data_type = $2
+            AND b.organization_id = a.organization_id AND b.data_type = a.data_type
+            AND COALESCE(NULLIF(TRIM(a.number),''), TRIM(COALESCE(a.order_number,''))) =
+                COALESCE(NULLIF(TRIM(b.number),''), TRIM(COALESCE(b.order_number,'')))
+            AND COALESCE(NULLIF(TRIM(a.number),''), TRIM(COALESCE(a.order_number,''))) <> ''
+            AND (a.created_at < b.created_at OR (a.created_at = b.created_at AND a.id < b.id))`,
+        [org.organization_id, dataType]
+      );
+    } catch (_) {}
+
+    let updated = 0;
     for (const row of rows) {
       try {
         const userId = sellerMapping?.[row.seller_name] || null;
@@ -7299,6 +7314,19 @@ router.post('/goals/import', async (req, res) => {
           ? +(valueNum / (1 + marginNum / 100)).toFixed(2)
 
           : null;
+
+        // De-duplication: same order/document number for the same data_type is replaced, never duplicated
+        const dedupKey = String(row.number || row.order_number || '').trim();
+        if (dedupKey) {
+          const del = await query(
+            `DELETE FROM crm_goals_data
+              WHERE organization_id = $1 AND data_type = $2
+                AND COALESCE(NULLIF(TRIM(number),''), TRIM(COALESCE(order_number,''))) = $3`,
+            [org.organization_id, dataType, dedupKey]
+          );
+          if (del.rowCount > 0) updated++;
+        }
+
         await query(
           `INSERT INTO crm_goals_data 
            (organization_id, data_type, number, status, client_name, value, seller_name, user_id, channel, client_group, state, city, emission_date, delivery_date, billing_date, margin, cost, observation, followup, order_number, batch_id)
@@ -7311,7 +7339,8 @@ router.post('/goals/import', async (req, res) => {
       } catch (_) { skipped++; }
     }
 
-    res.json({ imported, skipped, batchId });
+    res.json({ imported, updated, skipped, batchId });
+
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
