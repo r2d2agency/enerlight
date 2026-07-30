@@ -186,8 +186,18 @@ async function generateReportText(orgId, userId, reportType, includeChannels, in
   // Pedidos em Carteira (followups configurados na aba FollowUps)
   try {
     const cfg = await query(`SELECT carteira_values FROM crm_followup_config WHERE organization_id = $1`, [orgId]);
-    const carteiraValues = cfg.rows[0]?.carteira_values || [];
+    let carteiraValues = cfg.rows[0]?.carteira_values || [];
+    if (!carteiraValues.length) {
+      const auto = await query(
+        `SELECT DISTINCT followup FROM crm_goals_data
+         WHERE organization_id = $1 AND data_type = 'pedido' AND followup IS NOT NULL AND followup <> ''
+           AND UPPER(TRANSLATE(followup, 'ÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇ', 'AAAAAEEEEIIIIOOOOOUUUUC')) LIKE '%CARTEIRA%'`,
+        [orgId]
+      );
+      carteiraValues = auto.rows.map((r) => r.followup);
+    }
     if (carteiraValues.length > 0) {
+
       const norm = carteiraValues.map((v) =>
         String(v || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim()
       );
