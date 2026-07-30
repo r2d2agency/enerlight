@@ -42,6 +42,8 @@ function safeDate(v: any) {
 }
 
 export function FollowupBoardsTab({ startDate, endDate, userId, channel, groupId }: Props) {
+  const { user } = useAuth();
+  const canEditFilters = !!(user?.is_superadmin || user?.role === "owner" || user?.role === "admin");
   const [active, setActive] = useState<BoardKey>("carteira");
   const [selection, setSelection] = useState<Record<BoardKey, string[]>>({
     carteira: [],
