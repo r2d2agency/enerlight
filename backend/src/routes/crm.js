@@ -7387,6 +7387,27 @@ router.get('/goals/channels', async (req, res) => {
   }
 });
 
+// Distinct FollowUp values from imported data
+router.get('/goals/followups', async (req, res) => {
+  try {
+    await ensureGoalsDataTable();
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const result = await query(
+      `SELECT TRIM(followup) AS followup, COUNT(*)::int AS count
+       FROM crm_goals_data
+       WHERE organization_id = $1 AND followup IS NOT NULL AND TRIM(followup) <> ''
+       GROUP BY TRIM(followup)
+       ORDER BY 1`,
+      [org.organization_id]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Goals data summary (used by dashboard)
 router.get('/goals/data-summary', async (req, res) => {
   try {
@@ -7574,6 +7595,13 @@ router.get('/goals/data-records', async (req, res) => {
       }
     }
     if (search) { params.push(`%${search}%`); extraFilters += ` AND (client_name ILIKE $${params.length} OR number ILIKE $${params.length} OR order_number ILIKE $${params.length} OR seller_name ILIKE $${params.length})`; }
+    if (req.query.followups) {
+      const list = String(req.query.followups).split('|').map(v => v.trim()).filter(Boolean);
+      if (list.length > 0) {
+        params.push(list);
+        extraFilters += ` AND TRIM(COALESCE(followup, '')) = ANY($${params.length}::text[])`;
+      }
+    }
 
     const dateExpr = `COALESCE(CASE WHEN data_type = 'faturamento' THEN billing_date WHEN data_type = 'pedido' THEN COALESCE(emission_date, delivery_date) ELSE emission_date END, emission_date, delivery_date, created_at::date)`;
     const baseWhere = `organization_id = $1 AND ${dateExpr} >= $2::date AND ${dateExpr} <= $3::date${extraFilters}`;
