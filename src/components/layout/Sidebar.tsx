@@ -52,7 +52,7 @@ import {
   Nfc,
   RotateCcw,
   GraduationCap,
-  ShieldCheck,,
+  ShieldCheck,
   Factory,
 } from "lucide-react";
 
