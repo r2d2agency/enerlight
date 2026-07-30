@@ -54,24 +54,27 @@ export function FollowupBoardsTab({ startDate, endDate, userId, channel, groupId
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) setSelection((prev) => ({ ...prev, ...JSON.parse(raw) }));
-    } catch (_) { /* ignore */ }
-    // Server config (usado também no relatório de WhatsApp)
+    if (canEditFilters) {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) setSelection((prev) => ({ ...prev, ...JSON.parse(raw) }));
+      } catch (_) { /* ignore */ }
+    }
+    // Server config (usado também no relatório de WhatsApp) — fonte da verdade
     api<any>("/api/crm/goals/followup-config")
       .then((cfg) => {
         setSelection((prev) => ({
           ...prev,
-          carteira: cfg?.carteira_values?.length ? cfg.carteira_values : prev.carteira,
-          prontos: cfg?.prontos_values?.length ? cfg.prontos_values : prev.prontos,
-          aguardando: cfg?.waiting_values?.length ? cfg.waiting_values : prev.aguardando,
+          carteira: cfg?.carteira_values?.length ? cfg.carteira_values : (canEditFilters ? prev.carteira : []),
+          prontos: cfg?.prontos_values?.length ? cfg.prontos_values : (canEditFilters ? prev.prontos : []),
+          aguardando: cfg?.waiting_values?.length ? cfg.waiting_values : (canEditFilters ? prev.aguardando : []),
         }));
       })
       .catch(() => { /* ignore */ });
-  }, []);
+  }, [canEditFilters]);
 
   const persist = (next: Record<BoardKey, string[]>) => {
+    if (!canEditFilters) return;
     setSelection(next);
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch (_) { /* ignore */ }
     api("/api/crm/goals/followup-config", {
