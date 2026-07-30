@@ -8573,7 +8573,33 @@ function normFollowup(v) {
   return String(v || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
 }
 
+// Bloco "Pedidos em Carteira" para os relatórios de WhatsApp
+async function buildCarteiraSection(orgId, userId, fmt) {
+  try {
+    await ensureFollowupTables();
+    const cfg = await query(`SELECT carteira_values FROM crm_followup_config WHERE organization_id = $1`, [orgId]);
+    const values = cfg.rows[0]?.carteira_values || [];
+    if (!values.length) return '';
+    const norm = values.map(normFollowup);
+    const params = [orgId, norm];
+    let userFilter = '';
+    if (userId) { params.push(userId); userFilter = ` AND user_id = $${params.length}`; }
+    const r = await query(
+      `SELECT COUNT(*)::int AS cnt, COALESCE(SUM(value),0) AS total
+       FROM crm_goals_data
+       WHERE organization_id = $1 AND data_type = 'pedido'
+         AND UPPER(TRANSLATE(TRIM(COALESCE(followup,'')), 'ÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇ', 'AAAAAEEEEIIIIOOOOOUUUUC')) = ANY($2::text[])
+         ${userFilter}`,
+      params
+    );
+    const cnt = r.rows[0]?.cnt || 0;
+    const total = parseFloat(r.rows[0]?.total || 0);
+    return `📦 *Pedidos em Carteira*\n  Qtd: ${cnt} | Total: ${fmt(total)}\n\n`;
+  } catch (_) { return ''; }
+}
+
 async function ensureFollowupTables() {
+
   try {
     await query(`CREATE TABLE IF NOT EXISTS crm_followup_config (
       organization_id UUID PRIMARY KEY REFERENCES organizations(id) ON DELETE CASCADE,
