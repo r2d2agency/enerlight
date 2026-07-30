@@ -55,12 +55,32 @@ export function FollowupBoardsTab({ startDate, endDate, userId, channel, groupId
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) setSelection((prev) => ({ ...prev, ...JSON.parse(raw) }));
     } catch (_) { /* ignore */ }
+    // Server config (usado também no relatório de WhatsApp)
+    api<any>("/api/crm/goals/followup-config")
+      .then((cfg) => {
+        setSelection((prev) => ({
+          ...prev,
+          carteira: cfg?.carteira_values?.length ? cfg.carteira_values : prev.carteira,
+          prontos: cfg?.prontos_values?.length ? cfg.prontos_values : prev.prontos,
+          aguardando: cfg?.waiting_values?.length ? cfg.waiting_values : prev.aguardando,
+        }));
+      })
+      .catch(() => { /* ignore */ });
   }, []);
 
   const persist = (next: Record<BoardKey, string[]>) => {
     setSelection(next);
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch (_) { /* ignore */ }
+    api("/api/crm/goals/followup-config", {
+      method: "PUT",
+      body: JSON.stringify({
+        carteira_values: next.carteira,
+        prontos_values: next.prontos,
+        waiting_values: next.aguardando,
+      }),
+    }).catch(() => { /* ignore */ });
   };
+
 
   const { data: followups } = useQuery({
     queryKey: ["crm-goals-followups"],
