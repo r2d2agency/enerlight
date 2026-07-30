@@ -8711,9 +8711,40 @@ router.put('/goals/followup-config', async (req, res) => {
 
 
 // Build the list of waiting orders with their followup control state
-async function loadWaitingOrders(orgId, { userId } = {}) {
-  const { waiting, released } = await getFollowupConfig(orgId);
-  const params = [orgId, waiting, released];
+async function loadWaitingOrders(orgId, { userId, startDate, endDate } = {}) {
+  const cfgRow = await query(
+    `SELECT waiting_values, released_values FROM crm_followup_config WHERE organization_id = $1`,
+    [orgId]
+  ).catch(() => ({ rows: [] }));
+
+  const rawWaiting = (cfgRow.rows[0]?.waiting_values || []).map(v => String(v || '').trim()).filter(Boolean);
+  const hasCustomWaiting = rawWaiting.length > 0;
+  const waitingList = hasCustomWaiting ? rawWaiting : DEFAULT_WAITING;
+  const waitingNorm = waitingList.map(normFollowup);
+  const releasedNorm = ((cfgRow.rows[0]?.released_values || []).length
+    ? cfgRow.rows[0].released_values
+    : DEFAULT_RELEASED).map(normFollowup);
+
+  // Normalização SQL equivalente a normFollowup() no JS
+  const NORM = (col) => `REGEXP_REPLACE(UPPER(TRANSLATE(TRIM(COALESCE(${col},'')),
+        'ÁÀÂÃÉÊÍÓÔÕÚÜÇáàâãéêíóôõúüç','AAAAEEIOOOUUCAAAAEEIOOOUUC')), '\\s+', ' ', 'g')`;
+
+  const params = [orgId, waitingList, waitingNorm];
+  let matchFilter = `AND (TRIM(COALESCE(g.followup,'')) = ANY($2::text[]) OR ${NORM('g.followup')} = ANY($3::text[]))`;
+
+  // Só exclui os liberados quando estamos usando a configuração padrão
+  if (!hasCustomWaiting) {
+    params.push(releasedNorm);
+    matchFilter += ` AND ${NORM('g.followup')} <> ALL($${params.length}::text[])`;
+  }
+
+  let dateFilter = '';
+  if (startDate && endDate) {
+    params.push(startDate, endDate);
+    const dateExpr = `COALESCE(g.emission_date, g.delivery_date, g.created_at::date)`;
+    dateFilter = ` AND ${dateExpr} >= $${params.length - 1}::date AND ${dateExpr} <= $${params.length}::date`;
+  }
+
   let userFilter = '';
   if (userId) { params.push(userId); userFilter = ` AND g.user_id = $${params.length}`; }
 
@@ -8731,16 +8762,15 @@ async function loadWaitingOrders(orgId, { userId } = {}) {
       WHERE g.organization_id = $1
         AND g.data_type = 'pedido'
         AND COALESCE(NULLIF(TRIM(g.number),''), TRIM(COALESCE(g.order_number,''))) <> ''
-        AND UPPER(TRANSLATE(TRIM(COALESCE(g.followup,'')),
-              'ÁÀÂÃÉÊÍÓÔÕÚÜÇáàâãéêíóôõúüç','AAAAEEIOOOUUCAAAAEEIOOOUUC')) = ANY($2::text[])
-        AND UPPER(TRANSLATE(TRIM(COALESCE(g.followup,'')),
-              'ÁÀÂÃÉÊÍÓÔÕÚÜÇáàâãéêíóôõúüç','AAAAEEIOOOUUCAAAAEEIOOOUUC')) <> ALL($3::text[])
+        ${matchFilter}
+        ${dateFilter}
         ${userFilter}
       ORDER BY order_key, g.created_at DESC`,
     params
   );
-  return result.rows;
+  return { rows: result.rows, followups: waitingList, custom: hasCustomWaiting };
 }
+
 
 // Kanban board (factory responsible view)
 router.get('/goals/followup-board', async (req, res) => {
