@@ -8065,7 +8065,7 @@ router.post('/goals/report-preview', async (req, res) => {
       text += '\n';
     }
 
-    text += await buildCarteiraSection(org.organization_id, reportType === 'individual' ? userId : null, fmt);
+    text += await buildCarteiraSection(org.organization_id, reportType === 'individual' ? userId : null, fmt, sd, ed);
 
 
 
@@ -8247,7 +8247,7 @@ router.post('/goals/report-send-now', async (req, res) => {
           text += '\n';
         }
 
-        text += await buildCarteiraSection(org.organization_id, recipient.report_type === 'individual' ? recipient.user_id : null, fmt);
+        text += await buildCarteiraSection(org.organization_id, recipient.report_type === 'individual' ? recipient.user_id : null, fmt, sd, ed);
 
 
 
