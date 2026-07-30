@@ -37,6 +37,7 @@ import {
 import { GoalsMapTab } from "@/components/crm/GoalsMapTab";
 import { QuarterlyViewTab } from "@/components/crm/QuarterlyViewTab";
 import { WeeklyViewTab } from "@/components/crm/WeeklyViewTab";
+import { FollowupBoardsTab } from "@/components/crm/FollowupBoardsTab";
 import { SalesFunnelCard } from "@/components/crm/SalesFunnelCard";
 import { DailyEvolutionChart } from "@/components/crm/DailyEvolutionChart";
 import { MonthProjectionCard } from "@/components/crm/MonthProjectionCard";
@@ -342,6 +343,7 @@ export default function CRMMetas() {
             <TabsTrigger value="goals" className="gap-2 text-xs sm:text-sm py-1.5 px-3 whitespace-nowrap"><Target className="h-4 w-4" /> Metas</TabsTrigger>
             <TabsTrigger value="records" className="gap-2 text-xs sm:text-sm py-1.5 px-3 whitespace-nowrap"><List className="h-4 w-4" /> Registros</TabsTrigger>
             <TabsTrigger value="carteira" className="gap-2 text-xs sm:text-sm py-1.5 px-3 whitespace-nowrap"><Wallet className="h-4 w-4" /> Carteira</TabsTrigger>
+            <TabsTrigger value="followups" className="gap-2 text-xs sm:text-sm py-1.5 px-3 whitespace-nowrap"><List className="h-4 w-4" /> FollowUps</TabsTrigger>
             <TabsTrigger value="map" className="gap-2 text-xs sm:text-sm py-1.5 px-3 whitespace-nowrap"><MapPin className="h-4 w-4" /> Mapa</TabsTrigger>
             <TabsTrigger value="semanal" className="gap-2 text-xs sm:text-sm py-1.5 px-3 whitespace-nowrap"><CalendarDays className="h-4 w-4" /> Semanal</TabsTrigger>
             <TabsTrigger value="trimestral" className="gap-2 text-xs sm:text-sm py-1.5 px-3 whitespace-nowrap"><CalendarDays className="h-4 w-4" /> Trimestral</TabsTrigger>
@@ -1447,6 +1449,17 @@ export default function CRMMetas() {
             </Card>
           </TabsContent>
 
+
+          {/* ========== FOLLOWUPS ========== */}
+          <TabsContent value="followups" className="mt-4 space-y-4">
+            <FollowupBoardsTab
+              startDate={startDate}
+              endDate={endDate}
+              userId={filterUserId}
+              channel={filterChannel}
+              groupId={filterGroupId}
+            />
+          </TabsContent>
 
           {/* ========== CARTEIRA ========== */}
           <TabsContent value="carteira" className="mt-4 space-y-6">
