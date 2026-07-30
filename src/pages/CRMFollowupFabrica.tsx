@@ -242,6 +242,22 @@ export default function CRMFollowupFabrica() {
           </Button>
         </div>
 
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-[11px] text-muted-foreground">FollowUps ativos:</span>
+          {activeFollowups.length === 0 ? (
+            <span className="text-[11px] text-muted-foreground">nenhum filtro definido pelo admin</span>
+          ) : (
+            activeFollowups.map((f) => (
+              <Badge key={f} variant="secondary" className="text-[10px]">{f}</Badge>
+            ))
+          )}
+          {data && !data.custom_filters && activeFollowups.length > 0 && (
+            <span className="text-[10px] text-muted-foreground">(padrão)</span>
+          )}
+        </div>
+
+
+
         <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
           <Card><CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Pedidos parados</CardTitle></CardHeader>
             <CardContent className="pt-0"><p className="text-2xl font-bold">{cards.length}</p></CardContent></Card>
