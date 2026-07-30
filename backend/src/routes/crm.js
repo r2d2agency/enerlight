@@ -8780,7 +8780,10 @@ router.get('/goals/followup-board', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
-    const rows = await loadWaitingOrders(org.organization_id, {});
+    const { rows, followups, custom } = await loadWaitingOrders(org.organization_id, {
+      startDate: req.query.start_date || null,
+      endDate: req.query.end_date || null,
+    });
     const today = new Date().toISOString().split('T')[0];
     const cards = rows
       .filter(r => !r.resolved)
@@ -8793,8 +8796,11 @@ router.get('/goals/followup-board', async (req, res) => {
     res.json({
       cards,
       stages: FOLLOWUP_STAGES,
+      followups,
+      custom_filters: custom,
       total_value: cards.reduce((s, c) => s + Number(c.value || 0), 0),
     });
+
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
