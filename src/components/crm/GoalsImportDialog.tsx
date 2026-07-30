@@ -34,6 +34,7 @@ interface ParsedRow {
   billing_date: string | null;
   margin: number | null;
   observation: string;
+  followup: string;
   order_number: string;
 }
 
@@ -138,6 +139,7 @@ export function GoalsImportDialog({ open, onOpenChange, dataType, onSuccess }: P
       const colBilling = findCol("datafaturamento", "faturamento");
       const colMargin = findCol("margem");
       const colObs = findCol("observacao", "obs");
+      const colFollowup = findCol("followup", "follow");
       const colOrder = findCol("numped", "pedcli", "pedido");
 
       const parsed: ParsedRow[] = jsonRows.map((r: any) => ({
@@ -155,6 +157,7 @@ export function GoalsImportDialog({ open, onOpenChange, dataType, onSuccess }: P
         billing_date: parseDate(r[colBilling!]),
         margin: parseMargin(r[colMargin!]),
         observation: String(r[colObs!] || ""),
+        followup: colFollowup ? String(r[colFollowup] || "") : "",
         order_number: String(r[colOrder!] || "").replace(/\.0$/, ""),
       }));
 
