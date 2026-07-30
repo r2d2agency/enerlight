@@ -144,9 +144,15 @@ export default function CRMFollowupFabrica() {
 
   const { data, isLoading, refetch, isFetching } = useQuery({
     queryKey: ["crm-followup-board-kanban"],
-    queryFn: () => api<{ cards: FollowupCard[]; total_value: number }>("/api/crm/goals/followup-board"),
+    queryFn: () =>
+      api<{ cards: FollowupCard[]; total_value: number; followups?: string[]; custom_filters?: boolean }>(
+        "/api/crm/goals/followup-board"
+      ),
     refetchInterval: 60_000,
   });
+
+  const activeFollowups = data?.followups || [];
+
 
   const { data: logs } = useQuery({
     queryKey: ["crm-followup-logs", detail?.order_key],
