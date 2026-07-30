@@ -8065,6 +8065,10 @@ router.post('/goals/report-preview', async (req, res) => {
       text += '\n';
     }
 
+    text += await buildCarteiraSection(org.organization_id, reportType === 'individual' ? userId : null, fmt);
+
+
+
     // Channel breakdown
     if (reportType === 'full') {
       const channelResult = await query(
