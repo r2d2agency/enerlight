@@ -230,7 +230,9 @@ export function FollowupBoardsTab({ startDate, endDate, userId, channel, groupId
             <CardContent className="space-y-4">
               {selected.length === 0 ? (
                 <p className="py-8 text-center text-sm text-muted-foreground">
-                  Selecione os FollowUps que compõem esta guia.
+                  {canEditFilters
+                    ? "Selecione os FollowUps que compõem esta guia."
+                    : "Nenhum FollowUp configurado pelo administrador para esta guia."}
                 </p>
               ) : isLoading ? (
                 <div className="flex justify-center py-10">
