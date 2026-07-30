@@ -1321,6 +1321,8 @@ export default function CRMMetas() {
                             {recordsType === "faturamento" && <TableHead>Data Faturamento</TableHead>}
                             <TableHead>UF</TableHead>
                             <TableHead>Cidade</TableHead>
+                            <TableHead>FollowUp</TableHead>
+
                             
                             {recordsType !== "orcamento" && <TableHead className="text-right">Markup</TableHead>}
                             {recordsType !== "orcamento" && <TableHead className="text-center"><Truck className="h-4 w-4 inline" /> Frete</TableHead>}
@@ -1371,6 +1373,8 @@ export default function CRMMetas() {
                               )}
                               <TableCell className="text-sm">{r.state || "—"}</TableCell>
                               <TableCell className="text-sm">{r.city || "—"}</TableCell>
+                              <TableCell className="text-sm max-w-[220px] truncate" title={r.followup || ""}>{r.followup || "—"}</TableCell>
+
                               {recordsType !== "orcamento" && (
                                 <TableCell className="text-right text-sm font-medium text-emerald-600">
                                   {rowMarkup ? rowMarkup.toFixed(2).replace('.', ',') : "—"}

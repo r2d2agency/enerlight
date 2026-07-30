@@ -7125,11 +7125,13 @@ async function ensureGoalsDataTable() {
       margin NUMERIC(10,2),
       cost NUMERIC(15,2),
       observation TEXT,
+      followup TEXT,
       order_number VARCHAR(100),
       batch_id UUID,
       created_at TIMESTAMPTZ DEFAULT NOW()
     )`);
     await query(`ALTER TABLE crm_goals_data ADD COLUMN IF NOT EXISTS cost NUMERIC(15,2)`);
+    await query(`ALTER TABLE crm_goals_data ADD COLUMN IF NOT EXISTS followup TEXT`);
     // Backfill/recompute cost using formula: cost = value / (1 + margin/100). Supports negative margins.
     await query(`UPDATE crm_goals_data SET cost = ROUND(value / (1 + margin/100.0), 2)
                  WHERE margin IS NOT NULL AND value <> 0 AND (1 + margin/100.0) <> 0
@@ -7299,11 +7301,11 @@ router.post('/goals/import', async (req, res) => {
           : null;
         await query(
           `INSERT INTO crm_goals_data 
-           (organization_id, data_type, number, status, client_name, value, seller_name, user_id, channel, client_group, state, city, emission_date, delivery_date, billing_date, margin, cost, observation, order_number, batch_id)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`,
+           (organization_id, data_type, number, status, client_name, value, seller_name, user_id, channel, client_group, state, city, emission_date, delivery_date, billing_date, margin, cost, observation, followup, order_number, batch_id)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)`,
           [org.organization_id, dataType, row.number, row.status, row.client_name, valueNum,
            row.seller_name, userId, channel, row.client_group, row.state, row.city,
-           row.emission_date, row.delivery_date, row.billing_date, marginNum, cost, row.observation, row.order_number, batchId]
+           row.emission_date, row.delivery_date, row.billing_date, marginNum, cost, row.observation, row.followup || null, row.order_number, batchId]
         );
         imported++;
       } catch (_) { skipped++; }
@@ -7594,7 +7596,7 @@ router.get('/goals/data-records', async (req, res) => {
 
     const dataParams = [...params, lim, offset];
     const result = await query(
-      `SELECT id, data_type, number, status, client_name, value, seller_name, channel, client_group, state, city, emission_date, delivery_date, billing_date, margin, cost, observation, order_number, created_at
+      `SELECT id, data_type, number, status, client_name, value, seller_name, channel, client_group, state, city, emission_date, delivery_date, billing_date, margin, cost, observation, followup, order_number, created_at
        FROM crm_goals_data WHERE ${baseWhere}
        ORDER BY ${dateExpr} DESC, created_at DESC
        LIMIT $${dataParams.length - 1} OFFSET $${dataParams.length}`,
