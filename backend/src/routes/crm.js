@@ -8812,7 +8812,7 @@ router.get('/goals/followup/pending-mine', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.json({ pending: [] });
 
-    const rows = await loadWaitingOrders(org.organization_id, { userId: req.userId });
+    const { rows } = await loadWaitingOrders(org.organization_id, { userId: req.userId });
     const today = new Date().toISOString().split('T')[0];
     const pending = rows.filter(r =>
       !r.resolved && (!r.last_feedback_date || String(r.last_feedback_date).substring(0, 10) < today)
