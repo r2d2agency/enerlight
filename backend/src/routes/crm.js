@@ -7287,6 +7287,21 @@ router.post('/goals/import', async (req, res) => {
       );
     }
 
+    // Clean up any pre-existing duplicates for this org/data_type (keeps the newest row per key)
+    try {
+      await query(
+        `DELETE FROM crm_goals_data a USING crm_goals_data b
+          WHERE a.organization_id = $1 AND a.data_type = $2
+            AND b.organization_id = a.organization_id AND b.data_type = a.data_type
+            AND COALESCE(NULLIF(TRIM(a.number),''), TRIM(COALESCE(a.order_number,''))) =
+                COALESCE(NULLIF(TRIM(b.number),''), TRIM(COALESCE(b.order_number,'')))
+            AND COALESCE(NULLIF(TRIM(a.number),''), TRIM(COALESCE(a.order_number,''))) <> ''
+            AND (a.created_at < b.created_at OR (a.created_at = b.created_at AND a.id < b.id))`,
+        [org.organization_id, dataType]
+      );
+    } catch (_) {}
+
+    let updated = 0;
     for (const row of rows) {
       try {
         const userId = sellerMapping?.[row.seller_name] || null;
@@ -7299,6 +7314,19 @@ router.post('/goals/import', async (req, res) => {
           ? +(valueNum / (1 + marginNum / 100)).toFixed(2)
 
           : null;
+
+        // De-duplication: same order/document number for the same data_type is replaced, never duplicated
+        const dedupKey = String(row.number || row.order_number || '').trim();
+        if (dedupKey) {
+          const del = await query(
+            `DELETE FROM crm_goals_data
+              WHERE organization_id = $1 AND data_type = $2
+                AND COALESCE(NULLIF(TRIM(number),''), TRIM(COALESCE(order_number,''))) = $3`,
+            [org.organization_id, dataType, dedupKey]
+          );
+          if (del.rowCount > 0) updated++;
+        }
+
         await query(
           `INSERT INTO crm_goals_data 
            (organization_id, data_type, number, status, client_name, value, seller_name, user_id, channel, client_group, state, city, emission_date, delivery_date, billing_date, margin, cost, observation, followup, order_number, batch_id)
@@ -7311,7 +7339,8 @@ router.post('/goals/import', async (req, res) => {
       } catch (_) { skipped++; }
     }
 
-    res.json({ imported, skipped, batchId });
+    res.json({ imported, updated, skipped, batchId });
+
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -8523,4 +8552,263 @@ router.post('/deals/bulk-task', async (req, res) => {
   }
 });
 
+// ============================================
+// FACTORY FOLLOWUP (Pedidos Aguardando Informação)
+// ============================================
+
+const DEFAULT_WAITING = ['AGUARDANDO INFORMACAO'];
+const DEFAULT_RELEASED = ['PRODUCAO', 'LIBERADO PARA PRODUZIR'];
+const FOLLOWUP_STAGES = ['aguardando', 'feedback', 'tratativa', 'pronto'];
+const MIN_FEEDBACK_LEN = 10;
+
+function normFollowup(v) {
+  return String(v || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+}
+
+async function ensureFollowupTables() {
+  try {
+    await query(`CREATE TABLE IF NOT EXISTS crm_followup_config (
+      organization_id UUID PRIMARY KEY REFERENCES organizations(id) ON DELETE CASCADE,
+      waiting_values TEXT[] DEFAULT '{}',
+      released_values TEXT[] DEFAULT '{}',
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    )`);
+    await query(`CREATE TABLE IF NOT EXISTS crm_order_followup_status (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      order_key VARCHAR(100) NOT NULL,
+      stage VARCHAR(30) DEFAULT 'aguardando',
+      last_feedback TEXT,
+      last_feedback_at TIMESTAMPTZ,
+      last_feedback_by UUID,
+      last_feedback_by_name VARCHAR(255),
+      last_feedback_date DATE,
+      factory_note TEXT,
+      resolved BOOLEAN DEFAULT false,
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(organization_id, order_key)
+    )`);
+    await query(`CREATE TABLE IF NOT EXISTS crm_order_followup_logs (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      order_key VARCHAR(100) NOT NULL,
+      user_id UUID,
+      user_name VARCHAR(255),
+      kind VARCHAR(20) DEFAULT 'feedback',
+      feedback TEXT,
+      stage VARCHAR(30),
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_followup_status_org ON crm_order_followup_status(organization_id)`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_followup_logs_order ON crm_order_followup_logs(organization_id, order_key)`);
+  } catch (_) {}
+}
+
+async function getFollowupConfig(orgId) {
+  await ensureFollowupTables();
+  const r = await query(`SELECT waiting_values, released_values FROM crm_followup_config WHERE organization_id = $1`, [orgId]);
+  const row = r.rows[0];
+  const waiting = (row?.waiting_values?.length ? row.waiting_values : DEFAULT_WAITING).map(normFollowup);
+  const released = (row?.released_values?.length ? row.released_values : DEFAULT_RELEASED).map(normFollowup);
+  return { waiting, released };
+}
+
+router.get('/goals/followup-config', async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+    const r = await query(`SELECT waiting_values, released_values FROM crm_followup_config WHERE organization_id = $1`, [org.organization_id]);
+    res.json({
+      waiting_values: r.rows[0]?.waiting_values?.length ? r.rows[0].waiting_values : DEFAULT_WAITING,
+      released_values: r.rows[0]?.released_values?.length ? r.rows[0].released_values : DEFAULT_RELEASED,
+    });
+  } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+router.put('/goals/followup-config', async (req, res) => {
+  try {
+    await ensureFollowupTables();
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+    const waiting = Array.isArray(req.body.waiting_values) ? req.body.waiting_values : [];
+    const released = Array.isArray(req.body.released_values) ? req.body.released_values : [];
+    await query(
+      `INSERT INTO crm_followup_config (organization_id, waiting_values, released_values, updated_at)
+       VALUES ($1, $2, $3, NOW())
+       ON CONFLICT (organization_id) DO UPDATE SET waiting_values = $2, released_values = $3, updated_at = NOW()`,
+      [org.organization_id, waiting, released]
+    );
+    res.json({ success: true });
+  } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+// Build the list of waiting orders with their followup control state
+async function loadWaitingOrders(orgId, { userId } = {}) {
+  const { waiting, released } = await getFollowupConfig(orgId);
+  const params = [orgId, waiting, released];
+  let userFilter = '';
+  if (userId) { params.push(userId); userFilter = ` AND g.user_id = $${params.length}`; }
+
+  const result = await query(
+    `SELECT DISTINCT ON (order_key)
+        COALESCE(NULLIF(TRIM(g.number),''), TRIM(COALESCE(g.order_number,''))) AS order_key,
+        g.id, g.number, g.order_number, g.client_name, g.value, g.seller_name, g.user_id,
+        g.channel, g.city, g.state, g.status, g.followup, g.emission_date, g.delivery_date,
+        s.stage, s.last_feedback, s.last_feedback_at, s.last_feedback_by_name, s.last_feedback_date,
+        s.factory_note, s.resolved
+       FROM crm_goals_data g
+       LEFT JOIN crm_order_followup_status s
+         ON s.organization_id = g.organization_id
+        AND s.order_key = COALESCE(NULLIF(TRIM(g.number),''), TRIM(COALESCE(g.order_number,'')))
+      WHERE g.organization_id = $1
+        AND g.data_type = 'pedido'
+        AND COALESCE(NULLIF(TRIM(g.number),''), TRIM(COALESCE(g.order_number,''))) <> ''
+        AND UPPER(TRANSLATE(TRIM(COALESCE(g.followup,'')),
+              'ÁÀÂÃÉÊÍÓÔÕÚÜÇáàâãéêíóôõúüç','AAAAEEIOOOUUCAAAAEEIOOOUUC')) = ANY($2::text[])
+        AND UPPER(TRANSLATE(TRIM(COALESCE(g.followup,'')),
+              'ÁÀÂÃÉÊÍÓÔÕÚÜÇáàâãéêíóôõúüç','AAAAEEIOOOUUCAAAAEEIOOOUUC')) <> ALL($3::text[])
+        ${userFilter}
+      ORDER BY order_key, g.created_at DESC`,
+    params
+  );
+  return result.rows;
+}
+
+// Kanban board (factory responsible view)
+router.get('/goals/followup-board', async (req, res) => {
+  try {
+    await ensureGoalsDataTable();
+    await ensureFollowupTables();
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const rows = await loadWaitingOrders(org.organization_id, {});
+    const today = new Date().toISOString().split('T')[0];
+    const cards = rows
+      .filter(r => !r.resolved)
+      .map(r => ({
+        ...r,
+        stage: FOLLOWUP_STAGES.includes(r.stage) ? r.stage : 'aguardando',
+        needs_feedback_today: !r.last_feedback_date || String(r.last_feedback_date).substring(0, 10) < today,
+      }));
+
+    res.json({
+      cards,
+      stages: FOLLOWUP_STAGES,
+      total_value: cards.reduce((s, c) => s + Number(c.value || 0), 0),
+    });
+  } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+// Orders of the logged user that still need today's feedback
+router.get('/goals/followup/pending-mine', async (req, res) => {
+  try {
+    await ensureGoalsDataTable();
+    await ensureFollowupTables();
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.json({ pending: [] });
+
+    const rows = await loadWaitingOrders(org.organization_id, { userId: req.userId });
+    const today = new Date().toISOString().split('T')[0];
+    const pending = rows.filter(r =>
+      !r.resolved && (!r.last_feedback_date || String(r.last_feedback_date).substring(0, 10) < today)
+    );
+    res.json({ pending, min_length: MIN_FEEDBACK_LEN });
+  } catch (error) { res.json({ pending: [] }); }
+});
+
+// Seller (or factory) posts a feedback for one order
+router.post('/goals/followup/feedback', async (req, res) => {
+  try {
+    await ensureFollowupTables();
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+
+    const orderKey = String(req.body.order_key || '').trim();
+    const feedback = String(req.body.feedback || '').trim().replace(/\s+/g, ' ');
+    if (!orderKey) return res.status(400).json({ error: 'Pedido inválido' });
+    if (feedback.length < MIN_FEEDBACK_LEN) {
+      return res.status(400).json({ error: `O feedback precisa ter pelo menos ${MIN_FEEDBACK_LEN} caracteres` });
+    }
+    if (!/[A-Za-zÀ-ÿ]{4,}/.test(feedback)) {
+      return res.status(400).json({ error: 'Escreva um feedback descritivo (não apenas letras soltas)' });
+    }
+
+    const u = await query(`SELECT name FROM users WHERE id = $1`, [req.userId]);
+    const userName = u.rows[0]?.name || null;
+
+    await query(
+      `INSERT INTO crm_order_followup_status
+        (organization_id, order_key, stage, last_feedback, last_feedback_at, last_feedback_by, last_feedback_by_name, last_feedback_date, updated_at)
+       VALUES ($1,$2,'feedback',$3,NOW(),$4,$5,CURRENT_DATE,NOW())
+       ON CONFLICT (organization_id, order_key) DO UPDATE SET
+         stage = CASE WHEN crm_order_followup_status.stage = 'aguardando' THEN 'feedback' ELSE crm_order_followup_status.stage END,
+         last_feedback = $3, last_feedback_at = NOW(), last_feedback_by = $4,
+         last_feedback_by_name = $5, last_feedback_date = CURRENT_DATE, updated_at = NOW()`,
+      [org.organization_id, orderKey, feedback, req.userId, userName]
+    );
+
+    await query(
+      `INSERT INTO crm_order_followup_logs (organization_id, order_key, user_id, user_name, kind, feedback, stage)
+       VALUES ($1,$2,$3,$4,'feedback',$5,'feedback')`,
+      [org.organization_id, orderKey, req.userId, userName, feedback]
+    );
+
+    res.json({ success: true });
+  } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+// Factory responsible moves a card / adds a note
+router.put('/goals/followup/:orderKey', async (req, res) => {
+  try {
+    await ensureFollowupTables();
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+    const orderKey = String(req.params.orderKey || '').trim();
+    const stage = FOLLOWUP_STAGES.includes(req.body.stage) ? req.body.stage : null;
+    const note = req.body.factory_note != null ? String(req.body.factory_note) : null;
+    const resolved = req.body.resolved === true ? true : req.body.resolved === false ? false : null;
+
+    const u = await query(`SELECT name FROM users WHERE id = $1`, [req.userId]);
+    const userName = u.rows[0]?.name || null;
+
+    await query(
+      `INSERT INTO crm_order_followup_status (organization_id, order_key, stage, factory_note, resolved, updated_at)
+       VALUES ($1,$2,COALESCE($3,'aguardando'),$4,COALESCE($5,false),NOW())
+       ON CONFLICT (organization_id, order_key) DO UPDATE SET
+         stage = COALESCE($3, crm_order_followup_status.stage),
+         factory_note = COALESCE($4, crm_order_followup_status.factory_note),
+         resolved = COALESCE($5, crm_order_followup_status.resolved),
+         updated_at = NOW()`,
+      [org.organization_id, orderKey, stage, note, resolved]
+    );
+
+    await query(
+      `INSERT INTO crm_order_followup_logs (organization_id, order_key, user_id, user_name, kind, feedback, stage)
+       VALUES ($1,$2,$3,$4,'stage',$5,$6)`,
+      [org.organization_id, orderKey, req.userId, userName, note, stage]
+    );
+
+    res.json({ success: true });
+  } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+// History of one order
+router.get('/goals/followup/:orderKey/logs', async (req, res) => {
+  try {
+    await ensureFollowupTables();
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'No organization' });
+    const r = await query(
+      `SELECT id, user_name, kind, feedback, stage, created_at
+         FROM crm_order_followup_logs
+        WHERE organization_id = $1 AND order_key = $2
+        ORDER BY created_at DESC LIMIT 100`,
+      [org.organization_id, String(req.params.orderKey).trim()]
+    );
+    res.json(r.rows);
+  } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
 export default router;
+

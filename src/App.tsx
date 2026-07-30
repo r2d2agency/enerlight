@@ -69,6 +69,7 @@ const CRMRepresentantes = lazyRetry(() => import("./pages/CRMRepresentantes"));
 const RepresentativesHub = lazyRetry(() => import("./pages/RepresentativesHub"));
 const SupervisorIA = lazyRetry(() => import("./pages/SupervisorIA"));
 const CRMMetas = lazyRetry(() => import("./pages/CRMMetas"));
+const CRMFollowupFabrica = lazyRetry(() => import("./pages/CRMFollowupFabrica"));
 const Reunioes = lazyRetry(() => import("./pages/Reunioes"));
 const ComunicacaoInterna = lazyRetry(() => import("./pages/ComunicacaoInterna"));
 const Homologacao = lazyRetry(() => import("./pages/Homologacao"));
@@ -206,6 +207,7 @@ const App = () => (
               <Route path="/crm/representantes-hub" element={<ProtectedRoute><RepresentativesHub /></ProtectedRoute>} />
               <Route path="/supervisor-ia" element={<ProtectedRoute><SupervisorIA /></ProtectedRoute>} />
               <Route path="/crm/metas" element={<ProtectedRoute><CRMMetas /></ProtectedRoute>} />
+              <Route path="/crm/followup-fabrica" element={<ProtectedRoute><CRMFollowupFabrica /></ProtectedRoute>} />
               <Route path="/mapa" element={<ProtectedRoute><Mapa /></ProtectedRoute>} />
               <Route path="/fluxos-externos" element={<ProtectedRoute><FluxosExternos /></ProtectedRoute>} />
               <Route path="/lead-webhooks" element={<ProtectedRoute><LeadWebhooks /></ProtectedRoute>} />

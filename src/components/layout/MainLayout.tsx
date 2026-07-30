@@ -5,6 +5,8 @@ import { MessageNotifications } from "./MessageNotifications";
 import { CRMAlerts } from "./CRMAlerts";
 import { ConnectionStatusIndicator } from "./ConnectionStatusIndicator";
 import { GroupSecretaryPopup } from "./GroupSecretaryPopup";
+import { DailyFollowupGate } from "@/components/crm/DailyFollowupGate";
+
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -30,6 +32,7 @@ export function MainLayout({ children }: MainLayoutProps) {
         <div className="p-2 lg:p-3 xl:p-4 w-full min-w-0 overflow-x-hidden">{children}</div>
       </main>
       <GroupSecretaryPopup />
+      <DailyFollowupGate />
     </div>
   );
 }
