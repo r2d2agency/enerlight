@@ -52,7 +52,8 @@ import {
   Nfc,
   RotateCcw,
   GraduationCap,
-  ShieldCheck,
+  ShieldCheck,,
+  Factory,
 } from "lucide-react";
 
 import { API_URL, getAuthToken } from "@/lib/api";
