@@ -5,6 +5,8 @@ import { MessageNotifications } from "./MessageNotifications";
 import { CRMAlerts } from "./CRMAlerts";
 import { ConnectionStatusIndicator } from "./ConnectionStatusIndicator";
 import { GroupSecretaryPopup } from "./GroupSecretaryPopup";
+import { DailyFollowupGate } from "@/components/crm/DailyFollowupGate";
+
 
 interface MainLayoutProps {
   children: ReactNode;
