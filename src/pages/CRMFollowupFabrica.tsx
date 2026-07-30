@@ -144,9 +144,15 @@ export default function CRMFollowupFabrica() {
 
   const { data, isLoading, refetch, isFetching } = useQuery({
     queryKey: ["crm-followup-board-kanban"],
-    queryFn: () => api<{ cards: FollowupCard[]; total_value: number }>("/api/crm/goals/followup-board"),
+    queryFn: () =>
+      api<{ cards: FollowupCard[]; total_value: number; followups?: string[]; custom_filters?: boolean }>(
+        "/api/crm/goals/followup-board"
+      ),
     refetchInterval: 60_000,
   });
+
+  const activeFollowups = data?.followups || [];
+
 
   const { data: logs } = useQuery({
     queryKey: ["crm-followup-logs", detail?.order_key],
@@ -235,6 +241,22 @@ export default function CRMFollowupFabrica() {
             <RefreshCw className={cn("h-4 w-4 mr-1", isFetching && "animate-spin")} /> Atualizar
           </Button>
         </div>
+
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-[11px] text-muted-foreground">FollowUps ativos:</span>
+          {activeFollowups.length === 0 ? (
+            <span className="text-[11px] text-muted-foreground">nenhum filtro definido pelo admin</span>
+          ) : (
+            activeFollowups.map((f) => (
+              <Badge key={f} variant="secondary" className="text-[10px]">{f}</Badge>
+            ))
+          )}
+          {data && !data.custom_filters && activeFollowups.length > 0 && (
+            <span className="text-[10px] text-muted-foreground">(padrão)</span>
+          )}
+        </div>
+
+
 
         <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
           <Card><CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Pedidos parados</CardTitle></CardHeader>
