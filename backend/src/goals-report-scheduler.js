@@ -185,7 +185,6 @@ async function generateReportText(orgId, userId, reportType, includeChannels, in
 
   // Pedidos em Carteira (followups configurados na aba FollowUps)
   try {
-    const NORM = `UPPER(TRANSLATE(TRIM(COALESCE(followup,'')), 'áàâãäéèêëíìîïóòôõöúùûüçÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇ', 'aaaaaeeeeiiiiooooouuuucAAAAAEEEEIIIIOOOOOUUUUC'))`;
     let carteiraValues = [];
     try {
       const cfg = await query(`SELECT carteira_values FROM crm_followup_config WHERE organization_id = $1`, [orgId]);
@@ -197,19 +196,19 @@ async function generateReportText(orgId, userId, reportType, includeChannels, in
     const cParams = [orgId];
     let match;
     if (carteiraValues.length) {
-      cParams.push(carteiraValues.map((v) =>
-        String(v || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim()
-      ));
-      match = `${NORM} = ANY($2::text[])`;
+      cParams.push(carteiraValues.map((v) => String(v || '').trim()).filter(Boolean));
+      match = `TRIM(COALESCE(followup, '')) = ANY($2::text[])`;
     } else {
-      match = `${NORM} LIKE '%CARTEIRA%'`;
+      match = `UPPER(TRIM(COALESCE(followup, ''))) LIKE '%CARTEIRA%'`;
     }
+    cParams.push(sd, ed);
+    const cDateFilter = ` AND COALESCE(emission_date, delivery_date, created_at::date) >= $${cParams.length - 1}::date AND COALESCE(emission_date, delivery_date, created_at::date) <= $${cParams.length}::date`;
     let cUserFilter = '';
     if (reportType === 'individual' && userId) { cParams.push(userId); cUserFilter = ` AND user_id = $${cParams.length}`; }
     const cRes = await query(
       `SELECT COUNT(*)::int AS cnt, COALESCE(SUM(value),0) AS total
        FROM crm_goals_data
-       WHERE organization_id = $1 AND data_type = 'pedido' AND ${match}${cUserFilter}`,
+       WHERE organization_id = $1 AND data_type = 'pedido' AND ${match}${cDateFilter}${cUserFilter}`,
       cParams
     );
     const cnt = cRes.rows[0]?.cnt || 0;

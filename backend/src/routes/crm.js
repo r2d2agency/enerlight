@@ -8065,7 +8065,7 @@ router.post('/goals/report-preview', async (req, res) => {
       text += '\n';
     }
 
-    text += await buildCarteiraSection(org.organization_id, reportType === 'individual' ? userId : null, fmt);
+    text += await buildCarteiraSection(org.organization_id, reportType === 'individual' ? userId : null, fmt, sd, ed);
 
 
 
@@ -8247,7 +8247,7 @@ router.post('/goals/report-send-now', async (req, res) => {
           text += '\n';
         }
 
-        text += await buildCarteiraSection(org.organization_id, recipient.report_type === 'individual' ? recipient.user_id : null, fmt);
+        text += await buildCarteiraSection(org.organization_id, recipient.report_type === 'individual' ? recipient.user_id : null, fmt, sd, ed);
 
 
 
@@ -8574,8 +8574,7 @@ function normFollowup(v) {
 }
 
 // Bloco "Pedidos em Carteira" para os relatórios de WhatsApp
-async function buildCarteiraSection(orgId, userId, fmt) {
-  const NORM = `UPPER(TRANSLATE(TRIM(COALESCE(followup,'')), 'áàâãäéèêëíìîïóòôõöúùûüçÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇ', 'aaaaaeeeeiiiiooooouuuucAAAAAEEEEIIIIOOOOOUUUUC'))`;
+async function buildCarteiraSection(orgId, userId, fmt, startDate, endDate) {
   let values = [];
   try {
     const cfg = await query(`SELECT carteira_values FROM crm_followup_config WHERE organization_id = $1`, [orgId]);
@@ -8588,11 +8587,17 @@ async function buildCarteiraSection(orgId, userId, fmt) {
     const params = [orgId];
     let match;
     if (values.length) {
-      params.push(values.map(normFollowup));
-      match = `${NORM} = ANY($2::text[])`;
+      params.push(values.map((value) => String(value).trim()).filter(Boolean));
+      match = `TRIM(COALESCE(followup, '')) = ANY($2::text[])`;
     } else {
       // Fallback: qualquer followup que contenha "CARTEIRA"
-      match = `${NORM} LIKE '%CARTEIRA%'`;
+      match = `UPPER(TRIM(COALESCE(followup, ''))) LIKE '%CARTEIRA%'`;
+    }
+    const dateExpr = `COALESCE(emission_date, delivery_date, created_at::date)`;
+    let dateFilter = '';
+    if (startDate && endDate) {
+      params.push(startDate, endDate);
+      dateFilter = ` AND ${dateExpr} >= $${params.length - 1}::date AND ${dateExpr} <= $${params.length}::date`;
     }
     let userFilter = '';
     if (userId) { params.push(userId); userFilter = ` AND user_id = $${params.length}`; }
@@ -8600,7 +8605,7 @@ async function buildCarteiraSection(orgId, userId, fmt) {
     const r = await query(
       `SELECT COUNT(*)::int AS cnt, COALESCE(SUM(value),0) AS total
        FROM crm_goals_data
-       WHERE organization_id = $1 AND data_type = 'pedido' AND ${match}${userFilter}`,
+       WHERE organization_id = $1 AND data_type = 'pedido' AND ${match}${dateFilter}${userFilter}`,
       params
     );
     const cnt = r.rows[0]?.cnt || 0;

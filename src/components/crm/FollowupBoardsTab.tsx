@@ -54,21 +54,45 @@ export function FollowupBoardsTab({ startDate, endDate, userId, channel, groupId
   const [search, setSearch] = useState("");
 
   useEffect(() => {
+    let localSelection: Partial<Record<BoardKey, string[]>> = {};
     if (canEditFilters) {
       try {
         const raw = localStorage.getItem(STORAGE_KEY);
-        if (raw) setSelection((prev) => ({ ...prev, ...JSON.parse(raw) }));
+        if (raw) {
+          localSelection = JSON.parse(raw);
+          setSelection((prev) => ({ ...prev, ...localSelection }));
+        }
       } catch (_) { /* ignore */ }
     }
     // Server config (usado também no relatório de WhatsApp) — fonte da verdade
     api<any>("/api/crm/goals/followup-config")
       .then((cfg) => {
+        const serverSelection: Record<BoardKey, string[]> = {
+          carteira: cfg?.carteira_values || [],
+          prontos: cfg?.prontos_values || [],
+          aguardando: cfg?.waiting_values || [],
+        };
+        const merged: Record<BoardKey, string[]> = {
+          carteira: serverSelection.carteira.length ? serverSelection.carteira : (canEditFilters ? localSelection.carteira || [] : []),
+          prontos: serverSelection.prontos.length ? serverSelection.prontos : (canEditFilters ? localSelection.prontos || [] : []),
+          aguardando: serverSelection.aguardando.length ? serverSelection.aguardando : (canEditFilters ? localSelection.aguardando || [] : []),
+        };
         setSelection((prev) => ({
           ...prev,
-          carteira: cfg?.carteira_values?.length ? cfg.carteira_values : (canEditFilters ? prev.carteira : []),
-          prontos: cfg?.prontos_values?.length ? cfg.prontos_values : (canEditFilters ? prev.prontos : []),
-          aguardando: cfg?.waiting_values?.length ? cfg.waiting_values : (canEditFilters ? prev.aguardando : []),
+          ...merged,
         }));
+
+        // Migra automaticamente filtros antigos que estavam apenas no navegador.
+        if (canEditFilters && !serverSelection.carteira.length && merged.carteira.length) {
+          api("/api/crm/goals/followup-config", {
+            method: "PUT",
+            body: {
+              carteira_values: merged.carteira,
+              prontos_values: merged.prontos,
+              waiting_values: merged.aguardando,
+            },
+          }).catch(() => { /* ignore */ });
+        }
       })
       .catch(() => { /* ignore */ });
   }, [canEditFilters]);
@@ -79,11 +103,11 @@ export function FollowupBoardsTab({ startDate, endDate, userId, channel, groupId
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch (_) { /* ignore */ }
     api("/api/crm/goals/followup-config", {
       method: "PUT",
-      body: JSON.stringify({
+      body: {
         carteira_values: next.carteira,
         prontos_values: next.prontos,
         waiting_values: next.aguardando,
-      }),
+      },
     }).catch(() => { /* ignore */ });
   };
 
