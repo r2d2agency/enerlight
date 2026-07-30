@@ -8578,8 +8578,20 @@ async function buildCarteiraSection(orgId, userId, fmt) {
   try {
     await ensureFollowupTables();
     const cfg = await query(`SELECT carteira_values FROM crm_followup_config WHERE organization_id = $1`, [orgId]);
-    const values = cfg.rows[0]?.carteira_values || [];
+    let values = cfg.rows[0]?.carteira_values || [];
+
+    // Fallback: se o admin ainda não configurou a guia, usa todos os followups que contenham "CARTEIRA"
+    if (!values.length) {
+      const auto = await query(
+        `SELECT DISTINCT followup FROM crm_goals_data
+         WHERE organization_id = $1 AND data_type = 'pedido' AND followup IS NOT NULL AND followup <> ''
+           AND UPPER(TRANSLATE(followup, 'ÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇ', 'AAAAAEEEEIIIIOOOOOUUUUC')) LIKE '%CARTEIRA%'`,
+        [orgId]
+      );
+      values = auto.rows.map(r => r.followup);
+    }
     if (!values.length) return '';
+
     const norm = values.map(normFollowup);
     const params = [orgId, norm];
     let userFilter = '';
@@ -8595,8 +8607,12 @@ async function buildCarteiraSection(orgId, userId, fmt) {
     const cnt = r.rows[0]?.cnt || 0;
     const total = parseFloat(r.rows[0]?.total || 0);
     return `📦 *Pedidos em Carteira*\n  Qtd: ${cnt} | Total: ${fmt(total)}\n\n`;
-  } catch (_) { return ''; }
+  } catch (e) {
+    console.error('[carteira-section] erro:', e.message);
+    return '';
+  }
 }
+
 
 async function ensureFollowupTables() {
 
