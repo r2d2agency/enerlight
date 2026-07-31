@@ -20,3 +20,14 @@ CREATE TABLE IF NOT EXISTS crm_goals (
 CREATE INDEX IF NOT EXISTS idx_crm_goals_org ON crm_goals(organization_id);
 CREATE INDEX IF NOT EXISTS idx_crm_goals_user ON crm_goals(target_user_id);
 CREATE INDEX IF NOT EXISTS idx_crm_goals_group ON crm_goals(target_group_id);
+
+-- Configuração organizacional obrigatória das guias de FollowUp.
+-- É a única fonte usada pelo dashboard, Kanban e relatórios WhatsApp.
+CREATE TABLE IF NOT EXISTS crm_followup_config (
+  organization_id UUID PRIMARY KEY REFERENCES organizations(id) ON DELETE CASCADE,
+  waiting_values TEXT[] NOT NULL DEFAULT '{}',
+  released_values TEXT[] NOT NULL DEFAULT '{}',
+  carteira_values TEXT[] NOT NULL DEFAULT '{}',
+  prontos_values TEXT[] NOT NULL DEFAULT '{}',
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
