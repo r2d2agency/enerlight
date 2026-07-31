@@ -8714,9 +8714,10 @@ router.put('/goals/followup-config', async (req, res) => {
     const released = Array.isArray(req.body.released_values) ? req.body.released_values : (prev.released_values || []);
     const carteira = cleanValues(Array.isArray(req.body.carteira_values) ? req.body.carteira_values : (prev.carteira_values || []));
     const prontos = cleanValues(Array.isArray(req.body.prontos_values) ? req.body.prontos_values : (prev.prontos_values || []));
-    if (!waiting.length || !carteira.length || !prontos.length) {
-      return res.status(400).json({ error: 'Selecione ao menos um FollowUp em cada uma das três guias antes de salvar' });
+    if (!waiting.length && !carteira.length && !prontos.length) {
+      return res.status(400).json({ error: 'Selecione ao menos um FollowUp antes de salvar' });
     }
+
     await query(
       `INSERT INTO crm_followup_config (organization_id, waiting_values, released_values, carteira_values, prontos_values, updated_at)
        VALUES ($1, $2, $3, $4, $5, NOW())
