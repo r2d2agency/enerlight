@@ -5765,6 +5765,13 @@ router.post('/goals', async (req, res) => {
   }
 });
 
+// Guard: rotas nomeadas (ex.: /goals/followup-config) não podem cair no handler de :id
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+router.all('/goals/:id', (req, res, next) => {
+  if (!UUID_RE.test(req.params.id)) return next('route');
+  next();
+});
+
 // Update goal
 router.put('/goals/:id', async (req, res) => {
   try {
