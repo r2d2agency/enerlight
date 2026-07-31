@@ -134,11 +134,16 @@ function StageColumn({
 
 export default function CRMFollowupFabrica() {
   const qc = useQueryClient();
+  const { user } = useAuth();
+  const canEditFilters = !!(user?.is_superadmin || user?.role === "owner" || user?.role === "admin");
   const [search, setSearch] = useState("");
   const [activeId, setActiveId] = useState<string | null>(null);
   const [detail, setDetail] = useState<FollowupCard | null>(null);
   const [note, setNote] = useState("");
   const [feedback, setFeedback] = useState("");
+  const [showConfig, setShowConfig] = useState(false);
+  const [waitingSel, setWaitingSel] = useState<string[] | null>(null);
+
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
