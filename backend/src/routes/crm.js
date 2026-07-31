@@ -8600,8 +8600,11 @@ async function buildCarteiraSection(orgId, userId, fmt, startDate, endDate) {
       match = `REGEXP_REPLACE(UPPER(TRANSLATE(TRIM(COALESCE(followup, '')),
         'ÁÀÂÃÉÊÍÓÔÕÚÜÇáàâãéêíóôõúüç','AAAAEEIOOOUUCAAAAEEIOOOUUC')), '\\s+', ' ', 'g') = ANY($2::text[])`;
     } else {
-      return `📦 *Pedidos em Carteira*\n  Configuração obrigatória não definida\n\n`;
+      // Fallback: detecta automaticamente followups de carteira
+      match = `UPPER(TRANSLATE(COALESCE(followup, ''),
+        'ÁÀÂÃÉÊÍÓÔÕÚÜÇáàâãéêíóôõúüç','AAAAEEIOOOUUCAAAAEEIOOOUUC')) LIKE '%CARTEIRA%'`;
     }
+
     const dateExpr = `COALESCE(emission_date, delivery_date, created_at::date)`;
     let dateFilter = '';
     if (startDate && endDate) {

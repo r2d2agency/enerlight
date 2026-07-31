@@ -200,10 +200,11 @@ async function generateReportText(orgId, userId, reportType, includeChannels, in
       match = `REGEXP_REPLACE(UPPER(TRANSLATE(TRIM(COALESCE(followup, '')),
         'ÁÀÂÃÉÊÍÓÔÕÚÜÇáàâãéêíóôõúüç','AAAAEEIOOOUUCAAAAEEIOOOUUC')), '\\s+', ' ', 'g') = ANY($2::text[])`;
     } else {
-      text += `📦 *Pedidos em Carteira*\n`;
-      text += `  Configuração obrigatória não definida\n\n`;
-      match = null;
+      // Fallback: detecta automaticamente followups de carteira
+      match = `UPPER(TRANSLATE(COALESCE(followup, ''),
+        'ÁÀÂÃÉÊÍÓÔÕÚÜÇáàâãéêíóôõúüç','AAAAEEIOOOUUCAAAAEEIOOOUUC')) LIKE '%CARTEIRA%'`;
     }
+
     if (match) {
       cParams.push(sd, ed);
       const cDateFilter = ` AND COALESCE(emission_date, delivery_date, created_at::date) >= $${cParams.length - 1}::date AND COALESCE(emission_date, delivery_date, created_at::date) <= $${cParams.length}::date`;
