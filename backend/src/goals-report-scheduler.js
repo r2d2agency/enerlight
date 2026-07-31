@@ -196,25 +196,30 @@ async function generateReportText(orgId, userId, reportType, includeChannels, in
     const cParams = [orgId];
     let match;
     if (carteiraValues.length) {
-      cParams.push(carteiraValues.map((v) => String(v || '').trim()).filter(Boolean));
-      match = `TRIM(COALESCE(followup, '')) = ANY($2::text[])`;
+      cParams.push(carteiraValues.map((v) => String(v || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim()).filter(Boolean));
+      match = `REGEXP_REPLACE(UPPER(TRANSLATE(TRIM(COALESCE(followup, '')),
+        'ÁÀÂÃÉÊÍÓÔÕÚÜÇáàâãéêíóôõúüç','AAAAEEIOOOUUCAAAAEEIOOOUUC')), '\\s+', ' ', 'g') = ANY($2::text[])`;
     } else {
-      match = `UPPER(TRIM(COALESCE(followup, ''))) LIKE '%CARTEIRA%'`;
+      text += `📦 *Pedidos em Carteira*\n`;
+      text += `  Configuração obrigatória não definida\n\n`;
+      match = null;
     }
-    cParams.push(sd, ed);
-    const cDateFilter = ` AND COALESCE(emission_date, delivery_date, created_at::date) >= $${cParams.length - 1}::date AND COALESCE(emission_date, delivery_date, created_at::date) <= $${cParams.length}::date`;
-    let cUserFilter = '';
-    if (reportType === 'individual' && userId) { cParams.push(userId); cUserFilter = ` AND user_id = $${cParams.length}`; }
-    const cRes = await query(
-      `SELECT COUNT(*)::int AS cnt, COALESCE(SUM(value),0) AS total
-       FROM crm_goals_data
-       WHERE organization_id = $1 AND data_type = 'pedido' AND ${match}${cDateFilter}${cUserFilter}`,
-      cParams
-    );
-    const cnt = cRes.rows[0]?.cnt || 0;
-    const totalCarteira = parseFloat(cRes.rows[0]?.total || 0);
-    text += `📦 *Pedidos em Carteira*\n`;
-    text += `  Qtd: ${cnt} | Total: ${fmt(totalCarteira)}\n\n`;
+    if (match) {
+      cParams.push(sd, ed);
+      const cDateFilter = ` AND COALESCE(emission_date, delivery_date, created_at::date) >= $${cParams.length - 1}::date AND COALESCE(emission_date, delivery_date, created_at::date) <= $${cParams.length}::date`;
+      let cUserFilter = '';
+      if (reportType === 'individual' && userId) { cParams.push(userId); cUserFilter = ` AND user_id = $${cParams.length}`; }
+      const cRes = await query(
+        `SELECT COUNT(*)::int AS cnt, COALESCE(SUM(value),0) AS total
+         FROM crm_goals_data
+         WHERE organization_id = $1 AND data_type = 'pedido' AND ${match}${cDateFilter}${cUserFilter}`,
+        cParams
+      );
+      const cnt = cRes.rows[0]?.cnt || 0;
+      const totalCarteira = parseFloat(cRes.rows[0]?.total || 0);
+      text += `📦 *Pedidos em Carteira*\n`;
+      text += `  Qtd: ${cnt} | Total: ${fmt(totalCarteira)}\n\n`;
+    }
   } catch (e) {
     console.error('[carteira-report] erro:', e.message);
   }

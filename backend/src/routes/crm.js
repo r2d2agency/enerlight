@@ -7625,10 +7625,11 @@ router.get('/goals/data-records', async (req, res) => {
     }
     if (search) { params.push(`%${search}%`); extraFilters += ` AND (client_name ILIKE $${params.length} OR number ILIKE $${params.length} OR order_number ILIKE $${params.length} OR seller_name ILIKE $${params.length})`; }
     if (req.query.followups) {
-      const list = String(req.query.followups).split('|').map(v => v.trim()).filter(Boolean);
+      const list = String(req.query.followups).split('|').map(normFollowup).filter(Boolean);
       if (list.length > 0) {
         params.push(list);
-        extraFilters += ` AND TRIM(COALESCE(followup, '')) = ANY($${params.length}::text[])`;
+        extraFilters += ` AND REGEXP_REPLACE(UPPER(TRANSLATE(TRIM(COALESCE(followup, '')),
+          'ÁÀÂÃÉÊÍÓÔÕÚÜÇáàâãéêíóôõúüç','AAAAEEIOOOUUCAAAAEEIOOOUUC')), '\\s+', ' ', 'g') = ANY($${params.length}::text[])`;
       }
     }
 
@@ -8577,6 +8578,7 @@ function normFollowup(v) {
 async function buildCarteiraSection(orgId, userId, fmt, startDate, endDate) {
   let values = [];
   try {
+    await ensureFollowupTables();
     const cfg = await query(`SELECT carteira_values FROM crm_followup_config WHERE organization_id = $1`, [orgId]);
     values = (cfg.rows[0]?.carteira_values || []).filter(Boolean);
   } catch (e) {
@@ -8587,11 +8589,11 @@ async function buildCarteiraSection(orgId, userId, fmt, startDate, endDate) {
     const params = [orgId];
     let match;
     if (values.length) {
-      params.push(values.map((value) => String(value).trim()).filter(Boolean));
-      match = `TRIM(COALESCE(followup, '')) = ANY($2::text[])`;
+      params.push(values.map(normFollowup).filter(Boolean));
+      match = `REGEXP_REPLACE(UPPER(TRANSLATE(TRIM(COALESCE(followup, '')),
+        'ÁÀÂÃÉÊÍÓÔÕÚÜÇáàâãéêíóôõúüç','AAAAEEIOOOUUCAAAAEEIOOOUUC')), '\\s+', ' ', 'g') = ANY($2::text[])`;
     } else {
-      // Fallback: qualquer followup que contenha "CARTEIRA"
-      match = `UPPER(TRIM(COALESCE(followup, ''))) LIKE '%CARTEIRA%'`;
+      return `📦 *Pedidos em Carteira*\n  Configuração obrigatória não definida\n\n`;
     }
     const dateExpr = `COALESCE(emission_date, delivery_date, created_at::date)`;
     let dateFilter = '';
@@ -8681,6 +8683,7 @@ router.get('/goals/followup-config', async (req, res) => {
       released_values: r.rows[0]?.released_values?.length ? r.rows[0].released_values : DEFAULT_RELEASED,
       carteira_values: r.rows[0]?.carteira_values || [],
       prontos_values: r.rows[0]?.prontos_values || [],
+      configured: Boolean(r.rows[0]?.waiting_values?.length && r.rows[0]?.carteira_values?.length && r.rows[0]?.prontos_values?.length),
     });
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
@@ -8695,17 +8698,22 @@ router.put('/goals/followup-config', async (req, res) => {
     if (!isAdmin) return res.status(403).json({ error: 'Apenas administradores podem alterar os filtros de FollowUp' });
     const cur = await query(`SELECT waiting_values, released_values, carteira_values, prontos_values FROM crm_followup_config WHERE organization_id = $1`, [org.organization_id]);
     const prev = cur.rows[0] || {};
-    const waiting = Array.isArray(req.body.waiting_values) ? req.body.waiting_values : (prev.waiting_values || []);
+    const cleanValues = (values) => [...new Set((Array.isArray(values) ? values : [])
+      .map((value) => String(value || '').trim()).filter(Boolean))];
+    const waiting = cleanValues(Array.isArray(req.body.waiting_values) ? req.body.waiting_values : (prev.waiting_values || []));
     const released = Array.isArray(req.body.released_values) ? req.body.released_values : (prev.released_values || []);
-    const carteira = Array.isArray(req.body.carteira_values) ? req.body.carteira_values : (prev.carteira_values || []);
-    const prontos = Array.isArray(req.body.prontos_values) ? req.body.prontos_values : (prev.prontos_values || []);
+    const carteira = cleanValues(Array.isArray(req.body.carteira_values) ? req.body.carteira_values : (prev.carteira_values || []));
+    const prontos = cleanValues(Array.isArray(req.body.prontos_values) ? req.body.prontos_values : (prev.prontos_values || []));
+    if (!waiting.length || !carteira.length || !prontos.length) {
+      return res.status(400).json({ error: 'Selecione ao menos um FollowUp em cada uma das três guias antes de salvar' });
+    }
     await query(
       `INSERT INTO crm_followup_config (organization_id, waiting_values, released_values, carteira_values, prontos_values, updated_at)
        VALUES ($1, $2, $3, $4, $5, NOW())
        ON CONFLICT (organization_id) DO UPDATE SET waiting_values = $2, released_values = $3, carteira_values = $4, prontos_values = $5, updated_at = NOW()`,
       [org.organization_id, waiting, released, carteira, prontos]
     );
-    res.json({ success: true });
+    res.json({ success: true, waiting_values: waiting, carteira_values: carteira, prontos_values: prontos });
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
