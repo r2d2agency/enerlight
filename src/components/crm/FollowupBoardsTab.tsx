@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,8 +11,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
-import { Briefcase, CheckCircle2, Clock, Filter, Loader2 } from "lucide-react";
+import { Briefcase, CheckCircle2, Clock, Filter, Loader2, Save } from "lucide-react";
 import { format } from "date-fns";
+import { toast } from "sonner";
 
 interface Props {
   startDate: string;
@@ -30,8 +31,6 @@ const BOARDS: { key: BoardKey; label: string; icon: any }[] = [
   { key: "aguardando", label: "Pedidos Aguardando Informação", icon: Clock },
 ];
 
-const STORAGE_KEY = "crm-followup-boards-v1";
-
 function fmt(v: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
 }
@@ -44,6 +43,7 @@ function safeDate(v: any) {
 
 export function FollowupBoardsTab({ startDate, endDate, userId, channel, groupId }: Props) {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const canEditFilters = !!(user?.is_superadmin || user?.role === "owner" || user?.role === "admin");
   const [active, setActive] = useState<BoardKey>("carteira");
   const [selection, setSelection] = useState<Record<BoardKey, string[]>>({
@@ -52,64 +52,39 @@ export function FollowupBoardsTab({ startDate, endDate, userId, channel, groupId
     aguardando: [],
   });
   const [search, setSearch] = useState("");
+  const [isDirty, setIsDirty] = useState(false);
+
+  const { data: savedConfig, isLoading: isLoadingConfig } = useQuery({
+    queryKey: ["crm-followup-config"],
+    queryFn: () => api<any>("/api/crm/goals/followup-config"),
+  });
 
   useEffect(() => {
-    let localSelection: Partial<Record<BoardKey, string[]>> = {};
-    if (canEditFilters) {
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (raw) {
-          localSelection = JSON.parse(raw);
-          setSelection((prev) => ({ ...prev, ...localSelection }));
-        }
-      } catch (_) { /* ignore */ }
-    }
-    // Server config (usado também no relatório de WhatsApp) — fonte da verdade
-    api<any>("/api/crm/goals/followup-config")
-      .then((cfg) => {
-        const serverSelection: Record<BoardKey, string[]> = {
-          carteira: cfg?.carteira_values || [],
-          prontos: cfg?.prontos_values || [],
-          aguardando: cfg?.waiting_values || [],
-        };
-        const merged: Record<BoardKey, string[]> = {
-          carteira: serverSelection.carteira.length ? serverSelection.carteira : (canEditFilters ? localSelection.carteira || [] : []),
-          prontos: serverSelection.prontos.length ? serverSelection.prontos : (canEditFilters ? localSelection.prontos || [] : []),
-          aguardando: serverSelection.aguardando.length ? serverSelection.aguardando : (canEditFilters ? localSelection.aguardando || [] : []),
-        };
-        setSelection((prev) => ({
-          ...prev,
-          ...merged,
-        }));
+    if (!savedConfig || isDirty) return;
+    setSelection({
+      carteira: savedConfig.carteira_values || [],
+      prontos: savedConfig.prontos_values || [],
+      aguardando: savedConfig.waiting_values || [],
+    });
+  }, [savedConfig, isDirty]);
 
-        // Migra automaticamente filtros antigos que estavam apenas no navegador.
-        if (canEditFilters && !serverSelection.carteira.length && merged.carteira.length) {
-          api("/api/crm/goals/followup-config", {
-            method: "PUT",
-            body: {
-              carteira_values: merged.carteira,
-              prontos_values: merged.prontos,
-              waiting_values: merged.aguardando,
-            },
-          }).catch(() => { /* ignore */ });
-        }
-      })
-      .catch(() => { /* ignore */ });
-  }, [canEditFilters]);
-
-  const persist = (next: Record<BoardKey, string[]>) => {
-    if (!canEditFilters) return;
-    setSelection(next);
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch (_) { /* ignore */ }
-    api("/api/crm/goals/followup-config", {
+  const saveConfig = useMutation({
+    mutationFn: () => api("/api/crm/goals/followup-config", {
       method: "PUT",
       body: {
-        carteira_values: next.carteira,
-        prontos_values: next.prontos,
-        waiting_values: next.aguardando,
+        carteira_values: selection.carteira,
+        prontos_values: selection.prontos,
+        waiting_values: selection.aguardando,
       },
-    }).catch(() => { /* ignore */ });
-  };
+    }),
+    onSuccess: () => {
+      setIsDirty(false);
+      queryClient.invalidateQueries({ queryKey: ["crm-followup-config"] });
+      queryClient.invalidateQueries({ queryKey: ["crm-followup-board-kanban"] });
+      toast.success("Configuração de FollowUp salva para toda a organização");
+    },
+    onError: (error: Error) => toast.error(error.message || "Não foi possível salvar a configuração"),
+  });
 
 
   const { data: followups } = useQuery({
@@ -158,11 +133,29 @@ export function FollowupBoardsTab({ startDate, endDate, userId, channel, groupId
     next[active] = selected.includes(value)
       ? selected.filter((v) => v !== value)
       : [...selected, value];
-    persist(next);
+    setSelection(next);
+    setIsDirty(true);
   };
 
   return (
     <Tabs value={active} onValueChange={(v) => setActive(v as BoardKey)} className="space-y-4">
+      {canEditFilters && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/20 p-3">
+          <div>
+            <p className="text-sm font-medium">Configuração dos FollowUps</p>
+            <p className="text-xs text-muted-foreground">Defina as três guias e salve. Esta configuração também alimenta o Kanban e o relatório WhatsApp.</p>
+          </div>
+          <Button
+            size="sm"
+            className="gap-2"
+            disabled={!isDirty || isLoadingConfig || saveConfig.isPending}
+            onClick={() => saveConfig.mutate()}
+          >
+            {saveConfig.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            Salvar configuração
+          </Button>
+        </div>
+      )}
       <TabsList className="flex-wrap h-auto">
         {BOARDS.map((b) => {
           const Icon = b.icon;
@@ -205,7 +198,10 @@ export function FollowupBoardsTab({ startDate, endDate, userId, channel, groupId
                             variant="ghost"
                             size="sm"
                             className="h-7 text-xs"
-                            onClick={() => persist({ ...selection, [b.key]: [] })}
+                            onClick={() => {
+                              setSelection({ ...selection, [b.key]: [] });
+                              setIsDirty(true);
+                            }}
                           >
                             Limpar
                           </Button>
