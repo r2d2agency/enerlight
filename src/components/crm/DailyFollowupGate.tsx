@@ -48,7 +48,7 @@ export function DailyFollowupGate() {
 
   const submit = useMutation({
     mutationFn: (payload: { order_key: string; feedback: string }) =>
-      api("/api/crm/goals/followup/feedback", { method: "POST", body: JSON.stringify(payload) }),
+      api("/api/crm/goals/followup/feedback", { method: "POST", body: payload as any }),
     onSuccess: () => {
       setText("");
       qc.invalidateQueries({ queryKey: ["followup-pending-mine"] });
