@@ -8689,7 +8689,7 @@ router.get('/goals/followup-config', async (req, res) => {
     await ensureFollowupTables();
     const r = await query(`SELECT waiting_values, released_values, carteira_values, prontos_values FROM crm_followup_config WHERE organization_id = $1`, [org.organization_id]);
     res.json({
-      waiting_values: r.rows[0]?.waiting_values?.length ? r.rows[0].waiting_values : DEFAULT_WAITING,
+      waiting_values: r.rows[0]?.waiting_values || [],
       released_values: r.rows[0]?.released_values?.length ? r.rows[0].released_values : DEFAULT_RELEASED,
       carteira_values: r.rows[0]?.carteira_values || [],
       prontos_values: r.rows[0]?.prontos_values || [],
