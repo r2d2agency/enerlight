@@ -8875,16 +8875,35 @@ router.post('/goals/followup/feedback', async (req, res) => {
     const u = await query(`SELECT name FROM users WHERE id = $1`, [req.userId]);
     const userName = u.rows[0]?.name || null;
 
-    await query(
-      `INSERT INTO crm_order_followup_status
+    const upsertSql = `INSERT INTO crm_order_followup_status
         (organization_id, order_key, stage, last_feedback, last_feedback_at, last_feedback_by, last_feedback_by_name, last_feedback_date, updated_at)
        VALUES ($1,$2,'feedback',$3,NOW(),$4,$5,CURRENT_DATE,NOW())
        ON CONFLICT (organization_id, order_key) DO UPDATE SET
          stage = CASE WHEN crm_order_followup_status.stage = 'aguardando' THEN 'feedback' ELSE crm_order_followup_status.stage END,
          last_feedback = $3, last_feedback_at = NOW(), last_feedback_by = $4,
-         last_feedback_by_name = $5, last_feedback_date = CURRENT_DATE, updated_at = NOW()`,
-      [org.organization_id, orderKey, feedback, req.userId, userName]
-    );
+         last_feedback_by_name = $5, last_feedback_date = CURRENT_DATE, updated_at = NOW()`;
+    const params = [org.organization_id, orderKey, feedback, req.userId, userName];
+    try {
+      await query(upsertSql, params);
+    } catch (e) {
+      // Fallback para bases antigas sem o índice único (ON CONFLICT indisponível)
+      const upd = await query(
+        `UPDATE crm_order_followup_status
+            SET stage = CASE WHEN stage = 'aguardando' THEN 'feedback' ELSE stage END,
+                last_feedback = $3, last_feedback_at = NOW(), last_feedback_by = $4,
+                last_feedback_by_name = $5, last_feedback_date = CURRENT_DATE, updated_at = NOW()
+          WHERE organization_id = $1 AND order_key = $2`,
+        params
+      );
+      if (upd.rowCount === 0) {
+        await query(
+          `INSERT INTO crm_order_followup_status
+            (organization_id, order_key, stage, last_feedback, last_feedback_at, last_feedback_by, last_feedback_by_name, last_feedback_date, updated_at)
+           VALUES ($1,$2,'feedback',$3,NOW(),$4,$5,CURRENT_DATE,NOW())`,
+          params
+        );
+      }
+    }
 
     await query(
       `INSERT INTO crm_order_followup_logs (organization_id, order_key, user_id, user_name, kind, feedback, stage)
