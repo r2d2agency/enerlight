@@ -8689,7 +8689,7 @@ router.get('/goals/followup-config', async (req, res) => {
     await ensureFollowupTables();
     const r = await query(`SELECT waiting_values, released_values, carteira_values, prontos_values FROM crm_followup_config WHERE organization_id = $1`, [org.organization_id]);
     res.json({
-      waiting_values: r.rows[0]?.waiting_values?.length ? r.rows[0].waiting_values : DEFAULT_WAITING,
+      waiting_values: r.rows[0]?.waiting_values || [],
       released_values: r.rows[0]?.released_values?.length ? r.rows[0].released_values : DEFAULT_RELEASED,
       carteira_values: r.rows[0]?.carteira_values || [],
       prontos_values: r.rows[0]?.prontos_values || [],
@@ -8714,9 +8714,10 @@ router.put('/goals/followup-config', async (req, res) => {
     const released = Array.isArray(req.body.released_values) ? req.body.released_values : (prev.released_values || []);
     const carteira = cleanValues(Array.isArray(req.body.carteira_values) ? req.body.carteira_values : (prev.carteira_values || []));
     const prontos = cleanValues(Array.isArray(req.body.prontos_values) ? req.body.prontos_values : (prev.prontos_values || []));
-    if (!waiting.length || !carteira.length || !prontos.length) {
-      return res.status(400).json({ error: 'Selecione ao menos um FollowUp em cada uma das três guias antes de salvar' });
+    if (!waiting.length && !carteira.length && !prontos.length) {
+      return res.status(400).json({ error: 'Selecione ao menos um FollowUp antes de salvar' });
     }
+
     await query(
       `INSERT INTO crm_followup_config (organization_id, waiting_values, released_values, carteira_values, prontos_values, updated_at)
        VALUES ($1, $2, $3, $4, $5, NOW())
@@ -8737,11 +8738,16 @@ async function loadWaitingOrders(orgId, { userId, startDate, endDate } = {}) {
 
   const rawWaiting = (cfgRow.rows[0]?.waiting_values || []).map(v => String(v || '').trim()).filter(Boolean);
   const hasCustomWaiting = rawWaiting.length > 0;
-  const waitingList = hasCustomWaiting ? rawWaiting : DEFAULT_WAITING;
+  if (!hasCustomWaiting) {
+    // Sem configuração do admin não inventamos followup padrão
+    return { rows: [], followups: [], custom: false };
+  }
+  const waitingList = rawWaiting;
   const waitingNorm = waitingList.map(normFollowup);
   const releasedNorm = ((cfgRow.rows[0]?.released_values || []).length
     ? cfgRow.rows[0].released_values
     : DEFAULT_RELEASED).map(normFollowup);
+
 
   // Normalização SQL equivalente a normFollowup() no JS
   const NORM = (col) => `REGEXP_REPLACE(UPPER(TRANSLATE(TRIM(COALESCE(${col},'')),

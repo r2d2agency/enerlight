@@ -8,6 +8,9 @@ import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { api } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
+import { Checkbox } from "@/components/ui/checkbox";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Factory, Loader2, MessageSquare, AlertTriangle, Search, RefreshCw } from "lucide-react";
+import { Factory, Loader2, MessageSquare, AlertTriangle, Search, RefreshCw, Settings2 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -134,11 +137,16 @@ function StageColumn({
 
 export default function CRMFollowupFabrica() {
   const qc = useQueryClient();
+  const { user } = useAuth();
+  const canEditFilters = !!(user?.is_superadmin || user?.role === "owner" || user?.role === "admin");
   const [search, setSearch] = useState("");
   const [activeId, setActiveId] = useState<string | null>(null);
   const [detail, setDetail] = useState<FollowupCard | null>(null);
   const [note, setNote] = useState("");
   const [feedback, setFeedback] = useState("");
+  const [showConfig, setShowConfig] = useState(false);
+  const [waitingSel, setWaitingSel] = useState<string[] | null>(null);
+
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
@@ -152,6 +160,32 @@ export default function CRMFollowupFabrica() {
   });
 
   const activeFollowups = data?.followups || [];
+
+  const { data: allFollowups } = useQuery({
+    queryKey: ["crm-goals-followups"],
+    queryFn: () => api<{ followup: string; count: number }[]>("/api/crm/goals/followups"),
+  });
+
+  const { data: followupConfig } = useQuery({
+    queryKey: ["crm-followup-config"],
+    queryFn: () => api<any>("/api/crm/goals/followup-config"),
+  });
+
+  const saveWaiting = useMutation({
+    mutationFn: (values: string[]) =>
+      api("/api/crm/goals/followup-config", {
+        method: "PUT",
+        body: JSON.stringify({ waiting_values: values }),
+      }),
+    onSuccess: () => {
+      toast.success("FollowUps salvos");
+      qc.invalidateQueries({ queryKey: ["crm-followup-config"] });
+      qc.invalidateQueries({ queryKey: ["crm-followup-board-kanban"] });
+    },
+    onError: (e: any) => toast.error(e?.message || "Erro ao salvar"),
+  });
+
+
 
 
   const { data: logs } = useQuery({
@@ -240,21 +274,72 @@ export default function CRMFollowupFabrica() {
           <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
             <RefreshCw className={cn("h-4 w-4 mr-1", isFetching && "animate-spin")} /> Atualizar
           </Button>
+          {canEditFilters && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setWaitingSel(followupConfig?.waiting_values || []);
+                setShowConfig((v) => !v);
+              }}
+            >
+              <Settings2 className="h-4 w-4 mr-1" /> Configurar FollowUps
+            </Button>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="text-[11px] text-muted-foreground">FollowUps ativos:</span>
           {activeFollowups.length === 0 ? (
-            <span className="text-[11px] text-muted-foreground">nenhum filtro definido pelo admin</span>
+            <span className="text-[11px] text-muted-foreground">
+              {canEditFilters ? "nenhum configurado — clique em Configurar FollowUps" : "nenhum filtro definido pelo admin"}
+            </span>
           ) : (
             activeFollowups.map((f) => (
               <Badge key={f} variant="secondary" className="text-[10px]">{f}</Badge>
             ))
           )}
-          {data && !data.custom_filters && activeFollowups.length > 0 && (
-            <span className="text-[10px] text-muted-foreground">(padrão)</span>
-          )}
         </div>
+
+        {canEditFilters && showConfig && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">FollowUps de "Aguardando Informação"</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3 max-h-64 overflow-y-auto">
+                {(allFollowups || []).length === 0 && (
+                  <span className="text-xs text-muted-foreground">Nenhum FollowUp encontrado nas importações.</span>
+                )}
+                {(allFollowups || []).map((f) => {
+                  const checked = (waitingSel || []).includes(f.followup);
+                  return (
+                    <label key={f.followup} className="flex items-center gap-2 text-xs cursor-pointer">
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={(v) =>
+                          setWaitingSel((prev) => {
+                            const cur = prev || [];
+                            return v ? [...cur, f.followup] : cur.filter((x) => x !== f.followup);
+                          })
+                        }
+                      />
+                      <span className="flex-1 truncate">{f.followup}</span>
+                      <span className="text-muted-foreground">{f.count}</span>
+                    </label>
+                  );
+                })}
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" onClick={() => saveWaiting.mutate(waitingSel || [])} disabled={saveWaiting.isPending}>
+                  {saveWaiting.isPending && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />} Salvar
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setShowConfig(false)}>Cancelar</Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
 
 
 
