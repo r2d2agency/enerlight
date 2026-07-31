@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Factory, Loader2, MessageSquare, AlertTriangle, Search, RefreshCw } from "lucide-react";
+import { Factory, Loader2, MessageSquare, AlertTriangle, Search, RefreshCw, Settings2 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
