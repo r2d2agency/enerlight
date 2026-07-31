@@ -5773,7 +5773,9 @@ router.all('/goals/:id', (req, res, next) => {
 });
 
 // Update goal
-router.put('/goals/:id', async (req, res) => {
+router.put('/goals/:id', async (req, res, next) => {
+  // Deixa rotas nomeadas, como /goals/followup-config, seguirem para seus handlers.
+  if (!UUID_RE.test(req.params.id)) return next();
   try {
     const org = await getUserOrg(req.userId);
     if (!org || !['owner', 'admin'].includes(org.role)) return res.status(403).json({ error: 'Permission denied' });
@@ -5792,7 +5794,8 @@ router.put('/goals/:id', async (req, res) => {
 });
 
 // Delete goal
-router.delete('/goals/:id', async (req, res) => {
+router.delete('/goals/:id', async (req, res, next) => {
+  if (!UUID_RE.test(req.params.id)) return next();
   try {
     const org = await getUserOrg(req.userId);
     if (!org || !['owner', 'admin'].includes(org.role)) return res.status(403).json({ error: 'Permission denied' });
