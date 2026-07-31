@@ -77,7 +77,8 @@ export function FollowupBoardsTab({ startDate, endDate, userId, channel, groupId
         waiting_values: selection.aguardando,
       },
     }),
-    onSuccess: () => {
+    onSuccess: (saved: any) => {
+      queryClient.setQueryData(["crm-followup-config"], (current: any) => ({ ...current, ...saved }));
       setIsDirty(false);
       queryClient.invalidateQueries({ queryKey: ["crm-followup-config"] });
       queryClient.invalidateQueries({ queryKey: ["crm-followup-board-kanban"] });
