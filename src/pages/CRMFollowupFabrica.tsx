@@ -153,6 +153,32 @@ export default function CRMFollowupFabrica() {
 
   const activeFollowups = data?.followups || [];
 
+  const { data: allFollowups } = useQuery({
+    queryKey: ["crm-goals-followups"],
+    queryFn: () => api<{ followup: string; count: number }[]>("/api/crm/goals/followups"),
+  });
+
+  const { data: followupConfig } = useQuery({
+    queryKey: ["crm-followup-config"],
+    queryFn: () => api<any>("/api/crm/goals/followup-config"),
+  });
+
+  const saveWaiting = useMutation({
+    mutationFn: (values: string[]) =>
+      api("/api/crm/goals/followup-config", {
+        method: "PUT",
+        body: JSON.stringify({ waiting_values: values }),
+      }),
+    onSuccess: () => {
+      toast.success("FollowUps salvos");
+      qc.invalidateQueries({ queryKey: ["crm-followup-config"] });
+      qc.invalidateQueries({ queryKey: ["crm-followup-board-kanban"] });
+    },
+    onError: (e: any) => toast.error(e?.message || "Erro ao salvar"),
+  });
+
+
+
 
   const { data: logs } = useQuery({
     queryKey: ["crm-followup-logs", detail?.order_key],
