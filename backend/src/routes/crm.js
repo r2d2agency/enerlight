@@ -8738,11 +8738,16 @@ async function loadWaitingOrders(orgId, { userId, startDate, endDate } = {}) {
 
   const rawWaiting = (cfgRow.rows[0]?.waiting_values || []).map(v => String(v || '').trim()).filter(Boolean);
   const hasCustomWaiting = rawWaiting.length > 0;
-  const waitingList = hasCustomWaiting ? rawWaiting : DEFAULT_WAITING;
+  if (!hasCustomWaiting) {
+    // Sem configuração do admin não inventamos followup padrão
+    return { rows: [], followups: [], custom: false };
+  }
+  const waitingList = rawWaiting;
   const waitingNorm = waitingList.map(normFollowup);
   const releasedNorm = ((cfgRow.rows[0]?.released_values || []).length
     ? cfgRow.rows[0].released_values
     : DEFAULT_RELEASED).map(normFollowup);
+
 
   // Normalização SQL equivalente a normFollowup() no JS
   const NORM = (col) => `REGEXP_REPLACE(UPPER(TRANSLATE(TRIM(COALESCE(${col},'')),
