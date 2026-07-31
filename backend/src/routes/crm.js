@@ -7625,10 +7625,11 @@ router.get('/goals/data-records', async (req, res) => {
     }
     if (search) { params.push(`%${search}%`); extraFilters += ` AND (client_name ILIKE $${params.length} OR number ILIKE $${params.length} OR order_number ILIKE $${params.length} OR seller_name ILIKE $${params.length})`; }
     if (req.query.followups) {
-      const list = String(req.query.followups).split('|').map(v => v.trim()).filter(Boolean);
+      const list = String(req.query.followups).split('|').map(normFollowup).filter(Boolean);
       if (list.length > 0) {
         params.push(list);
-        extraFilters += ` AND TRIM(COALESCE(followup, '')) = ANY($${params.length}::text[])`;
+        extraFilters += ` AND REGEXP_REPLACE(UPPER(TRANSLATE(TRIM(COALESCE(followup, '')),
+          'ÁÀÂÃÉÊÍÓÔÕÚÜÇáàâãéêíóôõúüç','AAAAEEIOOOUUCAAAAEEIOOOUUC')), '\\s+', ' ', 'g') = ANY($${params.length}::text[])`;
       }
     }
 
