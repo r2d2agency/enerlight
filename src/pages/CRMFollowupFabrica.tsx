@@ -175,7 +175,7 @@ export default function CRMFollowupFabrica() {
     mutationFn: (values: string[]) =>
       api("/api/crm/goals/followup-config", {
         method: "PUT",
-        body: JSON.stringify({ waiting_values: values }),
+        body: { waiting_values: values },
       }),
     onSuccess: () => {
       toast.success("FollowUps salvos");
@@ -198,7 +198,7 @@ export default function CRMFollowupFabrica() {
     mutationFn: (payload: { order_key: string; stage?: string; factory_note?: string; resolved?: boolean }) =>
       api(`/api/crm/goals/followup/${encodeURIComponent(payload.order_key)}`, {
         method: "PUT",
-        body: JSON.stringify(payload),
+        body: payload,
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["crm-followup-board-kanban"] });
@@ -209,7 +209,7 @@ export default function CRMFollowupFabrica() {
 
   const addFeedback = useMutation({
     mutationFn: (payload: { order_key: string; feedback: string }) =>
-      api("/api/crm/goals/followup/feedback", { method: "POST", body: JSON.stringify(payload) }),
+      api("/api/crm/goals/followup/feedback", { method: "POST", body: payload }),
     onSuccess: () => {
       setFeedback("");
       toast.success("Feedback registrado");
