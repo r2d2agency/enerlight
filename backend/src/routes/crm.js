@@ -8669,11 +8669,18 @@ async function ensureFollowupTables() {
       stage VARCHAR(30),
       created_at TIMESTAMPTZ DEFAULT NOW()
     )`);
-    await query(`CREATE INDEX IF NOT EXISTS idx_followup_status_org ON crm_order_followup_status(organization_id)`);
-    await query(`CREATE INDEX IF NOT EXISTS idx_followup_logs_order ON crm_order_followup_logs(organization_id, order_key)`);
-    await query(`ALTER TABLE crm_followup_config ADD COLUMN IF NOT EXISTS carteira_values TEXT[] DEFAULT '{}'`);
-    await query(`ALTER TABLE crm_followup_config ADD COLUMN IF NOT EXISTS prontos_values TEXT[] DEFAULT '{}'`);
   } catch (_) {}
+  // Cada ajuste isolado: se um falhar, os demais continuam valendo
+  const safe = async (sql) => { try { await query(sql); } catch (_) {} };
+  await safe(`CREATE INDEX IF NOT EXISTS idx_followup_status_org ON crm_order_followup_status(organization_id)`);
+  await safe(`CREATE INDEX IF NOT EXISTS idx_followup_logs_order ON crm_order_followup_logs(organization_id, order_key)`);
+  await safe(`ALTER TABLE crm_followup_config ADD COLUMN IF NOT EXISTS carteira_values TEXT[] DEFAULT '{}'`);
+  await safe(`ALTER TABLE crm_followup_config ADD COLUMN IF NOT EXISTS prontos_values TEXT[] DEFAULT '{}'`);
+  // Tabelas antigas podem ter sido criadas sem o UNIQUE -> ON CONFLICT quebrava ao salvar feedback
+  await safe(`DELETE FROM crm_order_followup_status a USING crm_order_followup_status b
+              WHERE a.ctid < b.ctid AND a.organization_id = b.organization_id AND a.order_key = b.order_key`);
+  await safe(`CREATE UNIQUE INDEX IF NOT EXISTS uq_followup_status_order
+              ON crm_order_followup_status(organization_id, order_key)`);
 }
 
 async function getFollowupConfig(orgId) {
