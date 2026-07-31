@@ -9,6 +9,7 @@ import { Users, MessageSquare, Send, CheckCircle2, Loader2, Play, Clock, Calenda
 import { MentionsWidget } from "@/components/dashboard/MentionsWidget";
 import { TasksWidget } from "@/components/dashboard/TasksWidget";
 import { AgendaWidget } from "@/components/dashboard/AgendaWidget";
+import { FollowupPendingWidget } from "@/components/dashboard/FollowupPendingWidget";
 import { CaptadorDashboard } from "@/components/dashboard/CaptadorDashboard";
 import { useContacts } from "@/hooks/use-contacts";
 import { useMessages } from "@/hooks/use-messages";
@@ -272,6 +273,7 @@ const FullDashboard = () => {
 
         {/* === PERSONAL WIDGETS === */}
         <div className="grid gap-6 lg:grid-cols-3">
+          <FollowupPendingWidget />
           <MentionsWidget />
           <TasksWidget />
           <AgendaWidget />
