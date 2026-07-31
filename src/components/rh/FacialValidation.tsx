@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { Camera, RefreshCw, X, Loader2 } from "lucide-react";
+import { Camera, RefreshCw, X, Loader2, CheckCircle2, ShieldCheck } from "lucide-react";
 import * as faceapi from '@vladmandic/face-api';
 const tf: any = (faceapi as any).tf;
 
@@ -65,6 +65,8 @@ function distanceToScore(distance: number): number {
   return 0;
 }
 
+type Phase = 'idle' | 'camera' | 'captured' | 'done';
+
 export default function FacialValidation({
   onValidated,
   onCancel,
@@ -73,11 +75,14 @@ export default function FacialValidation({
   targetId,
 }: FacialValidationProps) {
   const [stream, setStream] = useState<MediaStream | null>(null);
-  const [isCapturing, setIsCapturing] = useState(false);
+  const [phase, setPhase] = useState<Phase>('idle');
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const [status, setStatus] = useState<string>('Carregando modelos...');
+  const [pending, setPending] = useState<number[] | null>(null);
+  const [testResult, setTestResult] = useState<{ ok: boolean; score: number } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -97,84 +102,156 @@ export default function FacialValidation({
   }, [mode]);
 
   const stopCamera = useCallback(() => {
-    if (stream) stream.getTracks().forEach((t) => t.stop());
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
     setStream(null);
-    setIsCapturing(false);
-  }, [stream]);
+  }, []);
 
   useEffect(() => () => stopCamera(), [stopCamera]);
 
+  // Attach the stream once the <video> is in the DOM (it is always mounted).
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    if (stream) {
+      if (v.srcObject !== stream) v.srcObject = stream;
+      v.play().catch(() => {});
+    } else {
+      v.srcObject = null;
+    }
+  }, [stream]);
+
   const startCamera = async () => {
+    setTestResult(null);
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
-      setStream(mediaStream);
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-        await videoRef.current.play().catch(() => {});
+      if (!navigator.mediaDevices?.getUserMedia) {
+        setStatus('Câmera indisponível neste navegador (requer HTTPS).');
+        return;
       }
-      setIsCapturing(true);
-    } catch (err) {
+      let mediaStream: MediaStream;
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'user' }, width: { ideal: 640 }, height: { ideal: 480 } },
+          audio: false,
+        });
+      } catch {
+        // fallback: qualquer câmera disponível
+        mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      }
+      streamRef.current = mediaStream;
+      setStream(mediaStream);
+      setPhase('camera');
+      setStatus(mode === 'register' ? 'Enquadre o rosto e confirme a coleta' : 'Posicione seu rosto no centro');
+    } catch (err: any) {
       console.error('Erro ao acessar câmera:', err);
-      setStatus('Erro ao acessar câmera. Verifique as permissões.');
+      const name = err?.name || '';
+      if (name === 'NotAllowedError') setStatus('Permissão de câmera negada. Libere o acesso nas configurações do navegador.');
+      else if (name === 'NotFoundError') setStatus('Nenhuma câmera encontrada no dispositivo.');
+      else if (name === 'NotReadableError') setStatus('Câmera em uso por outro aplicativo. Feche e tente novamente.');
+      else setStatus('Erro ao acessar câmera. Verifique as permissões.');
     }
   };
 
-  const capture = async () => {
-    if (!videoRef.current || processing) return;
-    setProcessing(true);
-    setStatus(mode === 'register' ? 'Capturando...' : 'Validando...');
-
-    // Retry loop to give tempo do rosto ser detectado
+  const grabDescriptor = async (): Promise<number[] | null> => {
+    if (!videoRef.current) return null;
     const maxAttempts = 8;
     const delay = backendReady === 'cpu' ? 350 : 200;
-    let det: Awaited<ReturnType<typeof detectOnce>> = null;
     for (let i = 0; i < maxAttempts; i++) {
       try {
-        det = await detectOnce(videoRef.current);
+        const det = await detectOnce(videoRef.current);
+        if (det) return Array.from(det.descriptor);
       } catch (e) {
         console.error('detect error', e);
       }
-      if (det) break;
       await new Promise((r) => setTimeout(r, delay));
     }
+    return null;
+  };
 
-    if (!det) {
+  const threshold = 0.75 - sensitivity * 0.30;
+
+  // ---- REGISTER: coleta -> teste obrigatório -> salva
+  const captureRegister = async () => {
+    if (processing) return;
+    setProcessing(true);
+    setStatus('Capturando...');
+    const desc = await grabDescriptor();
+    if (!desc) {
       setStatus('Nenhum rosto detectado. Ajuste a iluminação e tente novamente.');
       setProcessing(false);
       return;
     }
+    setPending(desc);
+    setPhase('captured');
+    setTestResult(null);
+    setStatus('Coleta feita. Agora faça o teste de validação.');
+    setProcessing(false);
+  };
 
-    const descriptor = Array.from(det.descriptor);
-
-    if (mode === 'register') {
-      if (!targetId) {
-        setStatus('ID de destino ausente. Não foi possível salvar o cadastro.');
-        setProcessing(false);
-        return;
-      }
-      localStorage.setItem(DESC_KEY(targetId), JSON.stringify(descriptor));
-      localStorage.setItem(REG_KEY(targetId), 'true');
-      setStatus('Face cadastrada com sucesso!');
-      setTimeout(() => {
-        stopCamera();
-        onValidated(true);
-      }, 800);
+  const runTest = async () => {
+    if (processing || !pending) return;
+    setProcessing(true);
+    setTestResult(null);
+    setStatus('Testando reconhecimento...');
+    const desc = await grabDescriptor();
+    if (!desc) {
+      setStatus('Nenhum rosto detectado no teste. Tente novamente.');
+      setProcessing(false);
       return;
     }
+    const distance = faceapi.euclideanDistance(new Float32Array(desc), new Float32Array(pending));
+    const score = distanceToScore(distance);
+    const ok = distance <= threshold;
+    setTestResult({ ok, score });
+    setStatus(ok
+      ? `Teste aprovado (score ${score.toFixed(0)}). Você pode salvar o cadastro.`
+      : `Teste reprovado (score ${score.toFixed(0)}). Colete a facial novamente.`);
+    setProcessing(false);
+  };
 
-    // validate
+  const saveRegister = () => {
+    if (!pending || !targetId) {
+      setStatus('ID de destino ausente. Não foi possível salvar o cadastro.');
+      return;
+    }
+    localStorage.setItem(DESC_KEY(targetId), JSON.stringify(pending));
+    localStorage.setItem(REG_KEY(targetId), 'true');
+    setPhase('done');
+    setStatus('Face cadastrada com sucesso!');
+    setTimeout(() => {
+      stopCamera();
+      onValidated(true);
+    }, 700);
+  };
+
+  const recollect = () => {
+    setPending(null);
+    setTestResult(null);
+    setPhase('camera');
+    setStatus('Enquadre o rosto e confirme a coleta');
+  };
+
+  // ---- VALIDATE
+  const captureValidate = async () => {
+    if (processing) return;
     if (!targetId) {
       setStatus('ID de destino ausente.');
+      return;
+    }
+    setProcessing(true);
+    setStatus('Validando...');
+    const desc = await grabDescriptor();
+    if (!desc) {
+      setStatus('Nenhum rosto detectado. Ajuste a iluminação e tente novamente.');
       setProcessing(false);
       return;
     }
     const raw = localStorage.getItem(DESC_KEY(targetId));
     if (!raw) {
       setStatus('Nenhum cadastro facial encontrado para este usuário.');
-      setTimeout(() => {
-        stopCamera();
-        onValidated(false);
-      }, 1200);
+      setTimeout(() => { stopCamera(); onValidated(false); }, 1200);
       return;
     }
     let stored: number[] = [];
@@ -185,27 +262,18 @@ export default function FacialValidation({
       setProcessing(false);
       return;
     }
-    const a = new Float32Array(descriptor);
-    const b = new Float32Array(stored);
-    const distance = faceapi.euclideanDistance(a, b);
+    const distance = faceapi.euclideanDistance(new Float32Array(desc), new Float32Array(stored));
     const score = distanceToScore(distance);
-    // sensitivity 0..1 -> threshold 0.75 (permissivo) .. 0.45 (rigoroso)
-    const threshold = 0.75 - sensitivity * 0.30;
-    const success = distance <= threshold;
-
-    console.log('[FacialValidation] distance=', distance.toFixed(3), 'threshold=', threshold.toFixed(3), 'score=', score.toFixed(1));
-
-    if (success) {
+    if (distance <= threshold) {
       setStatus(`Identidade validada! (score ${score.toFixed(0)})`);
-      setTimeout(() => {
-        stopCamera();
-        onValidated(true);
-      }, 800);
+      setTimeout(() => { stopCamera(); onValidated(true); }, 800);
     } else {
       setStatus(`Rosto não confere (score ${score.toFixed(0)}). Tente novamente.`);
       setProcessing(false);
     }
   };
+
+  const showVideo = phase === 'camera' || phase === 'captured';
 
   return (
     <div className="fixed inset-0 z-50 bg-background/95 flex flex-col items-center justify-center p-6 backdrop-blur-sm">
@@ -216,39 +284,64 @@ export default function FacialValidation({
         </div>
 
         <div className="relative aspect-square w-full max-w-[320px] mx-auto overflow-hidden rounded-full border-4 border-primary/20 bg-muted flex items-center justify-center">
-          {!isCapturing ? (
-            loading ? (
-              <Loader2 className="h-16 w-16 text-muted-foreground/50 animate-spin" />
-            ) : (
-              <Camera className="h-16 w-16 text-muted-foreground/50" />
-            )
+          {/* Video sempre montado para que o stream possa ser anexado */}
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            className={`h-full w-full object-cover -scale-x-100 ${showVideo ? '' : 'hidden'}`}
+          />
+          {showVideo ? (
+            <div className="absolute inset-0 border-[16px] border-background/40 rounded-full pointer-events-none">
+              <div className={`h-full w-full rounded-full border-2 border-dashed ${testResult?.ok ? 'border-primary' : 'border-primary/50'}`} />
+            </div>
+          ) : loading ? (
+            <Loader2 className="h-16 w-16 text-muted-foreground/50 animate-spin" />
+          ) : phase === 'done' ? (
+            <CheckCircle2 className="h-16 w-16 text-primary" />
           ) : (
-            <>
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                className="h-full w-full object-cover -scale-x-100"
-              />
-              <div className="absolute inset-0 border-[16px] border-background/40 rounded-full pointer-events-none">
-                <div className="h-full w-full rounded-full border-2 border-primary/50 border-dashed" />
-              </div>
-            </>
+            <Camera className="h-16 w-16 text-muted-foreground/50" />
           )}
         </div>
 
         <div className="flex flex-col gap-3">
-          {!isCapturing ? (
+          {phase === 'idle' && (
             <Button size="lg" onClick={startCamera} className="w-full gap-2" disabled={loading}>
               <Camera className="h-5 w-5" />
               {loading ? 'Carregando modelos...' : 'Abrir Câmera'}
             </Button>
-          ) : (
-            <Button size="lg" onClick={capture} className="w-full gap-2" disabled={processing}>
+          )}
+
+          {phase === 'camera' && (
+            <Button
+              size="lg"
+              onClick={mode === 'register' ? captureRegister : captureValidate}
+              className="w-full gap-2"
+              disabled={processing}
+            >
               {processing ? <Loader2 className="h-5 w-5 animate-spin" /> : <RefreshCw className="h-5 w-5" />}
-              {mode === 'register' ? 'Confirmar Cadastro' : 'Validar Rosto'}
+              {mode === 'register' ? 'Coletar Facial' : 'Validar Rosto'}
             </Button>
+          )}
+
+          {phase === 'captured' && (
+            <>
+              <Button size="lg" onClick={runTest} className="w-full gap-2" disabled={processing}>
+                {processing ? <Loader2 className="h-5 w-5 animate-spin" /> : <ShieldCheck className="h-5 w-5" />}
+                {testResult ? 'Testar novamente' : 'Testar reconhecimento'}
+              </Button>
+              {testResult?.ok && (
+                <Button size="lg" variant="default" onClick={saveRegister} className="w-full gap-2">
+                  <CheckCircle2 className="h-5 w-5" />
+                  Salvar cadastro
+                </Button>
+              )}
+              <Button variant="outline" onClick={recollect} className="w-full gap-2" disabled={processing}>
+                <RefreshCw className="h-4 w-4" />
+                Coletar novamente
+              </Button>
+            </>
           )}
 
           <Button variant="ghost" onClick={() => { stopCamera(); onCancel(); }} className="w-full gap-2">
