@@ -1198,7 +1198,7 @@ function ProjectDetailDialog({ project, open, onOpenChange, stages, canEdit, can
             <TabsTrigger value="attachments" className="text-xs sm:text-sm"><Paperclip className="h-3.5 w-3.5 sm:mr-1" /> <span className="hidden sm:inline">Arquivos</span> ({attachments.length})</TabsTrigger>
           </TabsList>
 
-          <ScrollArea className="flex-1 min-h-0 mt-3 pr-3">
+          <ScrollArea className="flex-1 min-h-0 mt-3 pr-3 overflow-y-auto">
             {/* Details */}
             <TabsContent value="details" className="mt-0 space-y-4">
               {/* Inline edit form */}
