@@ -1113,7 +1113,7 @@ function ProjectDetailDialog({ project, open, onOpenChange, stages, canEdit, can
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl w-[95vw] sm:w-full max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-4xl w-[95vw] sm:w-full h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-3 min-w-0">
@@ -1198,7 +1198,7 @@ function ProjectDetailDialog({ project, open, onOpenChange, stages, canEdit, can
             <TabsTrigger value="attachments" className="text-xs sm:text-sm"><Paperclip className="h-3.5 w-3.5 sm:mr-1" /> <span className="hidden sm:inline">Arquivos</span> ({attachments.length})</TabsTrigger>
           </TabsList>
 
-          <ScrollArea className="flex-1 min-h-0 mt-3 pr-3">
+          <ScrollArea className="flex-1 min-h-0 mt-3 pr-3 overflow-y-auto">
             {/* Details */}
             <TabsContent value="details" className="mt-0 space-y-4">
               {/* Inline edit form */}
