@@ -118,13 +118,6 @@ function RuleDialog({ rule, onClose, users, existing }: {
     return ["Venda Direta", "Marketplace", "Representante", "E-commerce"];
   }, []);
 
-  const channels = useMemo(() => {
-    // We don't have direct access to all channels here unless we fetch validation records,
-    // but we can at least show the common ones or let the user type.
-    // For now, let's use a standard list or empty if we don't have it.
-    return ["Venda Direta", "Marketplace", "Representante", "E-commerce"];
-  }, []);
-
   useEffect(() => {
     if (rule) {
       setUserId(rule.user_id || "");
