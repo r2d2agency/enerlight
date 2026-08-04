@@ -105,6 +105,7 @@ const ComissoesValidacao = lazyRetry(() => import("./pages/ComissoesValidacao"))
 const ComissoesMinhas = lazyRetry(() => import("./pages/ComissoesMinhas"));
 const ComissoesRegras = lazyRetry(() => import("./pages/ComissoesRegras"));
 const FolhaPagamento = lazyRetry(() => import("./pages/FolhaPagamento"));
+const ComissoesEquipe = lazyRetry(() => import("./pages/ComissoesEquipe"));
 const EadLogin = lazyRetry(() => import("./pages/ead/EadLogin"));
 const EadSignup = lazyRetry(() => import("./pages/ead/EadSignup"));
 const EadHome = lazyRetry(() => import("./pages/ead/EadHome"));
@@ -201,6 +202,7 @@ const App = () => (
               <Route path="/comissoes/validacao" element={<ProtectedRoute><ComissoesValidacao /></ProtectedRoute>} />
               <Route path="/comissoes/minhas" element={<ProtectedRoute><ComissoesMinhas /></ProtectedRoute>} />
               <Route path="/comissoes/regras" element={<ProtectedRoute><ComissoesRegras /></ProtectedRoute>} />
+              <Route path="/comissoes/equipe" element={<ProtectedRoute><ComissoesEquipe /></ProtectedRoute>} />
               <Route path="/folha-pagamento" element={<ProtectedRoute permissionKey="can_view_payroll"><FolhaPagamento /></ProtectedRoute>} />
 
               <Route path="/crm/representantes" element={<ProtectedRoute><CRMRepresentantes /></ProtectedRoute>} />
