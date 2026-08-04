@@ -98,7 +98,11 @@ async function ensureSchema() {
     await query(`ALTER TABLE commission_rules
       ADD COLUMN IF NOT EXISTS redbar_enabled boolean NOT NULL DEFAULT false,
       ADD COLUMN IF NOT EXISTS redbar_base_percent numeric(6,3) NOT NULL DEFAULT 0,
-      ADD COLUMN IF NOT EXISTS redbar_tiers jsonb NOT NULL DEFAULT '[]'::jsonb`);
+      ADD COLUMN IF NOT EXISTS redbar_tiers jsonb NOT NULL DEFAULT '[]'::jsonb,
+      ADD COLUMN IF NOT EXISTS is_manager BOOLEAN DEFAULT false,
+      ADD COLUMN IF NOT EXISTS managed_channel VARCHAR(255)`);
+    await query(`ALTER TABLE erp_billing_records ADD COLUMN IF NOT EXISTS custom_commission_percent NUMERIC(6,3)`);
+    await query(`ALTER TABLE crm_goals_data ADD COLUMN IF NOT EXISTS custom_commission_percent NUMERIC(6,3)`);
     await query(`CREATE INDEX IF NOT EXISTS idx_commission_rules_org ON commission_rules(organization_id)`);
   })().catch((e) => { schemaReady = null; throw e; });
   return schemaReady;
