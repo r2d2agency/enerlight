@@ -340,7 +340,7 @@ export default function CRMMetas() {
           </div>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <Tabs value={activeTab === "commissions" ? "dashboard" : activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="flex flex-wrap h-auto p-1 bg-muted/50 justify-start gap-1">
             <TabsTrigger value="dashboard" className="gap-2 text-xs sm:text-sm py-1.5 px-3 whitespace-nowrap"><BarChart3 className="h-4 w-4" /> Dashboard</TabsTrigger>
             <TabsTrigger value="by-channel" className="gap-2 text-xs sm:text-sm py-1.5 px-3 whitespace-nowrap"><Users className="h-4 w-4" /> Por Canal/Grupo</TabsTrigger>
@@ -353,7 +353,7 @@ export default function CRMMetas() {
             <TabsTrigger value="semanal" className="gap-2 text-xs sm:text-sm py-1.5 px-3 whitespace-nowrap"><CalendarDays className="h-4 w-4" /> Semanal</TabsTrigger>
             <TabsTrigger value="trimestral" className="gap-2 text-xs sm:text-sm py-1.5 px-3 whitespace-nowrap"><CalendarDays className="h-4 w-4" /> Trimestral</TabsTrigger>
             <TabsTrigger value="imports" className="gap-2 text-xs sm:text-sm py-1.5 px-3 whitespace-nowrap"><Upload className="h-4 w-4" /> Importações</TabsTrigger>
-            <TabsTrigger value="commissions" className="gap-2 text-xs sm:text-sm py-1.5 px-3 whitespace-nowrap"><Wallet className="h-4 w-4" /> Comissões da Equipe</TabsTrigger>
+            
           </TabsList>
 
           {/* Filters - shared */}
@@ -1604,18 +1604,17 @@ export default function CRMMetas() {
             <ImportBatchList onDeleted={invalidateData} />
           </TabsContent>
 
-          {/* Commissions tab */}
+          {/* Commissions tab moved to standalone page */}
           <TabsContent value="commissions" className="space-y-4">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                <div>
-                  <CardTitle>Comissões da Equipe</CardTitle>
-                  <CardDescription>Resumo de comissões calculadas para todos os vendedores no período selecionado.</CardDescription>
-                </div>
+              <CardHeader>
+                <CardTitle>Comissões da Equipe</CardTitle>
+                <CardDescription>Esta aba foi movida para uma página dedicada.</CardDescription>
               </CardHeader>
-
               <CardContent>
-                <TeamCommissionsTable startDate={startDate} endDate={endDate} />
+                <Button onClick={() => window.location.href = '/comissoes/equipe'}>
+                  Ver Comissões da Equipe
+                </Button>
               </CardContent>
             </Card>
           </TabsContent>
@@ -1843,85 +1842,4 @@ export default function CRMMetas() {
   );
 }
 
-function TeamCommissionsTable({ startDate, endDate }: { startDate: string, endDate: string }) {
-  const { data: summary, isLoading } = useCommissionSummary({ start_date: startDate, end_date: endDate });
-
-  const handleExport = () => {
-    if (!summary?.users?.length) return;
-    const exportData = summary.users.map((u: any) => ({
-      'Vendedor': u.name,
-      'Email': u.email,
-      'Faturamento Validado': u.net_total || 0,
-      'Comissão Validada': u.commission?.total || 0,
-      'Projeção Faturamento': u.projected_net_total || 0,
-      'Projeção Comissão': u.projected_commission?.total || 0
-    }));
-    exportToExcel(exportData, `Comissoes_Equipe_${startDate}_${endDate}`);
-  };
-
-  if (isLoading) return <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
-
-  const users = summary?.users || [];
-
-  return (
-    <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button variant="outline" size="sm" onClick={handleExport} disabled={!users.length}>
-          <FileText className="h-4 w-4 mr-2" /> Exportar XLSX
-        </Button>
-      </div>
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Vendedor</TableHead>
-              <TableHead className="text-right">Faturamento</TableHead>
-              <TableHead className="text-right">Comissão</TableHead>
-              <TableHead className="text-right">Projeção Fatur.</TableHead>
-              <TableHead className="text-right">Projeção Comis.</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {users.map((u: any) => (
-              <TableRow key={u.id}>
-                <TableCell className="font-medium">
-                  <div className="flex flex-col">
-                    <span>{u.name}</span>
-                    <span className="text-[10px] text-muted-foreground">{u.email}</span>
-                    <Button 
-                      variant="link" 
-                      size="sm" 
-                      className="h-auto p-0 text-left text-xs text-primary justify-start"
-                      onClick={() => {
-                        const sp = new URLSearchParams();
-                        sp.set("user_id", u.id);
-                        sp.set("start_date", startDate);
-                        sp.set("end_date", endDate);
-                        sp.set("status", "all");
-                        window.location.href = `/crm/comissoes/validacao?${sp.toString()}`;
-                      }}
-                    >
-                      Ver detalhes
-                    </Button>
-                  </div>
-                </TableCell>
-                <TableCell className="text-right font-medium text-green-600">{fmt(u.net_total || 0)}</TableCell>
-                <TableCell className="text-right font-bold text-primary">{fmt(u.commission?.total || 0)}</TableCell>
-                <TableCell className="text-right text-muted-foreground">{fmt(u.projected_net_total || 0)}</TableCell>
-                <TableCell className="text-right text-muted-foreground">{fmt(u.projected_commission?.total || 0)}</TableCell>
-              </TableRow>
-            ))}
-            {!users.length && (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                  Nenhum dado de comissão encontrado para o período.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
-    </div>
-  );
-}
 
