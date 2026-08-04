@@ -124,11 +124,11 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
       { name: "Indicadores", href: "/crm/representantes", icon: Handshake, moduleKey: 'representatives', permissionKey: 'can_view_representatives' },
       { name: "Hub Representantes", href: "/crm/representantes-hub", icon: Handshake, moduleKey: 'representatives', permissionKey: 'can_view_representatives' },
       { name: "Metas", href: "/crm/metas", icon: Target, moduleKey: 'goals', permissionKey: 'can_view_goals' },
-      { name: "FollowUp Fábrica", href: "/crm/followup-fabrica", icon: Factory, moduleKey: 'goals', permissionKey: 'can_view_goals' },
-      { name: "Validar Faturamento", href: "/comissoes/validacao", icon: ShieldCheck, permissionKey: 'can_validate_billing' },
-      { name: "Minha Comissão", href: "/comissoes/minhas", icon: Wallet },
+      { name: "Ajustes de Comissão", href: "/comissoes/minhas", icon: Wallet },
       { name: "Regras de Comissão", href: "/comissoes/regras", icon: Settings, adminOnly: true },
-      { name: "Folha de Pagamento", href: "/folha-pagamento", icon: Receipt, permissionKey: 'can_view_payroll' },
+      { name: "Validar Faturamento", href: "/comissoes/validacao", icon: ShieldCheck, permissionKey: 'can_validate_billing' },
+      { name: "FollowUp Fábrica", href: "/crm/followup-fabrica", icon: Factory, moduleKey: 'goals', permissionKey: 'can_view_goals' },
+      
       { name: "Revenue Intel", href: "/revenue-intelligence", icon: Brain, permissionKey: 'can_view_revenue_intel' },
       { name: "Supervisor IA", href: "/supervisor-ia", icon: Brain, moduleKey: 'supervisor_ia', permissionKey: 'can_view_supervisor_ia' },
       { name: "Segmentação", href: "/crm/segmentacao", icon: Filter, permissionKey: 'can_view_companies' },
@@ -223,6 +223,7 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
     permissionKey: 'can_view_rh',
     items: [
       { name: "Ponto", href: "/rh", icon: Clock, permissionKey: 'can_view_rh' },
+      { name: "Gestão de Equipe", href: "/folha-pagamento", icon: Receipt, permissionKey: 'can_view_payroll' },
     ],
   },
   {
