@@ -261,7 +261,8 @@ export default function ComissoesValidacao() {
                         <TableHead>Cliente / Pedido</TableHead>
                         <TableHead>Vendedor</TableHead>
                         <TableHead>Canal</TableHead>
-                        <TableHead className="text-right">Valor</TableHead>
+                        <TableHead className="text-right">Valor Líquido</TableHead>
+                        <TableHead className="text-right">Comissão</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead className="w-24">Ações</TableHead>
                       </TableRow>
@@ -291,6 +292,14 @@ export default function ComissoesValidacao() {
                               {r.adjusted_value != null && (
                                 <div className="text-[10px] text-muted-foreground line-through">{fmt(r.order_value)}</div>
                               )}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="text-sm font-semibold text-primary">
+                                {fmt((r as any).commission_value || 0)}
+                              </div>
+                              <div className="text-[10px] text-muted-foreground">
+                                {(r as any).commission_percent || 0}%
+                              </div>
                             </TableCell>
                             <TableCell>
                               <Badge className={STATUS_LABEL[st].className}>{STATUS_LABEL[st].label}</Badge>

@@ -118,7 +118,9 @@ export default function CRMMetas() {
   }
 
 
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const queryParams = useMemo(() => new URLSearchParams(window.location.search), []);
+  const initialTab = queryParams.get("tab") || "dashboard";
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [formOpen, setFormOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
