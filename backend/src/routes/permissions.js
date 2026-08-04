@@ -25,7 +25,7 @@ const PERMISSION_COLUMNS = [
   'can_view_ead', 'can_manage_ead',
   'can_validate_billing', 'can_view_commission', 'can_manage_commission_rules',
   'can_view_payroll', 'can_manage_payroll',
-  'can_view_minutas',
+  'can_view_minutas', 'can_view_team_commission',
 ];
 
 // Default permissions for each role
