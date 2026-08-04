@@ -116,9 +116,9 @@ export default function ComissoesMinhas() {
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Wallet className="h-4 w-4" /> Comissão a receber
             </div>
-            <div className="text-2xl font-bold text-primary">{fmt(data?.commission?.total || 0)}</div>
+            <div className="text-2xl font-bold text-primary">{fmt((data?.commission?.regular?.total || 0) + (data?.commission?.redbar?.total || 0))}</div>
             <div className="text-xs text-muted-foreground">
-              Projeção mês: {fmt(data?.projected_commission?.total || 0)}
+              Projeção mês: {fmt((data?.projected_commission?.regular?.total || 0) + (data?.projected_commission?.redbar?.total || 0))}
             </div>
             {data?.commission?.redbar_enabled && (
               <div className="mt-1 text-[11px] text-red-700 dark:text-red-400">

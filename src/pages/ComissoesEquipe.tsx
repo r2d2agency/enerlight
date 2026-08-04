@@ -22,14 +22,14 @@ export default function ComissoesEquipe() {
   const handleExport = () => {
     if (!summary?.users?.length) return;
     const exportData = summary.users.map((u: any) => ({
-      'Vendedor': u.name,
+      'Vendedor': u.user_name || u.name,
       'Email': u.email,
       'Faturamento Validado': u.net_total || 0,
-      'Comissão Validada': u.commission?.total || 0,
+      'Comissão Validada': (u.commission?.regular?.total || 0) + (u.commission?.redbar?.total || 0),
       'Comissão Red Bar': u.commission?.redbar?.total || 0,
       'Comissão Normal': u.commission?.regular?.total || 0,
       'Projeção Faturamento': u.projected_net_total || 0,
-      'Projeção Comissão': u.projected_commission?.total || 0
+      'Projeção Comissão': (u.projected_commission?.regular?.total || 0) + (u.projected_commission?.redbar?.total || 0)
     }));
     exportToExcel(exportData, `Comissoes_Equipe_${startDate}_${endDate}`);
   };
@@ -101,7 +101,7 @@ export default function ComissoesEquipe() {
                     <TableCell className="text-right font-medium text-green-600">{fmt(u.net_total || 0)}</TableCell>
                     <TableCell className="text-right text-muted-foreground">{fmt(u.commission?.regular?.total || 0)}</TableCell>
                     <TableCell className="text-right text-red-600">{fmt(u.commission?.redbar?.total || 0)}</TableCell>
-                    <TableCell className="text-right font-bold text-primary">{fmt(u.commission?.total || 0)}</TableCell>
+                    <TableCell className="text-right font-bold text-primary">{fmt((u.commission?.regular?.total || 0) + (u.commission?.redbar?.total || 0))}</TableCell>
                     <TableCell className="text-right">
                       <Button 
                         variant="link" 
