@@ -12,6 +12,7 @@ import { Plus, Pencil, Trash2, Settings2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   useCommissionRules, useCommissionRulesMutations, useCommissionOrgUsers,
+  useValidationQueue,
   Tier, CommissionRule,
 } from "@/hooks/use-commission";
 
