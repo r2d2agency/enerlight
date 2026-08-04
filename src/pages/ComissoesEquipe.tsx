@@ -22,7 +22,7 @@ export default function ComissoesEquipe() {
   const handleExport = () => {
     if (!summary?.users?.length) return;
     const exportData = summary.users.map((u: any) => ({
-      'Vendedor': u.name,
+      'Vendedor': u.user_name || u.name,
       'Email': u.email,
       'Faturamento Validado': u.net_total || 0,
       'Comissão Validada': u.commission?.total || 0,
