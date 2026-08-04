@@ -9,6 +9,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Check, X, RotateCcw, Pencil, ShieldCheck } from "lucide-react";
@@ -336,6 +338,7 @@ function EditDialog({ record, onClose, users }: { record: ValidationRecord | nul
   const [channel, setChannel] = useState<string>("");
   const [note, setNote] = useState<string>("");
   const [isRefund, setIsRefund] = useState(false);
+  const [customCommission, setCustomCommission] = useState<string>("");
 
   useMemo(() => {
     if (record) {
@@ -344,6 +347,7 @@ function EditDialog({ record, onClose, users }: { record: ValidationRecord | nul
       setChannel(record.channel || "");
       setNote(record.validation_note || "");
       setIsRefund(!!record.is_refund);
+      setCustomCommission(record.custom_commission_percent != null ? String(record.custom_commission_percent) : "");
     }
   }, [record?.id]);
 
@@ -357,6 +361,7 @@ function EditDialog({ record, onClose, users }: { record: ValidationRecord | nul
         channel,
         validation_note: note,
         is_refund: isRefund,
+        custom_commission_percent: customCommission === "" ? null : Number(customCommission),
       } as any,
     });
     toast.success("Registro atualizado");
@@ -395,6 +400,12 @@ function EditDialog({ record, onClose, users }: { record: ValidationRecord | nul
             <div>
               <Label className="text-xs">Observação / Motivo</Label>
               <Textarea rows={3} value={note} onChange={e => setNote(e.target.value)} />
+              <p className="text-xs text-muted-foreground mt-1">Obrigatório para comissões diferenciadas ou ajustes.</p>
+            </div>
+            <div>
+              <Label className="text-xs">Comissão diferenciada (%)</Label>
+              <Input type="number" step="0.001" value={customCommission} onChange={e => setCustomCommission(e.target.value)} placeholder="Ex: 0.5 para 0.5%" />
+              <p className="text-xs text-muted-foreground mt-1">Se preenchido, ignora a regra base do vendedor para este item.</p>
             </div>
             <label className="flex items-center gap-2 text-sm">
               <Checkbox checked={isRefund} onCheckedChange={c => setIsRefund(!!c)} />
