@@ -61,7 +61,7 @@ export default function ComissoesMinhas() {
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <Wallet className="h-6 w-6 text-primary" />
-          <h1 className="text-2xl font-bold">Ajustes de Comissão</h1>
+          <h1 className="text-2xl font-bold">Minha Comissão</h1>
         </div>
         <div className="flex gap-2 items-end">
           <div>
