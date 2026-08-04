@@ -348,6 +348,7 @@ export default function CRMMetas() {
             <TabsTrigger value="semanal" className="gap-2 text-xs sm:text-sm py-1.5 px-3 whitespace-nowrap"><CalendarDays className="h-4 w-4" /> Semanal</TabsTrigger>
             <TabsTrigger value="trimestral" className="gap-2 text-xs sm:text-sm py-1.5 px-3 whitespace-nowrap"><CalendarDays className="h-4 w-4" /> Trimestral</TabsTrigger>
             <TabsTrigger value="imports" className="gap-2 text-xs sm:text-sm py-1.5 px-3 whitespace-nowrap"><Upload className="h-4 w-4" /> Importações</TabsTrigger>
+            <TabsTrigger value="commissions" className="gap-2 text-xs sm:text-sm py-1.5 px-3 whitespace-nowrap"><Wallet className="h-4 w-4" /> Comissões da Equipe</TabsTrigger>
           </TabsList>
 
           {/* Filters - shared */}
