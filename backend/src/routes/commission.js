@@ -560,7 +560,7 @@ router.get('/summary', async (req, res) => {
       [m.organization_id, sd, ed]
     );
 
-    const rulesRes = await query(`SELECT * FROM commission_rules WHERE organization_id = $1`, [m.organization_id]);
+    const rulesRes = await query(`SELECT cr.*, u.name as user_name, u.role FROM commission_rules cr JOIN users u ON u.id = cr.user_id WHERE cr.organization_id = $1`, [m.organization_id]);
     const rulesByUser = Object.fromEntries(rulesRes.rows.map(r => [r.user_id, r]));
 
     const users = [];
@@ -613,7 +613,10 @@ router.get('/summary', async (req, res) => {
 
       users.push({
         user_id: r.linked_user_id,
-        user_name: r.user_name,
+        user_name: r.user_name || rule?.user_name,
+        role: rule?.role,
+        is_manager: !!rule?.is_manager,
+        managed_channel: rule?.managed_channel,
         is_manager: !!rule?.is_manager,
         managed_channel: rule?.managed_channel,
         validated_count: Number(r.validated_count),
