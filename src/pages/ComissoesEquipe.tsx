@@ -101,7 +101,7 @@ export default function ComissoesEquipe() {
                     <TableCell className="text-right font-medium text-green-600">{fmt(u.net_total || 0)}</TableCell>
                     <TableCell className="text-right text-muted-foreground">{fmt(u.commission?.regular?.total || 0)}</TableCell>
                     <TableCell className="text-right text-red-600">{fmt(u.commission?.redbar?.total || 0)}</TableCell>
-                    <TableCell className="text-right font-bold text-primary">{fmt(u.commission?.total || 0)}</TableCell>
+                    <TableCell className="text-right font-bold text-primary">{fmt((u.commission?.regular?.total || 0) + (u.commission?.redbar?.total || 0))}</TableCell>
                     <TableCell className="text-right">
                       <Button 
                         variant="link" 
