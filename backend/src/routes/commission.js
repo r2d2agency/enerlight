@@ -255,6 +255,25 @@ router.get('/validation', async (req, res) => {
       params
     );
 
+    // To show individual commissions in the validation queue, we need rules
+    const rulesRes = await query(`SELECT * FROM commission_rules WHERE organization_id = $1`, [m.organization_id]);
+    const rulesByUser = Object.fromEntries(rulesRes.rows.map(r => [r.user_id, r]));
+
+    const recordsWithCommission = rows.rows.map(r => {
+      const userIdToUse = r.linked_user_id;
+      const rule = rulesByUser[userIdToUse];
+      let commission_percent = 0;
+      let commission_value = 0;
+
+      if (rule || r.custom_commission_percent != null) {
+        const val = Number(r.adjusted_value ?? r.order_value) * (r.is_refund ? -1 : 1);
+        commission_percent = Number(r.custom_commission_percent ?? (r.is_redbar && rule?.redbar_enabled ? rule?.redbar_base_percent : rule?.base_percent) ?? 0);
+        commission_value = val * (commission_percent / 100);
+      }
+
+      return { ...r, commission_percent, commission_value };
+    });
+
     const stats = await query(
       `SELECT COALESCE(validation_status, 'pending') AS status,
               COUNT(*) AS count,
@@ -264,7 +283,7 @@ router.get('/validation', async (req, res) => {
       params
     );
 
-    res.json({ records: rows.rows, stats: stats.rows });
+    res.json({ records: recordsWithCommission, stats: stats.rows });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -423,16 +442,22 @@ function computePart(basePercent, tiers, items) {
   let itemsValueTotal = 0;
   const list = Array.isArray(tiers) ? tiers : [];
 
-  for (const item of items) {
+  const analyzedItems = items.map(item => {
     const val = Number(item.adjusted_value ?? item.order_value) * (item.is_refund ? -1 : 1);
-    itemsValueTotal += val;
+    let commissionPercent = Number(basePercent || 0);
     
     // Individual item commission override
     if (item.custom_commission_percent != null) {
-      baseTotal += val * (Number(item.custom_commission_percent) / 100);
-    } else {
-      baseTotal += val * (Number(basePercent || 0) / 100);
+      commissionPercent = Number(item.custom_commission_percent);
     }
+    
+    const commission_value = val * (commissionPercent / 100);
+    return { ...item, val, commissionPercent, commission_value };
+  });
+
+  for (const item of analyzedItems) {
+    itemsValueTotal += item.val;
+    baseTotal += item.commission_value;
   }
 
   const achieved = [];
@@ -446,7 +471,7 @@ function computePart(basePercent, tiers, items) {
       nextTier = t;
     }
   }
-  return { base: baseTotal, bonus: bonusTotal, total: baseTotal + bonusTotal, achieved, nextTier };
+  return { base: baseTotal, bonus: bonusTotal, total: baseTotal + bonusTotal, achieved, nextTier, items: analyzedItems };
 }
 
 function computeCommission(rule, items) {
@@ -460,7 +485,9 @@ function computeCommission(rule, items) {
   const regular = computePart(rule?.base_percent, rule?.tiers, regularItems);
   const redbar = redbarEnabled
     ? computePart(rule?.redbar_base_percent, rule?.redbar_tiers, redbarItems)
-    : { base: 0, bonus: 0, total: 0, achieved: [], nextTier: null };
+    : { base: 0, bonus: 0, total: 0, achieved: [], nextTier: null, items: [] };
+
+  const allProcessedItems = [...regular.items, ...redbar.items];
 
   return {
     base: regular.base + redbar.base,
@@ -472,7 +499,8 @@ function computeCommission(rule, items) {
     redbar,
     redbar_enabled: redbarEnabled,
     is_manager: isManager,
-    managed_channel: managedChannel
+    managed_channel: managedChannel,
+    processedItems: allProcessedItems
   };
 }
 
