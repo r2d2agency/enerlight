@@ -95,8 +95,8 @@ export default function ComissoesEquipe() {
                 {users.map((u: any) => (
                   <TableRow key={u.id}>
                     <TableCell>
-                      <div className="font-medium">{u.name}</div>
-                      <div className="text-[10px] text-muted-foreground">{u.email}</div>
+                      <div className="font-medium">{u.user_name || u.name}</div>
+                      <div className="text-[10px] text-muted-foreground">{u.user_email || u.email}</div>
                     </TableCell>
                     <TableCell className="text-right font-medium text-green-600">{fmt(u.net_total || 0)}</TableCell>
                     <TableCell className="text-right text-muted-foreground">{fmt(u.commission?.regular?.total || 0)}</TableCell>

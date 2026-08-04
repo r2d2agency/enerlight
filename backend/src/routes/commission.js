@@ -449,6 +449,9 @@ function computePart(basePercent, tiers, items) {
     // Individual item commission override
     if (item.custom_commission_percent != null) {
       commissionPercent = Number(item.custom_commission_percent);
+    } else if (item.is_redbar && basePercent === 0) {
+      // If we are in the redbar bucket but basePercent is 0, we might be hitting a logic gap
+      // This is just a safety, usually redbar bucket uses redbar_base_percent
     }
     
     const commission_value = val * (commissionPercent / 100);

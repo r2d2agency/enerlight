@@ -190,7 +190,7 @@ export default function ComissoesValidacao() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {(["pending", "validated", "rejected"] as const).map(s => (
           <Card key={s}>
             <CardContent className="p-4">
@@ -200,6 +200,15 @@ export default function ComissoesValidacao() {
             </CardContent>
           </Card>
         ))}
+        <Card className="bg-primary/5 border-primary/20">
+          <CardContent className="p-4">
+            <div className="text-xs text-primary font-medium">Total Comissão (Validado)</div>
+            <div className="text-2xl font-bold text-primary">
+              {fmt(records.filter(r => r.validation_status === "validated").reduce((s, r) => s + (r.commission_value || 0), 0))}
+            </div>
+            <div className="text-sm text-primary/60">no período filtrado</div>
+          </CardContent>
+        </Card>
         <Card>
           <CardContent className="p-4">
             <div className="text-xs text-muted-foreground">Vendedores impactados</div>
