@@ -114,9 +114,12 @@ function RuleDialog({ rule, onClose, users, existing }: {
   const [isManager, setIsManager] = useState(false);
   const [managedChannel, setManagedChannel] = useState("");
 
+  const { data: validationData } = useValidationQueue({ start_date: "2020-01-01" });
   const channels = useMemo(() => {
-    return ["Venda Direta", "Marketplace", "Representante", "E-commerce"];
-  }, []);
+    const s = new Set<string>();
+    (validationData?.records || []).forEach(r => { if (r.channel) s.add(r.channel); });
+    return Array.from(s).sort();
+  }, [validationData]);
 
   useEffect(() => {
     if (rule) {
