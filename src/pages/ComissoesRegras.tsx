@@ -12,6 +12,7 @@ import { Plus, Pencil, Trash2, Settings2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   useCommissionRules, useCommissionRulesMutations, useCommissionOrgUsers,
+  useValidationQueue,
   Tier, CommissionRule,
 } from "@/hooks/use-commission";
 
@@ -114,9 +115,12 @@ function RuleDialog({ rule, onClose, users, existing }: {
   const [isManager, setIsManager] = useState(false);
   const [managedChannel, setManagedChannel] = useState("");
 
+  const { data: validationData } = useValidationQueue({ start_date: "2020-01-01" });
   const channels = useMemo(() => {
-    return ["Venda Direta", "Marketplace", "Representante", "E-commerce"];
-  }, []);
+    const s = new Set<string>();
+    (validationData?.records || []).forEach(r => { if (r.channel) s.add(r.channel); });
+    return Array.from(s).sort();
+  }, [validationData]);
 
   useEffect(() => {
     if (rule) {
@@ -214,6 +218,7 @@ function RuleDialog({ rule, onClose, users, existing }: {
                   <SelectTrigger><SelectValue placeholder="Selecione o canal..." /></SelectTrigger>
                   <SelectContent>
                     {channels.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                    {!channels.length && <div className="p-2 text-xs text-muted-foreground">Nenhum canal encontrado nos registros.</div>}
                   </SelectContent>
                 </Select>
               </div>
