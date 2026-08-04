@@ -218,6 +218,7 @@ function RuleDialog({ rule, onClose, users, existing }: {
                   <SelectTrigger><SelectValue placeholder="Selecione o canal..." /></SelectTrigger>
                   <SelectContent>
                     {channels.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                    {!channels.length && <div className="p-2 text-xs text-muted-foreground">Nenhum canal encontrado nos registros.</div>}
                   </SelectContent>
                 </Select>
               </div>
