@@ -25,7 +25,7 @@ export default function ComissoesEquipe() {
       'Vendedor': u.user_name || u.name,
       'Email': u.email,
       'Faturamento Validado': u.net_total || 0,
-      'Comissão Validada': u.commission?.total || 0,
+      'Comissão Validada': (u.commission?.regular?.total || 0) + (u.commission?.redbar?.total || 0),
       'Comissão Red Bar': u.commission?.redbar?.total || 0,
       'Comissão Normal': u.commission?.regular?.total || 0,
       'Projeção Faturamento': u.projected_net_total || 0,
