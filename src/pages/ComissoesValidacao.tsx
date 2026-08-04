@@ -302,9 +302,11 @@ export default function ComissoesValidacao() {
                               </div>
                             </TableCell>
                             <TableCell>
-                              <Badge className={STATUS_LABEL[st].className}>{STATUS_LABEL[st].label}</Badge>
-                              {r.is_redbar && <Badge className="ml-1 bg-red-100 text-red-700">Red Bar</Badge>}
-                              {r.is_refund && <Badge variant="outline" className="ml-1 text-red-600">Devolução</Badge>}
+                              <div className="flex flex-wrap gap-1">
+                                <Badge className={STATUS_LABEL[st].className}>{STATUS_LABEL[st].label}</Badge>
+                                {r.is_redbar && <Badge className="bg-red-500 text-white">Red Bar</Badge>}
+                                {r.is_refund && <Badge variant="outline" className="text-red-600 border-red-200">Devolução</Badge>}
+                              </div>
                             </TableCell>
                             <TableCell>
                               <div className="flex gap-1">
