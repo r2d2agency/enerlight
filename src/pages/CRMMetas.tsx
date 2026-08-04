@@ -1834,3 +1834,48 @@ export default function CRMMetas() {
     </MainLayout>
   );
 }
+
+function TeamCommissionsTable({ startDate, endDate }: { startDate: string, endDate: string }) {
+  const { data: summary, isLoading } = useCommissionSummary({ start_date: startDate, end_date: endDate });
+
+  if (isLoading) return <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
+
+  const users = summary?.users || [];
+
+  return (
+    <div className="overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Vendedor</TableHead>
+            <TableHead className="text-right">Faturamento</TableHead>
+            <TableHead className="text-right">Comissão</TableHead>
+            <TableHead className="text-right">Projeção Fatur.</TableHead>
+            <TableHead className="text-right">Projeção Comis.</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {users.map((u: any) => (
+            <TableRow key={u.id}>
+              <TableCell className="font-medium">
+                <div>{u.name}</div>
+                <div className="text-[10px] text-muted-foreground">{u.email}</div>
+              </TableCell>
+              <TableCell className="text-right font-medium text-green-600">{fmt(u.net_total || 0)}</TableCell>
+              <TableCell className="text-right font-bold text-primary">{fmt(u.commission?.total || 0)}</TableCell>
+              <TableCell className="text-right text-muted-foreground">{fmt(u.projected_net_total || 0)}</TableCell>
+              <TableCell className="text-right text-muted-foreground">{fmt(u.projected_commission?.total || 0)}</TableCell>
+            </TableRow>
+          ))}
+          {!users.length && (
+            <TableRow>
+              <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                Nenhum dado de comissão encontrado para o período.
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
