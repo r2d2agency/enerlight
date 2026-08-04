@@ -1604,18 +1604,17 @@ export default function CRMMetas() {
             <ImportBatchList onDeleted={invalidateData} />
           </TabsContent>
 
-          {/* Commissions tab */}
+          {/* Commissions tab moved to standalone page */}
           <TabsContent value="commissions" className="space-y-4">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                <div>
-                  <CardTitle>Comissões da Equipe</CardTitle>
-                  <CardDescription>Resumo de comissões calculadas para todos os vendedores no período selecionado.</CardDescription>
-                </div>
+              <CardHeader>
+                <CardTitle>Comissões da Equipe</CardTitle>
+                <CardDescription>Esta aba foi movida para uma página dedicada.</CardDescription>
               </CardHeader>
-
               <CardContent>
-                <TeamCommissionsTable startDate={startDate} endDate={endDate} />
+                <Button onClick={() => window.location.href = '/comissoes/equipe'}>
+                  Ver Comissões da Equipe
+                </Button>
               </CardContent>
             </Card>
           </TabsContent>
