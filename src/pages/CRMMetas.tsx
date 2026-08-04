@@ -1598,10 +1598,22 @@ export default function CRMMetas() {
           <TabsContent value="imports" className="space-y-4">
             <ImportBatchList onDeleted={invalidateData} />
           </TabsContent>
+
+          {/* Commissions tab */}
+          <TabsContent value="commissions" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Comissões da Equipe</CardTitle>
+                <CardDescription>Resumo de comissões calculadas para todos os vendedores no período selecionado.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <TeamCommissionsTable startDate={startDate} endDate={endDate} />
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
 
-      {/* Create/Edit Dialog */}
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
         <DialogContent className="max-w-lg" aria-describedby={undefined}>
           <DialogHeader>
