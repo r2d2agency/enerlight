@@ -69,6 +69,8 @@ async function ensureSchema() {
       created_at timestamptz DEFAULT NOW()
     )`);
     await query(`CREATE INDEX IF NOT EXISTS idx_payroll_periods_org ON payroll_periods(organization_id, reference_month DESC)`);
+    await query(`ALTER TABLE erp_billing_records ADD COLUMN IF NOT EXISTS payroll_item_id uuid REFERENCES payroll_items(id)`);
+    await query(`ALTER TABLE crm_goals_data ADD COLUMN IF NOT EXISTS payroll_item_id uuid REFERENCES payroll_items(id)`);
   })();
   return schemaReady;
 }
@@ -273,10 +275,30 @@ router.post('/periods', async (req, res) => {
       const base = Number(u.base_salary) || 0;
       const total = base + commission;
 
-      await query(
+      const itemRes = await query(
         `INSERT INTO payroll_items (period_id, user_id, user_name, base_salary, commission_value, bonus_value, deductions_total, total)
-         VALUES ($1, $2, $3, $4, $5, 0, 0, $6)`,
+         VALUES ($1, $2, $3, $4, $5, 0, 0, $6)
+         RETURNING id`,
         [periodId, u.id, u.name, base, commission, total]
+      );
+      const payrollItemId = itemRes.rows[0].id;
+
+      // Link validated records to this payroll item
+      await query(
+        `UPDATE erp_billing_records 
+         SET payroll_item_id = $1 
+         WHERE organization_id = $2 AND linked_user_id = $3 
+           AND billing_date >= $4::date AND billing_date < ($4::date + INTERVAL '1 month')
+           AND validation_status = 'validated'`,
+        [payrollItemId, org.organization_id, u.id, monthStart]
+      );
+      await query(
+        `UPDATE crm_goals_data 
+         SET payroll_item_id = $1 
+         WHERE organization_id = $2 AND user_id = $3 AND data_type = 'faturamento'
+           AND billing_date >= $4::date AND billing_date < ($4::date + INTERVAL '1 month')
+           AND validation_status = 'validated'`,
+        [payrollItemId, org.organization_id, u.id, monthStart]
       );
     }
 

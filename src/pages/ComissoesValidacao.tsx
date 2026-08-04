@@ -338,6 +338,8 @@ function EditDialog({ record, onClose, users }: { record: ValidationRecord | nul
   const [isRefund, setIsRefund] = useState(false);
   const [customCommission, setCustomCommission] = useState<string>("");
 
+  const [isPaid, setIsPaid] = useState(false);
+
   useMemo(() => {
     if (record) {
       setAdjusted(record.adjusted_value != null ? String(record.adjusted_value) : "");
@@ -346,6 +348,7 @@ function EditDialog({ record, onClose, users }: { record: ValidationRecord | nul
       setNote(record.validation_note || "");
       setIsRefund(!!record.is_refund);
       setCustomCommission(record.custom_commission_percent != null ? String(record.custom_commission_percent) : "");
+      setIsPaid(!!(record as any).payroll_item_id);
     }
   }, [record?.id]);
 
@@ -368,10 +371,16 @@ function EditDialog({ record, onClose, users }: { record: ValidationRecord | nul
 
   return (
     <Dialog open={!!record} onOpenChange={o => !o && onClose()}>
-      <DialogContent>
+      <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Editar registro</DialogTitle>
+          <DialogTitle>Validar Item de Faturamento</DialogTitle>
+          {isPaid && (
+            <Badge variant="outline" className="w-fit mt-2 bg-blue-50 text-blue-700 border-blue-200">
+              Item já processado em Folha de Pagamento
+            </Badge>
+          )}
         </DialogHeader>
+
         {record && (
           <div className="space-y-3">
             <div className="text-sm text-muted-foreground">
