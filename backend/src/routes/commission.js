@@ -149,7 +149,8 @@ function commissionSourceSql() {
       (
         COALESCE(b.channel,'') || ' ' || COALESCE(b.client_name,'') || ' ' || COALESCE(b.order_number,'')
       ) ~* ${REDBAR_REGEX} AS is_redbar,
-      b.created_at
+      b.created_at,
+      b.custom_commission_percent
     FROM erp_billing_records b
     UNION ALL
     SELECT
@@ -174,7 +175,8 @@ function commissionSourceSql() {
       (
         COALESCE(g.channel,'') || ' ' || COALESCE(g.client_name,'') || ' ' || COALESCE(g.client_group,'') || ' ' || COALESCE(g.order_number,'') || ' ' || COALESCE(g.number,'')
       ) ~* ${REDBAR_REGEX} AS is_redbar,
-      g.created_at
+      g.created_at,
+      g.custom_commission_percent
     FROM crm_goals_data g
     WHERE g.data_type = 'faturamento'
       AND NOT EXISTS (
