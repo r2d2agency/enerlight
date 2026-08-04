@@ -69,6 +69,8 @@ async function ensureSchema() {
       created_at timestamptz DEFAULT NOW()
     )`);
     await query(`CREATE INDEX IF NOT EXISTS idx_payroll_periods_org ON payroll_periods(organization_id, reference_month DESC)`);
+    await query(`ALTER TABLE erp_billing_records ADD COLUMN IF NOT EXISTS payroll_item_id uuid REFERENCES payroll_items(id)`);
+    await query(`ALTER TABLE crm_goals_data ADD COLUMN IF NOT EXISTS payroll_item_id uuid REFERENCES payroll_items(id)`);
   })();
   return schemaReady;
 }
