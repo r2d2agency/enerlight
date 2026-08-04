@@ -26,8 +26,8 @@ export default function ComissoesEquipe() {
       'Email': u.email,
       'Faturamento Validado': u.net_total || 0,
       'Comissão Validada': u.commission?.total || 0,
-      'Comissão Red Bar': u.commission?.redbar_total || 0,
-      'Comissão Normal': u.commission?.normal_total || 0,
+      'Comissão Red Bar': u.commission?.redbar?.total || 0,
+      'Comissão Normal': u.commission?.regular?.total || 0,
       'Projeção Faturamento': u.projected_net_total || 0,
       'Projeção Comissão': u.projected_commission?.total || 0
     }));
