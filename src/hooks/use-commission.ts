@@ -81,7 +81,7 @@ export function useCommissionRulesMutations() {
   const qc = useQueryClient();
   const invalidate = () => qc.invalidateQueries({ queryKey: ["commission-rules"] });
   const upsert = useMutation({
-    mutationFn: (data: { user_id: string; base_percent: number; tiers: Tier[]; active: boolean; redbar_enabled?: boolean; redbar_base_percent?: number; redbar_tiers?: Tier[] }) =>
+    mutationFn: (data: { user_id: string; base_percent: number; tiers: Tier[]; active: boolean; redbar_enabled?: boolean; redbar_base_percent?: number; redbar_tiers?: Tier[]; is_manager?: boolean; managed_channel?: string }) =>
       api(`/api/commission/rules/${data.user_id}`, { method: "PUT", body: data }),
     onSuccess: invalidate,
   });
