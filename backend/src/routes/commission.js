@@ -401,8 +401,6 @@ router.put('/rules/:userId', async (req, res) => {
         !!is_manager, managed_channel || null
       ]
     );
-      ]
-    );
     res.json(r.rows[0]);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -419,32 +417,51 @@ router.delete('/rules/:userId', async (req, res) => {
 });
 
 // Helper: compute commission on a single bucket (regular or redbar)
-function computePart(basePercent, tiers, total) {
-  const base = total * (Number(basePercent || 0) / 100);
+function computePart(basePercent, tiers, items) {
+  let baseTotal = 0;
+  let bonusTotal = 0;
+  let itemsValueTotal = 0;
   const list = Array.isArray(tiers) ? tiers : [];
-  let bonus = 0;
+
+  for (const item of items) {
+    const val = Number(item.adjusted_value ?? item.order_value) * (item.is_refund ? -1 : 1);
+    itemsValueTotal += val;
+    
+    // Individual item commission override
+    if (item.custom_commission_percent != null) {
+      baseTotal += val * (Number(item.custom_commission_percent) / 100);
+    } else {
+      baseTotal += val * (Number(basePercent || 0) / 100);
+    }
+  }
+
   const achieved = [];
   let nextTier = null;
   for (const t of list) {
-    if (total >= t.target) {
-      const b = (total * (Number(t.extra_percent) || 0) / 100) + (Number(t.extra_fixed) || 0);
-      bonus += b;
+    if (itemsValueTotal >= t.target) {
+      const b = (itemsValueTotal * (Number(t.extra_percent) || 0) / 100) + (Number(t.extra_fixed) || 0);
+      bonusTotal += b;
       achieved.push({ ...t, bonus: b });
     } else if (!nextTier) {
       nextTier = t;
     }
   }
-  return { base, bonus, total: base + bonus, achieved, nextTier };
+  return { base: baseTotal, bonus: bonusTotal, total: baseTotal + bonusTotal, achieved, nextTier };
 }
 
-// If redbar is enabled on the rule, uses its own base_percent/tiers; otherwise falls back to normal rule.
-function computeCommission(rule, validatedTotal, redbarTotal = 0) {
+function computeCommission(rule, items) {
+  const isManager = !!rule?.is_manager;
+  const managedChannel = rule?.managed_channel;
+  
   const redbarEnabled = !!rule?.redbar_enabled;
-  const regularAmount = redbarEnabled ? Math.max(0, validatedTotal - redbarTotal) : validatedTotal;
-  const regular = computePart(rule?.base_percent, rule?.tiers, regularAmount);
+  const redbarItems = items.filter(i => i.is_redbar);
+  const regularItems = redbarEnabled ? items.filter(i => !i.is_redbar) : items;
+
+  const regular = computePart(rule?.base_percent, rule?.tiers, regularItems);
   const redbar = redbarEnabled
-    ? computePart(rule?.redbar_base_percent, rule?.redbar_tiers, redbarTotal)
+    ? computePart(rule?.redbar_base_percent, rule?.redbar_tiers, redbarItems)
     : { base: 0, bonus: 0, total: 0, achieved: [], nextTier: null };
+
   return {
     base: regular.base + redbar.base,
     bonus: regular.bonus + redbar.bonus,
@@ -454,6 +471,8 @@ function computeCommission(rule, validatedTotal, redbarTotal = 0) {
     regular,
     redbar,
     redbar_enabled: redbarEnabled,
+    is_manager: isManager,
+    managed_channel: managedChannel
   };
 }
 
