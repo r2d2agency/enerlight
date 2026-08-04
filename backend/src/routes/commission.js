@@ -458,9 +458,6 @@ function computePart(basePercent, tiers, items) {
     // Individual item commission override
     if (item.custom_commission_percent != null) {
       commissionPercent = Number(item.custom_commission_percent);
-    } else if (item.is_redbar && basePercent === 0) {
-      // If we are in the redbar bucket but basePercent is 0, we might be hitting a logic gap
-      // This is just a safety, usually redbar bucket uses redbar_base_percent
     }
     
     const commission_value = val * (commissionPercent / 100);
@@ -492,7 +489,14 @@ function computeCommission(rule, items) {
   
   const redbarEnabled = !!rule?.redbar_enabled;
   const redbarItems = items.filter(i => i.is_redbar);
-  const regularItems = redbarEnabled ? items.filter(i => !i.is_redbar) : items;
+  const regularItems = items.filter(i => !i.is_redbar);
+
+  // If manager, we subtract the manager's individual sales from the total for the "manager commission" calculation
+  // No, wait, the user said: "e a comissao quando ele é gerente tem que ser somente a soma do canal nao pode ser o valor vendido por ele.. so a soma total do canal * % de comissao dele"
+  // This means the regularItems/redbarItems already represent the channel total (if fetched as channel total in /summary and /my).
+  // BUT we must ensure the calculation uses ONLY those items and doesn't double count if he also sold.
+  // Actually, if computeCommission is called with channel items, we just compute as usual.
+  // The logic to "only channel soma" is handled by fetching channel items instead of user items in the endpoints.
 
   const regular = computePart(rule?.base_percent, rule?.tiers, regularItems);
   const redbar = redbarEnabled
@@ -576,7 +580,6 @@ router.get('/summary', async (req, res) => {
          );
          itemsForCalc = channelItems.rows;
       } else {
-         // We'll need the items for individual calc too to support custom %
          const individualItems = await query(
            `SELECT b.* FROM ${commissionSourceSql()} b
             WHERE b.organization_id = $1 AND b.billing_date >= $2::date AND b.billing_date <= $3::date
