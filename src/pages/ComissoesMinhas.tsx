@@ -236,6 +236,7 @@ export default function ComissoesMinhas() {
                     </Badge>
                     {r.is_redbar && <Badge className="ml-1 bg-red-100 text-red-700">Red Bar</Badge>}
                     {r.is_refund && <Badge variant="outline" className="ml-1 text-red-600">Devolução</Badge>}
+                    {r.custom_commission_percent != null && <Badge variant="secondary" className="ml-1">Indiv. {r.custom_commission_percent}%</Badge>}
                   </TableCell>
                   <TableCell className={`text-right text-sm font-medium ${r.is_refund ? "text-red-600" : ""}`}>
                     {r.is_refund ? "-" : ""}{fmt(Number(r.adjusted_value ?? r.order_value))}
