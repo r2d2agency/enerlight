@@ -109,7 +109,12 @@ export default function ComissoesValidacao() {
     <div className="p-4 md:p-6 space-y-4 max-w-[1400px] mx-auto">
       <div className="flex items-center gap-2">
         <ShieldCheck className="h-6 w-6 text-primary" />
-        <h1 className="text-2xl font-bold">Validação de Faturamento</h1>
+        <h1 className="text-2xl font-bold">
+          Validação de Faturamento
+          {userId !== "all" && users?.find(u => u.id === userId) && (
+            <span className="text-muted-foreground ml-2"> - {users.find(u => u.id === userId)?.name}</span>
+          )}
+        </h1>
       </div>
       <p className="text-sm text-muted-foreground">
         Confira dia a dia, item por item. Registros marcados como <b>Validados</b> entram no cálculo de comissão dos vendedores.
