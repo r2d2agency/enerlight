@@ -29,7 +29,7 @@ export default function ComissoesEquipe() {
       'Comissão Red Bar': u.commission?.redbar?.total || 0,
       'Comissão Normal': u.commission?.regular?.total || 0,
       'Projeção Faturamento': u.projected_net_total || 0,
-      'Projeção Comissão': u.projected_commission?.total || 0
+      'Projeção Comissão': (u.projected_commission?.regular?.total || 0) + (u.projected_commission?.redbar?.total || 0)
     }));
     exportToExcel(exportData, `Comissoes_Equipe_${startDate}_${endDate}`);
   };
