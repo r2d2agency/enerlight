@@ -99,8 +99,8 @@ export default function ComissoesEquipe() {
                       <div className="text-[10px] text-muted-foreground">{u.email}</div>
                     </TableCell>
                     <TableCell className="text-right font-medium text-green-600">{fmt(u.net_total || 0)}</TableCell>
-                    <TableCell className="text-right text-muted-foreground">{fmt(u.commission?.normal_total || 0)}</TableCell>
-                    <TableCell className="text-right text-red-600">{fmt(u.commission?.redbar_total || 0)}</TableCell>
+                    <TableCell className="text-right text-muted-foreground">{fmt(u.commission?.regular?.total || 0)}</TableCell>
+                    <TableCell className="text-right text-red-600">{fmt(u.commission?.redbar?.total || 0)}</TableCell>
                     <TableCell className="text-right font-bold text-primary">{fmt(u.commission?.total || 0)}</TableCell>
                     <TableCell className="text-right">
                       <Button 
