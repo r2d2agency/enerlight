@@ -111,6 +111,9 @@ function RuleDialog({ rule, onClose, users, existing }: {
   const [redbarBasePercent, setRedbarBasePercent] = useState("0");
   const [redbarTiers, setRedbarTiers] = useState<Tier[]>([]);
 
+  const [isManager, setIsManager] = useState(false);
+  const [managedChannel, setManagedChannel] = useState("");
+
   useEffect(() => {
     if (rule) {
       setUserId(rule.user_id || "");
@@ -120,6 +123,8 @@ function RuleDialog({ rule, onClose, users, existing }: {
       setRedbarEnabled(!!rule.redbar_enabled);
       setRedbarBasePercent(String(rule.redbar_base_percent ?? 0));
       setRedbarTiers(Array.isArray(rule.redbar_tiers) ? [...rule.redbar_tiers] : []);
+      setIsManager(!!rule.is_manager);
+      setManagedChannel(rule.managed_channel || "");
     }
   }, [rule]);
 
@@ -144,6 +149,8 @@ function RuleDialog({ rule, onClose, users, existing }: {
       redbar_enabled: redbarEnabled,
       redbar_base_percent: Number(redbarBasePercent) || 0,
       redbar_tiers: redbarTiers,
+      is_manager: isManager,
+      managed_channel: managedChannel,
     });
     toast.success("Regra salva");
     onClose();
