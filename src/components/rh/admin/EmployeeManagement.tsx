@@ -448,6 +448,7 @@ export default function EmployeeManagement() {
               <TableHead>Usuário Vinculado</TableHead>
               <TableHead>Jornada</TableHead>
               <TableHead>Facial</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -497,6 +498,23 @@ export default function EmployeeManagement() {
                       <UserPlus className="h-3.5 w-3.5 mr-1" /> Vincular
                     </Button>
                   )}
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <Switch 
+                      checked={emp.is_active} 
+                      onCheckedChange={async (val) => {
+                        const success = await updateMember(emp.user_id, { is_active: val });
+                        if (success) {
+                          toast.success(`Colaborador ${val ? 'ativado' : 'desativado'} com sucesso`);
+                          loadData();
+                        }
+                      }}
+                    />
+                    <Badge variant={emp.is_active ? "default" : "secondary"}>
+                      {emp.is_active ? "Ativo" : "Inativo"}
+                    </Badge>
+                  </div>
                 </TableCell>
                 <TableCell className="text-xs">{emp.journey}</TableCell>
                 <TableCell>

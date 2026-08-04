@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -115,6 +115,10 @@ function RuleDialog({ rule, onClose, users, existing }: {
   const [managedChannel, setManagedChannel] = useState("");
 
   const channels = useMemo(() => {
+    return ["Venda Direta", "Marketplace", "Representante", "E-commerce"];
+  }, []);
+
+  const channels = useMemo(() => {
     // We don't have direct access to all channels here unless we fetch validation records,
     // but we can at least show the common ones or let the user type.
     // For now, let's use a standard list or empty if we don't have it.
@@ -198,6 +202,31 @@ function RuleDialog({ rule, onClose, users, existing }: {
               <Label>Ativa</Label>
             </div>
           </div>
+
+          <div className="rounded-lg border p-3 bg-muted/30 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-sm font-semibold">Configuração de Gerente</Label>
+                <p className="text-xs text-muted-foreground">Gerentes recebem comissão sobre o faturamento TOTAL do canal selecionado.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch checked={isManager} onCheckedChange={setIsManager} />
+                <Label className="text-xs">Ativar</Label>
+              </div>
+            </div>
+            {isManager && (
+              <div>
+                <Label className="text-xs">Canal Gerenciado</Label>
+                <Select value={managedChannel} onValueChange={setManagedChannel}>
+                  <SelectTrigger><SelectValue placeholder="Selecione o canal..." /></SelectTrigger>
+                  <SelectContent>
+                    {channels.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
