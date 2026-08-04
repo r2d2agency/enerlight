@@ -31,10 +31,11 @@ const STATUS_LABEL: Record<string, { label: string; className: string }> = {
 };
 
 export default function ComissoesValidacao() {
-  const [startDate, setStartDate] = useState(firstOfMonth());
-  const [endDate, setEndDate] = useState(lastOfMonth());
-  const [status, setStatus] = useState("pending");
-  const [userId, setUserId] = useState("all");
+  const queryParams = useMemo(() => new URLSearchParams(window.location.search), []);
+  const [startDate, setStartDate] = useState(queryParams.get("start_date") || firstOfMonth());
+  const [endDate, setEndDate] = useState(queryParams.get("end_date") || lastOfMonth());
+  const [status, setStatus] = useState(queryParams.get("status") || "pending");
+  const [userId, setUserId] = useState(queryParams.get("user_id") || "all");
   const [channel, setChannel] = useState("all");
   const [redbarFilter, setRedbarFilter] = useState("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());

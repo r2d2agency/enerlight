@@ -1883,8 +1883,25 @@ function TeamCommissionsTable({ startDate, endDate }: { startDate: string, endDa
             {users.map((u: any) => (
               <TableRow key={u.id}>
                 <TableCell className="font-medium">
-                  <div>{u.name}</div>
-                  <div className="text-[10px] text-muted-foreground">{u.email}</div>
+                  <div className="flex flex-col">
+                    <span>{u.name}</span>
+                    <span className="text-[10px] text-muted-foreground">{u.email}</span>
+                    <Button 
+                      variant="link" 
+                      size="sm" 
+                      className="h-auto p-0 text-left text-xs text-primary justify-start"
+                      onClick={() => {
+                        const sp = new URLSearchParams();
+                        sp.set("user_id", u.id);
+                        sp.set("start_date", startDate);
+                        sp.set("end_date", endDate);
+                        sp.set("status", "all");
+                        window.location.href = `/crm/comissoes/validacao?${sp.toString()}`;
+                      }}
+                    >
+                      Ver detalhes
+                    </Button>
+                  </div>
                 </TableCell>
                 <TableCell className="text-right font-medium text-green-600">{fmt(u.net_total || 0)}</TableCell>
                 <TableCell className="text-right font-bold text-primary">{fmt(u.commission?.total || 0)}</TableCell>
