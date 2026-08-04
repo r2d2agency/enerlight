@@ -112,7 +112,7 @@ export default function ComissoesValidacao() {
         <h1 className="text-2xl font-bold">
           Validação de Faturamento
           {userId !== "all" && users?.find(u => u.id === userId) && (
-            <span className="text-muted-foreground ml-2"> - {users.find(u => u.id === userId)?.user_name || users.find(u => u.id === userId)?.name}</span>
+            <span className="text-muted-foreground ml-2"> - {users.find(u => u.id === userId)?.name}</span>
           )}
         </h1>
       </div>
