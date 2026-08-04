@@ -95,9 +95,16 @@ export default function ComissoesEquipe() {
               </TableHeader>
               <TableBody>
                 {users.map((u: any) => (
-                  <TableRow key={u.id}>
+                  <TableRow key={u.user_id || u.id}>
                     <TableCell>
-                      <div className="font-medium">{u.user_name || u.name}</div>
+                      <div className="font-medium flex items-center gap-2">
+                        {u.user_name || u.name}
+                        {u.is_manager && (
+                          <span className="bg-blue-100 text-blue-700 text-[10px] px-1.5 py-0.5 rounded-full font-bold uppercase">
+                            Gerente ({u.managed_channel})
+                          </span>
+                        )}
+                      </div>
                       <div className="text-[10px] text-muted-foreground">{u.user_email || u.email}</div>
                     </TableCell>
                     <TableCell className="text-right font-medium text-green-600">{fmt(u.net_total || 0)}</TableCell>

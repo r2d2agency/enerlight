@@ -595,9 +595,27 @@ router.get('/summary', async (req, res) => {
       }
 
       const comm = computeCommission(rule, itemsForCalc);
+      const grossItemsRes = await query(
+        `SELECT b.* FROM ${commissionSourceSql()} b
+         WHERE b.organization_id = $1 AND b.billing_date >= $2::date AND b.billing_date <= $3::date
+           AND COALESCE(b.validation_status,'pending') <> 'rejected'
+           AND ${rule?.is_manager && rule.managed_channel 
+             ? `b.channel = $4` 
+             : `(b.linked_user_id = $4 OR (b.linked_user_id IS NULL AND EXISTS (
+                  SELECT 1 FROM crm_goals_seller_mapping sm
+                  WHERE sm.organization_id = $1 AND sm.user_id = $4
+                    AND LOWER(TRIM(sm.seller_name)) = LOWER(TRIM(b.seller_name))
+                )))`
+           }`,
+        [m.organization_id, sd, ed, rule?.is_manager && rule.managed_channel ? rule.managed_channel : r.linked_user_id]
+      );
+      const projectedComm = computeCommission(rule, grossItemsRes.rows);
+
       users.push({
         user_id: r.linked_user_id,
         user_name: r.user_name,
+        is_manager: !!rule?.is_manager,
+        managed_channel: rule?.managed_channel,
         validated_count: Number(r.validated_count),
         validated_total: Number(r.validated_total),
         validated_redbar_total: Number(r.validated_redbar_total),
@@ -606,6 +624,8 @@ router.get('/summary', async (req, res) => {
         redbar_net_total: Math.max(0, Number(r.validated_redbar_total) - Number(r.refund_redbar_total)),
         pending_count: Number(r.pending_count),
         commission: comm,
+        projected_commission: projectedComm,
+        projected_net_total: grossItemsRes.rows.reduce((s, i) => s + Number(i.adjusted_value ?? i.order_value) * (i.is_refund ? -1 : 1), 0),
         rule: rule || null,
       });
     }
