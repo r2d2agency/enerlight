@@ -30,8 +30,8 @@ const PERMISSION_COLUMNS = [
 
 // Default permissions for each role
 const ROLE_DEFAULTS = {
-  owner: Object.fromEntries(PERMISSION_COLUMNS.concat('can_view_team_commission').map(c => [c, true])),
-  admin: Object.fromEntries(PERMISSION_COLUMNS.concat('can_view_team_commission').map(c => [c, true])),
+  owner: Object.fromEntries(PERMISSION_COLUMNS.map(c => [c, true])),
+  admin: Object.fromEntries(PERMISSION_COLUMNS.map(c => [c, true])),
   manager: {
     can_view_chat: true, can_view_chatbots: false, can_view_flows: false,
     can_view_departments: false, can_view_schedules: true, can_view_tags: true,

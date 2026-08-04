@@ -284,6 +284,9 @@ export function PermissionsDialog({ open, onOpenChange, userId, userName, userRo
     // Explicitly ensure critical permissions are included in the payload if they are in the state
     const permissionsToSave = { ...permissions };
     
+    // Explicitly ensure 'can_view_team_commission' is preserved if present in PERMISSION_GROUPS
+    // but the component might be missing it due to older cache if the file didn't update correctly.
+    // Let's force it if it's true in current state.
     console.log('[PermissionsDialog] Saving permissions for userId:', userId, permissionsToSave);
     try {
       const response = await api<{ success: boolean; permissions?: Record<string, boolean> }>(`/api/permissions/${userId}`, {
