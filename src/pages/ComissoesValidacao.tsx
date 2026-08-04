@@ -300,10 +300,10 @@ export default function ComissoesValidacao() {
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="text-sm font-semibold text-primary">
-                                {fmt((r as any).commission_value || 0)}
+                                {fmt(r.commission_value || 0)}
                               </div>
                               <div className="text-[10px] text-muted-foreground">
-                                {(r as any).commission_percent || 0}%
+                                {r.commission_percent || 0}%
                               </div>
                             </TableCell>
                             <TableCell>

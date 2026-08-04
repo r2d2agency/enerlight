@@ -37,6 +37,8 @@ export interface ValidationRecord {
   is_refund: boolean;
   is_redbar?: boolean;
   custom_commission_percent?: number | null;
+  commission_value?: number;
+  commission_percent?: number;
 }
 
 export interface OrgUser { id: string; name: string; email: string; }
