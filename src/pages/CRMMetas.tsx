@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useGoals, useGoalDashboard, useGoalMutations, Goal } from "@/hooks/use-goals";
+import { useCommissionSummary } from "@/hooks/use-commission";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useCRMMyTeam, useCRMGroups } from "@/hooks/use-crm";
 import { useAuth } from "@/contexts/AuthContext";
