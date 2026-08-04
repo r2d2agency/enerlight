@@ -381,8 +381,6 @@ function EditDialog({ record, onClose, users }: { record: ValidationRecord | nul
           )}
         </DialogHeader>
 
-          <DialogTitle>Editar registro</DialogTitle>
-        </DialogHeader>
         {record && (
           <div className="space-y-3">
             <div className="text-sm text-muted-foreground">
