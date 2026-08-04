@@ -44,6 +44,8 @@ import { DailyEvolutionChart } from "@/components/crm/DailyEvolutionChart";
 import { MonthProjectionCard } from "@/components/crm/MonthProjectionCard";
 import { format, startOfMonth, startOfWeek, endOfWeek, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { exportToExcel } from "@/lib/xlsx-export";
+
 import { isBusinessDay } from "@/lib/brazilian-holidays";
 
 const METRICS = [
@@ -1603,10 +1605,13 @@ export default function CRMMetas() {
           {/* Commissions tab */}
           <TabsContent value="commissions" className="space-y-4">
             <Card>
-              <CardHeader>
-                <CardTitle>Comissões da Equipe</CardTitle>
-                <CardDescription>Resumo de comissões calculadas para todos os vendedores no período selecionado.</CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                <div>
+                  <CardTitle>Comissões da Equipe</CardTitle>
+                  <CardDescription>Resumo de comissões calculadas para todos os vendedores no período selecionado.</CardDescription>
+                </div>
               </CardHeader>
+
               <CardContent>
                 <TeamCommissionsTable startDate={startDate} endDate={endDate} />
               </CardContent>
@@ -1839,44 +1844,65 @@ export default function CRMMetas() {
 function TeamCommissionsTable({ startDate, endDate }: { startDate: string, endDate: string }) {
   const { data: summary, isLoading } = useCommissionSummary({ start_date: startDate, end_date: endDate });
 
+  const handleExport = () => {
+    if (!summary?.users?.length) return;
+    const exportData = summary.users.map((u: any) => ({
+      'Vendedor': u.name,
+      'Email': u.email,
+      'Faturamento Validado': u.net_total || 0,
+      'Comissão Validada': u.commission?.total || 0,
+      'Projeção Faturamento': u.projected_net_total || 0,
+      'Projeção Comissão': u.projected_commission?.total || 0
+    }));
+    exportToExcel(exportData, `Comissoes_Equipe_${startDate}_${endDate}`);
+  };
+
   if (isLoading) return <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
 
   const users = summary?.users || [];
 
   return (
-    <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Vendedor</TableHead>
-            <TableHead className="text-right">Faturamento</TableHead>
-            <TableHead className="text-right">Comissão</TableHead>
-            <TableHead className="text-right">Projeção Fatur.</TableHead>
-            <TableHead className="text-right">Projeção Comis.</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {users.map((u: any) => (
-            <TableRow key={u.id}>
-              <TableCell className="font-medium">
-                <div>{u.name}</div>
-                <div className="text-[10px] text-muted-foreground">{u.email}</div>
-              </TableCell>
-              <TableCell className="text-right font-medium text-green-600">{fmt(u.net_total || 0)}</TableCell>
-              <TableCell className="text-right font-bold text-primary">{fmt(u.commission?.total || 0)}</TableCell>
-              <TableCell className="text-right text-muted-foreground">{fmt(u.projected_net_total || 0)}</TableCell>
-              <TableCell className="text-right text-muted-foreground">{fmt(u.projected_commission?.total || 0)}</TableCell>
-            </TableRow>
-          ))}
-          {!users.length && (
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button variant="outline" size="sm" onClick={handleExport} disabled={!users.length}>
+          <FileText className="h-4 w-4 mr-2" /> Exportar XLSX
+        </Button>
+      </div>
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
             <TableRow>
-              <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                Nenhum dado de comissão encontrado para o período.
-              </TableCell>
+              <TableHead>Vendedor</TableHead>
+              <TableHead className="text-right">Faturamento</TableHead>
+              <TableHead className="text-right">Comissão</TableHead>
+              <TableHead className="text-right">Projeção Fatur.</TableHead>
+              <TableHead className="text-right">Projeção Comis.</TableHead>
             </TableRow>
-          )}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {users.map((u: any) => (
+              <TableRow key={u.id}>
+                <TableCell className="font-medium">
+                  <div>{u.name}</div>
+                  <div className="text-[10px] text-muted-foreground">{u.email}</div>
+                </TableCell>
+                <TableCell className="text-right font-medium text-green-600">{fmt(u.net_total || 0)}</TableCell>
+                <TableCell className="text-right font-bold text-primary">{fmt(u.commission?.total || 0)}</TableCell>
+                <TableCell className="text-right text-muted-foreground">{fmt(u.projected_net_total || 0)}</TableCell>
+                <TableCell className="text-right text-muted-foreground">{fmt(u.projected_commission?.total || 0)}</TableCell>
+              </TableRow>
+            ))}
+            {!users.length && (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                  Nenhum dado de comissão encontrado para o período.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }
+
