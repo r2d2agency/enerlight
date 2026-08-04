@@ -275,7 +275,7 @@ router.patch('/validation/:id', async (req, res) => {
     if (!m) return res.status(403).json({ error: 'No organization' });
     if (!(await canValidate(req.userId, m.organization_id))) return res.status(403).json({ error: 'Sem permissão' });
 
-    const { status, validation_note, adjusted_value, linked_user_id, channel, is_refund } = req.body || {};
+    const { status, validation_note, adjusted_value, linked_user_id, channel, is_refund, custom_commission_percent } = req.body || {};
     const erpSets = [];
     const crmSets = [];
     const params = [];
@@ -296,6 +296,7 @@ router.patch('/validation/:id', async (req, res) => {
     if (linked_user_id !== undefined) push('linked_user_id', linked_user_id || null, 'user_id');
     if (channel !== undefined) push('channel', channel || null);
     if (is_refund !== undefined) push('is_refund', !!is_refund);
+    if (custom_commission_percent !== undefined) push('custom_commission_percent', custom_commission_percent === null || custom_commission_percent === '' ? null : Number(custom_commission_percent));
 
     if (!erpSets.length) return res.status(400).json({ error: 'Nada para atualizar' });
 
@@ -371,7 +372,7 @@ router.put('/rules/:userId', async (req, res) => {
     const m = await getMember(req.userId);
     if (!m) return res.status(403).json({ error: 'No organization' });
     if (!['owner', 'admin'].includes(m.role)) return res.status(403).json({ error: 'Somente admin' });
-    const { base_percent, tiers, active, redbar_enabled, redbar_base_percent, redbar_tiers } = req.body || {};
+    const { base_percent, tiers, active, redbar_enabled, redbar_base_percent, redbar_tiers, is_manager, managed_channel } = req.body || {};
     const cleanList = (arr) => Array.isArray(arr) ? arr.map(t => ({
       label: String(t.label || '').slice(0, 80),
       target: Number(t.target) || 0,
@@ -381,20 +382,25 @@ router.put('/rules/:userId', async (req, res) => {
     const cleanTiers = cleanList(tiers);
     const cleanRedbarTiers = cleanList(redbar_tiers);
     const r = await query(
-      `INSERT INTO commission_rules (organization_id, user_id, base_percent, tiers, active, redbar_enabled, redbar_base_percent, redbar_tiers)
-       VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8::jsonb)
+      `INSERT INTO commission_rules (organization_id, user_id, base_percent, tiers, active, redbar_enabled, redbar_base_percent, redbar_tiers, is_manager, managed_channel)
+       VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8::jsonb, $9, $10)
        ON CONFLICT (organization_id, user_id) DO UPDATE
        SET base_percent = EXCLUDED.base_percent, tiers = EXCLUDED.tiers,
            active = EXCLUDED.active,
            redbar_enabled = EXCLUDED.redbar_enabled,
            redbar_base_percent = EXCLUDED.redbar_base_percent,
            redbar_tiers = EXCLUDED.redbar_tiers,
+           is_manager = EXCLUDED.is_manager,
+           managed_channel = EXCLUDED.managed_channel,
            updated_at = NOW()
        RETURNING *`,
       [
         m.organization_id, req.params.userId,
         Number(base_percent) || 0, JSON.stringify(cleanTiers), active !== false,
         !!redbar_enabled, Number(redbar_base_percent) || 0, JSON.stringify(cleanRedbarTiers),
+        !!is_manager, managed_channel || null
+      ]
+    );
       ]
     );
     res.json(r.rows[0]);
@@ -494,12 +500,40 @@ router.get('/summary', async (req, res) => {
     const rulesRes = await query(`SELECT * FROM commission_rules WHERE organization_id = $1`, [m.organization_id]);
     const rulesByUser = Object.fromEntries(rulesRes.rows.map(r => [r.user_id, r]));
 
-    const users = rows.rows.map(r => {
-      const validated = Number(r.validated_total) - Number(r.refund_total);
-      const redbarNet = Math.max(0, Number(r.validated_redbar_total) - Number(r.refund_redbar_total));
+    const users = [];
+    for (const r of rows.rows) {
       const rule = rulesByUser[r.linked_user_id];
-      const comm = computeCommission(rule, Math.max(0, validated), redbarNet);
-      return {
+      const validated = Number(r.validated_total) - Number(r.refund_total);
+      
+      // If manager, we need to fetch the channel total instead of individual total
+      let itemsForCalc = [];
+      if (rule?.is_manager && rule.managed_channel) {
+         const channelItems = await query(
+           `SELECT b.* FROM ${commissionSourceSql()} b
+            WHERE b.organization_id = $1 AND b.billing_date >= $2::date AND b.billing_date <= $3::date
+              AND COALESCE(b.validation_status,'pending')='validated'
+              AND b.channel = $4`,
+           [m.organization_id, sd, ed, rule.managed_channel]
+         );
+         itemsForCalc = channelItems.rows;
+      } else {
+         // We'll need the items for individual calc too to support custom %
+         const individualItems = await query(
+           `SELECT b.* FROM ${commissionSourceSql()} b
+            WHERE b.organization_id = $1 AND b.billing_date >= $2::date AND b.billing_date <= $3::date
+              AND COALESCE(b.validation_status,'pending')='validated'
+              AND (b.linked_user_id = $4 OR (b.linked_user_id IS NULL AND EXISTS (
+                SELECT 1 FROM crm_goals_seller_mapping sm
+                WHERE sm.organization_id = $1 AND sm.user_id = $4
+                  AND LOWER(TRIM(sm.seller_name)) = LOWER(TRIM(b.seller_name))
+              )))`,
+           [m.organization_id, sd, ed, r.linked_user_id]
+         );
+         itemsForCalc = individualItems.rows;
+      }
+
+      const comm = computeCommission(rule, itemsForCalc);
+      users.push({
         user_id: r.linked_user_id,
         user_name: r.user_name,
         validated_count: Number(r.validated_count),
@@ -507,12 +541,12 @@ router.get('/summary', async (req, res) => {
         validated_redbar_total: Number(r.validated_redbar_total),
         refund_total: Number(r.refund_total),
         net_total: validated,
-        redbar_net_total: redbarNet,
+        redbar_net_total: Math.max(0, Number(r.validated_redbar_total) - Number(r.refund_redbar_total)),
         pending_count: Number(r.pending_count),
         commission: comm,
         rule: rule || null,
-      };
-    });
+      });
+    }
 
     res.json({ start_date: sd, end_date: ed, users });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -581,7 +615,8 @@ router.get('/my', async (req, res) => {
 
     const details = await query(
       `SELECT b.id, b.client_name, b.order_number, b.billing_date, b.channel, b.seller_name,
-              b.order_value, b.adjusted_value, b.validation_status, b.is_refund, b.is_redbar, b.validation_note
+              b.order_value, b.adjusted_value, b.validation_status, b.is_refund, b.is_redbar, b.validation_note,
+              b.custom_commission_percent
         FROM ${commissionSourceSql()} b
        WHERE b.organization_id = $1 AND ${matchFilter} AND ${dateRange}
        ORDER BY b.billing_date DESC, b.created_at DESC
@@ -594,12 +629,36 @@ router.get('/my', async (req, res) => {
       [m.organization_id, req.userId]
     );
     const rule = ruleRes.rows[0] || null;
-    const validated = Number(agg.rows[0].validated_total) - Number(agg.rows[0].refund_total);
-    const validatedRedbar = Math.max(0, Number(agg.rows[0].validated_redbar_total) - Number(agg.rows[0].refund_redbar_total));
-    const gross = Number(agg.rows[0].gross_total) - Number(agg.rows[0].refund_total);
-    const grossRedbar = Math.max(0, Number(agg.rows[0].gross_redbar_total) - Number(agg.rows[0].refund_redbar_total));
-    const commission = computeCommission(rule, Math.max(0, validated), validatedRedbar);
-    const projectedCommission = computeCommission(rule, Math.max(0, gross), grossRedbar);
+
+    let itemsForCalc = [];
+    let grossItems = [];
+    if (rule?.is_manager && rule.managed_channel) {
+       const channelItems = await query(
+         `SELECT b.* FROM ${commissionSourceSql()} b
+          WHERE b.organization_id = $1 AND b.billing_date >= $2::date AND b.billing_date <= $3::date
+            AND b.channel = $4`,
+         [m.organization_id, sd, ed, rule.managed_channel]
+       );
+       itemsForCalc = channelItems.rows.filter(i => i.validation_status === 'validated');
+       grossItems = channelItems.rows.filter(i => i.validation_status !== 'rejected');
+    } else {
+       const individualItems = await query(
+         `SELECT b.* FROM ${commissionSourceSql()} b
+          WHERE b.organization_id = $1 AND b.billing_date >= $2::date AND b.billing_date <= $3::date
+            AND (${matchFilter})`,
+         [m.organization_id, req.userId, sd, ed]
+       );
+       itemsForCalc = individualItems.rows.filter(i => i.validation_status === 'validated');
+       grossItems = individualItems.rows.filter(i => i.validation_status !== 'rejected');
+    }
+
+    const commission = computeCommission(rule, itemsForCalc);
+    const projectedCommission = computeCommission(rule, grossItems);
+
+    const validatedTotal = itemsForCalc.reduce((s, i) => s + Number(i.adjusted_value ?? i.order_value) * (i.is_refund ? -1 : 1), 0);
+    const validatedRedbar = itemsForCalc.filter(i => i.is_redbar).reduce((s, i) => s + Number(i.adjusted_value ?? i.order_value) * (i.is_refund ? -1 : 1), 0);
+    const grossTotal = grossItems.reduce((s, i) => s + Number(i.adjusted_value ?? i.order_value) * (i.is_refund ? -1 : 1), 0);
+    const grossRedbar = grossItems.filter(i => i.is_redbar).reduce((s, i) => s + Number(i.adjusted_value ?? i.order_value) * (i.is_refund ? -1 : 1), 0);
 
     res.json({
       start_date: sd, end_date: ed,
@@ -609,9 +668,9 @@ router.get('/my', async (req, res) => {
       pending_total: Number(agg.rows[0].pending_total),
       gross_total: Number(agg.rows[0].gross_total),
       gross_redbar_total: Number(agg.rows[0].gross_redbar_total),
-      net_total: validated,
+      net_total: validatedTotal,
       redbar_net_total: validatedRedbar,
-      projected_net_total: gross,
+      projected_net_total: grossTotal,
       projected_redbar_net_total: grossRedbar,
       validated_count: Number(agg.rows[0].validated_count),
       pending_count: Number(agg.rows[0].pending_count),

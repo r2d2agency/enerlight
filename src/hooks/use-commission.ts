@@ -13,6 +13,8 @@ export interface CommissionRule {
   redbar_enabled?: boolean;
   redbar_base_percent?: number;
   redbar_tiers?: Tier[];
+  is_manager?: boolean;
+  managed_channel?: string;
 }
 
 export interface ValidationRecord {
@@ -34,6 +36,7 @@ export interface ValidationRecord {
   validation_note: string | null;
   is_refund: boolean;
   is_redbar?: boolean;
+  custom_commission_percent?: number | null;
 }
 
 export interface OrgUser { id: string; name: string; email: string; }
