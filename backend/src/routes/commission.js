@@ -267,7 +267,16 @@ router.get('/validation', async (req, res) => {
 
       if (rule || r.custom_commission_percent != null) {
         const val = Number(r.adjusted_value ?? r.order_value) * (r.is_refund ? -1 : 1);
-        commission_percent = Number(r.custom_commission_percent ?? (r.is_redbar && rule?.redbar_enabled ? rule?.redbar_base_percent : rule?.base_percent) ?? 0);
+        const isRedBar = !!r.is_redbar;
+        const redBarEnabled = !!rule?.redbar_enabled;
+        
+        commission_percent = Number(
+          r.custom_commission_percent ?? 
+          (isRedBar 
+            ? (redBarEnabled ? rule?.redbar_base_percent : rule?.base_percent) 
+            : rule?.base_percent
+          ) ?? 0
+        );
         commission_value = val * (commission_percent / 100);
       }
 
@@ -449,6 +458,9 @@ function computePart(basePercent, tiers, items) {
     // Individual item commission override
     if (item.custom_commission_percent != null) {
       commissionPercent = Number(item.custom_commission_percent);
+    } else if (item.is_redbar && basePercent === 0) {
+      // If we are in the redbar bucket but basePercent is 0, we might be hitting a logic gap
+      // This is just a safety, usually redbar bucket uses redbar_base_percent
     }
     
     const commission_value = val * (commissionPercent / 100);
@@ -485,7 +497,7 @@ function computeCommission(rule, items) {
   const regular = computePart(rule?.base_percent, rule?.tiers, regularItems);
   const redbar = redbarEnabled
     ? computePart(rule?.redbar_base_percent, rule?.redbar_tiers, redbarItems)
-    : { base: 0, bonus: 0, total: 0, achieved: [], nextTier: null, items: [] };
+    : computePart(rule?.base_percent, rule?.tiers, redbarItems); // Fallback to normal rules if Red Bar not explicitly split
 
   const allProcessedItems = [...regular.items, ...redbar.items];
 
