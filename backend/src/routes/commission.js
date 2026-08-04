@@ -208,10 +208,10 @@ async function canValidate(userId, orgId) {
   if (!m || m.organization_id !== orgId) return false;
   if (['owner', 'admin'].includes(m.role)) return true;
   const p = await query(
-    `SELECT can_validate_billing FROM user_permissions WHERE user_id = $1 AND organization_id = $2`,
+    `SELECT can_validate_billing, can_view_team_commission FROM user_permissions WHERE user_id = $1 AND organization_id = $2`,
     [userId, orgId]
   );
-  return !!p.rows[0]?.can_validate_billing;
+  return !!p.rows[0]?.can_validate_billing || !!p.rows[0]?.can_view_team_commission;
 }
 
 // --- Validation queue (supervisor) ---
