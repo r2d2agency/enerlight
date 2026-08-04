@@ -381,8 +381,6 @@ function EditDialog({ record, onClose, users }: { record: ValidationRecord | nul
           )}
         </DialogHeader>
 
-      <DialogContent>
-        <DialogHeader>
           <DialogTitle>Editar registro</DialogTitle>
         </DialogHeader>
         {record && (
