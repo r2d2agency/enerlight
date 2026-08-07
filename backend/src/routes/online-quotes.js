@@ -53,7 +53,7 @@ router.post('/templates', async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
     if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
-    if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner') {
+    if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && !req.userPermissions?.can_manage_online_quotes) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
     const { id, name, description, cover_url, header_text, footer_text, footer_config, fiscal_info, is_default } = req.body;
@@ -124,7 +124,7 @@ router.post('/price-lists', async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
 
-    if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner') {
+    if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && !req.userPermissions?.can_manage_online_quotes) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
     const { id, name, description, segment, is_active, default_template_id } = req.body;
@@ -168,7 +168,7 @@ router.get('/price-lists/:id/items', async (req, res) => {
     }
 
     // Cost price is only returned for admins/managers
-    const showCost = ctx.role === 'admin' || ctx.role === 'manager' || ctx.role === 'owner';
+    const showCost = ctx.role === 'admin' || ctx.role === 'manager' || ctx.role === 'owner' || req.userPermissions?.can_manage_online_quotes;
     const fields = showCost 
       ? 'id, product_code, product_name, description, sale_price, min_price, cost_price, unit, image_url, category, subcategory, brand'
       : 'id, product_code, product_name, description, sale_price, min_price, unit, image_url, category, subcategory, brand';
@@ -437,7 +437,7 @@ router.get('/quotes', async (req, res) => {
     let sql = `SELECT q.*, q.client_document as cnpj FROM online_quotes q WHERE q.organization_id = $1`;
     const params = [ctx.organizationId];
     
-    if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && ctx.role !== 'supervisor') {
+    if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && ctx.role !== 'supervisor' && !req.userPermissions?.can_manage_online_quotes) {
       sql += ` AND q.user_id = $2`;
       params.push(req.userId);
     }

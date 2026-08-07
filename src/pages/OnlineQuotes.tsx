@@ -39,8 +39,9 @@ export default function OnlineQuotes() {
   const [dateFilter, setDateFilter] = useState<string>("all");
   const [editingPriceList, setEditingPriceList] = useState<any>(null);
 
+  const isQuoteAdmin = ['owner', 'admin', 'manager'].includes(user?.role || '') || user?.user_permissions?.can_manage_online_quotes;
   const isAdmin = ['owner', 'admin', 'manager'].includes(user?.role || '');
-  const canEditPriceLists = isAdmin || user?.user_permissions?.can_edit_price_lists;
+  const canEditPriceLists = isQuoteAdmin || user?.user_permissions?.can_edit_price_lists;
 
   const { data: priceLists, isLoading: loadingPriceLists } = usePriceLists();
   
@@ -278,7 +279,7 @@ export default function OnlineQuotes() {
             <TabsTrigger value="quotes" className="flex items-center gap-2">
               <FileText className="h-4 w-4" /> Propostas
             </TabsTrigger>
-            {isAdmin && (
+            {isQuoteAdmin && (
               <>
                 <TabsTrigger value="price-lists" className="flex items-center gap-2">
                   <List className="h-4 w-4" /> Tabelas
