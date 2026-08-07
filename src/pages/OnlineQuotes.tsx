@@ -62,8 +62,17 @@ export default function OnlineQuotes() {
     }
   }, [quotes, loadingQuotes]);
 
-  const filteredPriceLists = priceLists?.filter(pl => {
   const { saveTemplate, savePriceList, deletePriceList, deleteQuote, updateQuoteStatus } = useOnlineQuoteMutations();
+
+  const filteredPriceLists = priceLists?.filter(pl => {
+    if (isAdmin) return true;
+    if (!pl.is_active) return false;
+    if (!pl.allowed_templates || pl.allowed_templates.length === 0) return true;
+    
+    // @ts-ignore - Assuming user might have permission_template_id
+    const userTemplateId = user?.permission_template_id;
+    return pl.allowed_templates.includes(userTemplateId);
+  });
   
   const filteredQuotes = quotes?.filter(quote => {
     const matchesSearch = quote.client_name.toLowerCase().includes(searchTerm.toLowerCase()) || 
