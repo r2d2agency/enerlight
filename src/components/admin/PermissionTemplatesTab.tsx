@@ -65,8 +65,8 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
       { key: 'can_view_ghost', label: 'Modo Fantasma', description: 'Auditoria e análise' },
       { key: 'can_view_crm_settings', label: 'Config. CRM', description: 'Configurações do CRM' },
       { key: 'can_view_online_quotes', label: 'Orçamentos Online', description: 'Módulo de orçamentos online' },
+      { key: 'can_manage_online_quotes', label: 'Gerenciar Orçamentos', description: 'Ver todos os orçamentos, modelos e configurações do módulo' },
       { key: 'can_view_representatives', label: 'Indicadores', description: 'Ver e gerenciar indicadores/representantes' },
-      { key: 'can_edit_price_lists', label: 'Gerenciar Tabelas', description: 'Criar e editar tabelas de preços' },
     ],
   },
   {
