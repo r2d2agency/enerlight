@@ -114,7 +114,7 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
       { name: "Calculadora Luminotécnica", href: "/calculadora-luminotecnica", icon: Calculator, permissionKey: 'can_view_crm' },
       { name: "Categorias da Calculadora", href: "/admin/calculadora-categorias", icon: Calculator, adminOnly: true, permissionKey: 'can_view_crm' },
       { name: "Prospects", href: "/crm/prospects", icon: UserPlus, permissionKey: 'can_view_prospects' },
-      { name: "Empresas", href: "/crm/empresas", icon: Building2, permissionKey: 'can_view_companies' },
+      { name: "Empresas / Meus Clientes", href: "/crm/empresas", icon: Building2, permissionKey: 'can_view_companies' },
       { name: "Mapa", href: "/mapa", icon: Map, permissionKey: 'can_view_map' },
       { name: "Agenda", href: "/crm/agenda", icon: CalendarDays, permissionKey: 'can_view_calendar' },
       { name: "Reuniões", href: "/reunioes", icon: Presentation, permissionKey: 'can_view_crm' },

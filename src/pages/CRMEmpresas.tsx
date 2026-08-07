@@ -129,8 +129,8 @@ export default function CRMEmpresas() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">Empresas</h1>
-            <p className="text-muted-foreground">Gerencie sua base de empresas</p>
+            <h1 className="text-2xl font-bold">{isAdmin ? "Empresas" : "Meus Clientes"}</h1>
+            <p className="text-muted-foreground">{isAdmin ? "Gerencie sua base de empresas" : "Gerencie seus clientes vinculados"}</p>
           </div>
           <div className="flex items-center gap-2">
             {isAdmin && (
