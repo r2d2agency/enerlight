@@ -122,7 +122,7 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
       { name: "Visitas Externas", href: "/crm/visitas-externas", icon: Map, permissionKey: 'can_view_tasks' },
       { name: "Relatórios", href: "/crm/relatorios", icon: BarChart3, permissionKey: 'can_view_reports' },
       { name: "Representantes", href: "/crm/representantes", icon: Handshake, moduleKey: 'representatives', permissionKey: 'can_view_representatives' },
-      { name: "Hub de Representantes", href: "/crm/representantes-hub", icon: Users, moduleKey: 'representatives', permissionKey: 'can_view_representatives', adminOnly: true },
+      { name: "Hub de Representantes", href: "/crm/representantes-hub", icon: Users, moduleKey: 'representatives', permissionKey: 'can_view_all_representative_quotes' },
       { name: "Painel Representante", href: "/crm/representante-dashboard", icon: LayoutDashboard, permissionKey: 'can_view_representative_dashboard' },
       { name: "Metas", href: "/crm/metas", icon: Target, moduleKey: 'goals', permissionKey: 'can_view_goals' },
       { name: "Comissões da Equipe", href: "/comissoes/equipe", icon: Users, permissionKey: 'can_view_team_commission' },
