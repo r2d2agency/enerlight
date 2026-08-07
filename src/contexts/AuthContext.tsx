@@ -93,6 +93,7 @@ export interface UserPermissions {
   can_view_ead: boolean;
   can_manage_ead: boolean;
   can_view_minutas?: boolean;
+  can_view_representative_dashboard?: boolean;
 }
 
 
