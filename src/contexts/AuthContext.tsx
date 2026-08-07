@@ -94,7 +94,9 @@ export interface UserPermissions {
   can_manage_ead: boolean;
   can_view_minutas?: boolean;
   can_view_representative_dashboard?: boolean;
+  can_view_all_representative_quotes?: boolean;
 }
+
 
 
 interface User {

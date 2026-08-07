@@ -68,6 +68,8 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
       { key: 'can_manage_online_quotes', label: 'Gerenciar Orçamentos', description: 'Dashboard administrativo, modelos e todas as tabelas' },
       { key: 'can_view_representatives', label: 'Indicadores', description: 'Ver e gerenciar indicadores/representantes' },
       { key: 'can_view_representative_dashboard', label: 'Painel do Representante', description: 'Dashboard simplificado para representantes com orçamentos e comissões' },
+      { key: 'can_view_all_representative_quotes', label: 'Ver Orçamentos Globais', description: 'Permite que supervisores vejam orçamentos de todos os representantes no hub' },
+
     ],
   },
   {
