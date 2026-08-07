@@ -26,6 +26,9 @@ export interface PriceListItem {
   cost_price?: number; // Restricted to admins/managers
   unit: string;
   image_url?: string;
+  category?: string;
+  subcategory?: string;
+  brand?: string;
 }
 
 export interface OnlineQuoteTemplate {

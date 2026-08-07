@@ -170,8 +170,8 @@ router.get('/price-lists/:id/items', async (req, res) => {
     // Cost price is only returned for admins/managers
     const showCost = ctx.role === 'admin' || ctx.role === 'manager' || ctx.role === 'owner';
     const fields = showCost 
-      ? 'id, product_code, product_name, description, sale_price, min_price, cost_price, unit, image_url'
-      : 'id, product_code, product_name, description, sale_price, min_price, unit, image_url';
+      ? 'id, product_code, product_name, description, sale_price, min_price, cost_price, unit, image_url, category, subcategory, brand'
+      : 'id, product_code, product_name, description, sale_price, min_price, unit, image_url, category, subcategory, brand';
 
     const result = await query(
       `SELECT ${fields} FROM price_list_items WHERE price_list_id = $1 ORDER BY product_name ASC`,
@@ -215,8 +215,8 @@ router.post('/price-lists/:id/items/bulk', async (req, res) => {
     for (const item of items) {
       await query(
         `INSERT INTO price_list_items 
-         (price_list_id, product_code, product_name, description, sale_price, cost_price, unit, image_url, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+         (price_list_id, product_code, product_name, description, sale_price, cost_price, unit, image_url, category, subcategory, brand, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
          ON CONFLICT (price_list_id, product_code) 
          DO UPDATE SET 
            product_name = EXCLUDED.product_name,
@@ -225,8 +225,11 @@ router.post('/price-lists/:id/items/bulk', async (req, res) => {
            cost_price = EXCLUDED.cost_price,
            unit = EXCLUDED.unit,
            image_url = EXCLUDED.image_url,
+           category = EXCLUDED.category,
+           subcategory = EXCLUDED.subcategory,
+           brand = EXCLUDED.brand,
            updated_at = NOW()`,
-        [req.params.id, item.product_code, item.product_name, item.description, item.sale_price, item.cost_price || 0, item.unit || 'un', item.image_url || null]
+        [req.params.id, item.product_code, item.product_name, item.description, item.sale_price, item.cost_price || 0, item.unit || 'un', item.image_url || null, item.category || null, item.subcategory || null, item.brand || null]
       );
     }
     res.json({ success: true, count: items.length });
