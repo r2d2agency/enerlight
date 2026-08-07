@@ -89,8 +89,8 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
         const items = lines.slice(1).filter(l => l.trim()).map(line => {
           const [product_code, product_name, sale_price, image_url] = line.split(',');
           return {
-            product_code: product_code?.trim(),
-            product_name: product_name?.trim(),
+            product_code: product_code?.trim().toUpperCase(),
+            product_name: product_name?.trim().toUpperCase(),
             sale_price: parseFloat(sale_price?.trim() || "0"),
             image_url: image_url?.trim()
           };
@@ -113,6 +113,45 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
       }
     };
     reader.readAsText(file);
+  };
+
+  const handleStartEdit = (item: any) => {
+    setEditingId(item.id);
+    setEditForm({ ...item });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setEditForm(null);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!priceList || !editForm) return;
+    setUpdatingId(editForm.product_code);
+    try {
+      await api(`/api/online-quotes/price-lists/${priceList.id}/items/${editForm.product_code}`, {
+        method: 'PATCH',
+        body: {
+          product_name: editForm.product_name?.toUpperCase(),
+          description: editForm.description,
+          sale_price: parseFloat(editForm.sale_price) || 0,
+          cost_price: parseFloat(editForm.cost_price) || 0,
+          unit: editForm.unit?.toUpperCase(),
+          category: editForm.category?.toUpperCase(),
+          subcategory: editForm.subcategory?.toUpperCase(),
+          brand: editForm.brand?.toUpperCase(),
+          image_url: editForm.image_url
+        }
+      });
+      toast.success("Item atualizado!");
+      queryClient.invalidateQueries({ queryKey: ['price-list-items', priceList.id] });
+      setEditingId(null);
+      setEditForm(null);
+    } catch (err) {
+      toast.error("Erro ao atualizar item");
+    } finally {
+      setUpdatingId(null);
+    }
   };
   const [importMapping, setImportMapping] = useState<Record<string, string>>({});
   const [xlsxData, setXlsxData] = useState<any[]>([]);
