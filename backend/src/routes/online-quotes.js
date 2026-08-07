@@ -184,18 +184,35 @@ router.get('/price-lists/:id/items', async (req, res) => {
   }
 });
 
-// Update a single price list item (e.g. upload image)
+// Update a single price list item
 router.patch('/price-lists/:id/items/:productCode', async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
-
     if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
-    const { image_url } = req.body;
+
+    const { 
+      product_name, description, sale_price, cost_price, 
+      unit, image_url, category, subcategory, brand 
+    } = req.body;
     
     await query(
-      `UPDATE price_list_items SET image_url = $1, updated_at = NOW() 
-       WHERE price_list_id = $2 AND product_code = $3`,
-      [image_url, req.params.id, req.params.productCode]
+      `UPDATE price_list_items 
+       SET product_name = COALESCE($1, product_name),
+           description = COALESCE($2, description),
+           sale_price = COALESCE($3, sale_price),
+           cost_price = COALESCE($4, cost_price),
+           unit = COALESCE($5, unit),
+           image_url = COALESCE($6, image_url),
+           category = COALESCE($7, category),
+           subcategory = COALESCE($8, subcategory),
+           brand = COALESCE($9, brand),
+           updated_at = NOW() 
+       WHERE price_list_id = $10 AND product_code = $11`,
+      [
+        product_name, description, sale_price, cost_price, 
+        unit, image_url, category, subcategory, brand,
+        req.params.id, req.params.productCode
+      ]
     );
     res.json({ success: true });
   } catch (err) {

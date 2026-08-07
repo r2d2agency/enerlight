@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Loader2, Image as ImageIcon, Upload, X, FileUp, FileSpreadsheet } from "lucide-react";
+import { Search, Loader2, Image as ImageIcon, Upload, X, FileUp, FileSpreadsheet, Edit2, Check } from "lucide-react";
 import { usePriceListItems } from "@/hooks/use-online-quotes";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
@@ -24,6 +24,8 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
   const { data: items, isLoading } = usePriceListItems(priceList?.id || "");
   const queryClient = useQueryClient();
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<any>(null);
   const [showCost, setShowCost] = useState(false);
 
   const filteredItems = items?.filter(item => 
@@ -87,8 +89,8 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
         const items = lines.slice(1).filter(l => l.trim()).map(line => {
           const [product_code, product_name, sale_price, image_url] = line.split(',');
           return {
-            product_code: product_code?.trim(),
-            product_name: product_name?.trim(),
+            product_code: product_code?.trim().toUpperCase(),
+            product_name: product_name?.trim().toUpperCase(),
             sale_price: parseFloat(sale_price?.trim() || "0"),
             image_url: image_url?.trim()
           };
@@ -111,6 +113,45 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
       }
     };
     reader.readAsText(file);
+  };
+
+  const handleStartEdit = (item: any) => {
+    setEditingId(item.id);
+    setEditForm({ ...item });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setEditForm(null);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!priceList || !editForm) return;
+    setUpdatingId(editForm.product_code);
+    try {
+      await api(`/api/online-quotes/price-lists/${priceList.id}/items/${editForm.product_code}`, {
+        method: 'PATCH',
+        body: {
+          product_name: editForm.product_name?.toUpperCase(),
+          description: editForm.description,
+          sale_price: parseFloat(editForm.sale_price) || 0,
+          cost_price: parseFloat(editForm.cost_price) || 0,
+          unit: editForm.unit?.toUpperCase(),
+          category: editForm.category?.toUpperCase(),
+          subcategory: editForm.subcategory?.toUpperCase(),
+          brand: editForm.brand?.toUpperCase(),
+          image_url: editForm.image_url
+        }
+      });
+      toast.success("Item atualizado!");
+      queryClient.invalidateQueries({ queryKey: ['price-list-items', priceList.id] });
+      setEditingId(null);
+      setEditForm(null);
+    } catch (err) {
+      toast.error("Erro ao atualizar item");
+    } finally {
+      setUpdatingId(null);
+    }
   };
   const [importMapping, setImportMapping] = useState<Record<string, string>>({});
   const [xlsxData, setXlsxData] = useState<any[]>([]);
@@ -193,16 +234,16 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
         }
 
         return {
-          product_code: (row[importMapping['product_code']] || '').toString().trim(),
-          product_name: (row[importMapping['product_name']] || '').toString().trim(),
+          product_code: (row[importMapping['product_code']] || '').toString().trim().toUpperCase(),
+          product_name: (row[importMapping['product_name']] || '').toString().trim().toUpperCase(),
           description: (row[importMapping['description']] || '').toString().trim(),
           sale_price,
           cost_price,
-          unit: (row[importMapping['unit']] || 'un').toString().trim(),
+          unit: (row[importMapping['unit']] || 'un').toString().trim().toUpperCase(),
           image_url: (row[importMapping['image_url']] || '').toString().trim(),
-          category: (row[importMapping['category']] || '').toString().trim(),
-          subcategory: (row[importMapping['subcategory']] || '').toString().trim(),
-          brand: (row[importMapping['brand']] || '').toString().trim(),
+          category: (row[importMapping['category']] || '').toString().trim().toUpperCase(),
+          subcategory: (row[importMapping['subcategory']] || '').toString().trim().toUpperCase(),
+          brand: (row[importMapping['brand']] || '').toString().trim().toUpperCase(),
         };
       }).filter(item => item.product_code && item.product_name);
 
@@ -312,80 +353,156 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
                     </TableCell>
                     <TableCell className="font-mono text-xs">{item.product_code}</TableCell>
                     <TableCell className="font-medium">
-                      <div className="flex flex-col">
-                        <span>{item.product_name}</span>
-                        {item.description && <span className="text-xs text-muted-foreground italic line-clamp-1">{item.description}</span>}
-                        {(item.category || item.brand) && (
-                          <div className="flex gap-1 mt-1">
-                            {item.category && <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded">{item.category} {item.subcategory ? `> ${item.subcategory}` : ''}</span>}
-                            {item.brand && <span className="text-[10px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded font-bold uppercase">{item.brand}</span>}
-                          </div>
-                        )}
-                      </div>
-
+                      {editingId === item.id ? (
+                        <div className="flex flex-col gap-1">
+                          <Input 
+                            value={editForm.product_name}
+                            onChange={e => setEditForm({ ...editForm, product_name: e.target.value })}
+                            className="h-8 text-xs font-bold"
+                            placeholder="Nome do Produto"
+                          />
+                          <Input 
+                            value={editForm.description || ''}
+                            onChange={e => setEditForm({ ...editForm, description: e.target.value })}
+                            className="h-8 text-xs italic"
+                            placeholder="Descrição"
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex flex-col">
+                          <span>{item.product_name}</span>
+                          {item.description && <span className="text-xs text-muted-foreground italic line-clamp-1">{item.description}</span>}
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell>
-                       <div className="flex flex-col text-xs text-muted-foreground">
-                         {item.category && <span className="truncate max-w-[120px]" title={item.category}>{item.category}</span>}
-                         {item.brand && <span className="font-bold truncate max-w-[120px]" title={item.brand}>{item.brand}</span>}
-                       </div>
+                      {editingId === item.id ? (
+                        <div className="flex flex-col gap-1">
+                          <Input 
+                            value={editForm.category || ''}
+                            onChange={e => setEditForm({ ...editForm, category: e.target.value })}
+                            className="h-7 text-[10px]"
+                            placeholder="Categoria"
+                          />
+                          <Input 
+                            value={editForm.brand || ''}
+                            onChange={e => setEditForm({ ...editForm, brand: e.target.value })}
+                            className="h-7 text-[10px]"
+                            placeholder="Marca"
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex flex-col text-xs text-muted-foreground">
+                          {item.category && <span className="truncate max-w-[120px]" title={item.category}>{item.category}</span>}
+                          {item.brand && <span className="font-bold truncate max-w-[120px]" title={item.brand}>{item.brand}</span>}
+                        </div>
+                      )}
                     </TableCell>
                     {priceList?.is_master && showCost && (
                       <TableCell>
-                        <span className="text-muted-foreground font-mono">
-                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.cost_price || 0)}
-                        </span>
+                        {editingId === item.id ? (
+                          <Input 
+                            type="number"
+                            value={editForm.cost_price}
+                            onChange={e => setEditForm({ ...editForm, cost_price: e.target.value })}
+                            className="h-8 w-24 text-xs font-mono"
+                          />
+                        ) : (
+                          <span className="text-muted-foreground font-mono">
+                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.cost_price || 0)}
+                          </span>
+                        )}
                       </TableCell>
                     )}
                     <TableCell>
                       <div className="flex flex-col">
                         <div className="flex items-baseline gap-1">
-                          <span className="font-bold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.sale_price)}</span>
-                          <span className="text-[10px] text-muted-foreground font-normal">/{item.unit || 'un'}</span>
+                          {editingId === item.id ? (
+                            <div className="flex items-center gap-1">
+                              <Input 
+                                type="number"
+                                value={editForm.sale_price}
+                                onChange={e => setEditForm({ ...editForm, sale_price: e.target.value })}
+                                className="h-8 w-24 text-xs font-bold"
+                              />
+                              <Input 
+                                value={editForm.unit || ''}
+                                onChange={e => setEditForm({ ...editForm, unit: e.target.value })}
+                                className="h-8 w-12 text-[10px]"
+                                placeholder="un"
+                              />
+                            </div>
+                          ) : (
+                            <>
+                              <span className="font-bold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.sale_price)}</span>
+                              <span className="text-[10px] text-muted-foreground font-normal">/{item.unit || 'un'}</span>
+                            </>
+                          )}
                         </div>
                         {priceList?.markup_percentage && !priceList.is_master ? (
                           <span className="text-[10px] text-muted-foreground">Inclui {priceList.markup_percentage}% de markup</span>
                         ) : null}
                       </div>
-
                     </TableCell>
                     {canEdit && (
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="relative h-8 w-8 p-0"
-                            disabled={updatingId === item.product_code}
-                            title="Fazer upload de foto"
-                          >
-                            {updatingId === item.product_code ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Upload className="h-4 w-4" />
-                            )}
-                            <input 
-                              type="file" 
-                              accept="image/*" 
-                              className="absolute inset-0 opacity-0 cursor-pointer" 
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) handleFileUpload(item.product_code, file);
-                              }}
-                              disabled={updatingId === item.product_code}
-                            />
-                          </Button>
-                          <Input 
-                            placeholder="Ou cole o link..."
-                            defaultValue={item.image_url || ""}
-                            className="h-8 text-xs flex-1"
-                            onBlur={(e) => {
-                              if (e.target.value !== (item.image_url || "")) {
-                                handleUpdateImage(item.product_code, e.target.value);
-                              }
-                            }}
-                            disabled={updatingId === item.product_code}
-                          />
+                          {editingId === item.id ? (
+                            <>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="h-8 w-8 p-0 text-success border-success/50 hover:bg-success/10"
+                                onClick={handleSaveEdit}
+                                disabled={updatingId === item.product_code}
+                              >
+                                {updatingId === item.product_code ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="h-8 w-8 p-0 text-destructive border-destructive/50 hover:bg-destructive/10"
+                                onClick={handleCancelEdit}
+                                disabled={updatingId === item.product_code}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="h-8 w-8 p-0"
+                                onClick={() => handleStartEdit(item)}
+                              >
+                                <Edit2 className="h-4 w-4" />
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="relative h-8 w-8 p-0"
+                                disabled={updatingId === item.product_code}
+                                title="Fazer upload de foto"
+                              >
+                                {updatingId === item.product_code ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Upload className="h-4 w-4" />
+                                )}
+                                <input 
+                                  type="file" 
+                                  accept="image/*" 
+                                  className="absolute inset-0 opacity-0 cursor-pointer" 
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) handleFileUpload(item.product_code, file);
+                                  }}
+                                  disabled={updatingId === item.product_code}
+                                />
+                              </Button>
+                            </>
+                          )}
                         </div>
                       </TableCell>
                     )}
