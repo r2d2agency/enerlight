@@ -21,6 +21,7 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
   const { data: items, isLoading } = usePriceListItems(priceList?.id || "");
   const queryClient = useQueryClient();
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [showCost, setShowCost] = useState(false);
 
   const filteredItems = items?.filter(item => 
     item.product_name.toLowerCase().includes(search.toLowerCase()) ||
@@ -260,6 +261,17 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
                   </Button>
                 </>
               )}
+              {priceList?.is_master && (
+                <div className="flex items-center gap-2 ml-2 px-2 border-l">
+                  <span className="text-xs font-medium text-muted-foreground">Ver Custos</span>
+                  <input 
+                    type="checkbox" 
+                    checked={showCost}
+                    onChange={(e) => setShowCost(e.target.checked)}
+                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                </div>
+              )}
             </div>
           </div>
         </DialogHeader>
@@ -277,7 +289,7 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
                   <TableHead>Código</TableHead>
                   <TableHead>Produto</TableHead>
                   <TableHead>Categoria / Marca</TableHead>
-                  {priceList?.is_master && <TableHead>Custo</TableHead>}
+                  {priceList?.is_master && showCost && <TableHead>Custo</TableHead>}
                   <TableHead>Preço Venda</TableHead>
                    {canEdit && <TableHead className="w-[120px]">Ações</TableHead>}
                 </TableRow>
@@ -312,7 +324,7 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
                          {item.brand && <span className="font-bold truncate max-w-[120px]" title={item.brand}>{item.brand}</span>}
                        </div>
                     </TableCell>
-                    {priceList?.is_master && (
+                    {priceList?.is_master && showCost && (
                       <TableCell>
                         <span className="text-muted-foreground font-mono">
                           {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.cost_price || 0)}
