@@ -234,16 +234,16 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
         }
 
         return {
-          product_code: (row[importMapping['product_code']] || '').toString().trim(),
-          product_name: (row[importMapping['product_name']] || '').toString().trim(),
+          product_code: (row[importMapping['product_code']] || '').toString().trim().toUpperCase(),
+          product_name: (row[importMapping['product_name']] || '').toString().trim().toUpperCase(),
           description: (row[importMapping['description']] || '').toString().trim(),
           sale_price,
           cost_price,
-          unit: (row[importMapping['unit']] || 'un').toString().trim(),
+          unit: (row[importMapping['unit']] || 'un').toString().trim().toUpperCase(),
           image_url: (row[importMapping['image_url']] || '').toString().trim(),
-          category: (row[importMapping['category']] || '').toString().trim(),
-          subcategory: (row[importMapping['subcategory']] || '').toString().trim(),
-          brand: (row[importMapping['brand']] || '').toString().trim(),
+          category: (row[importMapping['category']] || '').toString().trim().toUpperCase(),
+          subcategory: (row[importMapping['subcategory']] || '').toString().trim().toUpperCase(),
+          brand: (row[importMapping['brand']] || '').toString().trim().toUpperCase(),
         };
       }).filter(item => item.product_code && item.product_name);
 
