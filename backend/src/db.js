@@ -28,7 +28,7 @@ function paramTypes(params) {
   });
 }
 
-const dbConfig = parseConnectionString(process.env.DATABASE_URL);
+const dbConfig = process.env.DATABASE_URL ? { connectionString: process.env.DATABASE_URL } : {};
 
 export const pool = new Pool(dbConfig);
 
