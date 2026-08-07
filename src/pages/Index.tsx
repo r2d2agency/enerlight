@@ -184,7 +184,7 @@ const FullDashboard = () => {
         <div className="animate-slide-up">
           <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
           <p className="mt-1 text-muted-foreground">
-            Visão geral do seu sistema. Para gerenciar orçamentos online, vá em CRM {'->'} Orçamentos Online. Lá você encontrará as opções de subcategoria e filtros por marca.
+            Visão geral do seu sistema. Para gerenciar orçamentos online, vá em CRM {'->'} Orçamentos Online. Lá você encontrará as opções de subcategoria e filtros por marca. Agora você também pode mapear manualmente as colunas na importação de tabelas de preço.
           </p>
         </div>
 
