@@ -77,6 +77,8 @@ export default function CRMEmpresas() {
     sort: sortBy,
     direction: sortDir,
   });
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'owner' || user?.role === 'admin';
   const companies = (companiesResponse?.items || []).filter(c => isAdmin || (c as any).created_by === user?.id);
   const total = isAdmin ? (companiesResponse?.total || 0) : companies.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -84,8 +86,6 @@ export default function CRMEmpresas() {
   const { data: funnels } = useCRMFunnels();
   const { data: cnaeGroups } = useCRMCnaeGroups();
   const { deleteCompany, importCompanies } = useCRMCompanyMutations();
-  const { user } = useAuth();
-  const isAdmin = user?.role === 'owner' || user?.role === 'admin';
 
   const handleEdit = (company: CRMCompany) => {
     setEditingCompany(company);
