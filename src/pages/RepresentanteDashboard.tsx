@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   LayoutDashboard, FileText, ShoppingCart, Wallet, Plus, 
   Search, Calendar as CalendarIcon, Filter, Building2, Handshake,
-  TrendingUp, CheckCircle2, Clock, CreditCard, Eye, Loader2
+  TrendingUp, CheckCircle2, Clock, CreditCard, Eye, Loader2, Users
 } from "lucide-react";
 import { OnlineQuoteFormDialog } from "@/components/crm/OnlineQuoteFormDialog";
 import { useAuth } from "@/contexts/AuthContext";
@@ -19,6 +19,7 @@ import { ptBR } from "date-fns/locale";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { useCRMCompanies } from "@/hooks/use-crm";
 
 const fmt = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
 
