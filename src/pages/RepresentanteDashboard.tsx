@@ -29,6 +29,11 @@ export default function RepresentanteDashboard() {
   const [endDate, setEndDate] = useState(format(endOfMonth(new Date()), "yyyy-MM-dd"));
   const [search, setSearch] = useState("");
   const [isQuoteDialogOpen, setIsQuoteDialogOpen] = useState(false);
+  const [clientSearch, setClientSearch] = useState("");
+
+  // Clients query
+  const { data: companies, isLoading: loadingCompanies } = useCRMCompanies(clientSearch);
+  const myClients = (companies || []).filter(c => (c as any).created_by === user?.id);
 
   // Quotes query for the table and stats
   const { data: quotes, isLoading: loadingQuotes, refetch: refetchQuotes } = useQuery({
