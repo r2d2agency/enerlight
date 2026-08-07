@@ -42,6 +42,7 @@ export default function OnlineQuotes() {
   const isQuoteAdmin = ['owner', 'admin', 'manager'].includes(user?.role || '') || user?.user_permissions?.can_manage_online_quotes;
   const isAdmin = ['owner', 'admin', 'manager'].includes(user?.role || '') || user?.user_permissions?.can_view_all_representative_quotes;
 
+
   const canEditPriceLists = isQuoteAdmin || user?.user_permissions?.can_edit_price_lists;
 
   const { data: priceLists, isLoading: loadingPriceLists } = usePriceLists();
