@@ -505,6 +505,7 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
                       ) : (
                         <div className="flex flex-col text-xs text-muted-foreground">
                           {item.category && <span className="truncate max-w-[120px]" title={item.category}>{item.category}</span>}
+                          {item.subcategory && <span className="truncate max-w-[120px] italic opacity-70" title={item.subcategory}>{item.subcategory}</span>}
                           {item.brand && <span className="font-bold truncate max-w-[120px]" title={item.brand}>{item.brand}</span>}
                         </div>
                       )}
