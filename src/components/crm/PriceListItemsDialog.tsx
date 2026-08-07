@@ -133,7 +133,7 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
         }
 
         // Map and validate items
-        const items = await Promise.all(jsonData.map(async (row: any) => {
+        const items = jsonData.map((row: any) => {
           // Normaliza as chaves para facilitar a busca
           const keys = Object.keys(row);
           const findKey = (possibilities: string[]) => 
@@ -141,12 +141,14 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
 
           const codeKey = findKey(['code', 'codigo', 'código', 'cod', 'sku', 'referencia', 'referência']);
           const nameKey = findKey(['name', 'nome', 'produto', 'descrição', 'descricao', 'item']);
+          const descKey = findKey(['description', 'descrição', 'descricao', 'obs', 'observação']);
           const priceKey = findKey(['price', 'preco', 'preço', 'valor', 'venda', 'vlr', 'preço venda', 'preço de venda']);
           const costKey = findKey(['cost', 'custo', 'vlr_custo', 'valor_custo', 'compra', 'preço custo', 'preço de custo']);
           const imageKey = findKey(['image', 'imagem', 'url', 'foto', 'link']);
           const categoryKey = findKey(['category', 'categoria', 'tipo', 'grupo']);
           const subcategoryKey = findKey(['subcategory', 'subcategoria', 'subgrupo']);
           const brandKey = findKey(['brand', 'marca', 'fabricante']);
+          const unitKey = findKey(['unit', 'unidade', 'un']);
 
           const product_code = (row[codeKey || ''] || '').toString().trim();
           const product_name = (row[nameKey || ''] || '').toString().trim();
@@ -166,41 +168,25 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
           const base_sale_price = parsePrice(row[priceKey || '']);
           const cost_price = parsePrice(row[costKey || '']);
           
-          // Se for a matriz, o preço é o que está no arquivo
-          // Se não for matriz, aplicamos o markup sobre o preço base do arquivo
           let sale_price = base_sale_price;
           if (!priceList?.is_master && priceList?.markup_percentage && priceList.markup_percentage > 0) {
             sale_price = base_sale_price * (1 + (priceList.markup_percentage / 100));
           }
 
-          let image_url = (row[imageKey || ''] || '').toString().trim();
-
-          // Se não tiver imagem na planilha, tenta buscar de outras tabelas pelo código
-          if (!image_url && product_code) {
-            try {
-              const response = await api<any[]>(`/api/online-quotes/items/search-by-code?code=${encodeURIComponent(product_code)}`);
-              if (response && response.length > 0) {
-                const itemWithImage = response.find(i => i.image_url);
-                if (itemWithImage) {
-                  image_url = itemWithImage.image_url;
-                }
-              }
-            } catch (err) {
-              console.warn(`Erro ao buscar imagem para o código ${product_code}:`, err);
-            }
-          }
-
           return {
             product_code,
             product_name,
+            description: (row[descKey || ''] || '').toString().trim(),
             sale_price,
             cost_price,
-            image_url,
+            unit: (row[unitKey || ''] || 'un').toString().trim(),
+            image_url: (row[imageKey || ''] || '').toString().trim(),
             category: (row[categoryKey || ''] || '').toString().trim(),
             subcategory: (row[subcategoryKey || ''] || '').toString().trim(),
             brand: (row[brandKey || ''] || '').toString().trim(),
           };
-        }));
+        });
+
         
         const filteredItems = items.filter(item => item.product_code && item.product_name);
 
