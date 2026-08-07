@@ -352,18 +352,25 @@ export default function RepresentanteDashboard() {
                               {client.created_at ? format(parseISO(client.created_at), "dd/MM/yyyy") : "-"}
                             </TableCell>
                             <TableCell className="text-right">
-                              <Button variant="ghost" size="sm" onClick={() => {
-                                setSelectedQuoteForEdit({
-                                  client_name: client.name,
-                                  client_document: client.cnpj,
-                                  client_email: client.email,
-                                  client_phone: client.phone
-                                });
-                                setIsQuoteDialogOpen(true);
-                              }}>
-                                <Plus className="h-4 w-4 mr-2" />
-                                Orçamento
-                              </Button>
+                              <div className="flex justify-end gap-2">
+                                <Button variant="ghost" size="sm" asChild title="Ver detalhes do cliente">
+                                  <a href={`/crm/empresas?search=${client.name}`} className="flex items-center gap-2">
+                                    <Eye className="h-4 w-4" />
+                                  </a>
+                                </Button>
+                                <Button variant="ghost" size="sm" onClick={() => {
+                                  setSelectedQuoteForEdit({
+                                    client_name: client.name,
+                                    client_document: client.cnpj,
+                                    client_email: client.email,
+                                    client_phone: client.phone
+                                  });
+                                  setIsQuoteDialogOpen(true);
+                                }}>
+                                  <Plus className="h-4 w-4 mr-2" />
+                                  Orçamento
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))
