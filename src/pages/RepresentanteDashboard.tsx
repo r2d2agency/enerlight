@@ -11,6 +11,7 @@ import {
   Search, Calendar as CalendarIcon, Filter, Building2, Handshake,
   TrendingUp, CheckCircle2, Clock, CreditCard
 } from "lucide-react";
+import { OnlineQuoteFormDialog } from "@/components/crm/OnlineQuoteFormDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -24,6 +25,7 @@ export default function RepresentanteDashboard() {
   const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), "yyyy-MM-dd"));
   const [endDate, setEndDate] = useState(format(endOfMonth(new Date()), "yyyy-MM-dd"));
   const [search, setSearch] = useState("");
+  const [isQuoteDialogOpen, setIsQuoteDialogOpen] = useState(false);
 
   // Stats for Representative
   const { data: stats, isLoading: loadingStats } = useQuery({
@@ -163,10 +165,8 @@ export default function RepresentanteDashboard() {
                   onChange={e => setSearch(e.target.value)}
                 />
               </div>
-              <Button asChild>
-                <a href="/crm/orcamentos">
-                  <Plus className="h-4 w-4 mr-2" /> Novo Orçamento
-                </a>
+              <Button onClick={() => setIsQuoteDialogOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" /> Novo Orçamento
               </Button>
             </div>
 
@@ -181,7 +181,7 @@ export default function RepresentanteDashboard() {
                     <div className="flex flex-col items-center gap-2">
                       <FileText className="h-10 w-10 opacity-20" />
                       <p>Para visualizar a listagem completa e cadastrar clientes via CNPJ, acesse o módulo de 
-                        <a href="/crm/orcamentos" className="text-primary hover:underline ml-1 font-medium">Orçamentos Online</a>.
+                        <button onClick={() => setIsQuoteDialogOpen(true)} className="text-primary hover:underline ml-1 font-medium">Orçamentos Online</button>.
                       </p>
                     </div>
                   </div>
@@ -262,6 +262,7 @@ export default function RepresentanteDashboard() {
           </Card>
         </div>
       </div>
+      <OnlineQuoteFormDialog open={isQuoteDialogOpen} onOpenChange={setIsQuoteDialogOpen} />
     </MainLayout>
   );
 }
