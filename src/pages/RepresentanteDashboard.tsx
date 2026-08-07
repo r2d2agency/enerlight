@@ -29,6 +29,7 @@ export default function RepresentanteDashboard() {
   const [endDate, setEndDate] = useState(format(endOfMonth(new Date()), "yyyy-MM-dd"));
   const [search, setSearch] = useState("");
   const [isQuoteDialogOpen, setIsQuoteDialogOpen] = useState(false);
+  const [selectedQuoteForEdit, setSelectedQuoteForEdit] = useState<any>(null);
   const [clientSearch, setClientSearch] = useState("");
 
   // Clients query
