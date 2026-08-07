@@ -61,7 +61,8 @@ export default function OnlineQuotes() {
   
   const filteredQuotes = quotes?.filter(quote => {
     const matchesSearch = quote.client_name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                         (quote.client_email && quote.client_email.toLowerCase().includes(searchTerm.toLowerCase()));
+                         (quote.client_email && quote.client_email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                         (quote.cnpj && quote.cnpj.includes(searchTerm));
     
     if (!matchesSearch) return false;
 
@@ -305,7 +306,7 @@ export default function OnlineQuotes() {
                   <div className="relative w-full sm:w-64">
                     <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
-                      placeholder="Buscar por cliente..."
+                      placeholder="Buscar por cliente ou CNPJ..."
                       className="pl-8"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}

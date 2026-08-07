@@ -136,6 +136,7 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
       { name: "Pesquisas", href: "/crm/pesquisas", icon: ClipboardList, permissionKey: 'can_view_crm' },
       { name: "Orçamentos Online", href: "/crm/orcamentos", icon: FileText, moduleKey: 'online_quotes', permissionKey: 'can_view_online_quotes' },
       { name: "Fantasma", href: "/modulo-fantasma", icon: Ghost, moduleKey: 'ghost', permissionKey: 'can_view_ghost' },
+      { name: "Painel Representante", href: "/crm/representante-dashboard", icon: LayoutDashboard, permissionKey: 'can_view_crm' },
       { name: "Configurações", href: "/crm/configuracoes", icon: Settings, permissionKey: 'can_view_crm_settings' },
     ],
   },
