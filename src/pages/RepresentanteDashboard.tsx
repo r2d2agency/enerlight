@@ -353,9 +353,13 @@ export default function RepresentanteDashboard() {
                             </TableCell>
                             <TableCell className="text-right">
                               <Button variant="ghost" size="sm" onClick={() => {
-                                // Potentially open a view or redirect to orçamentos with this client selected
+                                setSelectedQuoteForEdit({
+                                  client_name: client.name,
+                                  client_document: client.cnpj,
+                                  client_email: client.email,
+                                  client_phone: client.phone
+                                });
                                 setIsQuoteDialogOpen(true);
-                                // This would need the dialog to support pre-selecting a company
                               }}>
                                 <Plus className="h-4 w-4 mr-2" />
                                 Orçamento
