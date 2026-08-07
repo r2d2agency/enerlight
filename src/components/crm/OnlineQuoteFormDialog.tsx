@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Trash2, Search, Loader2, Save, Image as ImageIcon, Eye, X, Building2, List, FileText } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { usePriceLists, usePriceListItems, useOnlineQuoteMutations, useOnlineQuoteTemplates } from "@/hooks/use-online-quotes";
 import { useCRMCompanies } from "@/hooks/use-crm";
 import { useAuth } from "@/contexts/AuthContext";
@@ -353,7 +354,7 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
                           <div className="flex-1">
                             <p className="font-medium">{company.name}</p>
                             <p className="text-[10px] text-muted-foreground">{company.cnpj || "Sem CNPJ"}</p>
-                            {isRepresentative && company.created_by !== user?.id && (
+                            {isRepresentative && (company as any).created_by !== user?.id && (
                                 <Badge variant="outline" className="text-[8px] h-3 ml-2">Outro Representante</Badge>
                             )}
                           </div>

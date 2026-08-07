@@ -434,11 +434,11 @@ router.get('/quotes', async (req, res) => {
 
     if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
     
-    let sql = `SELECT * FROM online_quotes WHERE organization_id = $1`;
+    let sql = `SELECT q.*, q.client_document as cnpj FROM online_quotes q WHERE q.organization_id = $1`;
     const params = [ctx.organizationId];
     
-    if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner') {
-      sql += ` AND user_id = $2`;
+    if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && ctx.role !== 'supervisor') {
+      sql += ` AND q.user_id = $2`;
       params.push(req.userId);
     }
 
