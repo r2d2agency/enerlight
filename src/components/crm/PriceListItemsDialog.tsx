@@ -140,6 +140,9 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
           const priceKey = findKey(['price', 'preco', 'preço', 'valor', 'venda', 'vlr', 'preço venda', 'preço de venda']);
           const costKey = findKey(['cost', 'custo', 'vlr_custo', 'valor_custo', 'compra', 'preço custo', 'preço de custo']);
           const imageKey = findKey(['image', 'imagem', 'url', 'foto', 'link']);
+          const categoryKey = findKey(['category', 'categoria', 'tipo', 'grupo']);
+          const subcategoryKey = findKey(['subcategory', 'subcategoria', 'subgrupo']);
+          const brandKey = findKey(['brand', 'marca', 'fabricante']);
 
           const product_code = (row[codeKey || ''] || '').toString().trim();
           const product_name = (row[nameKey || ''] || '').toString().trim();
@@ -188,7 +191,10 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
             product_name,
             sale_price,
             cost_price,
-            image_url
+            image_url,
+            category: (row[categoryKey || ''] || '').toString().trim(),
+            subcategory: (row[subcategoryKey || ''] || '').toString().trim(),
+            brand: (row[brandKey || ''] || '').toString().trim(),
           };
         }));
         
@@ -270,6 +276,7 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
                   <TableHead className="w-[80px]">Imagem</TableHead>
                   <TableHead>Código</TableHead>
                   <TableHead>Produto</TableHead>
+                  <TableHead>Categoria / Marca</TableHead>
                   {priceList?.is_master && <TableHead>Custo</TableHead>}
                   <TableHead>Preço Venda</TableHead>
                    {canEdit && <TableHead className="w-[120px]">Ações</TableHead>}
@@ -288,7 +295,23 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
                       </div>
                     </TableCell>
                     <TableCell className="font-mono text-xs">{item.product_code}</TableCell>
-                    <TableCell className="font-medium">{item.product_name}</TableCell>
+                    <TableCell className="font-medium">
+                      <div className="flex flex-col">
+                        <span>{item.product_name}</span>
+                        {(item.category || item.brand) && (
+                          <div className="flex gap-1 mt-1">
+                            {item.category && <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded">{item.category} {item.subcategory ? `> ${item.subcategory}` : ''}</span>}
+                            {item.brand && <span className="text-[10px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded font-bold uppercase">{item.brand}</span>}
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                       <div className="flex flex-col text-xs text-muted-foreground">
+                         {item.category && <span className="truncate max-w-[120px]" title={item.category}>{item.category}</span>}
+                         {item.brand && <span className="font-bold truncate max-w-[120px]" title={item.brand}>{item.brand}</span>}
+                       </div>
+                    </TableCell>
                     {priceList?.is_master && (
                       <TableCell>
                         <span className="text-muted-foreground font-mono">
