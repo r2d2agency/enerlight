@@ -5,18 +5,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   LayoutDashboard, FileText, ShoppingCart, Wallet, Plus, 
   Search, Calendar as CalendarIcon, Filter, Building2, Handshake,
-  TrendingUp, CheckCircle2, Clock, CreditCard
+  TrendingUp, CheckCircle2, Clock, CreditCard, Eye, Loader2
 } from "lucide-react";
 import { OnlineQuoteFormDialog } from "@/components/crm/OnlineQuoteFormDialog";
 import { useAuth } from "@/contexts/AuthContext";
-import { format, startOfMonth, endOfMonth } from "date-fns";
+import { format, startOfMonth, endOfMonth, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { toast } from "sonner";
 
 const fmt = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
 
@@ -27,32 +29,65 @@ export default function RepresentanteDashboard() {
   const [search, setSearch] = useState("");
   const [isQuoteDialogOpen, setIsQuoteDialogOpen] = useState(false);
 
-  // Stats for Representative
-  const { data: stats, isLoading: loadingStats } = useQuery({
+  // Quotes query for the table and stats
+  const { data: quotes, isLoading: loadingQuotes, refetch: refetchQuotes } = useQuery({
+    queryKey: ["representative-quotes", user?.id],
+    queryFn: async () => {
+      const allQuotes = await api<any[]>(`/api/crm/orcamentos`).catch(() => []);
+      return allQuotes.filter((q: any) => q.created_by === user?.id);
+    },
+    enabled: !!user?.id
+  });
+
+  // Stats query
+  const { data: stats } = useQuery({
     queryKey: ["representative-dashboard-stats", user?.id, startDate, endDate],
     queryFn: async () => {
-      // Use existing endpoints or a new combined one if available
       const sp = new URLSearchParams();
       sp.set("start_date", startDate);
       sp.set("end_date", endDate);
       
-      // Attempt to get commission data
       const commission = await api<any>(`/api/commissions/my-summary?${sp.toString()}`).catch(() => ({}));
       
-      // Attempt to get quotes stats
-      const quotes = await api<any[]>(`/api/crm/orcamentos`).catch(() => []);
-      const myQuotes = quotes.filter((q: any) => q.created_by === user?.id);
+      const periodQuotes = (quotes || []).filter((q: any) => {
+        const date = q.created_at?.split('T')[0];
+        return date >= startDate && date <= endDate;
+      });
       
       return {
         commission,
         quotes: {
-          total: myQuotes.length,
-          value: myQuotes.reduce((acc, q) => acc + (q.total_value || 0), 0)
+          total: periodQuotes.length,
+          value: periodQuotes.reduce((acc: number, q: any) => acc + (q.total_value || 0), 0)
         }
       };
     },
-    enabled: !!user?.id
+    enabled: !!user?.id && !!quotes
   });
+
+  const filteredQuotes = (quotes || []).filter((q: any) => {
+    const term = search.toLowerCase();
+    return q.client_name?.toLowerCase().includes(term) || 
+           q.client_document?.includes(term) ||
+           q.id?.includes(term);
+  });
+
+  const handleStatusChange = async (id: string, currentStatus: string) => {
+    const nextStatus = currentStatus === 'draft' ? 'sent' : 
+                      currentStatus === 'sent' ? 'approved' : 
+                      currentStatus === 'approved' ? 'rejected' : 'draft';
+    
+    try {
+      await api(`/api/crm/orcamentos/${id}/status`, {
+        method: 'PATCH',
+        body: { status: nextStatus }
+      });
+      refetchQuotes();
+      toast.success("Status atualizado");
+    } catch (err) {
+      toast.error("Erro ao atualizar status");
+    }
+  };
 
   return (
     <MainLayout>
@@ -176,15 +211,73 @@ export default function RepresentanteDashboard() {
                 <CardDescription>Consulte e gerencie suas propostas comerciais</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="rounded-md border">
-                  <div className="p-8 text-center text-muted-foreground">
-                    <div className="flex flex-col items-center gap-2">
-                      <FileText className="h-10 w-10 opacity-20" />
-                      <p>Para visualizar a listagem completa e cadastrar clientes via CNPJ, acesse o módulo de 
-                        <button onClick={() => setIsQuoteDialogOpen(true)} className="text-primary hover:underline ml-1 font-medium">Orçamentos Online</button>.
-                      </p>
-                    </div>
-                  </div>
+                <div className="rounded-md border overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Cliente</TableHead>
+                        <TableHead>Data</TableHead>
+                        <TableHead>Valor</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {loadingQuotes ? (
+                        <TableRow>
+                          <TableCell colSpan={5} className="h-24 text-center">
+                            <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
+                          </TableCell>
+                        </TableRow>
+                      ) : filteredQuotes.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                            Nenhum orçamento encontrado.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        filteredQuotes.map((quote: any) => (
+                          <TableRow key={quote.id}>
+                            <TableCell className="font-medium">
+                              <div className="flex flex-col">
+                                <span>{quote.client_name}</span>
+                                <span className="text-[10px] text-muted-foreground">{quote.client_document}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-xs">
+                              {quote.created_at ? format(parseISO(quote.created_at), "dd/MM/yyyy") : "-"}
+                            </TableCell>
+                            <TableCell className="text-sm font-semibold">
+                              {fmt(quote.total_value)}
+                            </TableCell>
+                            <TableCell>
+                              <Badge 
+                                variant={
+                                  quote.status === 'approved' ? 'default' :
+                                  quote.status === 'rejected' ? 'destructive' :
+                                  'secondary'
+                                } 
+                                className="text-[10px] cursor-pointer"
+                                onClick={() => handleStatusChange(quote.id, quote.status)}
+                              >
+                                {quote.status === 'draft' ? 'Rascunho' :
+                                 quote.status === 'sent' ? 'Enviado' :
+                                 quote.status === 'approved' ? 'Aprovado' : 'Rejeitado'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button variant="ghost" size="sm" asChild>
+                                <a href={`/orcamentos-online?id=${quote.id}`} className="flex items-center gap-2">
+                                  <Eye className="h-4 w-4" />
+                                  <span className="hidden sm:inline">Ver</span>
+                                </a>
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
                 </div>
               </CardContent>
             </Card>
@@ -262,7 +355,13 @@ export default function RepresentanteDashboard() {
           </Card>
         </div>
       </div>
-      <OnlineQuoteFormDialog open={isQuoteDialogOpen} onOpenChange={setIsQuoteDialogOpen} />
+      <OnlineQuoteFormDialog 
+        open={isQuoteDialogOpen} 
+        onOpenChange={(open) => {
+          setIsQuoteDialogOpen(open);
+          if (!open) refetchQuotes();
+        }} 
+      />
     </MainLayout>
   );
 }

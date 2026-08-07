@@ -44,7 +44,26 @@ export default function OnlineQuotes() {
   const canEditPriceLists = isQuoteAdmin || user?.user_permissions?.can_edit_price_lists;
 
   const { data: priceLists, isLoading: loadingPriceLists } = usePriceLists();
-  
+  const { data: quotes, isLoading: loadingQuotes } = useOnlineQuotes();
+  const { data: templates, isLoading: loadingTemplates } = useOnlineQuoteTemplates();
+  const { data: permissionTemplates } = usePermissionTemplates();
+
+  // Handle direct preview from URL (e.g., from Dashboard)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const quoteId = params.get('id');
+    if (quoteId && !loadingQuotes && quotes) {
+      const quote = quotes.find(q => q.id === quoteId);
+      if (quote) {
+        handlePreviewQuote(quote);
+        // Clean URL to prevent re-opening on manual refreshes
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    }
+  }, [quotes, loadingQuotes]);
+
+  const { saveTemplate, savePriceList, deletePriceList, deleteQuote, updateQuoteStatus } = useOnlineQuoteMutations();
+
   const filteredPriceLists = priceLists?.filter(pl => {
     if (isAdmin) return true;
     if (!pl.is_active) return false;
@@ -54,11 +73,6 @@ export default function OnlineQuotes() {
     const userTemplateId = user?.permission_template_id;
     return pl.allowed_templates.includes(userTemplateId);
   });
-
-  const { data: quotes, isLoading: loadingQuotes } = useOnlineQuotes();
-  const { data: templates, isLoading: loadingTemplates } = useOnlineQuoteTemplates();
-  const { data: permissionTemplates } = usePermissionTemplates();
-  const { saveTemplate, savePriceList, deletePriceList, deleteQuote, updateQuoteStatus } = useOnlineQuoteMutations();
   
   const filteredQuotes = quotes?.filter(quote => {
     const matchesSearch = quote.client_name.toLowerCase().includes(searchTerm.toLowerCase()) || 
