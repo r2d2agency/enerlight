@@ -4861,6 +4861,15 @@ DO $$ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'price_list_items' AND column_name = 'image_url') THEN
         ALTER TABLE price_list_items ADD COLUMN image_url TEXT;
     END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'price_list_items' AND column_name = 'category') THEN
+        ALTER TABLE price_list_items ADD COLUMN category VARCHAR(255);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'price_list_items' AND column_name = 'subcategory') THEN
+        ALTER TABLE price_list_items ADD COLUMN subcategory VARCHAR(255);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'price_list_items' AND column_name = 'brand') THEN
+        ALTER TABLE price_list_items ADD COLUMN brand VARCHAR(255);
+    END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'online_quotes' AND column_name = 'include_images') THEN
         ALTER TABLE online_quotes ADD COLUMN include_images BOOLEAN DEFAULT true;
     END IF;
@@ -4894,6 +4903,12 @@ DO $$ BEGIN
     END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'online_quotes' AND column_name = 'template_id') THEN
         ALTER TABLE online_quotes ADD COLUMN template_id UUID REFERENCES online_quote_templates(id);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'price_lists' AND column_name = 'is_master') THEN
+        ALTER TABLE price_lists ADD COLUMN is_master BOOLEAN DEFAULT false;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'price_lists' AND column_name = 'markup_percentage') THEN
+        ALTER TABLE price_lists ADD COLUMN markup_percentage DECIMAL(10, 2) DEFAULT 0;
     END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'online_quotes' AND column_name = 'footer_config') THEN
         ALTER TABLE online_quotes ADD COLUMN footer_config JSONB;
