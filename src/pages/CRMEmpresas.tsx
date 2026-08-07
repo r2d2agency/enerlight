@@ -77,8 +77,8 @@ export default function CRMEmpresas() {
     sort: sortBy,
     direction: sortDir,
   });
-  const companies = companiesResponse?.items || [];
-  const total = companiesResponse?.total || 0;
+  const companies = (companiesResponse?.items || []).filter(c => isAdmin || (c as any).created_by === user?.id);
+  const total = isAdmin ? (companiesResponse?.total || 0) : companies.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   const { data: funnels } = useCRMFunnels();
@@ -349,7 +349,7 @@ export default function CRMEmpresas() {
                 </TableHeader>
                 <TableBody>
                   {companies.map((company) => (
-                    <TableRow key={company.id} className="cursor-pointer" onClick={() => handleEdit(company)}>
+                    <TableRow key={company.id} className="cursor-pointer" onClick={() => (isAdmin || company.created_by === user?.id) && handleEdit(company)}>
                       <TableCell className="max-w-0">
                         <div className="flex items-center gap-3 min-w-0">
                           <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
