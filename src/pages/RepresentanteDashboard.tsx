@@ -186,9 +186,12 @@ export default function RepresentanteDashboard() {
         </div>
 
         <Tabs defaultValue="quotes" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
+          <TabsList className="grid w-full grid-cols-3 lg:w-[600px]">
             <TabsTrigger value="quotes" className="gap-2">
               <FileText className="h-4 w-4" /> Orçamentos
+            </TabsTrigger>
+            <TabsTrigger value="clients" className="gap-2">
+              <Users className="h-4 w-4" /> Meus Clientes
             </TabsTrigger>
             <TabsTrigger value="commissions" className="gap-2">
               <Wallet className="h-4 w-4" /> Comissões
