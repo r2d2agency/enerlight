@@ -299,6 +299,7 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
                     <TableCell className="font-medium">
                       <div className="flex flex-col">
                         <span>{item.product_name}</span>
+                        {item.description && <span className="text-xs text-muted-foreground italic line-clamp-1">{item.description}</span>}
                         {(item.category || item.brand) && (
                           <div className="flex gap-1 mt-1">
                             {item.category && <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded">{item.category} {item.subcategory ? `> ${item.subcategory}` : ''}</span>}
@@ -306,6 +307,7 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
                           </div>
                         )}
                       </div>
+
                     </TableCell>
                     <TableCell>
                        <div className="flex flex-col text-xs text-muted-foreground">
