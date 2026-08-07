@@ -171,3 +171,31 @@ export function useOnlineQuoteMutations() {
 
   return { createQuote, saveTemplate, savePriceList, deletePriceList, deleteQuote, updateQuote, updateQuoteStatus };
 }
+
+export function useOnlineQuoteCategories() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const categories = useQuery({
+    queryKey: ["online-quote-categories"],
+    queryFn: () => api<any[]>("/api/online-quote-categories"),
+  });
+
+  const saveCategory = useMutation({
+    mutationFn: (data: any) => api("/api/online-quote-categories", { method: "POST", body: data }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["online-quote-categories"] });
+      toast({ title: "Categoria salva com sucesso" });
+    },
+  });
+
+  const deleteCategory = useMutation({
+    mutationFn: (id: string) => api(`/api/online-quote-categories/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["online-quote-categories"] });
+      toast({ title: "Categoria excluída com sucesso" });
+    },
+  });
+
+  return { categories, saveCategory, deleteCategory };
+}

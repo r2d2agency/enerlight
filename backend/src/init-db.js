@@ -128,6 +128,17 @@ DO $$ BEGIN
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     );
 
+    -- Price List Categories / Subcategories registration
+    CREATE TABLE IF NOT EXISTS price_list_categories (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE NOT NULL,
+        category VARCHAR(255) NOT NULL,
+        subcategory VARCHAR(255),
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        UNIQUE(organization_id, category, subcategory)
+    );
+
     -- Allow linking employee to a specific location
     ALTER TABLE organization_members ADD COLUMN IF NOT EXISTS authorized_location_id UUID REFERENCES rh_authorized_locations(id) ON DELETE SET NULL;
 EXCEPTION

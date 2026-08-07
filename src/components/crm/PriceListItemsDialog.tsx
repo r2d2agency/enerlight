@@ -3,8 +3,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Loader2, Image as ImageIcon, Upload, X, FileUp, FileSpreadsheet, Edit2, Check } from "lucide-react";
-import { usePriceListItems } from "@/hooks/use-online-quotes";
+import { Search, Loader2, Image as ImageIcon, Upload, X, FileUp, FileSpreadsheet, Edit2, Check, Settings2, Trash2, Plus } from "lucide-react";
+import { usePriceListItems, useOnlineQuoteCategories } from "@/hooks/use-online-quotes";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -27,6 +27,9 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<any>(null);
   const [showCost, setShowCost] = useState(false);
+  const [isCategoriesManagerOpen, setIsCategoriesManagerOpen] = useState(false);
+  const { categories, saveCategory, deleteCategory } = useOnlineQuoteCategories();
+  const [newCat, setNewCat] = useState({ category: '', subcategory: '' });
 
   const filteredItems = items?.filter(item => 
     item.product_name.toLowerCase().includes(search.toLowerCase()) ||
@@ -361,12 +364,20 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
                             className="h-8 text-xs font-bold"
                             placeholder="Nome do Produto"
                           />
-                          <Input 
-                            value={editForm.description || ''}
-                            onChange={e => setEditForm({ ...editForm, description: e.target.value })}
-                            className="h-8 text-xs italic"
-                            placeholder="Descrição"
-                          />
+                          <div className="flex gap-1">
+                            <Input 
+                              value={editForm.description || ''}
+                              onChange={e => setEditForm({ ...editForm, description: e.target.value })}
+                              className="h-8 text-xs italic flex-1"
+                              placeholder="Descrição"
+                            />
+                            <Input 
+                              value={editForm.brand || ''}
+                              onChange={e => setEditForm({ ...editForm, brand: e.target.value.toUpperCase() })}
+                              className="h-8 text-[10px] w-24"
+                              placeholder="Marca"
+                            />
+                          </div>
                         </div>
                       ) : (
                         <div className="flex flex-col">
@@ -378,18 +389,41 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
                     <TableCell>
                       {editingId === item.id ? (
                         <div className="flex flex-col gap-1">
-                          <Input 
-                            value={editForm.category || ''}
-                            onChange={e => setEditForm({ ...editForm, category: e.target.value })}
-                            className="h-7 text-[10px]"
-                            placeholder="Categoria"
-                          />
-                          <Input 
-                            value={editForm.brand || ''}
-                            onChange={e => setEditForm({ ...editForm, brand: e.target.value })}
-                            className="h-7 text-[10px]"
-                            placeholder="Marca"
-                          />
+                          <Select 
+                            value={editForm.category || ''} 
+                            onValueChange={val => {
+                              const selectedCat = categories.data?.find(c => c.category === val);
+                              setEditForm({ 
+                                ...editForm, 
+                                category: val,
+                                subcategory: selectedCat?.subcategory === editForm.subcategory ? editForm.subcategory : ''
+                              });
+                            }}
+                          >
+                            <SelectTrigger className="h-7 text-[10px]">
+                              <SelectValue placeholder="Categoria" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Array.from(new Set(categories.data?.map(c => c.category) || [])).map(cat => (
+                                <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          
+                          <Select 
+                            value={editForm.subcategory || ''} 
+                            onValueChange={val => setEditForm({ ...editForm, subcategory: val })}
+                            disabled={!editForm.category}
+                          >
+                            <SelectTrigger className="h-7 text-[10px]">
+                              <SelectValue placeholder="Subcategoria" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {categories.data?.filter(c => c.category === editForm.category).map(cat => (
+                                <SelectItem key={cat.id} value={cat.subcategory || ''}>{cat.subcategory || 'Nenhuma'}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                       ) : (
                         <div className="flex flex-col text-xs text-muted-foreground">
