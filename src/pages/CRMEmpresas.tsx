@@ -77,15 +77,15 @@ export default function CRMEmpresas() {
     sort: sortBy,
     direction: sortDir,
   });
-  const companies = companiesResponse?.items || [];
-  const total = companiesResponse?.total || 0;
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'owner' || user?.role === 'admin';
+  const companies = (companiesResponse?.items || []).filter(c => isAdmin || (c as any).created_by === user?.id);
+  const total = isAdmin ? (companiesResponse?.total || 0) : companies.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   const { data: funnels } = useCRMFunnels();
   const { data: cnaeGroups } = useCRMCnaeGroups();
   const { deleteCompany, importCompanies } = useCRMCompanyMutations();
-  const { user } = useAuth();
-  const isAdmin = user?.role === 'owner' || user?.role === 'admin';
 
   const handleEdit = (company: CRMCompany) => {
     setEditingCompany(company);
@@ -129,8 +129,8 @@ export default function CRMEmpresas() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">Empresas</h1>
-            <p className="text-muted-foreground">Gerencie sua base de empresas</p>
+            <h1 className="text-2xl font-bold">{isAdmin ? "Empresas" : "Meus Clientes"}</h1>
+            <p className="text-muted-foreground">{isAdmin ? "Gerencie sua base de empresas" : "Gerencie seus clientes vinculados"}</p>
           </div>
           <div className="flex items-center gap-2">
             {isAdmin && (
@@ -349,7 +349,7 @@ export default function CRMEmpresas() {
                 </TableHeader>
                 <TableBody>
                   {companies.map((company) => (
-                    <TableRow key={company.id} className="cursor-pointer" onClick={() => handleEdit(company)}>
+                    <TableRow key={company.id} className="cursor-pointer" onClick={() => (isAdmin || (company as any).created_by === user?.id) && handleEdit(company)}>
                       <TableCell className="max-w-0">
                         <div className="flex items-center gap-3 min-w-0">
                           <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
