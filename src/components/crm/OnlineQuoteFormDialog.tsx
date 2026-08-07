@@ -48,6 +48,9 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
   const [isSearchingCNPJ, setIsSearchingCNPJ] = useState(false);
   const [companySearch, setCompanySearch] = useState("");
   const [showCompanyResults, setShowCompanyResults] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [selectedSubcategory, setSelectedSubcategory] = useState<string>("all");
+  const [selectedBrand, setSelectedBrand] = useState<string>("all");
 
   const { data: priceLists } = usePriceLists();
   const { data: templates } = useOnlineQuoteTemplates();
@@ -272,10 +275,39 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
     }
   };
 
-  const filteredProducts = priceListItems?.filter(p => 
-    p.product_name.toLowerCase().includes(productSearch.toLowerCase()) ||
-    p.product_code.toLowerCase().includes(productSearch.toLowerCase())
-  );
+  const categories = useMemo(() => {
+    if (!priceListItems) return [];
+    const set = new Set(priceListItems.map(p => p.category).filter(Boolean));
+    return Array.from(set).sort();
+  }, [priceListItems]);
+
+  const subcategories = useMemo(() => {
+    if (!priceListItems || selectedCategory === 'all') return [];
+    const set = new Set(
+      priceListItems
+        .filter(p => p.category === selectedCategory)
+        .map(p => p.subcategory)
+        .filter(Boolean)
+    );
+    return Array.from(set).sort();
+  }, [priceListItems, selectedCategory]);
+
+  const brands = useMemo(() => {
+    if (!priceListItems) return [];
+    const set = new Set(priceListItems.map(p => p.brand).filter(Boolean));
+    return Array.from(set).sort();
+  }, [priceListItems]);
+
+  const filteredProducts = priceListItems?.filter(p => {
+    const matchesSearch = p.product_name.toLowerCase().includes(productSearch.toLowerCase()) ||
+                         p.product_code.toLowerCase().includes(productSearch.toLowerCase());
+    
+    const matchesCategory = selectedCategory === "all" || p.category === selectedCategory;
+    const matchesSubcategory = selectedSubcategory === "all" || p.subcategory === selectedSubcategory;
+    const matchesBrand = selectedBrand === "all" || p.brand === selectedBrand;
+    
+    return matchesSearch && matchesCategory && matchesSubcategory && matchesBrand;
+  });
 
   return (
     <>
@@ -503,25 +535,72 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full min-h-0">
                   {/* Seleção de Produtos */}
                   <div className="lg:col-span-5 border rounded-lg flex flex-col overflow-hidden bg-muted/10">
-                    <div className="p-3 bg-muted flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2 flex-1 relative">
-                        <Search className="h-4 w-4 absolute left-3 text-muted-foreground pointer-events-none" />
-                        <Input 
-                          placeholder="Buscar produto..." 
-                          className="h-10 pl-9 bg-background"
-                          value={productSearch}
-                          onChange={e => setProductSearch(e.target.value)}
-                        />
+                    <div className="p-3 bg-muted space-y-3">
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-1 relative">
+                          <Search className="h-4 w-4 absolute left-3 text-muted-foreground pointer-events-none" />
+                          <Input 
+                            placeholder="Buscar produto..." 
+                            className="h-10 pl-9 bg-background"
+                            value={productSearch}
+                            onChange={e => setProductSearch(e.target.value)}
+                          />
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className={cn("h-10 w-10 p-0 shrink-0", showThumbnails && "text-primary bg-primary/10")}
+                          onClick={() => setShowThumbnails(!showThumbnails)}
+                          title="Mostrar fotos"
+                        >
+                          <ImageIcon className="h-5 w-5" />
+                        </Button>
                       </div>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className={cn("h-10 w-10 p-0 shrink-0", showThumbnails && "text-primary bg-primary/10")}
-                        onClick={() => setShowThumbnails(!showThumbnails)}
-                        title="Mostrar fotos"
-                      >
-                        <ImageIcon className="h-5 w-5" />
-                      </Button>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <Select value={selectedCategory} onValueChange={(val) => {
+                          setSelectedCategory(val);
+                          setSelectedSubcategory("all");
+                        }}>
+                          <SelectTrigger className="h-8 text-[11px] bg-background">
+                            <SelectValue placeholder="Categoria" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Todas Categorias</SelectItem>
+                            {categories.map(cat => (
+                              <SelectItem key={cat} value={cat || ''}>{cat}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+
+                        <Select value={selectedBrand} onValueChange={setSelectedBrand}>
+                          <SelectTrigger className="h-8 text-[11px] bg-background">
+                            <SelectValue placeholder="Marca" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Todas Marcas</SelectItem>
+                            {brands.map(brand => (
+                              <SelectItem key={brand} value={brand || ''}>{brand}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {selectedCategory !== 'all' && subcategories.length > 0 && (
+                        <div className="animate-in fade-in slide-in-from-top-1 duration-200">
+                          <Select value={selectedSubcategory} onValueChange={setSelectedSubcategory}>
+                            <SelectTrigger className="h-8 text-[11px] bg-background">
+                              <SelectValue placeholder="Subcategoria" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">Todas Subcategorias</SelectItem>
+                              {subcategories.map(sub => (
+                                <SelectItem key={sub} value={sub || ''}>{sub}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
                     </div>
                     <div className="flex-1 overflow-y-auto">
                       {loadingItems ? (
