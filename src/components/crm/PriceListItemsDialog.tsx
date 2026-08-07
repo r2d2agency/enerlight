@@ -324,11 +324,15 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
                     )}
                     <TableCell>
                       <div className="flex flex-col">
-                        <span>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.sale_price)}</span>
+                        <div className="flex items-baseline gap-1">
+                          <span className="font-bold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.sale_price)}</span>
+                          <span className="text-[10px] text-muted-foreground font-normal">/{item.unit || 'un'}</span>
+                        </div>
                         {priceList?.markup_percentage && !priceList.is_master ? (
                           <span className="text-[10px] text-muted-foreground">Inclui {priceList.markup_percentage}% de markup</span>
                         ) : null}
                       </div>
+
                     </TableCell>
                     {canEdit && (
                       <TableCell>
