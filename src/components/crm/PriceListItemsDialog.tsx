@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Search, Loader2, Image as ImageIcon, Upload, X, FileUp, FileSpreadsheet } from "lucide-react";
 import { usePriceListItems } from "@/hooks/use-online-quotes";
 import { api } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
@@ -17,6 +18,8 @@ interface PriceListItemsDialogProps {
 }
 
 export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }: PriceListItemsDialogProps) {
+  const { user } = useAuth();
+  const isAdmin = ['owner', 'admin', 'manager', 'supervisor'].includes(user?.role || '');
   const [search, setSearch] = useState("");
   const { data: items, isLoading } = usePriceListItems(priceList?.id || "");
   const queryClient = useQueryClient();
@@ -261,7 +264,7 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
                   </Button>
                 </>
               )}
-              {priceList?.is_master && (
+              {isAdmin && priceList?.is_master && (
                 <div className="flex items-center gap-2 ml-2 px-2 border-l">
                   <span className="text-xs font-medium text-muted-foreground">Ver Custos</span>
                   <input 
