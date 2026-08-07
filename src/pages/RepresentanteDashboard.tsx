@@ -449,9 +449,13 @@ export default function RepresentanteDashboard() {
       </div>
       <OnlineQuoteFormDialog 
         open={isQuoteDialogOpen} 
+        initialData={selectedQuoteForEdit}
         onOpenChange={(open) => {
           setIsQuoteDialogOpen(open);
-          if (!open) refetchQuotes();
+          if (!open) {
+            setSelectedQuoteForEdit(null);
+            refetchQuotes();
+          }
         }} 
       />
     </MainLayout>
