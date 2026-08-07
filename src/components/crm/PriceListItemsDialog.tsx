@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Loader2, Image as ImageIcon, Upload, X, FileUp, FileSpreadsheet } from "lucide-react";
+import { Search, Loader2, Image as ImageIcon, Upload, X, FileUp, FileSpreadsheet, Edit2, Check } from "lucide-react";
 import { usePriceListItems } from "@/hooks/use-online-quotes";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
@@ -24,6 +24,8 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
   const { data: items, isLoading } = usePriceListItems(priceList?.id || "");
   const queryClient = useQueryClient();
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<any>(null);
   const [showCost, setShowCost] = useState(false);
 
   const filteredItems = items?.filter(item => 
