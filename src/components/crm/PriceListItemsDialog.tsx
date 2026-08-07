@@ -112,6 +112,10 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
     };
     reader.readAsText(file);
   };
+  const [importMapping, setImportMapping] = useState<Record<string, string>>({});
+  const [xlsxData, setXlsxData] = useState<any[]>([]);
+  const [isMappingOpen, setIsMappingOpen] = useState(false);
+
   const handleXlsxImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !priceList) return;
@@ -123,8 +127,6 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
         const workbook = XLSX.read(data, { type: 'array' });
         const firstSheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[firstSheetName];
-        
-        // Convert to JSON
         const jsonData = XLSX.utils.sheet_to_json(worksheet);
         
         if (jsonData.length === 0) {
@@ -132,82 +134,95 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
           return;
         }
 
-        // Map and validate items
-        const items = jsonData.map((row: any) => {
-          // Normaliza as chaves para facilitar a busca
-          const keys = Object.keys(row);
-          const findKey = (possibilities: string[]) => 
-            keys.find(k => possibilities.some(p => k.toLowerCase().trim() === p.toLowerCase()));
-
-          const codeKey = findKey(['code', 'codigo', 'código', 'cod', 'sku', 'referencia', 'referência']);
-          const nameKey = findKey(['name', 'nome', 'produto', 'descrição', 'descricao', 'item']);
-          const descKey = findKey(['description', 'descrição', 'descricao', 'obs', 'observação']);
-          const priceKey = findKey(['price', 'preco', 'preço', 'valor', 'venda', 'vlr', 'preço venda', 'preço de venda']);
-          const costKey = findKey(['cost', 'custo', 'vlr_custo', 'valor_custo', 'compra', 'preço custo', 'preço de custo']);
-          const imageKey = findKey(['image', 'imagem', 'url', 'foto', 'link']);
-          const categoryKey = findKey(['category', 'categoria', 'tipo', 'grupo']);
-          const subcategoryKey = findKey(['subcategory', 'subcategoria', 'subgrupo']);
-          const brandKey = findKey(['brand', 'marca', 'fabricante']);
-          const unitKey = findKey(['unit', 'unidade', 'un']);
-
-          const product_code = (row[codeKey || ''] || '').toString().trim();
-          const product_name = (row[nameKey || ''] || '').toString().trim();
-          
-          const parsePrice = (val: any) => {
-            if (val === undefined || val === null) return 0;
-            if (typeof val === 'number') return val;
-            let clean = val.toString().replace(/R\$\s?/, '').replace(/[^\d.,-]/g, '').trim();
-            if (clean.includes(',') && clean.includes('.')) {
-              clean = clean.replace(/\./g, '').replace(',', '.');
-            } else if (clean.includes(',')) {
-              clean = clean.replace(',', '.');
-            }
-            return parseFloat(clean) || 0;
-          };
-
-          const base_sale_price = parsePrice(row[priceKey || '']);
-          const cost_price = parsePrice(row[costKey || '']);
-          
-          let sale_price = base_sale_price;
-          if (!priceList?.is_master && priceList?.markup_percentage && priceList.markup_percentage > 0) {
-            sale_price = base_sale_price * (1 + (priceList.markup_percentage / 100));
-          }
-
-          return {
-            product_code,
-            product_name,
-            description: (row[descKey || ''] || '').toString().trim(),
-            sale_price,
-            cost_price,
-            unit: (row[unitKey || ''] || 'un').toString().trim(),
-            image_url: (row[imageKey || ''] || '').toString().trim(),
-            category: (row[categoryKey || ''] || '').toString().trim(),
-            subcategory: (row[subcategoryKey || ''] || '').toString().trim(),
-            brand: (row[brandKey || ''] || '').toString().trim(),
-          };
-        });
-
+        setXlsxData(jsonData);
         
-        const filteredItems = items.filter(item => item.product_code && item.product_name);
+        // Auto-detect mapping
+        const firstRow = jsonData[0];
+        const keys = Object.keys(firstRow);
+        const newMapping: Record<string, string> = {};
+        
+        const detect = (field: string, possibilities: string[]) => {
+          const found = keys.find(k => possibilities.some(p => k.toLowerCase().trim() === p.toLowerCase()));
+          if (found) newMapping[field] = found;
+        };
 
-        if (items.length === 0) {
-          toast.error("Nenhum item válido encontrado. Certifique-se de que as colunas 'Código' e 'Nome' existem.");
-          return;
-        }
+        detect('product_code', ['code', 'codigo', 'código', 'cod', 'sku', 'referencia', 'referência']);
+        detect('product_name', ['name', 'nome', 'produto', 'descrição', 'descricao', 'item']);
+        detect('description', ['description', 'descrição', 'descricao', 'obs', 'observação']);
+        detect('sale_price', ['price', 'preco', 'preço', 'valor', 'venda', 'vlr', 'preço venda', 'preço de venda']);
+        detect('cost_price', ['cost', 'custo', 'vlr_custo', 'valor_custo', 'compra', 'preço custo', 'preço de custo']);
+        detect('image_url', ['image', 'imagem', 'url', 'foto', 'link']);
+        detect('category', ['category', 'categoria', 'tipo', 'grupo']);
+        detect('subcategory', ['subcategory', 'subcategoria', 'subgrupo']);
+        detect('brand', ['brand', 'marca', 'fabricante']);
+        detect('unit', ['unit', 'unidade', 'un']);
 
-        await api(`/api/online-quotes/price-lists/${priceList.id}/items/bulk`, {
-          method: 'POST',
-          body: { items }
-        });
-
-        toast.success(`${items.length} itens importados com sucesso!`);
-        queryClient.invalidateQueries({ queryKey: ['price-list-items', priceList.id] });
+        setImportMapping(newMapping);
+        setIsMappingOpen(true);
       } catch (err) {
-        console.error("Erro na importação XLSX:", err);
-        toast.error("Erro ao processar o arquivo Excel");
+        console.error("Erro ao ler XLSX:", err);
+        toast.error("Erro ao ler arquivo Excel");
       }
     };
     reader.readAsArrayBuffer(file);
+  };
+
+  const confirmImport = async () => {
+    if (!priceList || xlsxData.length === 0) return;
+
+    try {
+      const items = xlsxData.map((row: any) => {
+        const parsePrice = (val: any) => {
+          if (val === undefined || val === null) return 0;
+          if (typeof val === 'number') return val;
+          let clean = val.toString().replace(/R\$\s?/, '').replace(/[^\d.,-]/g, '').trim();
+          if (clean.includes(',') && clean.includes('.')) {
+            clean = clean.replace(/\./g, '').replace(',', '.');
+          } else if (clean.includes(',')) {
+            clean = clean.replace(',', '.');
+          }
+          return parseFloat(clean) || 0;
+        };
+
+        const base_sale_price = parsePrice(row[importMapping['sale_price']]);
+        const cost_price = parsePrice(row[importMapping['cost_price']]);
+        
+        let sale_price = base_sale_price;
+        if (!priceList?.is_master && priceList?.markup_percentage && priceList.markup_percentage > 0) {
+          sale_price = base_sale_price * (1 + (priceList.markup_percentage / 100));
+        }
+
+        return {
+          product_code: (row[importMapping['product_code']] || '').toString().trim(),
+          product_name: (row[importMapping['product_name']] || '').toString().trim(),
+          description: (row[importMapping['description']] || '').toString().trim(),
+          sale_price,
+          cost_price,
+          unit: (row[importMapping['unit']] || 'un').toString().trim(),
+          image_url: (row[importMapping['image_url']] || '').toString().trim(),
+          category: (row[importMapping['category']] || '').toString().trim(),
+          subcategory: (row[importMapping['subcategory']] || '').toString().trim(),
+          brand: (row[importMapping['brand']] || '').toString().trim(),
+        };
+      }).filter(item => item.product_code && item.product_name);
+
+      if (items.length === 0) {
+        toast.error("Nenhum item válido após o mapeamento");
+        return;
+      }
+
+      await api(`/api/online-quotes/price-lists/${priceList.id}/items/bulk`, {
+        method: 'POST',
+        body: { items }
+      });
+
+      toast.success(`${items.length} itens importados com sucesso!`);
+      queryClient.invalidateQueries({ queryKey: ['price-list-items', priceList.id] });
+      setIsMappingOpen(false);
+      setXlsxData([]);
+    } catch (err) {
+      toast.error("Erro ao importar itens");
+    }
   };
 
   return (
@@ -381,6 +396,48 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
           )}
         </div>
       </DialogContent>
+      <Dialog open={isMappingOpen} onOpenChange={setIsMappingOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Mapear Colunas da Planilha</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <p className="text-sm text-muted-foreground">Relacione as colunas da sua planilha com os campos do sistema:</p>
+            <div className="grid gap-4">
+              {[
+                { label: 'Código (Obrigatório)', key: 'product_code' },
+                { label: 'Nome (Obrigatório)', key: 'product_name' },
+                { label: 'Descrição', key: 'description' },
+                { label: 'Preço Venda', key: 'sale_price' },
+                { label: 'Custo', key: 'cost_price' },
+                { label: 'Unidade', key: 'unit' },
+                { label: 'Categoria', key: 'category' },
+                { label: 'Subcategoria', key: 'subcategory' },
+                { label: 'Marca', key: 'brand' },
+                { label: 'URL da Foto', key: 'image_url' },
+              ].map(field => (
+                <div key={field.key} className="grid grid-cols-2 items-center gap-4">
+                  <span className="text-sm font-medium">{field.label}</span>
+                  <select 
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors"
+                    value={importMapping[field.key] || ''}
+                    onChange={(e) => setImportMapping(prev => ({ ...prev, [field.key]: e.target.value }))}
+                  >
+                    <option value="">Não importar</option>
+                    {xlsxData.length > 0 && Object.keys(xlsxData[0]).map(k => (
+                      <option key={k} value={k}>{k}</option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-end gap-2 mt-6">
+              <Button variant="outline" onClick={() => setIsMappingOpen(false)}>Cancelar</Button>
+              <Button onClick={confirmImport}>Finalizar Importação ({xlsxData.length} itens)</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }
