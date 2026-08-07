@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, Loader2, Image as ImageIcon, Upload, X, FileUp, FileSpreadsheet, Edit2, Check, Settings2, Trash2, Plus } from "lucide-react";
 import { usePriceListItems, useOnlineQuoteCategories } from "@/hooks/use-online-quotes";
 import { api } from "@/lib/api";
@@ -321,8 +322,84 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
                 </div>
               )}
             </div>
+            {isAdmin && (
+              <Button variant="ghost" size="sm" onClick={() => setIsCategoriesManagerOpen(true)}>
+                <Settings2 className="h-4 w-4 mr-2" />
+                Categorias
+              </Button>
+            )}
           </div>
         </DialogHeader>
+
+        <Dialog open={isCategoriesManagerOpen} onOpenChange={setIsCategoriesManagerOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Gerenciar Categorias e Subcategorias</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="flex gap-2">
+                <div className="flex-1 space-y-2">
+                  <Input 
+                    placeholder="Categoria" 
+                    value={newCat.category} 
+                    onChange={e => setNewCat({...newCat, category: e.target.value.toUpperCase()})}
+                  />
+                  <Input 
+                    placeholder="Subcategoria (opcional)" 
+                    value={newCat.subcategory} 
+                    onChange={e => setNewCat({...newCat, subcategory: e.target.value.toUpperCase()})}
+                  />
+                </div>
+                <Button 
+                  disabled={!newCat.category} 
+                  onClick={async () => {
+                    await saveCategory.mutateAsync(newCat);
+                    setNewCat({ category: '', subcategory: '' });
+                  }}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <div className="border rounded-md max-h-[300px] overflow-y-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Categoria</TableHead>
+                      <TableHead>Subcategoria</TableHead>
+                      <TableHead className="w-[50px]"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {categories.data?.map((cat: any) => (
+                      <TableRow key={cat.id}>
+                        <TableCell className="py-2 text-xs font-bold">{cat.category}</TableCell>
+                        <TableCell className="py-2 text-xs italic">{cat.subcategory || '-'}</TableCell>
+                        <TableCell className="py-2">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-6 w-6 text-red-500"
+                            onClick={() => deleteCategory.mutate(cat.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {(!categories.data || categories.data.length === 0) && (
+                      <TableRow>
+                        <TableCell colSpan={3} className="text-center py-4 text-muted-foreground text-xs">
+                          Nenhuma categoria cadastrada
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         <div className="flex-1 overflow-y-auto p-6 pt-2">
           {isLoading ? (
