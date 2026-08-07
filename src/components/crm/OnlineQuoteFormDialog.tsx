@@ -111,6 +111,13 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
   };
 
   const selectCompany = (company: any) => {
+    // If it's a representative, they should only be able to select companies they created
+    // if we want strict isolation as requested.
+    if (isRepresentative && company.created_by && company.created_by !== user?.id) {
+      toast.error("Esta empresa pertence a outro representante e não pode ser selecionada.");
+      return;
+    }
+
     setClientInfo({
       name: company.name,
       document: company.cnpj || "",
@@ -343,23 +350,36 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
                     </Button>
                   </div>
                   {showCompanyResults && existingCompanies && existingCompanies.length > 0 && (
-                    <div className="absolute z-10 w-full mt-1 bg-background border rounded-md shadow-lg max-h-[200px] overflow-y-auto">
-                      {existingCompanies.map((company) => (
-                        <div 
-                          key={company.id}
-                          className="flex items-center gap-3 p-2 hover:bg-muted cursor-pointer text-sm"
-                          onClick={() => selectCompany(company)}
-                        >
-                          <Building2 className="h-4 w-4 text-muted-foreground" />
-                          <div className="flex-1">
-                            <p className="font-medium">{company.name}</p>
-                            <p className="text-[10px] text-muted-foreground">{company.cnpj || "Sem CNPJ"}</p>
-                            {isRepresentative && (company as any).created_by !== user?.id && (
-                                <Badge variant="outline" className="text-[8px] h-3 ml-2">Outro Representante</Badge>
-                            )}
+                    <div className="absolute z-50 w-full mt-1 bg-background border rounded-md shadow-lg max-h-[300px] overflow-y-auto">
+                      {existingCompanies
+                        .filter(company => !isRepresentative || (company as any).created_by === user?.id)
+                        .map((company) => (
+                          <div 
+                            key={company.id}
+                            className="flex items-center gap-3 p-3 hover:bg-muted cursor-pointer text-sm border-b last:border-0"
+                            onClick={() => selectCompany(company)}
+                          >
+                            <Building2 className="h-4 w-4 text-primary shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="font-bold truncate">{company.name}</p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Badge variant="secondary" className="text-[9px] py-0 h-4">
+                                  {company.cnpj || "Sem CNPJ"}
+                                </Badge>
+                                {company.city && (
+                                  <span className="text-[10px] text-muted-foreground truncate">
+                                    {company.city} - {company.state}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
                           </div>
+                        ))}
+                      {existingCompanies.filter(company => !isRepresentative || (company as any).created_by === user?.id).length === 0 && (
+                        <div className="p-4 text-center text-xs text-muted-foreground">
+                          Nenhuma empresa encontrada nos seus cadastros.
                         </div>
-                      ))}
+                      )}
                     </div>
                   )}
                 </div>
