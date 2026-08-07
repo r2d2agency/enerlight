@@ -35,6 +35,18 @@ export default function OnlineQuotes() {
   const [isPriceListDialogOpen, setIsPriceListDialogOpen] = useState(false);
   const [selectedQuoteForPreview, setSelectedQuoteForPreview] = useState<any>(null);
   const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [dateFilter, setDateFilter] = useState<string>("all");
+  const [editingPriceList, setEditingPriceList] = useState<any>(null);
+
+  const isQuoteAdmin = ['owner', 'admin', 'manager'].includes(user?.role || '') || user?.user_permissions?.can_manage_online_quotes;
+  const isAdmin = ['owner', 'admin', 'manager'].includes(user?.role || '');
+  const canEditPriceLists = isQuoteAdmin || user?.user_permissions?.can_edit_price_lists;
+
+  const { data: priceLists, isLoading: loadingPriceLists } = usePriceLists();
+  const { data: quotes, isLoading: loadingQuotes } = useOnlineQuotes();
+  const { data: templates, isLoading: loadingTemplates } = useOnlineQuoteTemplates();
+  const { data: permissionTemplates } = usePermissionTemplates();
 
   // Handle direct preview from URL (e.g., from Dashboard)
   useEffect(() => {
@@ -49,29 +61,8 @@ export default function OnlineQuotes() {
       }
     }
   }, [quotes, loadingQuotes]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [dateFilter, setDateFilter] = useState<string>("all");
-  const [editingPriceList, setEditingPriceList] = useState<any>(null);
 
-  const isQuoteAdmin = ['owner', 'admin', 'manager'].includes(user?.role || '') || user?.user_permissions?.can_manage_online_quotes;
-  const isAdmin = ['owner', 'admin', 'manager'].includes(user?.role || '');
-  const canEditPriceLists = isQuoteAdmin || user?.user_permissions?.can_edit_price_lists;
-
-  const { data: priceLists, isLoading: loadingPriceLists } = usePriceLists();
-  
   const filteredPriceLists = priceLists?.filter(pl => {
-    if (isAdmin) return true;
-    if (!pl.is_active) return false;
-    if (!pl.allowed_templates || pl.allowed_templates.length === 0) return true;
-    
-    // @ts-ignore - Assuming user might have permission_template_id
-    const userTemplateId = user?.permission_template_id;
-    return pl.allowed_templates.includes(userTemplateId);
-  });
-
-  const { data: quotes, isLoading: loadingQuotes } = useOnlineQuotes();
-  const { data: templates, isLoading: loadingTemplates } = useOnlineQuoteTemplates();
-  const { data: permissionTemplates } = usePermissionTemplates();
   const { saveTemplate, savePriceList, deletePriceList, deleteQuote, updateQuoteStatus } = useOnlineQuoteMutations();
   
   const filteredQuotes = quotes?.filter(quote => {
