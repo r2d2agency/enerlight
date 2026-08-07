@@ -35,6 +35,20 @@ export default function OnlineQuotes() {
   const [isPriceListDialogOpen, setIsPriceListDialogOpen] = useState(false);
   const [selectedQuoteForPreview, setSelectedQuoteForPreview] = useState<any>(null);
   const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
+
+  // Handle direct preview from URL (e.g., from Dashboard)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const quoteId = params.get('id');
+    if (quoteId && !loadingQuotes && quotes) {
+      const quote = quotes.find(q => q.id === quoteId);
+      if (quote) {
+        handlePreviewQuote(quote);
+        // Clean URL to prevent re-opening on manual refreshes
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    }
+  }, [quotes, loadingQuotes]);
   const [searchTerm, setSearchTerm] = useState("");
   const [dateFilter, setDateFilter] = useState<string>("all");
   const [editingPriceList, setEditingPriceList] = useState<any>(null);
