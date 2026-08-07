@@ -639,7 +639,11 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
                               )}
                               <div className="min-w-0 flex-1">
                                 <p className="text-sm font-semibold truncate leading-tight mb-1">{product.product_name}</p>
-                                <p className="text-xs text-muted-foreground mb-1">{product.product_code}</p>
+                                <div className="flex flex-wrap items-center gap-1 mb-1">
+                                  <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded text-muted-foreground font-mono">{product.product_code}</span>
+                                  {product.brand && <span className="text-[9px] bg-orange-100 text-orange-700 px-1 rounded font-bold uppercase">{product.brand}</span>}
+                                  {product.category && <span className="text-[9px] bg-blue-50 text-blue-600 px-1 rounded">{product.category}</span>}
+                                </div>
                                 <p className="text-sm font-bold text-primary">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.sale_price)}</p>
                               </div>
                               <Button size="icon" variant="secondary" className="h-9 w-9 shrink-0 sm:opacity-0 group-hover:opacity-100">
