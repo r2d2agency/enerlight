@@ -481,7 +481,7 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
                               <SelectValue placeholder="Categoria" />
                             </SelectTrigger>
                             <SelectContent>
-                              {Array.from(new Set(categories.data?.map(c => c.category) || [])).map(cat => (
+                              {Array.from(new Set(categories.data?.map(c => c.category) || [])).filter(Boolean).map(cat => (
                                 <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                               ))}
                             </SelectContent>
@@ -489,7 +489,7 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
                           
                           <Select 
                             value={editForm.subcategory || ''} 
-                            onValueChange={val => setEditForm({ ...editForm, subcategory: val })}
+                            onValueChange={val => setEditForm({ ...editForm, subcategory: val === 'none' ? '' : val })}
                             disabled={!editForm.category}
                           >
                             <SelectTrigger className="h-7 text-[10px]">
@@ -497,7 +497,7 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
                             </SelectTrigger>
                             <SelectContent>
                               {categories.data?.filter(c => c.category === editForm.category).map(cat => (
-                                <SelectItem key={cat.id} value={cat.subcategory || ''}>{cat.subcategory || 'Nenhuma'}</SelectItem>
+                                <SelectItem key={cat.id} value={cat.subcategory || 'none'}>{cat.subcategory || 'Nenhuma'}</SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
