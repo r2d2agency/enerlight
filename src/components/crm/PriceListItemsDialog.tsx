@@ -481,7 +481,7 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
                               <SelectValue placeholder="Categoria" />
                             </SelectTrigger>
                             <SelectContent>
-                              {Array.from(new Set(categories.data?.map(c => c.category) || [])).filter(Boolean).map(cat => (
+                              {(categories.data?.map(c => c.category).filter((val, index, self) => val && self.indexOf(val) === index) || []).map(cat => (
                                 <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                               ))}
                             </SelectContent>
