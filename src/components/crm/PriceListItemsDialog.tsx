@@ -3,8 +3,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Loader2, Image as ImageIcon, Upload, X, FileUp, FileSpreadsheet, Edit2, Check } from "lucide-react";
-import { usePriceListItems } from "@/hooks/use-online-quotes";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Search, Loader2, Image as ImageIcon, Upload, X, FileUp, FileSpreadsheet, Edit2, Check, Settings2, Trash2, Plus } from "lucide-react";
+import { usePriceListItems, useOnlineQuoteCategories } from "@/hooks/use-online-quotes";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -27,6 +28,9 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<any>(null);
   const [showCost, setShowCost] = useState(false);
+  const [isCategoriesManagerOpen, setIsCategoriesManagerOpen] = useState(false);
+  const { categories, saveCategory, deleteCategory } = useOnlineQuoteCategories();
+  const [newCat, setNewCat] = useState({ category: '', subcategory: '' });
 
   const filteredItems = items?.filter(item => 
     item.product_name.toLowerCase().includes(search.toLowerCase()) ||
@@ -318,8 +322,84 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
                 </div>
               )}
             </div>
+            {isAdmin && (
+              <Button variant="ghost" size="sm" onClick={() => setIsCategoriesManagerOpen(true)}>
+                <Settings2 className="h-4 w-4 mr-2" />
+                Categorias
+              </Button>
+            )}
           </div>
         </DialogHeader>
+
+        <Dialog open={isCategoriesManagerOpen} onOpenChange={setIsCategoriesManagerOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Gerenciar Categorias e Subcategorias</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="flex gap-2">
+                <div className="flex-1 space-y-2">
+                  <Input 
+                    placeholder="Categoria" 
+                    value={newCat.category} 
+                    onChange={e => setNewCat({...newCat, category: e.target.value.toUpperCase()})}
+                  />
+                  <Input 
+                    placeholder="Subcategoria (opcional)" 
+                    value={newCat.subcategory} 
+                    onChange={e => setNewCat({...newCat, subcategory: e.target.value.toUpperCase()})}
+                  />
+                </div>
+                <Button 
+                  disabled={!newCat.category} 
+                  onClick={async () => {
+                    await saveCategory.mutateAsync(newCat);
+                    setNewCat({ category: '', subcategory: '' });
+                  }}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <div className="border rounded-md max-h-[300px] overflow-y-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Categoria</TableHead>
+                      <TableHead>Subcategoria</TableHead>
+                      <TableHead className="w-[50px]"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {categories.data?.map((cat: any) => (
+                      <TableRow key={cat.id}>
+                        <TableCell className="py-2 text-xs font-bold">{cat.category}</TableCell>
+                        <TableCell className="py-2 text-xs italic">{cat.subcategory || '-'}</TableCell>
+                        <TableCell className="py-2">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-6 w-6 text-red-500"
+                            onClick={() => deleteCategory.mutate(cat.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {(!categories.data || categories.data.length === 0) && (
+                      <TableRow>
+                        <TableCell colSpan={3} className="text-center py-4 text-muted-foreground text-xs">
+                          Nenhuma categoria cadastrada
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         <div className="flex-1 overflow-y-auto p-6 pt-2">
           {isLoading ? (
@@ -361,12 +441,20 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
                             className="h-8 text-xs font-bold"
                             placeholder="Nome do Produto"
                           />
-                          <Input 
-                            value={editForm.description || ''}
-                            onChange={e => setEditForm({ ...editForm, description: e.target.value })}
-                            className="h-8 text-xs italic"
-                            placeholder="Descrição"
-                          />
+                          <div className="flex gap-1">
+                            <Input 
+                              value={editForm.description || ''}
+                              onChange={e => setEditForm({ ...editForm, description: e.target.value })}
+                              className="h-8 text-xs italic flex-1"
+                              placeholder="Descrição"
+                            />
+                            <Input 
+                              value={editForm.brand || ''}
+                              onChange={e => setEditForm({ ...editForm, brand: e.target.value.toUpperCase() })}
+                              className="h-8 text-[10px] w-24"
+                              placeholder="Marca"
+                            />
+                          </div>
                         </div>
                       ) : (
                         <div className="flex flex-col">
@@ -378,22 +466,46 @@ export function PriceListItemsDialog({ priceList, onOpenChange, canEdit = true }
                     <TableCell>
                       {editingId === item.id ? (
                         <div className="flex flex-col gap-1">
-                          <Input 
-                            value={editForm.category || ''}
-                            onChange={e => setEditForm({ ...editForm, category: e.target.value })}
-                            className="h-7 text-[10px]"
-                            placeholder="Categoria"
-                          />
-                          <Input 
-                            value={editForm.brand || ''}
-                            onChange={e => setEditForm({ ...editForm, brand: e.target.value })}
-                            className="h-7 text-[10px]"
-                            placeholder="Marca"
-                          />
+                          <Select 
+                            value={editForm.category || ''} 
+                            onValueChange={val => {
+                              const selectedCat = categories.data?.find(c => c.category === val);
+                              setEditForm({ 
+                                ...editForm, 
+                                category: val,
+                                subcategory: selectedCat?.subcategory === editForm.subcategory ? editForm.subcategory : ''
+                              });
+                            }}
+                          >
+                            <SelectTrigger className="h-7 text-[10px]">
+                              <SelectValue placeholder="Categoria" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Array.from(new Set(categories.data?.map(c => c.category) || [])).map(cat => (
+                                <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          
+                          <Select 
+                            value={editForm.subcategory || ''} 
+                            onValueChange={val => setEditForm({ ...editForm, subcategory: val })}
+                            disabled={!editForm.category}
+                          >
+                            <SelectTrigger className="h-7 text-[10px]">
+                              <SelectValue placeholder="Subcategoria" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {categories.data?.filter(c => c.category === editForm.category).map(cat => (
+                                <SelectItem key={cat.id} value={cat.subcategory || ''}>{cat.subcategory || 'Nenhuma'}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                       ) : (
                         <div className="flex flex-col text-xs text-muted-foreground">
                           {item.category && <span className="truncate max-w-[120px]" title={item.category}>{item.category}</span>}
+                          {item.subcategory && <span className="truncate max-w-[120px] italic opacity-70" title={item.subcategory}>{item.subcategory}</span>}
                           {item.brand && <span className="font-bold truncate max-w-[120px]" title={item.brand}>{item.brand}</span>}
                         </div>
                       )}
