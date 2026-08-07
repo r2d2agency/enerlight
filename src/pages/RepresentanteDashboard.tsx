@@ -292,6 +292,84 @@ export default function RepresentanteDashboard() {
             </Card>
           </TabsContent>
 
+          <TabsContent value="clients" className="mt-4 space-y-4">
+            <div className="flex flex-col md:flex-row md:items-center gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  placeholder="Buscar meus clientes por nome ou CNPJ..." 
+                  className="pl-9"
+                  value={clientSearch}
+                  onChange={e => setClientSearch(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg">Empresas Cadastradas</CardTitle>
+                <CardDescription>Lista de clientes vinculados ao seu perfil</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="rounded-md border overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Empresa</TableHead>
+                        <TableHead>CNPJ</TableHead>
+                        <TableHead>Cidade/UF</TableHead>
+                        <TableHead>Data Cadastro</TableHead>
+                        <TableHead className="text-right">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {loadingCompanies ? (
+                        <TableRow>
+                          <TableCell colSpan={5} className="h-24 text-center">
+                            <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
+                          </TableCell>
+                        </TableRow>
+                      ) : myClients.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                            Nenhum cliente encontrado.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        myClients.map((client: any) => (
+                          <TableRow key={client.id}>
+                            <TableCell className="font-medium">
+                              {client.name}
+                            </TableCell>
+                            <TableCell className="text-sm">
+                              {client.cnpj || "-"}
+                            </TableCell>
+                            <TableCell className="text-xs">
+                              {client.city ? `${client.city}/${client.state || ""}` : "-"}
+                            </TableCell>
+                            <TableCell className="text-xs">
+                              {client.created_at ? format(parseISO(client.created_at), "dd/MM/yyyy") : "-"}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button variant="ghost" size="sm" onClick={() => {
+                                // Potentially open a view or redirect to orçamentos with this client selected
+                                setIsQuoteDialogOpen(true);
+                                // This would need the dialog to support pre-selecting a company
+                              }}>
+                                <Plus className="h-4 w-4 mr-2" />
+                                Orçamento
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           <TabsContent value="commissions" className="mt-4">
             <Card>
               <CardHeader>
