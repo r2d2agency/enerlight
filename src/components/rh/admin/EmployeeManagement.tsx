@@ -873,6 +873,21 @@ export default function EmployeeManagement() {
                 )}
               </div>
             </div>
+
+            <div className="border-t pt-4 mt-2">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-sm font-semibold">Biometria Facial Obrigatória</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Exige validação facial para bater ponto no aplicativo e kiosk.
+                  </p>
+                </div>
+                <Switch 
+                  checked={formData.requires_facial_recognition} 
+                  onCheckedChange={(val) => setFormData({...formData, requires_facial_recognition: val})}
+                />
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancelar</Button>
