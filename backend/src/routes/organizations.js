@@ -558,11 +558,10 @@ router.patch('/:id/members/:userId', async (req, res) => {
       const orgIdParam = omIdx++;
       const userIdParam = omIdx;
       omVals.push(id, userId);
-      await query(
-        `UPDATE organization_members SET ${omUpdates.join(', ')}, updated_at = NOW() 
-         WHERE organization_id = $${orgIdParam} AND user_id = $${userIdParam}`,
-        omVals
-      );
+      const omQueryStr = `UPDATE organization_members SET ${omUpdates.join(', ')}, updated_at = NOW() 
+         WHERE organization_id = $${orgIdParam} AND user_id = $${userIdParam}`;
+      console.log('[org] omQuery:', omQueryStr, 'vals:', omVals);
+      await query(omQueryStr, omVals);
     }
 
     // Update connection assignments if provided
