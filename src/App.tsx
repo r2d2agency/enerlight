@@ -156,6 +156,9 @@ function FaviconUpdater() {
     }
   }, [branding.favicon]);
 
+  return null;
+}
+
 function AuthRedirect({ children }: { children: React.ReactNode }) {
   const { user, userPermissions } = useAuth();
   
