@@ -200,7 +200,7 @@ router.patch('/members/:userId', async (req, res) => {
            authorized_radius_meters = COALESCE($7, authorized_radius_meters),
            authorized_latitude = COALESCE($8, authorized_latitude),
            authorized_longitude = COALESCE($9, authorized_longitude),
-           requires_facial_recognition = COALESCE($10, requires_facial_recognition),
+           requires_facial_recognition = COALESCE($10, requires_facial_recognition, false),
            updated_at = NOW()
        WHERE user_id = $11 AND organization_id = $12
        RETURNING *`,
