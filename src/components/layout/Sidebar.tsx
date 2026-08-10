@@ -69,7 +69,7 @@ interface NavItem {
   name: string;
   href: string;
   icon: any;
-  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat' | 'homologation' | 'tasks' | 'lead_gleego' | 'captador' | 'document_signatures' | 'licitacao' | 'logistics' | 'online_quotes' | 'rh_module' | 'goals' | 'representatives' | 'representative_dashboard' | 'supervisor_ia';
+  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat' | 'homologation' | 'tasks' | 'lead_gleego' | 'captador' | 'document_signatures' | 'licitacao' | 'logistics' | 'online_quotes' | 'rh_module' | 'goals' | 'representatives' | 'representative_dashboard' | 'supervisor_ia' | 'ead';
   adminOnly?: boolean;
   ownerOnly?: boolean;
   superadminOnly?: boolean;
@@ -85,7 +85,7 @@ interface NavSection {
   permissionKey?: string;
 }
 
-type ModuleKey = NonNullable<NavItem['moduleKey']>;
+type ModuleKey = NavItem['moduleKey'] & {};
 
 const getNavSections = (hasConnections: boolean): NavSection[] => [
   {
