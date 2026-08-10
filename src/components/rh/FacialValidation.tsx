@@ -249,10 +249,12 @@ export default function FacialValidation({
       return;
     }
     setProcessing(true);
+    setVisualStatus('processing');
     setStatus('Validando...');
     const desc = await grabDescriptor();
     if (!desc) {
       setStatus('Nenhum rosto detectado. Ajuste a iluminação e tente novamente.');
+      setVisualStatus('error');
       setProcessing(false);
       return;
     }
