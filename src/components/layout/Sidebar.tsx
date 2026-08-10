@@ -408,6 +408,7 @@ function SidebarContentComponent({ isExpanded, isSuperadmin, onNavigate }: Sideb
     supervisor_ia: 'can_view_supervisor_ia',
     crm: 'can_view_crm',
     campaigns: 'can_view_campaigns',
+    ead: 'can_view_ead',
     chat: 'can_view_chat',
     chatbots: 'can_view_chatbots',
     scheduled_messages: 'can_view_schedules',
