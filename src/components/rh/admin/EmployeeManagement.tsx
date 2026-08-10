@@ -255,7 +255,8 @@ export default function EmployeeManagement() {
             name: "", email: "", role: "", journey: "08:00 - 12:00 | 13:00 - 17:00", journey_id: "", user_id: "",
             cpf: "", birth_date: "", work_start_time: "08:00", work_end_time: "18:00", 
             lunch_start_time: "12:00", lunch_end_time: "13:00",
-            authorized_radius_meters: 100, authorized_latitude: 0, authorized_longitude: 0
+            authorized_radius_meters: 100, authorized_latitude: 0, authorized_longitude: 0,
+            requires_facial_recognition: false
           });
           loadData();
         }
