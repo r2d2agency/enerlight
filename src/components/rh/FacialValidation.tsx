@@ -83,6 +83,7 @@ export default function FacialValidation({
   const [status, setStatus] = useState<string>('Carregando modelos...');
   const [pending, setPending] = useState<number[] | null>(null);
   const [testResult, setTestResult] = useState<{ ok: boolean; score: number } | null>(null);
+  const [visualStatus, setVisualStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
 
   useEffect(() => {
     let cancelled = false;
