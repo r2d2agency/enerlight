@@ -498,7 +498,12 @@ router.post('/:id([0-9a-fA-F-]{36})/members', async (req, res) => {
 router.patch('/:id/members/:userId', async (req, res) => {
   try {
     const { id, userId } = req.params;
-    const { role, connection_ids, department_ids, name, email } = req.body;
+    const { 
+      role, connection_ids, department_ids, name, email,
+      cpf, birth_date, work_start_time, work_end_time, lunch_start_time, lunch_end_time,
+      authorized_radius_meters, authorized_latitude, authorized_longitude,
+      requires_facial_recognition
+    } = req.body;
 
     // Check if user is admin/owner
     const memberCheck = await query(
@@ -521,22 +526,41 @@ router.patch('/:id/members/:userId', async (req, res) => {
       return res.status(400).json({ error: 'Não é possível alterar o cargo do proprietário' });
     }
 
-    // Update user name/email if provided
-    if (name || email) {
+    // Update user name/email/rh_data if provided
+    if (name || email || cpf !== undefined || birth_date !== undefined) {
       const updates = [];
       const vals = [];
       let idx = 1;
       if (name) { updates.push(`name = $${idx++}`); vals.push(name); }
       if (email) { updates.push(`email = $${idx++}`); vals.push(email); }
+      if (cpf !== undefined) { updates.push(`cpf = $${idx++}`); vals.push(cpf); }
+      if (birth_date !== undefined) { updates.push(`birth_date = $${idx++}`); vals.push(birth_date); }
+      
       vals.push(userId);
-      await query(`UPDATE users SET ${updates.join(', ')} WHERE id = $${idx}`, vals);
+      await query(`UPDATE users SET ${updates.join(', ')}, updated_at = NOW() WHERE id = $${idx}`, vals);
     }
 
-    // Update role if provided and not owner
-    if (role && targetCheck.rows[0]?.role !== 'owner') {
+    // Update organization_members role & RH fields
+    const omUpdates = [];
+    const omVals = [];
+    let omIdx = 1;
+
+    if (role && targetCheck.rows[0]?.role !== 'owner') { omUpdates.push(`role = $${omIdx++}`); omVals.push(role); }
+    if (work_start_time !== undefined) { omUpdates.push(`work_start_time = $${omIdx++}`); omVals.push(work_start_time); }
+    if (work_end_time !== undefined) { omUpdates.push(`work_end_time = $${omIdx++}`); omVals.push(work_end_time); }
+    if (lunch_start_time !== undefined) { omUpdates.push(`lunch_start_time = $${omIdx++}`); omVals.push(lunch_start_time); }
+    if (lunch_end_time !== undefined) { omUpdates.push(`lunch_end_time = $${omIdx++}`); omVals.push(lunch_end_time); }
+    if (authorized_radius_meters !== undefined) { omUpdates.push(`authorized_radius_meters = $${omIdx++}`); omVals.push(authorized_radius_meters); }
+    if (authorized_latitude !== undefined) { omUpdates.push(`authorized_latitude = $${omIdx++}`); omVals.push(authorized_latitude); }
+    if (authorized_longitude !== undefined) { omUpdates.push(`authorized_longitude = $${omIdx++}`); omVals.push(authorized_longitude); }
+    if (requires_facial_recognition !== undefined) { omUpdates.push(`requires_facial_recognition = $${omIdx++}`); omVals.push(requires_facial_recognition); }
+
+    if (omUpdates.length > 0) {
+      omVals.push(id, userId);
       await query(
-        `UPDATE organization_members SET role = $1 WHERE organization_id = $2 AND user_id = $3`,
-        [role, id, userId]
+        `UPDATE organization_members SET ${omUpdates.join(', ')}, updated_at = NOW() 
+         WHERE organization_id = $${omIdx++} AND user_id = $${omIdx}`,
+        omVals
       );
     }
 
