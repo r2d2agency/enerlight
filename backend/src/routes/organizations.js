@@ -495,7 +495,7 @@ router.post('/:id([0-9a-fA-F-]{36})/members', async (req, res) => {
 });
 
 // Update member's role, connection and department assignments
-router.patch('/:id/members/:userId', async (req, res) => {
+router.patch('/:id([0-9a-fA-F-]{36})/members/:userId', async (req, res) => {
   try {
     const { id, userId } = req.params;
     console.log('[org] updateMember request body:', JSON.stringify(req.body));
