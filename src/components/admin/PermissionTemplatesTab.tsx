@@ -183,12 +183,13 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
     ],
   },
   {
-    title: 'Comissões',
+    title: 'Comissões / Despesas',
     items: [
       { key: 'can_view_commission', label: 'Minhas Comissões', description: 'Ver a página de comissões do vendedor' },
       { key: 'can_validate_billing', label: 'Validação de Faturamento', description: 'Aprovar/reprovar registros de faturamento para comissão' },
       { key: 'can_view_team_commission', label: 'Comissões da Equipe', description: 'Ver relatório de comissões de toda a equipe' },
       { key: 'can_manage_commission_rules', label: 'Regras de Comissão', description: 'Criar e editar regras de cálculo de comissão' },
+      { key: 'can_view_expenses', label: 'Prestação de Contas', description: 'Acesso ao módulo de despesas' },
     ],
   },
   {
