@@ -618,7 +618,7 @@ router.patch('/:id/members/:userId', async (req, res) => {
 
     res.json({ success: true });
   } catch (error) {
-    console.error('Update member error:', error);
+    console.error('Update member error:', error.message, error.stack);
     res.status(500).json({ error: 'Erro ao atualizar membro' });
   }
 });
