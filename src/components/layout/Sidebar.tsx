@@ -382,7 +382,7 @@ function SidebarContentComponent({ isExpanded, isSuperadmin, onNavigate }: Sideb
     online_quotes: 'can_view_online_quotes',
     rh_module: 'can_view_rh',
     goals: 'can_view_goals',
-    representatives: 'can_view_representatives',
+    representatives: 'can_view_representative_dashboard',
     supervisor_ia: 'can_view_supervisor_ia',
     crm: 'can_view_crm',
     campaigns: 'can_view_campaigns',
