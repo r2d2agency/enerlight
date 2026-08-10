@@ -303,7 +303,7 @@ router.put('/:userId', authenticate, async (req, res) => {
       [userId, orgId, ...values]
     );
     
-    res.json({ success: true });
+      res.json({ success: true, permissions: permissionsToSave });
   } catch (error) {
     console.error('Update permissions error:', error);
     res.status(500).json({ error: error.message || 'Erro ao atualizar permissões' });

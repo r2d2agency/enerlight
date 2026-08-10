@@ -275,7 +275,11 @@ export function PermissionsDialog({ open, onOpenChange, userId, userName, userRo
   };
 
   const handleToggle = (key: string) => {
-    setPermissions(prev => ({ ...prev, [key]: !prev[key] }));
+    setPermissions(prev => {
+      const next = { ...prev, [key]: !prev[key] };
+      console.log('[PermissionsDialog] Toggling:', key, 'to:', next[key]);
+      return next;
+    });
   };
 
   const handleToggleAll = (group: PermissionGroup, value: boolean) => {
