@@ -163,10 +163,10 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
     ],
   },
   {
-    title: 'EAD / Academy',
+    title: 'Academia (EAD)',
     items: [
-      { key: 'can_view_ead', label: 'Ver EAD', description: 'Acessar o módulo EAD (Academy)' },
-      { key: 'can_manage_ead', label: 'Gerenciar EAD', description: 'Criar cursos, aprovar instaladores e emitir certificados' },
+      { key: 'can_view_ead', label: 'Ver Academia (EAD)', description: 'Acessar painel de cursos, alunos e certificados' },
+      { key: 'can_manage_ead', label: 'Gerenciar EAD', description: 'Criar/editar cursos, aulas, provas e templates de certificado' },
     ],
   },
 
@@ -232,8 +232,14 @@ export function PermissionsDialog({ open, onOpenChange, userId, userName, userRo
 
   // Detect which template matches current permissions
   useEffect(() => {
+    if (templates.length === 0) return;
+    
     const match = templates.find(t =>
-      ALL_KEYS.every(k => (t.permissions[k] || false) === (permissions[k] || false))
+      ALL_KEYS.every(k => {
+        const tVal = !!t.permissions[k];
+        const pVal = !!permissions[k];
+        return tVal === pVal;
+      })
     );
     setActiveTemplate(match?.id || null);
   }, [permissions, templates]);
@@ -286,7 +292,9 @@ export function PermissionsDialog({ open, onOpenChange, userId, userName, userRo
       // Create fresh permissions map with ALL keys defaulted to false
       const freshPermissions = Object.fromEntries(ALL_KEYS.map(k => [k, false]));
       // Merge template permissions into it
-      setPermissions({ ...freshPermissions, ...template.permissions });
+      const merged = { ...freshPermissions, ...template.permissions };
+      console.log('[PermissionsDialog] Applying template:', template.name, merged);
+      setPermissions(merged);
       toast.info(`Template "${template.name}" aplicado`);
     }
   };
