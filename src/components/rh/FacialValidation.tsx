@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Camera, RefreshCw, X, Loader2, CheckCircle2, ShieldCheck } from "lucide-react";
+import { cn } from '@/lib/utils';
 import * as faceapi from '@vladmandic/face-api';
 const tf: any = (faceapi as any).tf;
 
@@ -83,6 +84,7 @@ export default function FacialValidation({
   const [status, setStatus] = useState<string>('Carregando modelos...');
   const [pending, setPending] = useState<number[] | null>(null);
   const [testResult, setTestResult] = useState<{ ok: boolean; score: number } | null>(null);
+  const [visualStatus, setVisualStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
 
   useEffect(() => {
     let cancelled = false;
@@ -176,15 +178,18 @@ export default function FacialValidation({
   const captureRegister = async () => {
     if (processing) return;
     setProcessing(true);
+    setVisualStatus('processing');
     setStatus('Capturando...');
     const desc = await grabDescriptor();
     if (!desc) {
       setStatus('Nenhum rosto detectado. Ajuste a iluminação e tente novamente.');
+      setVisualStatus('error');
       setProcessing(false);
       return;
     }
     setPending(desc);
     setPhase('captured');
+    setVisualStatus('success');
     setTestResult(null);
     setStatus('Coleta feita. Agora faça o teste de validação.');
     setProcessing(false);
@@ -193,11 +198,13 @@ export default function FacialValidation({
   const runTest = async () => {
     if (processing || !pending) return;
     setProcessing(true);
+    setVisualStatus('processing');
     setTestResult(null);
     setStatus('Testando reconhecimento...');
     const desc = await grabDescriptor();
     if (!desc) {
       setStatus('Nenhum rosto detectado no teste. Tente novamente.');
+      setVisualStatus('error');
       setProcessing(false);
       return;
     }
@@ -205,6 +212,7 @@ export default function FacialValidation({
     const score = distanceToScore(distance);
     const ok = distance <= threshold;
     setTestResult({ ok, score });
+    setVisualStatus(ok ? 'success' : 'error');
     setStatus(ok
       ? `Teste aprovado (score ${score.toFixed(0)}). Você pode salvar o cadastro.`
       : `Teste reprovado (score ${score.toFixed(0)}). Colete a facial novamente.`);
@@ -229,6 +237,7 @@ export default function FacialValidation({
   const recollect = () => {
     setPending(null);
     setTestResult(null);
+    setVisualStatus('idle');
     setPhase('camera');
     setStatus('Enquadre o rosto e confirme a coleta');
   };
@@ -241,10 +250,12 @@ export default function FacialValidation({
       return;
     }
     setProcessing(true);
+    setVisualStatus('processing');
     setStatus('Validando...');
     const desc = await grabDescriptor();
     if (!desc) {
       setStatus('Nenhum rosto detectado. Ajuste a iluminação e tente novamente.');
+      setVisualStatus('error');
       setProcessing(false);
       return;
     }
@@ -264,7 +275,9 @@ export default function FacialValidation({
     }
     const distance = faceapi.euclideanDistance(new Float32Array(desc), new Float32Array(stored));
     const score = distanceToScore(distance);
-    if (distance <= threshold) {
+    const ok = distance <= threshold;
+    setVisualStatus(ok ? 'success' : 'error');
+    if (ok) {
       setStatus(`Identidade validada! (score ${score.toFixed(0)})`);
       setTimeout(() => { stopCamera(); onValidated(true); }, 800);
     } else {
@@ -283,7 +296,13 @@ export default function FacialValidation({
           <p className="text-muted-foreground text-sm min-h-[20px]">{status}</p>
         </div>
 
-        <div className="relative aspect-square w-full max-w-[320px] mx-auto overflow-hidden rounded-full border-4 border-primary/20 bg-muted flex items-center justify-center">
+        <div className={cn(
+          "relative aspect-square w-full max-w-[320px] mx-auto overflow-hidden rounded-full border-4 bg-muted flex items-center justify-center transition-colors duration-300",
+          visualStatus === 'idle' && "border-primary/20",
+          visualStatus === 'processing' && "border-yellow-500 animate-pulse",
+          visualStatus === 'success' && "border-green-500",
+          visualStatus === 'error' && "border-red-500"
+        )}>
           {/* Video sempre montado para que o stream possa ser anexado */}
           <video
             ref={videoRef}
@@ -294,7 +313,13 @@ export default function FacialValidation({
           />
           {showVideo ? (
             <div className="absolute inset-0 border-[16px] border-background/40 rounded-full pointer-events-none">
-              <div className={`h-full w-full rounded-full border-2 border-dashed ${testResult?.ok ? 'border-primary' : 'border-primary/50'}`} />
+              <div className={cn(
+                "h-full w-full rounded-full border-2 border-dashed transition-colors duration-300",
+                visualStatus === 'idle' && "border-primary/50",
+                visualStatus === 'processing' && "border-yellow-500",
+                visualStatus === 'success' && "border-green-500",
+                visualStatus === 'error' && "border-red-500"
+              )} />
             </div>
           ) : loading ? (
             <Loader2 className="h-16 w-16 text-muted-foreground/50 animate-spin" />
