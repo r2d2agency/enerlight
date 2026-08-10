@@ -70,8 +70,22 @@ export default function MyPoint() {
     const timer = setInterval(() => setNow(new Date()), 1000);
     checkGPS();
     loadPunches();
+    loadEmployeeData();
     return () => clearInterval(timer);
   }, [loadPunches]);
+
+  const loadEmployeeData = async () => {
+    try {
+      const orgs = await api<any[]>('/api/organizations');
+      if (orgs?.[0]?.id && user?.id) {
+        const members = await api<any[]>(`/api/organizations/${orgs[0].id}/members`);
+        const me = members.find(m => m.user_id === user.id);
+        if (me) setEmployee(me);
+      }
+    } catch (err) {
+      console.error("Erro ao carregar dados do colaborador:", err);
+    }
+  };
 
   const checkGPS = () => {
     if ("geolocation" in navigator) {
