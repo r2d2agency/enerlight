@@ -13,6 +13,7 @@ import {
   TrendingUp, CheckCircle2, Clock, CreditCard, Eye, Loader2, Users
 } from "lucide-react";
 import { OnlineQuoteFormDialog } from "@/components/crm/OnlineQuoteFormDialog";
+import { CompanyDialog } from "@/components/crm/CompanyDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { format, startOfMonth, endOfMonth, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -29,6 +30,7 @@ export default function RepresentanteDashboard() {
   const [endDate, setEndDate] = useState(format(endOfMonth(new Date()), "yyyy-MM-dd"));
   const [search, setSearch] = useState("");
   const [isQuoteDialogOpen, setIsQuoteDialogOpen] = useState(false);
+  const [isCompanyDialogOpen, setIsCompanyDialogOpen] = useState(false);
   const [selectedQuoteForEdit, setSelectedQuoteForEdit] = useState<any>(null);
   const [clientSearch, setClientSearch] = useState("");
 
@@ -304,6 +306,9 @@ export default function RepresentanteDashboard() {
                   onChange={e => setClientSearch(e.target.value)}
                 />
               </div>
+              <Button onClick={() => setIsCompanyDialogOpen(true)} variant="outline">
+                <Plus className="h-4 w-4 mr-2" /> Novo Cliente
+              </Button>
             </div>
 
             <Card>
@@ -464,6 +469,11 @@ export default function RepresentanteDashboard() {
             refetchQuotes();
           }
         }} 
+      />
+      <CompanyDialog 
+        company={null} 
+        open={isCompanyDialogOpen} 
+        onOpenChange={setIsCompanyDialogOpen} 
       />
     </MainLayout>
   );
