@@ -171,8 +171,38 @@ export default function RhKiosk() {
       busyRef.current = false;
       setPending(false);
     },
-    [candidates],
+    [candidates, allEmployees],
   );
+
+  const handleManualPunch = async (employee: any) => {
+    if (employee.requires_facial_recognition) {
+      toast.error("Biometria obrigatória para este colaborador.");
+      return;
+    }
+
+    setPending(true);
+    const time = new Date().toLocaleTimeString('pt-BR');
+    try {
+      const { api } = await import('@/lib/api');
+      const p: any = await api('/api/rh/punches', {
+        method: 'POST',
+        body: {
+          user_id: employee.user_id || employee.id,
+          source: 'kiosk_manual',
+        },
+      });
+      const typeLabel = LABEL_MAP[p?.punch_type] || 'Batida';
+      setRecognized({ name: employee.name, type: typeLabel, score: 100, time });
+      setLastRegisters((prev) => [{ name: employee.name, type: typeLabel, time }, ...prev].slice(0, 6));
+      toast.success(`${typeLabel} de ${employee.name} registrado!`);
+      setShowManualSelection(false);
+    } catch (err: any) {
+      toast.error('Erro ao salvar batida manual: ' + (err?.message || 'erro'));
+    } finally {
+      setPending(false);
+      setTimeout(() => setRecognized(null), 5000);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 bg-background flex flex-col">
