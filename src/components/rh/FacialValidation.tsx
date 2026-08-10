@@ -295,7 +295,13 @@ export default function FacialValidation({
           <p className="text-muted-foreground text-sm min-h-[20px]">{status}</p>
         </div>
 
-        <div className="relative aspect-square w-full max-w-[320px] mx-auto overflow-hidden rounded-full border-4 border-primary/20 bg-muted flex items-center justify-center">
+        <div className={cn(
+          "relative aspect-square w-full max-w-[320px] mx-auto overflow-hidden rounded-full border-4 bg-muted flex items-center justify-center transition-colors duration-300",
+          visualStatus === 'idle' && "border-primary/20",
+          visualStatus === 'processing' && "border-yellow-500 animate-pulse",
+          visualStatus === 'success' && "border-green-500",
+          visualStatus === 'error' && "border-red-500"
+        )}>
           {/* Video sempre montado para que o stream possa ser anexado */}
           <video
             ref={videoRef}
@@ -306,7 +312,13 @@ export default function FacialValidation({
           />
           {showVideo ? (
             <div className="absolute inset-0 border-[16px] border-background/40 rounded-full pointer-events-none">
-              <div className={`h-full w-full rounded-full border-2 border-dashed ${testResult?.ok ? 'border-primary' : 'border-primary/50'}`} />
+              <div className={cn(
+                "h-full w-full rounded-full border-2 border-dashed transition-colors duration-300",
+                visualStatus === 'idle' && "border-primary/50",
+                visualStatus === 'processing' && "border-yellow-500",
+                visualStatus === 'success' && "border-green-500",
+                visualStatus === 'error' && "border-red-500"
+              )} />
             </div>
           ) : loading ? (
             <Loader2 className="h-16 w-16 text-muted-foreground/50 animate-spin" />
