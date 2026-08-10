@@ -47,14 +47,10 @@ export default function MyPoint() {
   const [myPunches, setMyPunches] = useState<any[]>([]);
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [employee, setEmployee] = useState<any>(null);
+  const [authorizedLocations, setAuthorizedLocations] = useState<any[]>([]);
 
   const employeeName = user?.name || "Colaborador";
   const employeeRole = user?.role || "";
-
-  const authorizedLocation = {
-    name: "Sede Enerlight",
-    lat: -23.55052, lng: -46.633308, radius: 500,
-  };
 
   const loadPunches = useCallback(async () => {
     try {
@@ -71,8 +67,18 @@ export default function MyPoint() {
     checkGPS();
     loadPunches();
     loadEmployeeData();
+    loadLocations();
     return () => clearInterval(timer);
   }, [loadPunches]);
+
+  const loadLocations = async () => {
+    try {
+      const locs = await api<any[]>('/api/rh/locations');
+      setAuthorizedLocations(Array.isArray(locs) ? locs : []);
+    } catch (err) {
+      console.error("Erro ao carregar locais:", err);
+    }
+  };
 
   const loadEmployeeData = async () => {
     try {
@@ -101,9 +107,30 @@ export default function MyPoint() {
       if (!("geolocation" in navigator)) return resolve({ ok: false });
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          const d = getDistance(pos.coords.latitude, pos.coords.longitude, authorizedLocation.lat, authorizedLocation.lng);
-          if (d <= authorizedLocation.radius) resolve({ ok: true, lat: pos.coords.latitude, lng: pos.coords.longitude });
-          else { toast.error("Você está fora da área autorizada."); resolve({ ok: false }); }
+          const userLat = pos.coords.latitude;
+          const userLng = pos.coords.longitude;
+          
+          // Se houver coordenadas específicas no membro, elas têm prioridade
+          if (employee?.authorized_latitude && employee?.authorized_longitude) {
+            const d = getDistance(userLat, userLng, Number(employee.authorized_latitude), Number(employee.authorized_longitude));
+            const radius = employee.authorized_radius_meters || 150;
+            if (d <= radius) {
+              return resolve({ ok: true, lat: userLat, lng: userLng });
+            }
+          }
+          
+          // Caso contrário, verifica a lista de locais da organização
+          const inAnyLocation = authorizedLocations.some(loc => {
+            const d = getDistance(userLat, userLng, Number(loc.latitude), Number(loc.longitude));
+            return d <= (loc.radius_meters || 150);
+          });
+
+          if (inAnyLocation) {
+            resolve({ ok: true, lat: userLat, lng: userLng });
+          } else {
+            toast.error("Você está fora da área autorizada.");
+            resolve({ ok: false });
+          }
         },
         () => { toast.error("Ative o GPS."); resolve({ ok: false }); }
       );

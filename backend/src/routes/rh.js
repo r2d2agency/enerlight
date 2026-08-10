@@ -29,12 +29,15 @@ async function ensureRhSchema() {
         ['work_end_time', 'TIME'],
         ['lunch_start_time', 'TIME'],
         ['lunch_end_time', 'TIME'],
-        ['authorized_radius_meters', 'INTEGER'],
+        ['authorized_radius_meters', 'INTEGER DEFAULT 150'],
         ['authorized_latitude', 'DECIMAL(10,8)'],
         ['authorized_longitude', 'DECIMAL(11,8)'],
       ];
       for (const [name, type] of memberCols) {
         await query(`ALTER TABLE organization_members ADD COLUMN IF NOT EXISTS ${name} ${type};`);
+        if (name === 'authorized_radius_meters') {
+          await query(`ALTER TABLE organization_members ALTER COLUMN authorized_radius_meters SET DEFAULT 150;`);
+        }
       }
       await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS cpf VARCHAR(20);`);
       await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS birth_date DATE;`);
@@ -259,7 +262,7 @@ router.post('/locations', async (req, res) => {
     const result = await query(
       `INSERT INTO rh_authorized_locations (organization_id, name, latitude, longitude, radius_meters)
        VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [organizationId, name, latitude, longitude, radius_meters || 100]
+      [organizationId, name, latitude, longitude, radius_meters || 150]
     );
 
     res.status(201).json(result.rows[0]);

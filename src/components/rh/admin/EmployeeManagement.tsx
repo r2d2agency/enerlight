@@ -110,7 +110,7 @@ export default function EmployeeManagement() {
     number: "",
     latitude: 0,
     longitude: 0,
-    radius_meters: 100
+    radius_meters: 150
   });
   const [searchingCep, setSearchingCep] = useState(false);
   const [searchingCoords, setSearchingCoords] = useState(false);
@@ -131,7 +131,7 @@ export default function EmployeeManagement() {
     work_end_time: "18:00",
     lunch_start_time: "12:00",
     lunch_end_time: "13:00",
-    authorized_radius_meters: 100,
+    authorized_radius_meters: 150,
     authorized_latitude: 0 as number | undefined,
     authorized_longitude: 0 as number | undefined,
     requires_facial_recognition: false
@@ -172,7 +172,7 @@ export default function EmployeeManagement() {
           work_end_time: m.work_end_time,
           lunch_start_time: m.lunch_start_time,
           lunch_end_time: m.lunch_end_time,
-          authorized_radius_meters: m.authorized_radius_meters || 100,
+          authorized_radius_meters: m.authorized_radius_meters || 150,
           authorized_latitude: m.authorized_latitude,
           authorized_longitude: m.authorized_longitude,
           requires_facial_recognition: m.requires_facial_recognition === true
@@ -256,7 +256,7 @@ export default function EmployeeManagement() {
             name: "", email: "", role: "", journey: "08:00 - 12:00 | 13:00 - 17:00", journey_id: "", user_id: "",
             cpf: "", birth_date: "", work_start_time: "08:00", work_end_time: "18:00", 
             lunch_start_time: "12:00", lunch_end_time: "13:00",
-            authorized_radius_meters: 100, authorized_latitude: undefined, authorized_longitude: undefined,
+            authorized_radius_meters: 150, authorized_latitude: undefined, authorized_longitude: undefined,
             requires_facial_recognition: false
           });
           loadData();
@@ -345,7 +345,7 @@ export default function EmployeeManagement() {
       setIsLocationDialogOpen(false);
       setNewLocation({
         name: "", cep: "", address: "", number: "",
-        latitude: 0, longitude: 0, radius_meters: 100
+        latitude: 0, longitude: 0, radius_meters: 150
       });
       // Refresh locations
       const locs = await getLocations();
