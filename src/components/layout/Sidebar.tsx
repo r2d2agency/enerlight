@@ -118,20 +118,6 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
     ],
   },
   {
-    title: "Representantes",
-    icon: Handshake,
-    moduleKey: 'representatives',
-    permissionKey: 'can_view_representative_dashboard',
-    items: [
-      { name: "Painel Representante", href: "/crm/representante-dashboard", icon: LayoutDashboard, permissionKey: 'can_view_representative_dashboard', moduleKey: 'representative_dashboard' },
-      { name: "Meus Clientes", href: "/crm/empresas", icon: Building2, permissionKey: 'can_view_representative_dashboard' },
-      { name: "Mapa do Representante", href: "/mapa", icon: Map, permissionKey: 'can_view_map' },
-      { name: "Orçamentos Online", href: "/crm/orcamentos", icon: FileText, moduleKey: 'online_quotes', permissionKey: 'can_view_online_quotes' },
-      { name: "Gestão de Representantes", href: "/crm/representantes", icon: Handshake, moduleKey: 'representatives', permissionKey: 'can_view_representatives' },
-      { name: "Hub de Representantes", href: "/crm/representantes-hub", icon: Users, moduleKey: 'representatives', permissionKey: 'can_view_all_representative_quotes' },
-    ],
-  },
-  {
     title: "CRM",
     icon: Briefcase,
     moduleKey: 'crm',
