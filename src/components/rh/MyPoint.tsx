@@ -46,6 +46,7 @@ export default function MyPoint() {
   const [pendingClick, setPendingClick] = useState(false);
   const [myPunches, setMyPunches] = useState<any[]>([]);
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [employee, setEmployee] = useState<any>(null);
 
   const employeeName = user?.name || "Colaborador";
   const employeeRole = user?.role || "";
