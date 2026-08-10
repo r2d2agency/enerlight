@@ -79,7 +79,14 @@ function getMarkupMultiplierFromMargin(avgMargin: number) {
 
 function formatMarkupFromMargin(avgMargin: number) {
   const markupX = getMarkupMultiplierFromMargin(avgMargin);
-  return markupX > 0 ? markupX.toFixed(2).replace('.', ',') : '0,00';
+  if (markupX <= 0) return '0,00';
+  const decimal = markupX.toFixed(2).replace('.', ',');
+  const percentage = Math.round((markupX - 1) * 100);
+  return (
+    <span>
+      {decimal} <span className="text-[10px] font-normal text-muted-foreground">({percentage}%)</span>
+    </span>
+  );
 }
 
 // Real markup based on total value / total cost (weighted by every product)
