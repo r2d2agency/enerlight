@@ -1400,7 +1400,12 @@ export default function CRMMetas() {
 
                               {recordsType !== "orcamento" && (
                                 <TableCell className="text-right text-sm font-medium text-emerald-600">
-                                  {rowMarkup ? rowMarkup.toFixed(2).replace('.', ',') : "—"}
+                                  {rowMarkup ? (
+                                    <>
+                                      {rowMarkup.toFixed(2).replace('.', ',')}{" "}
+                                      <span className="text-[10px] font-normal text-muted-foreground">({Math.round((rowMarkup - 1) * 100)}%)</span>
+                                    </>
+                                  ) : "—"}
                                 </TableCell>
                               )}
                               {recordsType !== "orcamento" && (
@@ -1427,9 +1432,15 @@ export default function CRMMetas() {
                               <TableHead colSpan={recordsType === "orcamento" ? 3 : 4}></TableHead>
                               {recordsType !== "orcamento" && (
                                 <TableHead className="text-right font-semibold text-emerald-600">
-                                  {recordsData.totals.total_cost > 0 && recordsData.totals.value_with_cost > 0
-                                    ? (recordsData.totals.value_with_cost / recordsData.totals.total_cost).toFixed(2).replace('.', ',')
-                                    : "—"}
+                                  {recordsData.totals.total_cost > 0 && recordsData.totals.value_with_cost > 0 ? (() => {
+                                    const mk = recordsData.totals.value_with_cost / recordsData.totals.total_cost;
+                                    return (
+                                      <>
+                                        {mk.toFixed(2).replace('.', ',')}{" "}
+                                        <span className="text-[10px] font-normal text-muted-foreground">({Math.round((mk - 1) * 100)}%)</span>
+                                      </>
+                                    );
+                                  })() : "—"}
                                 </TableHead>
                               )}
                               {recordsType !== "orcamento" && <TableHead></TableHead>}
@@ -1519,7 +1530,8 @@ export default function CRMMetas() {
                               </span>
                               <span className="text-muted-foreground">Markup</span>
                               <span className={`text-right font-medium ${ch.markup_pct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                {ch.markup_pct.toFixed(0)}%
+                                {(ch.markup_pct / 100 + 1).toFixed(2).replace('.', ',')}{" "}
+                                <span className="text-[10px] font-normal text-muted-foreground">({ch.markup_pct.toFixed(0)}%)</span>
                               </span>
                             </div>
                             <div className="text-xs text-muted-foreground pt-1 border-t">
@@ -1557,7 +1569,8 @@ export default function CRMMetas() {
                                 {fmt(ch.freight_balance)}
                               </TableCell>
                               <TableCell className={`text-right ${ch.markup_pct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                {ch.markup_pct.toFixed(0)}%
+                                {(ch.markup_pct / 100 + 1).toFixed(2).replace('.', ',')}{" "}
+                                <span className="text-[10px] font-normal text-muted-foreground">({ch.markup_pct.toFixed(0)}%)</span>
                               </TableCell>
                               <TableCell className="text-center">{ch.shipments_count}</TableCell>
                             </TableRow>
