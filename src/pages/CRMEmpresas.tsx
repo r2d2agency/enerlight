@@ -79,7 +79,8 @@ export default function CRMEmpresas() {
   });
   const { user } = useAuth();
   const isAdmin = user?.role === 'owner' || user?.role === 'admin';
-  const companies = (companiesResponse?.items || []).filter(c => isAdmin || (c as any).created_by === user?.id);
+  const isRepresentative = user?.user_permissions?.can_view_representative_dashboard === true && !isAdmin;
+  const companies = (companiesResponse?.items || []).filter(c => isAdmin || isRepresentative || (c as any).created_by === user?.id);
   const total = isAdmin ? (companiesResponse?.total || 0) : companies.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
