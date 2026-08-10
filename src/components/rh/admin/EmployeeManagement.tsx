@@ -456,6 +456,7 @@ export default function EmployeeManagement() {
               <TableHead>Usuário Vinculado</TableHead>
               <TableHead>Jornada</TableHead>
               <TableHead>Facial</TableHead>
+              <TableHead>Obrig.</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Localização</TableHead>
               <TableHead className="text-right">Ações</TableHead>
@@ -553,6 +554,18 @@ export default function EmployeeManagement() {
                       <Camera className="h-3.5 w-3.5" /> Cadastrar
                     </Button>
                   )}
+                </TableCell>
+                <TableCell>
+                  <Switch 
+                    checked={emp.requires_facial_recognition === true}
+                    onCheckedChange={async (val) => {
+                      const success = await updateMember(emp.user_id, { requires_facial_recognition: val });
+                      if (success) {
+                        toast.success(`Biometria facial ${val ? 'ativada' : 'desativada'} para ${emp.name}`);
+                        loadData();
+                      }
+                    }}
+                  />
                 </TableCell>
                 <TableCell>
                   {emp.authorized_latitude && emp.authorized_longitude ? (
