@@ -68,6 +68,7 @@ export default function RhKiosk() {
       try {
         await ensureFaceModels();
         const employees = await getEmployees();
+        setAllEmployees(employees);
         const namesById: Record<string, string> = {};
         employees.forEach((e: any) => {
           if (e.user_id) namesById[e.user_id] = e.name;
