@@ -11,6 +11,7 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   Dialog, 
   DialogContent, 
@@ -84,7 +85,7 @@ interface User {
 
 export default function EmployeeManagement() {
   const { user } = useAuth();
-  const { getEmployees, updateMember, createMember, getLocations, createLocation } = useRh();
+  const { getEmployees, updateMember, createMember, getLocations, createLocation, deleteLocation } = useRh();
 
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [availableUsers, setAvailableUsers] = useState<User[]>([]);
@@ -456,6 +457,7 @@ export default function EmployeeManagement() {
               <TableHead>Jornada</TableHead>
               <TableHead>Facial</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Localização</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -550,6 +552,22 @@ export default function EmployeeManagement() {
                     >
                       <Camera className="h-3.5 w-3.5" /> Cadastrar
                     </Button>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {emp.authorized_latitude && emp.authorized_longitude ? (
+                    <div className="flex flex-col text-[10px] text-muted-foreground">
+                      <div className="flex items-center gap-1 text-primary font-medium">
+                        <MapPin className="h-3 w-3" />
+                        {locations.find(l => 
+                          Math.abs(l.latitude - (emp.authorized_latitude || 0)) < 0.0001 && 
+                          Math.abs(l.longitude - (emp.authorized_longitude || 0)) < 0.0001
+                        )?.name || "Local Custom"}
+                      </div>
+                      <span>Raio: {emp.authorized_radius_meters}m</span>
+                    </div>
+                  ) : (
+                    <span className="text-[10px] text-muted-foreground italic">Livre</span>
                   )}
                 </TableCell>
                  <TableCell className="text-right flex gap-1 justify-end">
@@ -934,111 +952,128 @@ export default function EmployeeManagement() {
 
       {/* Location Dialog */}
       <Dialog open={isLocationDialogOpen} onOpenChange={setIsLocationDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Cadastrar Novo Local</DialogTitle>
+            <DialogTitle>Gerenciar Locais do Ponto</DialogTitle>
             <DialogDescription>
-              Busque pelo CEP ou preencha as coordenadas manualmente.
+              Cadastre e gerencie os locais onde os colaboradores podem bater o ponto.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4 max-h-[70vh] overflow-y-auto px-1">
-            <div className="grid gap-2">
-              <Label htmlFor="new-loc-name">Nome do Local</Label>
-              <Input 
-                id="new-loc-name" 
-                value={newLocation.name}
-                onChange={e => setNewLocation({...newLocation, name: e.target.value})}
-                placeholder="Ex: Obra Centro ou Filial Norte"
-              />
-            </div>
 
-            <div className="space-y-3 p-3 border rounded-md bg-muted/30">
-              <Label className="text-xs font-semibold uppercase text-muted-foreground">Buscar por Endereço</Label>
-              <div className="flex gap-2">
-                <div className="flex-1">
-                  <Input 
-                    placeholder="CEP" 
-                    value={newLocation.cep}
-                    onChange={e => setNewLocation({...newLocation, cep: e.target.value})}
-                    maxLength={9}
-                  />
-                </div>
-                <Button 
-                  variant="secondary" 
-                  size="icon" 
-                  onClick={handleCepSearch}
-                  disabled={searchingCep}
-                >
-                  {searchingCep ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                </Button>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
+            <div className="space-y-4">
+              <h4 className="text-sm font-bold">Novo Local</h4>
+              <div className="grid gap-2">
+                <Label htmlFor="loc-name">Nome do Local (ex: Sede, Obra X)</Label>
+                <Input 
+                  id="loc-name" 
+                  value={newLocation.name}
+                  onChange={e => setNewLocation({...newLocation, name: e.target.value})}
+                />
               </div>
-
-              {newLocation.address && (
-                <div className="grid gap-2">
-                  <div className="text-xs text-muted-foreground italic px-1">
-                    {newLocation.address}
-                  </div>
+              
+              <div className="grid grid-cols-3 gap-2">
+                <div className="col-span-2 grid gap-2">
+                  <Label htmlFor="loc-cep">CEP</Label>
                   <div className="flex gap-2">
                     <Input 
-                      placeholder="Número" 
-                      value={newLocation.number}
-                      onChange={e => setNewLocation({...newLocation, number: e.target.value})}
-                      className="w-24"
+                      id="loc-cep" 
+                      value={newLocation.cep}
+                      onChange={e => setNewLocation({...newLocation, cep: e.target.value})}
                     />
-                    <Button 
-                      variant="outline" 
-                      className="flex-1 gap-2" 
-                      onClick={handleGetCoords}
-                      disabled={searchingCoords}
-                    >
-                      {searchingCoords ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
-                      Obter Coordenadas
+                    <Button size="icon" variant="outline" onClick={handleCepSearch} disabled={searchingCep}>
+                      {searchingCep ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                     </Button>
                   </div>
                 </div>
-              )}
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="loc-num">Nº</Label>
+                  <Input 
+                    id="loc-num" 
+                    value={newLocation.number}
+                    onChange={e => setNewLocation({...newLocation, number: e.target.value})}
+                  />
+                </div>
+              </div>
+
               <div className="grid gap-2">
-                <Label htmlFor="new-lat">Latitude</Label>
-                <Input 
-                  id="new-lat" 
-                  type="number" 
-                  step="any"
-                  value={newLocation.latitude || ""} 
-                  onChange={e => setNewLocation({...newLocation, latitude: parseFloat(e.target.value) || 0})} 
+                <Label htmlFor="loc-addr">Endereço</Label>
+                <Input id="loc-addr" value={newLocation.address} readOnly className="bg-muted text-xs" />
+              </div>
+
+              <div className="flex gap-2">
+                <Button variant="secondary" className="flex-1 text-xs" onClick={handleGetCoords} disabled={searchingCoords}>
+                  {searchingCoords ? <Loader2 className="h-3 w-3 mr-2 animate-spin" /> : <MapPin className="h-3 w-3 mr-2" />}
+                  Obter Coordenadas
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="grid gap-1">
+                  <Label className="text-[10px]">Lat</Label>
+                  <Input value={newLocation.latitude || ""} readOnly className="h-8 text-xs bg-muted" />
+                </div>
+                <div className="grid gap-1">
+                  <Label className="text-[10px]">Lng</Label>
+                  <Input value={newLocation.longitude || ""} readOnly className="h-8 text-xs bg-muted" />
+                </div>
+              </div>
+
+              <div className="grid gap-2">
+                <div className="flex justify-between">
+                  <Label className="text-xs">Raio de Tolerância: {newLocation.radius_meters}m</Label>
+                </div>
+                <Slider 
+                  value={[newLocation.radius_meters]} 
+                  onValueChange={(val) => setNewLocation({...newLocation, radius_meters: val[0]})}
+                  max={1000}
+                  min={10}
+                  step={10}
                 />
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="new-lng">Longitude</Label>
-                <Input 
-                  id="new-lng" 
-                  type="number" 
-                  step="any"
-                  value={newLocation.longitude || ""} 
-                  onChange={e => setNewLocation({...newLocation, longitude: parseFloat(e.target.value) || 0})} 
-                />
-              </div>
+
+              <Button className="w-full" onClick={handleQuickLocationSave}>Salvar Local</Button>
             </div>
 
-            <div className="grid gap-2">
-              <div className="flex justify-between">
-                <Label>Raio de Tolerância: {newLocation.radius_meters}m</Label>
-              </div>
-              <Slider 
-                value={[newLocation.radius_meters]} 
-                onValueChange={(val) => setNewLocation({...newLocation, radius_meters: val[0]})}
-                max={1000}
-                min={10}
-                step={10}
-              />
+            <div className="space-y-4 border-l pl-6">
+              <h4 className="text-sm font-bold">Locais Cadastrados</h4>
+              <ScrollArea className="h-[300px] pr-4">
+                <div className="space-y-2">
+                  {locations.map((loc) => (
+                    <div key={loc.id} className="p-3 border rounded-lg flex items-center justify-between group">
+                      <div className="min-w-0">
+                        <div className="font-semibold text-xs truncate">{loc.name}</div>
+                        <div className="text-[10px] text-muted-foreground truncate">{loc.address || `${loc.latitude}, ${loc.longitude}`}</div>
+                        <div className="text-[10px] text-primary">{loc.radius_meters}m de tolerância</div>
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={async () => {
+                          if (confirm(`Excluir local "${loc.name}"?`)) {
+                            const success = await deleteLocation(loc.id);
+                            if (success) {
+                              toast.success("Local excluído");
+                              const updated = await getLocations();
+                              setLocations(updated || []);
+                            }
+                          }
+                        }}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  ))}
+                  {locations.length === 0 && (
+                    <div className="text-center py-10 text-xs text-muted-foreground">
+                      Nenhum local cadastrado.
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsLocationDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleQuickLocationSave}>Cadastrar Local</Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 
