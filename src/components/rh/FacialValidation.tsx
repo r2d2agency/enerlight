@@ -177,10 +177,12 @@ export default function FacialValidation({
   const captureRegister = async () => {
     if (processing) return;
     setProcessing(true);
+    setVisualStatus('processing');
     setStatus('Capturando...');
     const desc = await grabDescriptor();
     if (!desc) {
       setStatus('Nenhum rosto detectado. Ajuste a iluminação e tente novamente.');
+      setVisualStatus('error');
       setProcessing(false);
       return;
     }
