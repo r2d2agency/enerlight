@@ -17,7 +17,7 @@ const PERMISSION_COLUMNS = [
   'can_view_billing', 'can_view_connections', 'can_view_organizations', 'can_view_settings',
   'can_view_internal_chat', 'can_view_lead_gleego', 'can_view_homologation', 'can_view_captador',
   'can_view_licitacao', 'can_view_logistics', 'can_view_document_signatures',
-  'can_view_rh', 'can_approve_rh',
+  'can_view_rh', 'can_approve_rh', 'can_manage_rh_punches', 'can_view_hr_dashboard',
   'can_view_devolucoes', 'can_create_devolucoes', 'can_manage_devolucoes', 'can_delete_devolucoes',
   'can_edit_devolucoes', 'can_accept_devolucoes', 'can_refuse_devolucoes', 'can_manage_devolucao_sla',
   'can_delete_deals', 'can_delete_projects', 'can_delete_tasks', 'can_delete_homologation', 'can_delete_licitacao',
@@ -25,7 +25,8 @@ const PERMISSION_COLUMNS = [
   'can_view_ead', 'can_manage_ead',
   'can_validate_billing', 'can_view_commission', 'can_manage_commission_rules',
   'can_view_payroll', 'can_manage_payroll',
-  'can_view_minutas', 'can_view_team_commission',
+  'can_view_minutas', 'can_view_team_commission', 'can_view_representative_dashboard',
+  'can_view_all_representative_quotes', 'can_view_expenses', 'can_view_nfc', 'can_manage_online_quotes',
 ];
 
 // Default permissions for each role
@@ -302,7 +303,7 @@ router.put('/:userId', authenticate, async (req, res) => {
       [userId, orgId, ...values]
     );
     
-    res.json({ success: true });
+      res.json({ success: true, permissions: permissionsToSave });
   } catch (error) {
     console.error('Update permissions error:', error);
     res.status(500).json({ error: error.message || 'Erro ao atualizar permissões' });

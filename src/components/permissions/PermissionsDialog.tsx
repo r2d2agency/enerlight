@@ -58,6 +58,7 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
       { key: 'can_view_companies', label: 'Empresas', description: 'Cadastro de empresas' },
       { key: 'can_view_map', label: 'Mapa', description: 'Visualização em mapa' },
       { key: 'can_view_calendar', label: 'Agenda', description: 'Agenda do CRM' },
+      { key: 'can_view_tasks', label: 'Tarefas', description: 'Gestão de tarefas' },
       { key: 'can_view_reports', label: 'Relatórios', description: 'Relatórios do CRM' },
       { key: 'can_view_revenue_intel', label: 'Revenue Intel', description: 'Inteligência de receita' },
       { key: 'can_view_supervisor_ia', label: 'Supervisor IA', description: 'Painel de supervisão e diagnóstico de Kanbans' },
@@ -162,10 +163,10 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
     ],
   },
   {
-    title: 'EAD / Academy',
+    title: 'Academia (EAD)',
     items: [
-      { key: 'can_view_ead', label: 'Ver EAD', description: 'Acessar o módulo EAD (Academy)' },
-      { key: 'can_manage_ead', label: 'Gerenciar EAD', description: 'Criar cursos, aprovar instaladores e emitir certificados' },
+      { key: 'can_view_ead', label: 'Ver Academia (EAD)', description: 'Acessar painel de cursos, alunos e certificados' },
+      { key: 'can_manage_ead', label: 'Gerenciar EAD', description: 'Criar/editar cursos, aulas, provas e templates de certificado' },
     ],
   },
 
@@ -231,8 +232,14 @@ export function PermissionsDialog({ open, onOpenChange, userId, userName, userRo
 
   // Detect which template matches current permissions
   useEffect(() => {
+    if (templates.length === 0) return;
+    
     const match = templates.find(t =>
-      ALL_KEYS.every(k => (t.permissions[k] || false) === (permissions[k] || false))
+      ALL_KEYS.every(k => {
+        const tVal = !!t.permissions[k];
+        const pVal = !!permissions[k];
+        return tVal === pVal;
+      })
     );
     setActiveTemplate(match?.id || null);
   }, [permissions, templates]);
@@ -268,7 +275,11 @@ export function PermissionsDialog({ open, onOpenChange, userId, userName, userRo
   };
 
   const handleToggle = (key: string) => {
-    setPermissions(prev => ({ ...prev, [key]: !prev[key] }));
+    setPermissions(prev => {
+      const next = { ...prev, [key]: !prev[key] };
+      console.log('[PermissionsDialog] Toggling:', key, 'to:', next[key]);
+      return next;
+    });
   };
 
   const handleToggleAll = (group: PermissionGroup, value: boolean) => {
@@ -285,7 +296,9 @@ export function PermissionsDialog({ open, onOpenChange, userId, userName, userRo
       // Create fresh permissions map with ALL keys defaulted to false
       const freshPermissions = Object.fromEntries(ALL_KEYS.map(k => [k, false]));
       // Merge template permissions into it
-      setPermissions({ ...freshPermissions, ...template.permissions });
+      const merged = { ...freshPermissions, ...template.permissions };
+      console.log('[PermissionsDialog] Applying template:', template.name, merged);
+      setPermissions(merged);
       toast.info(`Template "${template.name}" aplicado`);
     }
   };
@@ -451,10 +464,7 @@ export function PermissionsDialog({ open, onOpenChange, userId, userName, userRo
             Resetar
           </Button>
           <div className="flex-1" />
-          <Button variant="outline" onClick={() => {
-            setPermissions(JSON.parse(JSON.stringify(initialPermissions)));
-            onOpenChange(false);
-          }}>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
           <Button onClick={handleSave} disabled={saving}>

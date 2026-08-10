@@ -266,7 +266,9 @@ export function PermissionTemplatesTab() {
     setName(tpl.name);
     setDescription(tpl.description || '');
     setIcon(tpl.icon);
-    setPermissions({ ...Object.fromEntries(ALL_KEYS.map(k => [k, false])), ...tpl.permissions });
+    const initialPerms = { ...Object.fromEntries(ALL_KEYS.map(k => [k, false])), ...tpl.permissions };
+    console.log('[PermissionTemplatesTab] Opening edit with permissions:', initialPerms);
+    setPermissions(initialPerms);
     setEditorOpen(true);
   };
 
@@ -330,6 +332,7 @@ export function PermissionTemplatesTab() {
   };
 
   const togglePermission = (key: string) => {
+    console.log('[PermissionTemplatesTab] Toggling permission:', key);
     setPermissions(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
