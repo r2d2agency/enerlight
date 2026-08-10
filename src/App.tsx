@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { useBranding } from "@/hooks/use-branding";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -156,7 +156,14 @@ function FaviconUpdater() {
     }
   }, [branding.favicon]);
 
-  return null;
+function AuthRedirect({ children }: { children: React.ReactNode }) {
+  const { user, userPermissions } = useAuth();
+  
+  if (userPermissions?.can_view_representative_dashboard && !userPermissions?.can_view_chat) {
+    return <Navigate to="/crm/representante-dashboard" replace />;
+  }
+  
+  return <>{children}</>;
 }
 
 const App = () => (
@@ -172,9 +179,17 @@ const App = () => (
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/cadastro" element={<Cadastro />} />
-              <Route path="/" element={<Login />} />
-              <Route path="/dashboard" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-              <Route path="/meu-dia" element={<ProtectedRoute><MeuDia /></ProtectedRoute>} />
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              
+              <Route path="/dashboard" element={
+                <ProtectedRoute>
+                  <AuthRedirect>
+                    <Index />
+                  </AuthRedirect>
+                </ProtectedRoute>
+              } />
+
+              <Route path="/meu-dia" element={<ProtectedRoute permissionKey="can_view_chat"><MeuDia /></ProtectedRoute>} />
               <Route path="/conexao" element={<ProtectedRoute><Conexao /></ProtectedRoute>} />
               <Route path="/meta-templates" element={<ProtectedRoute><MetaTemplates /></ProtectedRoute>} />
               <Route path="/contatos" element={<ProtectedRoute><Contatos /></ProtectedRoute>} />
@@ -205,7 +220,7 @@ const App = () => (
               <Route path="/comissoes/regras" element={<ProtectedRoute><ComissoesRegras /></ProtectedRoute>} />
               <Route path="/comissoes/equipe" element={<ProtectedRoute permissionKey="can_view_team_commission"><ComissoesEquipe /></ProtectedRoute>} />
               <Route path="/folha-pagamento" element={<ProtectedRoute permissionKey="can_view_payroll"><FolhaPagamento /></ProtectedRoute>} />
-              <Route path="/crm/representante-dashboard" element={<ProtectedRoute><RepresentanteDashboard /></ProtectedRoute>} />
+              <Route path="/crm/representante-dashboard" element={<ProtectedRoute permissionKey="can_view_representative_dashboard"><RepresentanteDashboard /></ProtectedRoute>} />
 
               <Route path="/crm/representantes" element={<ProtectedRoute><CRMRepresentantes /></ProtectedRoute>} />
               <Route path="/crm/representantes-hub" element={<ProtectedRoute><RepresentativesHub /></ProtectedRoute>} />

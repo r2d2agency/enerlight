@@ -80,7 +80,7 @@ interface NavSection {
   title: string;
   icon: any;
   items: NavItem[];
-  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat' | 'homologation' | 'tasks' | 'lead_gleego' | 'captador' | 'document_signatures' | 'licitacao' | 'logistics' | 'online_quotes' | 'rh_module' | 'goals' | 'representatives' | 'representative_dashboard';
+  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat' | 'homologation' | 'tasks' | 'lead_gleego' | 'captador' | 'document_signatures' | 'licitacao' | 'logistics' | 'online_quotes' | 'rh_module' | 'goals' | 'representatives' | 'representative_dashboard' | 'ead';
   adminOnly?: boolean;
   permissionKey?: string;
 }
@@ -88,6 +88,14 @@ interface NavSection {
 type ModuleKey = NonNullable<NavItem['moduleKey']>;
 
 const getNavSections = (hasConnections: boolean): NavSection[] => [
+  {
+    title: "Dashboard",
+    icon: LayoutDashboard,
+    items: [
+      { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, permissionKey: 'can_view_chat' },
+      { name: "Meu Dia", href: "/meu-dia", icon: CalendarDays, permissionKey: 'can_view_chat' },
+    ],
+  },
   {
     title: "Atendimento",
     icon: MessagesSquare,
@@ -217,6 +225,7 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
   {
     title: "Academia (EAD)",
     icon: GraduationCap,
+    moduleKey: 'ead',
     permissionKey: 'can_view_ead',
     items: [
       { name: "Cursos e Alunos", href: "/admin/ead", icon: GraduationCap, permissionKey: 'can_view_ead' },
