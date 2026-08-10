@@ -537,7 +537,8 @@ router.patch('/:id/members/:userId', async (req, res) => {
       if (birth_date !== undefined) { updates.push(`birth_date = $${idx++}`); vals.push(birth_date); }
       
       vals.push(userId);
-      await query(`UPDATE users SET ${updates.join(', ')}, updated_at = NOW() WHERE id = $${idx}`, vals);
+      const userQueryStr = `UPDATE users SET ${updates.join(', ')}, updated_at = NOW() WHERE id = $${idx}`;
+      await query(userQueryStr, vals);
     }
 
     // Update organization_members role & RH fields
