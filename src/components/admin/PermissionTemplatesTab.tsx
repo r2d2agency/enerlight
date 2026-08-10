@@ -138,6 +138,7 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
       { key: 'can_view_billing', label: 'Cobrança', description: 'Gestão de cobranças' },
       { key: 'can_view_connections', label: 'Conexões', description: 'Conexões WhatsApp' },
       { key: 'can_view_organizations', label: 'Organizações', description: 'Gerenciar organização' },
+      { key: 'can_view_nfc', label: 'Cartões NFC', description: 'Acesso e gestão de cartões NFC' },
     ],
   },
   {
