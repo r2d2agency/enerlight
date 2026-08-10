@@ -294,15 +294,17 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
   {
     title: "Minha Conta",
     icon: User,
+    permissionKey: 'can_view_settings',
     items: [
-      { name: "Ajustes", href: "/configuracoes", icon: Settings },
+      { name: "Ajustes", href: "/configuracoes", icon: Settings, permissionKey: 'can_view_settings' },
     ],
   },
   {
     title: "Cartões NFC",
     icon: Nfc,
+    permissionKey: 'can_view_nfc',
     items: [
-      { name: "Gerenciar", href: "/cartoes-nfc", icon: Nfc },
+      { name: "Gerenciar", href: "/cartoes-nfc", icon: Nfc, permissionKey: 'can_view_nfc' },
     ],
   },
   {
