@@ -330,6 +330,7 @@ export function PermissionTemplatesTab() {
   };
 
   const togglePermission = (key: string) => {
+    console.log('[PermissionTemplatesTab] Toggling permission:', key);
     setPermissions(prev => ({ ...prev, [key]: !prev[key] }));
   };
 

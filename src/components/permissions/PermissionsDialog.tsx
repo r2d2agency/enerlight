@@ -460,10 +460,7 @@ export function PermissionsDialog({ open, onOpenChange, userId, userName, userRo
             Resetar
           </Button>
           <div className="flex-1" />
-          <Button variant="outline" onClick={() => {
-            setPermissions(JSON.parse(JSON.stringify(initialPermissions)));
-            onOpenChange(false);
-          }}>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
           <Button onClick={handleSave} disabled={saving}>
