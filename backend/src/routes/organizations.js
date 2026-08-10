@@ -561,7 +561,6 @@ router.patch('/:id/members/:userId', async (req, res) => {
       omVals.push(id, userId);
       const omQueryStr = `UPDATE organization_members SET ${omUpdates.join(', ')}, updated_at = NOW() 
          WHERE organization_id = $${orgIdParam} AND user_id = $${userIdParam}`;
-      console.log('[org] omQuery:', omQueryStr, 'vals:', omVals);
       await query(omQueryStr, omVals);
     }
 
