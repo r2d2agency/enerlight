@@ -587,10 +587,11 @@ export default function EmployeeManagement() {
                              lunch_end_time: emp.lunch_end_time || assigned?.lunchEnd || "13:00",
                              authorized_radius_meters: emp.authorized_radius_meters || 100,
                              authorized_latitude: emp.authorized_latitude || 0,
-                             authorized_longitude: emp.authorized_longitude || 0,
-                             journey: emp.journey,
-                             journey_id: assigned?.id || ""
-                           });
+                              authorized_longitude: emp.authorized_longitude || 0,
+                              requires_facial_recognition: emp.requires_facial_recognition || false,
+                              journey: emp.journey,
+                              journey_id: assigned?.id || ""
+                            });
                            setIsAddDialogOpen(true);
                          }}
                       >
