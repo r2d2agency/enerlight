@@ -58,6 +58,7 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
       { key: 'can_view_companies', label: 'Empresas', description: 'Cadastro de empresas' },
       { key: 'can_view_map', label: 'Mapa', description: 'Visualização em mapa' },
       { key: 'can_view_calendar', label: 'Agenda', description: 'Agenda do CRM' },
+      { key: 'can_view_tasks', label: 'Tarefas', description: 'Gestão de tarefas' },
       { key: 'can_view_reports', label: 'Relatórios', description: 'Relatórios do CRM' },
       { key: 'can_view_revenue_intel', label: 'Revenue Intel', description: 'Inteligência de receita' },
       { key: 'can_view_supervisor_ia', label: 'Supervisor IA', description: 'Painel de supervisão e diagnóstico de Kanbans' },
