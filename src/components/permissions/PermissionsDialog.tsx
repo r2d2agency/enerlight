@@ -25,6 +25,17 @@ interface PermissionGroup {
 
 const PERMISSION_GROUPS: PermissionGroup[] = [
   {
+    title: 'Representantes',
+    items: [
+      { key: 'can_view_representative_dashboard', label: 'Painel do Representante', description: 'Acesso à tela inicial exclusiva do representante' },
+      { key: 'can_view_map', label: 'Mapa do Representante', description: 'Ver geolocalização de clientes e visitas' },
+      { key: 'can_view_online_quotes', label: 'Orçamentos Online', description: 'Criar e consultar orçamentos de vendas' },
+      { key: 'can_manage_online_quotes', label: 'Gestão Administrativa', description: 'Configurar marcas, categorias e gerenciar orçamentos globais' },
+      { key: 'can_view_all_representative_quotes', label: 'Ver Orçamentos de Equipe', description: 'Permite que supervisores vejam orçamentos de todos os representantes' },
+      { key: 'can_view_representatives', label: 'Gestão de Representantes', description: 'Administrar cadastros e tabelas de representantes' },
+    ],
+  },
+  {
     title: 'Atendimento',
     items: [
       { key: 'can_view_chat', label: 'Chat', description: 'Acessar o chat de conversas' },
@@ -53,8 +64,6 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
       { key: 'can_view_ghost', label: 'Modo Fantasma', description: 'Auditoria e análise' },
       { key: 'can_view_crm_settings', label: 'Config. CRM', description: 'Configurações do CRM' },
       { key: 'can_view_online_quotes', label: 'Orçamentos Online', description: 'Módulo de orçamentos online' },
-      { key: 'can_edit_price_lists', label: 'Gerenciar Tabelas', description: 'Criar e editar tabelas de preços' },
-      { key: 'can_view_representatives', label: 'Indicadores', description: 'Ver e gerenciar indicadores/representantes' },
       { key: 'can_view_goals', label: 'Metas', description: 'Módulo de metas e relatórios de vendas' },
     ],
   },
@@ -124,6 +133,7 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
       { key: 'can_view_billing', label: 'Cobrança', description: 'Gestão de cobranças' },
       { key: 'can_view_connections', label: 'Conexões', description: 'Gerenciar conexões WhatsApp' },
       { key: 'can_view_organizations', label: 'Organizações', description: 'Gerenciar organização' },
+      { key: 'can_view_nfc', label: 'Cartões NFC', description: 'Acesso e gestão de cartões NFC' },
     ],
   },
   {
@@ -170,12 +180,13 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
     ],
   },
   {
-    title: 'Comissões',
+    title: 'Comissões / Despesas',
     items: [
       { key: 'can_view_commission', label: 'Minhas Comissões', description: 'Ver a página de comissões do vendedor' },
       { key: 'can_validate_billing', label: 'Validação de Faturamento', description: 'Aprovar/reprovar registros de faturamento para comissão' },
       { key: 'can_view_team_commission', label: 'Comissões da Equipe', description: 'Ver relatório de comissões de toda a equipe' },
       { key: 'can_manage_commission_rules', label: 'Regras de Comissão', description: 'Criar e editar regras de cálculo de comissão' },
+      { key: 'can_view_expenses', label: 'Prestação de Contas', description: 'Acesso ao módulo de despesas' },
     ],
   },
   {
