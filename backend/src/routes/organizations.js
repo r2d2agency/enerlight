@@ -498,6 +498,7 @@ router.post('/:id([0-9a-fA-F-]{36})/members', async (req, res) => {
 router.patch('/:id/members/:userId', async (req, res) => {
   try {
     const { id, userId } = req.params;
+    console.log('[org] updateMember request body:', JSON.stringify(req.body));
     const { 
       role, connection_ids, department_ids, name, email,
       cpf, birth_date, work_start_time, work_end_time, lunch_start_time, lunch_end_time,
