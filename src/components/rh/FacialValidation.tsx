@@ -188,6 +188,7 @@ export default function FacialValidation({
     }
     setPending(desc);
     setPhase('captured');
+    setVisualStatus('success');
     setTestResult(null);
     setStatus('Coleta feita. Agora faça o teste de validação.');
     setProcessing(false);
