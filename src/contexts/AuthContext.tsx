@@ -95,6 +95,8 @@ export interface UserPermissions {
   can_view_minutas?: boolean;
   can_view_representative_dashboard?: boolean;
   can_view_all_representative_quotes?: boolean;
+  can_view_expenses?: boolean;
+  can_view_nfc?: boolean;
 }
 
 
