@@ -32,6 +32,7 @@ async function ensureRhSchema() {
         ['authorized_radius_meters', 'INTEGER DEFAULT 150'],
         ['authorized_latitude', 'DECIMAL(10,8)'],
         ['authorized_longitude', 'DECIMAL(11,8)'],
+        ['requires_facial_recognition', 'BOOLEAN DEFAULT false'],
       ];
       for (const [name, type] of memberCols) {
         await query(`ALTER TABLE organization_members ADD COLUMN IF NOT EXISTS ${name} ${type};`);
@@ -130,7 +131,8 @@ router.get('/employees', async (req, res) => {
       `SELECT om.id, om.user_id, u.name, u.email, om.role, om.is_active,
               u.cpf, u.birth_date,
               om.work_start_time, om.work_end_time, om.lunch_start_time, om.lunch_end_time,
-              om.authorized_radius_meters, om.authorized_latitude, om.authorized_longitude
+              om.authorized_radius_meters, om.authorized_latitude, om.authorized_longitude,
+              om.requires_facial_recognition
        FROM organization_members om
        JOIN users u ON u.id = om.user_id
        WHERE om.organization_id = $1
@@ -156,7 +158,8 @@ router.patch('/members/:userId', async (req, res) => {
     const { 
       role, is_active, cpf, birth_date,
       work_start_time, work_end_time, lunch_start_time, lunch_end_time,
-      authorized_radius_meters, authorized_latitude, authorized_longitude
+      authorized_radius_meters, authorized_latitude, authorized_longitude,
+      requires_facial_recognition
     } = req.body;
 
     const orgResult = await query(
@@ -197,12 +200,14 @@ router.patch('/members/:userId', async (req, res) => {
            authorized_radius_meters = COALESCE($7, authorized_radius_meters),
            authorized_latitude = COALESCE($8, authorized_latitude),
            authorized_longitude = COALESCE($9, authorized_longitude),
+           requires_facial_recognition = COALESCE($10, requires_facial_recognition),
            updated_at = NOW()
-       WHERE user_id = $10 AND organization_id = $11
+       WHERE user_id = $11 AND organization_id = $12
        RETURNING *`,
       [
         finalRole, is_active, work_start_time, work_end_time, lunch_start_time, lunch_end_time, 
         authorized_radius_meters, authorized_latitude, authorized_longitude,
+        requires_facial_recognition,
         userId, organizationId
       ]
     );

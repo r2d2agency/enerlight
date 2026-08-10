@@ -151,9 +151,14 @@ export default function MyPoint() {
     // Se não for obrigatória, podemos registrar direto, mas o código atual sempre abre.
     // O usuário pediu para escolher quem é obrigatório e quem não é.
     if (employee?.requires_facial_recognition) {
+      const isRegistered = localStorage.getItem(`facial_reg_${user?.id}`) === 'true';
+      if (!isRegistered) {
+        toast.error("Biometria obrigatória não cadastrada. Procure o RH.");
+        setPendingClick(false);
+        return;
+      }
       setShowFacial(true);
     } else {
-      // Se não for obrigatório, registra direto (ou podemos perguntar, mas para agilizar registramos)
       registerDirectly(loc.lat!, loc.lng!);
     }
   };
