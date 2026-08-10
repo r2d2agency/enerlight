@@ -907,7 +907,7 @@ export default function EmployeeManagement() {
                   </p>
                 </div>
                 <Switch 
-                  checked={formData.requires_facial_recognition} 
+                  checked={formData.requires_facial_recognition === true} 
                   onCheckedChange={(val) => setFormData({...formData, requires_facial_recognition: val})}
                 />
               </div>
