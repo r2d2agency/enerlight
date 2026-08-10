@@ -225,8 +225,9 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
   {
     title: "Prestação de Contas",
     icon: Wallet,
+    permissionKey: 'can_view_expenses',
     items: [
-      { name: "Despesas", href: "/prestacao-contas", icon: Wallet },
+      { name: "Despesas", href: "/prestacao-contas", icon: Wallet, permissionKey: 'can_view_expenses' },
     ],
   },
   {
