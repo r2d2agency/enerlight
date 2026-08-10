@@ -778,7 +778,12 @@ export default function EmployeeManagement() {
                     </Button>
                   </div>
                   <Select 
+                    value={locations.find(l => 
+                      Math.abs(l.latitude - (formData.authorized_latitude || 0)) < 0.0001 && 
+                      Math.abs(l.longitude - (formData.authorized_longitude || 0)) < 0.0001
+                    )?.id || "none"}
                     onValueChange={(val) => {
+                      if (val === "none") return;
                       const loc = locations.find(l => l.id === val);
                       if (loc) {
                         setFormData({
@@ -786,7 +791,7 @@ export default function EmployeeManagement() {
                           authorized_latitude: loc.latitude,
                           authorized_longitude: loc.longitude,
                           authorized_radius_meters: loc.radius_meters
-                        } as any);
+                        });
                         toast.success(`Local "${loc.name}" selecionado`);
                       }
                     }}
@@ -795,6 +800,7 @@ export default function EmployeeManagement() {
                       <SelectValue placeholder="Escolha um local cadastrado..." />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="none">Livre (Qualquer lugar)</SelectItem>
                       {locations.length > 0 ? (
                         locations.map(loc => (
                           <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
