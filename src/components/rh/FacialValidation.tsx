@@ -211,6 +211,7 @@ export default function FacialValidation({
     const score = distanceToScore(distance);
     const ok = distance <= threshold;
     setTestResult({ ok, score });
+    setVisualStatus(ok ? 'success' : 'error');
     setStatus(ok
       ? `Teste aprovado (score ${score.toFixed(0)}). Você pode salvar o cadastro.`
       : `Teste reprovado (score ${score.toFixed(0)}). Colete a facial novamente.`);
