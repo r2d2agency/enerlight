@@ -18,6 +18,7 @@ export interface Employee {
   authorized_radius_meters?: number;
   authorized_latitude?: number;
   authorized_longitude?: number;
+  requires_facial_recognition?: boolean;
 }
 
 export function useRh() {
