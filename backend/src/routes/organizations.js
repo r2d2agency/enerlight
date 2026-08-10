@@ -495,9 +495,10 @@ router.post('/:id([0-9a-fA-F-]{36})/members', async (req, res) => {
 });
 
 // Update member's role, connection and department assignments
-router.patch('/:id/members/:userId', async (req, res) => {
+router.patch('/:id([0-9a-fA-F-]{36})/members/:userId', async (req, res) => {
   try {
     const { id, userId } = req.params;
+    console.log('[org] updateMember request body:', JSON.stringify(req.body));
     const { 
       role, connection_ids, department_ids, name, email,
       cpf, birth_date, work_start_time, work_end_time, lunch_start_time, lunch_end_time,
@@ -537,7 +538,8 @@ router.patch('/:id/members/:userId', async (req, res) => {
       if (birth_date !== undefined) { updates.push(`birth_date = $${idx++}`); vals.push(birth_date); }
       
       vals.push(userId);
-      await query(`UPDATE users SET ${updates.join(', ')}, updated_at = NOW() WHERE id = $${idx}`, vals);
+      const userQueryStr = `UPDATE users SET ${updates.join(', ')}, updated_at = NOW() WHERE id = $${idx}`;
+      await query(userQueryStr, vals);
     }
 
     // Update organization_members role & RH fields
@@ -558,11 +560,9 @@ router.patch('/:id/members/:userId', async (req, res) => {
       const orgIdParam = omIdx++;
       const userIdParam = omIdx;
       omVals.push(id, userId);
-      await query(
-        `UPDATE organization_members SET ${omUpdates.join(', ')}, updated_at = NOW() 
-         WHERE organization_id = $${orgIdParam} AND user_id = $${userIdParam}`,
-        omVals
-      );
+      const omQueryStr = `UPDATE organization_members SET ${omUpdates.join(', ')}, updated_at = NOW() 
+         WHERE organization_id = $${orgIdParam} AND user_id = $${userIdParam}`;
+      await query(omQueryStr, omVals);
     }
 
     // Update connection assignments if provided
@@ -619,7 +619,7 @@ router.patch('/:id/members/:userId', async (req, res) => {
 
     res.json({ success: true });
   } catch (error) {
-    console.error('Update member error:', error);
+    console.error('Update member error:', error.message, error.stack);
     res.status(500).json({ error: 'Erro ao atualizar membro' });
   }
 });
