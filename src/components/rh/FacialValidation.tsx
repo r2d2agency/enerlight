@@ -274,7 +274,9 @@ export default function FacialValidation({
     }
     const distance = faceapi.euclideanDistance(new Float32Array(desc), new Float32Array(stored));
     const score = distanceToScore(distance);
-    if (distance <= threshold) {
+    const ok = distance <= threshold;
+    setVisualStatus(ok ? 'success' : 'error');
+    if (ok) {
       setStatus(`Identidade validada! (score ${score.toFixed(0)})`);
       setTimeout(() => { stopCamera(); onValidated(true); }, 800);
     } else {
