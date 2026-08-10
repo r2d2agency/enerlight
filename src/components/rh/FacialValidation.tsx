@@ -197,11 +197,13 @@ export default function FacialValidation({
   const runTest = async () => {
     if (processing || !pending) return;
     setProcessing(true);
+    setVisualStatus('processing');
     setTestResult(null);
     setStatus('Testando reconhecimento...');
     const desc = await grabDescriptor();
     if (!desc) {
       setStatus('Nenhum rosto detectado no teste. Tente novamente.');
+      setVisualStatus('error');
       setProcessing(false);
       return;
     }
