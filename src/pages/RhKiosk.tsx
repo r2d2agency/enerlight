@@ -176,7 +176,7 @@ export default function RhKiosk() {
   );
 
   const handleManualPunch = async (employee: any) => {
-    if (employee.requires_facial_recognition) {
+    if (employee.requires_facial_recognition === true) {
       toast.error("Biometria obrigatória para este colaborador.");
       return;
     }
