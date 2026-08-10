@@ -173,7 +173,8 @@ export default function EmployeeManagement() {
           lunch_end_time: m.lunch_end_time,
           authorized_radius_meters: m.authorized_radius_meters || 100,
           authorized_latitude: m.authorized_latitude,
-          authorized_longitude: m.authorized_longitude
+          authorized_longitude: m.authorized_longitude,
+          requires_facial_recognition: m.requires_facial_recognition === true
         };
       });
       
