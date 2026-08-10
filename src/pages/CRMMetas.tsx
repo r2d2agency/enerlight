@@ -97,7 +97,15 @@ function computeRealMarkup(totalValue: number, totalCost: number) {
 
 function formatRealMarkup(totalValue: number, totalCost: number, fallbackAvgMargin = 0) {
   const mk = computeRealMarkup(totalValue, totalCost);
-  if (mk > 0) return mk.toFixed(2).replace('.', ',');
+  if (mk > 0) {
+    const decimal = mk.toFixed(2).replace('.', ',');
+    const percentage = Math.round((mk - 1) * 100);
+    return (
+      <span>
+        {decimal} <span className="text-[10px] font-normal text-muted-foreground">({percentage}%)</span>
+      </span>
+    );
+  }
   return formatMarkupFromMargin(fallbackAvgMargin);
 }
 
