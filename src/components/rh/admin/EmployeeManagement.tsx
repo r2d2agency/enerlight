@@ -559,7 +559,9 @@ export default function EmployeeManagement() {
                   <Switch 
                     checked={emp.requires_facial_recognition === true}
                     onCheckedChange={async (val) => {
-                      const success = await updateMember(emp.user_id, { requires_facial_recognition: val });
+                      const success = await updateMember(emp.user_id, { 
+                        requires_facial_recognition: val 
+                      });
                       if (success) {
                         toast.success(`Biometria facial ${val ? 'ativada' : 'desativada'} para ${emp.name}`);
                         loadData();
