@@ -46,6 +46,7 @@ export default function MyPoint() {
   const [pendingClick, setPendingClick] = useState(false);
   const [myPunches, setMyPunches] = useState<any[]>([]);
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [employee, setEmployee] = useState<any>(null);
 
   const employeeName = user?.name || "Colaborador";
   const employeeRole = user?.role || "";
@@ -69,8 +70,22 @@ export default function MyPoint() {
     const timer = setInterval(() => setNow(new Date()), 1000);
     checkGPS();
     loadPunches();
+    loadEmployeeData();
     return () => clearInterval(timer);
   }, [loadPunches]);
+
+  const loadEmployeeData = async () => {
+    try {
+      const orgs = await api<any[]>('/api/organizations');
+      if (orgs?.[0]?.id && user?.id) {
+        const members = await api<any[]>(`/api/organizations/${orgs[0].id}/members`);
+        const me = members.find(m => m.user_id === user.id);
+        if (me) setEmployee(me);
+      }
+    } catch (err) {
+      console.error("Erro ao carregar dados do colaborador:", err);
+    }
+  };
 
   const checkGPS = () => {
     if ("geolocation" in navigator) {
@@ -104,7 +119,34 @@ export default function MyPoint() {
     if (!loc.ok) return;
     setCoords({ lat: loc.lat!, lng: loc.lng! });
     setPendingClick(true);
-    setShowFacial(true);
+    
+    // Se a biometria for obrigatória ou se o usuário quiser usar, abre o FacialValidation
+    // Se não for obrigatória, podemos registrar direto, mas o código atual sempre abre.
+    // O usuário pediu para escolher quem é obrigatório e quem não é.
+    if (employee?.requires_facial_recognition) {
+      setShowFacial(true);
+    } else {
+      // Se não for obrigatório, registra direto (ou podemos perguntar, mas para agilizar registramos)
+      registerDirectly(loc.lat!, loc.lng!);
+    }
+  };
+
+  const registerDirectly = async (lat: number, lng: number) => {
+    try {
+      const p: any = await api('/api/rh/punches', {
+        method: 'POST',
+        body: {
+          source: 'app',
+          latitude: lat,
+          longitude: lng,
+        },
+      });
+      toast.success(`Ponto registrado: ${LABEL_MAP[p?.punch_type] || 'Batida'}`);
+      loadPunches();
+    } catch (e: any) {
+      toast.error(e?.message || 'Erro ao registrar batida');
+    }
+    setPendingClick(false);
   };
 
   const onFacialValidated = async (success: boolean) => {

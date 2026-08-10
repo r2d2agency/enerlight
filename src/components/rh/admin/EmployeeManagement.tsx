@@ -73,6 +73,7 @@ interface Employee {
   authorized_radius_meters?: number;
   authorized_latitude?: number;
   authorized_longitude?: number;
+  requires_facial_recognition?: boolean;
 }
 
 interface User {
@@ -131,7 +132,8 @@ export default function EmployeeManagement() {
     lunch_end_time: "13:00",
     authorized_radius_meters: 100,
     authorized_latitude: 0,
-    authorized_longitude: 0
+    authorized_longitude: 0,
+    requires_facial_recognition: false
   });
   const journeys = listJourneys();
 
@@ -171,7 +173,8 @@ export default function EmployeeManagement() {
           lunch_end_time: m.lunch_end_time,
           authorized_radius_meters: m.authorized_radius_meters || 100,
           authorized_latitude: m.authorized_latitude,
-          authorized_longitude: m.authorized_longitude
+          authorized_longitude: m.authorized_longitude,
+          requires_facial_recognition: m.requires_facial_recognition === true
         };
       });
       
@@ -215,7 +218,8 @@ export default function EmployeeManagement() {
           lunch_end_time: formData.lunch_end_time,
           authorized_radius_meters: formData.authorized_radius_meters,
           authorized_latitude: formData.authorized_latitude,
-          authorized_longitude: formData.authorized_longitude
+          authorized_longitude: formData.authorized_longitude,
+          requires_facial_recognition: formData.requires_facial_recognition
         });
 
         if (success) {
@@ -240,7 +244,8 @@ export default function EmployeeManagement() {
           lunch_end_time: formData.lunch_end_time,
           authorized_radius_meters: formData.authorized_radius_meters,
           authorized_latitude: formData.authorized_latitude,
-          authorized_longitude: formData.authorized_longitude
+          authorized_longitude: formData.authorized_longitude,
+          requires_facial_recognition: formData.requires_facial_recognition
         });
 
         if (success) {
@@ -250,7 +255,8 @@ export default function EmployeeManagement() {
             name: "", email: "", role: "", journey: "08:00 - 12:00 | 13:00 - 17:00", journey_id: "", user_id: "",
             cpf: "", birth_date: "", work_start_time: "08:00", work_end_time: "18:00", 
             lunch_start_time: "12:00", lunch_end_time: "13:00",
-            authorized_radius_meters: 100, authorized_latitude: 0, authorized_longitude: 0
+            authorized_radius_meters: 100, authorized_latitude: 0, authorized_longitude: 0,
+            requires_facial_recognition: false
           });
           loadData();
         }
@@ -581,10 +587,11 @@ export default function EmployeeManagement() {
                              lunch_end_time: emp.lunch_end_time || assigned?.lunchEnd || "13:00",
                              authorized_radius_meters: emp.authorized_radius_meters || 100,
                              authorized_latitude: emp.authorized_latitude || 0,
-                             authorized_longitude: emp.authorized_longitude || 0,
-                             journey: emp.journey,
-                             journey_id: assigned?.id || ""
-                           });
+                              authorized_longitude: emp.authorized_longitude || 0,
+                              requires_facial_recognition: emp.requires_facial_recognition || false,
+                              journey: emp.journey,
+                              journey_id: assigned?.id || ""
+                            });
                            setIsAddDialogOpen(true);
                          }}
                       >
@@ -864,6 +871,21 @@ export default function EmployeeManagement() {
                     </Button>
                   </div>
                 )}
+              </div>
+            </div>
+
+            <div className="border-t pt-4 mt-2">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-sm font-semibold">Biometria Facial Obrigatória</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Exige validação facial para bater ponto no aplicativo e kiosk.
+                  </p>
+                </div>
+                <Switch 
+                  checked={formData.requires_facial_recognition} 
+                  onCheckedChange={(val) => setFormData({...formData, requires_facial_recognition: val})}
+                />
               </div>
             </div>
           </div>
