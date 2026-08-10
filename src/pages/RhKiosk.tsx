@@ -258,16 +258,68 @@ export default function RhKiosk() {
           </div>
           <p className="text-center text-muted-foreground text-sm min-h-[20px]">{status}</p>
 
-          <Button
-            size="lg"
-            onClick={() => registerPoint()}
-            disabled={loading || pending || !candidates.length}
-            className="h-24 w-full max-w-[480px] rounded-2xl text-xl font-bold flex flex-col gap-1"
-          >
-            <Fingerprint className="h-7 w-7" />
-            Bater Ponto
-          </Button>
+          <div className="flex gap-4 w-full max-w-[480px]">
+            <Button
+              size="lg"
+              onClick={() => registerPoint()}
+              disabled={loading || pending || !candidates.length}
+              className="h-24 flex-1 rounded-2xl text-xl font-bold flex flex-col gap-1"
+            >
+              <Fingerprint className="h-7 w-7" />
+              Bater Ponto Facial
+            </Button>
+            
+            <Button
+              size="lg"
+              variant="outline"
+              onClick={() => setShowManualSelection(true)}
+              disabled={loading || pending}
+              className="h-24 px-6 rounded-2xl text-sm font-bold flex flex-col gap-1 border-primary/20 hover:bg-primary/5"
+            >
+              <Fingerprint className="h-7 w-7 opacity-50" />
+              Manual (Sem Face)
+            </Button>
+          </div>
         </div>
+
+        {showManualSelection && (
+          <div className="fixed inset-0 z-[60] bg-background/95 flex items-center justify-center p-6">
+            <Card className="w-full max-w-lg p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-bold text-primary">Selecione seu nome</h3>
+                <Button variant="ghost" size="sm" onClick={() => setShowManualSelection(false)}>
+                  Cancelar
+                </Button>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Colaboradores com biometria obrigatória não aparecem nesta lista.
+              </p>
+              <div className="max-h-[60vh] overflow-y-auto space-y-2 pr-2">
+                {allEmployees
+                  .filter(e => !e.requires_facial_recognition)
+                  .map(e => (
+                    <Button
+                      key={e.id}
+                      variant="outline"
+                      className="w-full justify-start h-12 px-4 text-left"
+                      onClick={() => handleManualPunch(e)}
+                    >
+                      <User className="h-4 w-4 mr-3 opacity-50" />
+                      <div>
+                        <div className="font-semibold text-sm">{e.name}</div>
+                        <div className="text-[10px] opacity-70">{e.role}</div>
+                      </div>
+                    </Button>
+                  ))}
+                {allEmployees.filter(e => !e.requires_facial_recognition).length === 0 && (
+                  <div className="text-center py-10 text-muted-foreground">
+                    Todos os colaboradores possuem biometria obrigatória.
+                  </div>
+                )}
+              </div>
+            </Card>
+          </div>
+        )}
 
         <aside className="hidden md:flex flex-col gap-3 overflow-hidden">
           <Card className="p-4 flex-1 overflow-hidden flex flex-col">
