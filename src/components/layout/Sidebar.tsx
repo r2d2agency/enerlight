@@ -69,7 +69,7 @@ interface NavItem {
   name: string;
   href: string;
   icon: any;
-  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat' | 'homologation' | 'tasks' | 'lead_gleego' | 'captador' | 'document_signatures' | 'licitacao' | 'logistics' | 'online_quotes' | 'rh_module' | 'goals' | 'representatives' | 'representative_dashboard' | 'supervisor_ia';
+  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat' | 'homologation' | 'tasks' | 'lead_gleego' | 'captador' | 'document_signatures' | 'licitacao' | 'logistics' | 'online_quotes' | 'rh_module' | 'goals' | 'representatives' | 'representative_dashboard' | 'supervisor_ia' | 'ead';
   adminOnly?: boolean;
   ownerOnly?: boolean;
   superadminOnly?: boolean;
@@ -80,14 +80,22 @@ interface NavSection {
   title: string;
   icon: any;
   items: NavItem[];
-  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat' | 'homologation' | 'tasks' | 'lead_gleego' | 'captador' | 'document_signatures' | 'licitacao' | 'logistics' | 'online_quotes' | 'rh_module' | 'goals' | 'representatives' | 'representative_dashboard';
+  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat' | 'homologation' | 'tasks' | 'lead_gleego' | 'captador' | 'document_signatures' | 'licitacao' | 'logistics' | 'online_quotes' | 'rh_module' | 'goals' | 'representatives' | 'representative_dashboard' | 'ead';
   adminOnly?: boolean;
   permissionKey?: string;
 }
 
-type ModuleKey = NonNullable<NavItem['moduleKey']>;
+type ModuleKey = NavItem['moduleKey'] & {};
 
 const getNavSections = (hasConnections: boolean): NavSection[] => [
+  {
+    title: "Dashboard",
+    icon: LayoutDashboard,
+    items: [
+      { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, permissionKey: 'can_view_chat' },
+      { name: "Meu Dia", href: "/meu-dia", icon: CalendarDays, permissionKey: 'can_view_chat' },
+    ],
+  },
   {
     title: "Atendimento",
     icon: MessagesSquare,
@@ -217,6 +225,7 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
   {
     title: "Academia (EAD)",
     icon: GraduationCap,
+    moduleKey: 'ead',
     permissionKey: 'can_view_ead',
     items: [
       { name: "Cursos e Alunos", href: "/admin/ead", icon: GraduationCap, permissionKey: 'can_view_ead' },
@@ -399,6 +408,7 @@ function SidebarContentComponent({ isExpanded, isSuperadmin, onNavigate }: Sideb
     supervisor_ia: 'can_view_supervisor_ia',
     crm: 'can_view_crm',
     campaigns: 'can_view_campaigns',
+    ead: 'can_view_ead',
     chat: 'can_view_chat',
     chatbots: 'can_view_chatbots',
     scheduled_messages: 'can_view_schedules',
