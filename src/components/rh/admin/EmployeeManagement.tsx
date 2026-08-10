@@ -218,7 +218,8 @@ export default function EmployeeManagement() {
           lunch_end_time: formData.lunch_end_time,
           authorized_radius_meters: formData.authorized_radius_meters,
           authorized_latitude: formData.authorized_latitude,
-          authorized_longitude: formData.authorized_longitude
+          authorized_longitude: formData.authorized_longitude,
+          requires_facial_recognition: formData.requires_facial_recognition
         });
 
         if (success) {
