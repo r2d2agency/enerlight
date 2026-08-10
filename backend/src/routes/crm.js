@@ -860,6 +860,15 @@ router.get('/companies', async (req, res) => {
     const params = [org.organization_id];
     let whereClause = `WHERE c.organization_id = $1`;
 
+    // Representative security isolation
+    const { user } = req;
+    if (user.role !== 'owner' && user.role !== 'admin') {
+      const permsResult = await query(`SELECT can_view_representative_dashboard FROM user_permissions WHERE user_id = $1`, [req.userId]);
+      if (permsResult.rows[0]?.can_view_representative_dashboard) {
+        whereClause += ` AND c.created_by = $1`;
+      }
+    }
+
     if (search) {
       const searchDigits = search.replace(/\D/g, '');
       params.push(`%${search}%`);
