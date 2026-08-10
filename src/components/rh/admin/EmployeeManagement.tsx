@@ -456,6 +456,7 @@ export default function EmployeeManagement() {
               <TableHead>Jornada</TableHead>
               <TableHead>Facial</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Localização</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -550,6 +551,22 @@ export default function EmployeeManagement() {
                     >
                       <Camera className="h-3.5 w-3.5" /> Cadastrar
                     </Button>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {emp.authorized_latitude && emp.authorized_longitude ? (
+                    <div className="flex flex-col text-[10px] text-muted-foreground">
+                      <div className="flex items-center gap-1 text-primary font-medium">
+                        <MapPin className="h-3 w-3" />
+                        {locations.find(l => 
+                          Math.abs(l.latitude - (emp.authorized_latitude || 0)) < 0.0001 && 
+                          Math.abs(l.longitude - (emp.authorized_longitude || 0)) < 0.0001
+                        )?.name || "Local Custom"}
+                      </div>
+                      <span>Raio: {emp.authorized_radius_meters}m</span>
+                    </div>
+                  ) : (
+                    <span className="text-[10px] text-muted-foreground italic">Livre</span>
                   )}
                 </TableCell>
                  <TableCell className="text-right flex gap-1 justify-end">
