@@ -132,8 +132,8 @@ export default function EmployeeManagement() {
     lunch_start_time: "12:00",
     lunch_end_time: "13:00",
     authorized_radius_meters: 100,
-    authorized_latitude: 0,
-    authorized_longitude: 0,
+    authorized_latitude: 0 as number | undefined,
+    authorized_longitude: 0 as number | undefined,
     requires_facial_recognition: false
   });
   const journeys = listJourneys();
@@ -256,7 +256,7 @@ export default function EmployeeManagement() {
             name: "", email: "", role: "", journey: "08:00 - 12:00 | 13:00 - 17:00", journey_id: "", user_id: "",
             cpf: "", birth_date: "", work_start_time: "08:00", work_end_time: "18:00", 
             lunch_start_time: "12:00", lunch_end_time: "13:00",
-            authorized_radius_meters: 100, authorized_latitude: 0, authorized_longitude: 0,
+            authorized_radius_meters: 100, authorized_latitude: undefined, authorized_longitude: undefined,
             requires_facial_recognition: false
           });
           loadData();
@@ -604,8 +604,8 @@ export default function EmployeeManagement() {
                              lunch_start_time: emp.lunch_start_time || assigned?.lunchStart || "12:00",
                              lunch_end_time: emp.lunch_end_time || assigned?.lunchEnd || "13:00",
                              authorized_radius_meters: emp.authorized_radius_meters || 100,
-                             authorized_latitude: emp.authorized_latitude || 0,
-                              authorized_longitude: emp.authorized_longitude || 0,
+                              authorized_latitude: emp.authorized_latitude !== undefined ? emp.authorized_latitude : undefined,
+                              authorized_longitude: emp.authorized_longitude !== undefined ? emp.authorized_longitude : undefined,
                               requires_facial_recognition: emp.requires_facial_recognition || false,
                               journey: emp.journey,
                               journey_id: assigned?.id || ""
@@ -778,7 +778,12 @@ export default function EmployeeManagement() {
                     </Button>
                   </div>
                   <Select 
+                    value={locations.find(l => 
+                      Math.abs(l.latitude - (formData.authorized_latitude || 0)) < 0.0001 && 
+                      Math.abs(l.longitude - (formData.authorized_longitude || 0)) < 0.0001
+                    )?.id || "none"}
                     onValueChange={(val) => {
+                      if (val === "none") return;
                       const loc = locations.find(l => l.id === val);
                       if (loc) {
                         setFormData({
@@ -786,7 +791,7 @@ export default function EmployeeManagement() {
                           authorized_latitude: loc.latitude,
                           authorized_longitude: loc.longitude,
                           authorized_radius_meters: loc.radius_meters
-                        } as any);
+                        });
                         toast.success(`Local "${loc.name}" selecionado`);
                       }
                     }}
@@ -795,6 +800,7 @@ export default function EmployeeManagement() {
                       <SelectValue placeholder="Escolha um local cadastrado..." />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="none">Livre (Qualquer lugar)</SelectItem>
                       {locations.length > 0 ? (
                         locations.map(loc => (
                           <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
