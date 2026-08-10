@@ -544,7 +544,6 @@ router.patch('/:id/members/:userId', async (req, res) => {
     const omUpdates = [];
     const omVals = [];
     let omIdx = 1;
-
     if (role && targetCheck.rows[0]?.role !== 'owner') { omUpdates.push(`role = $${omIdx++}`); omVals.push(role); }
     if (work_start_time !== undefined) { omUpdates.push(`work_start_time = $${omIdx++}`); omVals.push(work_start_time); }
     if (work_end_time !== undefined) { omUpdates.push(`work_end_time = $${omIdx++}`); omVals.push(work_end_time); }
@@ -556,11 +555,14 @@ router.patch('/:id/members/:userId', async (req, res) => {
     if (requires_facial_recognition !== undefined) { omUpdates.push(`requires_facial_recognition = $${omIdx++}`); omVals.push(requires_facial_recognition); }
 
     if (omUpdates.length > 0) {
+      const orgIdParam = omIdx++;
+      const userIdParam = omIdx;
       omVals.push(id, userId);
-      const omQuery = `UPDATE organization_members SET ${omUpdates.join(', ')}, updated_at = NOW() 
-                       WHERE organization_id = $${omIdx++} AND user_id = $${omIdx}`;
-      console.log('[org] omQuery:', omQuery, 'vals:', omVals);
-      await query(omQuery, omVals);
+      await query(
+        `UPDATE organization_members SET ${omUpdates.join(', ')}, updated_at = NOW() 
+         WHERE organization_id = $${orgIdParam} AND user_id = $${userIdParam}`,
+        omVals
+      );
     }
 
     // Update connection assignments if provided
