@@ -132,8 +132,8 @@ export default function EmployeeManagement() {
     lunch_start_time: "12:00",
     lunch_end_time: "13:00",
     authorized_radius_meters: 100,
-    authorized_latitude: 0,
-    authorized_longitude: 0,
+    authorized_latitude: 0 as number | undefined,
+    authorized_longitude: 0 as number | undefined,
     requires_facial_recognition: false
   });
   const journeys = listJourneys();
