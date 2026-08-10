@@ -48,6 +48,9 @@ export default function RhKiosk() {
   const [pending, setPending] = useState(false);
   const [recognized, setRecognized] = useState<{ name: string; type: string; score: number; time: string } | null>(null);
   const [lastRegisters, setLastRegisters] = useState<Array<{ name: string; type: string; time: string }>>([]);
+  const [allEmployees, setAllEmployees] = useState<any[]>([]);
+  const [showManualSelection, setShowManualSelection] = useState(false);
+  const [selectedForManual, setSelectedForManual] = useState<any>(null);
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000);
