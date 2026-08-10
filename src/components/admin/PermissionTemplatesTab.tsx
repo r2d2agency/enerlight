@@ -35,6 +35,17 @@ interface PermissionGroup {
 
 const PERMISSION_GROUPS: PermissionGroup[] = [
   {
+    title: 'Representantes',
+    items: [
+      { key: 'can_view_representative_dashboard', label: 'Painel do Representante', description: 'Acesso à tela inicial exclusiva do representante' },
+      { key: 'can_view_map', label: 'Mapa do Representante', description: 'Ver geolocalização de clientes e visitas' },
+      { key: 'can_view_online_quotes', label: 'Orçamentos Online', description: 'Criar e consultar orçamentos de vendas' },
+      { key: 'can_manage_online_quotes', label: 'Gestão Administrativa', description: 'Configurar marcas, categorias e gerenciar orçamentos globais' },
+      { key: 'can_view_all_representative_quotes', label: 'Ver Orçamentos de Equipe', description: 'Permite que supervisores vejam orçamentos de todos os representantes' },
+      { key: 'can_view_representatives', label: 'Gestão de Representantes', description: 'Administrar cadastros e tabelas de representantes' },
+    ],
+  },
+  {
     title: 'Atendimento',
     items: [
       { key: 'can_view_chat', label: 'Chat', description: 'Acessar o chat' },
@@ -55,7 +66,6 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
       { key: 'can_delete_deals', label: 'Excluir Negociações', description: 'Permite excluir negociações' },
       { key: 'can_view_prospects', label: 'Prospects', description: 'Gestão de prospects' },
       { key: 'can_view_companies', label: 'Empresas', description: 'Cadastro de empresas' },
-      { key: 'can_view_map', label: 'Mapa', description: 'Visualização em mapa' },
       { key: 'can_view_calendar', label: 'Agenda', description: 'Agenda do CRM' },
       { key: 'can_view_tasks', label: 'Tarefas', description: 'Gestão de tarefas' },
       { key: 'can_view_reports', label: 'Relatórios', description: 'Relatórios do CRM' },
@@ -64,12 +74,6 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
       { key: 'can_view_supervisor_ia', label: 'Supervisor IA', description: 'Painel de supervisão IA' },
       { key: 'can_view_ghost', label: 'Modo Fantasma', description: 'Auditoria e análise' },
       { key: 'can_view_crm_settings', label: 'Config. CRM', description: 'Configurações do CRM' },
-      { key: 'can_view_online_quotes', label: 'Orçamentos Online', description: 'Módulo de orçamentos online' },
-      { key: 'can_manage_online_quotes', label: 'Gerenciar Orçamentos', description: 'Dashboard administrativo, modelos e todas as tabelas' },
-      { key: 'can_view_representatives', label: 'Indicadores', description: 'Ver e gerenciar indicadores/representantes' },
-      { key: 'can_view_representative_dashboard', label: 'Painel do Representante', description: 'Dashboard simplificado para representantes com orçamentos e comissões' },
-      { key: 'can_view_all_representative_quotes', label: 'Ver Orçamentos Globais', description: 'Permite que supervisores vejam orçamentos de todos os representantes no hub' },
-
     ],
   },
   {
