@@ -236,6 +236,7 @@ export default function FacialValidation({
   const recollect = () => {
     setPending(null);
     setTestResult(null);
+    setVisualStatus('idle');
     setPhase('camera');
     setStatus('Enquadre o rosto e confirme a coleta');
   };
