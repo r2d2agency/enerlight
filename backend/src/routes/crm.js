@@ -988,15 +988,31 @@ router.get('/companies', async (req, res) => {
         orderBy = 'c.name ASC';
     }
 
+    const totalSql = `SELECT COUNT(*)::int as total FROM crm_companies c ${openDealJoin} ${dealDateJoin} ${whereClause}`;
+
+    let result, totalResult;
+    try {
+      if (hasPagination) {
+        const listSql = `${baseSql} ORDER BY ${orderBy} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+        [result, totalResult] = await Promise.all([
+          query(listSql, [...params, pageSize, offset]),
+          query(totalSql, params),
+        ]);
+      } else {
+        result = await query(`${baseSql} ORDER BY ${orderBy}`, params);
+      }
+    } catch (queryErr) {
+      console.error('[crm] Error fetching companies from DB:', queryErr.message, {
+        params,
+        whereClause
+      });
+      // Fallback: simplified query if Joins fail due to missing tables
+      const fallbackSql = `SELECT c.* FROM crm_companies c ${whereClause} ORDER BY c.name LIMIT 100`;
+      result = await query(fallbackSql, params);
+      totalResult = { rows: [{ total: result.rows.length }] };
+    }
+
     if (hasPagination) {
-      const listSql = `${baseSql} ORDER BY ${orderBy} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
-      const totalSql = `SELECT COUNT(*)::int as total FROM crm_companies c ${openDealJoin} ${dealDateJoin} ${whereClause}`;
-
-      const [result, totalResult] = await Promise.all([
-        query(listSql, [...params, pageSize, offset]),
-        query(totalSql, params),
-      ]);
-
       return res.json({
         items: result.rows,
         total: totalResult.rows[0]?.total || 0,
@@ -1005,7 +1021,6 @@ router.get('/companies', async (req, res) => {
       });
     }
 
-    const result = await query(`${baseSql} ORDER BY ${orderBy}`, params);
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching companies:', error);
