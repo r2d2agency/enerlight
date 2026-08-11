@@ -81,9 +81,7 @@ export default function CRMEmpresas() {
   const isAdmin = user?.role === 'owner' || user?.role === 'admin' || user?.is_superadmin;
   const isRepresentative = user?.user_permissions?.can_view_representative_dashboard === true;
   
-  // Access isolation:
-  // Representatives are restricted to their own leads.
-  // All other roles (Admin, Seller, Manager) can see the full list.
+  // em empresas todos podem ver empresas d todos so restringindo represetnante qeu cada um ve o seu
   const companies = (companiesResponse?.items || []).filter(c => {
     if (isAdmin) return true;
     if (isRepresentative) return (c as any).created_by === user?.id;
