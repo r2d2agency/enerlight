@@ -935,11 +935,11 @@ router.get('/companies', async (req, res) => {
     }
 
     const baseSql = `SELECT c.*, u.name as created_by_name,
-      s.name as segment_name, s.color as segment_color,
+      COALESCE(s.name, 'Geral') as segment_name, COALESCE(s.color, '#94a3b8') as segment_color,
       COALESCE(dc.deals_count, 0)::int as deals_count,
       COALESCE(odc.open_deals_count, 0)::int as open_deals_count,
       ldd.last_deal_date,
-      sp.name as sales_position_name,
+      COALESCE(sp.name, 'Nível não definido') as sales_position_name,
       spu.name as sales_position_user_name,
       sp.id as sales_position_id_resolved,
       cug.name as group_name
