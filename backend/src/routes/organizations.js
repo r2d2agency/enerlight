@@ -534,12 +534,21 @@ router.patch('/:id([0-9a-fA-F-]{36})/members/:userId', async (req, res) => {
       let idx = 1;
       if (name) { updates.push(`name = $${idx++}`); vals.push(name); }
       if (email) { updates.push(`email = $${idx++}`); vals.push(email); }
-      if (cpf !== undefined) { updates.push(`cpf = $${idx++}`); vals.push(cpf); }
-      if (birth_date !== undefined) { updates.push(`birth_date = $${idx++}`); vals.push(birth_date); }
+      if (cpf !== undefined) { updates.push(`cpf = $${idx++}`); vals.push(cpf || null); }
+      if (birth_date !== undefined) { updates.push(`birth_date = $${idx++}`); vals.push(birth_date || null); }
       
-      vals.push(userId);
       const userQueryStr = `UPDATE users SET ${updates.join(', ')}, updated_at = NOW() WHERE id = $${idx}`;
-      await query(userQueryStr, vals);
+      vals.push(userId);
+      
+      try {
+        await query(userQueryStr, vals);
+      } catch (uErr) {
+        console.error('[org] UPDATE users error:', uErr.message, {
+          sql: userQueryStr,
+          vals: vals
+        });
+        throw uErr;
+      }
     }
 
     // Update organization_members role & RH fields
@@ -547,14 +556,28 @@ router.patch('/:id([0-9a-fA-F-]{36})/members/:userId', async (req, res) => {
     const omVals = [];
     let omIdx = 1;
     if (role && targetCheck.rows[0]?.role !== 'owner') { omUpdates.push(`role = $${omIdx++}`); omVals.push(role); }
-    if (work_start_time !== undefined) { omUpdates.push(`work_start_time = $${omIdx++}`); omVals.push(work_start_time); }
-    if (work_end_time !== undefined) { omUpdates.push(`work_end_time = $${omIdx++}`); omVals.push(work_end_time); }
-    if (lunch_start_time !== undefined) { omUpdates.push(`lunch_start_time = $${omIdx++}`); omVals.push(lunch_start_time); }
-    if (lunch_end_time !== undefined) { omUpdates.push(`lunch_end_time = $${omIdx++}`); omVals.push(lunch_end_time); }
-    if (authorized_radius_meters !== undefined) { omUpdates.push(`authorized_radius_meters = $${omIdx++}`); omVals.push(authorized_radius_meters); }
-    if (authorized_latitude !== undefined) { omUpdates.push(`authorized_latitude = $${omIdx++}`); omVals.push(authorized_latitude); }
-    if (authorized_longitude !== undefined) { omUpdates.push(`authorized_longitude = $${omIdx++}`); omVals.push(authorized_longitude); }
-    if (requires_facial_recognition !== undefined) { omUpdates.push(`requires_facial_recognition = $${omIdx++}`); omVals.push(requires_facial_recognition); }
+    if (work_start_time !== undefined) { omUpdates.push(`work_start_time = $${omIdx++}`); omVals.push(work_start_time || null); }
+    if (work_end_time !== undefined) { omUpdates.push(`work_end_time = $${omIdx++}`); omVals.push(work_end_time || null); }
+    if (lunch_start_time !== undefined) { omUpdates.push(`lunch_start_time = $${omIdx++}`); omVals.push(lunch_start_time || null); }
+    if (lunch_end_time !== undefined) { omUpdates.push(`lunch_end_time = $${omIdx++}`); omVals.push(lunch_end_time || null); }
+    
+    // Explicitly parse numeric fields to avoid type errors
+    if (authorized_radius_meters !== undefined) { 
+      omUpdates.push(`authorized_radius_meters = $${omIdx++}`); 
+      omVals.push(authorized_radius_meters ? parseInt(authorized_radius_meters) : null); 
+    }
+    if (authorized_latitude !== undefined) { 
+      omUpdates.push(`authorized_latitude = $${omIdx++}`); 
+      omVals.push(authorized_latitude ? parseFloat(authorized_latitude) : null); 
+    }
+    if (authorized_longitude !== undefined) { 
+      omUpdates.push(`authorized_longitude = $${omIdx++}`); 
+      omVals.push(authorized_longitude ? parseFloat(authorized_longitude) : null); 
+    }
+    if (requires_facial_recognition !== undefined) { 
+      omUpdates.push(`requires_facial_recognition = $${omIdx++}`); 
+      omVals.push(!!requires_facial_recognition); 
+    }
 
     if (omUpdates.length > 0) {
       const orgIdParam = omIdx++;
@@ -562,7 +585,16 @@ router.patch('/:id([0-9a-fA-F-]{36})/members/:userId', async (req, res) => {
       omVals.push(id, userId);
       const omQueryStr = `UPDATE organization_members SET ${omUpdates.join(', ')}, updated_at = NOW() 
          WHERE organization_id = $${orgIdParam} AND user_id = $${userIdParam}`;
-      await query(omQueryStr, omVals);
+      
+      try {
+        await query(omQueryStr, omVals);
+      } catch (omErr) {
+        console.error('[org] UPDATE organization_members error:', omErr.message, {
+          sql: omQueryStr,
+          vals: omVals
+        });
+        return res.status(500).json({ error: 'Erro ao atualizar dados de RH do membro', details: omErr.message });
+      }
     }
 
     // Update connection assignments if provided
