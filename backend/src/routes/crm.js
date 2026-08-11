@@ -846,7 +846,11 @@ router.patch('/companies/:id', async (req, res) => {
 // List companies
 router.get('/companies', async (req, res) => {
   try {
-    await ensureCnaeGroupsSchema();
+    try {
+      await ensureCnaeGroupsSchema();
+    } catch (schemaErr) {
+      console.error('[crm] ensureCnaeGroupsSchema failed:', schemaErr.message);
+    }
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No organization' });
 
