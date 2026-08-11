@@ -560,10 +560,24 @@ router.patch('/:id([0-9a-fA-F-]{36})/members/:userId', async (req, res) => {
     if (work_end_time !== undefined) { omUpdates.push(`work_end_time = $${omIdx++}`); omVals.push(work_end_time || null); }
     if (lunch_start_time !== undefined) { omUpdates.push(`lunch_start_time = $${omIdx++}`); omVals.push(lunch_start_time || null); }
     if (lunch_end_time !== undefined) { omUpdates.push(`lunch_end_time = $${omIdx++}`); omVals.push(lunch_end_time || null); }
-    if (authorized_radius_meters !== undefined) { omUpdates.push(`authorized_radius_meters = $${omIdx++}`); omVals.push(authorized_radius_meters || null); }
-    if (authorized_latitude !== undefined) { omUpdates.push(`authorized_latitude = $${omIdx++}`); omVals.push(authorized_latitude || null); }
-    if (authorized_longitude !== undefined) { omUpdates.push(`authorized_longitude = $${omIdx++}`); omVals.push(authorized_longitude || null); }
-    if (requires_facial_recognition !== undefined) { omUpdates.push(`requires_facial_recognition = $${omIdx++}`); omVals.push(requires_facial_recognition); }
+    
+    // Explicitly parse numeric fields to avoid type errors
+    if (authorized_radius_meters !== undefined) { 
+      omUpdates.push(`authorized_radius_meters = $${omIdx++}`); 
+      omVals.push(authorized_radius_meters ? parseInt(authorized_radius_meters) : null); 
+    }
+    if (authorized_latitude !== undefined) { 
+      omUpdates.push(`authorized_latitude = $${omIdx++}`); 
+      omVals.push(authorized_latitude ? parseFloat(authorized_latitude) : null); 
+    }
+    if (authorized_longitude !== undefined) { 
+      omUpdates.push(`authorized_longitude = $${omIdx++}`); 
+      omVals.push(authorized_longitude ? parseFloat(authorized_longitude) : null); 
+    }
+    if (requires_facial_recognition !== undefined) { 
+      omUpdates.push(`requires_facial_recognition = $${omIdx++}`); 
+      omVals.push(!!requires_facial_recognition); 
+    }
 
     if (omUpdates.length > 0) {
       const orgIdParam = omIdx++;
@@ -579,7 +593,7 @@ router.patch('/:id([0-9a-fA-F-]{36})/members/:userId', async (req, res) => {
           sql: omQueryStr,
           vals: omVals
         });
-        throw omErr;
+        return res.status(500).json({ error: 'Erro ao atualizar dados de RH do membro', details: omErr.message });
       }
     }
 
