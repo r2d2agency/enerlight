@@ -190,6 +190,22 @@ router.patch('/members/:userId', async (req, res) => {
     const finalRole = isOwner ? 'owner' : (role || targetCheck.rows[0]?.role);
 
     try {
+      // Ensure all fields are properly typed for the query
+      const p_role = finalRole || targetCheck.rows[0]?.role;
+      const p_is_active = is_active === undefined ? null : !!is_active;
+      const p_work_start = work_start_time || null;
+      const p_work_end = work_end_time || null;
+      const p_lunch_start = lunch_start_time || null;
+      const p_lunch_end = lunch_end_time || null;
+      const p_radius = authorized_radius_meters ? parseInt(authorized_radius_meters) : null;
+      const p_lat = authorized_latitude ? parseFloat(authorized_latitude) : null;
+      const p_lng = authorized_longitude ? parseFloat(authorized_longitude) : null;
+      const p_facial = requires_facial_recognition === undefined ? null : !!requires_facial_recognition;
+
+      console.log('[rh] PATCH /members/:userId parameters:', {
+        userId, organizationId, p_role, p_is_active, p_radius, p_lat, p_lng, p_facial
+      });
+
       const result = await query(
         `UPDATE organization_members 
          SET role = $1,
@@ -206,16 +222,16 @@ router.patch('/members/:userId', async (req, res) => {
          WHERE user_id = $11 AND organization_id = $12
          RETURNING *`,
         [
-          finalRole, 
-          is_active === undefined ? null : is_active, 
-          work_start_time || null, 
-          work_end_time || null, 
-          lunch_start_time || null, 
-          lunch_end_time || null, 
-          authorized_radius_meters || null, 
-          authorized_latitude || null, 
-          authorized_longitude || null,
-          requires_facial_recognition === undefined ? null : requires_facial_recognition,
+          p_role, 
+          p_is_active, 
+          p_work_start, 
+          p_work_end, 
+          p_lunch_start, 
+          p_lunch_end, 
+          p_radius, 
+          p_lat, 
+          p_lng, 
+          p_facial,
           userId, 
           organizationId
         ]
@@ -227,8 +243,8 @@ router.patch('/members/:userId', async (req, res) => {
 
       res.json(result.rows[0]);
     } catch (dbErr) {
-      console.error('[rh] UPDATE organization_members error:', dbErr.message);
-      throw dbErr;
+      console.error('[rh] UPDATE organization_members error:', dbErr.message, dbErr.stack);
+      res.status(500).json({ error: 'Erro ao atualizar membro', details: dbErr.message });
     }
   } catch (error) {
     console.error('Update member error:', error);
