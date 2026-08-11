@@ -92,8 +92,8 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
     title: "Dashboard",
     icon: LayoutDashboard,
     items: [
-      { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, permissionKey: 'can_view_chat' },
-      { name: "Meu Dia", href: "/meu-dia", icon: CalendarDays, permissionKey: 'can_view_chat' },
+      { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+      { name: "Meu Dia", href: "/meu-dia", icon: CalendarDays },
     ],
   },
   {
@@ -118,7 +118,7 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
     permissionKey: 'can_view_representative_dashboard',
     items: [
       { name: "Painel Representante", href: "/crm/representante-dashboard", icon: LayoutDashboard, permissionKey: 'can_view_representative_dashboard', moduleKey: 'representative_dashboard' },
-      { name: "Meus Clientes", href: "/crm/empresas", icon: Building2, permissionKey: 'can_view_representative_dashboard' },
+      { name: "Meus Clientes", href: "/crm/empresas", icon: Building2, permissionKey: 'can_view_companies' },
       { name: "Mapa do Representante", href: "/mapa", icon: Map, permissionKey: 'can_view_map' },
       { name: "Orçamentos Online", href: "/crm/orcamentos", icon: FileText, moduleKey: 'online_quotes', permissionKey: 'can_view_online_quotes' },
       { name: "Gestão de Representantes", href: "/crm/representantes", icon: Handshake, moduleKey: 'representatives', permissionKey: 'can_view_representatives' },
