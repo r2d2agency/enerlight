@@ -114,6 +114,9 @@ const allowedOrigins = new Set(
     .filter(Boolean)
 );
 
+// Add the specific production backend host to allowed origins just in case of fallback loops
+allowedOrigins.add('https://blaster-ener-backend.isyhhh.easypanel.host');
+
 function resolveCorsOrigin(origin) {
   if (!origin) return '*';
   const normalizedOrigin = String(origin).trim().replace(/\/$/, '');
