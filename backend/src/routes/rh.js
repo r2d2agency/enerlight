@@ -189,42 +189,47 @@ router.patch('/members/:userId', async (req, res) => {
     const isOwner = targetCheck.rows[0]?.role === 'owner';
     const finalRole = isOwner ? 'owner' : (role || targetCheck.rows[0]?.role);
 
-    const result = await query(
-      `UPDATE organization_members 
-       SET role = $1,
-           is_active = COALESCE($2, is_active),
-           work_start_time = COALESCE($3, work_start_time),
-           work_end_time = COALESCE($4, work_end_time),
-           lunch_start_time = COALESCE($5, lunch_start_time),
-           lunch_end_time = COALESCE($6, lunch_end_time),
-           authorized_radius_meters = COALESCE($7, authorized_radius_meters),
-           authorized_latitude = COALESCE($8, authorized_latitude),
-           authorized_longitude = COALESCE($9, authorized_longitude),
-           requires_facial_recognition = COALESCE($10, requires_facial_recognition, false),
-           updated_at = NOW()
-       WHERE user_id = $11 AND organization_id = $12
-       RETURNING *`,
-      [
-        finalRole, 
-        is_active === undefined ? null : is_active, 
-        work_start_time || null, 
-        work_end_time || null, 
-        lunch_start_time || null, 
-        lunch_end_time || null, 
-        authorized_radius_meters || null, 
-        authorized_latitude || null, 
-        authorized_longitude || null,
-        requires_facial_recognition === undefined ? null : requires_facial_recognition,
-        userId, 
-        organizationId
-      ]
-    );
+    try {
+      const result = await query(
+        `UPDATE organization_members 
+         SET role = $1,
+             is_active = COALESCE($2, is_active),
+             work_start_time = COALESCE($3, work_start_time),
+             work_end_time = COALESCE($4, work_end_time),
+             lunch_start_time = COALESCE($5, lunch_start_time),
+             lunch_end_time = COALESCE($6, lunch_end_time),
+             authorized_radius_meters = COALESCE($7, authorized_radius_meters),
+             authorized_latitude = COALESCE($8, authorized_latitude),
+             authorized_longitude = COALESCE($9, authorized_longitude),
+             requires_facial_recognition = COALESCE($10, requires_facial_recognition, false),
+             updated_at = NOW()
+         WHERE user_id = $11 AND organization_id = $12
+         RETURNING *`,
+        [
+          finalRole, 
+          is_active === undefined ? null : is_active, 
+          work_start_time || null, 
+          work_end_time || null, 
+          lunch_start_time || null, 
+          lunch_end_time || null, 
+          authorized_radius_meters || null, 
+          authorized_latitude || null, 
+          authorized_longitude || null,
+          requires_facial_recognition === undefined ? null : requires_facial_recognition,
+          userId, 
+          organizationId
+        ]
+      );
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Membro não encontrado' });
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: 'Membro não encontrado' });
+      }
+
+      res.json(result.rows[0]);
+    } catch (dbErr) {
+      console.error('[rh] UPDATE organization_members error:', dbErr.message);
+      throw dbErr;
     }
-
-    res.json(result.rows[0]);
   } catch (error) {
     console.error('Update member error:', error);
     res.status(500).json({ error: 'Erro ao atualizar membro' });
