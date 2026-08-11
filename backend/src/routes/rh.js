@@ -205,10 +205,18 @@ router.patch('/members/:userId', async (req, res) => {
        WHERE user_id = $11 AND organization_id = $12
        RETURNING *`,
       [
-        finalRole, is_active, work_start_time, work_end_time, lunch_start_time, lunch_end_time, 
-        authorized_radius_meters, authorized_latitude, authorized_longitude,
-        requires_facial_recognition,
-        userId, organizationId
+        finalRole, 
+        is_active === undefined ? null : is_active, 
+        work_start_time || null, 
+        work_end_time || null, 
+        lunch_start_time || null, 
+        lunch_end_time || null, 
+        authorized_radius_meters || null, 
+        authorized_latitude || null, 
+        authorized_longitude || null,
+        requires_facial_recognition === undefined ? null : requires_facial_recognition,
+        userId, 
+        organizationId
       ]
     );
 

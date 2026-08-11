@@ -562,7 +562,16 @@ router.patch('/:id([0-9a-fA-F-]{36})/members/:userId', async (req, res) => {
       omVals.push(id, userId);
       const omQueryStr = `UPDATE organization_members SET ${omUpdates.join(', ')}, updated_at = NOW() 
          WHERE organization_id = $${orgIdParam} AND user_id = $${userIdParam}`;
-      await query(omQueryStr, omVals);
+      
+      try {
+        await query(omQueryStr, omVals);
+      } catch (omErr) {
+        console.error('[org] UPDATE organization_members error:', omErr.message, {
+          sql: omQueryStr,
+          vals: omVals
+        });
+        throw omErr;
+      }
     }
 
     // Update connection assignments if provided
