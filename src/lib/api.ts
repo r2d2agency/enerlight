@@ -16,7 +16,8 @@ export const API_URL = resolveApiUrl();
 const shouldTryDirectBackendFallback = () => {
   if (API_URL) return false;
   if (typeof window === 'undefined') return false;
-  return window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+  // Disable fallback if it's causing CORS loops or failing persistently
+  return false; 
 };
 
 interface ApiOptions {
