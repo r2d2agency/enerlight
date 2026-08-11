@@ -583,7 +583,7 @@ router.patch('/:id([0-9a-fA-F-]{36})/members/:userId', async (req, res) => {
       const orgIdParam = omIdx++;
       const userIdParam = omIdx;
       omVals.push(id, userId);
-      const omQueryStr = `UPDATE organization_members SET ${omUpdates.join(', ')}, updated_at = NOW() 
+      const omQueryStr = `UPDATE organization_members SET ${omUpdates.join(', ')} 
          WHERE organization_id = $${orgIdParam} AND user_id = $${userIdParam}`;
       
       try {

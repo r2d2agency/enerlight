@@ -33,6 +33,7 @@ async function ensureRhSchema() {
         ['authorized_latitude', 'DECIMAL(10,8)'],
         ['authorized_longitude', 'DECIMAL(11,8)'],
         ['requires_facial_recognition', 'BOOLEAN DEFAULT false'],
+        ['updated_at', 'TIMESTAMPTZ DEFAULT NOW()'],
       ];
       for (const [name, type] of memberCols) {
         await query(`ALTER TABLE organization_members ADD COLUMN IF NOT EXISTS ${name} ${type};`);
