@@ -534,12 +534,21 @@ router.patch('/:id([0-9a-fA-F-]{36})/members/:userId', async (req, res) => {
       let idx = 1;
       if (name) { updates.push(`name = $${idx++}`); vals.push(name); }
       if (email) { updates.push(`email = $${idx++}`); vals.push(email); }
-      if (cpf !== undefined) { updates.push(`cpf = $${idx++}`); vals.push(cpf); }
-      if (birth_date !== undefined) { updates.push(`birth_date = $${idx++}`); vals.push(birth_date); }
+      if (cpf !== undefined) { updates.push(`cpf = $${idx++}`); vals.push(cpf || null); }
+      if (birth_date !== undefined) { updates.push(`birth_date = $${idx++}`); vals.push(birth_date || null); }
       
-      vals.push(userId);
       const userQueryStr = `UPDATE users SET ${updates.join(', ')}, updated_at = NOW() WHERE id = $${idx}`;
-      await query(userQueryStr, vals);
+      vals.push(userId);
+      
+      try {
+        await query(userQueryStr, vals);
+      } catch (uErr) {
+        console.error('[org] UPDATE users error:', uErr.message, {
+          sql: userQueryStr,
+          vals: vals
+        });
+        throw uErr;
+      }
     }
 
     // Update organization_members role & RH fields
