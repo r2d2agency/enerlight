@@ -81,15 +81,13 @@ export default function CRMEmpresas() {
   const isAdmin = user?.role === 'owner' || user?.role === 'admin';
   const isRepresentative = user?.user_permissions?.can_view_representative_dashboard === true;
   
-  // No frontend filtramos o que veio do hook
-  // O hook useCRMCompaniesPaginated retorna items. 
-  // Para representantes, o backend ja deve filtrar, mas reforçamos aqui.
+  // Frontend filtering: 
+  // Representatives are restricted to their own leads. 
+  // All other roles can see the full list.
   const companies = (companiesResponse?.items || []).filter(c => {
     if (isAdmin) return true;
-    // Se for representante, ele so vê o que ele criou
     if (isRepresentative) return (c as any).created_by === user?.id;
-    // Padrão: vendedor vê o que criou
-    return (c as any).created_by === user?.id;
+    return true; // Allow all other non-representative users to see all companies
   });
   
   const total = isAdmin ? (companiesResponse?.total || 0) : companies.length;

@@ -864,12 +864,19 @@ router.get('/companies', async (req, res) => {
     const params = [org.organization_id];
     let whereClause = `WHERE c.organization_id = $1`;
 
-    // Representative security isolation
+    // Access isolation: 
+    // - Superadmins and Admins see everything.
+    // - Representatives ONLY see what they created.
+    // - Everyone else (standard users/sellers) sees everything (as requested).
     const { user } = req;
-    if (user.role !== 'owner' && user.role !== 'admin') {
+    const isAdmin = user.role === 'owner' || user.role === 'admin';
+    if (!isAdmin) {
       const permsResult = await query(`SELECT can_view_representative_dashboard FROM user_permissions WHERE user_id = $1`, [req.userId]);
-      if (permsResult.rows[0]?.can_view_representative_dashboard) {
-        whereClause += ` AND c.created_by = $1`;
+      const isRepresentative = !!permsResult.rows[0]?.can_view_representative_dashboard;
+      
+      if (isRepresentative) {
+        whereClause += ` AND c.created_by = $${params.length + 1}`;
+        params.push(req.userId);
       }
     }
 
