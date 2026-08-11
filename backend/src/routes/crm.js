@@ -864,10 +864,7 @@ router.get('/companies', async (req, res) => {
     const params = [org.organization_id];
     let whereClause = `WHERE c.organization_id = $1`;
 
-    // Access isolation: 
-    // - Superadmins and Admins see everything.
-    // - Representatives ONLY see what they created.
-    // - Everyone else (standard users/sellers/managers) sees everything.
+    // em empresas todos podem ver empresas d todos so restringindo represetnante qeu cada um ve o seu
     const isAdmin = req.user?.is_superadmin || org.role === 'owner' || org.role === 'admin';
     if (!isAdmin) {
       const permsResult = await query(`SELECT can_view_representative_dashboard FROM user_permissions WHERE user_id = $1 AND organization_id = $2`, [req.userId, org.organization_id]);
