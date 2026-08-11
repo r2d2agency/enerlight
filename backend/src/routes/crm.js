@@ -868,9 +868,9 @@ router.get('/companies', async (req, res) => {
     // - Superadmins and Admins see everything.
     // - Representatives ONLY see what they created.
     // - Everyone else (standard users/sellers/managers) sees everything.
-    const isAdmin = req.user.role === 'owner' || req.user.role === 'admin';
+    const isAdmin = req.user?.is_superadmin || org.role === 'owner' || org.role === 'admin';
     if (!isAdmin) {
-      const permsResult = await query(`SELECT can_view_representative_dashboard FROM user_permissions WHERE user_id = $1`, [req.userId]);
+      const permsResult = await query(`SELECT can_view_representative_dashboard FROM user_permissions WHERE user_id = $1 AND organization_id = $2`, [req.userId, org.organization_id]);
       const isRepresentative = !!permsResult.rows[0]?.can_view_representative_dashboard;
       
       if (isRepresentative) {

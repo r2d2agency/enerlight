@@ -78,7 +78,7 @@ export default function CRMEmpresas() {
     direction: sortDir,
   });
   const { user } = useAuth();
-  const isAdmin = user?.role === 'owner' || user?.role === 'admin';
+  const isAdmin = user?.role === 'owner' || user?.role === 'admin' || user?.is_superadmin;
   const isRepresentative = user?.user_permissions?.can_view_representative_dashboard === true;
   
   // Access isolation:
