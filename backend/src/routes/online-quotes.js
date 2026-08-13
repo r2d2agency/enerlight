@@ -11,8 +11,9 @@ async function getUserContext(userId) {
   const userResult = await query(
     `SELECT u.is_superadmin, om.organization_id, om.role, om.permission_template_id
      FROM users u
-     LEFT JOIN organization_members om ON om.user_id = u.id AND om.organization_id = (SELECT organization_id FROM organization_members WHERE user_id = u.id LIMIT 1)
+     LEFT JOIN organization_members om ON om.user_id = u.id
      WHERE u.id = $1
+     ORDER BY (CASE WHEN om.organization_id IS NOT NULL THEN 1 ELSE 2 END), om.organization_id ASC
      LIMIT 1`,
     [userId]
   );
@@ -38,10 +39,9 @@ router.get('/templates', async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
     if (!ctx || !ctx.organizationId) {
-      logError('online-quotes.templates.get', new Error(`Unauthorized access attempt or missing organizationId for user ${req.userId}`));
+      logWarn('online-quotes.templates.get.unauthorized', { userId: req.userId });
       return res.status(403).json({ error: 'User not associated with any organization' });
     }
-
 
     const result = await query(
       `SELECT * FROM online_quote_templates WHERE organization_id = $1 ORDER BY is_default DESC, name ASC`,
@@ -104,10 +104,9 @@ router.get('/price-lists', async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
     if (!ctx || !ctx.organizationId) {
-      logError('online-quotes.price-lists.get', new Error(`Unauthorized access attempt or missing organizationId for user ${req.userId}`));
+      logWarn('online-quotes.price-lists.get.unauthorized', { userId: req.userId });
       return res.status(403).json({ error: 'User not associated with any organization' });
     }
-
 
     // Admins and Managers see all. Sellers see lists assigned to them or their groups.
     let sql = `
@@ -119,15 +118,14 @@ router.get('/price-lists', async (req, res) => {
     
     const params = [ctx.organizationId];
     
-    if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && !ctx.isSuperadmin) {
+    if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && ctx.isSuperadmin !== true && !req.userPermissions?.can_manage_online_quotes) {
       sql += ` AND (
-        (pla.user_id = $2 OR pla.group_id = ANY($3::uuid[]))
+        pla.user_id = $2 OR pla.group_id = ANY($3::uuid[])
         OR 
-        (pl.allowed_templates IS NULL OR pl.allowed_templates = '[]'::jsonb OR pl.allowed_templates @> jsonb_build_array($4::text))
+        pl.allowed_templates IS NULL OR pl.allowed_templates = '[]'::jsonb OR pl.allowed_templates @> jsonb_build_array($4::text)
       )`;
-      params.push(req.userId, ctx.groupIds, ctx.permissionTemplateId);
+      params.push(req.userId, ctx.groupIds || [], ctx.permissionTemplateId || '');
     }
-
 
     const result = await query(sql, params);
     res.json(result.rows);
@@ -470,13 +468,15 @@ router.put('/quotes/:id', async (req, res) => {
 router.get('/quotes', async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
-    if (!ctx || !ctx.organizationId) return res.status(403).json({ error: 'User not associated with any organization' });
+    if (!ctx || !ctx.organizationId) {
+      logWarn('online-quotes.quotes.get.unauthorized', { userId: req.userId });
+      return res.status(403).json({ error: 'User not associated with any organization' });
+    }
 
-    
     let sql = `SELECT q.*, q.client_document as cnpj FROM online_quotes q WHERE q.organization_id = $1`;
     const params = [ctx.organizationId];
     
-    if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && ctx.role !== 'supervisor' && !req.userPermissions?.can_manage_online_quotes) {
+    if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && ctx.role !== 'supervisor' && ctx.isSuperadmin !== true && !req.userPermissions?.can_manage_online_quotes) {
       sql += ` AND q.user_id = $2`;
       params.push(req.userId);
     }
