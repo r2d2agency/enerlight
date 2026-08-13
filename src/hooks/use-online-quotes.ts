@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 export interface PriceList {
   id: string;
@@ -53,31 +54,38 @@ export interface OnlineQuote {
 }
 
 export function usePriceLists() {
+  const { user } = useAuth();
   return useQuery({
     queryKey: ["price-lists"],
     queryFn: () => api<PriceList[]>("/api/online-quotes/price-lists"),
+    enabled: !!user?.organization_id,
   });
 }
 
 export function usePriceListItems(priceListId: string | null) {
+  const { user } = useAuth();
   return useQuery({
     queryKey: ["price-list-items", priceListId],
     queryFn: () => api<PriceListItem[]>(`/api/online-quotes/price-lists/${priceListId}/items`),
-    enabled: !!priceListId,
+    enabled: !!priceListId && !!user?.organization_id,
   });
 }
 
 export function useOnlineQuotes() {
+  const { user } = useAuth();
   return useQuery({
     queryKey: ["online-quotes"],
     queryFn: () => api<OnlineQuote[]>("/api/online-quotes/quotes"),
+    enabled: !!user?.organization_id,
   });
 }
 
 export function useOnlineQuoteTemplates() {
+  const { user } = useAuth();
   return useQuery({
     queryKey: ["online-quote-templates"],
     queryFn: () => api<OnlineQuoteTemplate[]>("/api/online-quotes/templates"),
+    enabled: !!user?.organization_id,
   });
 }
 

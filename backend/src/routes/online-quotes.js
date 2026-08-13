@@ -1,37 +1,42 @@
 import express from 'express';
 import { query } from '../db.js';
 import { authenticate } from '../middleware/auth.js';
-import { logError } from '../logger.js';
+import { logError, logWarn } from '../logger.js';
 
 const router = express.Router();
 router.use(authenticate);
 
 // Helper: Get user's organization and groups
 async function getUserContext(userId) {
-  const userResult = await query(
-    `SELECT u.is_superadmin, om.organization_id, om.role, om.permission_template_id
-     FROM users u
-     LEFT JOIN organization_members om ON om.user_id = u.id
-     WHERE u.id = $1
-     ORDER BY (CASE WHEN om.organization_id IS NOT NULL THEN 1 ELSE 2 END), om.organization_id ASC
-     LIMIT 1`,
-    [userId]
-  );
-  
-  if (userResult.rows.length === 0) return null;
-  
-  const groupsResult = await query(
-    `SELECT group_id FROM crm_user_group_members WHERE user_id = $1`,
-    [userId]
-  );
-  
-  return {
-    organizationId: userResult.rows[0].organization_id,
-    role: userResult.rows[0].role,
-    isSuperadmin: userResult.rows[0].is_superadmin,
-    permissionTemplateId: userResult.rows[0].permission_template_id,
-    groupIds: groupsResult.rows.map(g => g.group_id)
-  };
+  try {
+    const userResult = await query(
+      `SELECT u.is_superadmin, om.organization_id, om.role, om.permission_template_id
+       FROM users u
+       LEFT JOIN organization_members om ON om.user_id = u.id
+       WHERE u.id = $1
+       ORDER BY (CASE WHEN om.organization_id IS NOT NULL THEN 1 ELSE 2 END), om.organization_id ASC
+       LIMIT 1`,
+      [userId]
+    );
+    
+    if (userResult.rows.length === 0) return null;
+    
+    const groupsResult = await query(
+      `SELECT group_id FROM crm_user_group_members WHERE user_id = $1`,
+      [userId]
+    );
+    
+    return {
+      organizationId: userResult.rows[0].organization_id || null,
+      role: userResult.rows[0].role || null,
+      isSuperadmin: !!userResult.rows[0].is_superadmin,
+      permissionTemplateId: userResult.rows[0].permission_template_id || null,
+      groupIds: groupsResult.rows.map(g => g.group_id)
+    };
+  } catch (err) {
+    logError('online-quotes.getUserContext', err, { userId });
+    return null;
+  }
 }
 
 // Get accessible templates (Cover Pages)
@@ -523,63 +528,6 @@ router.get('/quotes/:id', async (req, res) => {
   }
 });
 
-// Create organization company from quote data
-router.post('/companies/create-from-quote', async (req, res) => {
-  try {
-    const ctx = await getUserContext(req.userId);
-
-    if (!ctx || !ctx.organizationId) {
-      logError('online-quotes.companies.create', new Error(`Unauthorized access attempt or missing organizationId for user ${req.userId}`));
-      return res.status(403).json({ error: 'User not associated with any organization' });
-    }
-
-    const { name, document, email, phone } = req.body;
-    
-    // Check if company already exists
-    const existing = await query(
-      `SELECT id FROM crm_companies WHERE organization_id = $1 AND (cnpj = $2 OR name = $3)`,
-      [ctx.organizationId, document, name]
-    );
-
-    if (existing.rows.length > 0) {
-      return res.json({ id: existing.rows[0].id, alreadyExists: true });
-    }
-
-    const result = await query(
-      `INSERT INTO crm_companies (organization_id, name, cnpj, email, phone, created_at)
-       VALUES ($1, $2, $3, $4, $5, NOW()) RETURNING id`,
-      [ctx.organizationId, name, document, email, phone]
-    );
-
-    res.json({ id: result.rows[0].id });
-  } catch (err) {
-    logError('online-quotes.companies.create', err);
-    res.status(500).json({ error: 'Failed to create company' });
-  }
-});
-
-// Delete a price list
-router.post('/price-lists/delete/:id', async (req, res) => {
-  try {
-    const ctx = await getUserContext(req.userId);
-    if (!ctx || !ctx.organizationId) {
-      logError('online-quotes.price-lists.delete', new Error(`Unauthorized access attempt or missing organizationId for user ${req.userId}`));
-      return res.status(403).json({ error: 'User not associated with any organization' });
-    }
-    if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner') {
-      return res.status(403).json({ error: 'Unauthorized' });
-    }
-
-    await query(`DELETE FROM price_list_items WHERE price_list_id = $1`, [req.params.id]);
-    await query(`DELETE FROM price_lists WHERE id = $1 AND organization_id = $2`, [req.params.id, ctx.organizationId]);
-
-    res.json({ success: true });
-  } catch (err) {
-    logError('online-quotes.price-lists.delete', err);
-    res.status(500).json({ error: 'Failed to delete price list' });
-  }
-});
-
 // Delete a quote (Support both DELETE and POST /delete/:id)
 const deleteQuoteHandler = async (req, res) => {
   try {
@@ -593,7 +541,7 @@ const deleteQuoteHandler = async (req, res) => {
     let sql = `DELETE FROM online_quotes WHERE id = $1 AND organization_id = $2`;
     const params = [req.params.id, ctx.organizationId];
 
-    if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner') {
+    if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && ctx.isSuperadmin !== true) {
       sql += ` AND user_id = $3`;
       params.push(req.userId);
     }
