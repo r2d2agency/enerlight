@@ -655,14 +655,19 @@ router.get('/quotes/:id', async (req, res) => {
 const deleteQuoteHandler = async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
-    if (!ctx || !ctx.organizationId) {
-      logError('online-quotes.quotes.delete', new Error(`Unauthorized access attempt or missing organizationId for user ${req.userId}`));
+    if (!ctx) {
+      logError('online-quotes.quotes.delete', new Error(`Unauthorized access attempt for user ${req.userId}`));
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    const orgId = ctx.organizationId;
+    if (!orgId && !ctx.isSuperadmin) {
       return res.status(403).json({ error: 'User not associated with any organization' });
     }
 
     // Admins/Managers can delete any quote in their org. Sellers only their own.
-    let sql = `DELETE FROM online_quotes WHERE id = $1 AND organization_id = $2`;
-    const params = [req.params.id, ctx.organizationId];
+    let sql = `DELETE FROM online_quotes WHERE id = $1 AND (organization_id = $2 OR $3 = true)`;
+    const params = [req.params.id, orgId, ctx.isSuperadmin];
 
     if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && ctx.isSuperadmin !== true) {
       sql += ` AND user_id = $3`;
