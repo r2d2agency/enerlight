@@ -158,8 +158,8 @@ export default function FacialValidation({
 
   const grabDescriptor = async (): Promise<number[] | null> => {
     if (!videoRef.current) return null;
-    const maxAttempts = 8;
-    const delay = backendReady === 'cpu' ? 350 : 200;
+    const maxAttempts = 15;
+    const delay = backendReady === 'cpu' ? 300 : 200;
     for (let i = 0; i < maxAttempts; i++) {
       try {
         const det = await detectOnce(videoRef.current);
