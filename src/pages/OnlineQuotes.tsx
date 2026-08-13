@@ -69,7 +69,7 @@ export default function OnlineQuotes() {
   const filteredPriceLists = priceLists?.filter(pl => {
     if (isAdmin) return true;
     if (!pl.is_active) return false;
-    if (!pl.allowed_templates || pl.allowed_templates.length === 0) return true;
+    if (!pl.allowed_templates || pl.allowed_templates.length === 0 || pl.allowed_templates.includes('')) return true;
     
     // @ts-ignore - Assuming user might have permission_template_id
     const userTemplateId = user?.permission_template_id;
@@ -343,9 +343,10 @@ export default function OnlineQuotes() {
                 </div>
               </CardHeader>
               <CardContent>
-                {loadingQuotes ? (
-                  <div className="flex items-center justify-center py-12">
+                {loadingQuotes || loadingTemplates || loadingPriceLists ? (
+                  <div className="flex items-center justify-center py-12 flex-col gap-2">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <p className="text-xs text-muted-foreground animate-pulse">Carregando informações...</p>
                   </div>
                 ) : filteredQuotes && filteredQuotes.length > 0 ? (
                   <div className="grid gap-3">
@@ -395,7 +396,15 @@ export default function OnlineQuotes() {
                           </div>
                         </div>
                         
-                        <div className="flex items-center justify-end gap-1 mt-4 sm:mt-0 pt-3 sm:pt-0 border-t sm:border-t-0 border-dashed">
+                        <div className="flex items-center justify-end gap-3 mt-4 sm:mt-0 pt-3 sm:pt-0 border-t sm:border-t-0 border-dashed">
+                          {isAdmin && (
+                            <div className="flex flex-col items-end mr-2">
+                              <Badge variant="outline" className="text-[10px] mb-0.5 px-1 h-4">Vendedor</Badge>
+                              <span className="text-[11px] text-muted-foreground font-medium truncate max-w-[100px]">
+                                {quote.user_name || 'N/A'}
+                              </span>
+                            </div>
+                          )}
                           <Button 
                             variant="ghost" 
                             size="sm" 

@@ -128,6 +128,8 @@ router.get('/price-lists', async (req, res) => {
         pla.user_id = $2 OR pla.group_id = ANY($3::uuid[])
         OR 
         pl.allowed_templates IS NULL OR pl.allowed_templates = '[]'::jsonb OR pl.allowed_templates @> jsonb_build_array($4::text)
+        OR
+        pl.allowed_templates @> jsonb_build_array('')
       )`;
       params.push(req.userId, ctx.groupIds || [], ctx.permissionTemplateId || '');
     }
@@ -154,7 +156,11 @@ router.post('/price-lists', async (req, res) => {
     }
     const { id, name, description, segment, is_active, default_template_id, allowed_templates } = req.body;
     
-    const allowedTemplates = Array.isArray(allowed_templates) ? JSON.stringify(allowed_templates) : '[]';
+    let allowedTemplates = '[]';
+    if (Array.isArray(allowed_templates)) {
+      // Se não houver nada selecionado na UI, salvamos como [''] para indicar acesso global/fallback
+      allowedTemplates = allowed_templates.length === 0 ? '[""]' : JSON.stringify(allowed_templates);
+    }
 
     if (id) {
       const result = await query(
@@ -478,7 +484,11 @@ router.get('/quotes', async (req, res) => {
       return res.status(403).json({ error: 'User not associated with any organization' });
     }
 
-    let sql = `SELECT q.*, q.client_document as cnpj FROM online_quotes q WHERE q.organization_id = $1`;
+    let sql = `
+      SELECT q.*, q.client_document as cnpj, u.name as user_name 
+      FROM online_quotes q 
+      LEFT JOIN users u ON q.user_id = u.id
+      WHERE q.organization_id = $1`;
     const params = [ctx.organizationId];
     
     if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && ctx.role !== 'supervisor' && ctx.isSuperadmin !== true && !req.userPermissions?.can_manage_online_quotes) {
