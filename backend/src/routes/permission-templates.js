@@ -14,21 +14,21 @@ router.get('/', authenticate, async (req, res) => {
 
     const isSuperadmin = !!userResult.rows[0]?.is_superadmin;
     
-    // Get organizationId if exists
-    const orgResult = await query(
-      `SELECT organization_id FROM organization_members WHERE user_id = $1 LIMIT 1`,
+    // Get all organization IDs where user is member
+    const orgsResult = await query(
+      `SELECT organization_id FROM organization_members WHERE user_id = $1 AND status = 'active'`,
       [req.userId]
     );
-    const organizationId = orgResult.rows[0]?.organization_id;
+    const orgIds = orgsResult.rows.map(r => r.organization_id);
 
     let sql = `SELECT * FROM permission_templates WHERE 1=1`;
     const params = [];
 
     if (isSuperadmin) {
       // Superadmins see everything
-    } else if (organizationId) {
-      sql += ` AND (organization_id = $1 OR organization_id IS NULL)`;
-      params.push(organizationId);
+    } else if (orgIds.length > 0) {
+      sql += ` AND (organization_id = ANY($1::uuid[]) OR organization_id IS NULL)`;
+      params.push(orgIds);
     } else {
       sql += ` AND organization_id IS NULL`;
     }
