@@ -569,7 +569,7 @@ router.get('/quotes', async (req, res) => {
     const ctx = await getUserContext(req.userId);
     if (!ctx) return res.json([]);
     
-    const orgId = ctx.organizationId;
+    const orgIds = ctx.allOrgIds || [];
 
     let sql = `
       SELECT q.*, q.client_document as cnpj, u.name as user_name 
@@ -579,13 +579,13 @@ router.get('/quotes', async (req, res) => {
     const params = [];
 
     if (ctx.isSuperadmin) {
-      if (orgId) {
-        sql += ` AND q.organization_id = $1`;
-        params.push(orgId);
+      if (orgIds.length > 0) {
+        sql += ` AND q.organization_id = ANY($1::uuid[])`;
+        params.push(orgIds);
       }
-    } else if (orgId) {
-      sql += ` AND q.organization_id = $1`;
-      params.push(orgId);
+    } else if (orgIds.length > 0) {
+      sql += ` AND q.organization_id = ANY($1::uuid[])`;
+      params.push(orgIds);
 
       if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && ctx.role !== 'supervisor' && !req.userPermissions?.can_manage_online_quotes) {
         sql += ` AND q.user_id = $${params.length + 1}`;
