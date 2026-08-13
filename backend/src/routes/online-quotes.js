@@ -105,10 +105,9 @@ router.get('/price-lists', async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
     if (!ctx || !ctx.organizationId) {
-      logError('online-quotes.price-lists.get', new Error(`Unauthorized access attempt or missing organizationId for user ${req.userId}`));
+      logWarn('online-quotes.price-lists.get.unauthorized', { userId: req.userId });
       return res.status(403).json({ error: 'User not associated with any organization' });
     }
-
 
     // Admins and Managers see all. Sellers see lists assigned to them or their groups.
     let sql = `
@@ -120,15 +119,14 @@ router.get('/price-lists', async (req, res) => {
     
     const params = [ctx.organizationId];
     
-    if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && !ctx.isSuperadmin) {
+    if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && ctx.isSuperadmin !== true && !req.userPermissions?.can_manage_online_quotes) {
       sql += ` AND (
-        (pla.user_id = $2 OR pla.group_id = ANY($3::uuid[]))
+        pla.user_id = $2 OR pla.group_id = ANY($3::uuid[])
         OR 
-        (pl.allowed_templates IS NULL OR pl.allowed_templates = '[]'::jsonb OR pl.allowed_templates @> jsonb_build_array($4::text))
+        pl.allowed_templates IS NULL OR pl.allowed_templates = '[]'::jsonb OR pl.allowed_templates @> jsonb_build_array($4::text)
       )`;
-      params.push(req.userId, ctx.groupIds, ctx.permissionTemplateId);
+      params.push(req.userId, ctx.groupIds || [], ctx.permissionTemplateId || '');
     }
-
 
     const result = await query(sql, params);
     res.json(result.rows);
