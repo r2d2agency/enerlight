@@ -80,10 +80,16 @@ router.get('/templates', async (req, res) => {
 router.post('/templates', async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
-    if (!ctx || !ctx.organizationId) {
-      logError('online-quotes.templates.post', new Error(`Unauthorized access attempt or missing organizationId for user ${req.userId}`));
+    if (!ctx) {
+      logError('online-quotes.templates.post', new Error(`Unauthorized access attempt or user not found: ${req.userId}`));
+      return res.status(403).json({ error: 'Unauthorized access' });
+    }
+
+    const orgId = ctx.organizationId;
+    if (!orgId && !ctx.isSuperadmin) {
       return res.status(403).json({ error: 'User not associated with any organization' });
     }
+
     if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && !req.userPermissions?.can_manage_online_quotes) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
@@ -91,7 +97,7 @@ router.post('/templates', async (req, res) => {
 
     
     if (is_default) {
-      await query(`UPDATE online_quote_templates SET is_default = false WHERE organization_id = $1`, [ctx.organizationId]);
+      await query(`UPDATE online_quote_templates SET is_default = false WHERE organization_id = $1 OR $2 = true`, [orgId, ctx.isSuperadmin]);
     }
 
     const fConfig = typeof footer_config === 'object' ? JSON.stringify(footer_config) : footer_config;
@@ -100,8 +106,9 @@ router.post('/templates', async (req, res) => {
       const result = await query(
         `UPDATE online_quote_templates 
          SET name = $1, description = $2, cover_url = $3, header_text = $4, footer_text = $5, footer_config = $6, is_default = $7, updated_at = NOW()
-         WHERE id = $8 AND organization_id = $9 RETURNING *`,
-        [name, description, cover_url, header_text, footer_text, fConfig, is_default, id, ctx.organizationId]
+         WHERE id = $8 AND (organization_id = $9 OR $10 = true) RETURNING *`,
+        [name, description, cover_url, header_text, footer_text, fConfig, is_default, id, orgId, ctx.isSuperadmin]
+
       );
       res.json(result.rows[0]);
     } else {
@@ -109,7 +116,7 @@ router.post('/templates', async (req, res) => {
         `INSERT INTO online_quote_templates 
          (organization_id, name, description, cover_url, header_text, footer_text, footer_config, is_default)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-        [ctx.organizationId, name, description, cover_url, header_text, footer_text, fConfig, is_default]
+        [orgId, name, description, cover_url, header_text, footer_text, fConfig, is_default]
       );
       res.json(result.rows[0]);
     }
