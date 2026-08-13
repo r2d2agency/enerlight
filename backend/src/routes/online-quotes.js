@@ -37,7 +37,8 @@ async function getUserContext(userId) {
 router.get('/templates', async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
-    if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
+    if (!ctx || !ctx.organizationId) return res.status(403).json({ error: 'User not associated with any organization' });
+
 
     const result = await query(
       `SELECT * FROM online_quote_templates WHERE organization_id = $1 ORDER BY is_default DESC, name ASC`,
@@ -96,7 +97,8 @@ router.post('/templates', async (req, res) => {
 router.get('/price-lists', async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
-    if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
+    if (!ctx || !ctx.organizationId) return res.status(403).json({ error: 'User not associated with any organization' });
+
 
     // Admins and Managers see all. Sellers see lists assigned to them or their groups.
     let sql = `
@@ -440,8 +442,8 @@ router.put('/quotes/:id', async (req, res) => {
 router.get('/quotes', async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
+    if (!ctx || !ctx.organizationId) return res.status(403).json({ error: 'User not associated with any organization' });
 
-    if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
     
     let sql = `SELECT q.*, q.client_document as cnpj FROM online_quotes q WHERE q.organization_id = $1`;
     const params = [ctx.organizationId];
