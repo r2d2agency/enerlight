@@ -49,6 +49,7 @@ export interface OnlineQuote {
   cnpj?: string;
   total_value: number;
   status: 'draft' | 'sent' | 'approved' | 'rejected';
+  user_name?: string;
   include_images?: boolean;
   created_at: string;
 }
