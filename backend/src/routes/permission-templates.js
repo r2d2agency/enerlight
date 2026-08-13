@@ -7,8 +7,28 @@ const router = Router();
 // Get all templates
 router.get('/', authenticate, async (req, res) => {
   try {
+    const userResult = await query(
+      `SELECT om.organization_id, u.is_superadmin 
+       FROM users u
+       LEFT JOIN organization_members om ON om.user_id = u.id
+       WHERE u.id = $1
+       ORDER BY (CASE WHEN om.organization_id IS NOT NULL THEN 1 ELSE 2 END) ASC
+       LIMIT 1`,
+      [req.userId]
+    );
+
+    const organizationId = userResult.rows[0]?.organization_id;
+    const isSuperadmin = !!userResult.rows[0]?.is_superadmin;
+
+    if (!isSuperadmin && !organizationId) {
+      return res.status(403).json({ error: 'User not associated with any organization' });
+    }
+
     const result = await query(
-      `SELECT * FROM permission_templates ORDER BY sort_order ASC, created_at ASC`
+      `SELECT * FROM permission_templates 
+       WHERE (organization_id = $1 OR organization_id IS NULL)
+       ORDER BY sort_order ASC, created_at ASC`,
+      [organizationId]
     );
     res.json(result.rows);
   } catch (error) {
