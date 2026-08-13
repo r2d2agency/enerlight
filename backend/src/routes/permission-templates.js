@@ -88,22 +88,40 @@ router.post('/', authenticate, async (req, res) => {
 router.put('/:id', authenticate, async (req, res) => {
   try {
     const userResult = await query(
-      `SELECT u.is_superadmin, om.role FROM users u
-       LEFT JOIN organization_members om ON om.user_id = u.id
+      `SELECT u.is_superadmin, om.role, om.organization_id FROM users u
+       LEFT JOIN organization_members om ON om.user_id = u.id AND om.status = 'active'
        WHERE u.id = $1`,
       [req.userId]
     );
     const user = userResult.rows[0];
+    const isSuperadmin = !!user?.is_superadmin;
+    const orgIds = userResult.rows.map(r => r.organization_id).filter(Boolean);
     const isOwner = userResult.rows.some(r => r.role === 'owner');
-    if (!user?.is_superadmin && !isOwner) {
+
+    if (!isSuperadmin && !isOwner) {
       return res.status(403).json({ error: 'Sem permissão para editar templates' });
     }
 
-    const { name, description, icon, permissions } = req.body;
+    const { name, description, icon, permissions, organization_id } = req.body;
+    
+    // Check if user has access to this template if not superadmin
+    if (!isSuperadmin) {
+      const templateCheck = await query(
+        `SELECT organization_id FROM permission_templates WHERE id = $1`,
+        [req.params.id]
+      );
+      if (templateCheck.rows.length === 0) return res.status(404).json({ error: 'Template não encontrado' });
+      const tOrgId = templateCheck.rows[0].organization_id;
+      if (tOrgId && !orgIds.includes(tOrgId)) {
+        return res.status(403).json({ error: 'Sem acesso a este template' });
+      }
+    }
+
     const result = await query(
       `UPDATE permission_templates SET name = COALESCE($1, name), description = $2, icon = COALESCE($3, icon), 
-       permissions = COALESCE($4, permissions) WHERE id = $5 RETURNING *`,
-      [name, description || null, icon, permissions ? JSON.stringify(permissions) : null, req.params.id]
+       permissions = COALESCE($4, permissions), organization_id = COALESCE($5, organization_id) 
+       WHERE id = $6 RETURNING *`,
+      [name, description || null, icon, permissions ? JSON.stringify(permissions) : null, isSuperadmin ? organization_id : undefined, req.params.id]
     );
 
     if (result.rows.length === 0) {
@@ -116,6 +134,7 @@ router.put('/:id', authenticate, async (req, res) => {
     res.status(500).json({ error: 'Erro ao atualizar template' });
   }
 });
+
 
 // Delete template (superadmin or org owner)
 router.delete('/:id', authenticate, async (req, res) => {
