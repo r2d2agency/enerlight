@@ -39,10 +39,9 @@ router.get('/templates', async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
     if (!ctx || !ctx.organizationId) {
-      logError('online-quotes.templates.get', new Error(`Unauthorized access attempt or missing organizationId for user ${req.userId}`));
+      logWarn('online-quotes.templates.get.unauthorized', { userId: req.userId });
       return res.status(403).json({ error: 'User not associated with any organization' });
     }
-
 
     const result = await query(
       `SELECT * FROM online_quote_templates WHERE organization_id = $1 ORDER BY is_default DESC, name ASC`,
