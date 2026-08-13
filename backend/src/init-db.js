@@ -3275,6 +3275,19 @@ DO $$ BEGIN
   ALTER TABLE user_permissions ADD COLUMN IF NOT EXISTS can_delete_licitacao BOOLEAN DEFAULT false;
 EXCEPTION WHEN duplicate_column THEN NULL;
 END $$;
+DO $$ BEGIN
+  ALTER TABLE user_permissions ADD COLUMN IF NOT EXISTS can_view_online_quotes BOOLEAN DEFAULT false;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+DO $$ BEGIN
+  ALTER TABLE user_permissions ADD COLUMN IF NOT EXISTS can_manage_online_quotes BOOLEAN DEFAULT false;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+DO $$ BEGIN
+  ALTER TABLE user_permissions ADD COLUMN IF NOT EXISTS can_edit_price_lists BOOLEAN DEFAULT false;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
 `;
 
 // Step 38: Permission Templates
@@ -3288,8 +3301,15 @@ CREATE TABLE IF NOT EXISTS permission_templates (
   is_default BOOLEAN DEFAULT false,
   sort_order INTEGER DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE
 );
+
+DO $$ BEGIN
+  ALTER TABLE permission_templates ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
 
 CREATE INDEX IF NOT EXISTS idx_permission_templates_sort ON permission_templates(sort_order);
 
