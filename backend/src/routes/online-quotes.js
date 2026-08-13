@@ -11,7 +11,7 @@ async function getUserContext(userId) {
   const userResult = await query(
     `SELECT u.is_superadmin, om.organization_id, om.role, om.permission_template_id
      FROM users u
-     LEFT JOIN organization_members om ON om.user_id = u.id
+     LEFT JOIN organization_members om ON om.user_id = u.id AND om.organization_id = (SELECT organization_id FROM organization_members WHERE user_id = u.id LIMIT 1)
      WHERE u.id = $1
      LIMIT 1`,
     [userId]
@@ -37,7 +37,10 @@ async function getUserContext(userId) {
 router.get('/templates', async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
-    if (!ctx || !ctx.organizationId) return res.status(403).json({ error: 'User not associated with any organization' });
+    if (!ctx || !ctx.organizationId) {
+      logError('online-quotes.templates.get', new Error(`Unauthorized access attempt or missing organizationId for user ${req.userId}`));
+      return res.status(403).json({ error: 'User not associated with any organization' });
+    }
 
 
     const result = await query(
@@ -56,7 +59,10 @@ router.get('/templates', async (req, res) => {
 router.post('/templates', async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
-    if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
+    if (!ctx || !ctx.organizationId) {
+      logError('online-quotes.templates.post', new Error(`Unauthorized access attempt or missing organizationId for user ${req.userId}`));
+      return res.status(403).json({ error: 'User not associated with any organization' });
+    }
     if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && !req.userPermissions?.can_manage_online_quotes) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
@@ -97,7 +103,10 @@ router.post('/templates', async (req, res) => {
 router.get('/price-lists', async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
-    if (!ctx || !ctx.organizationId) return res.status(403).json({ error: 'User not associated with any organization' });
+    if (!ctx || !ctx.organizationId) {
+      logError('online-quotes.price-lists.get', new Error(`Unauthorized access attempt or missing organizationId for user ${req.userId}`));
+      return res.status(403).json({ error: 'User not associated with any organization' });
+    }
 
 
     // Admins and Managers see all. Sellers see lists assigned to them or their groups.
@@ -132,6 +141,10 @@ router.get('/price-lists', async (req, res) => {
 router.post('/price-lists', async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
+    if (!ctx || !ctx.organizationId) {
+      logError('online-quotes.price-lists.post', new Error(`Unauthorized access attempt or missing organizationId for user ${req.userId}`));
+      return res.status(403).json({ error: 'User not associated with any organization' });
+    }
 
     if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && !req.userPermissions?.can_manage_online_quotes) {
       return res.status(403).json({ error: 'Unauthorized' });
@@ -167,7 +180,10 @@ router.get('/price-lists/:id/items', async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
 
-    if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
+    if (!ctx || !ctx.organizationId) {
+      logError('online-quotes.price-list-items.get', new Error(`Unauthorized access attempt or missing organizationId for user ${req.userId}`));
+      return res.status(403).json({ error: 'User not associated with any organization' });
+    }
     // Security check: verify access to this price list
     const accessCheck = await query(
       `SELECT organization_id FROM price_lists WHERE id = $1`,
@@ -199,7 +215,10 @@ router.get('/price-lists/:id/items', async (req, res) => {
 router.patch('/price-lists/:id/items/:productCode', async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
-    if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
+    if (!ctx || !ctx.organizationId) {
+      logError('online-quotes.price-list-items.patch', new Error(`Unauthorized access attempt or missing organizationId for user ${req.userId}`));
+      return res.status(403).json({ error: 'User not associated with any organization' });
+    }
 
     const { 
       product_name, description, sale_price, cost_price, 
@@ -237,7 +256,10 @@ router.post('/price-lists/:id/items/bulk', async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
 
-    if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
+    if (!ctx || !ctx.organizationId) {
+      logError('online-quotes.price-list-items.bulk', new Error(`Unauthorized access attempt or missing organizationId for user ${req.userId}`));
+      return res.status(403).json({ error: 'User not associated with any organization' });
+    }
     const { items } = req.body; // items: { product_code, product_name, description, sale_price, cost_price, unit, image_url }
     
     for (const item of items) {
@@ -272,7 +294,10 @@ router.post('/quotes', async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
 
-    if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
+    if (!ctx || !ctx.organizationId) {
+      logError('online-quotes.create', new Error(`Unauthorized access attempt or missing organizationId for user ${req.userId}`));
+      return res.status(403).json({ error: 'User not associated with any organization' });
+    }
     const { 
       client_name, client_document, client_email, client_phone, 
       price_list_id, template_id, items, cover_image_url, fiscal_info, footer_text, footer_config, valid_until, notes,
@@ -348,7 +373,10 @@ router.post('/quotes', async (req, res) => {
 router.put('/quotes/:id', async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
-    if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
+    if (!ctx || !ctx.organizationId) {
+      logError('online-quotes.update', new Error(`Unauthorized access attempt or missing organizationId for user ${req.userId}`));
+      return res.status(403).json({ error: 'User not associated with any organization' });
+    }
 
     const { 
       client_name, client_document, client_email, client_phone, 
@@ -468,6 +496,10 @@ router.get('/quotes', async (req, res) => {
 router.get('/quotes/:id', async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
+    if (!ctx || !ctx.organizationId) {
+      logError('online-quotes.quote.get', new Error(`Unauthorized access attempt or missing organizationId for user ${req.userId}`));
+      return res.status(403).json({ error: 'User not associated with any organization' });
+    }
 
     const quote = await query(
       `SELECT q.*, t.cover_url as template_cover, t.header_text as template_header, t.footer_text as template_footer, t.footer_config as template_footer_config
@@ -496,7 +528,10 @@ router.post('/companies/create-from-quote', async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
 
-    if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
+    if (!ctx || !ctx.organizationId) {
+      logError('online-quotes.companies.create', new Error(`Unauthorized access attempt or missing organizationId for user ${req.userId}`));
+      return res.status(403).json({ error: 'User not associated with any organization' });
+    }
 
     const { name, document, email, phone } = req.body;
     
@@ -527,7 +562,10 @@ router.post('/companies/create-from-quote', async (req, res) => {
 router.post('/price-lists/delete/:id', async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
-    if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
+    if (!ctx || !ctx.organizationId) {
+      logError('online-quotes.price-lists.delete', new Error(`Unauthorized access attempt or missing organizationId for user ${req.userId}`));
+      return res.status(403).json({ error: 'User not associated with any organization' });
+    }
     if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner') {
       return res.status(403).json({ error: 'Unauthorized' });
     }
@@ -546,7 +584,10 @@ router.post('/price-lists/delete/:id', async (req, res) => {
 const deleteQuoteHandler = async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
-    if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
+    if (!ctx || !ctx.organizationId) {
+      logError('online-quotes.quotes.delete', new Error(`Unauthorized access attempt or missing organizationId for user ${req.userId}`));
+      return res.status(403).json({ error: 'User not associated with any organization' });
+    }
 
     // Admins/Managers can delete any quote in their org. Sellers only their own.
     let sql = `DELETE FROM online_quotes WHERE id = $1 AND organization_id = $2`;
@@ -577,7 +618,10 @@ router.post('/quotes/delete/:id', deleteQuoteHandler);
 router.post('/companies/create-from-quote', async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
-    if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
+    if (!ctx || !ctx.organizationId) {
+      logError('online-quotes.companies.create-from-quote', new Error(`Unauthorized access attempt or missing organizationId for user ${req.userId}`));
+      return res.status(403).json({ error: 'User not associated with any organization' });
+    }
 
     const { name, document, email, phone } = req.body;
     if (!name) return res.status(400).json({ error: 'Company name is required' });
