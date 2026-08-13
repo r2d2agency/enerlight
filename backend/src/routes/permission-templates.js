@@ -73,7 +73,7 @@ router.post('/', authenticate, async (req, res) => {
     const result = await query(
       `INSERT INTO permission_templates (name, description, icon, permissions, sort_order, organization_id)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [name, description || null, icon || 'Users', JSON.stringify(permissions), maxSort.rows[0].next, targetOrgId]
+      [name, description || null, icon || 'Users', typeof permissions === 'string' ? permissions : JSON.stringify(permissions), maxSort.rows[0].next, targetOrgId]
     );
 
     res.json(result.rows[0]);
