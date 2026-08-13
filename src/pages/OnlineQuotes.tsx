@@ -125,7 +125,8 @@ export default function OnlineQuotes() {
 
   const handleDownloadPDF = async (quote: any) => {
     try {
-      const fullQuote = await api<any>(`/api/online-quotes/quotes/${quote.id}`);
+      const fullQuote = await api<any>(`/api/online-quotes/quotes/${quote.id}?export=true`);
+
       let org = null;
       try {
         if (user?.organization_id) {
@@ -143,7 +144,8 @@ export default function OnlineQuotes() {
 
   const handlePreviewQuote = async (quote: any) => {
     try {
-      const fullQuote = await api<any>(`/api/online-quotes/quotes/${quote.id}`);
+      const fullQuote = await api<any>(`/api/online-quotes/quotes/${quote.id}?export=true`);
+
       let org = null;
       try {
         if (user?.organization_id) {

@@ -615,14 +615,25 @@ router.get('/quotes/:id', async (req, res) => {
     }
 
     const orgIds = ctx.allOrgIds || [];
+    const isExport = req.query.export === 'true';
     
-    const quote = await query(
-      `SELECT q.*, t.cover_url as template_cover, t.header_text as template_header, t.footer_text as template_footer, t.footer_config as template_footer_config
+    // For exports/previews, we might want to relax the organization check if it's a valid quote ID
+    // and the user has some relation to it (is admin or the creator).
+    let quoteSql = `
+       SELECT q.*, t.cover_url as template_cover, t.header_text as template_header, t.footer_text as template_footer, t.footer_config as template_footer_config
        FROM online_quotes q
        LEFT JOIN online_quote_templates t ON q.template_id = t.id
-       WHERE q.id = $1 AND (q.organization_id = ANY($2::uuid[]) OR q.organization_id IS NULL OR $3 = true)`,
-      [req.params.id, orgIds, ctx.isSuperadmin]
-    );
+       WHERE q.id = $1`;
+    
+    const quoteParams = [req.params.id];
+
+    if (!ctx.isSuperadmin) {
+      quoteSql += ` AND (q.organization_id = ANY($2::uuid[]) OR q.organization_id IS NULL OR q.user_id = $3)`;
+      quoteParams.push(orgIds);
+      quoteParams.push(req.userId);
+    }
+
+    const quote = await query(quoteSql, quoteParams);
 
     if (quote.rows.length === 0) return res.status(404).json({ error: 'Quote not found' });
     
@@ -630,6 +641,7 @@ router.get('/quotes/:id', async (req, res) => {
       `SELECT * FROM online_quote_items WHERE quote_id = $1`,
       [req.params.id]
     );
+
     
     res.json({ ...quote.rows[0], items: items.rows });
   } catch (err) {
