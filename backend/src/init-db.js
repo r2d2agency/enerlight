@@ -4921,6 +4921,9 @@ DO $$ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'price_lists' AND column_name = 'markup_percentage') THEN
         ALTER TABLE price_lists ADD COLUMN markup_percentage DECIMAL(10, 2) DEFAULT 0;
     END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'price_lists' AND column_name = 'allowed_templates') THEN
+        ALTER TABLE price_lists ADD COLUMN allowed_templates JSONB DEFAULT '[]'::jsonb;
+    END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'online_quotes' AND column_name = 'footer_config') THEN
         ALTER TABLE online_quotes ADD COLUMN footer_config JSONB;
     END IF;
