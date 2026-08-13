@@ -28,9 +28,7 @@ router.get('/', authenticate, async (req, res) => {
     let sql = `SELECT * FROM permission_templates WHERE 1=1`;
     const params = [];
 
-    if (isSuperadmin) {
-      // Superadmins see everything
-    } else {
+    if (!isSuperadmin) {
       // Regular users see templates from their organizations OR global templates
       if (orgIds.length > 0) {
         sql += ` AND (organization_id IS NULL OR organization_id = ANY($1::uuid[]))`;
