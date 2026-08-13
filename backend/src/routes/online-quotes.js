@@ -274,10 +274,16 @@ router.get('/price-lists/:id/items', async (req, res) => {
 router.patch('/price-lists/:id/items/:productCode', async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
-    if (!ctx || !ctx.organizationId) {
-      logError('online-quotes.price-list-items.patch', new Error(`Unauthorized access attempt or missing organizationId for user ${req.userId}`));
+    if (!ctx) {
+      logError('online-quotes.price-list-items.patch', new Error(`Unauthorized access attempt or user not found: ${req.userId}`));
+      return res.status(403).json({ error: 'Unauthorized access' });
+    }
+
+    const orgId = ctx.organizationId;
+    if (!orgId && !ctx.isSuperadmin) {
       return res.status(403).json({ error: 'User not associated with any organization' });
     }
+
 
     const { 
       product_name, description, sale_price, cost_price, 
@@ -296,12 +302,13 @@ router.patch('/price-lists/:id/items/:productCode', async (req, res) => {
            subcategory = COALESCE($8, subcategory),
            brand = COALESCE($9, brand),
            updated_at = NOW() 
-       WHERE price_list_id = $10 AND product_code = $11`,
+       WHERE price_list_id = $10 AND product_code = $11 AND (EXISTS (SELECT 1 FROM price_lists WHERE id = $10 AND organization_id = $12) OR $13 = true)`,
       [
         product_name, description, sale_price, cost_price, 
         unit, image_url, category, subcategory, brand,
-        req.params.id, req.params.productCode
+        req.params.id, req.params.productCode, orgId, ctx.isSuperadmin
       ]
+
     );
     res.json({ success: true });
   } catch (err) {
