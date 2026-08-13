@@ -174,10 +174,16 @@ router.get('/price-lists', async (req, res) => {
 router.post('/price-lists', async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
-    if (!ctx || !ctx.organizationId) {
-      logError('online-quotes.price-lists.post', new Error(`Unauthorized access attempt or missing organizationId for user ${req.userId}`));
+    if (!ctx) {
+      logError('online-quotes.price-lists.post', new Error(`Unauthorized access attempt or user not found: ${req.userId}`));
+      return res.status(403).json({ error: 'Unauthorized access' });
+    }
+
+    const orgId = ctx.organizationId;
+    if (!orgId && !ctx.isSuperadmin) {
       return res.status(403).json({ error: 'User not associated with any organization' });
     }
+
 
     if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && !req.userPermissions?.can_manage_online_quotes) {
       return res.status(403).json({ error: 'Unauthorized' });
@@ -194,15 +200,17 @@ router.post('/price-lists', async (req, res) => {
       const result = await query(
         `UPDATE price_lists 
          SET name = $1, description = $2, segment = $3, is_active = $4, default_template_id = $5, allowed_templates = $6, updated_at = NOW()
-         WHERE id = $7 AND organization_id = $8 RETURNING *`,
-        [name, description, segment, is_active !== false, default_template_id || null, allowedTemplates, id, ctx.organizationId]
+         WHERE id = $7 AND (organization_id = $8 OR $9 = true) RETURNING *`,
+        [name, description, segment, is_active !== false, default_template_id || null, allowedTemplates, id, orgId, ctx.isSuperadmin]
+
       );
       res.json(result.rows[0]);
     } else {
       const result = await query(
         `INSERT INTO price_lists (organization_id, name, description, segment, default_template_id, allowed_templates) 
          VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-        [ctx.organizationId, name, description, segment, default_template_id || null, allowedTemplates]
+        [orgId, name, description, segment, default_template_id || null, allowedTemplates]
+
       );
       res.json(result.rows[0]);
     }
