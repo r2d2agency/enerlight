@@ -18,14 +18,14 @@ async function getUserContext(userId) {
       `SELECT om.organization_id, om.role, om.permission_template_id
        FROM organization_members om
        WHERE om.user_id = $1 AND om.status = 'active'
-       ORDER BY (CASE WHEN om.role = 'owner' THEN 1 WHEN om.role = 'admin' THEN 2 WHEN om.role = 'manager' THEN 3 ELSE 4 END) ASC
-       LIMIT 1`,
+       ORDER BY (CASE WHEN om.role = 'owner' THEN 1 WHEN om.role = 'admin' THEN 2 WHEN om.role = 'manager' THEN 3 ELSE 4 END) ASC`,
       [userId]
     );
     
     const organizationId = userResult.rows[0]?.organization_id || null;
     const role = userResult.rows[0]?.role || (isSuperadmin ? 'owner' : null);
     const permissionTemplateId = userResult.rows[0]?.permission_template_id || null;
+    const allOrgIds = userResult.rows.map(r => r.organization_id);
 
     const groupsResult = await query(
       `SELECT group_id FROM crm_user_group_members WHERE user_id = $1`,
@@ -34,6 +34,7 @@ async function getUserContext(userId) {
     
     return {
       organizationId,
+      allOrgIds,
       role,
       isSuperadmin,
       permissionTemplateId,
@@ -51,15 +52,15 @@ router.get('/templates', async (req, res) => {
     const ctx = await getUserContext(req.userId);
     if (!ctx) return res.json([]);
     
-    const orgId = ctx.organizationId;
+    const orgIds = ctx.allOrgIds || [];
     let sql = `SELECT * FROM online_quote_templates`;
     const params = [];
 
     if (ctx.isSuperadmin) {
       // Superadmins see all
-    } else if (orgId) {
-      sql += ` WHERE organization_id = $1`;
-      params.push(orgId);
+    } else if (orgIds.length > 0) {
+      sql += ` WHERE (organization_id = ANY($1::uuid[]) OR organization_id IS NULL)`;
+      params.push(orgIds);
     } else {
       // Return empty if no org and not superadmin
       return res.json([]);
@@ -147,13 +148,14 @@ router.get('/price-lists', async (req, res) => {
     if (ctx.isSuperadmin) {
        // Superadmin sees all active lists across orgs? 
        // Usually we filter by org unless it's global.
-       if (orgId) {
-         sql += ` AND pl.organization_id = $1`;
-         params.push(orgId);
+       const orgIds = ctx.allOrgIds || [];
+       if (orgIds.length > 0) {
+         sql += ` AND pl.organization_id = ANY($1::uuid[])`;
+         params.push(orgIds);
        }
-    } else if (orgId) {
-      sql += ` AND pl.organization_id = $1`;
-      params.push(orgId);
+    } else if (ctx.allOrgIds && ctx.allOrgIds.length > 0) {
+      sql += ` AND pl.organization_id = ANY($1::uuid[])`;
+      params.push(ctx.allOrgIds);
 
       if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && !req.userPermissions?.can_manage_online_quotes) {
         sql += ` AND (

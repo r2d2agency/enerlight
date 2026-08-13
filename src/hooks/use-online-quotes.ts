@@ -59,7 +59,7 @@ export function usePriceLists() {
   return useQuery({
     queryKey: ["price-lists"],
     queryFn: () => api<PriceList[]>("/api/online-quotes/price-lists"),
-    enabled: !!user?.organization_id,
+    enabled: !!user,
   });
 }
 
@@ -68,7 +68,7 @@ export function usePriceListItems(priceListId: string | null) {
   return useQuery({
     queryKey: ["price-list-items", priceListId],
     queryFn: () => api<PriceListItem[]>(`/api/online-quotes/price-lists/${priceListId}/items`),
-    enabled: !!priceListId && !!user?.organization_id,
+    enabled: !!priceListId && !!user,
   });
 }
 
@@ -77,7 +77,8 @@ export function useOnlineQuotes() {
   return useQuery({
     queryKey: ["online-quotes"],
     queryFn: () => api<OnlineQuote[]>("/api/online-quotes/quotes"),
-    enabled: !!user?.organization_id,
+    enabled: !!user,
+
   });
 }
 
@@ -86,7 +87,7 @@ export function useOnlineQuoteTemplates() {
   return useQuery({
     queryKey: ["online-quote-templates"],
     queryFn: () => api<OnlineQuoteTemplate[]>("/api/online-quotes/templates"),
-    enabled: !!user?.organization_id,
+    enabled: !!user,
   });
 }
 
