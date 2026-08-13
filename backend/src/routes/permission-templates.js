@@ -19,18 +19,21 @@ router.get('/', authenticate, async (req, res) => {
       `SELECT organization_id FROM organization_members WHERE user_id = $1 AND status = 'active'`,
       [req.userId]
     );
-    const orgIds = orgsResult.rows.map(r => r.organization_id);
+    const orgIds = orgsResult.rows.map(r => r.organization_id).filter(Boolean);
 
     let sql = `SELECT * FROM permission_templates WHERE 1=1`;
     const params = [];
 
     if (isSuperadmin) {
       // Superadmins see everything
-    } else if (orgIds.length > 0) {
-      sql += ` AND (organization_id = ANY($1::uuid[]) OR organization_id IS NULL)`;
-      params.push(orgIds.length > 0 ? orgIds : [null]);
     } else {
-      sql += ` AND organization_id IS NULL`;
+      // Regular users see templates from their organizations OR global templates
+      sql += ` AND (organization_id IS NULL`;
+      if (orgIds.length > 0) {
+        sql += ` OR organization_id = ANY($1::uuid[])`;
+        params.push(orgIds);
+      }
+      sql += `)`;
     }
 
     sql += ` ORDER BY sort_order ASC, created_at ASC`;
