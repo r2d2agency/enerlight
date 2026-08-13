@@ -47,28 +47,33 @@ router.get('/', authenticate, async (req, res) => {
 router.post('/', authenticate, async (req, res) => {
   try {
     const userResult = await query(
-      `SELECT u.is_superadmin, om.role FROM users u
-       LEFT JOIN organization_members om ON om.user_id = u.id
+      `SELECT u.is_superadmin, om.role, om.organization_id FROM users u
+       LEFT JOIN organization_members om ON om.user_id = u.id AND om.status = 'active'
        WHERE u.id = $1`,
       [req.userId]
     );
     const user = userResult.rows[0];
+    const isSuperadmin = !!user?.is_superadmin;
+    const activeOrgId = user?.organization_id || null;
     const isOwner = userResult.rows.some(r => r.role === 'owner');
-    if (!user?.is_superadmin && !isOwner) {
+
+    if (!isSuperadmin && !isOwner) {
       return res.status(403).json({ error: 'Sem permissão para criar templates' });
     }
 
-    const { name, description, icon, permissions } = req.body;
+    const { name, description, icon, permissions, organization_id } = req.body;
     if (!name || !permissions) {
       return res.status(400).json({ error: 'Nome e permissões são obrigatórios' });
     }
 
+    const targetOrgId = isSuperadmin ? (organization_id || null) : activeOrgId;
+
     const maxSort = await query(`SELECT COALESCE(MAX(sort_order), 0) + 1 as next FROM permission_templates`);
     
     const result = await query(
-      `INSERT INTO permission_templates (name, description, icon, permissions, sort_order)
-       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [name, description || null, icon || 'Users', JSON.stringify(permissions), maxSort.rows[0].next]
+      `INSERT INTO permission_templates (name, description, icon, permissions, sort_order, organization_id)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [name, description || null, icon || 'Users', JSON.stringify(permissions), maxSort.rows[0].next, targetOrgId]
     );
 
     res.json(result.rows[0]);
@@ -77,6 +82,7 @@ router.post('/', authenticate, async (req, res) => {
     res.status(500).json({ error: 'Erro ao criar template' });
   }
 });
+
 
 // Update template (superadmin or org owner)
 router.put('/:id', authenticate, async (req, res) => {
