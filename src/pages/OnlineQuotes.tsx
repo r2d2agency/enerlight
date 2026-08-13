@@ -73,7 +73,7 @@ export default function OnlineQuotes() {
     if (!pl.allowed_templates || pl.allowed_templates.length === 0 || pl.allowed_templates.includes('')) return true;
     
     // @ts-ignore - Assuming user might have permission_template_id
-    const userTemplateId = user?.permission_template_id;
+    const userTemplateId = user?.permission_template_id || '';
     return pl.allowed_templates.includes(userTemplateId);
   });
   
