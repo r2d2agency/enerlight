@@ -37,7 +37,7 @@ function HomeInner() {
     { to: link('cursos'), icon: BookOpen, title: 'Cursos', desc: 'Vídeo-aulas técnicas e novas técnicas de aplicação.', count: stats.courses, cta: 'Explorar', border: accent },
     { to: link('manuais'), icon: FileText, title: 'Manuais', desc: 'Documentação técnica e tabelas de aplicação.', count: stats.manuals, cta: 'Consultar', border: primary },
     { to: link('certificados'), icon: Award, title: 'Certificados', desc: 'Valide seu conhecimento e baixe seus PDFs oficiais.', count: stats.certificates, cta: 'Visualizar', border: accent },
-    { to: link('catalogos'), icon: ShoppingBag, title: 'Catálogo', desc: 'Portfólio oficial de produtos e materiais técnicos.', count: stats.catalogs, cta: 'Explorar', border: '#334155' },
+    { to: link('catalogos'), icon: ShoppingBag, title: 'Catálogos', desc: 'Portfólio oficial de produtos e materiais técnicos.', count: stats.catalogs, cta: 'Explorar', border: '#334155' },
   ];
 
   return (

@@ -36,7 +36,7 @@ function fmtShort(v: number) {
 
 export function MonthProjectionCard({
   filterUserId, filterChannel, filterGroupId,
-  quotesGoal = 0, ordersGoal = 0, billingGoal = 0,
+  quotesGoal = 0, ordersGoal = 0, billingGoal = 1200000,
 }: Props) {
   const today = new Date();
   const monthStart = format(startOfMonth(today), "yyyy-MM-dd");
