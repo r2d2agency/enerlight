@@ -28,7 +28,7 @@ router.get('/', authenticate, async (req, res) => {
       // Superadmins see everything
     } else if (orgIds.length > 0) {
       sql += ` AND (organization_id = ANY($1::uuid[]) OR organization_id IS NULL)`;
-      params.push(orgIds);
+      params.push(orgIds.length > 0 ? orgIds : [null]);
     } else {
       sql += ` AND organization_id IS NULL`;
     }
