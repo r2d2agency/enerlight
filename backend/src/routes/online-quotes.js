@@ -9,38 +9,26 @@ router.use(authenticate);
 // Helper: Get user's organization and groups
 async function getUserContext(userId) {
   try {
+    // Basic user info first
+    const userBase = await query(`SELECT id, is_superadmin FROM users WHERE id = $1`, [userId]);
+    if (userBase.rows.length === 0) return null;
+    
+    const isSuperadmin = !!userBase.rows[0].is_superadmin;
+
     const userResult = await query(
-      `SELECT u.id, u.is_superadmin, om.organization_id, om.role, om.permission_template_id
-       FROM users u
-       LEFT JOIN organization_members om ON om.user_id = u.id
-       WHERE u.id = $1
-       ORDER BY (CASE WHEN om.organization_id IS NOT NULL THEN 1 ELSE 2 END) ASC, 
-                (CASE WHEN om.role = 'owner' THEN 1 WHEN om.role = 'admin' THEN 2 WHEN om.role = 'manager' THEN 3 ELSE 4 END) ASC
+      `SELECT om.organization_id, om.role, om.permission_template_id
+       FROM organization_members om
+       WHERE om.user_id = $1
+       ORDER BY (CASE WHEN om.role = 'owner' THEN 1 WHEN om.role = 'admin' THEN 2 WHEN om.role = 'manager' THEN 3 ELSE 4 END) ASC
        LIMIT 1`,
       [userId]
     );
     
-    if (userResult.rows.length === 0) {
-      // Fallback for superadmins not in any organization_members
-      const superadminResult = await query(`SELECT id, is_superadmin FROM users WHERE id = $1 AND is_superadmin = true`, [userId]);
-      if (superadminResult.rows[0]) {
-         return {
-           organizationId: null,
-           role: 'owner',
-           isSuperadmin: true,
-           permissionTemplateId: null,
-           groupIds: []
-         };
-      }
-      return null;
-    }
-    
-    const isSuperadmin = !!userResult.rows[0].is_superadmin;
-    let organizationId = userResult.rows[0].organization_id || null;
+    let organizationId = userResult.rows[0]?.organization_id || null;
+    let role = userResult.rows[0]?.role || (isSuperadmin ? 'owner' : null);
+    let permissionTemplateId = userResult.rows[0]?.permission_template_id || null;
 
-    // If superadmin but no org_member record, organizationId will be null above
-    // If they ARE in an org, we use that one.
-    
+    // Groups
     const groupsResult = await query(
       `SELECT group_id FROM crm_user_group_members WHERE user_id = $1`,
       [userId]
@@ -48,9 +36,9 @@ async function getUserContext(userId) {
     
     return {
       organizationId,
-      role: userResult.rows[0].role || (isSuperadmin ? 'owner' : null),
+      role,
       isSuperadmin,
-      permissionTemplateId: userResult.rows[0].permission_template_id || null,
+      permissionTemplateId,
       groupIds: groupsResult.rows.map(g => g.group_id)
     };
   } catch (err) {
