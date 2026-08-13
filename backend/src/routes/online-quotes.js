@@ -12,7 +12,7 @@ async function getUserContext(userId) {
     const userBase = await query(`SELECT id, is_superadmin FROM users WHERE id = $1`, [userId]);
     if (userBase.rows.length === 0) return null;
     
-    const isSuperadmin = !!userBase.rows[0].is_superadmin;
+    const isSuperadmin = userBase.rows[0].is_superadmin === true;
 
     const userResult = await query(
       `SELECT om.organization_id, om.role, om.permission_template_id
@@ -23,7 +23,7 @@ async function getUserContext(userId) {
     );
     
     const organizationId = userResult.rows[0]?.organization_id || null;
-    const role = userResult.rows[0]?.role || (isSuperadmin ? 'owner' : null);
+    const role = isSuperadmin ? 'owner' : (userResult.rows[0]?.role || null);
     const permissionTemplateId = userResult.rows[0]?.permission_template_id || null;
     const allOrgIds = userResult.rows.map(r => r.organization_id);
 
@@ -256,7 +256,7 @@ router.get('/price-lists/:id/items', async (req, res) => {
 
 
     // Cost price is only returned for admins/managers
-    const showCost = ctx.role === 'admin' || ctx.role === 'manager' || ctx.role === 'owner' || req.userPermissions?.can_manage_online_quotes || req.userPermissions?.can_edit_price_lists;
+    const showCost = ctx.isSuperadmin || ctx.role === 'admin' || ctx.role === 'manager' || ctx.role === 'owner' || req.userPermissions?.can_manage_online_quotes || req.userPermissions?.can_edit_price_lists;
     const fields = showCost 
       ? 'id, product_code, product_name, description, sale_price, min_price, cost_price, unit, image_url, category, subcategory, brand'
       : 'id, product_code, product_name, description, sale_price, min_price, unit, image_url, category, subcategory, brand';
