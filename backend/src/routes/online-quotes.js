@@ -14,12 +14,15 @@ async function getUserContext(userId) {
        FROM users u
        LEFT JOIN organization_members om ON om.user_id = u.id
        WHERE u.id = $1
-       ORDER BY (CASE WHEN om.organization_id IS NOT NULL THEN 1 ELSE 2 END), om.organization_id ASC
+       ORDER BY (CASE WHEN om.organization_id IS NOT NULL THEN 1 ELSE 2 END), 
+                (CASE WHEN om.role = 'owner' THEN 1 WHEN om.role = 'admin' THEN 2 ELSE 3 END) ASC
        LIMIT 1`,
       [userId]
     );
     
     if (userResult.rows.length === 0) return null;
+    
+    const organizationId = userResult.rows[0].organization_id || null;
     
     const groupsResult = await query(
       `SELECT group_id FROM crm_user_group_members WHERE user_id = $1`,
@@ -27,7 +30,7 @@ async function getUserContext(userId) {
     );
     
     return {
-      organizationId: userResult.rows[0].organization_id || null,
+      organizationId,
       role: userResult.rows[0].role || null,
       isSuperadmin: !!userResult.rows[0].is_superadmin,
       permissionTemplateId: userResult.rows[0].permission_template_id || null,
