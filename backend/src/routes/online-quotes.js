@@ -8,15 +8,16 @@ router.use(authenticate);
 
 // Helper: Get user's organization and groups
 async function getUserContext(userId) {
-  const orgResult = await query(
-    `SELECT om.organization_id, om.role 
-     FROM organization_members om 
-     WHERE om.user_id = $1 
+  const userResult = await query(
+    `SELECT u.is_superadmin, om.organization_id, om.role, om.permission_template_id
+     FROM users u
+     LEFT JOIN organization_members om ON om.user_id = u.id
+     WHERE u.id = $1
      LIMIT 1`,
     [userId]
   );
   
-  if (orgResult.rows.length === 0) return null;
+  if (userResult.rows.length === 0) return null;
   
   const groupsResult = await query(
     `SELECT group_id FROM crm_user_group_members WHERE user_id = $1`,
@@ -24,8 +25,10 @@ async function getUserContext(userId) {
   );
   
   return {
-    organizationId: orgResult.rows[0].organization_id,
-    role: orgResult.rows[0].role,
+    organizationId: userResult.rows[0].organization_id,
+    role: userResult.rows[0].role,
+    isSuperadmin: userResult.rows[0].is_superadmin,
+    permissionTemplateId: userResult.rows[0].permission_template_id,
     groupIds: groupsResult.rows.map(g => g.group_id)
   };
 }
@@ -105,9 +108,13 @@ router.get('/price-lists', async (req, res) => {
     
     const params = [ctx.organizationId];
     
-    if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner') {
-      sql += ` AND (pla.user_id = $2 OR pla.group_id = ANY($3::uuid[]))`;
-      params.push(req.userId, ctx.groupIds);
+    if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && !ctx.isSuperadmin) {
+      sql += ` AND (
+        (pla.user_id = $2 OR pla.group_id = ANY($3::uuid[]))
+        OR 
+        (pl.allowed_templates IS NULL OR pl.allowed_templates = '[]'::jsonb OR pl.allowed_templates @> jsonb_build_array($4::text))
+      )`;
+      params.push(req.userId, ctx.groupIds, ctx.permissionTemplateId);
     }
 
 
@@ -127,21 +134,23 @@ router.post('/price-lists', async (req, res) => {
     if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && !req.userPermissions?.can_manage_online_quotes) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
-    const { id, name, description, segment, is_active, default_template_id } = req.body;
+    const { id, name, description, segment, is_active, default_template_id, allowed_templates } = req.body;
     
+    const allowedTemplates = Array.isArray(allowed_templates) ? JSON.stringify(allowed_templates) : '[]';
+
     if (id) {
       const result = await query(
         `UPDATE price_lists 
-         SET name = $1, description = $2, segment = $3, is_active = $4, default_template_id = $5, updated_at = NOW()
-         WHERE id = $6 AND organization_id = $7 RETURNING *`,
-        [name, description, segment, is_active !== false, default_template_id || null, id, ctx.organizationId]
+         SET name = $1, description = $2, segment = $3, is_active = $4, default_template_id = $5, allowed_templates = $6, updated_at = NOW()
+         WHERE id = $7 AND organization_id = $8 RETURNING *`,
+        [name, description, segment, is_active !== false, default_template_id || null, allowedTemplates, id, ctx.organizationId]
       );
       res.json(result.rows[0]);
     } else {
       const result = await query(
-        `INSERT INTO price_lists (organization_id, name, description, segment, default_template_id) 
-         VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-        [ctx.organizationId, name, description, segment, default_template_id || null]
+        `INSERT INTO price_lists (organization_id, name, description, segment, default_template_id, allowed_templates) 
+         VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+        [ctx.organizationId, name, description, segment, default_template_id || null, allowedTemplates]
       );
       res.json(result.rows[0]);
     }
