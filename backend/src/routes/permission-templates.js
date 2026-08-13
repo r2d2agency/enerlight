@@ -121,8 +121,9 @@ router.put('/:id', authenticate, async (req, res) => {
       `UPDATE permission_templates SET name = COALESCE($1, name), description = $2, icon = COALESCE($3, icon), 
        permissions = COALESCE($4, permissions), organization_id = COALESCE($5, organization_id) 
        WHERE id = $6 RETURNING *`,
-      [name, description || null, icon, permissions ? JSON.stringify(permissions) : null, isSuperadmin ? organization_id : undefined, req.params.id]
+      [name, description || null, icon, permissions ? JSON.stringify(permissions) : null, isSuperadmin ? (organization_id || null) : undefined, req.params.id]
     );
+
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Template não encontrado' });

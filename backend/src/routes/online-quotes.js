@@ -580,11 +580,11 @@ router.get('/quotes', async (req, res) => {
 
     if (ctx.isSuperadmin) {
       if (orgIds.length > 0) {
-        sql += ` AND q.organization_id = ANY($1::uuid[])`;
+        sql += ` AND (q.organization_id = ANY($1::uuid[]) OR q.organization_id IS NULL)`;
         params.push(orgIds);
       }
     } else if (orgIds.length > 0) {
-      sql += ` AND q.organization_id = ANY($1::uuid[])`;
+      sql += ` AND (q.organization_id = ANY($1::uuid[]) OR q.organization_id IS NULL)`;
       params.push(orgIds);
 
       if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && ctx.role !== 'supervisor' && !req.userPermissions?.can_manage_online_quotes) {
@@ -605,21 +605,23 @@ router.get('/quotes', async (req, res) => {
   }
 });
 
+
 // Get a single quote with items
 router.get('/quotes/:id', async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
-    if (!ctx || !ctx.organizationId) {
-      logError('online-quotes.quote.get', new Error(`Unauthorized access attempt or missing organizationId for user ${req.userId}`));
-      return res.status(403).json({ error: 'User not associated with any organization' });
+    if (!ctx) {
+      return res.status(403).json({ error: 'Unauthorized' });
     }
 
+    const orgIds = ctx.allOrgIds || [];
+    
     const quote = await query(
       `SELECT q.*, t.cover_url as template_cover, t.header_text as template_header, t.footer_text as template_footer, t.footer_config as template_footer_config
        FROM online_quotes q
        LEFT JOIN online_quote_templates t ON q.template_id = t.id
-       WHERE q.id = $1 AND q.organization_id = $2`,
-      [req.params.id, ctx.organizationId]
+       WHERE q.id = $1 AND (q.organization_id = ANY($2::uuid[]) OR q.organization_id IS NULL OR $3 = true)`,
+      [req.params.id, orgIds, ctx.isSuperadmin]
     );
 
     if (quote.rows.length === 0) return res.status(404).json({ error: 'Quote not found' });
@@ -635,6 +637,7 @@ router.get('/quotes/:id', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch quote' });
   }
 });
+
 
 // Delete a quote (Support both DELETE and POST /delete/:id)
 const deleteQuoteHandler = async (req, res) => {
