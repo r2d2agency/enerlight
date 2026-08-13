@@ -129,10 +129,9 @@ router.post('/templates', async (req, res) => {
 router.get('/price-lists', async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
-    if (!ctx || !ctx.organizationId) {
-      logWarn('online-quotes.price-lists.get.unauthorized', { userId: req.userId });
-      return res.status(403).json({ error: 'User not associated with any organization' });
-    }
+    if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
+    
+    const orgId = ctx.organizationId;
 
     // Admins and Managers see all. Sellers see lists assigned to them or their groups.
     let sql = `
@@ -142,7 +141,7 @@ router.get('/price-lists', async (req, res) => {
       WHERE pl.organization_id = $1 AND pl.is_active = true
     `;
     
-    const params = [ctx.organizationId];
+    const params = [orgId];
     
     if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && ctx.isSuperadmin !== true && !req.userPermissions?.can_manage_online_quotes) {
       sql += ` AND (
