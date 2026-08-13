@@ -12,7 +12,7 @@ async function getUserContext(userId) {
     const userBase = await query(`SELECT id, is_superadmin FROM users WHERE id = $1`, [userId]);
     if (userBase.rows.length === 0) return null;
     
-    const isSuperadmin = !!userBase.rows[0].is_superadmin;
+    const isSuperadmin = userBase.rows[0].is_superadmin === true;
 
     const userResult = await query(
       `SELECT om.organization_id, om.role, om.permission_template_id
@@ -23,7 +23,7 @@ async function getUserContext(userId) {
     );
     
     const organizationId = userResult.rows[0]?.organization_id || null;
-    const role = userResult.rows[0]?.role || (isSuperadmin ? 'owner' : null);
+    const role = isSuperadmin ? 'owner' : (userResult.rows[0]?.role || null);
     const permissionTemplateId = userResult.rows[0]?.permission_template_id || null;
     const allOrgIds = userResult.rows.map(r => r.organization_id);
 
@@ -91,7 +91,7 @@ router.post('/templates', async (req, res) => {
       return res.status(403).json({ error: 'User not associated with any organization' });
     }
 
-    if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && !req.userPermissions?.can_manage_online_quotes && !req.userPermissions?.can_edit_price_lists) {
+    if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && !req.userPermissions?.can_manage_online_quotes && !req.userPermissions?.can_edit_price_lists && !ctx.isSuperadmin) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
     const { id, name, description, cover_url, header_text, footer_text, footer_config, fiscal_info, is_default } = req.body;
@@ -194,7 +194,7 @@ router.post('/price-lists', async (req, res) => {
     }
 
 
-    if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && !req.userPermissions?.can_manage_online_quotes && !req.userPermissions?.can_edit_price_lists) {
+    if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && !req.userPermissions?.can_manage_online_quotes && !req.userPermissions?.can_edit_price_lists && !ctx.isSuperadmin) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
     const { id, name, description, segment, is_active, default_template_id, allowed_templates } = req.body;
@@ -256,7 +256,7 @@ router.get('/price-lists/:id/items', async (req, res) => {
 
 
     // Cost price is only returned for admins/managers
-    const showCost = ctx.role === 'admin' || ctx.role === 'manager' || ctx.role === 'owner' || req.userPermissions?.can_manage_online_quotes || req.userPermissions?.can_edit_price_lists;
+    const showCost = ctx.isSuperadmin || ctx.role === 'admin' || ctx.role === 'manager' || ctx.role === 'owner' || req.userPermissions?.can_manage_online_quotes || req.userPermissions?.can_edit_price_lists;
     const fields = showCost 
       ? 'id, product_code, product_name, description, sale_price, min_price, cost_price, unit, image_url, category, subcategory, brand'
       : 'id, product_code, product_name, description, sale_price, min_price, unit, image_url, category, subcategory, brand';
@@ -655,14 +655,19 @@ router.get('/quotes/:id', async (req, res) => {
 const deleteQuoteHandler = async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
-    if (!ctx || !ctx.organizationId) {
-      logError('online-quotes.quotes.delete', new Error(`Unauthorized access attempt or missing organizationId for user ${req.userId}`));
+    if (!ctx) {
+      logError('online-quotes.quotes.delete', new Error(`Unauthorized access attempt for user ${req.userId}`));
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    const orgId = ctx.organizationId;
+    if (!orgId && !ctx.isSuperadmin) {
       return res.status(403).json({ error: 'User not associated with any organization' });
     }
 
     // Admins/Managers can delete any quote in their org. Sellers only their own.
-    let sql = `DELETE FROM online_quotes WHERE id = $1 AND organization_id = $2`;
-    const params = [req.params.id, ctx.organizationId];
+    let sql = `DELETE FROM online_quotes WHERE id = $1 AND (organization_id = $2 OR $3 = true)`;
+    const params = [req.params.id, orgId, ctx.isSuperadmin];
 
     if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && ctx.isSuperadmin !== true) {
       sql += ` AND user_id = $3`;
@@ -689,8 +694,13 @@ router.post('/quotes/delete/:id', deleteQuoteHandler);
 router.post('/companies/create-from-quote', async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
-    if (!ctx || !ctx.organizationId) {
-      logError('online-quotes.companies.create-from-quote', new Error(`Unauthorized access attempt or missing organizationId for user ${req.userId}`));
+    if (!ctx) {
+      logError('online-quotes.companies.create-from-quote', new Error(`Unauthorized access attempt for user ${req.userId}`));
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    const orgId = ctx.organizationId;
+    if (!orgId && !ctx.isSuperadmin) {
       return res.status(403).json({ error: 'User not associated with any organization' });
     }
 
@@ -700,8 +710,8 @@ router.post('/companies/create-from-quote', async (req, res) => {
     const cnpj = document ? document.replace(/\D/g, '') : null;
 
     // Isolation logic: representatives only see/reuse their own created companies
-    let checkSql = `SELECT id FROM crm_companies WHERE organization_id = $1 AND (name = $2`;
-    const checkParams = [ctx.organizationId, name];
+    let checkSql = `SELECT id FROM crm_companies WHERE (organization_id = $1 OR organization_id IS NULL) AND (name = $2`;
+    const checkParams = [orgId, name];
 
     if (cnpj) {
       checkSql += ` OR cnpj = $3`;
@@ -724,7 +734,7 @@ router.post('/companies/create-from-quote', async (req, res) => {
       `INSERT INTO crm_companies (organization_id, name, cnpj, email, phone, created_by)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING id`,
-      [ctx.organizationId, name, cnpj, email || null, phone || null, req.userId]
+      [orgId, name, cnpj, email || null, phone || null, req.userId]
     );
 
     res.json({ id: result.rows[0].id, existing: false });
