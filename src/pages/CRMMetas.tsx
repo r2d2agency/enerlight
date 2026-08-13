@@ -99,10 +99,9 @@ function formatRealMarkup(totalValue: number, totalCost: number, fallbackAvgMarg
   const mk = computeRealMarkup(totalValue, totalCost);
   if (mk > 0) {
     const decimal = mk.toFixed(2).replace('.', ',');
-    const percentage = Math.round((mk - 1) * 100);
     return (
       <span>
-        {decimal} <span className="text-[10px] font-normal text-muted-foreground">({percentage}%)</span>
+        {decimal}
       </span>
     );
   }
