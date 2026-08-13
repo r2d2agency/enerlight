@@ -10,12 +10,12 @@ router.use(authenticate);
 async function getUserContext(userId) {
   try {
     const userResult = await query(
-      `SELECT u.is_superadmin, om.organization_id, om.role, om.permission_template_id
+      `SELECT u.id, u.is_superadmin, om.organization_id, om.role, om.permission_template_id
        FROM users u
        LEFT JOIN organization_members om ON om.user_id = u.id
        WHERE u.id = $1
-       ORDER BY (CASE WHEN om.organization_id IS NOT NULL THEN 1 ELSE 2 END), 
-                (CASE WHEN om.role = 'owner' THEN 1 WHEN om.role = 'admin' THEN 2 ELSE 3 END) ASC
+       ORDER BY (CASE WHEN om.organization_id IS NOT NULL THEN 1 ELSE 2 END) ASC, 
+                (CASE WHEN om.role = 'owner' THEN 1 WHEN om.role = 'admin' THEN 2 WHEN om.role = 'manager' THEN 3 ELSE 4 END) ASC
        LIMIT 1`,
       [userId]
     );
