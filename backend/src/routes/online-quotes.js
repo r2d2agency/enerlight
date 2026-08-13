@@ -430,10 +430,16 @@ router.post('/quotes', async (req, res) => {
 router.put('/quotes/:id', async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
-    if (!ctx || !ctx.organizationId) {
-      logError('online-quotes.update', new Error(`Unauthorized access attempt or missing organizationId for user ${req.userId}`));
+    if (!ctx) {
+      logError('online-quotes.update', new Error(`Unauthorized access attempt or user not found: ${req.userId}`));
+      return res.status(403).json({ error: 'Unauthorized access' });
+    }
+
+    const orgId = ctx.organizationId;
+    if (!orgId && !ctx.isSuperadmin) {
       return res.status(403).json({ error: 'User not associated with any organization' });
     }
+
 
     const { 
       client_name, client_document, client_email, client_phone, 
@@ -445,8 +451,9 @@ router.put('/quotes/:id', async (req, res) => {
 
     // Verify ownership/access
     const existingCheck = await query(
-      `SELECT user_id FROM online_quotes WHERE id = $1 AND organization_id = $2`,
-      [req.params.id, ctx.organizationId]
+      `SELECT user_id FROM online_quotes WHERE id = $1 AND (organization_id = $2 OR $3 = true)`,
+      [req.params.id, orgId, ctx.isSuperadmin]
+
     );
 
     if (existingCheck.rows.length === 0) {
