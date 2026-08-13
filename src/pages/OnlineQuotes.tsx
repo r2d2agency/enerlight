@@ -395,7 +395,15 @@ export default function OnlineQuotes() {
                           </div>
                         </div>
                         
-                        <div className="flex items-center justify-end gap-1 mt-4 sm:mt-0 pt-3 sm:pt-0 border-t sm:border-t-0 border-dashed">
+                        <div className="flex items-center justify-end gap-3 mt-4 sm:mt-0 pt-3 sm:pt-0 border-t sm:border-t-0 border-dashed">
+                          {isAdmin && (
+                            <div className="flex flex-col items-end mr-2">
+                              <Badge variant="outline" className="text-[10px] mb-0.5 px-1 h-4">Vendedor</Badge>
+                              <span className="text-[11px] text-muted-foreground font-medium truncate max-w-[100px]">
+                                {quote.user_name || 'N/A'}
+                              </span>
+                            </div>
+                          )}
                           <Button 
                             variant="ghost" 
                             size="sm" 

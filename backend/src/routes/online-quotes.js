@@ -480,7 +480,11 @@ router.get('/quotes', async (req, res) => {
       return res.status(403).json({ error: 'User not associated with any organization' });
     }
 
-    let sql = `SELECT q.*, q.client_document as cnpj FROM online_quotes q WHERE q.organization_id = $1`;
+    let sql = `
+      SELECT q.*, q.client_document as cnpj, u.name as user_name 
+      FROM online_quotes q 
+      LEFT JOIN users u ON q.user_id = u.id
+      WHERE q.organization_id = $1`;
     const params = [ctx.organizationId];
     
     if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && ctx.role !== 'supervisor' && ctx.isSuperadmin !== true && !req.userPermissions?.can_manage_online_quotes) {
