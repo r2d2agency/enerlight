@@ -39,9 +39,9 @@ export default function OnlineQuotes() {
   const [dateFilter, setDateFilter] = useState<string>("all");
   const [editingPriceList, setEditingPriceList] = useState<any>(null);
 
-  const isQuoteAdmin = ['owner', 'admin', 'manager'].includes(user?.role || '') || user?.user_permissions?.can_manage_online_quotes;
+  const isQuoteAdmin = ['owner', 'admin', 'manager'].includes(user?.role || '') || user?.user_permissions?.can_manage_online_quotes || user?.user_permissions?.can_edit_price_lists;
   const isSuperadmin = user?.is_superadmin === true;
-  const isAdmin = isSuperadmin || ['owner', 'admin', 'manager'].includes(user?.role || '') || user?.user_permissions?.can_view_all_representative_quotes;
+  const isAdmin = isSuperadmin || ['owner', 'admin', 'manager'].includes(user?.role || '') || user?.user_permissions?.can_view_all_representative_quotes || user?.user_permissions?.can_manage_online_quotes || user?.user_permissions?.can_edit_price_lists;
 
 
   const canEditPriceLists = isQuoteAdmin || user?.user_permissions?.can_edit_price_lists;
