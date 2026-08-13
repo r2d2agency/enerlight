@@ -17,7 +17,7 @@ async function getUserContext(userId) {
     const userResult = await query(
       `SELECT om.organization_id, om.role, om.permission_template_id
        FROM organization_members om
-       WHERE om.user_id = $1
+       WHERE om.user_id = $1 AND om.status = 'active'
        ORDER BY (CASE WHEN om.role = 'owner' THEN 1 WHEN om.role = 'admin' THEN 2 WHEN om.role = 'manager' THEN 3 ELSE 4 END) ASC
        LIMIT 1`,
       [userId]
@@ -90,7 +90,7 @@ router.post('/templates', async (req, res) => {
       return res.status(403).json({ error: 'User not associated with any organization' });
     }
 
-    if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && !req.userPermissions?.can_manage_online_quotes) {
+    if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && !req.userPermissions?.can_manage_online_quotes && !req.userPermissions?.can_edit_price_lists) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
     const { id, name, description, cover_url, header_text, footer_text, footer_config, fiscal_info, is_default } = req.body;
@@ -192,7 +192,7 @@ router.post('/price-lists', async (req, res) => {
     }
 
 
-    if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && !req.userPermissions?.can_manage_online_quotes) {
+    if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && !req.userPermissions?.can_manage_online_quotes && !req.userPermissions?.can_edit_price_lists) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
     const { id, name, description, segment, is_active, default_template_id, allowed_templates } = req.body;
@@ -254,7 +254,7 @@ router.get('/price-lists/:id/items', async (req, res) => {
 
 
     // Cost price is only returned for admins/managers
-    const showCost = ctx.role === 'admin' || ctx.role === 'manager' || ctx.role === 'owner' || req.userPermissions?.can_manage_online_quotes;
+    const showCost = ctx.role === 'admin' || ctx.role === 'manager' || ctx.role === 'owner' || req.userPermissions?.can_manage_online_quotes || req.userPermissions?.can_edit_price_lists;
     const fields = showCost 
       ? 'id, product_code, product_name, description, sale_price, min_price, cost_price, unit, image_url, category, subcategory, brand'
       : 'id, product_code, product_name, description, sale_price, min_price, unit, image_url, category, subcategory, brand';
