@@ -140,15 +140,30 @@ router.put('/:id', authenticate, async (req, res) => {
 router.delete('/:id', authenticate, async (req, res) => {
   try {
     const userResult = await query(
-      `SELECT u.is_superadmin, om.role FROM users u
-       LEFT JOIN organization_members om ON om.user_id = u.id
+      `SELECT u.is_superadmin, om.role, om.organization_id FROM users u
+       LEFT JOIN organization_members om ON om.user_id = u.id AND om.status = 'active'
        WHERE u.id = $1`,
       [req.userId]
     );
     const user = userResult.rows[0];
+    const isSuperadmin = !!user?.is_superadmin;
+    const orgIds = userResult.rows.map(r => r.organization_id).filter(Boolean);
     const isOwner = userResult.rows.some(r => r.role === 'owner');
-    if (!user?.is_superadmin && !isOwner) {
+
+    if (!isSuperadmin && !isOwner) {
       return res.status(403).json({ error: 'Sem permissão para excluir templates' });
+    }
+
+    if (!isSuperadmin) {
+      const templateCheck = await query(
+        `SELECT organization_id FROM permission_templates WHERE id = $1`,
+        [req.params.id]
+      );
+      if (templateCheck.rows.length === 0) return res.status(404).json({ error: 'Template não encontrado' });
+      const tOrgId = templateCheck.rows[0].organization_id;
+      if (tOrgId && !orgIds.includes(tOrgId)) {
+        return res.status(403).json({ error: 'Sem acesso a este template' });
+      }
     }
 
     await query(`DELETE FROM permission_templates WHERE id = $1`, [req.params.id]);
@@ -158,5 +173,6 @@ router.delete('/:id', authenticate, async (req, res) => {
     res.status(500).json({ error: 'Erro ao excluir template' });
   }
 });
+
 
 export default router;
