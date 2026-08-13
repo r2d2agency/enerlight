@@ -8,22 +8,19 @@ const router = Router();
 router.get('/', authenticate, async (req, res) => {
   try {
     const userResult = await query(
-      `SELECT om.organization_id, u.is_superadmin 
-       FROM users u
-       LEFT JOIN organization_members om ON om.user_id = u.id
-       WHERE u.id = $1
-       ORDER BY (CASE WHEN om.organization_id IS NOT NULL THEN 1 ELSE 2 END) ASC
-       LIMIT 1`,
+      `SELECT u.is_superadmin FROM users u WHERE u.id = $1`,
       [req.userId]
     );
 
-    const organizationId = userResult.rows[0]?.organization_id;
     const isSuperadmin = !!userResult.rows[0]?.is_superadmin;
-
-    // Allow fetching templates if they belong to an org OR if they are superadmin.
-    // If they have no org and aren't superadmin, we still return templates where organization_id IS NULL (global templates)
-    // instead of throwing 403.
     
+    // Get organizationId if exists
+    const orgResult = await query(
+      `SELECT organization_id FROM organization_members WHERE user_id = $1 LIMIT 1`,
+      [req.userId]
+    );
+    const organizationId = orgResult.rows[0]?.organization_id;
+
     let sql = `SELECT * FROM permission_templates WHERE 1=1`;
     const params = [];
 
@@ -33,7 +30,6 @@ router.get('/', authenticate, async (req, res) => {
       sql += ` AND (organization_id = $1 OR organization_id IS NULL)`;
       params.push(organizationId);
     } else {
-      // Users without an org only see global templates
       sql += ` AND organization_id IS NULL`;
     }
 
