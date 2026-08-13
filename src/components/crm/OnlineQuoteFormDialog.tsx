@@ -456,7 +456,12 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
                         <SelectValue placeholder="Selecione uma tabela..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {priceLists?.map(pl => (
+                        {priceLists?.filter(pl => {
+                          if (!pl.is_active) return false;
+                          if (!pl.allowed_templates || pl.allowed_templates.length === 0) return true;
+                          const userTemplateId = (user as any)?.permission_template_id;
+                          return pl.allowed_templates.includes(userTemplateId);
+                        }).map(pl => (
                           <SelectItem key={pl.id} value={pl.id}>
                             {pl.name} {pl.segment ? `[${pl.segment}]` : ""}
                           </SelectItem>
