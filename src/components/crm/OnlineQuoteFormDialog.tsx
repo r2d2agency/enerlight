@@ -137,11 +137,17 @@ export function OnlineQuoteFormDialog({ open, onOpenChange, initialData }: Onlin
   useEffect(() => {
     if (selectedPriceListId && !initialData) {
       const priceList = priceLists?.find(pl => pl.id === selectedPriceListId);
+      
+      // Auto-select fixed template if price list has one
       if (priceList?.default_template_id) {
         setSelectedTemplateId(priceList.default_template_id);
+      } else if (templates?.length) {
+        // Fallback to default template or first one if no fixed template
+        const defaultTpl = templates.find(t => t.is_default) || templates[0];
+        setSelectedTemplateId(defaultTpl.id);
       }
     }
-  }, [selectedPriceListId, priceLists, initialData]);
+  }, [selectedPriceListId, priceLists, templates, initialData]);
 
   const handleAddItem = (product: any) => {
     const existing = quoteItems.find(item => item.product_code === product.product_code);
