@@ -694,8 +694,13 @@ router.post('/quotes/delete/:id', deleteQuoteHandler);
 router.post('/companies/create-from-quote', async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
-    if (!ctx || !ctx.organizationId) {
-      logError('online-quotes.companies.create-from-quote', new Error(`Unauthorized access attempt or missing organizationId for user ${req.userId}`));
+    if (!ctx) {
+      logError('online-quotes.companies.create-from-quote', new Error(`Unauthorized access attempt for user ${req.userId}`));
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    const orgId = ctx.organizationId;
+    if (!orgId && !ctx.isSuperadmin) {
       return res.status(403).json({ error: 'User not associated with any organization' });
     }
 
@@ -705,8 +710,8 @@ router.post('/companies/create-from-quote', async (req, res) => {
     const cnpj = document ? document.replace(/\D/g, '') : null;
 
     // Isolation logic: representatives only see/reuse their own created companies
-    let checkSql = `SELECT id FROM crm_companies WHERE organization_id = $1 AND (name = $2`;
-    const checkParams = [ctx.organizationId, name];
+    let checkSql = `SELECT id FROM crm_companies WHERE (organization_id = $1 OR organization_id IS NULL) AND (name = $2`;
+    const checkParams = [orgId, name];
 
     if (cnpj) {
       checkSql += ` OR cnpj = $3`;
@@ -729,7 +734,7 @@ router.post('/companies/create-from-quote', async (req, res) => {
       `INSERT INTO crm_companies (organization_id, name, cnpj, email, phone, created_by)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING id`,
-      [ctx.organizationId, name, cnpj, email || null, phone || null, req.userId]
+      [orgId, name, cnpj, email || null, phone || null, req.userId]
     );
 
     res.json({ id: result.rows[0].id, existing: false });
