@@ -345,11 +345,16 @@ router.post('/price-lists/:id/items/bulk', async (req, res) => {
 router.post('/quotes', async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
+    if (!ctx) {
+      logError('online-quotes.create', new Error(`Unauthorized access attempt or user not found: ${req.userId}`));
+      return res.status(403).json({ error: 'Unauthorized access' });
+    }
 
-    if (!ctx || !ctx.organizationId) {
-      logError('online-quotes.create', new Error(`Unauthorized access attempt or missing organizationId for user ${req.userId}`));
+    const orgId = ctx.organizationId;
+    if (!orgId && !ctx.isSuperadmin) {
       return res.status(403).json({ error: 'User not associated with any organization' });
     }
+
     const { 
       client_name, client_document, client_email, client_phone, 
       price_list_id, template_id, items, cover_image_url, fiscal_info, footer_text, footer_config, valid_until, notes,
@@ -366,7 +371,7 @@ router.post('/quotes', async (req, res) => {
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
        RETURNING id`,
       [
-        ctx.organizationId, req.userId, client_name, client_document, client_email, client_phone, 
+        orgId, req.userId, client_name, client_document, client_email, client_phone, 
         price_list_id, template_id || null, cover_image_url, footer_text, fConfig, valid_until, notes, 
         include_images ?? true, payment_terms, payment_method
       ]
