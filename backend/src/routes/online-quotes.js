@@ -11,7 +11,7 @@ async function getUserContext(userId) {
   const userResult = await query(
     `SELECT u.is_superadmin, om.organization_id, om.role, om.permission_template_id
      FROM users u
-     LEFT JOIN organization_members om ON om.user_id = u.id
+     LEFT JOIN organization_members om ON om.user_id = u.id AND om.organization_id = (SELECT organization_id FROM organization_members WHERE user_id = u.id LIMIT 1)
      WHERE u.id = $1
      LIMIT 1`,
     [userId]
@@ -100,7 +100,10 @@ router.post('/templates', async (req, res) => {
 router.get('/price-lists', async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
-    if (!ctx || !ctx.organizationId) return res.status(403).json({ error: 'User not associated with any organization' });
+    if (!ctx || !ctx.organizationId) {
+      logError('online-quotes.price-lists.get', new Error(`Unauthorized access attempt or missing organizationId for user ${req.userId}`));
+      return res.status(403).json({ error: 'User not associated with any organization' });
+    }
 
 
     // Admins and Managers see all. Sellers see lists assigned to them or their groups.
