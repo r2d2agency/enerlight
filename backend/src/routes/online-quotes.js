@@ -20,9 +20,26 @@ async function getUserContext(userId) {
       [userId]
     );
     
-    if (userResult.rows.length === 0) return null;
+    if (userResult.rows.length === 0) {
+      // Fallback for superadmins not in any organization_members
+      const superadminResult = await query(`SELECT id, is_superadmin FROM users WHERE id = $1 AND is_superadmin = true`, [userId]);
+      if (superadminResult.rows[0]) {
+         return {
+           organizationId: null,
+           role: 'owner',
+           isSuperadmin: true,
+           permissionTemplateId: null,
+           groupIds: []
+         };
+      }
+      return null;
+    }
     
-    const organizationId = userResult.rows[0].organization_id || null;
+    const isSuperadmin = !!userResult.rows[0].is_superadmin;
+    let organizationId = userResult.rows[0].organization_id || null;
+
+    // If superadmin but no org_member record, organizationId will be null above
+    // If they ARE in an org, we use that one.
     
     const groupsResult = await query(
       `SELECT group_id FROM crm_user_group_members WHERE user_id = $1`,
@@ -31,8 +48,8 @@ async function getUserContext(userId) {
     
     return {
       organizationId,
-      role: userResult.rows[0].role || null,
-      isSuperadmin: !!userResult.rows[0].is_superadmin,
+      role: userResult.rows[0].role || (isSuperadmin ? 'owner' : null),
+      isSuperadmin,
       permissionTemplateId: userResult.rows[0].permission_template_id || null,
       groupIds: groupsResult.rows.map(g => g.group_id)
     };
