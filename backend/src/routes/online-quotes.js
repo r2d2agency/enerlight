@@ -65,14 +65,23 @@ router.get('/templates', async (req, res) => {
     const ctx = await getUserContext(req.userId);
     if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
     
-    // If superadmin not in an org, they won't have anything to see here anyway unless they join one, 
-    // but we allow the query to run (it will return empty if organizationId is null)
     const orgId = ctx.organizationId;
+    let sql = `SELECT * FROM online_quote_templates`;
+    const params = [];
 
-    const result = await query(
-      `SELECT * FROM online_quote_templates WHERE organization_id = $1 ORDER BY is_default DESC, name ASC`,
-      [orgId]
-    );
+    if (ctx.isSuperadmin) {
+      // Superadmins see all
+    } else if (orgId) {
+      sql += ` WHERE organization_id = $1`;
+      params.push(orgId);
+    } else {
+      // Return empty if no org and not superadmin
+      return res.json([]);
+    }
+
+    sql += ` ORDER BY is_default DESC, name ASC`;
+
+    const result = await query(sql, params);
     res.json(result.rows);
   } catch (err) {
     logError('online-quotes.templates.get', err);
@@ -138,20 +147,33 @@ router.get('/price-lists', async (req, res) => {
       SELECT DISTINCT pl.* 
       FROM price_lists pl
       LEFT JOIN price_list_access pla ON pl.id = pla.price_list_id
-      WHERE pl.organization_id = $1 AND pl.is_active = true
+      WHERE pl.is_active = true
     `;
-    
-    const params = [orgId];
-    
-    if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && ctx.isSuperadmin !== true && !req.userPermissions?.can_manage_online_quotes) {
-      sql += ` AND (
-        pla.user_id = $2 OR pla.group_id = ANY($3::uuid[])
-        OR 
-        pl.allowed_templates IS NULL OR pl.allowed_templates = '[]'::jsonb OR pl.allowed_templates @> jsonb_build_array($4::text)
-        OR
-        pl.allowed_templates @> jsonb_build_array('')
-      )`;
-      params.push(req.userId, ctx.groupIds || [], ctx.permissionTemplateId || '');
+    const params = [];
+
+    if (ctx.isSuperadmin) {
+       // Superadmin sees all active lists across orgs? 
+       // Usually we filter by org unless it's global.
+       if (orgId) {
+         sql += ` AND pl.organization_id = $1`;
+         params.push(orgId);
+       }
+    } else if (orgId) {
+      sql += ` AND pl.organization_id = $1`;
+      params.push(orgId);
+
+      if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && !req.userPermissions?.can_manage_online_quotes) {
+        sql += ` AND (
+          pla.user_id = $2 OR pla.group_id = ANY($3::uuid[])
+          OR 
+          pl.allowed_templates IS NULL OR pl.allowed_templates = '[]'::jsonb OR pl.allowed_templates @> jsonb_build_array($4::text)
+          OR
+          pl.allowed_templates @> jsonb_build_array('')
+        )`;
+        params.push(req.userId, ctx.groupIds || [], ctx.permissionTemplateId || '');
+      }
+    } else {
+      return res.json([]);
     }
 
     const result = await query(sql, params);
@@ -507,16 +529,27 @@ router.get('/quotes', async (req, res) => {
       SELECT q.*, q.client_document as cnpj, u.name as user_name 
       FROM online_quotes q 
       LEFT JOIN users u ON q.user_id = u.id
-      WHERE q.organization_id = $1`;
-    const params = [orgId];
-    
-    if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && ctx.role !== 'supervisor' && ctx.isSuperadmin !== true && !req.userPermissions?.can_manage_online_quotes) {
-      sql += ` AND q.user_id = $2`;
-      params.push(req.userId);
-    }
+      WHERE 1=1`;
+    const params = [];
 
+    if (ctx.isSuperadmin) {
+      if (orgId) {
+        sql += ` AND q.organization_id = $1`;
+        params.push(orgId);
+      }
+    } else if (orgId) {
+      sql += ` AND q.organization_id = $1`;
+      params.push(orgId);
+
+      if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && ctx.role !== 'supervisor' && !req.userPermissions?.can_manage_online_quotes) {
+        sql += ` AND q.user_id = $${params.length + 1}`;
+        params.push(req.userId);
+      }
+    } else {
+      return res.json([]);
+    }
     
-    sql += ` ORDER BY created_at DESC`;
+    sql += ` ORDER BY q.created_at DESC`;
     
     const result = await query(sql, params);
     res.json(result.rows);

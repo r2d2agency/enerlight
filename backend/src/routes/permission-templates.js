@@ -20,16 +20,26 @@ router.get('/', authenticate, async (req, res) => {
     const organizationId = userResult.rows[0]?.organization_id;
     const isSuperadmin = !!userResult.rows[0]?.is_superadmin;
 
-    if (!isSuperadmin && !organizationId) {
-      return res.status(403).json({ error: 'User not associated with any organization' });
+    // Allow fetching templates if they belong to an org OR if they are superadmin.
+    // If they have no org and aren't superadmin, we still return templates where organization_id IS NULL (global templates)
+    // instead of throwing 403.
+    
+    let sql = `SELECT * FROM permission_templates WHERE 1=1`;
+    const params = [];
+
+    if (isSuperadmin) {
+      // Superadmins see everything
+    } else if (organizationId) {
+      sql += ` AND (organization_id = $1 OR organization_id IS NULL)`;
+      params.push(organizationId);
+    } else {
+      // Users without an org only see global templates
+      sql += ` AND organization_id IS NULL`;
     }
 
-    const result = await query(
-      `SELECT * FROM permission_templates 
-       WHERE (organization_id = $1 OR organization_id IS NULL)
-       ORDER BY sort_order ASC, created_at ASC`,
-      [organizationId]
-    );
+    sql += ` ORDER BY sort_order ASC, created_at ASC`;
+
+    const result = await query(sql, params);
     res.json(result.rows);
   } catch (error) {
     console.error('Get permission templates error:', error);
