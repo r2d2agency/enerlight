@@ -1,0 +1,108 @@
+import { useState, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { MainLayout } from "@/components/layout/MainLayout";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useGoals, useGoalDashboard, useGoalMutations, Goal } from "@/hooks/use-goals";
+import { useCommissionSummary } from "@/hooks/use-commission";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useCRMMyTeam, useCRMGroups } from "@/hooks/use-crm";
+import { useAuth } from "@/contexts/AuthContext";
+import { api } from "@/lib/api";
+import { GoalsImportDialog } from "@/components/crm/GoalsImportDialog";
+import { ImportBatchList } from "@/components/crm/ImportBatchList";
+import { DailyEvolutionTable } from "@/components/crm/DailyEvolutionTable";
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  Tooltip, ResponsiveContainer, Legend, ComposedChart, Line,
+  PieChart, Pie, Cell,
+} from "recharts";
+import { GoalsReportConfigDialog } from "@/components/crm/GoalsReportConfigDialog";
+
+const PIE_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#06b6d4", "#84cc16"];
+import {
+  Target, Plus, Edit2, Trash2, Users, TrendingUp, Upload,
+  Briefcase, DollarSign, CalendarDays, Loader2, BarChart3,
+  Trophy, Medal, Award, FileText, ShoppingCart, Receipt, MessageSquare,
+  Search, ChevronLeft, ChevronRight, List, MapPin, Wallet, Truck,
+  ArrowUp, ArrowDown, ArrowUpDown,
+} from "lucide-react";
+import { GoalsMapTab } from "@/components/crm/GoalsMapTab";
+import { QuarterlyViewTab } from "@/components/crm/QuarterlyViewTab";
+import { WeeklyViewTab } from "@/components/crm/WeeklyViewTab";
+import { FollowupBoardsTab } from "@/components/crm/FollowupBoardsTab";
+import { SalesFunnelCard } from "@/components/crm/SalesFunnelCard";
+import { DailyEvolutionChart } from "@/components/crm/DailyEvolutionChart";
+import { MonthProjectionCard } from "@/components/crm/MonthProjectionCard";
+import { format, startOfMonth, startOfWeek, endOfWeek, endOfMonth } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { exportToExcel } from "@/lib/xlsx-export";
+
+import { isBusinessDay } from "@/lib/brazilian-holidays";
+
+const METRICS = [
+  { value: "quotes_count", label: "Orçamentos (Qtd)", icon: FileText, group: "orcamento" },
+  { value: "quotes_value", label: "Orçamentos (R$)", icon: FileText, group: "orcamento" },
+  { value: "orders_count", label: "Pedidos (Qtd)", icon: ShoppingCart, group: "pedido" },
+  { value: "orders_value", label: "Pedidos (R$)", icon: ShoppingCart, group: "pedido" },
+  { value: "billing_count", label: "Faturamento (Qtd)", icon: Receipt, group: "faturamento" },
+  { value: "billing_value", label: "Faturamento (R$)", icon: Receipt, group: "faturamento" },
+  { value: "conversion_rate", label: "Taxa de Conversão (%)", icon: Target, group: "outros" },
+];
+
+// Override de meta usado apenas no dashboard/relatório de Faturamento
+const DASHBOARD_GOAL_OVERRIDES = { billing_value: 1200000 };
+
+const PERIODS = [
+  { value: "daily", label: "Diária" },
+  { value: "weekly", label: "Semanal" },
+  { value: "monthly", label: "Mensal" },
+];
+
+function fmt(v: number) {
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 0 }).format(v);
+}
+
+function getMarkupMultiplierFromMargin(avgMargin: number) {
+  if (!Number.isFinite(avgMargin) || avgMargin <= 0) return 0;
+  if (avgMargin >= 100) return 1 + (avgMargin / 100);
+  return 1 / (1 - (avgMargin / 100));
+}
+
+function formatMarkupFromMargin(avgMargin: number) {
+  const markupX = getMarkupMultiplierFromMargin(avgMargin);
+  if (markupX <= 0) return '0,00';
+  const decimal = markupX.toFixed(2).replace('.', ',');
+  return (
+    <span>
+      {decimal}
+    </span>
+  );
+}
+
+// Real markup based on total value / total cost (weighted by every product)
+function computeRealMarkup(totalValue: number, totalCost: number) {
+  if (!Number.isFinite(totalValue) || !Number.isFinite(totalCost) || totalCost <= 0) return 0;
+  return totalValue / totalCost;
+}
+
+function formatRealMarkup(totalValue: number, totalCost: number, fallbackAvgMargin = 0) {
+  const mk = computeRealMarkup(totalValue, totalCost);
+  if (mk > 0) {
+    const decimal = mk.toFixed(2).replace('.', ',');
+    return (
+      <span>
+        {decimal}
+      </span>
+    );
+  }
+  return formatMarkupFromMargin(fallbackAvgMargin);
+}
