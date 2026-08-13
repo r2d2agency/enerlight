@@ -343,9 +343,10 @@ export default function OnlineQuotes() {
                 </div>
               </CardHeader>
               <CardContent>
-                {loadingQuotes ? (
-                  <div className="flex items-center justify-center py-12">
+                {loadingQuotes || loadingTemplates || loadingPriceLists ? (
+                  <div className="flex items-center justify-center py-12 flex-col gap-2">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <p className="text-xs text-muted-foreground animate-pulse">Carregando informações...</p>
                   </div>
                 ) : filteredQuotes && filteredQuotes.length > 0 ? (
                   <div className="grid gap-3">
