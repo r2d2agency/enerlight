@@ -55,7 +55,7 @@ router.post('/', authenticate, async (req, res) => {
     const user = userResult.rows[0];
     const isSuperadmin = !!user?.is_superadmin;
     const activeOrgId = user?.organization_id || null;
-    const isOwner = userResult.rows.some(r => r.role === 'owner');
+    const isOwner = userResult.rows.some(r => r.role === 'owner' || r.role === 'admin');
 
     if (!isSuperadmin && !isOwner) {
       return res.status(403).json({ error: 'Sem permissão para criar templates' });
