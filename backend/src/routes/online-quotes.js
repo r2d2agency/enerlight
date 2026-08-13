@@ -9,7 +9,6 @@ router.use(authenticate);
 // Helper: Get user's organization and groups
 async function getUserContext(userId) {
   try {
-    // Basic user info first
     const userBase = await query(`SELECT id, is_superadmin FROM users WHERE id = $1`, [userId]);
     if (userBase.rows.length === 0) return null;
     
@@ -24,11 +23,10 @@ async function getUserContext(userId) {
       [userId]
     );
     
-    let organizationId = userResult.rows[0]?.organization_id || null;
-    let role = userResult.rows[0]?.role || (isSuperadmin ? 'owner' : null);
-    let permissionTemplateId = userResult.rows[0]?.permission_template_id || null;
+    const organizationId = userResult.rows[0]?.organization_id || null;
+    const role = userResult.rows[0]?.role || (isSuperadmin ? 'owner' : null);
+    const permissionTemplateId = userResult.rows[0]?.permission_template_id || null;
 
-    // Groups
     const groupsResult = await query(
       `SELECT group_id FROM crm_user_group_members WHERE user_id = $1`,
       [userId]
@@ -51,7 +49,7 @@ async function getUserContext(userId) {
 router.get('/templates', async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
-    if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
+    if (!ctx) return res.json([]);
     
     const orgId = ctx.organizationId;
     let sql = `SELECT * FROM online_quote_templates`;
@@ -126,7 +124,7 @@ router.post('/templates', async (req, res) => {
 router.get('/price-lists', async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
-    if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
+    if (!ctx) return res.json([]);
     
     const orgId = ctx.organizationId;
 
@@ -509,7 +507,7 @@ router.put('/quotes/:id', async (req, res) => {
 router.get('/quotes', async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
-    if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
+    if (!ctx) return res.json([]);
     
     const orgId = ctx.organizationId;
 
