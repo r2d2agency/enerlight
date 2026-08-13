@@ -63,14 +63,15 @@ async function getUserContext(userId) {
 router.get('/templates', async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
-    if (!ctx || !ctx.organizationId) {
-      logWarn('online-quotes.templates.get.unauthorized', { userId: req.userId });
-      return res.status(403).json({ error: 'User not associated with any organization' });
-    }
+    if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
+    
+    // If superadmin not in an org, they won't have anything to see here anyway unless they join one, 
+    // but we allow the query to run (it will return empty if organizationId is null)
+    const orgId = ctx.organizationId;
 
     const result = await query(
       `SELECT * FROM online_quote_templates WHERE organization_id = $1 ORDER BY is_default DESC, name ASC`,
-      [ctx.organizationId]
+      [orgId]
     );
     res.json(result.rows);
   } catch (err) {
@@ -499,17 +500,16 @@ router.put('/quotes/:id', async (req, res) => {
 router.get('/quotes', async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
-    if (!ctx || !ctx.organizationId) {
-      logWarn('online-quotes.quotes.get.unauthorized', { userId: req.userId });
-      return res.status(403).json({ error: 'User not associated with any organization' });
-    }
+    if (!ctx) return res.status(403).json({ error: 'User not associated with any organization' });
+    
+    const orgId = ctx.organizationId;
 
     let sql = `
       SELECT q.*, q.client_document as cnpj, u.name as user_name 
       FROM online_quotes q 
       LEFT JOIN users u ON q.user_id = u.id
       WHERE q.organization_id = $1`;
-    const params = [ctx.organizationId];
+    const params = [orgId];
     
     if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && ctx.role !== 'supervisor' && ctx.isSuperadmin !== true && !req.userPermissions?.can_manage_online_quotes) {
       sql += ` AND q.user_id = $2`;
