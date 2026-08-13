@@ -128,6 +128,8 @@ router.get('/price-lists', async (req, res) => {
         pla.user_id = $2 OR pla.group_id = ANY($3::uuid[])
         OR 
         pl.allowed_templates IS NULL OR pl.allowed_templates = '[]'::jsonb OR pl.allowed_templates @> jsonb_build_array($4::text)
+        OR
+        pl.allowed_templates @> jsonb_build_array('')
       )`;
       params.push(req.userId, ctx.groupIds || [], ctx.permissionTemplateId || '');
     }
