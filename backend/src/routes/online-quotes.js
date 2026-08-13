@@ -232,19 +232,26 @@ router.get('/price-lists/:id/items', async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
 
-    if (!ctx || !ctx.organizationId) {
-      logError('online-quotes.price-list-items.get', new Error(`Unauthorized access attempt or missing organizationId for user ${req.userId}`));
+    if (!ctx) {
+      logError('online-quotes.price-list-items.get', new Error(`Unauthorized access attempt or user not found: ${req.userId}`));
+      return res.status(403).json({ error: 'Unauthorized access' });
+    }
+
+    const orgId = ctx.organizationId;
+    if (!orgId && !ctx.isSuperadmin) {
       return res.status(403).json({ error: 'User not associated with any organization' });
     }
+
     // Security check: verify access to this price list
     const accessCheck = await query(
       `SELECT organization_id FROM price_lists WHERE id = $1`,
       [req.params.id]
     );
     
-    if (accessCheck.rows.length === 0 || accessCheck.rows[0].organization_id !== ctx.organizationId) {
+    if (accessCheck.rows.length === 0 || (accessCheck.rows[0].organization_id !== orgId && !ctx.isSuperadmin)) {
       return res.status(403).json({ error: 'Access denied to this price list' });
     }
+
 
     // Cost price is only returned for admins/managers
     const showCost = ctx.role === 'admin' || ctx.role === 'manager' || ctx.role === 'owner' || req.userPermissions?.can_manage_online_quotes;
