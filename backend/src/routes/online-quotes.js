@@ -156,7 +156,11 @@ router.post('/price-lists', async (req, res) => {
     }
     const { id, name, description, segment, is_active, default_template_id, allowed_templates } = req.body;
     
-    const allowedTemplates = Array.isArray(allowed_templates) ? JSON.stringify(allowed_templates) : '[]';
+    let allowedTemplates = '[]';
+    if (Array.isArray(allowed_templates)) {
+      // Se não houver nada selecionado na UI, salvamos como [''] para indicar acesso global/fallback
+      allowedTemplates = allowed_templates.length === 0 ? '[""]' : JSON.stringify(allowed_templates);
+    }
 
     if (id) {
       const result = await query(
