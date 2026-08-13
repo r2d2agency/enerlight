@@ -322,11 +322,28 @@ router.post('/price-lists/:id/items/bulk', async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
 
-    if (!ctx || !ctx.organizationId) {
-      logError('online-quotes.price-list-items.bulk', new Error(`Unauthorized access attempt or missing organizationId for user ${req.userId}`));
+    if (!ctx) {
+      logError('online-quotes.price-list-items.bulk', new Error(`Unauthorized access attempt or user not found: ${req.userId}`));
+      return res.status(403).json({ error: 'Unauthorized access' });
+    }
+
+    const orgId = ctx.organizationId;
+    if (!orgId && !ctx.isSuperadmin) {
       return res.status(403).json({ error: 'User not associated with any organization' });
     }
-    const { items } = req.body; // items: { product_code, product_name, description, sale_price, cost_price, unit, image_url }
+
+    // Security check: verify access to this price list
+    const accessCheck = await query(
+      `SELECT organization_id FROM price_lists WHERE id = $1`,
+      [req.params.id]
+    );
+    
+    if (accessCheck.rows.length === 0 || (accessCheck.rows[0].organization_id !== orgId && !ctx.isSuperadmin)) {
+      return res.status(403).json({ error: 'Access denied to this price list' });
+    }
+
+    const { items } = req.body;
+
     
     for (const item of items) {
       await query(
