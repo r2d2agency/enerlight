@@ -29,9 +29,12 @@ router.get('/', authenticate, async (req, res) => {
     } else {
       // Regular users see templates from their organizations OR global templates
       sql += ` AND (organization_id IS NULL`;
-      if (orgIds.length > 0) {
+      if (orgIds && orgIds.length > 0) {
         sql += ` OR organization_id = ANY($1::uuid[])`;
         params.push(orgIds);
+      } else {
+        // Guarantee we don't have an empty params array if we reached here with IS NULL
+        // but have logic that might expect $1. However, here we just don't add the ANY.
       }
       sql += `)`;
     }
