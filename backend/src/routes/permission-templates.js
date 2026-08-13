@@ -12,6 +12,10 @@ router.get('/', authenticate, async (req, res) => {
       [req.userId]
     );
 
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Usuário não encontrado' });
+    }
+
     const isSuperadmin = !!userResult.rows[0]?.is_superadmin;
     
     // Get all organization IDs where user is member
@@ -24,16 +28,14 @@ router.get('/', authenticate, async (req, res) => {
     let sql = `SELECT * FROM permission_templates WHERE 1=1`;
     const params = [];
 
-    if (isSuperadmin) {
-      // Superadmins see everything
-    } else {
+    if (!isSuperadmin) {
       // Regular users see templates from their organizations OR global templates
-      sql += ` AND (organization_id IS NULL`;
       if (orgIds.length > 0) {
-        sql += ` OR organization_id = ANY($1::uuid[])`;
+        sql += ` AND (organization_id IS NULL OR organization_id = ANY($1::uuid[]))`;
         params.push(orgIds);
+      } else {
+        sql += ` AND organization_id IS NULL`;
       }
-      sql += `)`;
     }
 
     sql += ` ORDER BY sort_order ASC, created_at ASC`;
@@ -42,7 +44,10 @@ router.get('/', authenticate, async (req, res) => {
     res.json(result.rows);
   } catch (error) {
     console.error('Get permission templates error:', error);
-    res.status(500).json({ error: 'Erro ao buscar templates' });
+    res.status(500).json({ 
+      error: 'Erro ao buscar templates',
+      details: error.message 
+    });
   }
 });
 
