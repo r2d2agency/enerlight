@@ -96,7 +96,7 @@ router.put('/:id', authenticate, async (req, res) => {
     const user = userResult.rows[0];
     const isSuperadmin = !!user?.is_superadmin;
     const orgIds = userResult.rows.map(r => r.organization_id).filter(Boolean);
-    const isOwner = userResult.rows.some(r => r.role === 'owner');
+    const isOwner = userResult.rows.some(r => r.role === 'owner' || r.role === 'admin');
 
     if (!isSuperadmin && !isOwner) {
       return res.status(403).json({ error: 'Sem permissão para editar templates' });
