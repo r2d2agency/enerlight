@@ -40,7 +40,8 @@ export default function OnlineQuotes() {
   const [editingPriceList, setEditingPriceList] = useState<any>(null);
 
   const isQuoteAdmin = ['owner', 'admin', 'manager'].includes(user?.role || '') || user?.user_permissions?.can_manage_online_quotes;
-  const isAdmin = ['owner', 'admin', 'manager'].includes(user?.role || '') || user?.user_permissions?.can_view_all_representative_quotes;
+  const isSuperadmin = user?.is_superadmin === true;
+  const isAdmin = isSuperadmin || ['owner', 'admin', 'manager'].includes(user?.role || '') || user?.user_permissions?.can_view_all_representative_quotes;
 
 
   const canEditPriceLists = isQuoteAdmin || user?.user_permissions?.can_edit_price_lists;
@@ -72,7 +73,7 @@ export default function OnlineQuotes() {
     if (!pl.allowed_templates || pl.allowed_templates.length === 0 || pl.allowed_templates.includes('')) return true;
     
     // @ts-ignore - Assuming user might have permission_template_id
-    const userTemplateId = user?.permission_template_id;
+    const userTemplateId = user?.permission_template_id || '';
     return pl.allowed_templates.includes(userTemplateId);
   });
   
