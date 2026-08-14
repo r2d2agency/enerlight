@@ -78,7 +78,7 @@ router.get('/', async (req, res) => {
     if (!org) return res.status(403).json({ error: 'Sem organização' });
 
 
-    const { search, status, seller, reason, date_from, date_to, only_mine, rma_type, supplier } = req.query;
+    const { search, status, seller, reason, date_from, date_to, only_mine, rma_type, supplier, created_by } = req.query;
     let sql = `
       SELECT d.*,
         u.name as seller_name,
@@ -102,13 +102,14 @@ router.get('/', async (req, res) => {
     let i = 2;
 
     const elevated = ['owner', 'admin', 'superadmin', 'manager'].includes(org.role);
-    if (only_mine === '1' || (!elevated && !seller)) {
+    if (only_mine === '1' || (!elevated && !seller && !created_by)) {
       sql += ` AND (d.seller_user_id = $${i} OR d.created_by = $${i})`;
       params.push(req.userId); i++;
     }
     if (search) { sql += ` AND (COALESCE(d.customer_name,'') ILIKE $${i} OR COALESCE(d.supplier_name,'') ILIKE $${i} OR d.description ILIKE $${i} OR CAST(d.numero AS TEXT) ILIKE $${i})`; params.push(`%${search}%`); i++; }
     if (status) { sql += ` AND d.status = $${i}`; params.push(status); i++; }
     if (seller) { sql += ` AND d.seller_user_id = $${i}`; params.push(seller); i++; }
+    if (created_by) { sql += ` AND d.created_by = $${i}`; params.push(created_by); i++; }
     if (reason) { sql += ` AND d.reason = $${i}`; params.push(reason); i++; }
     if (rma_type && rma_type !== 'all') { sql += ` AND COALESCE(d.rma_type,'cliente') = $${i}`; params.push(rma_type); i++; }
     if (supplier) { sql += ` AND d.supplier_name ILIKE $${i}`; params.push(`%${supplier}%`); i++; }
