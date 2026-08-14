@@ -129,6 +129,7 @@ export interface DevolucaoFilters {
   search?: string;
   status?: string;
   seller?: string;
+  created_by?: string;
   reason?: string;
   date_from?: string;
   date_to?: string;
@@ -142,6 +143,7 @@ export function useDevolucoes(filters?: DevolucaoFilters) {
   if (filters?.search) params.set('search', filters.search);
   if (filters?.status) params.set('status', filters.status);
   if (filters?.seller) params.set('seller', filters.seller);
+  if (filters?.created_by) params.set('created_by', filters.created_by);
   if (filters?.reason) params.set('reason', filters.reason);
   if (filters?.date_from) params.set('date_from', filters.date_from);
   if (filters?.date_to) params.set('date_to', filters.date_to);

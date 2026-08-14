@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDevolucoes, useDevolucoesStats, useDevolucaoSlaConfig, STATUS_LABELS, REASON_LABELS, DevolucaoStatus } from "@/hooks/use-devolucoes";
+import { useOrganizations } from "@/hooks/use-organizations";
 import { DevolucaoKanban } from "@/components/devolucoes/DevolucaoKanban";
 import { DevolucaoFormDialog } from "@/components/devolucoes/DevolucaoFormDialog";
 import { DevolucaoDetailDialog } from "@/components/devolucoes/DevolucaoDetailDialog";
@@ -32,8 +33,14 @@ const STATUS_COLORS: Record<string, string> = {
   cancelado: 'bg-gray-200 text-gray-700',
 };
 
+interface OrgMemberOption {
+  user_id: string;
+  name: string;
+}
+
 export default function Devolucoes() {
   const { user, userPermissions } = useAuth();
+  const { getMembers } = useOrganizations();
   const role = user?.role || '';
   const isElevated = ['owner', 'admin', 'manager', 'supervisor'].includes(role);
   const canCreate = isElevated || userPermissions?.can_create_devolucoes !== false;
@@ -47,16 +54,25 @@ export default function Devolucoes() {
   const [reason, setReason] = useState<string>('all');
   const [sla, setSla] = useState<string>('all');
   const [rmaType, setRmaType] = useState<'all' | 'cliente' | 'fornecedor'>('all');
+  const [createdBy, setCreatedBy] = useState<string>('all');
+  const [members, setMembers] = useState<OrgMemberOption[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showSlaConfig, setShowSlaConfig] = useState(false);
 
+  useEffect(() => {
+    if (!user?.organization_id || !canSeeAll) return;
+    getMembers(user.organization_id).then((list) => {
+      setMembers(list.filter((m) => m.is_active !== false).map((m) => ({ user_id: m.user_id, name: m.name })));
+    });
+  }, [user?.organization_id, canSeeAll, getMembers]);
 
   const filters = {
     search: search || undefined,
     status: status !== 'all' ? status : undefined,
     reason: reason !== 'all' ? reason : undefined,
+    created_by: createdBy !== 'all' ? createdBy : undefined,
     rma_type: rmaType,
   };
   const { data: allDevolucoes = [], isLoading } = useDevolucoes(filters);
@@ -183,6 +199,17 @@ export default function Devolucoes() {
                 <SelectItem value="on_time">No prazo</SelectItem>
               </SelectContent>
             </Select>
+            {canSeeAll && (
+              <Select value={createdBy} onValueChange={setCreatedBy}>
+                <SelectTrigger className="md:w-52"><SelectValue placeholder="Solicitado por" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Quem solicitou</SelectItem>
+                  {members.map((m) => (
+                    <SelectItem key={m.user_id} value={m.user_id}>{m.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
             {!simplified && (
               <Tabs value={view} onValueChange={(v: any) => setView(v)}>
                 <TabsList><TabsTrigger value="kanban">Kanban</TabsTrigger><TabsTrigger value="lista">Lista</TabsTrigger></TabsList>
