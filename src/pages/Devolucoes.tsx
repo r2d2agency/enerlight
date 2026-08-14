@@ -199,6 +199,17 @@ export default function Devolucoes() {
                 <SelectItem value="on_time">No prazo</SelectItem>
               </SelectContent>
             </Select>
+            {canSeeAll && (
+              <Select value={createdBy} onValueChange={setCreatedBy}>
+                <SelectTrigger className="md:w-52"><SelectValue placeholder="Solicitado por" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Quem solicitou</SelectItem>
+                  {members.map((m) => (
+                    <SelectItem key={m.user_id} value={m.user_id}>{m.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
             {!simplified && (
               <Tabs value={view} onValueChange={(v: any) => setView(v)}>
                 <TabsList><TabsTrigger value="kanban">Kanban</TabsTrigger><TabsTrigger value="lista">Lista</TabsTrigger></TabsList>
