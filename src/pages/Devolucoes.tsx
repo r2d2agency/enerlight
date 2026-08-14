@@ -33,8 +33,14 @@ const STATUS_COLORS: Record<string, string> = {
   cancelado: 'bg-gray-200 text-gray-700',
 };
 
+interface OrgMemberOption {
+  user_id: string;
+  name: string;
+}
+
 export default function Devolucoes() {
   const { user, userPermissions } = useAuth();
+  const { getMembers } = useOrganizations();
   const role = user?.role || '';
   const isElevated = ['owner', 'admin', 'manager', 'supervisor'].includes(role);
   const canCreate = isElevated || userPermissions?.can_create_devolucoes !== false;
@@ -48,16 +54,25 @@ export default function Devolucoes() {
   const [reason, setReason] = useState<string>('all');
   const [sla, setSla] = useState<string>('all');
   const [rmaType, setRmaType] = useState<'all' | 'cliente' | 'fornecedor'>('all');
+  const [createdBy, setCreatedBy] = useState<string>('all');
+  const [members, setMembers] = useState<OrgMemberOption[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showSlaConfig, setShowSlaConfig] = useState(false);
 
+  useEffect(() => {
+    if (!user?.organization_id || !canSeeAll) return;
+    getMembers(user.organization_id).then((list) => {
+      setMembers(list.filter((m) => m.is_active !== false).map((m) => ({ user_id: m.user_id, name: m.name })));
+    });
+  }, [user?.organization_id, canSeeAll, getMembers]);
 
   const filters = {
     search: search || undefined,
     status: status !== 'all' ? status : undefined,
     reason: reason !== 'all' ? reason : undefined,
+    created_by: createdBy !== 'all' ? createdBy : undefined,
     rma_type: rmaType,
   };
   const { data: allDevolucoes = [], isLoading } = useDevolucoes(filters);
