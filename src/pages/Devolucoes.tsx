@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDevolucoes, useDevolucoesStats, useDevolucaoSlaConfig, STATUS_LABELS, REASON_LABELS, DevolucaoStatus } from "@/hooks/use-devolucoes";
+import { useOrganizations } from "@/hooks/use-organizations";
 import { DevolucaoKanban } from "@/components/devolucoes/DevolucaoKanban";
 import { DevolucaoFormDialog } from "@/components/devolucoes/DevolucaoFormDialog";
 import { DevolucaoDetailDialog } from "@/components/devolucoes/DevolucaoDetailDialog";
