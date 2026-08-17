@@ -686,7 +686,12 @@ const deleteQuoteHandler = async (req, res) => {
     let sql = `DELETE FROM online_quotes WHERE id = $1 AND (organization_id = $2 OR $3 = true)`;
     const params = [req.params.id, orgId, ctx.isSuperadmin];
 
-    if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && ctx.isSuperadmin !== true) {
+    const canManageAll = ctx.isSuperadmin || 
+      ['owner', 'admin', 'manager'].includes(ctx.role) || 
+      req.userPermissions?.can_manage_online_quotes || 
+      req.userPermissions?.can_manage_quotes;
+
+    if (!canManageAll) {
       sql += ` AND user_id = $3`;
       params.push(req.userId);
     }
