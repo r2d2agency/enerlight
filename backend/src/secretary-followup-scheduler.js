@@ -53,7 +53,7 @@ export async function executeSecretaryFollowups() {
             );
 
             // Send WhatsApp if phone available
-            const phone = (task.whatsapp_phone || '').replace(/\D/g, '');
+            const phone = (String(task.whatsapp_phone || '')).replace(/\D/g, '');
             if (phone && config.notify_members_whatsapp) {
               const connection = await getFollowupConnection(config);
               if (connection) {

@@ -1544,7 +1544,7 @@ async function findExistingIndividualConversation(connectionId, remoteJid, clean
               THEN COALESCE(NULLIF($3::text, ''), NULLIF($4::text, ''), contact_name)
               ELSE contact_name
             END,
-           unread_count = GREATEST(COALESCE(unread_count, 0), COALESCE($5::int, 0)),
+           unread_count = GREATEST(COALESCE(unread_count, 0), COALESCE($5::integer, 0)),
            updated_at = NOW()
        WHERE id = $1`,
       [keep.id, cleanPhone, merge.contact_name, contactName, merge.unread_count || 0]
@@ -1560,8 +1560,8 @@ async function findExistingIndividualConversation(connectionId, remoteJid, clean
              WHEN remote_jid LIKE '%@lid' AND $1 NOT LIKE '%@lid' THEN remote_jid
              ELSE $1
            END,
-           contact_phone = $2,
-           contact_name = COALESCE(NULLIF(contact_name, ''), NULLIF($3, ''), contact_name),
+           contact_phone = $2::text,
+           contact_name = COALESCE(NULLIF(contact_name, ''), NULLIF($3::text, ''), contact_name),
            updated_at = NOW()
        WHERE id = $4`,
       [remoteJid, cleanPhone, contactName, phoneResult.rows[0].id]
@@ -1769,7 +1769,7 @@ async function handleIncomingMessage(connection, payload, diagnosticEvent = null
                unread_count = unread_count + 1,
                contact_name = CASE
                  WHEN $2::text IS NOT NULL AND (contact_name IS NULL OR contact_name = '' OR contact_name = contact_phone OR contact_name = remote_jid OR contact_name LIKE '%@lid')
-                 THEN $2::text::text
+                 THEN $2::text
                  ELSE contact_name
                END,
                contact_phone = COALESCE($3::text, contact_phone),
@@ -1864,8 +1864,9 @@ async function handleIncomingMessage(connection, payload, diagnosticEvent = null
     // Insert message into chat_messages table
     await query(
       `INSERT INTO chat_messages (conversation_id, message_id, content, message_type, media_url, media_mimetype, wa_media_key, from_me, sender_name, sender_phone, status, timestamp)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, false, $8, $9, 'received', NOW())`,
+       VALUES ($1, $2, $3::text, $4, $5, $6, $7, false, $8, $9, 'received', NOW())`,
       [conversationId, messageId, content, messageType, effectiveMediaUrl, effectiveMediaMimetype, waMediaKey, senderName, senderPhone]
+    );
     );
     setWebhookProcessingInfo(diagnosticEvent, { stage: 'message_saved', conversationId, saved: true });
 
@@ -2149,8 +2150,9 @@ async function handleOutgoingMessage(connection, payload, diagnosticEvent = null
     // Insert sent message if not found (e.g., sent from W-API panel directly)
     await query(
       `INSERT INTO chat_messages (conversation_id, message_id, content, message_type, media_url, media_mimetype, from_me, status, timestamp)
-       VALUES ($1, $2, $3, $4, $5, $6, true, 'sent', NOW())`,
+       VALUES ($1, $2, $3::text, $4, $5, $6, true, 'sent', NOW())`,
       [conversationId, messageId, content, messageType, effectiveMediaUrl, effectiveMediaMimetype]
+    );
     );
     setWebhookProcessingInfo(diagnosticEvent, { stage: 'outgoing_message_saved', conversationId, messageId });
 
