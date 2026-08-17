@@ -1777,7 +1777,7 @@ async function handleIncomingMessage(connection, payload, diagnosticEvent = null
                accepted_by = CASE WHEN attendance_status = 'finished' THEN NULL ELSE accepted_by END,
                accepted_at = CASE WHEN attendance_status = 'finished' THEN NULL ELSE accepted_at END,
                assigned_to = CASE WHEN attendance_status = 'finished' THEN NULL ELSE assigned_to END
-           WHERE id = $1`,
+           WHERE id = $1::uuid`,
           [conversationId, incomingContactName, numericCleanPhone]
         );
       }
