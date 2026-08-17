@@ -5615,6 +5615,7 @@ const migrationSteps = [
 
   { name: 'Organizations', sql: step3Organizations, critical: true },
   { name: 'User Relations', sql: step4UserRelations, critical: true },
+
   { name: 'Connections', sql: step5Connections, critical: true },
   { name: 'Contacts & Messages', sql: step6ContactsMessages, critical: false },
   { name: 'Campaigns', sql: step7Campaigns, critical: false },
