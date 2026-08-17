@@ -628,7 +628,7 @@ export async function generateMeetingMinutes({ organizationId, conversationId, h
       `SELECT m.content, m.sender_name, m.from_me, m.created_at, m.media_type
        FROM messages m
        WHERE m.conversation_id = $1 
-         AND m.created_at >= NOW() - INTERVAL '1 hour' * $2
+         AND m.created_at >= NOW() - ($2 || ' hour')::interval
          AND m.content IS NOT NULL AND m.content != ''
          AND m.media_type IN ('text', 'extendedTextMessage', 'conversation')
        ORDER BY m.created_at ASC

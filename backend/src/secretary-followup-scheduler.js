@@ -30,8 +30,8 @@ export async function executeSecretaryFollowups() {
           WHERE t.organization_id = $1
             AND t.source = 'group_secretary'
             AND t.status = 'pending'
-            AND t.created_at < NOW() - INTERVAL '1 hour' * $2
-            AND (t.followup_sent_at IS NULL OR t.followup_sent_at < NOW() - INTERVAL '1 hour' * $2)
+            AND t.created_at < NOW() - ($2 || ' hour')::interval
+            AND (t.followup_sent_at IS NULL OR t.followup_sent_at < NOW() - ($2 || ' hour')::interval)
         `, [config.organization_id, hoursAgo]);
 
         if (tasksResult.rows.length === 0) continue;
