@@ -144,22 +144,43 @@ DO $$ BEGIN
     EXCEPTION WHEN OTHERS THEN NULL; END $$;
 
     -- [FIX] Ensure permission_templates has organization_id, status and sort_order columns
-    DO $$ BEGIN
-        ALTER TABLE permission_templates ADD COLUMN IF NOT EXISTS organization_id UUID;
-        
-        -- Try to add the foreign key separately
-        BEGIN
-            ALTER TABLE permission_templates ADD CONSTRAINT fk_permission_templates_org FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
-        EXCEPTION WHEN OTHERS THEN NULL; END;
-
-        ALTER TABLE permission_templates ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active';
-        UPDATE permission_templates SET status = 'active' WHERE status IS NULL;
-        
-        ALTER TABLE permission_templates ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0;
-    EXCEPTION WHEN OTHERS THEN NULL; END $$;
+    -- Moved to a separate DO block outside to avoid nesting BEGIN/END within EXCEPTION block
+    NULL;
 EXCEPTION
     WHEN duplicate_column THEN null;
 END $$;
+
+-- Fix permission_templates
+DO $$
+BEGIN
+    ALTER TABLE permission_templates ADD COLUMN IF NOT EXISTS organization_id UUID;
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+    ALTER TABLE permission_templates ADD CONSTRAINT fk_permission_templates_org FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+    ALTER TABLE permission_templates ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active';
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+    UPDATE permission_templates SET status = 'active' WHERE status IS NULL;
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+    ALTER TABLE permission_templates ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0;
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
 
 `;
 
