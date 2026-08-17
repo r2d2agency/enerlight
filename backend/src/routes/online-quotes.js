@@ -91,7 +91,7 @@ router.post('/templates', async (req, res) => {
       return res.status(403).json({ error: 'User not associated with any organization' });
     }
 
-    if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && !req.userPermissions?.can_manage_online_quotes && !req.userPermissions?.can_edit_price_lists && !ctx.isSuperadmin) {
+    if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && !req.userPermissions?.can_manage_online_quotes && !req.userPermissions?.can_edit_price_lists && !ctx.isSuperadmin && !req.userPermissions?.can_manage_quotes) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
     const { id, name, description, cover_url, header_text, footer_text, footer_config, fiscal_info, is_default } = req.body;
@@ -194,7 +194,7 @@ router.post('/price-lists', async (req, res) => {
     }
 
 
-    if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && !req.userPermissions?.can_manage_online_quotes && !req.userPermissions?.can_edit_price_lists && !ctx.isSuperadmin) {
+    if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && !req.userPermissions?.can_manage_online_quotes && !req.userPermissions?.can_edit_price_lists && !ctx.isSuperadmin && !req.userPermissions?.can_manage_quotes) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
     const { id, name, description, segment, is_active, default_template_id, allowed_templates } = req.body;

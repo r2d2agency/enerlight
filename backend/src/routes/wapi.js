@@ -1538,12 +1538,12 @@ async function findExistingIndividualConversation(connectionId, remoteJid, clean
     await mergeConversationRecords(keep.id, merge.id);
     await query(
       `UPDATE conversations
-       SET contact_phone = $2,
-           contact_name = CASE
-             WHEN contact_name IS NULL OR contact_name = '' OR contact_name = remote_jid OR contact_name = contact_phone OR contact_name LIKE '%@lid'
-             THEN COALESCE(NULLIF($3, ''), NULLIF($4, ''), contact_name)
-             ELSE contact_name
-           END,
+        SET contact_phone = $2::text,
+            contact_name = CASE
+              WHEN contact_name IS NULL OR contact_name = '' OR contact_name = remote_jid OR contact_name = contact_phone OR contact_name LIKE '%@lid'
+              THEN COALESCE(NULLIF($3::text, ''), NULLIF($4::text, ''), contact_name)
+              ELSE contact_name
+            END,
            unread_count = GREATEST(COALESCE(unread_count, 0), COALESCE($5::int, 0)),
            updated_at = NOW()
        WHERE id = $1`,
