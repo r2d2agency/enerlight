@@ -144,7 +144,7 @@ DO $$ BEGIN
 
     -- [FIX] Ensure permission_templates has organization_id and status columns
     ALTER TABLE permission_templates ADD COLUMN IF NOT EXISTS organization_id UUID;
-    -- Try to add the foreign key only if organization_id exists (to avoid errors if organizations table is missing in some environments)
+    -- Try to add the foreign key separately to avoid blocking column creation
     DO $$ BEGIN
         ALTER TABLE permission_templates ADD CONSTRAINT fk_permission_templates_org FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
     EXCEPTION WHEN OTHERS THEN NULL; END $$;
@@ -153,6 +153,12 @@ DO $$ BEGIN
     
     -- Ensure existing NULL status records are set to 'active'
     UPDATE permission_templates SET status = 'active' WHERE status IS NULL;
+    
+    -- Ensure sort_order exists (often used for display priority)
+    ALTER TABLE permission_templates ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0;
+EXCEPTION
+    WHEN duplicate_column THEN null;
+END $$;
 EXCEPTION
     WHEN duplicate_column THEN null;
 END $$;
