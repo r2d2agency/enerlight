@@ -1768,11 +1768,11 @@ async function handleIncomingMessage(connection, payload, diagnosticEvent = null
            SET last_message_at = NOW(), 
                unread_count = unread_count + 1,
                contact_name = CASE
-                 WHEN $2 IS NOT NULL AND (contact_name IS NULL OR contact_name = '' OR contact_name = contact_phone OR contact_name = remote_jid OR contact_name LIKE '%@lid')
-                 THEN $2
+                 WHEN $2::text IS NOT NULL AND (contact_name IS NULL OR contact_name = '' OR contact_name = contact_phone OR contact_name = remote_jid OR contact_name LIKE '%@lid')
+                 THEN $2::text
                  ELSE contact_name
                END,
-               contact_phone = COALESCE($3, contact_phone),
+               contact_phone = COALESCE($3::text, contact_phone),
                attendance_status = CASE WHEN attendance_status = 'finished' THEN 'waiting' ELSE attendance_status END,
                accepted_by = CASE WHEN attendance_status = 'finished' THEN NULL ELSE accepted_by END,
                accepted_at = CASE WHEN attendance_status = 'finished' THEN NULL ELSE accepted_at END,
