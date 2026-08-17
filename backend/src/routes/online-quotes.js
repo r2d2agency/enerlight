@@ -91,7 +91,14 @@ router.post('/templates', async (req, res) => {
       return res.status(403).json({ error: 'User not associated with any organization' });
     }
 
-    if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && !req.userPermissions?.can_manage_online_quotes && !req.userPermissions?.can_edit_price_lists && !ctx.isSuperadmin && !req.userPermissions?.can_manage_quotes && !req.userPermissions?.can_manage_quotes) {
+    // Allow owner, admin, manager OR users with specific permissions (can_manage_online_quotes, can_edit_price_lists, can_manage_quotes)
+    const canManage = ctx.isSuperadmin || 
+      ['owner', 'admin', 'manager'].includes(ctx.role) || 
+      req.userPermissions?.can_manage_online_quotes || 
+      req.userPermissions?.can_edit_price_lists || 
+      req.userPermissions?.can_manage_quotes;
+
+    if (!canManage) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
     const { id, name, description, cover_url, header_text, footer_text, footer_config, fiscal_info, is_default } = req.body;
@@ -193,8 +200,14 @@ router.post('/price-lists', async (req, res) => {
       return res.status(403).json({ error: 'User not associated with any organization' });
     }
 
+    // Allow owner, admin, manager OR users with specific permissions
+    const canManage = ctx.isSuperadmin || 
+      ['owner', 'admin', 'manager'].includes(ctx.role) || 
+      req.userPermissions?.can_manage_online_quotes || 
+      req.userPermissions?.can_edit_price_lists || 
+      req.userPermissions?.can_manage_quotes;
 
-    if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && !req.userPermissions?.can_manage_online_quotes && !req.userPermissions?.can_edit_price_lists && !ctx.isSuperadmin && !req.userPermissions?.can_manage_quotes && !req.userPermissions?.can_manage_quotes) {
+    if (!canManage) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
     const { id, name, description, segment, is_active, default_template_id, allowed_templates } = req.body;
@@ -255,8 +268,12 @@ router.get('/price-lists/:id/items', async (req, res) => {
     }
 
 
-    // Cost price is only returned for admins/managers
-    const showCost = ctx.isSuperadmin || ctx.role === 'admin' || ctx.role === 'manager' || ctx.role === 'owner' || req.userPermissions?.can_manage_online_quotes || req.userPermissions?.can_edit_price_lists;
+    // Cost price is only returned for admins/managers or those with permissions
+    const showCost = ctx.isSuperadmin || 
+      ['owner', 'admin', 'manager'].includes(ctx.role) || 
+      req.userPermissions?.can_manage_online_quotes || 
+      req.userPermissions?.can_edit_price_lists || 
+      req.userPermissions?.can_manage_quotes;
     const fields = showCost 
       ? 'id, product_code, product_name, description, sale_price, min_price, cost_price, unit, image_url, category, subcategory, brand'
       : 'id, product_code, product_name, description, sale_price, min_price, unit, image_url, category, subcategory, brand';
