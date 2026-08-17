@@ -191,8 +191,10 @@ BEGIN
 EXCEPTION WHEN OTHERS THEN NULL;
 END $$;
 
+`,
+  critical: true
+};
 
-`;
 
 // ============================================
 // STEP 3: ORGANIZATIONS (depends on plans)
