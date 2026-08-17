@@ -135,7 +135,6 @@ const step2bFixes = {
   sql: `
 DO $$
 BEGIN
-
     CREATE TABLE IF NOT EXISTS rh_authorized_locations (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE NOT NULL,
@@ -163,7 +162,6 @@ BEGIN
     );
 EXCEPTION WHEN OTHERS THEN NULL; 
 END $$;
-
 
 -- Fix permission_templates
 DO $$
@@ -196,6 +194,17 @@ BEGIN
 EXCEPTION WHEN OTHERS THEN NULL;
 END $$;
 
+DO $$
+BEGIN
+    -- Fix for role "authenticated" does not exist in some environments
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+        CREATE ROLE authenticated;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
+        CREATE ROLE service_role;
+    END IF;
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
 `,
   critical: true
 };

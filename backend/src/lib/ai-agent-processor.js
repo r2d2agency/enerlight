@@ -431,7 +431,7 @@ async function handleHandoff(session, agent, connection, contactPhone, reason) {
 
     params.push(session.conversation_id);
     await query(
-      `UPDATE conversations SET ${updates.join(', ')} WHERE id = $${idx}`,
+      `UPDATE conversations SET ${updates.join(', ')} WHERE id = $${idx}::uuid`,
       params
     ).catch(err => logError('ai_agent_processor.handoff_assign_error', err));
   }
