@@ -36,7 +36,7 @@ export async function analyzeGroupMessage({
 
     // 2. Check if sender is excluded (team members whose messages should be ignored)
     if (config.excluded_senders && config.excluded_senders.length > 0) {
-      const phoneToCheck = senderPhone || String(senderName || '').replace(/\D/g, '');
+      const phoneToCheck = (String(senderPhone || '') || String(senderName || '')).replace(/\D/g, '');
       if (phoneToCheck && phoneToCheck.length >= 8) {
         const isExcluded = config.excluded_senders.some(excl => {
           const exclPhone = String(excl || '').replace(/\D/g, '');
@@ -140,7 +140,7 @@ Retorne SOMENTE um JSON válido:
     if (mentionedJids && mentionedJids.length > 0) {
       for (const jid of mentionedJids) {
         // Extract phone number from JID format: 5511999999999@s.whatsapp.net or just a number
-        const jidPhone = String(jid || '').split('@')[0].replace(/\D/g, '');
+        const jidPhone = (String(jid || '')).split('@')[0].replace(/\D/g, '');
         logInfo('group_secretary', `Processing mentionedJid: ${jid} -> extracted phone: ${jidPhone}`);
         if (jidPhone.length >= 8) {
           const matched = members.find(m => {
@@ -228,7 +228,7 @@ Mensagem: "${processedMessage}"`;
       }
       if (!member && match.user_name) {
         // Try matching by phone number (WhatsApp mentions often use phone numbers)
-        const cleanPhone = (match.user_name || '').replace(/\D/g, '');
+        const cleanPhone = (String(match.user_name || '')).replace(/\D/g, '');
         if (cleanPhone.length >= 8) {
           member = members.find(m => {
             const memberPhone = (m.whatsapp_phone || '').replace(/\D/g, '');

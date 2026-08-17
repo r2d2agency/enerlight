@@ -108,7 +108,7 @@ async function sendWhatsAppReminder(task, message) {
     }
 
     // Clean phone
-    phone = phone.replace(/\D/g, '');
+    phone = (String(phone || '')).replace(/\D/g, '');
     if (!phone) return;
 
     // Get an active connection for this organization
