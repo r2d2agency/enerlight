@@ -5606,7 +5606,9 @@ CREATE POLICY "Users manage SLA config in their org"
 const migrationSteps = [
 
   { name: 'Enums', sql: step1Enums, critical: true },
-  { name: 'Core Tables (users, plans)', sql: step2CoreTables, critical: true },
+  { name: 'Core Tables (users, plans)', sql: step2CoreTables.sql, critical: true },
+  { name: 'Core Table Fixes', sql: step2bFixes.sql, critical: true },
+
   { name: 'Organizations', sql: step3Organizations, critical: true },
   { name: 'User Relations', sql: step4UserRelations, critical: true },
   { name: 'Connections', sql: step5Connections, critical: true },
