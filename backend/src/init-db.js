@@ -3312,6 +3312,7 @@ CREATE TABLE IF NOT EXISTS permission_templates (
 
 DO $$ BEGIN
   ALTER TABLE permission_templates ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE;
+  ALTER TABLE permission_templates ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active';
 EXCEPTION WHEN duplicate_column THEN NULL;
 END $$;
 
