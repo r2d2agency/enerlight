@@ -1544,7 +1544,7 @@ async function findExistingIndividualConversation(connectionId, remoteJid, clean
               THEN COALESCE(NULLIF($3::text, ''), NULLIF($4::text, ''), contact_name)
               ELSE contact_name
             END,
-           unread_count = GREATEST(COALESCE(unread_count, 0), COALESCE($5::int, 0)),
+           unread_count = GREATEST(COALESCE(unread_count, 0), COALESCE($5::integer, 0)),
            updated_at = NOW()
        WHERE id = $1`,
       [keep.id, cleanPhone, merge.contact_name, contactName, merge.unread_count || 0]
