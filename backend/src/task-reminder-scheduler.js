@@ -12,6 +12,7 @@ export async function executeTaskReminders() {
       SELECT t.*, 
              u.name as assigned_to_name, 
              u.email as assigned_to_email,
+             u.whatsapp_phone,
              d.title as deal_title
       FROM crm_tasks t
       LEFT JOIN users u ON u.id = t.assigned_to
