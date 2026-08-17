@@ -132,8 +132,9 @@ END $$;
 const step2bFixes = {
   name: 'Core Table Fixes',
   sql: `
-
+DO $$
 BEGIN
+
     CREATE TABLE IF NOT EXISTS rh_authorized_locations (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE NOT NULL,
