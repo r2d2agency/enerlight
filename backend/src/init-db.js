@@ -45,7 +45,10 @@ END $$;
 // ============================================
 // STEP 2: CORE TABLES (no foreign key dependencies)
 // ============================================
-const step2CoreTables = `
+const step2CoreTables = {
+  name: 'Core Tables (users, plans)',
+  sql: `
+
 -- Users table
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
