@@ -18,6 +18,19 @@ router.get('/', authenticate, async (req, res) => {
 
     const isSuperadmin = !!userResult.rows[0]?.is_superadmin;
     
+    // Check if table exists first
+    const tableCheck = await query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'permission_templates'
+      )
+    `);
+    
+    if (!tableCheck.rows[0].exists) {
+      return res.json([]);
+    }
+
     // Fallback logic to check if column exists at runtime to avoid 500
     const columnsRes = await query(`
       SELECT column_name 
@@ -95,18 +108,32 @@ router.post('/', authenticate, async (req, res) => {
 
     const targetOrgId = isSuperadmin ? (organization_id || null) : activeOrgId;
 
+    // Check if table exists
+    const tableCheck = await query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'permission_templates'
+      )
+    `);
+    
+    if (!tableCheck.rows[0].exists) {
+      return res.status(400).json({ error: 'Tabela de templates não inicializada' });
+    }
+
     const maxSort = await query(`SELECT COALESCE(MAX(sort_order), 0) + 1 as next FROM permission_templates`);
     
     const columnsRes = await query(`
       SELECT column_name 
       FROM information_schema.columns 
-      WHERE table_name = 'permission_templates' AND column_name = 'organization_id'
+      WHERE table_name = 'permission_templates' AND column_name IN ('organization_id', 'status')
     `);
-    const hasOrgId = columnsRes.rows.length > 0;
+    const hasOrgId = columnsRes.rows.some(c => c.column_name === 'organization_id');
+    const hasStatus = columnsRes.rows.some(c => c.column_name === 'status');
 
     const result = await query(
-      `INSERT INTO permission_templates (name, description, icon, permissions, sort_order ${hasOrgId ? ', organization_id' : ''})
-       VALUES ($1, $2, $3, $4, $5 ${hasOrgId ? ', $6' : ''}) RETURNING *`,
+      `INSERT INTO permission_templates (name, description, icon, permissions, sort_order ${hasOrgId ? ', organization_id' : ''} ${hasStatus ? ', status' : ''})
+       VALUES ($1, $2, $3, $4, $5 ${hasOrgId ? ', $6' : ''} ${hasStatus ? ", 'active'" : ''}) RETURNING *`,
       [name, description || null, icon || 'Users', typeof permissions === 'string' ? permissions : JSON.stringify(permissions), maxSort.rows[0].next, hasOrgId ? targetOrgId : undefined].filter(v => v !== undefined)
     );
 
@@ -149,12 +176,26 @@ router.put('/:id', authenticate, async (req, res) => {
       }
     }
 
+    // Check if table exists
+    const tableCheck = await query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'permission_templates'
+      )
+    `);
+    
+    if (!tableCheck.rows[0].exists) {
+      return res.status(400).json({ error: 'Tabela de templates não inicializada' });
+    }
+
     const columnsRes = await query(`
       SELECT column_name 
       FROM information_schema.columns 
-      WHERE table_name = 'permission_templates' AND column_name = 'organization_id'
+      WHERE table_name = 'permission_templates' AND column_name IN ('organization_id', 'status')
     `);
-    const hasOrgId = columnsRes.rows.length > 0;
+    const hasOrgId = columnsRes.rows.some(c => c.column_name === 'organization_id');
+    const hasStatus = columnsRes.rows.some(c => c.column_name === 'status');
 
     let updateSql = `UPDATE permission_templates SET name = COALESCE($1, name), description = $2, icon = COALESCE($3, icon), permissions = COALESCE($4, permissions)`;
     const updateParams = [
@@ -165,7 +206,7 @@ router.put('/:id', authenticate, async (req, res) => {
     ];
 
     if (hasOrgId) {
-      updateSql += `, organization_id = COALESCE($5, organization_id)`;
+      updateSql += `, organization_id = COALESCE($${updateParams.length + 1}, organization_id)`;
       updateParams.push(isSuperadmin ? (organization_id || null) : undefined);
     }
 
