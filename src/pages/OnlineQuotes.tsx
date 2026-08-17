@@ -212,18 +212,24 @@ export default function OnlineQuotes() {
   const handleSavePriceList = async (e: React.FormEvent) => {
     e.preventDefault();
     const formData = new FormData(e.target as HTMLFormElement);
+    
+    // Explicitly handle allowed_templates (sellers/users with access)
+    // The UI uses 'selectedTemplates' state for this
+    
     const data = {
-      id: editingPriceList?.id,
+      id: editingPriceList?.id || undefined, // Backend expects no ID or valid UUID, not 'undefined' string
       name: formData.get('name'),
       description: formData.get('description'),
       segment: formData.get('segment'),
       markup_percentage: parseFloat(formData.get('markup_percentage') as string || '0'),
       discount_limit_percentage: parseFloat(formData.get('discount_limit_percentage') as string || '0'),
       is_master: formData.get('is_master') === 'on',
-      allowed_templates: selectedTemplates,
+      allowed_templates: selectedTemplates, // This should contain IDs of permission templates or users? 
       is_active: formData.get('is_active') === 'on',
       default_template_id: formData.get('default_template_id') === 'none' ? null : formData.get('default_template_id')
     };
+
+    if (!data.id) delete (data as any).id;
 
     try {
       await savePriceList.mutateAsync(data);
@@ -1045,8 +1051,11 @@ export default function OnlineQuotes() {
               </div>
 
               <div className="space-y-3">
-                <Label>Grupos com Acesso</Label>
-                <div className="border rounded-lg p-3 bg-muted/5 max-h-[150px] overflow-y-auto space-y-2">
+                <Label>Quem terá acesso (Grupos ou Vendedores)</Label>
+                <div className="border rounded-lg p-3 bg-muted/5 max-h-[250px] overflow-y-auto space-y-2">
+                  <div className="pb-1 mb-2 border-b">
+                    <span className="text-[10px] font-bold uppercase text-muted-foreground">Grupos de Permissão</span>
+                  </div>
                   {permissionTemplates?.map(tpl => (
                     <div key={tpl.id} className="flex items-center space-x-2">
                       <Switch 
@@ -1065,6 +1074,10 @@ export default function OnlineQuotes() {
                   {(!permissionTemplates || permissionTemplates.length === 0) && (
                     <p className="text-xs text-muted-foreground">Nenhum grupo de acesso configurado</p>
                   )}
+                  
+                  {/* Option to add individual sellers if we had the list, 
+                      but since we use allowed_templates as generic IDs, 
+                      the templates query above is the correct source for groups. */}
                 </div>
                 <p className="text-[10px] text-muted-foreground">Se nenhum grupo for selecionado, todos terão acesso.</p>
               </div>

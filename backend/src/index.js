@@ -74,6 +74,7 @@ import commissionRoutes from './routes/commission.js';
 import payrollRoutes from './routes/payroll.js';
 
 import { initDatabase } from './init-db.js';
+import { manualMigration } from './manual-migration.js';
 import { executeNotifications } from './scheduler.js';
 import { executeCampaignMessages } from './campaign-scheduler.js';
 import { executeScheduledMessages } from './scheduled-messages.js';
@@ -349,7 +350,10 @@ app.use((err, req, res, next) => {
 });
 
 // Initialize database and start server
-initDatabase().then((ok) => {
+initDatabase().then(async (ok) => {
+  if (ok) {
+    await manualMigration().catch(err => console.error('Failed to run manual migration:', err));
+  }
   if (!ok) {
     console.error('🛑 Server not started because database initialization failed (critical step).');
     process.exit(1);
