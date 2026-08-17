@@ -1560,7 +1560,7 @@ async function findExistingIndividualConversation(connectionId, remoteJid, clean
              WHEN remote_jid LIKE '%@lid' AND $1 NOT LIKE '%@lid' THEN remote_jid
              ELSE $1
            END,
-           contact_phone = $2,
+           contact_phone = $2::text,
            contact_name = COALESCE(NULLIF(contact_name, ''), NULLIF($3, ''), contact_name),
            updated_at = NOW()
        WHERE id = $4`,
