@@ -152,13 +152,6 @@ EXCEPTION WHEN OTHERS THEN NULL;
 END $$;
 
 
-    -- [FIX] Ensure permission_templates has organization_id, status and sort_order columns
-    -- Moved to a separate DO block outside to avoid nesting BEGIN/END within EXCEPTION block
-    NULL;
-EXCEPTION
-    WHEN duplicate_column THEN null;
-END $$;
-
 -- Fix permission_templates
 DO $$
 BEGIN
