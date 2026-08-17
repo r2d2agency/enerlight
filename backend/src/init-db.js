@@ -116,10 +116,12 @@ DO $$ BEGIN
     ALTER TABLE organization_members ADD COLUMN IF NOT EXISTS authorized_longitude DECIMAL(11, 8);
     
     -- RH Authorized Locations table
+    -- Moved to separate DO block
     NULL;
 EXCEPTION
     WHEN duplicate_column THEN null;
 END $$;
+
 
 DO $$ 
 BEGIN
