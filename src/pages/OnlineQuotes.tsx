@@ -1051,8 +1051,11 @@ export default function OnlineQuotes() {
               </div>
 
               <div className="space-y-3">
-                <Label>Grupos com Acesso</Label>
-                <div className="border rounded-lg p-3 bg-muted/5 max-h-[150px] overflow-y-auto space-y-2">
+                <Label>Quem terá acesso (Grupos ou Vendedores)</Label>
+                <div className="border rounded-lg p-3 bg-muted/5 max-h-[250px] overflow-y-auto space-y-2">
+                  <div className="pb-1 mb-2 border-b">
+                    <span className="text-[10px] font-bold uppercase text-muted-foreground">Grupos de Permissão</span>
+                  </div>
                   {permissionTemplates?.map(tpl => (
                     <div key={tpl.id} className="flex items-center space-x-2">
                       <Switch 
@@ -1071,6 +1074,10 @@ export default function OnlineQuotes() {
                   {(!permissionTemplates || permissionTemplates.length === 0) && (
                     <p className="text-xs text-muted-foreground">Nenhum grupo de acesso configurado</p>
                   )}
+                  
+                  {/* Option to add individual sellers if we had the list, 
+                      but since we use allowed_templates as generic IDs, 
+                      the templates query above is the correct source for groups. */}
                 </div>
                 <p className="text-[10px] text-muted-foreground">Se nenhum grupo for selecionado, todos terão acesso.</p>
               </div>
