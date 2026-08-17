@@ -1561,7 +1561,7 @@ async function findExistingIndividualConversation(connectionId, remoteJid, clean
              ELSE $1
            END,
            contact_phone = $2::text,
-           contact_name = COALESCE(NULLIF(contact_name, ''), NULLIF($3, ''), contact_name),
+           contact_name = COALESCE(NULLIF(contact_name, ''), NULLIF($3::text, ''), contact_name),
            updated_at = NOW()
        WHERE id = $4`,
       [remoteJid, cleanPhone, contactName, phoneResult.rows[0].id]
