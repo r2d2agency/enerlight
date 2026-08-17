@@ -18,17 +18,17 @@ router.get('/', authenticate, async (req, res) => {
 
     const isSuperadmin = !!userResult.rows[0]?.is_superadmin;
     
-    // Get all organization IDs where user is member
-    const orgsResult = await query(
-      `SELECT organization_id FROM organization_members WHERE user_id = $1 AND status = 'active'`,
-      [req.userId]
-    );
-    const orgIds = orgsResult.rows.map(r => r.organization_id).filter(Boolean);
-
     let sql = `SELECT * FROM permission_templates WHERE 1=1`;
     const params = [];
 
     if (!isSuperadmin) {
+      // Get all organization IDs where user is member
+      const orgsResult = await query(
+        `SELECT organization_id FROM organization_members WHERE user_id = $1 AND status = 'active'`,
+        [req.userId]
+      );
+      const orgIds = orgsResult.rows.map(r => r.organization_id).filter(Boolean);
+
       // Regular users see templates from their organizations OR global templates
       if (orgIds.length > 0) {
         sql += ` AND (organization_id IS NULL OR organization_id = ANY($1::uuid[]))`;
