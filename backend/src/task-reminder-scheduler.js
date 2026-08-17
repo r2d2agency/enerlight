@@ -101,7 +101,7 @@ async function sendWhatsAppReminder(task, message) {
       [task.assigned_to]
     );
 
-    let phone = userResult.rows[0]?.whatsapp_phone || userResult.rows[0]?.phone;
+    let phone = userResult.rows[0]?.whatsapp_phone;
     if (!phone) {
       console.log(`  ⚠ No phone number for user ${task.assigned_to_name}, skipping WhatsApp`);
       return;
