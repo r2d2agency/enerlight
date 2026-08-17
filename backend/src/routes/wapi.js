@@ -953,7 +953,7 @@ router.post('/:connectionId/sync-chats', authenticate, async (req, res) => {
                 contact_name = COALESCE($1, contact_name),
                 contact_avatar = COALESCE($2, contact_avatar),
                 updated_at = NOW()
-               WHERE id = $3`,
+               WHERE id = $3::uuid`,
               [nameChanged ? name : null, picChanged ? profilePicture : null, ex.id]
             );
             updated++;
@@ -1120,7 +1120,7 @@ router.post('/:connectionId/sync-group-name/:conversationId', authenticate, asyn
 
     // Update the conversation with the group name
     await query(
-      `UPDATE conversations SET group_name = $1 WHERE id = $2`,
+      `UPDATE conversations SET group_name = $1::text WHERE id = $2::uuid`,
       [groupInfo.name, conversationId]
     );
 
@@ -1195,7 +1195,7 @@ router.post('/:connectionId/sync-all-groups', authenticate, async (req, res) => 
 
       if (groupName) {
         await query(
-          `UPDATE conversations SET group_name = $1 WHERE id = $2`,
+          `UPDATE conversations SET group_name = $1::text WHERE id = $2::uuid`,
           [groupName, conv.id]
         );
         updated++;
@@ -1546,7 +1546,7 @@ async function findExistingIndividualConversation(connectionId, remoteJid, clean
             END,
            unread_count = GREATEST(COALESCE(unread_count, 0), COALESCE($5::integer, 0)),
            updated_at = NOW()
-       WHERE id = $1`,
+       WHERE id = $1::uuid`,
       [keep.id, cleanPhone, merge.contact_name, contactName, merge.unread_count || 0]
     );
     exactResult = await query(
@@ -1563,7 +1563,7 @@ async function findExistingIndividualConversation(connectionId, remoteJid, clean
            contact_phone = $2::text,
            contact_name = COALESCE(NULLIF(contact_name, ''), NULLIF($3::text, ''), contact_name),
            updated_at = NOW()
-       WHERE id = $4`,
+       WHERE id = $4::uuid`,
       [remoteJid, cleanPhone, contactName, phoneResult.rows[0].id]
     );
     exactResult = await query(
@@ -1758,7 +1758,7 @@ async function handleIncomingMessage(connection, payload, diagnosticEvent = null
                accepted_by = CASE WHEN attendance_status = 'finished' THEN NULL ELSE accepted_by END,
                accepted_at = CASE WHEN attendance_status = 'finished' THEN NULL ELSE accepted_at END,
                assigned_to = CASE WHEN attendance_status = 'finished' THEN NULL ELSE assigned_to END
-           WHERE id = $1`,
+           WHERE id = $1::uuid`,
           [conversationId, groupName]
         );
       } else {
@@ -1777,7 +1777,7 @@ async function handleIncomingMessage(connection, payload, diagnosticEvent = null
                accepted_by = CASE WHEN attendance_status = 'finished' THEN NULL ELSE accepted_by END,
                accepted_at = CASE WHEN attendance_status = 'finished' THEN NULL ELSE accepted_at END,
                assigned_to = CASE WHEN attendance_status = 'finished' THEN NULL ELSE assigned_to END
-           WHERE id = $1`,
+           WHERE id = $1::uuid`,
           [conversationId, incomingContactName, numericCleanPhone]
         );
       }
@@ -2182,7 +2182,7 @@ async function handleOutgoingMessage(connection, payload, diagnosticEvent = null
 
     // Update conversation timestamp
     await query(
-      `UPDATE conversations SET last_message_at = NOW() WHERE id = $1`,
+      `UPDATE conversations SET last_message_at = NOW() WHERE id = $1::uuid`,
       [conversationId]
     );
 
