@@ -1864,8 +1864,9 @@ async function handleIncomingMessage(connection, payload, diagnosticEvent = null
     // Insert message into chat_messages table
     await query(
       `INSERT INTO chat_messages (conversation_id, message_id, content, message_type, media_url, media_mimetype, wa_media_key, from_me, sender_name, sender_phone, status, timestamp)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, false, $8, $9, 'received', NOW())`,
+       VALUES ($1, $2, $3::text, $4, $5, $6, $7, false, $8, $9, 'received', NOW())`,
       [conversationId, messageId, content, messageType, effectiveMediaUrl, effectiveMediaMimetype, waMediaKey, senderName, senderPhone]
+    );
     );
     setWebhookProcessingInfo(diagnosticEvent, { stage: 'message_saved', conversationId, saved: true });
 
@@ -2149,8 +2150,9 @@ async function handleOutgoingMessage(connection, payload, diagnosticEvent = null
     // Insert sent message if not found (e.g., sent from W-API panel directly)
     await query(
       `INSERT INTO chat_messages (conversation_id, message_id, content, message_type, media_url, media_mimetype, from_me, status, timestamp)
-       VALUES ($1, $2, $3, $4, $5, $6, true, 'sent', NOW())`,
+       VALUES ($1, $2, $3::text, $4, $5, $6, true, 'sent', NOW())`,
       [conversationId, messageId, content, messageType, effectiveMediaUrl, effectiveMediaMimetype]
+    );
     );
     setWebhookProcessingInfo(diagnosticEvent, { stage: 'outgoing_message_saved', conversationId, messageId });
 

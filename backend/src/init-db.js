@@ -107,8 +107,8 @@ DO $$ BEGIN
     ALTER TABLE plans ADD COLUMN IF NOT EXISTS has_group_secretary BOOLEAN DEFAULT false;
     ALTER TABLE plans ADD COLUMN IF NOT EXISTS has_ghost BOOLEAN DEFAULT false;
     ALTER TABLE plans ADD COLUMN IF NOT EXISTS has_projects BOOLEAN DEFAULT false;
-    ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_phone VARCHAR(50);
-    ALTER TABLE users ADD COLUMN IF NOT EXISTS cpf VARCHAR(14);
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_phone TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS cpf TEXT;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS birth_date DATE;
     ALTER TABLE organization_members ADD COLUMN IF NOT EXISTS work_start_time TIME;
     ALTER TABLE organization_members ADD COLUMN IF NOT EXISTS work_end_time TIME;
@@ -395,7 +395,7 @@ END $$;
 
 -- segment column
 DO $$ BEGIN
-  ALTER TABLE field_captures ADD COLUMN IF NOT EXISTS segment VARCHAR(100);
+  ALTER TABLE field_captures ADD COLUMN IF NOT EXISTS segment TEXT;
 EXCEPTION WHEN duplicate_column THEN NULL;
 END $$;
 
@@ -5386,8 +5386,8 @@ CREATE TABLE IF NOT EXISTS ead_brands (
 CREATE INDEX IF NOT EXISTS idx_ead_brands_slug ON ead_brands(slug);
 
 ALTER TABLE ead_students ADD COLUMN IF NOT EXISTS brand_id UUID REFERENCES ead_brands(id) ON DELETE SET NULL;
-ALTER TABLE ead_students ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'approved';
-ALTER TABLE ead_students ADD COLUMN IF NOT EXISTS phone VARCHAR(30);
+ALTER TABLE ead_students ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'approved';
+ALTER TABLE ead_students ADD COLUMN IF NOT EXISTS phone TEXT;
 ALTER TABLE ead_students ADD COLUMN IF NOT EXISTS extra_fields JSONB DEFAULT '{}'::jsonb;
 ALTER TABLE ead_students ADD COLUMN IF NOT EXISTS approved_at TIMESTAMPTZ;
 ALTER TABLE ead_students ADD COLUMN IF NOT EXISTS approved_by UUID REFERENCES users(id) ON DELETE SET NULL;
