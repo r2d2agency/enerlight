@@ -18,8 +18,22 @@ router.get('/', authenticate, async (req, res) => {
 
     const isSuperadmin = !!userResult.rows[0]?.is_superadmin;
     
-    let sql = `SELECT * FROM permission_templates WHERE status = 'active'`;
+    // Fallback logic to check if column exists at runtime to avoid 500
+    const columnsRes = await query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'permission_templates' AND column_name IN ('status', 'organization_id')
+    `);
+    const hasStatus = columnsRes.rows.some(c => c.column_name === 'status');
+    const hasOrgId = columnsRes.rows.some(c => c.column_name === 'organization_id');
+
+    let sql = `SELECT * FROM permission_templates`;
+    const conditions = [];
     const params = [];
+
+    if (hasStatus) {
+      conditions.push(`status = 'active'`);
+    }
 
     if (!isSuperadmin) {
       // Get all organization IDs where user is member
@@ -29,13 +43,18 @@ router.get('/', authenticate, async (req, res) => {
       );
       const orgIds = orgsResult.rows.map(r => r.organization_id).filter(Boolean);
 
-      // Regular users see templates from their organizations OR global templates
-      if (orgIds.length > 0) {
-        sql += ` AND (organization_id IS NULL OR organization_id = ANY($1::uuid[]))`;
-        params.push(orgIds);
-      } else {
-        sql += ` AND organization_id IS NULL`;
+      if (hasOrgId) {
+        if (orgIds.length > 0) {
+          conditions.push(`(organization_id IS NULL OR organization_id = ANY($${params.length + 1}::uuid[]))`);
+          params.push(orgIds);
+        } else {
+          conditions.push(`organization_id IS NULL`);
+        }
       }
+    }
+
+    if (conditions.length > 0) {
+      sql += ` WHERE ` + conditions.join(' AND ');
     }
 
     sql += ` ORDER BY sort_order ASC, created_at ASC`;
