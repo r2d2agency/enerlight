@@ -24,7 +24,7 @@ export async function executeSecretaryFollowups() {
 
         // Find pending tasks created by group_secretary older than X hours
         const tasksResult = await query(`
-          SELECT t.*, u.name as assigned_name, u.whatsapp_phone, u.phone
+          SELECT t.*, u.name as assigned_name, u.whatsapp_phone
           FROM crm_tasks t
           LEFT JOIN users u ON u.id = t.assigned_to
           WHERE t.organization_id = $1
@@ -53,7 +53,7 @@ export async function executeSecretaryFollowups() {
             );
 
             // Send WhatsApp if phone available
-            const phone = (task.whatsapp_phone || task.phone || '').replace(/\D/g, '');
+            const phone = (task.whatsapp_phone || '').replace(/\D/g, '');
             if (phone && config.notify_members_whatsapp) {
               const connection = await getFollowupConnection(config);
               if (connection) {
