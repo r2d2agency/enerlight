@@ -194,6 +194,7 @@ BEGIN
     ALTER TABLE permission_templates ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0;
 EXCEPTION WHEN OTHERS THEN NULL;
 END $$;
+END $$;
 
 `,
   critical: true
