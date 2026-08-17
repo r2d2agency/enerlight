@@ -1867,7 +1867,6 @@ async function handleIncomingMessage(connection, payload, diagnosticEvent = null
        VALUES ($1, $2, $3::text, $4, $5, $6, $7, false, $8, $9, 'received', NOW())`,
       [conversationId, messageId, content, messageType, effectiveMediaUrl, effectiveMediaMimetype, waMediaKey, senderName, senderPhone]
     );
-    );
     setWebhookProcessingInfo(diagnosticEvent, { stage: 'message_saved', conversationId, saved: true });
 
     console.log('[W-API] Message saved. Type:', messageType, 'MediaURL:', effectiveMediaUrl?.slice?.(0, 100));
