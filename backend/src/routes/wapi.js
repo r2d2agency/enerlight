@@ -2152,7 +2152,6 @@ async function handleOutgoingMessage(connection, payload, diagnosticEvent = null
        VALUES ($1, $2, $3::text, $4, $5, $6, true, 'sent', NOW())`,
       [conversationId, messageId, content, messageType, effectiveMediaUrl, effectiveMediaMimetype]
     );
-    );
     setWebhookProcessingInfo(diagnosticEvent, { stage: 'outgoing_message_saved', conversationId, messageId });
 
     // Background cache as a fallback (so even if eager caching times out, the media will appear later)
