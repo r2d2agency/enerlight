@@ -122,8 +122,14 @@ EXCEPTION
     WHEN duplicate_column THEN null;
 END $$;
 
+`,
+  critical: true
+};
 
-DO $$ 
+const step2bFixes = {
+  name: 'Core Table Fixes',
+  sql: `
+
 BEGIN
     CREATE TABLE IF NOT EXISTS rh_authorized_locations (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
