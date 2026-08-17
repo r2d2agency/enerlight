@@ -1,5 +1,5 @@
 
-import { pool } from './src/db.js';
+import { pool } from './db.js';
 
 async function diagnose() {
   console.log('--- STARTING DIAGNOSTICS ---');
