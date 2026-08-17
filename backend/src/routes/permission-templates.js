@@ -18,7 +18,7 @@ router.get('/', authenticate, async (req, res) => {
 
     const isSuperadmin = !!userResult.rows[0]?.is_superadmin;
     
-    let sql = `SELECT * FROM permission_templates WHERE 1=1`;
+    let sql = `SELECT * FROM permission_templates WHERE status = 'active'`;
     const params = [];
 
     if (!isSuperadmin) {

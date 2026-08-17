@@ -142,8 +142,9 @@ DO $$ BEGIN
     -- Allow linking employee to a specific location
     ALTER TABLE organization_members ADD COLUMN IF NOT EXISTS authorized_location_id UUID REFERENCES rh_authorized_locations(id) ON DELETE SET NULL;
 
-    -- [FIX] Ensure permission_templates has organization_id column
+    -- [FIX] Ensure permission_templates has organization_id and status columns
     ALTER TABLE permission_templates ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE;
+    ALTER TABLE permission_templates ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active';
 EXCEPTION
     WHEN duplicate_column THEN null;
 END $$;
@@ -3311,6 +3312,7 @@ CREATE TABLE IF NOT EXISTS permission_templates (
 
 DO $$ BEGIN
   ALTER TABLE permission_templates ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE;
+  ALTER TABLE permission_templates ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active';
 EXCEPTION WHEN duplicate_column THEN NULL;
 END $$;
 
