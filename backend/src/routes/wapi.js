@@ -1769,7 +1769,7 @@ async function handleIncomingMessage(connection, payload, diagnosticEvent = null
                unread_count = unread_count + 1,
                contact_name = CASE
                  WHEN $2::text IS NOT NULL AND (contact_name IS NULL OR contact_name = '' OR contact_name = contact_phone OR contact_name = remote_jid OR contact_name LIKE '%@lid')
-                 THEN $2::text::text
+                 THEN $2::text
                  ELSE contact_name
                END,
                contact_phone = COALESCE($3::text, contact_phone),
