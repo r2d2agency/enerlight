@@ -212,18 +212,24 @@ export default function OnlineQuotes() {
   const handleSavePriceList = async (e: React.FormEvent) => {
     e.preventDefault();
     const formData = new FormData(e.target as HTMLFormElement);
+    
+    // Explicitly handle allowed_templates (sellers/users with access)
+    // The UI uses 'selectedTemplates' state for this
+    
     const data = {
-      id: editingPriceList?.id,
+      id: editingPriceList?.id || undefined, // Backend expects no ID or valid UUID, not 'undefined' string
       name: formData.get('name'),
       description: formData.get('description'),
       segment: formData.get('segment'),
       markup_percentage: parseFloat(formData.get('markup_percentage') as string || '0'),
       discount_limit_percentage: parseFloat(formData.get('discount_limit_percentage') as string || '0'),
       is_master: formData.get('is_master') === 'on',
-      allowed_templates: selectedTemplates,
+      allowed_templates: selectedTemplates, // This should contain IDs of permission templates or users? 
       is_active: formData.get('is_active') === 'on',
       default_template_id: formData.get('default_template_id') === 'none' ? null : formData.get('default_template_id')
     };
+
+    if (!data.id) delete (data as any).id;
 
     try {
       await savePriceList.mutateAsync(data);
