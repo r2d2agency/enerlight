@@ -115,33 +115,42 @@ DO $$ BEGIN
     ALTER TABLE organization_members ADD COLUMN IF NOT EXISTS authorized_latitude DECIMAL(10, 8);
     ALTER TABLE organization_members ADD COLUMN IF NOT EXISTS authorized_longitude DECIMAL(11, 8);
     
-    -- RH Authorized Locations table (wrapped in DO to handle potential missing organizations table during initial run)
-    DO $$ BEGIN
-        CREATE TABLE IF NOT EXISTS rh_authorized_locations (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE NOT NULL,
-            name VARCHAR(255) NOT NULL,
-            latitude DECIMAL(10, 8) NOT NULL,
-            longitude DECIMAL(11, 8) NOT NULL,
-            radius_meters INTEGER DEFAULT 100,
-            is_active BOOLEAN DEFAULT true,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-            updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-        );
-    EXCEPTION WHEN OTHERS THEN NULL; END $$;
+    -- RH Authorized Locations table
+    NULL;
+EXCEPTION
+    WHEN duplicate_column THEN null;
+END $$;
 
-    -- Price List Categories / Subcategories registration
-    DO $$ BEGIN
-        CREATE TABLE IF NOT EXISTS price_list_categories (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE NOT NULL,
-            category VARCHAR(255) NOT NULL,
-            subcategory VARCHAR(255),
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-            updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-            UNIQUE(organization_id, category, subcategory)
-        );
-    EXCEPTION WHEN OTHERS THEN NULL; END $$;
+DO $$ 
+BEGIN
+    CREATE TABLE IF NOT EXISTS rh_authorized_locations (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        latitude DECIMAL(10, 8) NOT NULL,
+        longitude DECIMAL(11, 8) NOT NULL,
+        radius_meters INTEGER DEFAULT 100,
+        is_active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+EXCEPTION WHEN OTHERS THEN NULL; 
+END $$;
+
+DO $$ 
+BEGIN
+    CREATE TABLE IF NOT EXISTS price_list_categories (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE NOT NULL,
+        category VARCHAR(255) NOT NULL,
+        subcategory VARCHAR(255),
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        UNIQUE(organization_id, category, subcategory)
+    );
+EXCEPTION WHEN OTHERS THEN NULL; 
+END $$;
+
 
     -- [FIX] Ensure permission_templates has organization_id, status and sort_order columns
     -- Moved to a separate DO block outside to avoid nesting BEGIN/END within EXCEPTION block
