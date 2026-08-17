@@ -95,14 +95,18 @@ export async function executeTaskReminders() {
  */
 async function sendWhatsAppReminder(task, message) {
   try {
-    // Get user's phone from conversations or user profile
-    const userResult = await query(
-      `SELECT u.whatsapp_phone 
-       FROM users u WHERE u.id = $1`,
-      [task.assigned_to]
-    );
+    // We already joined users in the main query, but if not available, fallback to query
+    let phone = task.whatsapp_phone;
+    
+    if (!phone) {
+      const userResult = await query(
+        `SELECT u.whatsapp_phone 
+         FROM users u WHERE u.id = $1`,
+        [task.assigned_to]
+      );
+      phone = userResult.rows[0]?.whatsapp_phone;
+    }
 
-    let phone = userResult.rows[0]?.whatsapp_phone;
     if (!phone) {
       console.log(`  ⚠ No phone number for user ${task.assigned_to_name}, skipping WhatsApp`);
       return;
