@@ -45,7 +45,10 @@ END $$;
 // ============================================
 // STEP 2: CORE TABLES (no foreign key dependencies)
 // ============================================
-const step2CoreTables = `
+const step2CoreTables = {
+  name: 'Core Tables (users, plans)',
+  sql: `
+
 -- Users table
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -115,53 +118,87 @@ DO $$ BEGIN
     ALTER TABLE organization_members ADD COLUMN IF NOT EXISTS authorized_latitude DECIMAL(10, 8);
     ALTER TABLE organization_members ADD COLUMN IF NOT EXISTS authorized_longitude DECIMAL(11, 8);
     
-    -- RH Authorized Locations table (wrapped in DO to handle potential missing organizations table during initial run)
-    DO $$ BEGIN
-        CREATE TABLE IF NOT EXISTS rh_authorized_locations (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE NOT NULL,
-            name VARCHAR(255) NOT NULL,
-            latitude DECIMAL(10, 8) NOT NULL,
-            longitude DECIMAL(11, 8) NOT NULL,
-            radius_meters INTEGER DEFAULT 100,
-            is_active BOOLEAN DEFAULT true,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-            updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-        );
-    EXCEPTION WHEN OTHERS THEN NULL; END $$;
-
-    -- Price List Categories / Subcategories registration
-    DO $$ BEGIN
-        CREATE TABLE IF NOT EXISTS price_list_categories (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE NOT NULL,
-            category VARCHAR(255) NOT NULL,
-            subcategory VARCHAR(255),
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-            updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-            UNIQUE(organization_id, category, subcategory)
-        );
-    EXCEPTION WHEN OTHERS THEN NULL; END $$;
-
-    -- [FIX] Ensure permission_templates has organization_id, status and sort_order columns
-    DO $$ BEGIN
-        ALTER TABLE permission_templates ADD COLUMN IF NOT EXISTS organization_id UUID;
-        
-        -- Try to add the foreign key separately
-        BEGIN
-            ALTER TABLE permission_templates ADD CONSTRAINT fk_permission_templates_org FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
-        EXCEPTION WHEN OTHERS THEN NULL; END;
-
-        ALTER TABLE permission_templates ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active';
-        UPDATE permission_templates SET status = 'active' WHERE status IS NULL;
-        
-        ALTER TABLE permission_templates ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0;
-    EXCEPTION WHEN OTHERS THEN NULL; END $$;
+    -- RH Authorized Locations table
+    -- Moved to separate DO block
+    NULL;
 EXCEPTION
     WHEN duplicate_column THEN null;
 END $$;
 
-`;
+`,
+  critical: true
+};
+
+const step2bFixes = {
+  name: 'Core Table Fixes',
+  sql: `
+DO $$
+BEGIN
+
+    CREATE TABLE IF NOT EXISTS rh_authorized_locations (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        latitude DECIMAL(10, 8) NOT NULL,
+        longitude DECIMAL(11, 8) NOT NULL,
+        radius_meters INTEGER DEFAULT 100,
+        is_active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+EXCEPTION WHEN OTHERS THEN NULL; 
+END $$;
+
+DO $$ 
+BEGIN
+    CREATE TABLE IF NOT EXISTS price_list_categories (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE NOT NULL,
+        category VARCHAR(255) NOT NULL,
+        subcategory VARCHAR(255),
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        UNIQUE(organization_id, category, subcategory)
+    );
+EXCEPTION WHEN OTHERS THEN NULL; 
+END $$;
+
+
+-- Fix permission_templates
+DO $$
+BEGIN
+    ALTER TABLE permission_templates ADD COLUMN IF NOT EXISTS organization_id UUID;
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+    ALTER TABLE permission_templates ADD CONSTRAINT fk_permission_templates_org FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+    ALTER TABLE permission_templates ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active';
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+    UPDATE permission_templates SET status = 'active' WHERE status IS NULL;
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+    ALTER TABLE permission_templates ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0;
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
+`,
+  critical: true
+};
+
 
 // ============================================
 // STEP 3: ORGANIZATIONS (depends on plans)
@@ -3322,11 +3359,9 @@ CREATE TABLE IF NOT EXISTS permission_templates (
   organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE
 );
 
-DO $$ BEGIN
-  ALTER TABLE permission_templates ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE;
-  ALTER TABLE permission_templates ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active';
-EXCEPTION WHEN duplicate_column THEN NULL;
-END $$;
+-- Handled by resilient script logic below or manual migration.
+NULL;
+
 
 
 CREATE INDEX IF NOT EXISTS idx_permission_templates_sort ON permission_templates(sort_order);
@@ -5575,9 +5610,12 @@ CREATE POLICY "Users manage SLA config in their org"
 const migrationSteps = [
 
   { name: 'Enums', sql: step1Enums, critical: true },
-  { name: 'Core Tables (users, plans)', sql: step2CoreTables, critical: true },
+  { name: 'Core Tables (users, plans)', sql: step2CoreTables.sql, critical: true },
+  { name: 'Core Table Fixes', sql: step2bFixes.sql, critical: true },
+
   { name: 'Organizations', sql: step3Organizations, critical: true },
   { name: 'User Relations', sql: step4UserRelations, critical: true },
+
   { name: 'Connections', sql: step5Connections, critical: true },
   { name: 'Contacts & Messages', sql: step6ContactsMessages, critical: false },
   { name: 'Campaigns', sql: step7Campaigns, critical: false },
