@@ -115,36 +115,48 @@ DO $$ BEGIN
     ALTER TABLE organization_members ADD COLUMN IF NOT EXISTS authorized_latitude DECIMAL(10, 8);
     ALTER TABLE organization_members ADD COLUMN IF NOT EXISTS authorized_longitude DECIMAL(11, 8);
     
-    -- RH Authorized Locations table
-    CREATE TABLE IF NOT EXISTS rh_authorized_locations (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE NOT NULL,
-        name VARCHAR(255) NOT NULL,
-        latitude DECIMAL(10, 8) NOT NULL,
-        longitude DECIMAL(11, 8) NOT NULL,
-        radius_meters INTEGER DEFAULT 100,
-        is_active BOOLEAN DEFAULT true,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-    );
+    -- RH Authorized Locations table (wrapped in DO to handle potential missing organizations table during initial run)
+    DO $$ BEGIN
+        CREATE TABLE IF NOT EXISTS rh_authorized_locations (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE NOT NULL,
+            name VARCHAR(255) NOT NULL,
+            latitude DECIMAL(10, 8) NOT NULL,
+            longitude DECIMAL(11, 8) NOT NULL,
+            radius_meters INTEGER DEFAULT 100,
+            is_active BOOLEAN DEFAULT true,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        );
+    EXCEPTION WHEN OTHERS THEN NULL; END $$;
 
     -- Price List Categories / Subcategories registration
-    CREATE TABLE IF NOT EXISTS price_list_categories (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE NOT NULL,
-        category VARCHAR(255) NOT NULL,
-        subcategory VARCHAR(255),
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-        UNIQUE(organization_id, category, subcategory)
-    );
+    DO $$ BEGIN
+        CREATE TABLE IF NOT EXISTS price_list_categories (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE NOT NULL,
+            category VARCHAR(255) NOT NULL,
+            subcategory VARCHAR(255),
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            UNIQUE(organization_id, category, subcategory)
+        );
+    EXCEPTION WHEN OTHERS THEN NULL; END $$;
 
-    -- Allow linking employee to a specific location
-    ALTER TABLE organization_members ADD COLUMN IF NOT EXISTS authorized_location_id UUID REFERENCES rh_authorized_locations(id) ON DELETE SET NULL;
+    -- [FIX] Ensure permission_templates has organization_id, status and sort_order columns
+    DO $$ BEGIN
+        ALTER TABLE permission_templates ADD COLUMN IF NOT EXISTS organization_id UUID;
+        
+        -- Try to add the foreign key separately
+        BEGIN
+            ALTER TABLE permission_templates ADD CONSTRAINT fk_permission_templates_org FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
+        EXCEPTION WHEN OTHERS THEN NULL; END;
 
-    -- [FIX] Ensure permission_templates has organization_id and status columns
-    ALTER TABLE permission_templates ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE;
-    ALTER TABLE permission_templates ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active';
+        ALTER TABLE permission_templates ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active';
+        UPDATE permission_templates SET status = 'active' WHERE status IS NULL;
+        
+        ALTER TABLE permission_templates ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0;
+    EXCEPTION WHEN OTHERS THEN NULL; END $$;
 EXCEPTION
     WHEN duplicate_column THEN null;
 END $$;
