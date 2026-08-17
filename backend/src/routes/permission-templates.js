@@ -18,38 +18,28 @@ router.get('/', authenticate, async (req, res) => {
 
     const isSuperadmin = !!userResult.rows[0]?.is_superadmin;
     
-    // Check if table exists first
-    const tableCheck = await query(`
-      SELECT EXISTS (
-        SELECT FROM information_schema.tables 
-        WHERE table_schema = 'public' 
-        AND table_name = 'permission_templates'
-      )
-    `);
-    
-    if (!tableCheck.rows[0].exists) {
-      return res.json([]);
-    }
-
-    // Fallback logic to check if column exists at runtime to avoid 500
-    const columnsRes = await query(`
-      SELECT column_name 
-      FROM information_schema.columns 
-      WHERE table_name = 'permission_templates' AND column_name IN ('status', 'organization_id')
-    `);
-    const hasStatus = columnsRes.rows.some(c => c.column_name === 'status');
-    const hasOrgId = columnsRes.rows.some(c => c.column_name === 'organization_id');
-
+    // Total fallback: if query fails because table/columns missing, return empty array
+    // but try to be as specific as possible.
     let sql = `SELECT * FROM permission_templates`;
     const conditions = [];
     const params = [];
+
+    // Check columns first to avoid 500
+    const columnsRes = await query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'permission_templates' 
+        AND table_schema = 'public'
+        AND column_name IN ('status', 'organization_id')
+    `);
+    const hasStatus = columnsRes.rows.some(c => c.column_name === 'status');
+    const hasOrgId = columnsRes.rows.some(c => c.column_name === 'organization_id');
 
     if (hasStatus) {
       conditions.push(`status = 'active'`);
     }
 
     if (!isSuperadmin) {
-      // Get all organization IDs where user is member
       const orgsResult = await query(
         `SELECT organization_id FROM organization_members WHERE user_id = $1 AND status = 'active'`,
         [req.userId]
@@ -76,6 +66,10 @@ router.get('/', authenticate, async (req, res) => {
     res.json(result.rows);
   } catch (error) {
     console.error('Get permission templates error:', error);
+    // If table doesn't exist, return empty array instead of 500
+    if (error.message.includes('does not exist')) {
+      return res.json([]);
+    }
     res.status(500).json({ 
       error: 'Erro ao buscar templates',
       details: error.message 
