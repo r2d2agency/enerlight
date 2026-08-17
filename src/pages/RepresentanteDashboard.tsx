@@ -42,7 +42,7 @@ export default function RepresentanteDashboard() {
   const { data: quotes, isLoading: loadingQuotes, refetch: refetchQuotes } = useQuery({
     queryKey: ["representative-quotes", user?.id],
     queryFn: async () => {
-      const allQuotes = await api<any[]>(`/api/crm/orcamentos`).catch(() => []);
+      const allQuotes = await api<any[]>(`/api/online-quotes/quotes`).catch(() => []);
       return allQuotes.filter((q: any) => q.created_by === user?.id);
     },
     enabled: !!user?.id
@@ -56,7 +56,7 @@ export default function RepresentanteDashboard() {
       sp.set("start_date", startDate);
       sp.set("end_date", endDate);
       
-      const commission = await api<any>(`/api/commissions/my-summary?${sp.toString()}`).catch(() => ({}));
+      const commission = await api<any>(`/api/commission/my-summary?${sp.toString()}`).catch(() => ({}));
       
       const periodQuotes = (quotes || []).filter((q: any) => {
         const date = q.created_at?.split('T')[0];
@@ -87,7 +87,7 @@ export default function RepresentanteDashboard() {
                       currentStatus === 'approved' ? 'rejected' : 'draft';
     
     try {
-      await api(`/api/crm/orcamentos/${id}/status`, {
+      await api(`/api/online-quotes/quotes/${id}/status`, {
         method: 'PATCH',
         body: { status: nextStatus }
       });

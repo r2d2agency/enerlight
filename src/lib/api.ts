@@ -86,15 +86,24 @@ export const api = async <T>(endpoint: string, options: ApiOptions = {}): Promis
       data = { raw: rawText };
     }
   } else {
-    // Got HTML or unexpected format – log for debugging
-    if (isHtmlResponse && !silent) {
-      console.error('[api] Got HTML instead of JSON', {
-        url: `${API_URL}${endpoint}`,
-        status: response.status,
-        preview: rawText.substring(0, 300),
-      });
+    // Attempt to parse as JSON anyway if it looks like an object/array, even if header is wrong
+    if (rawText.trim().startsWith('{') || rawText.trim().startsWith('[')) {
+      try {
+        data = JSON.parse(rawText);
+      } catch {
+        data = { raw: rawText };
+      }
+    } else {
+      // Got HTML or unexpected format – log for debugging
+      if (isHtmlResponse && !silent) {
+        console.error('[api] Got HTML instead of JSON', {
+          url: `${API_URL}${endpoint}`,
+          status: response.status,
+          preview: rawText.substring(0, 300),
+        });
+      }
+      data = { raw: rawText };
     }
-    data = { raw: rawText };
   }
 
   if (!response.ok) {

@@ -766,4 +766,39 @@ router.post('/companies/create-from-quote', async (req, res) => {
   }
 });
 
+
+// Update quote status
+router.patch('/quotes/:id/status', async (req, res) => {
+  try {
+    const ctx = await getUserContext(req.userId);
+    if (!ctx) return res.status(403).json({ error: 'Unauthorized' });
+
+    const { status } = req.body;
+    if (!status) return res.status(400).json({ error: 'Status is required' });
+
+    const orgId = ctx.organizationId;
+    const isSuperadmin = ctx.isSuperadmin;
+
+    // Check if user has permission to update this quote
+    let sql = `UPDATE online_quotes SET status = $1, updated_at = NOW() WHERE id = $2`;
+    const params = [status, req.params.id];
+
+    if (!isSuperadmin) {
+      sql += ` AND (organization_id = $3 OR user_id = $4)`;
+      params.push(orgId, req.userId);
+    }
+
+    const result = await query(sql, params);
+    
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Quote not found or permission denied' });
+    }
+
+    res.json({ success: true, status });
+  } catch (err) {
+    logError('online-quotes.quotes.status.patch', err);
+    res.status(500).json({ error: 'Failed to update quote status' });
+  }
+});
+
 export default router;
