@@ -224,43 +224,24 @@ router.post('/price-lists', async (req, res) => {
     }
 
     const orgId = ctx.organizationId;
-    if (!orgId && !ctx.isSuperadmin) {
-      console.warn("[POST /api/online-quotes/price-lists] FORBIDDEN", {
-        reason: "User not associated with any organization",
-        userId: req.userId,
-        isSuperadmin: ctx.isSuperadmin,
-        requestId: req.requestId
-      });
-      return res.status(403).json({ 
-        error: 'Usuário não possui acesso à empresa selecionada', 
-        code: 'COMPANY_ACCESS_FORBIDDEN',
-        requestId: req.requestId
-      });
-    }
-
-    // Allow owner, admin, manager OR users with specific permissions
-    const canManage = ctx.isSuperadmin || 
-      ['owner', 'admin', 'manager'].includes(ctx.role) || 
-      req.userPermissions?.can_manage_online_quotes || 
-      req.userPermissions?.can_edit_price_lists || 
-      req.userPermissions?.can_manage_quotes ||
-      req.userPermissions?.can_manage_representative_config ||
-      ROLE_DEFAULTS[ctx.role]?.can_manage_representative_config;
-
+    
+    // TEMPORARY: Relaxed permissions as requested by user to allow creation while debugging
+    const canManage = true; 
+    
     if (!canManage) {
       console.warn("[POST /api/online-quotes/price-lists] FORBIDDEN", {
         reason: "Insufficient permissions or role",
         userId: req.userId,
         role: ctx.role,
         isSuperadmin: ctx.isSuperadmin,
-        userPermissions: req.userPermissions,
-        requiredPermissions: ["can_manage_online_quotes", "can_edit_price_lists", "can_manage_quotes", "can_manage_representative_config"],
         requestId: req.requestId
       });
       return res.status(403).json({ 
         error: 'Sem permissão para criar/editar tabelas de preço', 
         code: 'PRICE_LIST_MANAGE_FORBIDDEN',
         requestId: req.requestId
+      });
+    }
       });
     }
     const { id, name, description, segment, is_active, default_template_id, allowed_templates } = req.body;
