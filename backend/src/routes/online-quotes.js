@@ -818,8 +818,8 @@ router.post('/companies/create-from-quote', async (req, res) => {
 // Update quote status
 router.patch('/quotes/:id/status', async (req, res) => {
   try {
-    const ctx = await getUserContext(req.userId);
-    if (!ctx) return res.status(403).json({ error: 'Unauthorized' });
+    const ctx = await getUserContext(req.userId, req.requestId);
+    if (!ctx) return res.status(403).json({ error: 'Unauthorized', requestId: req.requestId });
 
     const { status } = req.body;
     if (!status) return res.status(400).json({ error: 'Status is required' });
@@ -852,7 +852,7 @@ router.patch('/quotes/:id/status', async (req, res) => {
 // Delete a price list
 const deletePriceListHandler = async (req, res) => {
   try {
-    const ctx = await getUserContext(req.userId);
+    const ctx = await getUserContext(req.userId, req.requestId);
     if (!ctx) {
       console.warn("[POST /api/online-quotes/price-lists/delete/:id] FORBIDDEN", {
         reason: "User context not found",
