@@ -7,6 +7,7 @@ const router = Router();
 
 // Get all templates
 router.get('/', authenticate, async (req, res) => {
+  const requestId = Math.random().toString(36).substring(7);
   try {
     const userResult = await query(
       `SELECT u.is_superadmin FROM users u WHERE u.id = $1`,
@@ -14,7 +15,7 @@ router.get('/', authenticate, async (req, res) => {
     );
 
     if (userResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Usuário não encontrado' });
+      return res.status(404).json({ error: 'Usuário não encontrado', requestId });
     }
 
     const isSuperadmin = !!userResult.rows[0]?.is_superadmin;
@@ -29,6 +30,7 @@ router.get('/', authenticate, async (req, res) => {
     `);
 
     if (!tableExists.rows[0].exists) {
+      logWarn('permission_templates.table_missing', { requestId });
       return res.json([]);
     }
 
@@ -60,6 +62,7 @@ router.get('/', authenticate, async (req, res) => {
 
       if (hasOrgId) {
         if (orgIds.length > 0) {
+          // Only show templates from the user's organizations OR global templates (NULL organization_id)
           conditions.push(`(organization_id IS NULL OR organization_id = ANY($${params.length + 1}::uuid[]))`);
           params.push(orgIds);
         } else {
@@ -81,8 +84,8 @@ router.get('/', authenticate, async (req, res) => {
     const result = await query(sql, params);
     res.json(result.rows);
   } catch (error) {
-    console.error('Get permission templates error:', error);
-    res.json([]);
+    logError('permission_templates.get_failed', error, { userId: req.userId, requestId });
+    res.status(500).json({ error: 'Erro ao buscar templates', requestId });
   }
 });
 
