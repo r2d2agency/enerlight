@@ -7,10 +7,13 @@ const router = express.Router();
 router.use(authenticate);
 
 // Helper: Get user's organization and groups
-async function getUserContext(userId) {
+async function getUserContext(userId, requestId) {
   try {
     const userBase = await query(`SELECT id, is_superadmin FROM users WHERE id = $1`, [userId]);
-    if (userBase.rows.length === 0) return null;
+    if (userBase.rows.length === 0) {
+      console.warn(`[online-quotes.getUserContext] User not found: ${userId}`, { requestId });
+      return null;
+    }
     
     const isSuperadmin = userBase.rows[0].is_superadmin === true;
 
@@ -30,6 +33,11 @@ async function getUserContext(userId) {
        ORDER BY (CASE WHEN om.role = 'owner' THEN 1 WHEN om.role = 'admin' THEN 2 WHEN om.role = 'manager' THEN 3 WHEN om.role = 'agent' THEN 4 ELSE 5 END) ASC`,
       [userId]
     );
+
+    if (userResult.rows.length === 0 && !isSuperadmin) {
+      console.warn(`[online-quotes.getUserContext] No active organization membership for user: ${userId}`, { requestId });
+      return null;
+    }
     
     const organizationId = userResult.rows[0]?.organization_id || null;
     const role = isSuperadmin ? 'owner' : (userResult.rows[0]?.role || null);
@@ -50,7 +58,7 @@ async function getUserContext(userId) {
       groupIds: groupsResult.rows.map(g => g.group_id)
     };
   } catch (err) {
-    console.error('[online-quotes.getUserContext] FAILED', err);
+    console.error(`[online-quotes.getUserContext] FAILED for user ${userId}`, { error: err.message, requestId });
     return null;
   }
 }
