@@ -9,8 +9,13 @@ const router = Router();
 router.get('/', authenticate, async (req, res) => {
   const requestId = Math.random().toString(36).substring(7);
   try {
+    if (!req.userId) {
+      return res.status(401).json({ error: 'Usuário não autenticado', requestId });
+    }
+
+    // Resolve user status and organization
     const userResult = await query(
-      `SELECT u.is_superadmin FROM users u WHERE u.id = $1`,
+      `SELECT u.id, u.is_superadmin FROM users u WHERE u.id = $1`,
       [req.userId]
     );
 
@@ -18,9 +23,30 @@ router.get('/', authenticate, async (req, res) => {
       return res.status(404).json({ error: 'Usuário não encontrado', requestId });
     }
 
-    const isSuperadmin = !!userResult.rows[0]?.is_superadmin;
-    
-    // Check if table exists
+    const user = userResult.rows[0];
+    const isSuperadmin = !!user.is_superadmin;
+
+    // Get user's organizations
+    const orgsResult = await query(
+      `SELECT organization_id FROM organization_members WHERE user_id = $1 AND status = 'active'`,
+      [req.userId]
+    );
+    const orgIds = orgsResult.rows.map(r => r.organization_id).filter(Boolean);
+
+    // Resolve current organization ID from headers or members
+    let resolvedOrgId = req.headers['x-organization-id'];
+    if (!resolvedOrgId && orgIds.length > 0) {
+      resolvedOrgId = orgIds[0];
+    }
+
+    if (!isSuperadmin && !resolvedOrgId) {
+       return res.status(400).json({ error: 'Empresa atual não identificada', requestId });
+    }
+
+    // Diagnostics: remove generic catch and log details
+    console.log(`[GET /api/permission-templates] Request by user ${req.userId} (Superadmin: ${isSuperadmin}, Org: ${resolvedOrgId})`);
+
+    // Check if table exists (idempotent check)
     const tableExists = await query(`
       SELECT EXISTS (
         SELECT FROM information_schema.tables 
@@ -30,14 +56,11 @@ router.get('/', authenticate, async (req, res) => {
     `);
 
     if (!tableExists.rows[0].exists) {
-      logWarn('permission_templates.table_missing', { requestId });
+      console.warn(`[GET /api/permission-templates] table missing, returning empty array`);
       return res.json([]);
     }
 
-    let sql = `SELECT * FROM permission_templates`;
-    const conditions = [];
-    const params = [];
-
+    // Dynamic query building based on existing columns
     const columnsRes = await query(`
       SELECT column_name 
       FROM information_schema.columns 
@@ -48,26 +71,28 @@ router.get('/', authenticate, async (req, res) => {
     const columnNames = columnsRes.rows.map(c => c.column_name);
     const hasStatus = columnNames.includes('status');
     const hasOrgId = columnNames.includes('organization_id');
+    const hasSortOrder = columnNames.includes('sort_order');
+    const hasCreatedAt = columnNames.includes('created_at');
+
+    let sql = `SELECT * FROM permission_templates`;
+    const conditions = [];
+    const params = [];
 
     if (hasStatus) {
       conditions.push(`status = 'active'`);
     }
 
     if (!isSuperadmin) {
-      const orgsResult = await query(
-        `SELECT organization_id FROM organization_members WHERE user_id = $1 AND status = 'active'`,
-        [req.userId]
-      );
-      const orgIds = orgsResult.rows.map(r => r.organization_id).filter(Boolean);
-
       if (hasOrgId) {
-        if (orgIds.length > 0) {
-          // Only show templates from the user's organizations OR global templates (NULL organization_id)
-          conditions.push(`(organization_id IS NULL OR organization_id = ANY($${params.length + 1}::uuid[]))`);
-          params.push(orgIds);
-        } else {
-          conditions.push(`organization_id IS NULL`);
-        }
+        // Isolation: templates for the resolved company OR global templates (NULL)
+        conditions.push(`(organization_id IS NULL OR organization_id = $1)`);
+        params.push(resolvedOrgId);
+      }
+    } else if (resolvedOrgId) {
+      // Superadmin filtering for specific org context if provided
+      if (hasOrgId) {
+        conditions.push(`(organization_id IS NULL OR organization_id = $1)`);
+        params.push(resolvedOrgId);
       }
     }
 
@@ -75,24 +100,29 @@ router.get('/', authenticate, async (req, res) => {
       sql += ` WHERE ` + conditions.join(' AND ');
     }
 
-    if (columnNames.includes('sort_order')) {
-      sql += ` ORDER BY sort_order ASC, created_at ASC`;
-    } else {
-      sql += ` ORDER BY created_at ASC`;
+    const orderParts = [];
+    if (hasSortOrder) orderParts.push(`sort_order ASC`);
+    if (hasCreatedAt) orderParts.push(`created_at ASC`);
+    
+    if (orderParts.length > 0) {
+      sql += ` ORDER BY ` + orderParts.join(', ');
     }
 
     const result = await query(sql, params);
     res.json(Array.isArray(result.rows) ? result.rows : []);
   } catch (error) {
-    console.error('CRITICAL: Permission Templates Fetch Error', {
-      requestId,
+    console.error('[GET /api/permission-templates] FAILED', {
+      message: error?.message,
+      name: error?.name,
+      code: error?.code,
+      detail: error?.detail,
+      constraint: error?.constraint,
+      table: error?.table,
+      column: error?.column,
+      stack: error?.stack,
       userId: req.userId,
-      message: error.message,
-      code: error.code,
-      stack: error.stack,
-      sql: error.query || 'N/A'
+      requestId
     });
-    logError('permission_templates.get_failed', error, { userId: req.userId, requestId });
     res.status(500).json({ error: 'Erro ao buscar templates', requestId });
   }
 });

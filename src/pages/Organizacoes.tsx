@@ -201,29 +201,8 @@ export default function Organizacoes() {
   useEffect(() => {
     loadOrganizations();
     checkSuperadmin().then(setIsSuperadmin);
-    loadPermissionTemplates();
+    // loadPermissionTemplates moved to sub-component to avoid duplication
   }, []);
-
-  useEffect(() => {
-    if (selectedOrg) {
-      loadMembers(selectedOrg.id);
-      loadConnections(selectedOrg.id);
-      loadDepartments(selectedOrg.id);
-      loadModules(selectedOrg.id);
-    }
-  }, [selectedOrg]);
-
-  const loadPermissionTemplates = async () => {
-    try {
-      const tpls = await api<Array<{ id: string; name: string; description: string | null; icon: string }>>('/api/permission-templates');
-      setPermissionTemplates(Array.isArray(tpls) ? tpls : []);
-    } catch (e: any) {
-      console.error('[Organizacoes] Error loading permission templates:', e);
-      const requestId = e?.data?.requestId || e?.body?.requestId;
-      const ref = requestId ? ` (Ref: ${requestId})` : '';
-      toast.error(`Erro ao carregar templates de permissão${ref}`);
-    }
-  };
 
   const loadOrganizations = async () => {
     setLoadingOrgs(true);

@@ -238,7 +238,9 @@ export function PermissionTemplatesTab() {
   const loadTemplates = async () => {
     setLoading(true);
     try {
-      const data = await api<PermissionTemplate[]>('/api/permission-templates');
+      const data = await api<PermissionTemplate[]>('/api/permission-templates', {
+        headers: { 'x-organization-id': localStorage.getItem('last_org_id') || '' }
+      });
       setTemplates(data);
     } catch (error: any) {
       console.error('[PermissionTemplatesTab] Error loading templates:', error);
