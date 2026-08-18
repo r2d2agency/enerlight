@@ -23,14 +23,15 @@ const shouldTryDirectBackendFallback = () => {
 interface ApiOptions {
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE' | 'PUT';
   body?: unknown;
+  headers?: Record<string, string>;
   auth?: boolean;
   isFormData?: boolean;
   silent?: boolean;
 }
 
 export const api = async <T>(endpoint: string, options: ApiOptions = {}): Promise<T> => {
-  const { method = 'GET', body, auth = true, isFormData = false, silent = false } = options;
-  const headers: Record<string, string> = {};
+  const { method = 'GET', body, headers: customHeaders = {}, auth = true, isFormData = false, silent = false } = options;
+  const headers: Record<string, string> = { ...customHeaders };
 
   if (!isFormData) {
     headers['Content-Type'] = 'application/json';
