@@ -97,6 +97,7 @@ export interface UserPermissions {
   can_view_all_representative_quotes?: boolean;
   can_view_expenses?: boolean;
   can_view_nfc?: boolean;
+  can_manage_representative_config?: boolean;
 }
 
 

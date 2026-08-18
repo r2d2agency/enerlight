@@ -68,14 +68,18 @@ export default function OnlineQuotes() {
   const { saveTemplate, savePriceList, deletePriceList, deleteQuote, updateQuoteStatus } = useOnlineQuoteMutations();
 
   const filteredPriceLists = priceLists?.filter(pl => {
-    if (isAdmin) return true;
+    if (isAdmin || user?.is_superadmin) return true;
     if (!pl.is_active) return false;
-    if (!pl.allowed_templates || pl.allowed_templates.length === 0 || pl.allowed_templates.includes('')) return true;
+    
+    // Check if the price list has restricted templates
+    const allowedTemplates = pl.allowed_templates || [];
+    if (allowedTemplates.length === 0 || allowedTemplates.includes('')) return true;
     
     // @ts-ignore - Assuming user might have permission_template_id
     const userTemplateId = user?.permission_template_id || '';
-    return pl.allowed_templates.includes(userTemplateId);
+    return allowedTemplates.includes(userTemplateId);
   });
+
   
   const filteredQuotes = quotes?.filter(quote => {
     const matchesSearch = quote.client_name.toLowerCase().includes(searchTerm.toLowerCase()) || 
