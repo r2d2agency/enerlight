@@ -2,15 +2,19 @@ import express from 'express';
 import { query } from '../db.js';
 import { authenticate } from '../middleware/auth.js';
 import { logError, logWarn } from '../logger.js';
+import { ROLE_DEFAULTS } from './permissions.js';
 
 const router = express.Router();
 router.use(authenticate);
 
 // Helper: Get user's organization and groups
-async function getUserContext(userId) {
+async function getUserContext(userId, requestId) {
   try {
     const userBase = await query(`SELECT id, is_superadmin FROM users WHERE id = $1`, [userId]);
-    if (userBase.rows.length === 0) return null;
+    if (userBase.rows.length === 0) {
+      console.warn(`[online-quotes.getUserContext] User not found: ${userId}`, { requestId });
+      return null;
+    }
     
     const isSuperadmin = userBase.rows[0].is_superadmin === true;
 
@@ -30,11 +34,16 @@ async function getUserContext(userId) {
        ORDER BY (CASE WHEN om.role = 'owner' THEN 1 WHEN om.role = 'admin' THEN 2 WHEN om.role = 'manager' THEN 3 WHEN om.role = 'agent' THEN 4 ELSE 5 END) ASC`,
       [userId]
     );
+
+    if (userResult.rows.length === 0 && !isSuperadmin) {
+      console.warn(`[online-quotes.getUserContext] No active organization membership for user: ${userId}`, { requestId });
+      return null;
+    }
     
     const organizationId = userResult.rows[0]?.organization_id || null;
     const role = isSuperadmin ? 'owner' : (userResult.rows[0]?.role || null);
     const permissionTemplateId = userResult.rows[0]?.permission_template_id || null;
-    const allOrgIds = userResult.rows.map(r => r.organization_id);
+    const allOrgIds = userResult.rows.map(r => r.organization_id).filter(Boolean);
 
     const groupsResult = await query(
       `SELECT group_id FROM crm_user_group_members WHERE user_id = $1`,
@@ -50,7 +59,7 @@ async function getUserContext(userId) {
       groupIds: groupsResult.rows.map(g => g.group_id)
     };
   } catch (err) {
-    console.error('[online-quotes.getUserContext] FAILED', err);
+    console.error(`[online-quotes.getUserContext] FAILED for user ${userId}`, { error: err.message, requestId });
     return null;
   }
 }
@@ -58,7 +67,7 @@ async function getUserContext(userId) {
 // Get accessible templates (Cover Pages)
 router.get('/templates', async (req, res) => {
   try {
-    const ctx = await getUserContext(req.userId);
+    const ctx = await getUserContext(req.userId, req.requestId);
     if (!ctx) return res.json([]);
     
     const orgIds = ctx.allOrgIds || [];
@@ -89,7 +98,7 @@ router.get('/templates', async (req, res) => {
 // Create/Update template
 router.post('/templates', async (req, res) => {
   try {
-    const ctx = await getUserContext(req.userId);
+    const ctx = await getUserContext(req.userId, req.requestId);
     if (!ctx) {
       logError('online-quotes.templates.post', new Error(`Unauthorized access attempt or user not found: ${req.userId}`));
       return res.status(403).json({ error: 'Unauthorized access' });
@@ -147,7 +156,7 @@ router.post('/templates', async (req, res) => {
 // Get accessible price lists
 router.get('/price-lists', async (req, res) => {
   try {
-    const ctx = await getUserContext(req.userId);
+    const ctx = await getUserContext(req.userId, req.requestId);
     if (!ctx) return res.json([]);
     
     const orgId = ctx.organizationId;
@@ -162,11 +171,10 @@ router.get('/price-lists', async (req, res) => {
     const params = [];
 
     if (ctx.isSuperadmin) {
-       // Superadmin sees all active lists across orgs? 
-       // Usually we filter by org unless it's global.
+       // Superadmin sees all active lists across all organizations
        const orgIds = ctx.allOrgIds || [];
        if (orgIds.length > 0) {
-         sql += ` AND pl.organization_id = ANY($1::uuid[])`;
+         sql += ` AND (pl.organization_id = ANY($1::uuid[]) OR pl.organization_id IS NULL)`;
          params.push(orgIds);
        }
     } else if (ctx.allOrgIds && ctx.allOrgIds.length > 0) {
@@ -198,7 +206,7 @@ router.get('/price-lists', async (req, res) => {
 // Create/Update a price list
 router.post('/price-lists', async (req, res) => {
   try {
-    const ctx = await getUserContext(req.userId);
+    const ctx = await getUserContext(req.userId, req.requestId);
     if (!ctx) {
       console.warn("[POST /api/online-quotes/price-lists] FORBIDDEN", {
         reason: "User context not found",
@@ -233,7 +241,8 @@ router.post('/price-lists', async (req, res) => {
       req.userPermissions?.can_manage_online_quotes || 
       req.userPermissions?.can_edit_price_lists || 
       req.userPermissions?.can_manage_quotes ||
-      req.userPermissions?.can_manage_representative_config;
+      req.userPermissions?.can_manage_representative_config ||
+      ROLE_DEFAULTS[ctx.role]?.can_manage_representative_config;
 
     if (!canManage) {
       console.warn("[POST /api/online-quotes/price-lists] FORBIDDEN", {
@@ -286,7 +295,7 @@ router.post('/price-lists', async (req, res) => {
 // Get items for a price list
 router.get('/price-lists/:id/items', async (req, res) => {
   try {
-    const ctx = await getUserContext(req.userId);
+    const ctx = await getUserContext(req.userId, req.requestId);
 
     if (!ctx) {
       logError('online-quotes.price-list-items.get', new Error(`Unauthorized access attempt or user not found: ${req.userId}`));
@@ -333,7 +342,7 @@ router.get('/price-lists/:id/items', async (req, res) => {
 // Update a single price list item
 router.patch('/price-lists/:id/items/:productCode', async (req, res) => {
   try {
-    const ctx = await getUserContext(req.userId);
+    const ctx = await getUserContext(req.userId, req.requestId);
     if (!ctx) {
       logError('online-quotes.price-list-items.patch', new Error(`Unauthorized access attempt or user not found: ${req.userId}`));
       return res.status(403).json({ error: 'Unauthorized access' });
@@ -380,7 +389,7 @@ router.patch('/price-lists/:id/items/:productCode', async (req, res) => {
 // Bulk upsert price list items (from XLSX)
 router.post('/price-lists/:id/items/bulk', async (req, res) => {
   try {
-    const ctx = await getUserContext(req.userId);
+    const ctx = await getUserContext(req.userId, req.requestId);
 
     if (!ctx) {
       logError('online-quotes.price-list-items.bulk', new Error(`Unauthorized access attempt or user not found: ${req.userId}`));
@@ -435,7 +444,7 @@ router.post('/price-lists/:id/items/bulk', async (req, res) => {
 // Create a new quote
 router.post('/quotes', async (req, res) => {
   try {
-    const ctx = await getUserContext(req.userId);
+    const ctx = await getUserContext(req.userId, req.requestId);
     if (!ctx) {
       logError('online-quotes.create', new Error(`Unauthorized access attempt or user not found: ${req.userId}`));
       return res.status(403).json({ error: 'Unauthorized access' });
@@ -520,7 +529,7 @@ router.post('/quotes', async (req, res) => {
 // Update an existing quote
 router.put('/quotes/:id', async (req, res) => {
   try {
-    const ctx = await getUserContext(req.userId);
+    const ctx = await getUserContext(req.userId, req.requestId);
     if (!ctx) {
       logError('online-quotes.update', new Error(`Unauthorized access attempt or user not found: ${req.userId}`));
       return res.status(403).json({ error: 'Unauthorized access' });
@@ -667,7 +676,7 @@ router.get('/quotes', async (req, res) => {
 // Get a single quote with items
 router.get('/quotes/:id', async (req, res) => {
   try {
-    const ctx = await getUserContext(req.userId);
+    const ctx = await getUserContext(req.userId, req.requestId);
     if (!ctx) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
@@ -712,7 +721,7 @@ router.get('/quotes/:id', async (req, res) => {
 // Delete a quote (Support both DELETE and POST /delete/:id)
 const deleteQuoteHandler = async (req, res) => {
   try {
-    const ctx = await getUserContext(req.userId);
+    const ctx = await getUserContext(req.userId, req.requestId);
     if (!ctx) {
       logError('online-quotes.quotes.delete', new Error(`Unauthorized access attempt for user ${req.userId}`));
       return res.status(403).json({ error: 'Unauthorized' });
@@ -756,7 +765,7 @@ router.post('/quotes/delete/:id', deleteQuoteHandler);
 // Create company from quote data (isolated for representatives)
 router.post('/companies/create-from-quote', async (req, res) => {
   try {
-    const ctx = await getUserContext(req.userId);
+    const ctx = await getUserContext(req.userId, req.requestId);
     if (!ctx) {
       logError('online-quotes.companies.create-from-quote', new Error(`Unauthorized access attempt for user ${req.userId}`));
       return res.status(403).json({ error: 'Unauthorized' });
@@ -811,8 +820,8 @@ router.post('/companies/create-from-quote', async (req, res) => {
 // Update quote status
 router.patch('/quotes/:id/status', async (req, res) => {
   try {
-    const ctx = await getUserContext(req.userId);
-    if (!ctx) return res.status(403).json({ error: 'Unauthorized' });
+    const ctx = await getUserContext(req.userId, req.requestId);
+    if (!ctx) return res.status(403).json({ error: 'Unauthorized', requestId: req.requestId });
 
     const { status } = req.body;
     if (!status) return res.status(400).json({ error: 'Status is required' });
@@ -845,7 +854,7 @@ router.patch('/quotes/:id/status', async (req, res) => {
 // Delete a price list
 const deletePriceListHandler = async (req, res) => {
   try {
-    const ctx = await getUserContext(req.userId);
+    const ctx = await getUserContext(req.userId, req.requestId);
     if (!ctx) {
       console.warn("[POST /api/online-quotes/price-lists/delete/:id] FORBIDDEN", {
         reason: "User context not found",
