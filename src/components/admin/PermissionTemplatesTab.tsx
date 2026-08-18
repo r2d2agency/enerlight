@@ -313,9 +313,11 @@ export function PermissionTemplatesTab() {
       }
       setEditorOpen(false);
       loadTemplates();
-    } catch (error) {
+    } catch (error: any) {
       console.error('[PermissionTemplatesTab] Save error:', error);
-      toast.error('Erro ao salvar template');
+      const message = error?.body?.error || error?.message || 'Erro ao salvar template';
+      const requestId = error?.body?.requestId ? ` (Ref: ${error.body.requestId})` : '';
+      toast.error(`${message}${requestId}`);
     } finally {
       setSaving(false);
     }

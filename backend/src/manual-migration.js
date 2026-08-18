@@ -11,13 +11,21 @@ export async function manualMigration() {
           name VARCHAR(255) NOT NULL,
           description TEXT,
           icon VARCHAR(50) DEFAULT 'Users',
-          permissions JSONB NOT NULL,
+          permissions JSONB NOT NULL DEFAULT '{}',
           organization_id UUID,
           status TEXT DEFAULT 'active',
+          is_default BOOLEAN DEFAULT false,
           sort_order INTEGER DEFAULT 0,
           created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
           updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       );
+      
+      -- Ensure is_default exists for older instances
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'permission_templates' AND column_name = 'is_default') THEN
+          ALTER TABLE permission_templates ADD COLUMN is_default BOOLEAN DEFAULT false;
+        END IF;
+      EXCEPTION WHEN others THEN NULL; END $$;
     `);
 
     // 1. Ensure allowed_templates and other columns exist on price_lists
