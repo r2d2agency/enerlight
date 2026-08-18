@@ -56,8 +56,10 @@ export default function RepresentativeConfig() {
       await savePriceList.mutateAsync(data);
       setIsPriceListDialogOpen(false);
       setEditingPriceList(null);
-    } catch (err) {
-      toast.error("Erro ao salvar tabela");
+    } catch (err: any) {
+      const errorMsg = err.data?.error || err.message || "Erro ao salvar tabela";
+      toast.error(errorMsg);
+      console.warn("[RepresentativeConfig] Save failed:", err.data);
     }
   };
 
