@@ -115,7 +115,7 @@ router.post('/', authenticate, async (req, res) => {
 
     if (!isSuperadmin && !isOwnerOrAdmin) {
       logWarn('permission_templates.create_denied', { userId: req.userId, requestId });
-      return res.status(403).json({ error: 'Sem permissão para criar templates' });
+      return res.status(403).json({ error: 'Sem permissão para criar templates', requestId });
     }
 
     const { name, description, icon, permissions, organization_id } = req.body;
