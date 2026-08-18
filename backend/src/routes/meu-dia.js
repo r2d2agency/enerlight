@@ -60,7 +60,7 @@ router.get('/', async (req, res) => {
 
     // Descobre organização
     const orgRes = await query(
-      `SELECT organization_id, role FROM organization_members WHERE user_id = $1 AND status = 'active' LIMIT 1`,
+      `SELECT organization_id, role FROM organization_members WHERE user_id = $1 LIMIT 1`,
       [userId]
     );
     if (!orgRes.rows.length) return res.json({ items: [], summary: emptySummary(), generated_at: new Date().toISOString() });
