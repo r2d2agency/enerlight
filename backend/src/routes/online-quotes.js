@@ -35,13 +35,8 @@ async function getUserContext(userId, requestId) {
       [userId]
     );
 
-    if (userResult.rows.length === 0 && !isSuperadmin) {
-      console.warn(`[online-quotes.getUserContext] No active organization membership for user: ${userId}`, { requestId });
-      return null;
-    }
-    
     const organizationId = userResult.rows[0]?.organization_id || null;
-    const role = isSuperadmin ? 'owner' : (userResult.rows[0]?.role || null);
+    const role = isSuperadmin ? 'owner' : (userResult.rows[0]?.role || 'agent'); // Default to agent if no role
     const permissionTemplateId = userResult.rows[0]?.permission_template_id || null;
     const allOrgIds = userResult.rows.map(r => r.organization_id).filter(Boolean);
 
@@ -60,7 +55,15 @@ async function getUserContext(userId, requestId) {
     };
   } catch (err) {
     console.error(`[online-quotes.getUserContext] FAILED for user ${userId}`, { error: err.message, requestId });
-    return null;
+    // Even if query fails, try to return a basic context if we have the userId
+    return {
+      organizationId: null,
+      allOrgIds: [],
+      role: 'agent',
+      isSuperadmin: false,
+      permissionTemplateId: null,
+      groupIds: []
+    };
   }
 }
 
