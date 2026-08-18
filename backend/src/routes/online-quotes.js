@@ -10,11 +10,9 @@ router.use(authenticate);
 // Helper: Get user's organization and groups
 async function getUserContext(userId, requestId) {
   try {
+    if (!userId) return null;
     const userBase = await query(`SELECT id, is_superadmin FROM users WHERE id = $1`, [userId]);
-    if (userBase.rows.length === 0) {
-      console.warn(`[online-quotes.getUserContext] User not found: ${userId}`, { requestId });
-      return null;
-    }
+    const isSuperadmin = userBase.rows[0]?.is_superadmin === true;
     
     const isSuperadmin = userBase.rows[0].is_superadmin === true;
 
