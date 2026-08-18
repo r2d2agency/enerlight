@@ -27,7 +27,7 @@ async function getUserContext(userId) {
       `SELECT om.organization_id, om.role, om.permission_template_id
        FROM organization_members om
        WHERE om.user_id = $1 ${statusFilter}
-       ORDER BY (CASE WHEN om.role = 'owner' THEN 1 WHEN om.role = 'admin' THEN 2 WHEN om.role = 'manager' THEN 3 ELSE 4 END) ASC`,
+       ORDER BY (CASE WHEN om.role = 'owner' THEN 1 WHEN om.role = 'admin' THEN 2 WHEN om.role = 'manager' THEN 3 WHEN om.role = 'agent' THEN 4 ELSE 5 END) ASC`,
       [userId]
     );
     
