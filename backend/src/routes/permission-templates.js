@@ -181,6 +181,9 @@ router.post('/', authenticate, async (req, res) => {
     insertSql += `) ${valuesSql}) RETURNING *`;
 
     const result = await query(insertSql, params);
+    if (result.rows.length === 0) {
+      throw new Error('Template was not created');
+    }
     logInfo('permission_templates.created', { templateId: result.rows[0].id, userId: req.userId, requestId });
     res.status(201).json(result.rows[0]);
   } catch (error) {
