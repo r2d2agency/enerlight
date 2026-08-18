@@ -203,6 +203,17 @@ export default function Organizacoes() {
     checkSuperadmin().then(setIsSuperadmin);
     // loadPermissionTemplates moved to sub-component to avoid duplication
   }, []);
+  useEffect(() => {
+    if (selectedOrg) {
+      loadMembers(selectedOrg.id);
+      loadConnections(selectedOrg.id);
+      loadDepartments(selectedOrg.id);
+      loadModules(selectedOrg.id);
+      api("/api/permission-templates", { headers: { "x-organization-id": selectedOrg.id } })
+        .then(data => setPermissionTemplates(Array.isArray(data) ? data : []))
+        .catch(console.error);
+    }
+  }, [selectedOrg]);
 
   const loadOrganizations = async () => {
     setLoadingOrgs(true);
