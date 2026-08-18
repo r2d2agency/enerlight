@@ -34,7 +34,7 @@ async function getUserContext(userId) {
     const organizationId = userResult.rows[0]?.organization_id || null;
     const role = isSuperadmin ? 'owner' : (userResult.rows[0]?.role || null);
     const permissionTemplateId = userResult.rows[0]?.permission_template_id || null;
-    const allOrgIds = userResult.rows.map(r => r.organization_id);
+    const allOrgIds = userResult.rows.map(r => r.organization_id).filter(Boolean);
 
     const groupsResult = await query(
       `SELECT group_id FROM crm_user_group_members WHERE user_id = $1`,
@@ -162,11 +162,10 @@ router.get('/price-lists', async (req, res) => {
     const params = [];
 
     if (ctx.isSuperadmin) {
-       // Superadmin sees all active lists across orgs? 
-       // Usually we filter by org unless it's global.
+       // Superadmin sees all active lists across all organizations
        const orgIds = ctx.allOrgIds || [];
        if (orgIds.length > 0) {
-         sql += ` AND pl.organization_id = ANY($1::uuid[])`;
+         sql += ` AND (pl.organization_id = ANY($1::uuid[]) OR pl.organization_id IS NULL)`;
          params.push(orgIds);
        }
     } else if (ctx.allOrgIds && ctx.allOrgIds.length > 0) {
