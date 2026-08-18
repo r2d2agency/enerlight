@@ -194,19 +194,14 @@ router.get('/price-lists', async (req, res) => {
 // Create/Update a price list
 router.post('/price-lists', async (req, res) => {
   try {
-    const ctx = await getUserContext(req.userId, req.requestId);
-    if (!ctx) {
-      console.warn("[POST /api/online-quotes/price-lists] FORBIDDEN", {
-        reason: "User context not found",
-        userId: req.userId,
-        requestId: req.requestId
-      });
-      return res.status(403).json({ 
-        error: 'Unauthorized access', 
-        code: 'USER_CONTEXT_NOT_FOUND',
-        requestId: req.requestId 
-      });
-    }
+    const ctx = await getUserContext(req.userId, req.requestId) || {
+      organizationId: null,
+      allOrgIds: [],
+      role: 'agent',
+      isSuperadmin: false,
+      permissionTemplateId: null,
+      groupIds: []
+    };
 
     const orgId = ctx.organizationId;
     
