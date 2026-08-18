@@ -5740,7 +5740,14 @@ export async function initDatabase() {
   for (const step of migrationSteps) {
     try {
       console.log('  -> Step: ' + step.name + '...');
-      await pool.query(step.sql);
+      // Log the SQL to help debug when it fails
+      // console.log('  Executing SQL for ' + step.name);
+      const client = await pool.connect();
+      try {
+        await client.query(step.sql);
+      } finally {
+        client.release();
+      }
       console.log('  OK ' + step.name + ' - OK');
       successCount++;
     } catch (error) {
