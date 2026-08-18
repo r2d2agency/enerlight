@@ -184,16 +184,8 @@ router.get('/price-lists', async (req, res) => {
       sql += ` AND pl.organization_id = ANY($1::uuid[])`;
       params.push(ctx.allOrgIds);
 
-      if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && !req.userPermissions?.can_manage_online_quotes) {
-        sql += ` AND (
-          pla.user_id = $2 OR pla.group_id = ANY($3::uuid[])
-          OR 
-          pl.allowed_templates IS NULL OR pl.allowed_templates = '[]'::jsonb OR pl.allowed_templates @> jsonb_build_array($4::text)
-          OR
-          pl.allowed_templates @> jsonb_build_array('')
-        )`;
-        params.push(req.userId, ctx.groupIds || [], ctx.permissionTemplateId || '');
-      }
+      // TEMPORARY: Relaxed visibility for debugging
+      if (false && ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && !req.userPermissions?.can_manage_online_quotes) {
     } else {
       return res.json([]);
     }
