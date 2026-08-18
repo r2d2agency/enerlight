@@ -198,6 +198,7 @@ router.post('/', authenticate, async (req, res) => {
 
 // Update template (superadmin or org owner/admin)
 router.put('/:id', authenticate, async (req, res) => {
+  const requestId = Math.random().toString(36).substring(7);
   try {
     const userResult = await query(
       `SELECT u.is_superadmin, om.role, om.organization_id FROM users u
@@ -211,7 +212,8 @@ router.put('/:id', authenticate, async (req, res) => {
     const orgIds = userResult.rows.map(r => r.organization_id).filter(Boolean);
 
     if (!isSuperadmin && !isOwnerOrAdmin) {
-      return res.status(403).json({ error: 'Sem permissão para editar templates' });
+      logWarn('permission_templates.update_denied', { userId: req.userId, requestId, templateId: req.params.id });
+      return res.status(403).json({ error: 'Sem permissão para editar templates', requestId });
     }
 
     const { name, description, icon, permissions, organization_id } = req.body;
@@ -221,10 +223,13 @@ router.put('/:id', authenticate, async (req, res) => {
         `SELECT organization_id FROM permission_templates WHERE id = $1`,
         [req.params.id]
       );
-      if (templateCheck.rows.length === 0) return res.status(404).json({ error: 'Template não encontrado' });
+      if (templateCheck.rows.length === 0) {
+        return res.status(404).json({ error: 'Template não encontrado', requestId });
+      }
       const tOrgId = templateCheck.rows[0].organization_id;
       if (tOrgId && !orgIds.includes(tOrgId)) {
-        return res.status(403).json({ error: 'Sem acesso a este template' });
+        logWarn('permission_templates.update_unauthorized_org', { userId: req.userId, requestId, templateId: req.params.id });
+        return res.status(403).json({ error: 'Sem acesso a este template', requestId });
       }
     }
 
@@ -238,7 +243,7 @@ router.put('/:id', authenticate, async (req, res) => {
     `);
     
     if (!tableCheck.rows[0].exists) {
-      return res.status(400).json({ error: 'Tabela de templates não inicializada' });
+      return res.status(400).json({ error: 'Tabela de templates não inicializada', requestId });
     }
 
     const columnsRes = await query(`
@@ -247,13 +252,12 @@ router.put('/:id', authenticate, async (req, res) => {
       WHERE table_name = 'permission_templates' AND column_name IN ('organization_id', 'status')
     `);
     const hasOrgId = columnsRes.rows.some(c => c.column_name === 'organization_id');
-    const hasStatus = columnsRes.rows.some(c => c.column_name === 'status');
 
-    let updateSql = `UPDATE permission_templates SET name = COALESCE($1, name), description = $2, icon = COALESCE($3, icon), permissions = COALESCE($4, permissions)`;
+    let updateSql = `UPDATE permission_templates SET name = COALESCE($1, name), description = $2, icon = COALESCE($3, icon), permissions = COALESCE($4, permissions), updated_at = NOW()`;
     const updateParams = [
-      name, 
+      name || null, 
       description || null, 
-      icon, 
+      icon || null, 
       permissions ? (typeof permissions === 'string' ? permissions : JSON.stringify(permissions)) : null
     ];
 
@@ -268,18 +272,20 @@ router.put('/:id', authenticate, async (req, res) => {
     const result = await query(updateSql, updateParams.filter(v => v !== undefined));
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Template não encontrado' });
+      return res.status(404).json({ error: 'Template não encontrado após atualização', requestId });
     }
 
+    logInfo('permission_templates.updated', { templateId: result.rows[0].id, userId: req.userId, requestId });
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Update permission template error:', error);
-    res.status(500).json({ error: 'Erro ao atualizar template' });
+    logError('permission_templates.update_failed', error, { userId: req.userId, requestId, templateId: req.params.id });
+    res.status(500).json({ error: 'Erro ao atualizar template', requestId });
   }
 });
 
 // Delete template (superadmin or org owner/admin)
 router.delete('/:id', authenticate, async (req, res) => {
+  const requestId = Math.random().toString(36).substring(7);
   try {
     const userResult = await query(
       `SELECT u.is_superadmin, om.role, om.organization_id FROM users u
@@ -293,7 +299,7 @@ router.delete('/:id', authenticate, async (req, res) => {
     const orgIds = userResult.rows.map(r => r.organization_id).filter(Boolean);
 
     if (!isSuperadmin && !isOwnerOrAdmin) {
-      return res.status(403).json({ error: 'Sem permissão para excluir templates' });
+      return res.status(403).json({ error: 'Sem permissão para excluir templates', requestId });
     }
 
     if (!isSuperadmin) {
@@ -301,18 +307,26 @@ router.delete('/:id', authenticate, async (req, res) => {
         `SELECT organization_id FROM permission_templates WHERE id = $1`,
         [req.params.id]
       );
-      if (templateCheck.rows.length === 0) return res.status(404).json({ error: 'Template não encontrado' });
+      if (templateCheck.rows.length === 0) {
+        return res.status(404).json({ error: 'Template não encontrado', requestId });
+      }
       const tOrgId = templateCheck.rows[0].organization_id;
       if (tOrgId && !orgIds.includes(tOrgId)) {
-        return res.status(403).json({ error: 'Sem acesso a este template' });
+        return res.status(403).json({ error: 'Sem acesso a este template', requestId });
       }
     }
 
-    await query(`DELETE FROM permission_templates WHERE id = $1`, [req.params.id]);
+    const result = await query(`DELETE FROM permission_templates WHERE id = $1 RETURNING id`, [req.params.id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Template não encontrado ou já excluído', requestId });
+    }
+
+    logInfo('permission_templates.deleted', { templateId: req.params.id, userId: req.userId, requestId });
     res.json({ success: true });
   } catch (error) {
-    console.error('Delete permission template error:', error);
-    res.status(500).json({ error: 'Erro ao excluir template' });
+    logError('permission_templates.delete_failed', error, { userId: req.userId, requestId, templateId: req.params.id });
+    res.status(500).json({ error: 'Erro ao excluir template', requestId });
   }
 });
 
