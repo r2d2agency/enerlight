@@ -41,7 +41,7 @@ export default function RepresentativeConfig() {
     const formData = new FormData(e.target as HTMLFormElement);
     
     const data = {
-      id: editingPriceList?.id,
+      id: editingPriceList?.id || undefined,
       name: formData.get('name'),
       description: formData.get('description'),
       is_active: formData.get('is_active') === 'on',
@@ -49,6 +49,8 @@ export default function RepresentativeConfig() {
       is_master: formData.get('is_master') === 'on',
       markup_percentage: parseFloat(formData.get('markup_percentage') as string || '0')
     };
+
+    if (!data.id) delete (data as any).id;
 
     try {
       await savePriceList.mutateAsync(data);
