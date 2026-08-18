@@ -674,7 +674,7 @@ router.get('/quotes', async (req, res) => {
 // Get a single quote with items
 router.get('/quotes/:id', async (req, res) => {
   try {
-    const ctx = await getUserContext(req.userId);
+    const ctx = await getUserContext(req.userId, req.requestId);
     if (!ctx) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
@@ -719,7 +719,7 @@ router.get('/quotes/:id', async (req, res) => {
 // Delete a quote (Support both DELETE and POST /delete/:id)
 const deleteQuoteHandler = async (req, res) => {
   try {
-    const ctx = await getUserContext(req.userId);
+    const ctx = await getUserContext(req.userId, req.requestId);
     if (!ctx) {
       logError('online-quotes.quotes.delete', new Error(`Unauthorized access attempt for user ${req.userId}`));
       return res.status(403).json({ error: 'Unauthorized' });
@@ -763,7 +763,7 @@ router.post('/quotes/delete/:id', deleteQuoteHandler);
 // Create company from quote data (isolated for representatives)
 router.post('/companies/create-from-quote', async (req, res) => {
   try {
-    const ctx = await getUserContext(req.userId);
+    const ctx = await getUserContext(req.userId, req.requestId);
     if (!ctx) {
       logError('online-quotes.companies.create-from-quote', new Error(`Unauthorized access attempt for user ${req.userId}`));
       return res.status(403).json({ error: 'Unauthorized' });
