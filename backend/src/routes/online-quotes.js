@@ -66,7 +66,7 @@ async function getUserContext(userId, requestId) {
 // Get accessible templates (Cover Pages)
 router.get('/templates', async (req, res) => {
   try {
-    const ctx = await getUserContext(req.userId);
+    const ctx = await getUserContext(req.userId, req.requestId);
     if (!ctx) return res.json([]);
     
     const orgIds = ctx.allOrgIds || [];
@@ -97,7 +97,7 @@ router.get('/templates', async (req, res) => {
 // Create/Update template
 router.post('/templates', async (req, res) => {
   try {
-    const ctx = await getUserContext(req.userId);
+    const ctx = await getUserContext(req.userId, req.requestId);
     if (!ctx) {
       logError('online-quotes.templates.post', new Error(`Unauthorized access attempt or user not found: ${req.userId}`));
       return res.status(403).json({ error: 'Unauthorized access' });
@@ -155,7 +155,7 @@ router.post('/templates', async (req, res) => {
 // Get accessible price lists
 router.get('/price-lists', async (req, res) => {
   try {
-    const ctx = await getUserContext(req.userId);
+    const ctx = await getUserContext(req.userId, req.requestId);
     if (!ctx) return res.json([]);
     
     const orgId = ctx.organizationId;
@@ -205,7 +205,7 @@ router.get('/price-lists', async (req, res) => {
 // Create/Update a price list
 router.post('/price-lists', async (req, res) => {
   try {
-    const ctx = await getUserContext(req.userId);
+    const ctx = await getUserContext(req.userId, req.requestId);
     if (!ctx) {
       console.warn("[POST /api/online-quotes/price-lists] FORBIDDEN", {
         reason: "User context not found",
@@ -293,7 +293,7 @@ router.post('/price-lists', async (req, res) => {
 // Get items for a price list
 router.get('/price-lists/:id/items', async (req, res) => {
   try {
-    const ctx = await getUserContext(req.userId);
+    const ctx = await getUserContext(req.userId, req.requestId);
 
     if (!ctx) {
       logError('online-quotes.price-list-items.get', new Error(`Unauthorized access attempt or user not found: ${req.userId}`));
@@ -340,7 +340,7 @@ router.get('/price-lists/:id/items', async (req, res) => {
 // Update a single price list item
 router.patch('/price-lists/:id/items/:productCode', async (req, res) => {
   try {
-    const ctx = await getUserContext(req.userId);
+    const ctx = await getUserContext(req.userId, req.requestId);
     if (!ctx) {
       logError('online-quotes.price-list-items.patch', new Error(`Unauthorized access attempt or user not found: ${req.userId}`));
       return res.status(403).json({ error: 'Unauthorized access' });
@@ -387,7 +387,7 @@ router.patch('/price-lists/:id/items/:productCode', async (req, res) => {
 // Bulk upsert price list items (from XLSX)
 router.post('/price-lists/:id/items/bulk', async (req, res) => {
   try {
-    const ctx = await getUserContext(req.userId);
+    const ctx = await getUserContext(req.userId, req.requestId);
 
     if (!ctx) {
       logError('online-quotes.price-list-items.bulk', new Error(`Unauthorized access attempt or user not found: ${req.userId}`));
@@ -442,7 +442,7 @@ router.post('/price-lists/:id/items/bulk', async (req, res) => {
 // Create a new quote
 router.post('/quotes', async (req, res) => {
   try {
-    const ctx = await getUserContext(req.userId);
+    const ctx = await getUserContext(req.userId, req.requestId);
     if (!ctx) {
       logError('online-quotes.create', new Error(`Unauthorized access attempt or user not found: ${req.userId}`));
       return res.status(403).json({ error: 'Unauthorized access' });
