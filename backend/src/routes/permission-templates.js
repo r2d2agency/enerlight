@@ -235,7 +235,7 @@ router.put('/:id', authenticate, async (req, res) => {
   try {
     const userResult = await query(
       `SELECT u.is_superadmin, om.role, om.organization_id FROM users u
-       LEFT JOIN organization_members om ON om.user_id = u.id AND om.status = 'active'
+       LEFT JOIN organization_members om ON om.user_id = u.id
        WHERE u.id = $1`,
       [req.userId]
     );
@@ -322,7 +322,7 @@ router.delete('/:id', authenticate, async (req, res) => {
   try {
     const userResult = await query(
       `SELECT u.is_superadmin, om.role, om.organization_id FROM users u
-       LEFT JOIN organization_members om ON om.user_id = u.id AND om.status = 'active'
+       LEFT JOIN organization_members om ON om.user_id = u.id
        WHERE u.id = $1`,
       [req.userId]
     );
