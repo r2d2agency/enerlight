@@ -205,7 +205,9 @@ router.post('/price-lists', async (req, res) => {
       ['owner', 'admin'].includes(ctx.role) || 
       req.userPermissions?.can_manage_online_quotes || 
       req.userPermissions?.can_edit_price_lists || 
-      req.userPermissions?.can_manage_quotes;
+      req.userPermissions?.can_manage_quotes ||
+      req.userPermissions?.can_manage_representative_config;
+
 
     if (!canManage) {
       logWarn('online-quotes.price-lists.post.unauthorized', { userId: req.userId, role: ctx.role, permissions: req.userPermissions });

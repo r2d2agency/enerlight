@@ -69,7 +69,7 @@ interface NavItem {
   name: string;
   href: string;
   icon: any;
-  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat' | 'homologation' | 'tasks' | 'lead_gleego' | 'captador' | 'document_signatures' | 'licitacao' | 'logistics' | 'online_quotes' | 'rh_module' | 'goals' | 'representatives' | 'representative_dashboard' | 'supervisor_ia' | 'ead';
+  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat' | 'homologation' | 'tasks' | 'lead_gleego' | 'captador' | 'document_signatures' | 'licitacao' | 'logistics' | 'online_quotes' | 'rh_module' | 'goals' | 'representatives' | 'representative_dashboard' | 'supervisor_ia' | 'ead' | 'representative_config';
   adminOnly?: boolean;
   ownerOnly?: boolean;
   superadminOnly?: boolean;
@@ -80,7 +80,7 @@ interface NavSection {
   title: string;
   icon: any;
   items: NavItem[];
-  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat' | 'homologation' | 'tasks' | 'lead_gleego' | 'captador' | 'document_signatures' | 'licitacao' | 'logistics' | 'online_quotes' | 'rh_module' | 'goals' | 'representatives' | 'representative_dashboard' | 'ead';
+  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat' | 'homologation' | 'tasks' | 'lead_gleego' | 'captador' | 'document_signatures' | 'licitacao' | 'logistics' | 'online_quotes' | 'rh_module' | 'goals' | 'representatives' | 'representative_dashboard' | 'ead' | 'representative_config';
   adminOnly?: boolean;
   permissionKey?: string;
 }
@@ -123,6 +123,8 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
       { name: "Orçamentos Online", href: "/crm/orcamentos", icon: FileText, moduleKey: 'online_quotes', permissionKey: 'can_view_online_quotes' },
       { name: "Gestão de Representantes", href: "/crm/representantes", icon: Handshake, moduleKey: 'representatives', permissionKey: 'can_view_representatives' },
       { name: "Hub de Representantes", href: "/crm/representantes-hub", icon: Users, moduleKey: 'representatives', permissionKey: 'can_view_all_representative_quotes' },
+      { name: "Configuração", href: "/crm/representantes/config", icon: Settings, moduleKey: 'representative_config', permissionKey: 'can_manage_representative_config' },
+
     ],
   },
   {
@@ -414,7 +416,9 @@ function SidebarContentComponent({ isExpanded, isSuperadmin, onNavigate }: Sideb
     scheduled_messages: 'can_view_schedules',
     billing: 'can_view_billing',
     representative_dashboard: 'can_view_representative_dashboard',
+    representative_config: 'can_manage_representative_config',
   };
+
 
   const hasModuleAccess = (moduleKey?: ModuleKey): boolean => {
     if (!moduleKey) return true;
