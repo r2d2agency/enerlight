@@ -202,16 +202,20 @@ router.post('/price-lists', async (req, res) => {
 
     // Allow owner, admin, manager OR users with specific permissions
     const canManage = ctx.isSuperadmin || 
-      ['owner', 'admin'].includes(ctx.role) || 
+      ['owner', 'admin', 'manager'].includes(ctx.role) || 
       req.userPermissions?.can_manage_online_quotes || 
       req.userPermissions?.can_edit_price_lists || 
       req.userPermissions?.can_manage_quotes ||
       req.userPermissions?.can_manage_representative_config;
 
-
     if (!canManage) {
-      logWarn('online-quotes.price-lists.post.unauthorized', { userId: req.userId, role: ctx.role, permissions: req.userPermissions });
-      return res.status(403).json({ error: 'Unauthorized access' });
+      logWarn('online-quotes.price-lists.post.unauthorized', { 
+        userId: req.userId, 
+        role: ctx.role, 
+        permissions: req.userPermissions,
+        isSuperadmin: ctx.isSuperadmin
+      });
+      return res.status(403).json({ error: 'Unauthorized access', details: 'Insufficient permissions or role' });
     }
     const { id, name, description, segment, is_active, default_template_id, allowed_templates } = req.body;
     
