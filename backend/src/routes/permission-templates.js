@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { query } from '../db.js';
 import { authenticate } from '../middleware/auth.js';
+import { logInfo, logWarn, logError } from '../logger.js';
 
 const router = Router();
 
