@@ -133,7 +133,7 @@ END $$;
 const step2bFixes = {
   name: 'Core Table Fixes',
   sql: `
-DO $$
+DO $
 BEGIN
     CREATE TABLE IF NOT EXISTS rh_authorized_locations (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -147,9 +147,9 @@ BEGIN
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     );
 EXCEPTION WHEN OTHERS THEN NULL; 
-END $$;
+END $;
 
-DO $$ 
+DO $ 
 BEGIN
     CREATE TABLE IF NOT EXISTS price_list_categories (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -161,40 +161,40 @@ BEGIN
         UNIQUE(organization_id, category, subcategory)
     );
 EXCEPTION WHEN OTHERS THEN NULL; 
-END $$;
+END $;
 
 -- Fix permission_templates
-DO $$
+DO $
 BEGIN
     ALTER TABLE permission_templates ADD COLUMN IF NOT EXISTS organization_id UUID;
 EXCEPTION WHEN OTHERS THEN NULL;
-END $$;
+END $;
 
-DO $$
+DO $
 BEGIN
     ALTER TABLE permission_templates ADD CONSTRAINT fk_permission_templates_org FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
 EXCEPTION WHEN OTHERS THEN NULL;
-END $$;
+END $;
 
-DO $$
+DO $
 BEGIN
     ALTER TABLE permission_templates ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active';
 EXCEPTION WHEN OTHERS THEN NULL;
-END $$;
+END $;
 
-DO $$
+DO $
 BEGIN
     UPDATE permission_templates SET status = 'active' WHERE status IS NULL;
 EXCEPTION WHEN OTHERS THEN NULL;
-END $$;
+END $;
 
-DO $$
+DO $
 BEGIN
     ALTER TABLE permission_templates ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0;
 EXCEPTION WHEN OTHERS THEN NULL;
-END $$;
+END $;
 
-DO $$
+DO $
 BEGIN
     -- Fix for role "authenticated" does not exist in some environments
     IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
@@ -204,7 +204,26 @@ BEGIN
         CREATE ROLE service_role;
     END IF;
 EXCEPTION WHEN OTHERS THEN NULL;
-END $$;
+END $;
+
+DO 875
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_tables WHERE tablename = 'permission_templates') THEN
+        CREATE TABLE permission_templates (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            name VARCHAR(255) NOT NULL,
+            description TEXT,
+            icon VARCHAR(50) DEFAULT 'Users',
+            permissions JSONB NOT NULL,
+            organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
+            status TEXT DEFAULT 'active',
+            sort_order INTEGER DEFAULT 0,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        );
+    END IF;
+EXCEPTION WHEN OTHERS THEN NULL;
+END 875;
 `,
   critical: true
 };
