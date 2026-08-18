@@ -87,6 +87,7 @@ router.get('/', authenticate, async (req, res) => {
 
 // Create template (superadmin or org owner/admin)
 router.post('/', authenticate, async (req, res) => {
+  const requestId = Math.random().toString(36).substring(7);
   try {
     const userResult = await query(
       `SELECT u.is_superadmin, om.role, om.organization_id FROM users u
@@ -96,31 +97,41 @@ router.post('/', authenticate, async (req, res) => {
     );
     
     const isSuperadmin = userResult.rows.some(r => r.is_superadmin);
-    const isOwnerOrAdmin = userResult.rows.some(r => r.role === 'owner' || r.role === 'admin');
+    const userRole = userResult.rows.find(r => r.role === 'owner' || r.role === 'admin')?.role;
+    const isOwnerOrAdmin = !!userRole;
     const activeOrgId = userResult.rows.find(r => r.organization_id)?.organization_id || null;
 
     if (!isSuperadmin && !isOwnerOrAdmin) {
+      logWarn('permission_templates.create_denied', { userId: req.userId, requestId });
       return res.status(403).json({ error: 'Sem permissão para criar templates' });
     }
 
     const { name, description, icon, permissions, organization_id } = req.body;
-    if (!name || !permissions) {
-      return res.status(400).json({ error: 'Nome e permissões são obrigatórios' });
+    
+    // Validation
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      return res.status(400).json({ error: 'Nome é obrigatório', requestId });
+    }
+    if (!permissions || (typeof permissions !== 'object' && typeof permissions !== 'string')) {
+      return res.status(400).json({ error: 'Permissões são obrigatórias', requestId });
     }
 
     const targetOrgId = isSuperadmin ? (organization_id || null) : activeOrgId;
 
-    // Check if table exists
-    const tableCheck = await query(`
-      SELECT EXISTS (
-        SELECT FROM information_schema.tables 
-        WHERE table_schema = 'public' 
-        AND table_name = 'permission_templates'
-      )
-    `);
-    
-    if (!tableCheck.rows[0].exists) {
-      return res.status(400).json({ error: 'Tabela de templates não inicializada' });
+    // Check for duplicate name in the same company
+    const duplicateCheck = await query(
+      `SELECT id FROM permission_templates 
+       WHERE LOWER(name) = LOWER($1) 
+       AND (organization_id = $2 OR (organization_id IS NULL AND $2 IS NULL))
+       AND status = 'active'`,
+      [name.trim(), targetOrgId]
+    );
+
+    if (duplicateCheck.rows.length > 0) {
+      return res.status(409).json({ 
+        error: 'Já existe um template com este nome nesta empresa', 
+        requestId 
+      });
     }
 
     const maxSort = await query(`SELECT COALESCE(MAX(sort_order), 0) + 1 as next FROM permission_templates`);
@@ -128,21 +139,48 @@ router.post('/', authenticate, async (req, res) => {
     const columnsRes = await query(`
       SELECT column_name 
       FROM information_schema.columns 
-      WHERE table_name = 'permission_templates' AND column_name IN ('organization_id', 'status')
+      WHERE table_name = 'permission_templates' AND column_name IN ('organization_id', 'status', 'is_default')
     `);
-    const hasOrgId = columnsRes.rows.some(c => c.column_name === 'organization_id');
-    const hasStatus = columnsRes.rows.some(c => c.column_name === 'status');
+    const columnNames = columnsRes.rows.map(c => c.column_name);
+    const hasOrgId = columnNames.includes('organization_id');
+    const hasStatus = columnNames.includes('status');
+    const hasIsDefault = columnNames.includes('is_default');
 
-    const result = await query(
-      `INSERT INTO permission_templates (name, description, icon, permissions, sort_order ${hasOrgId ? ', organization_id' : ''} ${hasStatus ? ', status' : ''})
-       VALUES ($1, $2, $3, $4, $5 ${hasOrgId ? ', $6' : ''} ${hasStatus ? ", 'active'" : ''}) RETURNING *`,
-      [name, description || null, icon || 'Users', typeof permissions === 'string' ? permissions : JSON.stringify(permissions), maxSort.rows[0].next, hasOrgId ? targetOrgId : undefined].filter(v => v !== undefined)
-    );
+    const permissionsJson = typeof permissions === 'string' ? permissions : JSON.stringify(permissions);
 
-    res.json(result.rows[0]);
+    let insertSql = `INSERT INTO permission_templates (name, description, icon, permissions, sort_order`;
+    let valuesSql = `VALUES ($1, $2, $3, $4, $5`;
+    const params = [name.trim(), description || null, icon || 'Users', permissionsJson, maxSort.rows[0].next];
+
+    if (hasOrgId) {
+      insertSql += `, organization_id`;
+      valuesSql += `, $${params.length + 1}`;
+      params.push(targetOrgId);
+    }
+    if (hasStatus) {
+      insertSql += `, status`;
+      valuesSql += `, 'active'`;
+    }
+    if (hasIsDefault) {
+      insertSql += `, is_default`;
+      valuesSql += `, false`;
+    }
+
+    insertSql += `) ${valuesSql}) RETURNING *`;
+
+    const result = await query(insertSql, params);
+    logInfo('permission_templates.created', { templateId: result.rows[0].id, userId: req.userId, requestId });
+    res.status(201).json(result.rows[0]);
   } catch (error) {
-    console.error('Create permission template error:', error);
-    res.status(500).json({ error: 'Erro ao criar template' });
+    logError('permission_templates.create_failed', error, { 
+      userId: req.userId, 
+      requestId,
+      body: { ...req.body, permissions: '...' } 
+    });
+    res.status(500).json({ 
+      error: 'Erro interno ao criar template', 
+      requestId 
+    });
   }
 });
 
