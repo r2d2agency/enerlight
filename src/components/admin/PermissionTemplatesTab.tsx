@@ -328,8 +328,11 @@ export function PermissionTemplatesTab() {
       await api(`/api/permission-templates/${id}`, { method: 'DELETE' });
       toast.success('Template excluído!');
       loadTemplates();
-    } catch {
-      toast.error('Erro ao excluir template');
+    } catch (error: any) {
+      console.error('[PermissionTemplatesTab] Delete error:', error);
+      const message = error?.body?.error || error?.message || 'Erro ao excluir template';
+      const requestId = error?.body?.requestId ? ` (Ref: ${error.body.requestId})` : '';
+      toast.error(`${message}${requestId}`);
     }
   };
 
