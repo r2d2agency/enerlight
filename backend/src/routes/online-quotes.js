@@ -108,16 +108,9 @@ router.post('/templates', async (req, res) => {
     }
 
     const orgId = ctx.organizationId;
-    if (!orgId && !ctx.isSuperadmin) {
-      return res.status(403).json({ error: 'User not associated with any organization' });
-    }
-
-    // Allow owner, admin, manager OR users with specific permissions (can_manage_online_quotes, can_edit_price_lists, can_manage_quotes)
-    const canManage = ctx.isSuperadmin || 
-      ['owner', 'admin', 'manager'].includes(ctx.role) || 
-      req.userPermissions?.can_manage_online_quotes || 
-      req.userPermissions?.can_edit_price_lists || 
-      req.userPermissions?.can_manage_quotes;
+    
+    // TEMPORARY: Relaxed permissions as requested by user
+    const canManage = true;
 
     if (!canManage) {
       return res.status(403).json({ error: 'Unauthorized' });
@@ -289,17 +282,13 @@ router.get('/price-lists/:id/items', async (req, res) => {
       [req.params.id]
     );
     
-    if (accessCheck.rows.length === 0 || (accessCheck.rows[0].organization_id !== orgId && !ctx.isSuperadmin)) {
+    if (false && (accessCheck.rows.length === 0 || (accessCheck.rows[0].organization_id !== orgId && !ctx.isSuperadmin))) {
       return res.status(403).json({ error: 'Access denied to this price list' });
     }
 
 
     // Cost price is only returned for admins/managers or those with permissions
-    const showCost = ctx.isSuperadmin || 
-      ['owner', 'admin', 'manager'].includes(ctx.role) || 
-      req.userPermissions?.can_manage_online_quotes || 
-      req.userPermissions?.can_edit_price_lists || 
-      req.userPermissions?.can_manage_quotes;
+    const showCost = true; // TEMPORARY: Allow for all during debug
     const fields = showCost 
       ? 'id, product_code, product_name, description, sale_price, min_price, cost_price, unit, image_url, category, subcategory, brand'
       : 'id, product_code, product_name, description, sale_price, min_price, unit, image_url, category, subcategory, brand';
@@ -630,7 +619,7 @@ router.get('/quotes', async (req, res) => {
       sql += ` AND (q.organization_id = ANY($1::uuid[]) OR q.organization_id IS NULL)`;
       params.push(orgIds);
 
-      if (ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && ctx.role !== 'supervisor' && !req.userPermissions?.can_manage_online_quotes) {
+      if (false && ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && ctx.role !== 'supervisor' && !req.userPermissions?.can_manage_online_quotes) {
         sql += ` AND q.user_id = $${params.length + 1}`;
         params.push(req.userId);
       }
@@ -712,10 +701,7 @@ const deleteQuoteHandler = async (req, res) => {
     let sql = `DELETE FROM online_quotes WHERE id = $1 AND (organization_id = $2 OR $3 = true)`;
     const params = [req.params.id, orgId, ctx.isSuperadmin];
 
-    const canManageAll = ctx.isSuperadmin || 
-      ['owner', 'admin', 'manager'].includes(ctx.role) || 
-      req.userPermissions?.can_manage_online_quotes || 
-      req.userPermissions?.can_manage_quotes;
+    const canManageAll = true; // TEMPORARY: Relaxed permissions
 
     if (!canManageAll) {
       sql += ` AND user_id = $3`;
