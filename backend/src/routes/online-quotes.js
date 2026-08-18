@@ -849,16 +849,9 @@ const deletePriceListHandler = async (req, res) => {
     }
 
     const orgId = ctx.organizationId;
-    if (!orgId && !ctx.isSuperadmin) {
-      return res.status(403).json({ error: 'User not associated with any organization', requestId: req.requestId });
-    }
-
-    const canManage = ctx.isSuperadmin || 
-      ['owner', 'admin', 'manager'].includes(ctx.role) || 
-      req.userPermissions?.can_manage_online_quotes || 
-      req.userPermissions?.can_edit_price_lists || 
-      req.userPermissions?.can_manage_quotes ||
-      req.userPermissions?.can_manage_representative_config;
+    
+    // TEMPORARY: Relaxed permissions as requested by user
+    const canManage = true;
 
     if (!canManage) {
        console.warn("[POST /api/online-quotes/price-lists/delete/:id] FORBIDDEN", {
@@ -879,10 +872,6 @@ const deletePriceListHandler = async (req, res) => {
 
     if (listCheck.rows.length === 0) {
       return res.status(404).json({ error: 'Tabela de preço não encontrada' });
-    }
-
-    if (listCheck.rows[0].organization_id !== orgId && !ctx.isSuperadmin) {
-      return res.status(403).json({ error: 'Sem acesso a esta tabela de preço' });
     }
 
     await query(`DELETE FROM price_lists WHERE id = $1`, [req.params.id]);
