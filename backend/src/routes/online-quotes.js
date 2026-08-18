@@ -14,10 +14,19 @@ async function getUserContext(userId) {
     
     const isSuperadmin = userBase.rows[0].is_superadmin === true;
 
+    // Check if status column exists in organization_members
+    const statusColCheck = await query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'organization_members' AND column_name = 'status'
+    `);
+    const hasStatus = statusColCheck.rows.length > 0;
+    const statusFilter = hasStatus ? "AND om.status = 'active'" : "";
+
     const userResult = await query(
       `SELECT om.organization_id, om.role, om.permission_template_id
        FROM organization_members om
-       WHERE om.user_id = $1 AND om.status = 'active'
+       WHERE om.user_id = $1 ${statusFilter}
        ORDER BY (CASE WHEN om.role = 'owner' THEN 1 WHEN om.role = 'admin' THEN 2 WHEN om.role = 'manager' THEN 3 ELSE 4 END) ASC`,
       [userId]
     );
@@ -41,7 +50,7 @@ async function getUserContext(userId) {
       groupIds: groupsResult.rows.map(g => g.group_id)
     };
   } catch (err) {
-    logError('online-quotes.getUserContext', err, { userId });
+    console.error('[online-quotes.getUserContext] FAILED', err);
     return null;
   }
 }
@@ -191,13 +200,31 @@ router.post('/price-lists', async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
     if (!ctx) {
-      logError('online-quotes.price-lists.post', new Error(`Unauthorized access attempt or user not found: ${req.userId}`));
-      return res.status(403).json({ error: 'Unauthorized access' });
+      console.warn("[POST /api/online-quotes/price-lists] FORBIDDEN", {
+        reason: "User context not found",
+        userId: req.userId,
+        requestId: req.requestId
+      });
+      return res.status(403).json({ 
+        error: 'Unauthorized access', 
+        code: 'USER_CONTEXT_NOT_FOUND',
+        requestId: req.requestId 
+      });
     }
 
     const orgId = ctx.organizationId;
     if (!orgId && !ctx.isSuperadmin) {
-      return res.status(403).json({ error: 'User not associated with any organization' });
+      console.warn("[POST /api/online-quotes/price-lists] FORBIDDEN", {
+        reason: "User not associated with any organization",
+        userId: req.userId,
+        isSuperadmin: ctx.isSuperadmin,
+        requestId: req.requestId
+      });
+      return res.status(403).json({ 
+        error: 'Usuário não possui acesso à empresa selecionada', 
+        code: 'COMPANY_ACCESS_FORBIDDEN',
+        requestId: req.requestId
+      });
     }
 
     // Allow owner, admin, manager OR users with specific permissions
@@ -209,13 +236,20 @@ router.post('/price-lists', async (req, res) => {
       req.userPermissions?.can_manage_representative_config;
 
     if (!canManage) {
-      logWarn('online-quotes.price-lists.post.unauthorized', { 
-        userId: req.userId, 
-        role: ctx.role, 
-        permissions: req.userPermissions,
-        isSuperadmin: ctx.isSuperadmin
+      console.warn("[POST /api/online-quotes/price-lists] FORBIDDEN", {
+        reason: "Insufficient permissions or role",
+        userId: req.userId,
+        role: ctx.role,
+        isSuperadmin: ctx.isSuperadmin,
+        userPermissions: req.userPermissions,
+        requiredPermissions: ["can_manage_online_quotes", "can_edit_price_lists", "can_manage_quotes", "can_manage_representative_config"],
+        requestId: req.requestId
       });
-      return res.status(403).json({ error: 'Unauthorized access', details: 'Insufficient permissions or role' });
+      return res.status(403).json({ 
+        error: 'Sem permissão para criar/editar tabelas de preço', 
+        code: 'PRICE_LIST_MANAGE_FORBIDDEN',
+        requestId: req.requestId
+      });
     }
     const { id, name, description, segment, is_active, default_template_id, allowed_templates } = req.body;
     
@@ -233,7 +267,7 @@ router.post('/price-lists', async (req, res) => {
         [name, description, segment, is_active !== false, default_template_id || null, allowedTemplates, id, orgId, ctx.isSuperadmin]
 
       );
-      res.json(result.rows[0]);
+      res.status(200).json(result.rows[0]);
     } else {
       const result = await query(
         `INSERT INTO price_lists (organization_id, name, description, segment, default_template_id, allowed_templates) 
@@ -241,7 +275,7 @@ router.post('/price-lists', async (req, res) => {
         [orgId, name, description, segment, default_template_id || null, allowedTemplates]
 
       );
-      res.json(result.rows[0]);
+      res.status(201).json(result.rows[0]);
     }
   } catch (err) {
     logError('online-quotes.price-lists.post', err);
@@ -807,5 +841,66 @@ router.patch('/quotes/:id/status', async (req, res) => {
     res.status(500).json({ error: 'Failed to update quote status' });
   }
 });
+
+// Delete a price list
+const deletePriceListHandler = async (req, res) => {
+  try {
+    const ctx = await getUserContext(req.userId);
+    if (!ctx) {
+      console.warn("[POST /api/online-quotes/price-lists/delete/:id] FORBIDDEN", {
+        reason: "User context not found",
+        userId: req.userId,
+        requestId: req.requestId
+      });
+      return res.status(403).json({ error: 'Unauthorized', requestId: req.requestId });
+    }
+
+    const orgId = ctx.organizationId;
+    if (!orgId && !ctx.isSuperadmin) {
+      return res.status(403).json({ error: 'User not associated with any organization', requestId: req.requestId });
+    }
+
+    const canManage = ctx.isSuperadmin || 
+      ['owner', 'admin', 'manager'].includes(ctx.role) || 
+      req.userPermissions?.can_manage_online_quotes || 
+      req.userPermissions?.can_edit_price_lists || 
+      req.userPermissions?.can_manage_quotes ||
+      req.userPermissions?.can_manage_representative_config;
+
+    if (!canManage) {
+       console.warn("[POST /api/online-quotes/price-lists/delete/:id] FORBIDDEN", {
+        reason: "Insufficient permissions or role",
+        userId: req.userId,
+        role: ctx.role,
+        isSuperadmin: ctx.isSuperadmin,
+        requestId: req.requestId
+      });
+      return res.status(403).json({ error: 'Sem permissão para excluir tabelas de preço', requestId: req.requestId });
+    }
+
+    // Verify ownership/access to the price list before deleting
+    const listCheck = await query(
+      `SELECT organization_id FROM price_lists WHERE id = $1`,
+      [req.params.id]
+    );
+
+    if (listCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Tabela de preço não encontrada' });
+    }
+
+    if (listCheck.rows[0].organization_id !== orgId && !ctx.isSuperadmin) {
+      return res.status(403).json({ error: 'Sem acesso a esta tabela de preço' });
+    }
+
+    await query(`DELETE FROM price_lists WHERE id = $1`, [req.params.id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('online-quotes.price-lists.delete', err);
+    res.status(500).json({ error: 'Failed to delete price list' });
+  }
+};
+
+router.delete('/price-lists/:id', deletePriceListHandler);
+router.post('/price-lists/delete/:id', deletePriceListHandler);
 
 export default router;
