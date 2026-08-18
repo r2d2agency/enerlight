@@ -82,7 +82,7 @@ router.get('/', authenticate, async (req, res) => {
     }
 
     const result = await query(sql, params);
-    res.json(result.rows);
+    res.json(Array.isArray(result.rows) ? result.rows : []);
   } catch (error) {
     console.error('CRITICAL: Permission Templates Fetch Error', {
       requestId,
