@@ -28,7 +28,7 @@ router.get('/', authenticate, async (req, res) => {
 
     // Get user's organizations
     const orgsResult = await query(
-      `SELECT organization_id FROM organization_members WHERE user_id = $1 AND status = 'active'`,
+      `SELECT organization_id FROM organization_members WHERE user_id = $1`,
       [req.userId]
     );
     const orgIds = orgsResult.rows.map(r => r.organization_id).filter(Boolean);
@@ -133,7 +133,7 @@ router.post('/', authenticate, async (req, res) => {
   try {
     const userResult = await query(
       `SELECT u.is_superadmin, om.role, om.organization_id FROM users u
-       LEFT JOIN organization_members om ON om.user_id = u.id AND om.status = 'active'
+       LEFT JOIN organization_members om ON om.user_id = u.id
        WHERE u.id = $1`,
       [req.userId]
     );
@@ -235,7 +235,7 @@ router.put('/:id', authenticate, async (req, res) => {
   try {
     const userResult = await query(
       `SELECT u.is_superadmin, om.role, om.organization_id FROM users u
-       LEFT JOIN organization_members om ON om.user_id = u.id AND om.status = 'active'
+       LEFT JOIN organization_members om ON om.user_id = u.id
        WHERE u.id = $1`,
       [req.userId]
     );
@@ -322,7 +322,7 @@ router.delete('/:id', authenticate, async (req, res) => {
   try {
     const userResult = await query(
       `SELECT u.is_superadmin, om.role, om.organization_id FROM users u
-       LEFT JOIN organization_members om ON om.user_id = u.id AND om.status = 'active'
+       LEFT JOIN organization_members om ON om.user_id = u.id
        WHERE u.id = $1`,
       [req.userId]
     );

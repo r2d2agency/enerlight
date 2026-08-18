@@ -133,6 +133,7 @@ DO $$ BEGIN
     ALTER TABLE organization_members ADD COLUMN IF NOT EXISTS authorized_radius_meters INTEGER DEFAULT 100;
     ALTER TABLE organization_members ADD COLUMN IF NOT EXISTS authorized_latitude DECIMAL(10, 8);
     ALTER TABLE organization_members ADD COLUMN IF NOT EXISTS authorized_longitude DECIMAL(11, 8);
+    ALTER TABLE organization_members ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active';
     
     -- RH Authorized Locations table
     -- Moved to separate DO block
