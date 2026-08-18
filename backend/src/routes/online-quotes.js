@@ -191,13 +191,31 @@ router.post('/price-lists', async (req, res) => {
   try {
     const ctx = await getUserContext(req.userId);
     if (!ctx) {
-      logError('online-quotes.price-lists.post', new Error(`Unauthorized access attempt or user not found: ${req.userId}`));
-      return res.status(403).json({ error: 'Unauthorized access' });
+      console.warn("[POST /api/online-quotes/price-lists] FORBIDDEN", {
+        reason: "User context not found",
+        userId: req.userId,
+        requestId: req.requestId
+      });
+      return res.status(403).json({ 
+        error: 'Unauthorized access', 
+        code: 'USER_CONTEXT_NOT_FOUND',
+        requestId: req.requestId 
+      });
     }
 
     const orgId = ctx.organizationId;
     if (!orgId && !ctx.isSuperadmin) {
-      return res.status(403).json({ error: 'User not associated with any organization' });
+      console.warn("[POST /api/online-quotes/price-lists] FORBIDDEN", {
+        reason: "User not associated with any organization",
+        userId: req.userId,
+        isSuperadmin: ctx.isSuperadmin,
+        requestId: req.requestId
+      });
+      return res.status(403).json({ 
+        error: 'Usuário não possui acesso à empresa selecionada', 
+        code: 'COMPANY_ACCESS_FORBIDDEN',
+        requestId: req.requestId
+      });
     }
 
     // Allow owner, admin, manager OR users with specific permissions
@@ -209,13 +227,20 @@ router.post('/price-lists', async (req, res) => {
       req.userPermissions?.can_manage_representative_config;
 
     if (!canManage) {
-      logWarn('online-quotes.price-lists.post.unauthorized', { 
-        userId: req.userId, 
-        role: ctx.role, 
-        permissions: req.userPermissions,
-        isSuperadmin: ctx.isSuperadmin
+      console.warn("[POST /api/online-quotes/price-lists] FORBIDDEN", {
+        reason: "Insufficient permissions or role",
+        userId: req.userId,
+        role: ctx.role,
+        isSuperadmin: ctx.isSuperadmin,
+        userPermissions: req.userPermissions,
+        requiredPermissions: ["can_manage_online_quotes", "can_edit_price_lists", "can_manage_quotes", "can_manage_representative_config"],
+        requestId: req.requestId
       });
-      return res.status(403).json({ error: 'Unauthorized access', details: 'Insufficient permissions or role' });
+      return res.status(403).json({ 
+        error: 'Sem permissão para criar/editar tabelas de preço', 
+        code: 'PRICE_LIST_MANAGE_FORBIDDEN',
+        requestId: req.requestId
+      });
     }
     const { id, name, description, segment, is_active, default_template_id, allowed_templates } = req.body;
     
@@ -233,7 +258,7 @@ router.post('/price-lists', async (req, res) => {
         [name, description, segment, is_active !== false, default_template_id || null, allowedTemplates, id, orgId, ctx.isSuperadmin]
 
       );
-      res.json(result.rows[0]);
+      res.status(200).json(result.rows[0]);
     } else {
       const result = await query(
         `INSERT INTO price_lists (organization_id, name, description, segment, default_template_id, allowed_templates) 
@@ -241,7 +266,7 @@ router.post('/price-lists', async (req, res) => {
         [orgId, name, description, segment, default_template_id || null, allowedTemplates]
 
       );
-      res.json(result.rows[0]);
+      res.status(201).json(result.rows[0]);
     }
   } catch (err) {
     logError('online-quotes.price-lists.post', err);
