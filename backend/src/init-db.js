@@ -50,6 +50,21 @@ const step2CoreTables = {
   sql: `
 
 -- Users table
+
+-- Permission Templates
+CREATE TABLE IF NOT EXISTS permission_templates (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    icon VARCHAR(50) DEFAULT 'Users',
+    permissions JSONB NOT NULL,
+    organization_id UUID,
+    status TEXT DEFAULT 'active',
+    sort_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email VARCHAR(255) UNIQUE NOT NULL,
