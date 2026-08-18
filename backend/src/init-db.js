@@ -229,13 +229,33 @@ BEGIN
             name VARCHAR(255) NOT NULL,
             description TEXT,
             icon VARCHAR(50) DEFAULT 'Users',
-            permissions JSONB NOT NULL,
+            permissions JSONB NOT NULL DEFAULT '{}',
             organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
             status TEXT DEFAULT 'active',
+            is_default BOOLEAN DEFAULT false,
             sort_order INTEGER DEFAULT 0,
             created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
             updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
         );
+    ELSE
+        -- Ensure all columns exist
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'permission_templates' AND column_name = 'organization_id') THEN
+            ALTER TABLE permission_templates ADD COLUMN organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'permission_templates' AND column_name = 'status') THEN
+            ALTER TABLE permission_templates ADD COLUMN status TEXT DEFAULT 'active';
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'permission_templates' AND column_name = 'is_default') THEN
+            ALTER TABLE permission_templates ADD COLUMN is_default BOOLEAN DEFAULT false;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'permission_templates' AND column_name = 'sort_order') THEN
+            ALTER TABLE permission_templates ADD COLUMN sort_order INTEGER DEFAULT 0;
+        END IF;
+        
+        -- Fix nullable permissions
+        ALTER TABLE permission_templates ALTER COLUMN permissions SET DEFAULT '{}';
+        UPDATE permission_templates SET permissions = '{}' WHERE permissions IS NULL;
+        ALTER TABLE permission_templates ALTER COLUMN permissions SET NOT NULL;
     END IF;
 EXCEPTION WHEN OTHERS THEN NULL;
 END $$;
