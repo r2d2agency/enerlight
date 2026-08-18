@@ -2,6 +2,7 @@ import express from 'express';
 import { query } from '../db.js';
 import { authenticate } from '../middleware/auth.js';
 import { logError, logWarn } from '../logger.js';
+import { ROLE_DEFAULTS } from './permissions.js';
 
 const router = express.Router();
 router.use(authenticate);
@@ -240,7 +241,8 @@ router.post('/price-lists', async (req, res) => {
       req.userPermissions?.can_manage_online_quotes || 
       req.userPermissions?.can_edit_price_lists || 
       req.userPermissions?.can_manage_quotes ||
-      req.userPermissions?.can_manage_representative_config;
+      req.userPermissions?.can_manage_representative_config ||
+      ROLE_DEFAULTS[ctx.role]?.can_manage_representative_config;
 
     if (!canManage) {
       console.warn("[POST /api/online-quotes/price-lists] FORBIDDEN", {
