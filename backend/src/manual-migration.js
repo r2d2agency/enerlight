@@ -42,6 +42,15 @@ export async function manualMigration() {
       EXCEPTION WHEN others THEN RAISE NOTICE 'Error updating online_quote_templates table'; END $$;
     `);
 
+    // 3. Ensure can_manage_representative_config permission column exists
+    await query(`
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'user_permissions' AND column_name = 'can_manage_representative_config') THEN
+          ALTER TABLE user_permissions ADD COLUMN can_manage_representative_config BOOLEAN DEFAULT false;
+        END IF;
+      EXCEPTION WHEN others THEN RAISE NOTICE 'Error updating user_permissions table'; END $$;
+    `);
+
     console.log('Manual migration completed successfully!');
   } catch (err) {
     console.error('Manual migration failed:', err);
