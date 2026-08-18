@@ -84,6 +84,14 @@ router.get('/', authenticate, async (req, res) => {
     const result = await query(sql, params);
     res.json(result.rows);
   } catch (error) {
+    console.error('CRITICAL: Permission Templates Fetch Error', {
+      requestId,
+      userId: req.userId,
+      message: error.message,
+      code: error.code,
+      stack: error.stack,
+      sql: error.query || 'N/A'
+    });
     logError('permission_templates.get_failed', error, { userId: req.userId, requestId });
     res.status(500).json({ error: 'Erro ao buscar templates', requestId });
   }
