@@ -527,7 +527,7 @@ router.post('/quotes', async (req, res) => {
 // Update an existing quote
 router.put('/quotes/:id', async (req, res) => {
   try {
-    const ctx = await getUserContext(req.userId);
+    const ctx = await getUserContext(req.userId, req.requestId);
     if (!ctx) {
       logError('online-quotes.update', new Error(`Unauthorized access attempt or user not found: ${req.userId}`));
       return res.status(403).json({ error: 'Unauthorized access' });
