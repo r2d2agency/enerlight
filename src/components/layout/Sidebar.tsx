@@ -126,6 +126,10 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
       { name: "Indicadores", href: "/crm/representantes", icon: Handshake, moduleKey: 'representatives', permissionKey: 'can_view_representatives' },
       { name: "Hub de Representantes", href: "/crm/representantes-hub", icon: Users, moduleKey: 'representatives', permissionKey: 'can_view_all_representative_quotes' },
       { name: "Configuração de Representantes", href: "/crm/representantes/config", icon: Settings, moduleKey: 'representative_config', permissionKey: 'can_manage_representative_config' },
+
+      { name: "Indicadores", href: "/crm/representantes", icon: Handshake, moduleKey: 'representatives', permissionKey: 'can_view_representatives' },
+      { name: "Hub de Representantes", href: "/crm/representantes-hub", icon: Users, moduleKey: 'representatives', permissionKey: 'can_view_all_representative_quotes' },
+      { name: "Configuração de Representantes", href: "/crm/representantes/config", icon: Settings, moduleKey: 'representative_config', permissionKey: 'can_manage_representative_config' },
       { name: "Mapa", href: "/mapa", icon: Map, permissionKey: 'can_view_map' },
       { name: "Agenda", href: "/crm/agenda", icon: CalendarDays, permissionKey: 'can_view_calendar' },
       { name: "Reuniões", href: "/reunioes", icon: Presentation, permissionKey: 'can_view_crm' },
