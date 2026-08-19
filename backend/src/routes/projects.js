@@ -436,9 +436,11 @@ router.post('/', async (req, res) => {
     if (!org) return res.status(403).json({ error: 'No org' });
     const { title, description, deal_id, assigned_to, priority, due_date, template_id, seller_id } = req.body;
 
-    let allowed = true; // Permissão relaxada para criação via CRM
-    // Sellers can "Solicitar Projeto" from a deal they own/created/are assigned to
-    if (false && deal_id) {
+    let allowed = await canEditProject(req.userId, org);
+    
+    // Allow sellers to create projects/attach files from their own deals
+    if (!allowed && deal_id) {
+
 
       try {
         const dr = await query(
