@@ -216,8 +216,7 @@ router.post('/price-lists', async (req, res) => {
         requestId: req.requestId
       });
     }
-      });
-    }
+
     const { id, name, description, segment, is_active, default_template_id, allowed_templates } = req.body;
     
     let allowedTemplates = '[]';
