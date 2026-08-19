@@ -13,8 +13,7 @@ async function getUserContext(userId, requestId) {
     if (!userId) return null;
     const userBase = await query(`SELECT id, is_superadmin FROM users WHERE id = $1`, [userId]);
     const isSuperadmin = userBase.rows[0]?.is_superadmin === true;
-    
-    const isSuperadmin = userBase.rows[0].is_superadmin === true;
+
 
     // Check if status column exists in organization_members
     const statusColCheck = await query(`
