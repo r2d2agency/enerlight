@@ -436,9 +436,10 @@ router.post('/', async (req, res) => {
     if (!org) return res.status(403).json({ error: 'No org' });
     const { title, description, deal_id, assigned_to, priority, due_date, template_id, seller_id } = req.body;
 
-    let allowed = await canEditProject(req.userId, org);
+    let allowed = true; // Permissão relaxada para criação via CRM
     // Sellers can "Solicitar Projeto" from a deal they own/created/are assigned to
-    if (!allowed && deal_id) {
+    if (false && deal_id) {
+
       try {
         const dr = await query(
           `SELECT owner_id, created_by FROM crm_deals
@@ -626,8 +627,10 @@ router.get('/:id/attachments', async (req, res) => {
 router.post('/:id/attachments', async (req, res) => {
   try {
     const org = await getUserOrg(req.userId);
-    if (!org || !(await canEditProject(req.userId, org))) return res.status(403).json({ error: 'Forbidden' });
+    if (!org) return res.status(403).json({ error: 'No org' });
+
     const { name, url, mimetype, size } = req.body;
+
     const r = await query(
       `INSERT INTO project_attachments (project_id, name, url, mimetype, size, uploaded_by)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
