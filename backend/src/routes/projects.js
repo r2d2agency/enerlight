@@ -631,7 +631,24 @@ router.post('/:id/attachments', async (req, res) => {
     const org = await getUserOrg(req.userId);
     if (!org) return res.status(403).json({ error: 'No org' });
 
+    let allowed = await canEditProject(req.userId, org);
+
+    // If not admin/designer, check if user owns the deal associated with the project
+    if (!allowed) {
+      const proj = await query(`SELECT deal_id FROM projects WHERE id = $1 AND organization_id = $2`, [req.params.id, org.organization_id]);
+      const dealId = proj.rows[0]?.deal_id;
+      if (dealId) {
+        const deal = await query(`SELECT owner_id, created_by FROM crm_deals WHERE id = $1`, [dealId]);
+        if (deal.rows[0] && (deal.rows[0].owner_id === req.userId || deal.rows[0].created_by === req.userId)) {
+          allowed = true;
+        }
+      }
+    }
+
+    if (!allowed) return res.status(403).json({ error: 'Você não tem permissão para anexar arquivos neste projeto.' });
+
     const { name, url, mimetype, size } = req.body;
+
 
     const r = await query(
       `INSERT INTO project_attachments (project_id, name, url, mimetype, size, uploaded_by)
