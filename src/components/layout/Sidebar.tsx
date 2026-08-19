@@ -112,22 +112,6 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
     ],
   },
   {
-    title: "Representantes",
-    icon: Handshake,
-    moduleKey: 'representatives',
-    permissionKey: 'can_view_representative_dashboard',
-    items: [
-      { name: "Painel Representante", href: "/crm/representante-dashboard", icon: LayoutDashboard, permissionKey: 'can_view_representative_dashboard', moduleKey: 'representative_dashboard' },
-      { name: "Meus Clientes", href: "/crm/empresas", icon: Building2, permissionKey: 'can_view_companies' },
-      { name: "Mapa do Representante", href: "/mapa", icon: Map, permissionKey: 'can_view_map' },
-      { name: "Orçamentos Online", href: "/crm/orcamentos", icon: FileText, moduleKey: 'online_quotes', permissionKey: 'can_view_online_quotes' },
-      { name: "Gestão de Representantes", href: "/crm/representantes", icon: Handshake, moduleKey: 'representatives', permissionKey: 'can_view_representatives' },
-      { name: "Hub de Representantes", href: "/crm/representantes-hub", icon: Users, moduleKey: 'representatives', permissionKey: 'can_view_all_representative_quotes' },
-      { name: "Configuração", href: "/crm/representantes/config", icon: Settings, moduleKey: 'representative_config', permissionKey: 'can_manage_representative_config' },
-
-    ],
-  },
-  {
     title: "CRM",
     icon: Briefcase,
     moduleKey: 'crm',
@@ -139,6 +123,9 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
       { name: "Categorias da Calculadora", href: "/admin/calculadora-categorias", icon: Calculator, adminOnly: true, permissionKey: 'can_view_crm' },
       { name: "Prospects", href: "/crm/prospects", icon: UserPlus, permissionKey: 'can_view_prospects' },
       { name: "Empresas", href: "/crm/empresas", icon: Building2, permissionKey: 'can_view_companies' },
+      { name: "Indicadores", href: "/crm/representantes", icon: Handshake, moduleKey: 'representatives', permissionKey: 'can_view_representatives' },
+      { name: "Hub de Representantes", href: "/crm/representantes-hub", icon: Users, moduleKey: 'representatives', permissionKey: 'can_view_all_representative_quotes' },
+      { name: "Configuração de Representantes", href: "/crm/representantes/config", icon: Settings, moduleKey: 'representative_config', permissionKey: 'can_manage_representative_config' },
       { name: "Mapa", href: "/mapa", icon: Map, permissionKey: 'can_view_map' },
       { name: "Agenda", href: "/crm/agenda", icon: CalendarDays, permissionKey: 'can_view_calendar' },
       { name: "Reuniões", href: "/reunioes", icon: Presentation, permissionKey: 'can_view_crm' },
@@ -159,6 +146,18 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
       { name: "Orçamentos Online", href: "/crm/orcamentos", icon: FileText, moduleKey: 'online_quotes', permissionKey: 'can_view_online_quotes' },
       { name: "Fantasma", href: "/modulo-fantasma", icon: Ghost, moduleKey: 'ghost', permissionKey: 'can_view_ghost' },
       { name: "Configurações", href: "/crm/configuracoes", icon: Settings, permissionKey: 'can_view_crm_settings' },
+    ],
+  },
+  {
+    title: "Representantes",
+    icon: Handshake,
+    moduleKey: 'representatives',
+    permissionKey: 'can_view_representative_dashboard',
+    items: [
+      { name: "Painel Representante", href: "/crm/representante-dashboard", icon: LayoutDashboard, permissionKey: 'can_view_representative_dashboard', moduleKey: 'representative_dashboard' },
+      { name: "Meus Clientes", href: "/crm/empresas", icon: Building2, permissionKey: 'can_view_companies' },
+      { name: "Mapa do Representante", href: "/mapa", icon: Map, permissionKey: 'can_view_map' },
+      { name: "Orçamentos Online", href: "/crm/orcamentos", icon: FileText, moduleKey: 'online_quotes', permissionKey: 'can_view_online_quotes' },
     ],
   },
   {
