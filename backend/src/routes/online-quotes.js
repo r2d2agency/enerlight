@@ -173,9 +173,6 @@ router.get('/price-lists', async (req, res) => {
     } else if (ctx.allOrgIds && ctx.allOrgIds.length > 0) {
       sql += ` AND pl.organization_id = ANY($1::uuid[])`;
       params.push(ctx.allOrgIds);
-
-      // TEMPORARY: Relaxed visibility for debugging
-      if (false && ctx.role !== 'admin' && ctx.role !== 'manager' && ctx.role !== 'owner' && !req.userPermissions?.can_manage_online_quotes) {
     } else {
       return res.json([]);
     }
@@ -219,8 +216,7 @@ router.post('/price-lists', async (req, res) => {
         requestId: req.requestId
       });
     }
-      });
-    }
+
     const { id, name, description, segment, is_active, default_template_id, allowed_templates } = req.body;
     
     let allowedTemplates = '[]';
