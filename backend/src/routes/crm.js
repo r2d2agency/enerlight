@@ -4116,10 +4116,12 @@ router.get('/map-data', async (req, res) => {
         `SELECT d.id, d.title, d.value, d.owner_id,
                 u.name as owner_name,
                 co.city as company_city, co.state as company_state,
-                co.phone as company_phone
+                co.phone as company_phone,
+                d.representative_id, r.name as representative_name
          FROM crm_deals d
          LEFT JOIN crm_companies co ON d.company_id = co.id
          LEFT JOIN users u ON u.id = d.owner_id
+         LEFT JOIN crm_representatives r ON r.id = d.representative_id
          WHERE ${dealWhere}`,
         dealParams
       );
@@ -4137,9 +4139,11 @@ router.get('/map-data', async (req, res) => {
             state,
             lat: coords.lat,
             lng: coords.lng,
-            value: deal.value,
+            value: Number(deal.value) || 0,
             owner_id: deal.owner_id,
             owner_name: deal.owner_name,
+            representative_id: deal.representative_id,
+            representative_name: deal.representative_name,
           });
         }
       }
