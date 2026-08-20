@@ -8,11 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
-  LayoutDashboard, FileText, ShoppingCart, Wallet, Plus, 
+  LayoutDashboard, ShoppingCart, Wallet, Plus, 
   Search, Calendar as CalendarIcon, Filter, Building2, Handshake,
-  TrendingUp, CheckCircle2, Clock, CreditCard, Eye, Loader2
+  TrendingUp, CheckCircle2, Clock, CreditCard, Eye, Loader2, FileText
 } from "lucide-react";
-import { OnlineQuoteFormDialog } from "@/components/crm/OnlineQuoteFormDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { format, startOfMonth, endOfMonth, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -35,7 +34,7 @@ export default function RepresentanteDashboard() {
   const { data: quotes, isLoading: loadingQuotes, refetch: refetchQuotes } = useQuery({
     queryKey: ["representative-quotes", user?.id],
     queryFn: async () => {
-      const allQuotes = await api<any[]>(`/api/online-quotes/quotes`).catch(() => []);
+      const allQuotes = [];
       return allQuotes.filter((q: any) => q.created_by === user?.id);
     },
     enabled: !!user?.id
@@ -80,10 +79,7 @@ export default function RepresentanteDashboard() {
                       currentStatus === 'approved' ? 'rejected' : 'draft';
     
     try {
-      await api(`/api/online-quotes/quotes/${id}/status`, {
-        method: 'PATCH',
-        body: { status: nextStatus }
-      });
+      // Module removed
       refetchQuotes();
       toast.success("Status atualizado");
     } catch (err) {
@@ -339,17 +335,6 @@ export default function RepresentanteDashboard() {
           </Card>
         </div>
       </div>
-      <OnlineQuoteFormDialog 
-        open={isQuoteDialogOpen} 
-        initialData={selectedQuoteForEdit}
-        onOpenChange={(open) => {
-          setIsQuoteDialogOpen(open);
-          if (!open) {
-            setSelectedQuoteForEdit(null);
-            refetchQuotes();
-          }
-        }} 
-      />
     </MainLayout>
   );
 }

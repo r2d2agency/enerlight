@@ -155,7 +155,7 @@ export default function Organizacoes() {
     captador: false,
     licitacao: false,
     logistics: false,
-    online_quotes: false,
+    
     rh_module: false,
     goals: true,
     representatives: true,
@@ -263,7 +263,7 @@ export default function Organizacoes() {
         captador: modules.captador ?? false,
         licitacao: modules.licitacao ?? false,
         logistics: modules.logistics ?? false,
-        online_quotes: modules.online_quotes ?? true,
+        
         rh_module: modules.rh_module ?? false,
         goals: modules.goals ?? true,
         representatives: modules.representatives ?? true,
@@ -1545,25 +1545,6 @@ export default function Organizacoes() {
                           />
                         </div>
 
-                        {/* Online Quotes Module */}
-                        <div className="flex items-center justify-between rounded-lg border p-4">
-                          <div className="flex items-center gap-4">
-                            <div className="h-10 w-10 rounded-lg bg-pink-500/10 flex items-center justify-center">
-                              <FileText className="h-5 w-5 text-pink-500" />
-                            </div>
-                            <div>
-                              <p className="font-medium">Orçamentos Online</p>
-                              <p className="text-sm text-muted-foreground">
-                                Gestão de tabelas de preços e geração de orçamentos em PDF
-                              </p>
-                            </div>
-                          </div>
-                          <Switch
-                            checked={modulesEnabled.online_quotes}
-                            onCheckedChange={(checked) => setModulesEnabled(prev => ({ ...prev, online_quotes: checked }))}
-                            disabled={!canManageOrg}
-                          />
-                        </div>
 
                         <div className="flex items-center justify-between rounded-lg border p-4">
                           <div>

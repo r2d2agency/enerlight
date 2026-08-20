@@ -91,7 +91,7 @@ const PrestacaoContasAgente = lazyRetry(() => import("./pages/PrestacaoContasAge
 const Segmentacao = lazyRetry(() => import("./pages/Segmentacao"));
 const Pesquisas = lazyRetry(() => import("./pages/Pesquisas"));
 const PublicSurveyPage = lazyRetry(() => import("./pages/PublicSurveyPage"));
-const OnlineQuotes = lazyRetry(() => import("./pages/OnlineQuotes"));
+
 const RhModule = lazyRetry(() => import("./pages/RhModule"));
 const RhKiosk = lazyRetry(() => import("./pages/RhKiosk"));
 const CalculadoraLuminotecnica = lazyRetry(() => import("./pages/CalculadoraLuminotecnica"));
@@ -266,7 +266,7 @@ const App = () => (
 
               <Route path="/f/:slug" element={<PublicFormPage />} />
               <Route path="/pesquisa/:slug" element={<PublicSurveyPage />} />
-              <Route path="/crm/orcamentos" element={<ProtectedRoute><OnlineQuotes /></ProtectedRoute>} />
+              
               <Route path="/rh" element={<ProtectedRoute><RhModule /></ProtectedRoute>} />
               <Route path="/rh/kiosk" element={<ProtectedRoute><RhKiosk /></ProtectedRoute>} />
               <Route path="/calculadora-luminotecnica" element={<CalculadoraLuminotecnica />} />

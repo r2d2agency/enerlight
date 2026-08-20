@@ -69,7 +69,7 @@ interface NavItem {
   name: string;
   href: string;
   icon: any;
-  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat' | 'homologation' | 'tasks' | 'lead_gleego' | 'captador' | 'document_signatures' | 'licitacao' | 'logistics' | 'online_quotes' | 'rh_module' | 'goals' | 'representatives' | 'representative_dashboard' | 'supervisor_ia' | 'ead' | 'representative_config';
+  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat' | 'homologation' | 'tasks' | 'lead_gleego' | 'captador' | 'document_signatures' | 'licitacao' | 'logistics' | 'rh_module' | 'goals' | 'representatives' | 'representative_dashboard' | 'supervisor_ia' | 'ead' | 'representative_config';
   adminOnly?: boolean;
   ownerOnly?: boolean;
   superadminOnly?: boolean;
@@ -80,7 +80,7 @@ interface NavSection {
   title: string;
   icon: any;
   items: NavItem[];
-  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat' | 'homologation' | 'tasks' | 'lead_gleego' | 'captador' | 'document_signatures' | 'licitacao' | 'logistics' | 'online_quotes' | 'rh_module' | 'goals' | 'representatives' | 'representative_dashboard' | 'ead' | 'representative_config';
+  moduleKey?: 'campaigns' | 'billing' | 'groups' | 'scheduled_messages' | 'chatbots' | 'chat' | 'crm' | 'ai_agents' | 'group_secretary' | 'ghost' | 'projects' | 'internal_chat' | 'homologation' | 'tasks' | 'lead_gleego' | 'captador' | 'document_signatures' | 'licitacao' | 'logistics' | 'rh_module' | 'goals' | 'representatives' | 'representative_dashboard' | 'ead' | 'representative_config';
   adminOnly?: boolean;
   permissionKey?: string;
 }
@@ -144,7 +144,7 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
       { name: "Supervisor IA", href: "/supervisor-ia", icon: Brain, moduleKey: 'supervisor_ia', permissionKey: 'can_view_supervisor_ia' },
       { name: "Segmentação", href: "/crm/segmentacao", icon: Filter, permissionKey: 'can_view_companies' },
       { name: "Pesquisas", href: "/crm/pesquisas", icon: ClipboardList, permissionKey: 'can_view_crm' },
-      { name: "Pedidos Internos", href: "/crm/orcamentos", icon: FileText, moduleKey: 'online_quotes', permissionKey: 'can_view_online_quotes', adminOnly: true },
+      
       { name: "Fantasma", href: "/modulo-fantasma", icon: Ghost, moduleKey: 'ghost', permissionKey: 'can_view_ghost' },
       { name: "Configurações", href: "/crm/configuracoes", icon: Settings, permissionKey: 'can_view_crm_settings' },
     ],
@@ -401,7 +401,7 @@ function SidebarContentComponent({ isExpanded, isSuperadmin, onNavigate }: Sideb
     ghost: 'can_view_ghost',
     document_signatures: 'can_view_document_signatures',
     lead_gleego: 'can_view_lead_gleego',
-    online_quotes: 'can_view_online_quotes',
+    
     rh_module: 'can_view_rh',
     goals: 'can_view_goals',
     representatives: 'can_view_representatives',

@@ -22,7 +22,6 @@ interface ModulesEnabled {
   licitacao: boolean;
   logistics: boolean;
   document_signatures: boolean;
-  online_quotes: boolean;
   goals: boolean;
   representatives: boolean;
   supervisor_ia: boolean;
@@ -73,9 +72,6 @@ export interface UserPermissions {
   can_edit_logistics: boolean;
   can_delete_logistics: boolean;
   can_view_document_signatures: boolean;
-  can_view_online_quotes: boolean;
-  can_manage_online_quotes?: boolean;
-  can_edit_price_lists: boolean;
   can_view_goals: boolean;
   can_view_representatives: boolean;
   can_view_rh: boolean;
@@ -153,7 +149,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     licitacao: false,
     logistics: false,
     document_signatures: false,
-    online_quotes: true,
+    
     goals: true,
     representatives: true,
     supervisor_ia: false,

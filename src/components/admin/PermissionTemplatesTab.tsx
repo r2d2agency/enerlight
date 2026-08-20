@@ -39,8 +39,6 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
     items: [
       { key: 'can_view_representative_dashboard', label: 'Painel do Representante', description: 'Acesso à tela inicial exclusiva do representante' },
       { key: 'can_view_map', label: 'Mapa do Representante', description: 'Ver geolocalização de clientes e visitas' },
-      { key: 'can_view_online_quotes', label: 'Pedidos Internos', description: 'Criar e consultar pedidos de vendas' },
-      { key: 'can_manage_online_quotes', label: 'Gestão Administrativa', description: 'Configurar marcas, categorias e gerenciar orçamentos globais' },
       { key: 'can_view_all_representative_quotes', label: 'Ver Orçamentos de Equipe', description: 'Permite que supervisores vejam orçamentos de todos os representantes' },
       { key: 'can_view_representatives', label: 'Gestão de Representantes', description: 'Administrar cadastros e tabelas de representantes' },
     ],
