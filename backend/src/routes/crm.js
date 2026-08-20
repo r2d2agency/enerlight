@@ -4295,7 +4295,8 @@ router.get('/map-data', async (req, res) => {
               state: rep.state,
               lat: coords.lat,
               lng: coords.lng,
-              value: Number(rep.open_value) || 0,
+                value: Number(rep.open_value) || 0,
+              deal_count: Number(rep.deal_count) || 0,
               indicator_type: rep.indicator_type || 'representante',
             });
           }
