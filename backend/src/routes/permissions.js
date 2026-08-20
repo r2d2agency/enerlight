@@ -11,7 +11,7 @@ const PERMISSION_COLUMNS = [
   'can_view_ai_agents', 'can_view_crm', 'can_view_prospects', 'can_view_companies',
   'can_view_map', 'can_view_calendar', 'can_view_tasks', 'can_view_reports',
   'can_view_revenue_intel', 'can_view_ghost', 'can_view_crm_settings', 'can_view_supervisor_ia',
-  'can_view_online_quotes', 'can_edit_price_lists', 'can_view_goals', 'can_view_representatives',
+  'can_view_goals', 'can_view_representatives',
   'can_view_projects', 'can_view_campaigns', 'can_view_sequences',
   'can_view_external_flows', 'can_view_webhooks', 'can_view_ctwa',
   'can_view_billing', 'can_view_connections', 'can_view_organizations', 'can_view_settings',
@@ -26,7 +26,7 @@ const PERMISSION_COLUMNS = [
   'can_validate_billing', 'can_view_commission', 'can_manage_commission_rules',
   'can_view_payroll', 'can_manage_payroll',
   'can_view_minutas', 'can_view_team_commission', 'can_view_representative_dashboard',
-  'can_view_all_representative_quotes', 'can_view_expenses', 'can_view_nfc', 'can_manage_online_quotes',
+  'can_view_all_representative_quotes', 'can_view_expenses', 'can_view_nfc',
   'can_manage_representative_config',
 ];
 
@@ -41,7 +41,7 @@ const ROLE_DEFAULTS = {
     can_view_crm: true, can_view_prospects: true, can_view_companies: true,
     can_view_map: true, can_view_calendar: true, can_view_tasks: true,
     can_view_reports: true, can_view_revenue_intel: false, can_view_ghost: false,
-    can_view_crm_settings: false, can_view_online_quotes: true, can_edit_price_lists: false,
+    can_view_crm_settings: false,
     can_view_goals: false, can_view_representatives: false, can_view_projects: true,
 
     can_view_campaigns: false, can_view_sequences: false,
@@ -61,7 +61,7 @@ const ROLE_DEFAULTS = {
     can_view_crm: true, can_view_prospects: true, can_view_companies: true,
     can_view_map: true, can_view_calendar: true, can_view_tasks: true,
     can_view_reports: true, can_view_revenue_intel: false, can_view_ghost: false,
-    can_view_crm_settings: false, can_view_online_quotes: true, can_edit_price_lists: false,
+    can_view_crm_settings: false,
     can_view_goals: false, can_view_representatives: false, can_view_projects: true,
 
     can_view_campaigns: false, can_view_sequences: false,
@@ -81,7 +81,7 @@ const ROLE_DEFAULTS = {
     can_view_crm: false, can_view_prospects: false, can_view_companies: false,
     can_view_map: false, can_view_calendar: true, can_view_tasks: true,
     can_view_reports: false, can_view_revenue_intel: false, can_view_ghost: false,
-    can_view_crm_settings: false, can_view_online_quotes: true, can_edit_price_lists: false,
+    can_view_crm_settings: false,
     can_view_goals: false, can_view_representatives: false, can_view_projects: true,
 
     can_view_campaigns: false, can_view_sequences: false,
@@ -101,7 +101,7 @@ const ROLE_DEFAULTS = {
     can_view_crm: true, can_view_prospects: true, can_view_companies: false,
     can_view_map: false, can_view_calendar: true, can_view_tasks: true,
     can_view_reports: false, can_view_revenue_intel: false, can_view_ghost: false,
-    can_view_crm_settings: false, can_view_online_quotes: true, can_edit_price_lists: false,
+    can_view_crm_settings: false,
     can_view_goals: false, can_view_representatives: false, can_view_projects: false,
 
     can_view_campaigns: false, can_view_sequences: false,
