@@ -4088,7 +4088,7 @@ router.get('/map-data', async (req, res) => {
       // Fallback to state capital
       if (state && STATE_CAPITALS[state.toUpperCase()]) {
         const cap = STATE_CAPITALS[state.toUpperCase()];
-        const offset = () => (Math.random() - 0.5) * 0.1;
+        const offset = () => (Math.random() - 0.5) * 0.15;
         return { lat: cap.lat + offset(), lng: cap.lng + offset() };
       }
       return null;
