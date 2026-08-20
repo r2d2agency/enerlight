@@ -1013,16 +1013,6 @@ export default function Admin() {
                           onCheckedChange={setNewPlanLeadGleego}
                         />
                       </div>
-                      <div className="flex items-center justify-between rounded-lg border p-3">
-                        <div className="flex items-center gap-2">
-                          <Label htmlFor="online-quotes-switch">Orçamentos Online</Label>
-                        </div>
-                        <Switch
-                          id="online-quotes-switch"
-                          checked={newPlanOnlineQuotes}
-                          onCheckedChange={setNewPlanOnlineQuotes}
-                        />
-                      </div>
                     </div>
                     <div className="border-t pt-4 space-y-4">
                       <div className="flex items-center justify-between rounded-lg border border-primary/30 bg-primary/5 p-3">
@@ -1191,9 +1181,6 @@ export default function Admin() {
                         )}
                         {plan.has_document_signatures && (
                           <Badge variant="secondary" className="text-xs">Assinaturas</Badge>
-                        )}
-                        {plan.has_online_quotes && (
-                          <Badge variant="secondary" className="text-xs">Orçamentos</Badge>
                         )}
                       </div>
                       <div className="flex items-center justify-between pt-2 border-t">
@@ -2107,14 +2094,6 @@ export default function Admin() {
                     id="edit-doc-signatures"
                     checked={editingPlan?.has_document_signatures || false}
                     onCheckedChange={(v) => setEditingPlan({ ...editingPlan!, has_document_signatures: v })}
-                  />
-                </div>
-                <div className="flex items-center justify-between rounded-lg border p-3">
-                  <Label htmlFor="edit-online-quotes">Orçamentos Online</Label>
-                  <Switch
-                    id="edit-online-quotes"
-                    checked={editingPlan?.has_online_quotes || false}
-                    onCheckedChange={(v) => setEditingPlan({ ...editingPlan!, has_online_quotes: v })}
                   />
                 </div>
                 <div className="flex items-center justify-between rounded-lg border p-3">
