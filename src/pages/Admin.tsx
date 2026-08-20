@@ -74,7 +74,7 @@ interface Plan {
   has_licitacao: boolean;
   has_logistics: boolean;
   has_document_signatures: boolean;
-  has_online_quotes: boolean;
+  
   price: number;
   billing_period: string;
   is_active: boolean;
@@ -171,7 +171,7 @@ export default function Admin() {
   const [newPlanLeadGleego, setNewPlanLeadGleego] = useState(false);
   const [newPlanCaptador, setNewPlanCaptador] = useState(false);
   const [newPlanDocSignatures, setNewPlanDocSignatures] = useState(false);
-  const [newPlanOnlineQuotes, setNewPlanOnlineQuotes] = useState(false);
+  
   const [newPlanPeriod, setNewPlanPeriod] = useState('monthly');
   const [newPlanVisibleOnSignup, setNewPlanVisibleOnSignup] = useState(false);
   const [newPlanTrialDays, setNewPlanTrialDays] = useState('3');
@@ -339,7 +339,7 @@ export default function Admin() {
       has_licitacao: false,
       has_logistics: false,
       has_document_signatures: newPlanDocSignatures,
-      has_online_quotes: newPlanOnlineQuotes,
+      has_online_quotes: false,
       price: parseFloat(newPlanPrice) || 0,
       billing_period: newPlanPeriod,
       visible_on_signup: newPlanVisibleOnSignup,
@@ -1122,7 +1122,7 @@ export default function Admin() {
                         </div>
                         <div className="flex items-center gap-2">
                           <FileText className="h-4 w-4 text-muted-foreground" />
-                          <span>Orçamentos {plan.has_online_quotes ? 'SIM' : 'NÃO'}</span>
+                          
                         </div>
                       </div>
                       <div className="flex flex-wrap gap-1">
