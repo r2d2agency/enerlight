@@ -70,6 +70,8 @@ import devolucoesRoutes from './routes/devolucoes.js';
 import eadRoutes from './routes/ead.js';
 import commissionRoutes from './routes/commission.js';
 import payrollRoutes from './routes/payroll.js';
+import onlineQuotesRoutes from './routes/online-quotes.js';
+
 
 import { initDatabase } from './init-db.js';
 import { manualMigration } from './manual-migration.js';
@@ -319,6 +321,8 @@ app.use('/api/devolucoes', devolucoesRoutes);
 app.use('/api/ead', eadRoutes);
 app.use('/api/commission', commissionRoutes);
 app.use('/api/payroll', payrollRoutes);
+app.use('/api/online-quotes', onlineQuotesRoutes);
+
 
 
 
