@@ -370,11 +370,6 @@ export default function RepresentanteDashboard() {
           }
         }} 
       />
-      <CompanyDialog 
-        company={null} 
-        open={isCompanyDialogOpen} 
-        onOpenChange={setIsCompanyDialogOpen} 
-      />
     </MainLayout>
   );
 }
