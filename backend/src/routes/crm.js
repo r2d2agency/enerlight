@@ -4081,7 +4081,7 @@ router.get('/map-data', async (req, res) => {
         if (geocoded) {
           // Also cache in CITY_COORDS for this request
           CITY_COORDS[cityLower] = geocoded;
-          const offset = () => (Math.random() - 0.5) * 0.02;
+          const offset = () => (Math.random() - 0.5) * 0.05;
           return { lat: geocoded.lat + offset(), lng: geocoded.lng + offset() };
         }
       }
