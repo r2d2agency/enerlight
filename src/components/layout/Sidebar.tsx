@@ -156,7 +156,6 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
     permissionKey: 'can_view_representative_dashboard',
     items: [
       { name: "Painel Representante", href: "/crm/representante-dashboard", icon: LayoutDashboard, permissionKey: 'can_view_representative_dashboard', moduleKey: 'representative_dashboard' },
-      { name: "Mapa do Representante", href: "/mapa", icon: Map, permissionKey: 'can_view_map' },
     ],
   },
   {
