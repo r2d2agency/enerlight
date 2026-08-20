@@ -4098,8 +4098,23 @@ router.get('/map-data', async (req, res) => {
 
     // Get deals with contact/company info
     try {
-      let dealWhere = `d.organization_id = $1 AND d.status IN ('open','active')`;
+      let dealWhere = `d.organization_id = $1`;
       const dealParams = [org.organization_id];
+
+      // If not owner/admin/manager, restrict to their own deals OR deals in their groups
+      if (!['owner', 'admin', 'manager'].includes(org.role)) {
+        const userGroups = await getUserGroupIds(req.userId);
+        const groupIds = userGroups.map(g => g.group_id);
+        
+        if (groupIds.length > 0) {
+          dealWhere += ` AND (d.owner_id = $${dealParams.length + 1} OR d.group_id = ANY($${dealParams.length + 2}))`;
+          dealParams.push(req.userId, groupIds);
+        } else {
+          dealWhere += ` AND d.owner_id = $${dealParams.length + 1}`;
+          dealParams.push(req.userId);
+        }
+      }
+
       if (owner_id) {
         dealParams.push(owner_id);
         dealWhere += ` AND d.owner_id = $${dealParams.length}`;
@@ -4111,6 +4126,9 @@ router.get('/map-data', async (req, res) => {
       if (date_to) {
         dealParams.push(date_to);
         dealWhere += ` AND d.created_at <= $${dealParams.length}`;
+      } else if (!owner_id && !date_from) {
+        // Se não houver filtros, mostrar apenas o ano corrente por padrão (performance e solicitação)
+        dealWhere += ` AND d.created_at >= date_trunc('year', now())`;
       }
       const dealsResult = await query(
         `SELECT d.id, d.title, d.value, d.owner_id,
