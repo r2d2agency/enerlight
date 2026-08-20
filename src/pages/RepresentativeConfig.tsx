@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, List, Settings, Loader2, Trash2, ShieldCheck, FileSpreadsheet, Edit2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { usePriceLists, useOnlineQuoteMutations, usePermissionTemplates } from "@/hooks/use-online-quotes";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,13 +16,38 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { PriceListItemsDialog } from "@/components/crm/PriceListItemsDialog";
+
 
 export default function RepresentativeConfig() {
   const { user } = useAuth();
-  const { data: priceLists, isLoading: loadingPriceLists } = usePriceLists();
-  const { data: permissionTemplates } = usePermissionTemplates();
-  const { savePriceList, deletePriceList } = useOnlineQuoteMutations();
+  const queryClient = useQueryClient();
+  const { data: priceLists, isLoading: loadingPriceLists } = useQuery({
+    queryKey: ["price-lists"],
+    queryFn: () => api<any[]>("/api/online-quotes/price-lists").catch(() => [])
+  });
+  const { data: permissionTemplates } = useQuery({
+    queryKey: ["permission-templates"],
+    queryFn: () => api<any[]>("/api/permission-templates").catch(() => [])
+  });
+
+  const savePriceList = useMutation({
+    mutationFn: (data: any) => api("/api/online-quotes/price-lists", {
+      method: data.id ? "PUT" : "POST",
+      body: data
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["price-lists"] });
+      toast.success("Tabela salva!");
+    }
+  });
+
+  const deletePriceList = useMutation({
+    mutationFn: (id: string) => api(`/api/online-quotes/price-lists/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["price-lists"] });
+      toast.success("Tabela excluída!");
+    }
+  });
 
   const [isPriceListDialogOpen, setIsPriceListDialogOpen] = useState(false);
   const [editingPriceList, setEditingPriceList] = useState<any>(null);
@@ -239,12 +265,6 @@ export default function RepresentativeConfig() {
           </DialogContent>
         </Dialog>
 
-        {itemsPriceList && (
-          <PriceListItemsDialog 
-            priceList={itemsPriceList} 
-            onOpenChange={(open) => !open && setItemsPriceList(null)} 
-          />
-        )}
       </div>
     </MainLayout>
   );
