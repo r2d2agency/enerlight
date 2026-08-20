@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   LayoutDashboard, ShoppingCart, Wallet, Plus, 
   Search, Calendar as CalendarIcon, Filter, Building2, Handshake,
-  TrendingUp, CheckCircle2, Clock, CreditCard, Eye, Loader2, FileText
+  TrendingUp, CheckCircle2, Clock, CreditCard, Eye, Loader2, FileText, Briefcase
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { format, startOfMonth, endOfMonth, parseISO } from "date-fns";
@@ -112,66 +112,76 @@ export default function RepresentanteDashboard() {
 
         {/* Top Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="border-l-4 border-l-blue-500">
+          <Card className="bg-gradient-to-br from-blue-50 to-white dark:from-blue-900/10 dark:to-background border-blue-100 dark:border-blue-800">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-2">
-                <div className="p-2 bg-blue-500/10 rounded-lg">
-                  <FileText className="h-5 w-5 text-blue-500" />
+                <p className="text-sm font-medium text-blue-600 dark:text-blue-400">Faturamento Validado</p>
+                <div className="p-1.5 bg-blue-100 dark:bg-blue-900/30 rounded-full text-blue-600">
+                  <TrendingUp className="h-4 w-4" />
                 </div>
-                <Badge variant="outline">Mês</Badge>
               </div>
               <div className="space-y-1">
-                <p className="text-sm text-muted-foreground font-medium">Orçamentos Criados</p>
-                <h3 className="text-2xl font-bold">{stats?.quotes?.total || 0}</h3>
-                <p className="text-xs text-muted-foreground">{fmt(stats?.quotes?.value || 0)} em volume</p>
+                <h3 className="text-2xl font-bold">
+                  {fmt(stats?.commission?.net_total || 0)}
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  MTD: {fmt(stats?.commission?.validated_total || 0)}
+                </p>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-l-4 border-l-green-500">
+          <Card className="bg-gradient-to-br from-green-50 to-white dark:from-green-900/10 dark:to-background border-green-100 dark:border-green-800">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-2">
-                <div className="p-2 bg-green-500/10 rounded-lg">
-                  <CheckCircle2 className="h-5 w-5 text-green-500" />
+                <p className="text-sm font-medium text-green-600 dark:text-green-400">Total de Comissões</p>
+                <div className="p-1.5 bg-green-100 dark:bg-green-900/30 rounded-full text-green-600">
+                  <Wallet className="h-4 w-4" />
                 </div>
-                <Badge variant="outline" className="bg-green-50">Aprovados</Badge>
               </div>
               <div className="space-y-1">
-                <p className="text-sm text-muted-foreground font-medium">Pedidos Aprovados</p>
+                <h3 className="text-2xl font-bold">
+                  {fmt(stats?.commission?.commission?.total || 0)}
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  {stats?.commission?.commission?.achieved?.length || 0} bônus atingidos
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-amber-50 to-white dark:from-amber-900/10 dark:to-background border-amber-100 dark:border-amber-800">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-medium text-amber-600 dark:text-amber-400">Aguardando Validação</p>
+                <div className="p-1.5 bg-amber-100 dark:bg-amber-900/30 rounded-full text-amber-600">
+                  <Clock className="h-4 w-4" />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-2xl font-bold">
+                  {fmt(stats?.commission?.pending_total || 0)}
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Aguardando análise financeira
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-purple-50 to-white dark:from-purple-900/10 dark:to-background border-purple-100 dark:border-purple-800">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-medium text-purple-600 dark:text-purple-400">Negociações no Mês</p>
+                <div className="p-1.5 bg-purple-100 dark:bg-purple-900/30 rounded-full text-purple-600">
+                  <Briefcase className="h-4 w-4" />
+                </div>
+              </div>
+              <div className="space-y-1">
                 <h3 className="text-2xl font-bold">{stats?.commission?.validated_count || 0}</h3>
-                <p className="text-xs text-muted-foreground">{fmt(stats?.commission?.net_total || 0)} validados</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-l-4 border-l-amber-500">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-2">
-                <div className="p-2 bg-amber-500/10 rounded-lg">
-                  <Wallet className="h-5 w-5 text-amber-500" />
-                </div>
-                <Badge variant="outline" className="bg-amber-50 text-amber-700">Pendente</Badge>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground font-medium">Comissão em Aberto</p>
-                <h3 className="text-2xl font-bold">{fmt(stats?.commission?.pending_total_commission || 0)}</h3>
-                <p className="text-xs text-muted-foreground">Aguardando validação</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-l-4 border-l-primary">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-2">
-                <div className="p-2 bg-primary/10 rounded-lg">
-                  <CreditCard className="h-5 w-5 text-primary" />
-                </div>
-                <Badge variant="outline" className="bg-primary/5">Pagos</Badge>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground font-medium">Comissões Pagas</p>
-                <h3 className="text-2xl font-bold">{fmt(stats?.commission?.commission?.regular?.total || 0)}</h3>
-                <p className="text-xs text-muted-foreground">Confirmadas no período</p>
+                <p className="text-xs text-muted-foreground">
+                  Itens faturados e validados
+                </p>
               </div>
             </CardContent>
           </Card>
