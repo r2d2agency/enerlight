@@ -10,10 +10,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   LayoutDashboard, FileText, ShoppingCart, Wallet, Plus, 
   Search, Calendar as CalendarIcon, Filter, Building2, Handshake,
-  TrendingUp, CheckCircle2, Clock, CreditCard, Eye, Loader2, Users
+  TrendingUp, CheckCircle2, Clock, CreditCard, Eye, Loader2
 } from "lucide-react";
 import { OnlineQuoteFormDialog } from "@/components/crm/OnlineQuoteFormDialog";
-import { CompanyDialog } from "@/components/crm/CompanyDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { format, startOfMonth, endOfMonth, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
