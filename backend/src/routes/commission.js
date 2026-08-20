@@ -829,8 +829,9 @@ router.get('/my-summary', async (req, res) => {
        `SELECT COALESCE(SUM(CASE WHEN COALESCE(b.validation_status,'pending')='pending' AND NOT COALESCE(b.is_refund,false)
                             THEN COALESCE(b.adjusted_value, b.order_value) ELSE 0 END), 0) AS pending_total
         FROM ${commissionSourceSql()} b
-        WHERE b.organization_id = $1 AND ${matchFilter} AND b.billing_date >= $2::date AND b.billing_date <= $3::date`,
+        WHERE b.organization_id = $1 AND ${matchFilter} AND b.billing_date >= $3::date AND b.billing_date <= $4::date`,
        [m.organization_id, req.userId, sd, ed]
+
     );
 
     res.json({
