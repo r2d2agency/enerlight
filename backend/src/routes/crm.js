@@ -4245,7 +4245,18 @@ router.get('/map-data', async (req, res) => {
     try {
       let repWhere = `r.organization_id = $1 AND r.is_active = true`;
       const repParams = [org.organization_id];
-      if (owner_id) {
+
+      // If not owner/admin/manager/designer, check visibility based on linked deals or group context
+      if (!['owner', 'admin', 'manager', 'designer'].includes(org.role)) {
+         // Representatives/Indicators visible if specific owner_id is requested OR linked to their deals
+         if (owner_id) {
+            repParams.push(owner_id);
+            repWhere += ` AND EXISTS (SELECT 1 FROM crm_deals d WHERE d.representative_id = r.id AND d.owner_id = $${repParams.length})`;
+         } else {
+            repParams.push(req.userId);
+            repWhere += ` AND EXISTS (SELECT 1 FROM crm_deals d WHERE d.representative_id = r.id AND d.owner_id = $${repParams.length})`;
+         }
+      } else if (owner_id) {
         repParams.push(owner_id);
         repWhere += ` AND EXISTS (SELECT 1 FROM crm_deals d WHERE d.representative_id = r.id AND d.owner_id = $${repParams.length})`;
       }
