@@ -4073,7 +4073,7 @@ router.get('/map-data', async (req, res) => {
         const cityLower = city.toLowerCase().trim();
         if (CITY_COORDS[cityLower]) {
           const cap = CITY_COORDS[cityLower];
-          const offset = () => (Math.random() - 0.5) * 0.02;
+          const offset = () => (Math.random() - 0.5) * 0.05;
           return { lat: cap.lat + offset(), lng: cap.lng + offset() };
         }
         // Try Nominatim geocoding for unknown cities
