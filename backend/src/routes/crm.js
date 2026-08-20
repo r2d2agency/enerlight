@@ -4225,12 +4225,20 @@ router.get('/map-data', async (req, res) => {
 
     // Get representatives/indicadores with location and áreas
     try {
+      let repWhere = `r.organization_id = $1 AND r.is_active = true`;
+      const repParams = [org.organization_id];
+      if (owner_id) {
+        repParams.push(owner_id);
+        repWhere += ` AND EXISTS (SELECT 1 FROM crm_deals d WHERE d.representative_id = r.id AND d.owner_id = $${repParams.length})`;
+      }
+
       const repsResult = await query(
         `SELECT r.id, r.name, r.phone, r.city, r.state, r.commission_percent, r.indicator_type,
-          (SELECT COALESCE(SUM(d.value), 0) FROM crm_deals d WHERE d.representative_id = r.id AND d.status = 'open') as open_value
+          (SELECT COALESCE(SUM(d.value), 0) FROM crm_deals d WHERE d.representative_id = r.id AND d.status = 'open') as open_value,
+          (SELECT COUNT(d.id) FROM crm_deals d WHERE d.representative_id = r.id AND d.status = 'open') as deal_count
          FROM crm_representatives r
-         WHERE r.organization_id = $1 AND r.is_active = true`,
-        [org.organization_id]
+         WHERE ${repWhere}`,
+        repParams
       );
 
       // Carrega segmentos da org (id->name) para mostrar no popup
