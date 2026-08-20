@@ -117,7 +117,7 @@ export function getCoordinates(city?: string, state?: string): { lat: number; ln
   if (state) {
     const stateUpper = state.toUpperCase().trim();
     if (STATE_CAPITALS[stateUpper]) {
-      const offset = () => (Math.random() - 0.5) * 0.1;
+      const offset = () => (Math.random() - 0.5) * 0.15;
       return {
         lat: STATE_CAPITALS[stateUpper].lat + offset(),
         lng: STATE_CAPITALS[stateUpper].lng + offset(),
