@@ -1545,8 +1545,6 @@ export default function Organizacoes() {
                           />
                         </div>
 
-                        {/* Online Quotes Module */}
-                        <div className="flex items-center justify-between rounded-lg border p-4">
 
                         <div className="flex items-center justify-between rounded-lg border p-4">
                           <div>
