@@ -4116,10 +4116,12 @@ router.get('/map-data', async (req, res) => {
         `SELECT d.id, d.title, d.value, d.owner_id,
                 u.name as owner_name,
                 co.city as company_city, co.state as company_state,
-                co.phone as company_phone
+                co.phone as company_phone,
+                d.representative_id, r.name as representative_name
          FROM crm_deals d
          LEFT JOIN crm_companies co ON d.company_id = co.id
          LEFT JOIN users u ON u.id = d.owner_id
+         LEFT JOIN crm_representatives r ON r.id = d.representative_id
          WHERE ${dealWhere}`,
         dealParams
       );
@@ -4137,9 +4139,11 @@ router.get('/map-data', async (req, res) => {
             state,
             lat: coords.lat,
             lng: coords.lng,
-            value: deal.value,
+            value: Number(deal.value) || 0,
             owner_id: deal.owner_id,
             owner_name: deal.owner_name,
+            representative_id: deal.representative_id,
+            representative_name: deal.representative_name,
           });
         }
       }
@@ -4221,12 +4225,20 @@ router.get('/map-data', async (req, res) => {
 
     // Get representatives/indicadores with location and áreas
     try {
+      let repWhere = `r.organization_id = $1 AND r.is_active = true`;
+      const repParams = [org.organization_id];
+      if (owner_id) {
+        repParams.push(owner_id);
+        repWhere += ` AND EXISTS (SELECT 1 FROM crm_deals d WHERE d.representative_id = r.id AND d.owner_id = $${repParams.length})`;
+      }
+
       const repsResult = await query(
         `SELECT r.id, r.name, r.phone, r.city, r.state, r.commission_percent, r.indicator_type,
-          (SELECT COALESCE(SUM(d.value), 0) FROM crm_deals d WHERE d.representative_id = r.id AND d.status = 'open') as open_value
+          (SELECT COALESCE(SUM(d.value), 0) FROM crm_deals d WHERE d.representative_id = r.id AND d.status = 'open') as open_value,
+          (SELECT COUNT(d.id) FROM crm_deals d WHERE d.representative_id = r.id AND d.status = 'open') as deal_count
          FROM crm_representatives r
-         WHERE r.organization_id = $1 AND r.is_active = true`,
-        [org.organization_id]
+         WHERE ${repWhere}`,
+        repParams
       );
 
       // Carrega segmentos da org (id->name) para mostrar no popup
@@ -4264,6 +4276,7 @@ router.get('/map-data', async (req, res) => {
                 lat: coords.lat,
                 lng: coords.lng,
                 value: Number(rep.open_value) || 0,
+                deal_count: Number(rep.deal_count) || 0,
                 radius_km: Number(area.radius_km) || 100,
                 indicator_type: rep.indicator_type || 'representante',
               });
@@ -4282,7 +4295,8 @@ router.get('/map-data', async (req, res) => {
               state: rep.state,
               lat: coords.lat,
               lng: coords.lng,
-              value: Number(rep.open_value) || 0,
+                value: Number(rep.open_value) || 0,
+              deal_count: Number(rep.deal_count) || 0,
               indicator_type: rep.indicator_type || 'representante',
             });
           }

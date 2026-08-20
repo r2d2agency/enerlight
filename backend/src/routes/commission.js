@@ -785,6 +785,13 @@ router.get('/my-summary', async (req, res) => {
     const sd = req.query.start_date || period.start;
     const ed = req.query.end_date || period.end;
 
+    // Use a helper function or common logic to fetch items for consistency
+    const ruleRes = await query(
+      `SELECT * FROM commission_rules WHERE organization_id = $1 AND user_id = $2`,
+      [m.organization_id, req.userId]
+    );
+    const rule = ruleRes.rows[0] || null;
+
     const matchFilter = `(
       b.linked_user_id = $2
       OR (b.linked_user_id IS NULL AND EXISTS (
@@ -794,38 +801,6 @@ router.get('/my-summary', async (req, res) => {
           AND LOWER(TRIM(sm.seller_name)) = LOWER(TRIM(b.seller_name))
       ))
     )`;
-    const baseParams = [m.organization_id, req.userId, sd, ed];
-    const dateRange = `b.billing_date >= $3::date AND b.billing_date <= $4::date`;
-
-    const agg = await query(
-      `SELECT
-         COALESCE(SUM(CASE WHEN COALESCE(b.validation_status,'pending')='validated' AND NOT COALESCE(b.is_refund,false)
-                           THEN COALESCE(b.adjusted_value, b.order_value) ELSE 0 END), 0) AS validated_total,
-         COALESCE(SUM(CASE WHEN COALESCE(b.validation_status,'pending')='validated' AND NOT COALESCE(b.is_refund,false) AND b.is_redbar
-                           THEN COALESCE(b.adjusted_value, b.order_value) ELSE 0 END), 0) AS validated_redbar_total,
-         COALESCE(SUM(CASE WHEN COALESCE(b.validation_status,'pending')='validated' AND COALESCE(b.is_refund,false)
-                           THEN COALESCE(b.adjusted_value, b.order_value) ELSE 0 END), 0) AS refund_total,
-         COALESCE(SUM(CASE WHEN COALESCE(b.validation_status,'pending')='validated' AND COALESCE(b.is_refund,false) AND b.is_redbar
-                           THEN COALESCE(b.adjusted_value, b.order_value) ELSE 0 END), 0) AS refund_redbar_total,
-         COALESCE(SUM(CASE WHEN COALESCE(b.validation_status,'pending')='pending' AND NOT COALESCE(b.is_refund,false)
-                           THEN COALESCE(b.adjusted_value, b.order_value) ELSE 0 END), 0) AS pending_total,
-         COALESCE(SUM(CASE WHEN COALESCE(b.validation_status,'pending') <> 'rejected' AND NOT COALESCE(b.is_refund,false)
-                           THEN COALESCE(b.adjusted_value, b.order_value) ELSE 0 END), 0) AS gross_total,
-         COALESCE(SUM(CASE WHEN COALESCE(b.validation_status,'pending') <> 'rejected' AND NOT COALESCE(b.is_refund,false) AND b.is_redbar
-                           THEN COALESCE(b.adjusted_value, b.order_value) ELSE 0 END), 0) AS gross_redbar_total,
-         COUNT(*) FILTER (WHERE COALESCE(b.validation_status,'pending')='validated' AND NOT COALESCE(b.is_refund,false)) AS validated_count,
-         COUNT(*) FILTER (WHERE COALESCE(b.validation_status,'pending')='pending') AS pending_count,
-         COUNT(*) AS total_count
-       FROM ${commissionSourceSql()} b
-       WHERE b.organization_id = $1 AND ${matchFilter} AND ${dateRange}`,
-      baseParams
-    );
-
-    const ruleRes = await query(
-      `SELECT * FROM commission_rules WHERE organization_id = $1 AND user_id = $2`,
-      [m.organization_id, req.userId]
-    );
-    const rule = ruleRes.rows[0] || null;
 
     let itemsForCalc = [];
     if (rule?.is_manager && rule.managed_channel) {
@@ -849,14 +824,26 @@ router.get('/my-summary', async (req, res) => {
     const commission = computeCommission(rule, itemsForCalc);
     const validatedTotal = itemsForCalc.reduce((s, i) => s + Number(i.adjusted_value ?? i.order_value) * (i.is_refund ? -1 : 1), 0);
 
+    // Fetch pending totals separately for the summary cards
+    const pendingRes = await query(
+       `SELECT COALESCE(SUM(CASE WHEN COALESCE(b.validation_status,'pending')='pending' AND NOT COALESCE(b.is_refund,false)
+                            THEN COALESCE(b.adjusted_value, b.order_value) ELSE 0 END), 0) AS pending_total
+        FROM ${commissionSourceSql()} b
+        WHERE b.organization_id = $1 AND ${matchFilter} AND b.billing_date >= $2::date AND b.billing_date <= $3::date`,
+       [m.organization_id, req.userId, sd, ed]
+    );
+
     res.json({
-      validated_total: Number(agg.rows[0].validated_total),
+      validated_total: validatedTotal,
       net_total: validatedTotal,
-      validated_count: Number(agg.rows[0].validated_count),
-      pending_total: Number(agg.rows[0].pending_total),
+      validated_count: itemsForCalc.length,
+      pending_total: Number(pendingRes.rows[0]?.pending_total || 0),
       commission
     });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) {
+    console.error('[Commission] /my-summary error:', e);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // List org users (for rules config + validation filter)

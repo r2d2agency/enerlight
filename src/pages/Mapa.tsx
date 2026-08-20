@@ -114,6 +114,7 @@ function LeafletMap({ locations }: LeafletMapProps) {
           ${location.phone ? `<p style="font-size: 14px; color: #666; margin: 4px 0;">${location.phone}</p>` : ""}
           ${location.city || location.state ? `<p style="font-size: 14px; color: #666; margin: 4px 0;">${[location.city, location.state].filter(Boolean).join(", ")}</p>` : ""}
           ${location.radius_km ? `<p style="font-size: 13px; color: ${color}; margin: 4px 0; font-weight: 500;">📍 Raio: ${location.radius_km} km</p>` : ""}
+          ${(location as any).deal_count !== undefined && (location as any).deal_count > 0 ? `<p style="font-size: 13px; color: #666; margin: 4px 0;">📦 Negociações: ${(location as any).deal_count}</p>` : ""}
           ${location.value !== undefined && location.value > 0 ? `<p style="font-size: 14px; font-weight: 500; color: #3b82f6; margin-top: 8px;">R$ ${location.value.toLocaleString("pt-BR")}</p>` : ""}
         </div>
       `;
