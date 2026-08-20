@@ -4073,7 +4073,7 @@ router.get('/map-data', async (req, res) => {
         const cityLower = city.toLowerCase().trim();
         if (CITY_COORDS[cityLower]) {
           const cap = CITY_COORDS[cityLower];
-          const offset = () => (Math.random() - 0.5) * 0.02;
+          const offset = () => (Math.random() - 0.5) * 0.05;
           return { lat: cap.lat + offset(), lng: cap.lng + offset() };
         }
         // Try Nominatim geocoding for unknown cities
@@ -4081,14 +4081,14 @@ router.get('/map-data', async (req, res) => {
         if (geocoded) {
           // Also cache in CITY_COORDS for this request
           CITY_COORDS[cityLower] = geocoded;
-          const offset = () => (Math.random() - 0.5) * 0.02;
+          const offset = () => (Math.random() - 0.5) * 0.05;
           return { lat: geocoded.lat + offset(), lng: geocoded.lng + offset() };
         }
       }
       // Fallback to state capital
       if (state && STATE_CAPITALS[state.toUpperCase()]) {
         const cap = STATE_CAPITALS[state.toUpperCase()];
-        const offset = () => (Math.random() - 0.5) * 0.1;
+        const offset = () => (Math.random() - 0.5) * 0.15;
         return { lat: cap.lat + offset(), lng: cap.lng + offset() };
       }
       return null;
@@ -4098,8 +4098,23 @@ router.get('/map-data', async (req, res) => {
 
     // Get deals with contact/company info
     try {
-      let dealWhere = `d.organization_id = $1 AND d.status IN ('open','active')`;
+      let dealWhere = `d.organization_id = $1`;
       const dealParams = [org.organization_id];
+
+      // If not owner/admin/manager, restrict to their own deals OR deals in their groups
+      if (!['owner', 'admin', 'manager'].includes(org.role)) {
+        const userGroups = await getUserGroupIds(req.userId);
+        const groupIds = userGroups.map(g => g.group_id);
+        
+        if (groupIds.length > 0) {
+          dealWhere += ` AND (d.owner_id = $${dealParams.length + 1} OR d.group_id = ANY($${dealParams.length + 2}))`;
+          dealParams.push(req.userId, groupIds);
+        } else {
+          dealWhere += ` AND d.owner_id = $${dealParams.length + 1}`;
+          dealParams.push(req.userId);
+        }
+      }
+
       if (owner_id) {
         dealParams.push(owner_id);
         dealWhere += ` AND d.owner_id = $${dealParams.length}`;
@@ -4111,6 +4126,9 @@ router.get('/map-data', async (req, res) => {
       if (date_to) {
         dealParams.push(date_to);
         dealWhere += ` AND d.created_at <= $${dealParams.length}`;
+      } else if (!owner_id && !date_from) {
+        // Se não houver filtros, mostrar apenas o ano corrente por padrão (performance e solicitação)
+        dealWhere += ` AND d.created_at >= date_trunc('year', now())`;
       }
       const dealsResult = await query(
         `SELECT d.id, d.title, d.value, d.owner_id,
@@ -4227,7 +4245,18 @@ router.get('/map-data', async (req, res) => {
     try {
       let repWhere = `r.organization_id = $1 AND r.is_active = true`;
       const repParams = [org.organization_id];
-      if (owner_id) {
+
+      // If not owner/admin/manager/designer, check visibility based on linked deals or group context
+      if (!['owner', 'admin', 'manager', 'designer'].includes(org.role)) {
+         // Representatives/Indicators visible if specific owner_id is requested OR linked to their deals
+         if (owner_id) {
+            repParams.push(owner_id);
+            repWhere += ` AND EXISTS (SELECT 1 FROM crm_deals d WHERE d.representative_id = r.id AND d.owner_id = $${repParams.length})`;
+         } else {
+            repParams.push(req.userId);
+            repWhere += ` AND EXISTS (SELECT 1 FROM crm_deals d WHERE d.representative_id = r.id AND d.owner_id = $${repParams.length})`;
+         }
+      } else if (owner_id) {
         repParams.push(owner_id);
         repWhere += ` AND EXISTS (SELECT 1 FROM crm_deals d WHERE d.representative_id = r.id AND d.owner_id = $${repParams.length})`;
       }
