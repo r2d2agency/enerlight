@@ -19,7 +19,7 @@ import { ptBR } from "date-fns/locale";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
-import { useCRMCompanies } from "@/hooks/use-crm";
+
 
 const fmt = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
 
