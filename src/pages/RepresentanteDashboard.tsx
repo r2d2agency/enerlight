@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   LayoutDashboard, ShoppingCart, Wallet, Plus, 
   Search, Calendar as CalendarIcon, Filter, Building2, Handshake,
-  TrendingUp, CheckCircle2, Clock, CreditCard, Eye, Loader2
+  TrendingUp, CheckCircle2, Clock, CreditCard, Eye, Loader2, FileText
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { format, startOfMonth, endOfMonth, parseISO } from "date-fns";
