@@ -155,7 +155,7 @@ export default function Organizacoes() {
     captador: false,
     licitacao: false,
     logistics: false,
-    online_quotes: true,
+    online_quotes: false,
     rh_module: false,
     goals: true,
     representatives: true,

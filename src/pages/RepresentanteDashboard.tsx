@@ -308,25 +308,6 @@ export default function RepresentanteDashboard() {
 
         {/* Context Information */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-           <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <Building2 className="h-4 w-4" /> Gestão de Clientes (CNPJ)
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="text-sm text-muted-foreground space-y-3">
-              <p>
-                Como representante, você pode cadastrar novos clientes diretamente via CNPJ dentro do módulo de orçamentos. 
-                Seus cadastros são privados e visíveis apenas para você e seus supervisores.
-              </p>
-              <ul className="list-disc pl-5 space-y-1">
-                <li>Consulta automática via base da Receita Federal</li>
-                <li>Histórico de orçamentos vinculados por empresa</li>
-                <li>Conversão direta de Orçamento para Pedido após aprovação</li>
-              </ul>
-            </CardContent>
-          </Card>
-
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
@@ -335,12 +316,12 @@ export default function RepresentanteDashboard() {
             </CardHeader>
             <CardContent className="text-sm text-muted-foreground space-y-3">
               <p>
-                Toda proposta criada vira um registro no CRM. Assim que o cliente aprova e o faturamento é realizado:
+                Toda negociação é registrada no CRM. Assim que o pedido é aprovado e o faturamento é realizado:
               </p>
               <div className="flex items-center gap-4 py-2">
                 <div className="flex flex-col items-center gap-1">
                   <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold">1</div>
-                  <span className="text-[10px]">Orçamento</span>
+                  <span className="text-[10px]">Negociação</span>
                 </div>
                 <div className="h-px flex-1 bg-border" />
                 <div className="flex flex-col items-center gap-1">
