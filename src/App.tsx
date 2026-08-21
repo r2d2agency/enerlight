@@ -326,10 +326,10 @@ const App = () => (
                   <RepresentativeLayout>
                     <Routes>
                       <Route path="dashboard" element={<RepManagerDashboard />} />
-                      <Route path="representatives" element={<div>Gestão de Representantes em breve</div>} />
+                      <Route path="representatives" element={<RepManagerReps />} />
                       <Route path="price-lists" element={<RepresentativeConfig />} />
                       <Route path="products" element={<RepProducts />} />
-                      <Route path="quotes" element={<div>Gestão de Orçamentos em breve</div>} />
+                      <Route path="quotes" element={<RepManagerQuotes />} />
                       <Route path="settings" element={<div>Configurações em breve</div>} />
                       <Route path="*" element={<Navigate to="dashboard" replace />} />
                     </Routes>
