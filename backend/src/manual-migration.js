@@ -77,6 +77,9 @@ export async function manualMigration() {
 
     // 5. Ensure representative tables and columns
     await query(`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS is_representative BOOLEAN DEFAULT false;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS is_representative_manager BOOLEAN DEFAULT false;
+
       CREATE TABLE IF NOT EXISTS crm_representatives (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
