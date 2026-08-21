@@ -28,7 +28,7 @@ export default function RepQuotes() {
   const queryClient = useQueryClient();
 
   const convertMutation = useMutation({
-    mutationFn: (dealId: string) => api.post(`/api/representatives/quotes/${dealId}/convert`, {}),
+    mutationFn: (dealId: string) => api(`/api/representatives/quotes/${dealId}/convert`, { method: 'POST' }),
     onSuccess: () => {
       toast.success("Orçamento convertido em venda com sucesso!");
       queryClient.invalidateQueries({ queryKey: ["rep-quotes"] });
