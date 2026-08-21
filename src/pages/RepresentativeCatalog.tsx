@@ -27,7 +27,11 @@ export default function RepresentativeCatalog() {
     contact_name: "",
     contact_phone: "",
     title: "",
-    notes: ""
+    notes: "",
+    shipping_value: 0,
+    discount_value: 0,
+    commercial_conditions: "",
+    status: "rascunho"
   });
   const [checkoutMode, setCheckoutMode] = useState<"company" | "rep_customer" | "contact">("rep_customer");
   
@@ -174,7 +178,7 @@ export default function RepresentativeCatalog() {
       </div>
 
       <Dialog open={isCheckoutOpen} onOpenChange={setIsCheckoutOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Finalizar Orçamento</DialogTitle>
           </DialogHeader>
@@ -262,12 +266,75 @@ export default function RepresentativeCatalog() {
               />
             </div>
 
+            <div className="grid grid-cols-2 gap-4 border-t pt-4">
+              <div className="space-y-2">
+                <Label>Valor do Frete (R$)</Label>
+                <Input 
+                  type="number"
+                  value={checkoutData.shipping_value}
+                  onChange={e => setCheckoutData(prev => ({ ...prev, shipping_value: Number(e.target.value) }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Desconto (R$)</Label>
+                <Input 
+                  type="number"
+                  value={checkoutData.discount_value}
+                  onChange={e => setCheckoutData(prev => ({ ...prev, discount_value: Number(e.target.value) }))}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Condições Comerciais</Label>
+              <Input 
+                value={checkoutData.commercial_conditions}
+                onChange={e => setCheckoutData(prev => ({ ...prev, commercial_conditions: e.target.value }))}
+                placeholder="Ex: Pagamento 30 dias"
+              />
+            </div>
+
             <div className="space-y-2">
               <Label>Observações</Label>
               <Input 
                 value={checkoutData.notes}
                 onChange={e => setCheckoutData(prev => ({ ...prev, notes: e.target.value }))}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Status Inicial</Label>
+              <Select 
+                value={checkoutData.status} 
+                onValueChange={(val) => setCheckoutData(prev => ({ ...prev, status: val }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="rascunho">Rascunho</SelectItem>
+                  <SelectItem value="enviado">Enviado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="border-t pt-4 space-y-1">
+              <div className="flex justify-between text-sm">
+                <span>Subtotal:</span>
+                <span>R$ {cartTotal.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span>Frete:</span>
+                <span>+ R$ {(checkoutData.shipping_value || 0).toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span>Desconto:</span>
+                <span>- R$ {(checkoutData.discount_value || 0).toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between font-bold text-lg pt-2 border-t">
+                <span>Total:</span>
+                <span>R$ {(cartTotal + (checkoutData.shipping_value || 0) - (checkoutData.discount_value || 0)).toFixed(2)}</span>
+              </div>
             </div>
           </div>
           <DialogFooter>

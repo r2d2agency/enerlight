@@ -117,6 +117,7 @@ const RepManagerDashboard = lazyRetry(() => import("./pages/representative/RepMa
 const RepProducts = lazyRetry(() => import("./pages/representative/RepProducts"));
 const RepresentativeLayout = lazyRetry(() => import("./components/layout/RepresentativeLayout"));
 const RepCustomers = lazyRetry(() => import("./pages/representative/RepCustomers"));
+const RepQuotes = lazyRetry(() => import("./pages/representative/RepQuotes"));
 
 
 
@@ -306,7 +307,7 @@ const App = () => (
                     <Routes>
                       <Route path="dashboard" element={<RepDashboard />} />
                       <Route path="catalog" element={<RepresentativeCatalog />} />
-                      <Route path="quotes" element={<div>Orçamentos em breve</div>} />
+                      <Route path="quotes" element={<RepQuotes />} />
                       <Route path="clients" element={<RepCustomers />} />
                       <Route path="commissions" element={<div>Comissões em breve</div>} />
                       <Route path="profile" element={<div>Perfil em breve</div>} />
