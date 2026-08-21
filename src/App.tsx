@@ -114,6 +114,7 @@ const EadLogin = lazyRetry(() => import("./pages/ead/EadLogin"));
 const RepLogin = lazyRetry(() => import("./pages/representative/RepLogin"));
 const RepDashboard = lazyRetry(() => import("./pages/representative/RepDashboard"));
 const RepManagerDashboard = lazyRetry(() => import("./pages/representative/RepManagerDashboard"));
+const RepProducts = lazyRetry(() => import("./pages/representative/RepProducts"));
 const RepresentativeLayout = lazyRetry(() => import("./components/layout/RepresentativeLayout"));
 
 
