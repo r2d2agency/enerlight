@@ -109,7 +109,7 @@ const ComissoesEquipe = lazyRetry(() => import("./pages/ComissoesEquipe"));
 
 
 
-
+const EadLogin = lazyRetry(() => import("./pages/ead/EadLogin"));
 const EadSignup = lazyRetry(() => import("./pages/ead/EadSignup"));
 const EadHome = lazyRetry(() => import("./pages/ead/EadHome"));
 const EadCatalog = lazyRetry(() => import("./pages/ead/EadCatalog"));
