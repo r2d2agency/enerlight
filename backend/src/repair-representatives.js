@@ -3,18 +3,32 @@ import { pool } from './db.js';
 async function repair() {
   console.log('--- Database Repair Script (Representantes Sprint 1) ---');
   try {
-    console.log('Ensuring representative permissions in user_permissions...');
-    const perms = [
-      'can_manage_representative_config', 
-      'can_view_representative_dashboard', 
-      'can_view_all_representative_quotes',
-      'is_representative'
-    ];
-    for (const p of perms) {
-      await pool.query(`DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'user_permissions' AND column_name = '${p}') THEN ALTER TABLE user_permissions ADD COLUMN ${p} BOOLEAN DEFAULT false; END IF; END $$;`);
-    }
-
     console.log('Ensuring representative_id columns in deals and contacts...');
+    // We skip user_permissions as the route handler will auto-add them via ALTER TABLE in ensurePermissionColumns()
+    
+    // crm_representatives table should already exist from init-db, but we ensure it anyway
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS crm_representatives (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        name VARCHAR(255) NOT NULL,
+        email VARCHAR(255),
+        phone VARCHAR(50),
+        cpf_cnpj VARCHAR(20),
+        city VARCHAR(100),
+        state VARCHAR(2),
+        address TEXT,
+        zip_code VARCHAR(10),
+        commission_percent NUMERIC(5,2) DEFAULT 0,
+        notes TEXT,
+        is_active BOOLEAN DEFAULT true,
+        linked_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+        created_by UUID REFERENCES users(id),
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+
     await pool.query(`ALTER TABLE crm_deals ADD COLUMN IF NOT EXISTS representative_id UUID REFERENCES crm_representatives(id) ON DELETE SET NULL;`);
     await pool.query(`ALTER TABLE contacts ADD COLUMN IF NOT EXISTS representative_id UUID REFERENCES crm_representatives(id) ON DELETE SET NULL;`);
 
