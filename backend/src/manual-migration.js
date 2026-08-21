@@ -108,6 +108,10 @@ export async function manualMigration() {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'contacts' AND column_name = 'representative_id') THEN
           ALTER TABLE contacts ADD COLUMN representative_id UUID REFERENCES crm_representatives(id) ON DELETE SET NULL;
         END IF;
+
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'crm_deals' AND column_name = 'rep_customer_id') THEN
+          ALTER TABLE crm_deals ADD COLUMN rep_customer_id UUID REFERENCES rep_customers(id) ON DELETE SET NULL;
+        END IF;
       EXCEPTION WHEN others THEN NULL; END $$;
 
       CREATE TABLE IF NOT EXISTS cart_items (
