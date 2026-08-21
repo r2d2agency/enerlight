@@ -44,10 +44,8 @@ export default function RepLogin() {
     setIsLoading(true);
     try {
       await login(result.data.email, result.data.password);
-      // The main login function sets the user in AuthContext.
-      // We will redirect to /rep/dashboard and let ProtectedRoute/AuthRedirect handle the rest,
-      // but here we can be explicit if we know the user is a rep.
-      navigate('/rep/dashboard', { replace: true });
+      // We rely on AuthRedirect in App.tsx to send the user to the right dashboard
+      navigate('/', { replace: true });
     } catch (error) {
       toast({
         title: 'Erro ao fazer login',
