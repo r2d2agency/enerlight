@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, List, Settings, Loader2, Trash2, ShieldCheck, FileSpreadsheet, Edit2 } from "lucide-react";
+import { Plus, List, Settings, Loader2, Trash2, ShieldCheck, FileSpreadsheet, Edit2, Copy, Image as ImageIcon, FolderTree } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
