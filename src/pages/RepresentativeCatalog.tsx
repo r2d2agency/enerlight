@@ -23,16 +23,18 @@ export default function RepresentativeCatalog() {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [checkoutData, setCheckoutData] = useState({
     company_id: "",
+    rep_customer_id: "",
     contact_name: "",
     contact_phone: "",
     title: "",
     notes: ""
   });
-  const [checkoutMode, setCheckoutMode] = useState<"company" | "contact">("company");
+  const [checkoutMode, setCheckoutMode] = useState<"company" | "rep_customer" | "contact">("rep_customer");
   
   const navigate = useNavigate();
   const { data: products, isLoading } = useRepresentativeCatalog({ search });
   const { data: cartItems, addToCart, removeFromCart } = useRepresentativeCart();
+  const { data: repCustomers } = useRepCustomers();
   
   const cartTotal = cartItems?.reduce((acc, item) => acc + (item.sale_price * item.quantity), 0) || 0;
   
