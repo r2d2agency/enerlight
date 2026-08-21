@@ -41,6 +41,20 @@ export default function RepresentativeConfig() {
     }
   });
 
+  const duplicatePriceList = useMutation({
+    mutationFn: (priceList: any) => {
+      const { id, created_at, updated_at, ...rest } = priceList;
+      return api("/api/online-quotes/price-lists", {
+        method: "POST",
+        body: { ...rest, name: `${rest.name} (Cópia)` }
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["price-lists"] });
+      toast.success("Tabela duplicada!");
+    }
+  });
+
   const deletePriceList = useMutation({
     mutationFn: (id: string) => api(`/api/online-quotes/price-lists/${id}`, { method: "DELETE" }),
     onSuccess: () => {
