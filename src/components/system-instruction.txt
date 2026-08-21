@@ -7,33 +7,19 @@ TEXTO DO USUÁRIO: "Sprint 10 — Gestão e segurança
 Finalize a área administrativa.
 
 O gestor interno poderá:
-
-Visualizar todos os representantes.
-
-Consultar todos os orçamentos.
-
-Filtrar por representante, região, cliente, status e período.
-
-Ativar e bloquear acessos.
-
-Alterar permissões.
-
-Gerenciar tabelas e categorias.
-
-Gerenciar capas e modelo do PDF.
-
-Consultar conversões e comissões.
-
-Exportar relatórios.
+- Visualizar todos os representantes.
+- Consultar todos os orçamentos.
+- Filtrar por representante, região, cliente, status e período.
+- Ativar e bloquear acessos.
+- Alterar permissões.
+- Gerenciar tabelas e categorias.
+- Gerenciar capas e modelo do PDF.
+- Consultar conversões e comissões.
+- Exportar relatórios.
 
 Regras de segurança:
-
-Representantes só visualizam seus próprios clientes e orçamentos.
-
-Representantes só acessam tabelas autorizadas.
-
-Representantes não acessam outros módulos.
-
-Alterações administrativas devem gerar histórico de auditoria.
-
-Registrar criação, alteração, bloqueio e conversão."
+- Representantes só visualizam seus próprios clientes e orçamentos.
+- Representantes só acessam tabelas autorizadas.
+- Representantes não acessam outros módulos.
+- Alterações administrativas devem gerar histórico de auditoria.
+- Registrar criação, alteração, bloqueio e conversão."

@@ -6,9 +6,9 @@ import { generateQuotePDF } from '../utils/pdf-generator.js';
 const router = express.Router();
 router.use(authenticate);
 
-async function getUserContext(userId) {
+export async function getUserContext(userId) {
   const result = await query(
-    `SELECT om.organization_id, om.role, u.is_superadmin,
+    `SELECT om.organization_id, om.role, u.is_superadmin, u.status as user_status,
             up.can_manage_representative_config, up.can_view_representative_dashboard as is_representative
      FROM organization_members om
      JOIN users u ON u.id = om.user_id
@@ -28,7 +28,46 @@ async function getRepresentativeId(userId, organizationId) {
   return repResult.rows[0]?.id;
 }
 
-// GET /api/representatives/my-deals
+export async function logAudit(userId, organizationId, action, entityType, entityId, details) {
+  try {
+    await query(
+      `INSERT INTO crm_audit_log (user_id, organization_id, action, entity_type, entity_id, details)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [userId, organizationId, action, entityType, entityId, JSON.stringify(details)]
+    );
+  } catch (err) {
+    console.error('Audit log error:', err);
+  }
+}
+
+
+
+export async function getUserContext(userId) {
+  const result = await query(
+    `SELECT om.organization_id, om.role, u.is_superadmin, u.status as user_status,
+            up.can_manage_representative_config, up.can_view_representative_dashboard as is_representative
+     FROM organization_members om
+     JOIN users u ON u.id = om.user_id
+     LEFT JOIN user_permissions up ON up.user_id = u.id AND up.organization_id = om.organization_id
+     WHERE om.user_id = $1
+     LIMIT 1`,
+    [userId]
+  );
+  return result.rows[0];
+}
+
+export async function logAudit(userId, organizationId, action, entityType, entityId, details) {
+  try {
+    await query(
+      `INSERT INTO crm_audit_log (user_id, organization_id, action, entity_type, entity_id, details)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [userId, organizationId, action, entityType, entityId, JSON.stringify(details)]
+    );
+  } catch (err) {
+    console.error('Audit log error:', err);
+  }
+}
+
 router.get('/my-deals', async (req, res) => {
   try {
     const context = await getUserContext(req.userId);
@@ -375,15 +414,31 @@ router.get('/catalog', async (req, res) => {
     const context = await getUserContext(req.userId);
     if (!context) return res.status(403).json({ error: 'USER_CONTEXT_NOT_FOUND' });
 
+    const repId = await getRepresentativeId(req.userId, context.organization_id);
+    
     const { category, subcategory, brand, search, price_list_id } = req.query;
     
+    // Security Restriction: Representatives can only see products from authorized price lists
+    let authorizedCondition = "";
+    if (repId) {
+      authorizedCondition = `
+        AND (
+          pl.is_public = true 
+          OR pl.id IN (SELECT price_list_id FROM price_list_authorized_reps WHERE representative_id = $2)
+        )
+      `;
+    }
+
     let queryStr = `
       SELECT pli.*, pl.name as price_list_name, pl.markup_percentage
       FROM price_list_items pli
       JOIN price_lists pl ON pl.id = pli.price_list_id
       WHERE pl.organization_id = $1 AND pl.is_active = true
+      ${authorizedCondition}
     `;
     const params = [context.organization_id];
+    if (repId) params.push(repId);
+
 
     if (price_list_id) {
       queryStr += ` AND pli.price_list_id = $${params.length + 1}`;
@@ -541,5 +596,8 @@ router.post('/checkout', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+import adminRoutes from './representatives-admin.js';
+router.use('/', adminRoutes);
 
 export default router;

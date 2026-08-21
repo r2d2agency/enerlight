@@ -114,11 +114,14 @@ const EadLogin = lazyRetry(() => import("./pages/ead/EadLogin"));
 const RepLogin = lazyRetry(() => import("./pages/representative/RepLogin"));
 const RepDashboard = lazyRetry(() => import("./pages/representative/RepDashboard"));
 const RepManagerDashboard = lazyRetry(() => import("./pages/representative/RepManagerDashboard"));
+const RepManagerReps = lazyRetry(() => import("./pages/representative/RepManagerReps"));
+const RepManagerQuotes = lazyRetry(() => import("./pages/representative/RepManagerQuotes"));
 const RepProducts = lazyRetry(() => import("./pages/representative/RepProducts"));
 const RepresentativeLayout = lazyRetry(() => import("./components/layout/RepresentativeLayout"));
 const RepCustomers = lazyRetry(() => import("./pages/representative/RepCustomers"));
 const RepQuotes = lazyRetry(() => import("./pages/representative/RepQuotes"));
 const RepCommissions = lazyRetry(() => import("./pages/representative/RepCommissions"));
+
 
 
 
@@ -323,10 +326,10 @@ const App = () => (
                   <RepresentativeLayout>
                     <Routes>
                       <Route path="dashboard" element={<RepManagerDashboard />} />
-                      <Route path="representatives" element={<div>Gestão de Representantes em breve</div>} />
+                      <Route path="representatives" element={<RepManagerReps />} />
                       <Route path="price-lists" element={<RepresentativeConfig />} />
                       <Route path="products" element={<RepProducts />} />
-                      <Route path="quotes" element={<div>Gestão de Orçamentos em breve</div>} />
+                      <Route path="quotes" element={<RepManagerQuotes />} />
                       <Route path="settings" element={<div>Configurações em breve</div>} />
                       <Route path="*" element={<Navigate to="dashboard" replace />} />
                     </Routes>
