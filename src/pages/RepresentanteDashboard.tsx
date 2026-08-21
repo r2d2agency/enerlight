@@ -18,13 +18,17 @@ import { ptBR } from "date-fns/locale";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
+
 
 
 const fmt = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
 
 export default function RepresentanteDashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), "yyyy-MM-dd"));
+
   const [endDate, setEndDate] = useState(format(endOfMonth(new Date()), "yyyy-MM-dd"));
   const [search, setSearch] = useState("");
   const [isQuoteDialogOpen, setIsQuoteDialogOpen] = useState(false);
@@ -208,7 +212,7 @@ export default function RepresentanteDashboard() {
                   onChange={e => setSearch(e.target.value)}
                 />
               </div>
-              <Button onClick={() => setIsQuoteDialogOpen(true)}>
+              <Button onClick={() => navigate("/crm/catalogo")}>
                 <Plus className="h-4 w-4 mr-2" /> Novo Orçamento
               </Button>
             </div>

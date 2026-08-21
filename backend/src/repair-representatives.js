@@ -1,9 +1,12 @@
-import pg from "pg";
-const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
-async function run() {
+import { pool } from './db.js';
+
+async function repair() {
+  console.log('--- Database Repair Script (Representantes Sprint 1) ---');
   try {
-    console.log('--- REPRESENTATIVE REPAIR ---');
+    console.log('Ensuring representative_id columns in deals and contacts...');
+    // We skip user_permissions as the route handler will auto-add them via ALTER TABLE in ensurePermissionColumns()
     
+    // crm_representatives table should already exist from init-db, but we ensure it anyway
     await pool.query(`
       CREATE TABLE IF NOT EXISTS crm_representatives (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -29,6 +32,7 @@ async function run() {
     await pool.query(`ALTER TABLE crm_deals ADD COLUMN IF NOT EXISTS representative_id UUID REFERENCES crm_representatives(id) ON DELETE SET NULL;`);
     await pool.query(`ALTER TABLE contacts ADD COLUMN IF NOT EXISTS representative_id UUID REFERENCES crm_representatives(id) ON DELETE SET NULL;`);
 
+    console.log('Ensuring cart_items table...');
     await pool.query(`
       CREATE TABLE IF NOT EXISTS cart_items (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -41,13 +45,12 @@ async function run() {
       )
     `);
 
-    console.log('Success!');
-  } catch (e) {
-    process.stderr.write(e.stack);
+    console.log('Repair completed successfully!');
+    process.exit(0);
+  } catch (err) {
+    console.error('Repair failed:', err);
     process.exit(1);
-  } finally {
-    await pool.end();
   }
 }
-run();
 
+repair();

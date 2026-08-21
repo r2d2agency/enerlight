@@ -109,6 +109,7 @@ const FolhaPagamento = lazyRetry(() => import("./pages/FolhaPagamento"));
 const ComissoesEquipe = lazyRetry(() => import("./pages/ComissoesEquipe"));
 const RepresentanteDashboard = lazyRetry(() => import("./pages/RepresentanteDashboard"));
 const RepresentativeConfig = lazyRetry(() => import("./pages/RepresentativeConfig"));
+const RepresentativeCatalog = lazyRetry(() => import("./pages/RepresentativeCatalog"));
 const EadLogin = lazyRetry(() => import("./pages/ead/EadLogin"));
 
 const EadSignup = lazyRetry(() => import("./pages/ead/EadSignup"));
@@ -230,6 +231,8 @@ const App = () => (
 
               <Route path="/crm/representantes" element={<ProtectedRoute><CRMRepresentantes /></ProtectedRoute>} />
               <Route path="/crm/representantes/config" element={<ProtectedRoute permissionKey="can_manage_representative_config"><RepresentativeConfig /></ProtectedRoute>} />
+              <Route path="/crm/catalogo" element={<ProtectedRoute permissionKey="can_view_representative_dashboard"><RepresentativeCatalog /></ProtectedRoute>} />
+
 
               <Route path="/crm/representantes-hub" element={<ProtectedRoute><RepresentativesHub /></ProtectedRoute>} />
               <Route path="/supervisor-ia" element={<ProtectedRoute><SupervisorIA /></ProtectedRoute>} />

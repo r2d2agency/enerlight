@@ -54,6 +54,7 @@ import {
   GraduationCap,
   ShieldCheck,
   Factory,
+  ShoppingCart,
 } from "lucide-react";
 
 import { API_URL, getAuthToken } from "@/lib/api";
@@ -155,6 +156,7 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
     permissionKey: 'can_view_representative_dashboard',
     items: [
       { name: "Painel Representante", href: "/crm/representante-dashboard", icon: LayoutDashboard, permissionKey: 'can_view_representative_dashboard', moduleKey: 'representative_dashboard' },
+      { name: "Catálogo", href: "/crm/catalogo", icon: ShoppingCart, permissionKey: 'can_view_representative_dashboard' },
     ],
   },
   {
