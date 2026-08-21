@@ -198,4 +198,17 @@ export async function manualMigration() {
       );
 
       CREATE INDEX IF NOT EXISTS idx_rep_customers_representative ON rep_customers(representative_id);
+
+      -- Sprint 6: Deal checkout fields
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'crm_deals' AND column_name = 'shipping_value') THEN
+          ALTER TABLE crm_deals ADD COLUMN shipping_value NUMERIC(10,2) DEFAULT 0;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'crm_deals' AND column_name = 'discount_value') THEN
+          ALTER TABLE crm_deals ADD COLUMN discount_value NUMERIC(10,2) DEFAULT 0;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'crm_deals' AND column_name = 'commercial_conditions') THEN
+          ALTER TABLE crm_deals ADD COLUMN commercial_conditions TEXT;
+        END IF;
+      EXCEPTION WHEN others THEN NULL; END $$;
     `);
