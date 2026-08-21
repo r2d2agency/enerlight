@@ -551,7 +551,8 @@ router.get('/conversations', authenticate, async (req, res) => {
       }
 
       // DEPARTMENT-BASED VISIBILITY FILTER
-      // Reverted: Restoring previous visibility behavior
+      // Reverted: Restoring previous visibility behavior (removing department restrictions for non-admins)
+      /*
       if (supportsDepartment && !isAdminOnly) {
         // Non-admin users: apply department visibility restrictions
         if (userDepartmentIds.length > 0) {
@@ -569,9 +570,11 @@ router.get('/conversations', authenticate, async (req, res) => {
             OR (conv.department_id IS NULL AND conv.attendance_status = 'waiting')
           )`;
           params.push(req.userId);
+          params.push(req.userId); // Added to keep paramIndex increment logic simple if needed, though not strictly required here
           paramIndex++;
         }
       }
+      */
       // Users WITH specific connection assignments: getUserConnections already filters by their connections,
       // so they see all conversations from those connections (no extra department filter needed)
 
