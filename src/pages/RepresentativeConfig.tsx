@@ -188,16 +188,19 @@ export default function RepresentativeConfig() {
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
-                              <Button variant="ghost" size="sm" onClick={() => setItemsPriceList(pl)}>
-                                <List className="h-4 w-4 mr-2" /> Itens
+                              <Button variant="ghost" size="sm" onClick={() => setItemsPriceList(pl)} title="Itens da Tabela">
+                                <List className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="sm" onClick={() => duplicatePriceList.mutate(pl)} title="Duplicar Tabela">
+                                <Copy className="h-4 w-4" />
                               </Button>
                               <Button variant="ghost" size="sm" onClick={() => {
                                 setEditingPriceList(pl);
                                 setIsPriceListDialogOpen(true);
-                              }}>
+                              }} title="Editar">
                                 <Edit2 className="h-4 w-4" />
                               </Button>
-                              <Button variant="ghost" size="sm" className="text-red-500" onClick={() => handleDeletePriceList(pl.id, pl.name)}>
+                              <Button variant="ghost" size="sm" className="text-red-500" onClick={() => handleDeletePriceList(pl.id, pl.name)} title="Excluir">
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
