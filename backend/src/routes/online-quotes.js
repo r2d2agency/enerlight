@@ -125,7 +125,7 @@ router.get('/items', async (req, res) => {
             `SELECT pli.* FROM price_list_items pli
              JOIN price_lists pl ON pl.id = pli.price_list_id
              WHERE pl.organization_id = $1
-             ORDER BY pli.product_name ASC`,
+             ORDER BY pli.description ASC`,
             [context.organization_id]
         );
         res.json(result.rows);
