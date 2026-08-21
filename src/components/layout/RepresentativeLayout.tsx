@@ -108,7 +108,7 @@ export default function RepresentativeLayout({ children }: { children: React.Rea
   };
 
   const SidebarContent = ({ mobile = false }: { mobile?: boolean }) => (
-    <div className="flex flex-col h-full bg-sidebar border-r border-border/40">
+    <div className="flex flex-col h-full bg-sidebar border-r border-border/40 shrink-0">
       <div className={cn(
         "flex items-center gap-3 px-6 py-8",
         !isExpanded && !mobile && "px-4 justify-center"
@@ -224,10 +224,10 @@ export default function RepresentativeLayout({ children }: { children: React.Rea
   );
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
+    <div className="flex h-screen bg-background overflow-hidden relative">
       {/* Desktop Sidebar */}
       <aside className={cn(
-        "hidden md:block transition-all duration-300 ease-in-out z-30 shrink-0",
+        "hidden md:block transition-all duration-300 ease-in-out z-30 shrink-0 sticky top-0 h-screen",
         isExpanded ? "w-64" : "w-20"
       )}>
         <SidebarContent />
@@ -235,7 +235,7 @@ export default function RepresentativeLayout({ children }: { children: React.Rea
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
-        <header className="h-16 border-b border-border/40 flex items-center justify-between px-4 md:px-8 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-20 shrink-0">
+        <header className="h-16 border-b border-border/40 flex items-center justify-between px-4 md:px-8 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-20 shrink-0 sticky top-0">
           <div className="flex items-center gap-4">
             <Button
               variant="ghost"
