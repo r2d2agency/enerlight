@@ -125,7 +125,6 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
       { name: "Prospects", href: "/crm/prospects", icon: UserPlus, permissionKey: 'can_view_prospects' },
       { name: "Empresas", href: "/crm/empresas", icon: Building2, permissionKey: 'can_view_companies' },
       { name: "Indicadores", href: "/crm/representantes", icon: Handshake, moduleKey: 'representatives', permissionKey: 'can_view_representatives' },
-      { name: "Hub de Representantes", href: "/crm/representantes-hub", icon: Users, moduleKey: 'representatives', permissionKey: 'can_view_all_representative_quotes' },
 
       { name: "Mapa", href: "/mapa", icon: Map, permissionKey: 'can_view_map' },
       { name: "Agenda", href: "/crm/agenda", icon: CalendarDays, permissionKey: 'can_view_calendar' },
@@ -147,17 +146,6 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
       
       { name: "Fantasma", href: "/modulo-fantasma", icon: Ghost, moduleKey: 'ghost', permissionKey: 'can_view_ghost' },
       { name: "Configurações", href: "/crm/configuracoes", icon: Settings, permissionKey: 'can_view_crm_settings' },
-    ],
-  },
-  {
-    title: "Representantes",
-    icon: Handshake,
-    moduleKey: 'representatives',
-    permissionKey: 'can_view_representative_dashboard',
-    items: [
-      { name: "Painel Representante", href: "/crm/representante-dashboard", icon: LayoutDashboard, permissionKey: 'can_view_representative_dashboard', moduleKey: 'representative_dashboard' },
-      { name: "Portal Independente", href: "/rep/dashboard", icon: Zap, permissionKey: 'can_view_representative_dashboard' },
-      { name: "Catálogo", href: "/crm/catalogo", icon: ShoppingCart, permissionKey: 'can_view_representative_dashboard' },
     ],
   },
   {
