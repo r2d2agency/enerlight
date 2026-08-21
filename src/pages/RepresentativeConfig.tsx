@@ -263,12 +263,18 @@ export default function RepresentativeConfig() {
                     <Label htmlFor="is_master">Tabela Master (Preços Base)</Label>
                   </div>
                 </div>
-                {!editingPriceList?.is_master && (
-                   <div className="grid gap-2">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
                     <Label htmlFor="markup_percentage">Markup / Acréscimo (%)</Label>
                     <Input id="markup_percentage" name="markup_percentage" type="number" step="0.01" defaultValue={editingPriceList?.markup_percentage || 0} />
-                    <p className="text-[10px] text-muted-foreground">Este percentual será somado ao preço da tabela master ao importar/visualizar.</p>
                   </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="custom_cover_url">URL da Capa Personalizada</Label>
+                    <Input id="custom_cover_url" name="custom_cover_url" defaultValue={editingPriceList?.custom_cover_url} placeholder="https://..." />
+                  </div>
+                </div>
+                {!editingPriceList?.is_master && (
+                   <p className="text-[10px] text-muted-foreground -mt-2">O markup será somado ao preço da tabela master ao importar/visualizar.</p>
                 )}
                 <div className="grid gap-2">
                   <Label>Grupos com Acesso (Permission Templates)</Label>
