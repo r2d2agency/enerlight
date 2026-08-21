@@ -71,8 +71,6 @@ import eadRoutes from './routes/ead.js';
 import commissionRoutes from './routes/commission.js';
 import payrollRoutes from './routes/payroll.js';
 import onlineQuotesRoutes from './routes/online-quotes.js';
-import representativesModuleRoutes from './routes/representatives.js';
-import repModuleRoutes from './routes/rep-module.js';
 
 
 import { initDatabase } from './init-db.js';
@@ -324,8 +322,6 @@ app.use('/api/ead', eadRoutes);
 app.use('/api/commission', commissionRoutes);
 app.use('/api/payroll', payrollRoutes);
 app.use('/api/online-quotes', onlineQuotesRoutes);
-app.use('/api/representatives', representativesModuleRoutes);
-app.use('/api/rep-module', repModuleRoutes);
 
 
 
