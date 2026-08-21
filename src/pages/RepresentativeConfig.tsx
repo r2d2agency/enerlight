@@ -84,10 +84,13 @@ export default function RepresentativeConfig() {
       id: editingPriceList?.id || undefined,
       name: formData.get('name'),
       description: formData.get('description'),
+      segment: formData.get('segment'),
+      parent_id: formData.get('parent_id') === 'none' ? null : formData.get('parent_id'),
       is_active: formData.get('is_active') === 'on',
       allowed_templates: selectedTemplates,
       is_master: formData.get('is_master') === 'on',
-      markup_percentage: parseFloat(formData.get('markup_percentage') as string || '0')
+      markup_percentage: parseFloat(formData.get('markup_percentage') as string || '0'),
+      custom_cover_url: formData.get('custom_cover_url')
     };
 
     if (!data.id) delete (data as any).id;
