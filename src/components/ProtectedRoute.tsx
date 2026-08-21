@@ -26,7 +26,8 @@ const ProtectedRoute = ({ children, permissionKey }: ProtectedRouteProps) => {
     const isPrivileged = user?.is_superadmin || user?.role === 'owner' || user?.role === 'admin';
     const allowed = isPrivileged || (userPermissions && (userPermissions as any)[permissionKey] === true);
     if (!allowed) {
-      return <Navigate to="/" replace />;
+      console.warn(`[ProtectedRoute] Access denied for permission ${permissionKey}. Redirecting to dashboard.`);
+      return <Navigate to="/dashboard" replace />;
     }
   }
 
