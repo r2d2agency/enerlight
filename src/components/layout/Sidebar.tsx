@@ -478,7 +478,7 @@ function SidebarContentComponent({ isExpanded, isSuperadmin, onNavigate }: Sideb
 
   const handleLogout = () => {
     logout();
-    navigate("/login");
+    navigate(user?.is_representative || user?.is_representative_manager ? "/rep/login" : "/login");
     onNavigate?.();
   };
 

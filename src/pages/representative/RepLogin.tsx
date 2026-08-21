@@ -45,7 +45,7 @@ export default function RepLogin() {
     try {
       await login(result.data.email, result.data.password);
       // We rely on AuthRedirect in App.tsx to send the user to the right dashboard
-      navigate('/', { replace: true });
+      navigate('/rep/dashboard', { replace: true });
     } catch (error) {
       toast({
         title: 'Erro ao fazer login',
