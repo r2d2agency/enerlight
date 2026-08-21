@@ -115,4 +115,23 @@ router.delete('/price-lists/:id', async (req, res) => {
     }
 });
 
+// GET /api/online-quotes/items - All items for management
+router.get('/items', async (req, res) => {
+    try {
+        const context = await getUserContext(req.userId);
+        if (!context) return res.status(403).json({ error: 'USER_CONTEXT_NOT_FOUND' });
+        
+        const result = await query(
+            `SELECT pli.* FROM price_list_items pli
+             JOIN price_lists pl ON pl.id = pli.price_list_id
+             WHERE pl.organization_id = $1
+             ORDER BY pli.product_name ASC`,
+            [context.organization_id]
+        );
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 export default router;
