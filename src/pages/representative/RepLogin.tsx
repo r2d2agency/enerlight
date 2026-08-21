@@ -45,7 +45,7 @@ export default function RepLogin() {
     try {
       await login(result.data.email, result.data.password);
       // We rely on AuthRedirect in App.tsx to send the user to the right dashboard
-      navigate('/', { replace: true });
+      navigate('/rep/dashboard', { replace: true });
     } catch (error) {
       toast({
         title: 'Erro ao fazer login',
@@ -127,9 +127,14 @@ export default function RepLogin() {
           </form>
         </Card>
         
-        <p className="text-center text-sm text-muted-foreground">
-          © {new Date().getFullYear()} {branding.company_name || 'Enerlight'}. Todos os direitos reservados.
-        </p>
+        <div className="flex flex-col items-center gap-2 mt-4">
+          <p className="text-center text-sm text-muted-foreground">
+            © {new Date().getFullYear()} {branding.company_name || 'Enerlight'}. Todos os direitos reservados.
+          </p>
+          <Button variant="link" size="sm" onClick={() => navigate('/login')} className="text-primary/70 hover:text-primary">
+            Voltar ao Login Principal
+          </Button>
+        </div>
       </div>
     </div>
   );
