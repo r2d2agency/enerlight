@@ -4,20 +4,33 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Plus, UserPlus, Pencil, Phone, Mail, MapPin, History } from "lucide-react";
+import { Search, UserPlus, Pencil, Phone, Mail, History } from "lucide-react";
 import { useRepCustomers, useRepCustomerMutations, RepCustomer } from "@/hooks/use-representatives";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { Badge } from "@/components/ui/badge";
 
 export default function RepCustomers() {
   const [search, setSearch] = useState("");
   const [editingCustomer, setEditingCustomer] = useState<RepCustomer | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<RepCustomer | null>(null);
   const [formData, setFormData] = useState<Partial<RepCustomer>>({});
 
   const { data: customers, isLoading } = useRepCustomers(search);
   const { createCustomer, updateCustomer } = useRepCustomerMutations();
+
+  const { data: quoteHistory } = useQuery({
+    queryKey: ["rep-customer-history", selectedCustomer?.id],
+    queryFn: () => api<any[]>(`/api/representatives/customers/${selectedCustomer?.id}/quotes`),
+    enabled: !!selectedCustomer?.id && isHistoryOpen
+  });
 
   const handleOpenForm = (customer?: RepCustomer) => {
     if (customer) {
@@ -28,6 +41,11 @@ export default function RepCustomers() {
       setFormData({});
     }
     setIsFormOpen(true);
+  };
+
+  const handleOpenHistory = (customer: RepCustomer) => {
+    setSelectedCustomer(customer);
+    setIsHistoryOpen(true);
   };
 
   const handleSubmit = async () => {
@@ -77,7 +95,7 @@ export default function RepCustomers() {
                       <TableHead>CPF / CNPJ</TableHead>
                       <TableHead>Contato</TableHead>
                       <TableHead>Cidade/UF</TableHead>
-                      <TableHead className="w-[100px] text-right">Ações</TableHead>
+                      <TableHead className="w-[120px] text-right">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -106,7 +124,10 @@ export default function RepCustomers() {
                           {customer.city ? `${customer.city}/${customer.state}` : "-"}
                         </TableCell>
                         <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
+                          <div className="flex justify-end gap-1">
+                            <Button variant="ghost" size="icon" onClick={() => handleOpenHistory(customer)}>
+                              <History className="h-4 w-4" />
+                            </Button>
                             <Button variant="ghost" size="icon" onClick={() => handleOpenForm(customer)}>
                               <Pencil className="h-4 w-4" />
                             </Button>
