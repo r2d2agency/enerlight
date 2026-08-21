@@ -1413,7 +1413,8 @@ router.get('/deals', async (req, res) => {
       params.push(req.userId);
     }
 
-    // Additional check for representatives
+    // Removed representative restriction for existing users as requested
+    /*
     try {
       const perms = await query(
         `SELECT can_view_representative_dashboard FROM user_permissions WHERE user_id = $1 AND organization_id = $2`,
@@ -1430,6 +1431,7 @@ router.get('/deals', async (req, res) => {
         }
       }
     } catch (_) {}
+    */
 
     const result = await query(
       `SELECT d.*, 
@@ -1492,7 +1494,8 @@ router.get('/deals/by-phone/:phone', async (req, res) => {
       params.push(req.userId);
     }
 
-    // Additional check for representatives
+    // Removed representative restriction for existing users as requested
+    /*
     try {
       const perms = await query(
         `SELECT can_view_representative_dashboard FROM user_permissions WHERE user_id = $1 AND organization_id = $2`,
@@ -1509,6 +1512,7 @@ router.get('/deals/by-phone/:phone', async (req, res) => {
         }
       }
     } catch (_) {}
+    */
 
     const result = await query(
       `SELECT DISTINCT ON (d.id) d.*, 
@@ -1586,7 +1590,8 @@ router.get('/funnels/:funnelId/deals', async (req, res) => {
       params.push(req.userId);
     }
     
-    // Additional check for representatives (linked to a user_permissions record)
+    // Removed representative restriction for existing users as requested
+    /*
     const perms = await query(
       `SELECT can_view_representative_dashboard FROM user_permissions WHERE user_id = $1 AND organization_id = $2`,
       [req.userId, org.organization_id]
@@ -1606,6 +1611,7 @@ router.get('/funnels/:funnelId/deals', async (req, res) => {
           params.push(repRec.rows[0].id);
        }
     }
+    */
 
     const baseSql = `SELECT d.*, 
         c.name as company_name,
