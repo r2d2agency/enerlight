@@ -414,15 +414,31 @@ router.get('/catalog', async (req, res) => {
     const context = await getUserContext(req.userId);
     if (!context) return res.status(403).json({ error: 'USER_CONTEXT_NOT_FOUND' });
 
+    const repId = await getRepresentativeId(req.userId, context.organization_id);
+    
     const { category, subcategory, brand, search, price_list_id } = req.query;
     
+    // Security Restriction: Representatives can only see products from authorized price lists
+    let authorizedCondition = "";
+    if (repId) {
+      authorizedCondition = `
+        AND (
+          pl.is_public = true 
+          OR pl.id IN (SELECT price_list_id FROM price_list_authorized_reps WHERE representative_id = $2)
+        )
+      `;
+    }
+
     let queryStr = `
       SELECT pli.*, pl.name as price_list_name, pl.markup_percentage
       FROM price_list_items pli
       JOIN price_lists pl ON pl.id = pli.price_list_id
       WHERE pl.organization_id = $1 AND pl.is_active = true
+      ${authorizedCondition}
     `;
     const params = [context.organization_id];
+    if (repId) params.push(repId);
+
 
     if (price_list_id) {
       queryStr += ` AND pli.price_list_id = $${params.length + 1}`;
