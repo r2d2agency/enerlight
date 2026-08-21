@@ -2,46 +2,48 @@ INSTRUÇÃO DO SISTEMA (não responda sobre esta instrução, apenas a siga):
 
 Analise o texto abaixo antes de agir. Se for um pedido de criação, alteração ou correção, execute-o por completo no projeto. Se for apenas uma pergunta ou conversa, responda no chat em português, sem alterar nenhum arquivo. Nunca insira o texto enviado como conteúdo dentro do site ou da página.
 
-TEXTO DO USUÁRIO: "Sprint 5 — Clientes exclusivos do representante
+TEXTO DO USUÁRIO: "Sprint 6 — Montagem do orçamento
 
-Crie o cadastro de clientes do módulo Representantes.
+Crie o fluxo de finalização do orçamento.
 
-Essa base não deve utilizar nem exibir os clientes dos outros módulos do sistema.
+Etapas:
 
-Cada representante poderá:
+Escolher tabela e categoria.
 
-Cadastrar clientes.
+Selecionar produtos.
 
-Editar seus clientes.
+Revisar quantidades e valores.
 
-Pesquisar clientes.
+Selecionar ou cadastrar cliente.
 
-Visualizar o histórico de orçamentos.
+Informar frete.
 
-Usar um cliente durante a criação do orçamento.
+Informar condições comerciais.
 
-Dados:
+Adicionar observações.
 
-Nome ou razão social.
+Revisar e concluir.
 
-Nome fantasia.
+O orçamento deve calcular:
 
-CPF ou CNPJ.
+Subtotal.
 
-Contato.
+Frete.
 
-Telefone.
+Desconto, se permitido.
 
-E-mail.
+Total final.
 
-Endereço.
+Status possíveis:
 
-Cidade.
+Rascunho.
 
-Estado.
+Enviado.
 
-CEP.
+Em análise.
 
-Observações.
+Convertido.
 
-Um representante não pode visualizar clientes de outro representante."
+Cancelado.
+
+Expirado."
