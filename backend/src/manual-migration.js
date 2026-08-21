@@ -173,4 +173,25 @@ export async function manualMigration() {
           ALTER TABLE price_list_items ADD COLUMN image_url TEXT;
         END IF;
       EXCEPTION WHEN others THEN NULL; END $$;
+
+      -- Sprint 5: Exclusive Representative Customers
+      CREATE TABLE IF NOT EXISTS rep_customers (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        representative_id UUID NOT NULL REFERENCES crm_representatives(id) ON DELETE CASCADE,
+        name VARCHAR(255) NOT NULL,
+        trading_name VARCHAR(255),
+        cpf_cnpj VARCHAR(20),
+        contact_name VARCHAR(255),
+        phone VARCHAR(50),
+        email VARCHAR(255),
+        address TEXT,
+        city VARCHAR(100),
+        state VARCHAR(2),
+        zip_code VARCHAR(10),
+        notes TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_rep_customers_representative ON rep_customers(representative_id);
     `);
