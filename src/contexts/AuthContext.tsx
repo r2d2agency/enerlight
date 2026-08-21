@@ -95,6 +95,7 @@ export interface UserPermissions {
   can_view_nfc?: boolean;
   can_manage_representative_config?: boolean;
   is_representative?: boolean;
+  is_representative_manager?: boolean;
 }
 
 
@@ -105,6 +106,8 @@ interface User {
   name: string;
   role?: string;
   is_superadmin?: boolean;
+  is_representative?: boolean;
+  is_representative_manager?: boolean;
   organization_id?: string;
   modules_enabled?: ModulesEnabled;
   has_connections?: boolean;
