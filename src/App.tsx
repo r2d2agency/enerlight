@@ -310,7 +310,7 @@ const App = () => (
                       <Route path="catalog" element={<RepresentativeCatalog />} />
                       <Route path="quotes" element={<RepQuotes />} />
                       <Route path="clients" element={<RepCustomers />} />
-                      <Route path="commissions" element={<div>Comissões em breve</div>} />
+                      <Route path="commissions" element={<RepCommissions />} />
                       <Route path="profile" element={<div>Perfil em breve</div>} />
                       <Route path="*" element={<Navigate to="dashboard" replace />} />
                     </Routes>
