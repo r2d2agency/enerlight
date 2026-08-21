@@ -48,6 +48,10 @@ export default function RepresentativeCatalog() {
       toast.error("Selecione uma empresa");
       return;
     }
+    if (checkoutMode === "rep_customer" && !checkoutData.rep_customer_id) {
+      toast.error("Selecione um cliente da sua base");
+      return;
+    }
     if (checkoutMode === "contact" && (!checkoutData.contact_name || !checkoutData.contact_phone)) {
       toast.error("Preencha os dados do contato");
       return;
