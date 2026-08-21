@@ -227,6 +227,44 @@ export default function RepCustomers() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Histórico de Orçamentos - {selectedCustomer?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            {quoteHistory && quoteHistory.length > 0 ? (
+              <div className="space-y-4">
+                {quoteHistory.map((quote) => (
+                  <div key={quote.id} className="p-4 border rounded-lg space-y-2">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="font-bold">{quote.title}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {format(new Date(quote.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                        </p>
+                      </div>
+                      <Badge variant="outline">{quote.status}</Badge>
+                    </div>
+                    <div className="flex justify-between items-end pt-2">
+                      <p className="text-sm text-muted-foreground">{quote.description || 'Sem observações'}</p>
+                      <p className="font-bold text-primary">R$ {Number(quote.value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground italic">
+                Nenhum orçamento vinculado a este cliente.
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setIsHistoryOpen(false)}>Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 }
