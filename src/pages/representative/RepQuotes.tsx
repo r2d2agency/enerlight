@@ -1,13 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ClipboardList, Search, Filter } from "lucide-react";
+import { ClipboardList, Search, Filter, FileDown, Share2, Eye } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 export default function RepQuotes() {
   const [search, setSearch] = useState("");
@@ -29,6 +31,66 @@ export default function RepQuotes() {
       case 'cancelado': return <Badge variant="destructive">Cancelado</Badge>;
       case 'expirado': return <Badge variant="outline" className="opacity-50">Expirado</Badge>;
       default: return <Badge variant="outline">{status || 'Aberto'}</Badge>;
+    }
+  };
+
+  const handleDownloadPDF = async (dealId: string) => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/representatives/quotes/${dealId}/pdf`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (!response.ok) throw new Error('Erro ao gerar PDF');
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `orcamento-${dealId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      a.remove();
+      
+      toast.success("PDF gerado com sucesso!");
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao gerar o PDF do orçamento.");
+    }
+  };
+
+  const handlePreviewPDF = (dealId: string) => {
+    const url = `${import.meta.env.VITE_API_URL}/api/representatives/quotes/${dealId}/pdf?token=${localStorage.getItem('token')}`;
+    window.open(url, '_blank');
+  };
+
+  const handleShare = async (dealId: string) => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/representatives/quotes/${dealId}/pdf`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (!response.ok) throw new Error('Erro ao gerar PDF');
+      
+      const blob = await response.blob();
+      const file = new File([blob], `orcamento-${dealId}.pdf`, { type: 'application/pdf' });
+      
+      if (navigator.share) {
+        await navigator.share({
+          files: [file],
+          title: `Orçamento #${dealId}`,
+          text: 'Confira o orçamento em anexo.'
+        });
+      } else {
+        toast.info("Compartilhamento não suportado neste navegador. Use o botão de download.");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao compartilhar o orçamento.");
     }
   };
 
@@ -71,12 +133,13 @@ export default function RepQuotes() {
                 <TableHead>Cliente</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Valor Total</TableHead>
+                <TableHead className="text-center w-[150px]">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground italic">
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground italic">
                     Carregando orçamentos...
                   </TableCell>
                 </TableRow>
@@ -92,11 +155,39 @@ export default function RepQuotes() {
                     <TableCell className="text-right font-bold">
                       R$ {Number(quote.value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </TableCell>
+                    <TableCell>
+                      <div className="flex items-center justify-center gap-1">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          title="Visualizar PDF"
+                          onClick={() => handlePreviewPDF(quote.id)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          title="Baixar PDF"
+                          onClick={() => handleDownloadPDF(quote.id)}
+                        >
+                          <FileDown className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          title="Compartilhar"
+                          onClick={() => handleShare(quote.id)}
+                        >
+                          <Share2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground italic">
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground italic">
                     <ClipboardList className="h-8 w-8 mx-auto opacity-20 mb-2" />
                     Nenhum orçamento encontrado.
                   </TableCell>

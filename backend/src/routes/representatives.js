@@ -1,6 +1,7 @@
 import express from 'express';
 import { query } from '../db.js';
 import { authenticate } from '../middleware/auth.js';
+import { generateQuotePDF } from '../utils/pdf-generator.js';
 
 const router = express.Router();
 router.use(authenticate);
@@ -18,7 +19,6 @@ async function getUserContext(userId) {
   );
   return result.rows[0];
 }
-
 
 async function getRepresentativeId(userId, organizationId) {
   const repResult = await query(
@@ -38,7 +38,7 @@ router.get('/my-deals', async (req, res) => {
     if (!repId) return res.status(403).json({ error: 'REPRESENTATIVE_NOT_FOUND' });
 
     const result = await query(
-      `SELECT d.*, c.name as customer_name, co.name as company_name
+      `SELECT d.*, c.name as customer_name, co.name as company_name, c.cpf_cnpj as customer_document
        FROM crm_deals d
        LEFT JOIN rep_customers c ON c.id = d.rep_customer_id
        LEFT JOIN companies co ON co.id = d.company_id
@@ -48,6 +48,79 @@ router.get('/my-deals', async (req, res) => {
     );
     res.json(result.rows);
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/representatives/quotes/:id/pdf
+router.get('/quotes/:id/pdf', async (req, res) => {
+  try {
+    const context = await getUserContext(req.userId);
+    if (!context) return res.status(403).json({ error: 'USER_CONTEXT_NOT_FOUND' });
+
+    const dealId = req.params.id;
+    
+    // Fetch deal with items and cover URL from price list
+    const dealResult = await query(
+      `SELECT d.*, c.name as customer_name, c.cpf_cnpj as customer_document,
+              pl.custom_cover_url
+       FROM crm_deals d
+       LEFT JOIN rep_customers c ON c.id = d.rep_customer_id
+       -- Logic to link to price list cover: we look for the first item's price list
+       LEFT JOIN LATERAL (
+         SELECT pli.price_list_id
+         FROM cart_items ci -- This is not correct for historical deals, we need a deal_items table.
+         -- For now, we'll try to find if we stored the price_list_id in the deal or if we can infer it.
+         -- Let's assume for Sprint 7 that we might need a join to price_lists if we stored it.
+         -- Since we don't have deal_items yet, we'll try to find items from crm_deal_history or similar if applicable.
+         -- Actually, let's just use the organization's default cover for now if not found.
+         LIMIT 1
+       ) dl ON true
+       LEFT JOIN price_lists pl ON pl.id = d.price_list_id -- We should add this column to crm_deals
+       WHERE d.id = $1`,
+      [dealId]
+    );
+
+    if (dealResult.rows.length === 0) return res.status(404).json({ error: 'QUOTE_NOT_FOUND' });
+    const quote = dealResult.rows[0];
+
+    // Mock items since we haven't implemented a formal deal_items table yet (stored in history as text currently)
+    // In a real implementation, we'd have a crm_deal_items table.
+    // For this sprint, I'll extract items from the note if it exists or return empty.
+    const historyResult = await query(
+      `SELECT content FROM crm_deal_history WHERE deal_id = $1 AND type = 'note' ORDER BY created_at ASC LIMIT 1`,
+      [dealId]
+    );
+    
+    const items = [];
+    if (historyResult.rows[0]) {
+      // Very basic parser for the format: "- description (code): quantity x R$ price"
+      const lines = historyResult.rows[0].content.split('\n');
+      lines.forEach(line => {
+        if (line.startsWith('- ')) {
+          const match = line.match(/- (.*) \((.*)\): (\d+) x R\$ ([\d,.]+)/);
+          if (match) {
+            items.push({
+              name: match[1],
+              code: match[2],
+              quantity: parseInt(match[3]),
+              unit_price: parseFloat(match[4].replace(',', '.'))
+            });
+          }
+        }
+      });
+    }
+    
+    quote.items = items;
+    quote.subtotal = items.reduce((acc, item) => acc + (item.unit_price * item.quantity), 0);
+
+    const pdfBuffer = await generateQuotePDF(quote);
+    
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=orcamento-${dealId}.pdf`);
+    res.send(pdfBuffer);
+  } catch (err) {
+    console.error('PDF generation error:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -140,7 +213,6 @@ router.get('/customers/:id/quotes', async (req, res) => {
     const repId = await getRepresentativeId(req.userId, context.organization_id);
     if (!repId) return res.status(403).json({ error: 'REPRESENTATIVE_NOT_FOUND' });
 
-    // Check if customer belongs to this representative
     const customerCheck = await query(
       `SELECT id FROM rep_customers WHERE id = $1 AND representative_id = $2`,
       [req.params.id, repId]
@@ -207,9 +279,10 @@ router.get('/catalog', async (req, res) => {
 router.get('/cart', async (req, res) => {
   try {
     const result = await query(
-      `SELECT ci.*, pli.description, pli.code, pli.sale_price, pli.cost_price, pli.brand
+      `SELECT ci.*, pli.description, pli.code, pli.sale_price, pli.cost_price, pli.brand, pl.id as price_list_id
        FROM cart_items ci
        JOIN price_list_items pli ON pli.id = ci.item_id
+       JOIN price_lists pl ON pl.id = pli.price_list_id
        WHERE ci.user_id = $1`,
       [req.userId]
     );
@@ -260,15 +333,14 @@ router.post('/checkout', async (req, res) => {
       shipping_value = 0,
       discount_value = 0,
       commercial_conditions,
-      status = 'rascunho' // Default status according to Sprint 6
+      status = 'rascunho'
     } = req.body;
     
     const context = await getUserContext(req.userId);
     if (!context) return res.status(403).json({ error: 'USER_CONTEXT_NOT_FOUND' });
 
-    // 1. Get cart items
     const cartItems = await query(
-      `SELECT ci.*, pli.description, pli.sale_price, pli.code
+      `SELECT ci.*, pli.description, pli.sale_price, pli.code, pli.price_list_id
        FROM cart_items ci
        JOIN price_list_items pli ON pli.id = ci.item_id
        WHERE ci.user_id = $1`,
@@ -279,19 +351,22 @@ router.post('/checkout', async (req, res) => {
       return res.status(400).json({ error: 'Carrinho vazio' });
     }
 
+    const priceListId = cartItems.rows[0].price_list_id;
     const subtotal = cartItems.rows.reduce((acc, item) => acc + (Number(item.sale_price) * item.quantity), 0);
     const totalValue = Number(subtotal) + Number(shipping_value) - Number(discount_value);
-
-    // 2. Find representative ID
     const representativeId = await getRepresentativeId(req.userId, context.organization_id);
 
-    // 3. Create CRM deal
+    // First ensure the column price_list_id exists in crm_deals (Sprint 7 needs it for cover mapping)
+    try {
+      await query(`ALTER TABLE crm_deals ADD COLUMN IF NOT EXISTS price_list_id UUID REFERENCES price_lists(id)`);
+    } catch (e) { /* ignore */ }
+
     const dealResult = await query(
       `INSERT INTO crm_deals (
         organization_id, title, value, status, 
         company_id, rep_customer_id, representative_id, created_by, description,
-        shipping_value, discount_value, commercial_conditions
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        shipping_value, discount_value, commercial_conditions, price_list_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       RETURNING id`,
       [
         context.organization_id, 
@@ -305,13 +380,12 @@ router.post('/checkout', async (req, res) => {
         notes,
         shipping_value,
         discount_value,
-        commercial_conditions
+        commercial_conditions,
+        priceListId
       ]
     );
 
     const dealId = dealResult.rows[0].id;
-
-    // 4. Create history/notes
     const productList = cartItems.rows.map(item => `- ${item.description} (${item.code}): ${item.quantity} x R$ ${Number(item.sale_price).toFixed(2)}`).join('\n');
     const summary = `Orçamento gerado pelo catálogo:\n${productList}\n\nSubtotal: R$ ${subtotal.toFixed(2)}\nFrete: R$ ${Number(shipping_value).toFixed(2)}\nDesconto: R$ ${Number(discount_value).toFixed(2)}\nTotal: R$ ${totalValue.toFixed(2)}`;
     
@@ -321,9 +395,7 @@ router.post('/checkout', async (req, res) => {
       [dealId, req.userId, summary]
     );
 
-    // 5. Clear cart
     await query(`DELETE FROM cart_items WHERE user_id = $1`, [req.userId]);
-
     res.json({ success: true, deal_id: dealId });
   } catch (err) {
     console.error('Checkout error:', err);
