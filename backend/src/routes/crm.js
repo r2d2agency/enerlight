@@ -4126,8 +4126,10 @@ router.get('/map-data', async (req, res) => {
       if (date_to) {
         dealParams.push(date_to);
         dealWhere += ` AND d.created_at <= $${dealParams.length}`;
+      } else if (!owner_id && !date_from) {
+        // Se não houver filtros, mostrar apenas o ano corrente por padrão (performance e solicitação)
+        dealWhere += ` AND d.created_at >= date_trunc('year', now())`;
       }
-
       const dealsResult = await query(
         `SELECT d.id, d.title, d.value, d.owner_id,
                 u.name as owner_name,

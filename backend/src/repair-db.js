@@ -12,39 +12,6 @@ async function repair() {
       await query("DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'user_permissions' AND column_name = '" + p + "') THEN ALTER TABLE user_permissions ADD COLUMN " + p + " BOOLEAN DEFAULT false; END IF; END $$;");
     }
 
-    console.log('Ensuring price_lists tables...');
-    await query(`
-      CREATE TABLE IF NOT EXISTS price_lists (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
-        name VARCHAR(255) NOT NULL,
-        description TEXT,
-        segment VARCHAR(255),
-        is_active BOOLEAN DEFAULT true,
-        is_master BOOLEAN DEFAULT false,
-        markup_percentage NUMERIC(10,2) DEFAULT 0,
-        allowed_templates UUID[] DEFAULT '{}',
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-      )
-    `);
-
-    await query(`
-      CREATE TABLE IF NOT EXISTS price_list_items (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        price_list_id UUID REFERENCES price_lists(id) ON DELETE CASCADE,
-        code VARCHAR(255) NOT NULL,
-        description TEXT,
-        cost_price NUMERIC(15,2) DEFAULT 0,
-        sale_price NUMERIC(15,2) DEFAULT 0,
-        category VARCHAR(255),
-        subcategory VARCHAR(255),
-        brand VARCHAR(255),
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-      )
-    `);
-
     console.log('Ensuring columns in price_list_items...');
     await query("DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'price_list_items' AND column_name = 'category') THEN ALTER TABLE price_list_items ADD COLUMN category VARCHAR(255); END IF; IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'price_list_items' AND column_name = 'subcategory') THEN ALTER TABLE price_list_items ADD COLUMN subcategory VARCHAR(255); END IF; END $$;");
 
@@ -56,4 +23,3 @@ async function repair() {
 }
 
 repair();
-

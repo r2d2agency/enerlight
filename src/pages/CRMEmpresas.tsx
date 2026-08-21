@@ -83,13 +83,12 @@ export default function CRMEmpresas() {
   
   // em empresas todos podem ver empresas d todos so restringindo represetnante qeu cada um ve o seu
   const companies = (companiesResponse?.items || []).filter(c => {
-    if (isAdmin || user?.role === 'manager') return true;
+    if (isAdmin) return true;
     if (isRepresentative) return (c as any).created_by === user?.id;
     return true;
   });
-
   
-  const total = (isAdmin || user?.role === 'manager') ? (companiesResponse?.total || 0) : companies.length;
+  const total = isAdmin ? (companiesResponse?.total || 0) : companies.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   const { data: funnels } = useCRMFunnels();
@@ -138,9 +137,8 @@ export default function CRMEmpresas() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">{(isAdmin || user?.role === 'manager') ? "Empresas" : "Meus Clientes"}</h1>
-            <p className="text-muted-foreground">{(isAdmin || user?.role === 'manager') ? "Gerencie sua base de empresas" : "Gerencie seus clientes vinculados"}</p>
-
+            <h1 className="text-2xl font-bold">{isAdmin ? "Empresas" : "Meus Clientes"}</h1>
+            <p className="text-muted-foreground">{isAdmin ? "Gerencie sua base de empresas" : "Gerencie seus clientes vinculados"}</p>
           </div>
           <div className="flex items-center gap-2">
             {isAdmin && (
