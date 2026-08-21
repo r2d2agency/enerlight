@@ -255,14 +255,15 @@ router.post('/checkout', async (req, res) => {
     const dealResult = await query(
       `INSERT INTO crm_deals (
         organization_id, title, value, status, 
-        company_id, representative_id, created_by, description
-      ) VALUES ($1, $2, $3, 'open', $4, $5, $6, $7)
+        company_id, rep_customer_id, representative_id, created_by, description
+      ) VALUES ($1, $2, $3, 'open', $4, $5, $6, $7, $8)
       RETURNING id`,
       [
         context.organization_id, 
         title || `Orçamento Representante - ${new Date().toLocaleDateString()}`,
         totalValue,
-        company_id,
+        company_id || null,
+        rep_customer_id || null,
         representativeId,
         req.userId,
         notes
