@@ -197,6 +197,58 @@ export function useRepresentativeCatalog(filters: { category?: string; subcatego
   });
 }
 
+export interface RepCustomer {
+  id: string;
+  name: string;
+  trading_name?: string;
+  cpf_cnpj?: string;
+  contact_name?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zip_code?: string;
+  notes?: string;
+  created_at: string;
+}
+
+export function useRepCustomers(search?: string) {
+  return useQuery({
+    queryKey: ["rep-customers", search],
+    queryFn: () => {
+      const qs = search ? `?search=${encodeURIComponent(search)}` : "";
+      return api<RepCustomer[]>(`/api/representatives/customers${qs}`);
+    }
+  });
+}
+
+export function useRepCustomerMutations() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const createCustomer = useMutation({
+    mutationFn: (data: Partial<RepCustomer>) => 
+      api<RepCustomer>("/api/representatives/customers", { method: "POST", body: data }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["rep-customers"] });
+      toast({ title: "Cliente cadastrado com sucesso" });
+    }
+  });
+
+  const updateCustomer = useMutation({
+    mutationFn: ({ id, ...data }: Partial<RepCustomer> & { id: string }) => 
+      api<RepCustomer>(`/api/representatives/customers/${id}`, { method: "PUT", body: data }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["rep-customers"] });
+      toast({ title: "Cliente atualizado" });
+    }
+  });
+
+  return { createCustomer, updateCustomer };
+}
+
+
 export function useRepresentativeCart() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
