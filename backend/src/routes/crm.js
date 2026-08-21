@@ -1413,7 +1413,7 @@ router.get('/deals', async (req, res) => {
       params.push(req.userId);
     }
 
-    // Removed representative restriction for existing users as requested
+    // Removido conforme solicitado para restaurar visibilidade anterior
     /*
     try {
       const perms = await query(
