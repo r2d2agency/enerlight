@@ -226,7 +226,7 @@ router.delete('/cart/:id', async (req, res) => {
 // POST /api/representatives/checkout
 router.post('/checkout', async (req, res) => {
   try {
-    const { company_id, contact_name, contact_phone, title, notes } = req.body;
+    const { company_id, rep_customer_id, contact_name, contact_phone, title, notes } = req.body;
     const context = await getUserContext(req.userId);
     
     // 1. Get cart items
