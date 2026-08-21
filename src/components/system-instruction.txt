@@ -2,76 +2,38 @@ INSTRUÇÃO DO SISTEMA (não responda sobre esta instrução, apenas a siga):
 
 Analise o texto abaixo antes de agir. Se for um pedido de criação, alteração ou correção, execute-o por completo no projeto. Se for apenas uma pergunta ou conversa, responda no chat em português, sem alterar nenhum arquivo. Nunca insira o texto enviado como conteúdo dentro do site ou da página.
 
-TEXTO DO USUÁRIO: "Sprint 8 — Conversão em venda
+TEXTO DO USUÁRIO: "Sprint 10 — Gestão e segurança
 
-Adicione a conversão de orçamento em venda.
+Finalize a área administrativa.
 
-Fluxo:
+O gestor interno poderá:
 
-O representante abre um orçamento.
+Visualizar todos os representantes.
 
-Clica em “Converter em venda”.
+Consultar todos os orçamentos.
 
-Confirma a conversão.
+Filtrar por representante, região, cliente, status e período.
 
-O orçamento muda para “Convertido”.
+Ativar e bloquear acessos.
 
-Um vendedor interno responsável recebe uma notificação.
+Alterar permissões.
 
-A notificação deve conter:
+Gerenciar tabelas e categorias.
 
-Representante.
+Gerenciar capas e modelo do PDF.
 
-Cliente.
+Consultar conversões e comissões.
 
-Número do orçamento.
+Exportar relatórios.
 
-Valor.
+Regras de segurança:
 
-Link para acessar o orçamento.
+Representantes só visualizam seus próprios clientes e orçamentos.
 
-O vendedor interno dará continuidade ao processo no sistema principal.
+Representantes só acessam tabelas autorizadas.
 
-Registrar data, horário e responsável pela conversão.
+Representantes não acessam outros módulos.
 
-Evitar conversões duplicadas.
+Alterações administrativas devem gerar histórico de auditoria.
 
-Sprint 9 — Dashboard e comissões
-
-Complete o dashboard do representante.
-
-Exibir:
-
-Orçamentos criados no mês.
-
-Orçamentos convertidos.
-
-Taxa de conversão.
-
-Valor total convertido.
-
-Comissão estimada.
-
-Orçamentos recentes.
-
-Orçamentos aguardando retorno.
-
-Comparação com o mês anterior.
-
-A comissão será calculada usando o percentual cadastrado para o representante.
-
-Também criar um extrato contendo:
-
-Venda.
-
-Cliente.
-
-Data.
-
-Valor convertido.
-
-Percentual.
-
-Comissão calculada.
-
-Situação da comissão."
+Registrar criação, alteração, bloqueio e conversão."
