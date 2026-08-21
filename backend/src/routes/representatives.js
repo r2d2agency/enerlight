@@ -226,9 +226,22 @@ router.delete('/cart/:id', async (req, res) => {
 // POST /api/representatives/checkout
 router.post('/checkout', async (req, res) => {
   try {
-    const { company_id, rep_customer_id, contact_name, contact_phone, title, notes } = req.body;
-    const context = await getUserContext(req.userId);
+    const { 
+      company_id, 
+      rep_customer_id, 
+      contact_name, 
+      contact_phone, 
+      title, 
+      notes,
+      shipping_value = 0,
+      discount_value = 0,
+      commercial_conditions,
+      status = 'rascunho' // Default status according to Sprint 6
+    } = req.body;
     
+    const context = await getUserContext(req.userId);
+    if (!context) return res.status(403).json({ error: 'USER_CONTEXT_NOT_FOUND' });
+
     // 1. Get cart items
     const cartItems = await query(
       `SELECT ci.*, pli.description, pli.sale_price, pli.code
@@ -242,42 +255,46 @@ router.post('/checkout', async (req, res) => {
       return res.status(400).json({ error: 'Carrinho vazio' });
     }
 
-    const totalValue = cartItems.rows.reduce((acc, item) => acc + (item.sale_price * item.quantity), 0);
+    const subtotal = cartItems.rows.reduce((acc, item) => acc + (Number(item.sale_price) * item.quantity), 0);
+    const totalValue = Number(subtotal) + Number(shipping_value) - Number(discount_value);
 
-    // 2. Find representative ID linked to this user
-    const repResult = await query(
-      `SELECT id FROM crm_representatives WHERE linked_user_id = $1 AND organization_id = $2 LIMIT 1`,
-      [req.userId, context.organization_id]
-    );
-    const representativeId = repResult.rows[0]?.id;
+    // 2. Find representative ID
+    const representativeId = await getRepresentativeId(req.userId, context.organization_id);
 
     // 3. Create CRM deal
     const dealResult = await query(
       `INSERT INTO crm_deals (
         organization_id, title, value, status, 
-        company_id, rep_customer_id, representative_id, created_by, description
-      ) VALUES ($1, $2, $3, 'open', $4, $5, $6, $7, $8)
+        company_id, rep_customer_id, representative_id, created_by, description,
+        shipping_value, discount_value, commercial_conditions
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       RETURNING id`,
       [
         context.organization_id, 
         title || `Orçamento Representante - ${new Date().toLocaleDateString()}`,
         totalValue,
+        status,
         company_id || null,
         rep_customer_id || null,
         representativeId,
         req.userId,
-        notes
+        notes,
+        shipping_value,
+        discount_value,
+        commercial_conditions
       ]
     );
 
     const dealId = dealResult.rows[0].id;
 
-    // 4. Create history/notes for the deal with products
-    const productList = cartItems.rows.map(item => `- ${item.description} (${item.code}): ${item.quantity} x ${item.sale_price}`).join('\n');
+    // 4. Create history/notes
+    const productList = cartItems.rows.map(item => `- ${item.description} (${item.code}): ${item.quantity} x R$ ${Number(item.sale_price).toFixed(2)}`).join('\n');
+    const summary = `Orçamento gerado pelo catálogo:\n${productList}\n\nSubtotal: R$ ${subtotal.toFixed(2)}\nFrete: R$ ${Number(shipping_value).toFixed(2)}\nDesconto: R$ ${Number(discount_value).toFixed(2)}\nTotal: R$ ${totalValue.toFixed(2)}`;
+    
     await query(
       `INSERT INTO crm_deal_history (deal_id, user_id, content, type)
        VALUES ($1, $2, $3, 'note')`,
-      [dealId, req.userId, `Orçamento gerado pelo catálogo:\n${productList}`]
+      [dealId, req.userId, summary]
     );
 
     // 5. Clear cart
@@ -285,6 +302,7 @@ router.post('/checkout', async (req, res) => {
 
     res.json({ success: true, deal_id: dealId });
   } catch (err) {
+    console.error('Checkout error:', err);
     res.status(500).json({ error: err.message });
   }
 });
