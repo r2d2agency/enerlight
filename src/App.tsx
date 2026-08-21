@@ -181,7 +181,7 @@ const App = () => (
       <UpdateNotification />
       <BrowserRouter>
         <AuthProvider>
-          <Suspense fallback={<PageLoader />}>
+          <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background"><div className="text-center"><Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-2" /><p className="text-sm text-muted-foreground">Carregando...</p></div></div>}>
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/cadastro" element={<Cadastro />} />

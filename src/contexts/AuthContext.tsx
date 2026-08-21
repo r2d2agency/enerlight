@@ -159,7 +159,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const token = getAuthToken();
     if (token) {
       try {
-        console.log('[Auth] Refreshing user data...');
+        console.log('[Auth] Refreshing user data...', token.substring(0, 10) + '...');
         const response = await authApi.getMe();
         console.log('[Auth] User data refreshed:', response.user?.email);
         setUser(response.user);

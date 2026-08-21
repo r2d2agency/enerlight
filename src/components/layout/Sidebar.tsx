@@ -339,14 +339,25 @@ function SidebarContentComponent({ isExpanded, isSuperadmin, onNavigate }: Sideb
   const navigate = useNavigate();
   const { logout, user, modulesEnabled, userPermissions } = useAuth();
   const { branding } = useThemedBranding();
+
+  // Defensive check for initialization
+  if (!user && !localStorage.getItem('auth_token')) {
+    console.warn('[Sidebar] No user found, showing empty sidebar content');
+    return null;
+  }
+
   // Auto-open sections that contain the current route, plus defaults
   const getInitialOpenSections = () => {
     const initial = ["Atendimento"];
-    const allSections = getNavSections(true);
-    for (const section of allSections) {
-      if (section.items.some(item => location.pathname === item.href)) {
-        if (!initial.includes(section.title)) initial.push(section.title);
+    try {
+      const allSections = getNavSections(true);
+      for (const section of allSections) {
+        if (section.items.some(item => location.pathname === item.href)) {
+          if (!initial.includes(section.title)) initial.push(section.title);
+        }
       }
+    } catch (e) {
+      console.error('[Sidebar] Error calculating initial open sections:', e);
     }
     // For captador-only users, always open Captador
     if (userPermissions?.can_view_captador) {
@@ -443,36 +454,43 @@ function SidebarContentComponent({ isExpanded, isSuperadmin, onNavigate }: Sideb
   const navSections = getNavSections(hasConnections);
 
   // Filter sections and items based on modules enabled, role AND permissions
-  const filteredSections = navSections
-    .filter(section => {
-      // Owner always sees all sections
-      if (userIsOwner) return true;
-      // Check module access
-      if (!hasModuleAccess(section.moduleKey)) return false;
-      // Check admin-only section
-      if (section.adminOnly && !userIsAdmin) return false;
-      // Check permission
-      if (!hasPermission(section.permissionKey)) return false;
-      return true;
-    })
-    .map(section => ({
-      ...section,
-      items: section.items.filter(item => {
-        // Owner (proprietário) always sees everything
-        if (userIsOwner) return true;
-        // Check module access
-        if (!hasModuleAccess(item.moduleKey)) return false;
-        // Check superadmin-only item
-        if (item.superadminOnly && !isSuperadmin) return false;
-        // Check admin-only item
-        if (item.adminOnly && !userIsAdmin) return false;
-        if (item.ownerOnly && !userIsOwner) return false;
-        // Check permission
-        if (!hasPermission(item.permissionKey)) return false;
-        return true;
-      })
-    }))
-    .filter(section => section.items.length > 0);
+  const filteredSections = (() => {
+    try {
+      return navSections
+        .filter(section => {
+          // Owner always sees all sections
+          if (userIsOwner) return true;
+          // Check module access
+          if (!hasModuleAccess(section.moduleKey)) return false;
+          // Check admin-only section
+          if (section.adminOnly && !userIsAdmin) return false;
+          // Check permission
+          if (!hasPermission(section.permissionKey)) return false;
+          return true;
+        })
+        .map(section => ({
+          ...section,
+          items: section.items.filter(item => {
+            // Owner (proprietário) always sees everything
+            if (userIsOwner) return true;
+            // Check module access
+            if (!hasModuleAccess(item.moduleKey)) return false;
+            // Check superadmin-only item
+            if (item.superadminOnly && !isSuperadmin) return false;
+            // Check admin-only item
+            if (item.adminOnly && !userIsAdmin) return false;
+            if (item.ownerOnly && !userIsOwner) return false;
+            // Check permission
+            if (!hasPermission(item.permissionKey)) return false;
+            return true;
+          })
+        }))
+        .filter(section => section.items.length > 0);
+    } catch (e) {
+      console.error('[Sidebar] Error filtering sections:', e);
+      return [];
+    }
+  })();
 
   const handleLogout = () => {
     logout();
