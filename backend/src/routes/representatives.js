@@ -28,6 +28,30 @@ async function getRepresentativeId(userId, organizationId) {
   return repResult.rows[0]?.id;
 }
 
+// GET /api/representatives/my-deals
+router.get('/my-deals', async (req, res) => {
+  try {
+    const context = await getUserContext(req.userId);
+    if (!context) return res.status(403).json({ error: 'USER_CONTEXT_NOT_FOUND' });
+
+    const repId = await getRepresentativeId(req.userId, context.organization_id);
+    if (!repId) return res.status(403).json({ error: 'REPRESENTATIVE_NOT_FOUND' });
+
+    const result = await query(
+      `SELECT d.*, c.name as customer_name, co.name as company_name
+       FROM crm_deals d
+       LEFT JOIN rep_customers c ON c.id = d.rep_customer_id
+       LEFT JOIN companies co ON co.id = d.company_id
+       WHERE d.representative_id = $1
+       ORDER BY d.created_at DESC`,
+      [repId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/representatives/customers
 router.get('/customers', async (req, res) => {
   try {
