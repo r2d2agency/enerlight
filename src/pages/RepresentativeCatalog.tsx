@@ -181,25 +181,52 @@ export default function RepresentativeCatalog() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>Vincular a:</Label>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
+                <Button 
+                  variant={checkoutMode === "rep_customer" ? "default" : "outline"}
+                  onClick={() => setCheckoutMode("rep_customer")}
+                  className="flex-1 min-w-[120px]"
+                >
+                  <UserCheck className="h-4 w-4 mr-2" /> Meus Clientes
+                </Button>
                 <Button 
                   variant={checkoutMode === "company" ? "default" : "outline"}
                   onClick={() => setCheckoutMode("company")}
-                  className="flex-1"
+                  className="flex-1 min-w-[120px]"
                 >
-                  <Building2 className="h-4 w-4 mr-2" /> Empresa
+                  <Building2 className="h-4 w-4 mr-2" /> Empresa Sistema
                 </Button>
                 <Button 
                   variant={checkoutMode === "contact" ? "default" : "outline"}
                   onClick={() => setCheckoutMode("contact")}
-                  className="flex-1"
+                  className="flex-1 min-w-[120px]"
                 >
-                  <User className="h-4 w-4 mr-2" /> Contato Avulso
+                  <User className="h-4 w-4 mr-2" /> Avulso
                 </Button>
               </div>
             </div>
 
-            {checkoutMode === "company" ? (
+            {checkoutMode === "rep_customer" ? (
+              <div className="space-y-2">
+                <Label>Meu Cliente *</Label>
+                <Select 
+                  value={checkoutData.rep_customer_id} 
+                  onValueChange={(val) => setCheckoutData(prev => ({ ...prev, rep_customer_id: val }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um cliente da sua base" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {repCustomers?.map(c => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                    {repCustomers?.length === 0 && (
+                      <div className="p-2 text-center text-xs text-muted-foreground">Nenhum cliente cadastrado.</div>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : checkoutMode === "company" ? (
               <div className="space-y-2">
                 <Label>Empresa *</Label>
                 <CompanySearchSelect 
