@@ -86,6 +86,21 @@ export interface CartItem {
   brand?: string;
 }
 
+export interface RepresentativeDeal {
+  id: string;
+  title: string;
+  value: number;
+  status: string;
+  created_at: string;
+  expected_close_date?: string;
+  stage_id?: string;
+  stage_name?: string;
+  stage_color?: string;
+  company_id?: string;
+  company_name?: string;
+  funnel_id?: string;
+}
+
 export function useRepresentatives(search?: string, type?: string, ownerId?: string, source?: string) {
   return useQuery({
     queryKey: ["crm-representatives", search, type, ownerId, source],
@@ -148,6 +163,22 @@ export function useRepresentativeDashboard(id: string | null, startDate?: string
       if (endDate) params.append("end_date", endDate);
       const qs = params.toString();
       return api<RepresentativeDashboard>(`/api/crm/representatives/${id}/dashboard${qs ? `?${qs}` : ""}`);
+    },
+    enabled: !!id,
+  });
+}
+
+export function useRepresentativeDeals(id: string | null, startDate?: string, endDate?: string, status?: string) {
+  return useQuery({
+    queryKey: ["crm-representative-deals", id, startDate, endDate, status],
+    queryFn: async () => {
+      if (!id) return [];
+      const params = new URLSearchParams();
+      if (startDate) params.append("start_date", startDate);
+      if (endDate) params.append("end_date", endDate);
+      if (status) params.append("status", status);
+      const qs = params.toString();
+      return api<RepresentativeDeal[]>(`/api/crm/representatives/${id}/deals${qs ? `?${qs}` : ""}`);
     },
     enabled: !!id,
   });
@@ -243,8 +274,14 @@ export function useRepresentativeMutations() {
   return { createRepresentative, updateRepresentative, deleteRepresentative };
 }
 
-// ... rest of history, scheduled messages, segments etc same as before ...
-export interface IndicatorHistory { id: string; indicator_id: string; user_name: string; content: string; created_at: string; }
+export interface IndicatorHistory { 
+  id: string; 
+  indicator_id: string; 
+  user_name: string; 
+  content: string; 
+  created_at: string; 
+}
+
 export function useIndicatorHistory(indicatorId: string | null) {
   return useQuery({
     queryKey: ["crm-indicator-history", indicatorId],
@@ -254,6 +291,117 @@ export function useIndicatorHistory(indicatorId: string | null) {
     },
     enabled: !!indicatorId,
   });
+}
+
+export function useIndicatorHistoryMutations() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+
+  const createHistory = useMutation({
+    mutationFn: ({ indicatorId, content }: { indicatorId: string; content: string }) =>
+      api<IndicatorHistory>(`/api/crm/representatives/${indicatorId}/history`, { method: "POST", body: { content } }),
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ["crm-indicator-history", vars.indicatorId] });
+      qc.invalidateQueries({ queryKey: ["crm-representatives"] });
+    },
+  });
+
+  const deleteHistory = useMutation({
+    mutationFn: async ({ indicatorId, historyId }: { indicatorId: string; historyId: string }) => {
+      return api<void>(`/api/crm/representatives/${indicatorId}/history/${historyId}`, { method: "DELETE" });
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ["crm-indicator-history", vars.indicatorId] });
+      toast({ title: "Histórico excluído com sucesso" });
+    },
+  });
+
+  return { createHistory, deleteHistory };
+}
+
+export interface ScheduledMessage {
+  id: string;
+  phone: string;
+  content: string;
+  scheduled_at: string;
+  status: 'pending' | 'sent' | 'failed' | 'cancelled';
+}
+
+export function useScheduledMessagesByPhone(phone?: string) {
+  return useQuery({
+    queryKey: ["scheduled-messages", phone],
+    queryFn: () => {
+      if (!phone) return [];
+      return api<ScheduledMessage[]>(`/api/chat/scheduled-messages-by-phone?phone=${encodeURIComponent(phone)}`);
+    },
+    enabled: !!phone,
+  });
+}
+
+export function useCreateScheduledMessage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { phone: string; content: string; scheduled_at: string }) =>
+      api<ScheduledMessage>("/api/chat/scheduled-messages", { method: "POST", body: data }),
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ["scheduled-messages", vars.phone] });
+    },
+  });
+}
+
+export function useIndicatorSegments() {
+  return useQuery({
+    queryKey: ["crm-indicator-segments"],
+    queryFn: () => api<IndicatorSegment[]>("/api/crm/indicator-segments"),
+  });
+}
+
+export function useIndicatorSegmentMutations() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["crm-indicator-segments"] });
+
+  const create = useMutation({
+    mutationFn: (data: { name: string; color?: string }) =>
+      api<IndicatorSegment>("/api/crm/indicator-segments", { method: "POST", body: data }),
+    onSuccess: () => { invalidate(); toast({ title: "Segmento criado" }); },
+  });
+  const update = useMutation({
+    mutationFn: ({ id, ...data }: Partial<IndicatorSegment> & { id: string }) =>
+      api<IndicatorSegment>(`/api/crm/indicator-segments/${id}`, { method: "PUT", body: data }),
+    onSuccess: () => { invalidate(); toast({ title: "Segmento atualizado" }); },
+  });
+  const remove = useMutation({
+    mutationFn: (id: string) => api<void>(`/api/crm/indicator-segments/${id}`, { method: "DELETE" }),
+    onSuccess: () => { invalidate(); toast({ title: "Segmento excluído" }); },
+  });
+  return { create, update, remove };
+}
+
+export interface IndicatorSource { id: string; name: string; }
+
+export function useIndicatorSources() {
+  return useQuery({
+    queryKey: ["crm-indicator-sources"],
+    queryFn: () => api<IndicatorSource[]>("/api/crm/indicator-sources"),
+  });
+}
+
+export function useIndicatorSourceMutations() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const invalidate = () => qc.invalidateQueries({ queryKey: ["crm-indicator-sources"] });
+
+  const create = useMutation({
+    mutationFn: (name: string) =>
+      api<IndicatorSource>("/api/crm/indicator-sources", { method: "POST", body: { name } }),
+    onSuccess: () => { invalidate(); toast({ title: "Origem adicionada" }); },
+  });
+  const remove = useMutation({
+    mutationFn: (id: string) => api<void>(`/api/crm/indicator-sources/${id}`, { method: "DELETE" }),
+    onSuccess: () => { invalidate(); toast({ title: "Origem excluída" }); },
+  });
+  return { create, remove };
 }
 
 export function useRepresentativesForDeal() {
