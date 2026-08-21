@@ -1,5 +1,10 @@
+import express from 'express';
+import { query } from '../db.js';
+
+const router = express.Router();
 
 // Administrative Endpoints for Managers/Admins
+
 
 // GET /api/representatives/admin/list
 router.get('/admin/list', async (req, res) => {
