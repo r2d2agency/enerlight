@@ -2,8 +2,8 @@ import { useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Filter, LayoutGrid, List, ChevronDown, Building2, User, ShoppingCart } from "lucide-react";
-import { useRepresentativeCatalog, useRepresentativeCart } from "@/hooks/use-representatives";
+import { Search, Filter, LayoutGrid, List, ChevronDown, Building2, User, ShoppingCart, UserCheck } from "lucide-react";
+import { useRepresentativeCatalog, useRepresentativeCart, useRepCustomers } from "@/hooks/use-representatives";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { CompanySearchSelect } from "@/components/crm/CompanySearchSelect";
@@ -15,6 +15,7 @@ import { CatalogListView } from "@/components/representative/CatalogListView";
 import { RepresentativeCartSide } from "@/components/representative/RepresentativeCartSide";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function RepresentativeCatalog() {
   const [search, setSearch] = useState("");
