@@ -2,8 +2,8 @@ import { useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Filter, LayoutGrid, List, ChevronDown, Building2, User, ShoppingCart } from "lucide-react";
-import { useRepresentativeCatalog, useRepresentativeCart } from "@/hooks/use-representatives";
+import { Search, Filter, LayoutGrid, List, ChevronDown, Building2, User, ShoppingCart, UserCheck } from "lucide-react";
+import { useRepresentativeCatalog, useRepresentativeCart, useRepCustomers } from "@/hooks/use-representatives";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { CompanySearchSelect } from "@/components/crm/CompanySearchSelect";
@@ -15,6 +15,7 @@ import { CatalogListView } from "@/components/representative/CatalogListView";
 import { RepresentativeCartSide } from "@/components/representative/RepresentativeCartSide";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function RepresentativeCatalog() {
   const [search, setSearch] = useState("");
@@ -22,16 +23,18 @@ export default function RepresentativeCatalog() {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [checkoutData, setCheckoutData] = useState({
     company_id: "",
+    rep_customer_id: "",
     contact_name: "",
     contact_phone: "",
     title: "",
     notes: ""
   });
-  const [checkoutMode, setCheckoutMode] = useState<"company" | "contact">("company");
+  const [checkoutMode, setCheckoutMode] = useState<"company" | "rep_customer" | "contact">("rep_customer");
   
   const navigate = useNavigate();
   const { data: products, isLoading } = useRepresentativeCatalog({ search });
   const { data: cartItems, addToCart, removeFromCart } = useRepresentativeCart();
+  const { data: repCustomers } = useRepCustomers();
   
   const cartTotal = cartItems?.reduce((acc, item) => acc + (item.sale_price * item.quantity), 0) || 0;
   
@@ -43,6 +46,10 @@ export default function RepresentativeCatalog() {
   const handleCheckout = async () => {
     if (checkoutMode === "company" && !checkoutData.company_id) {
       toast.error("Selecione uma empresa");
+      return;
+    }
+    if (checkoutMode === "rep_customer" && !checkoutData.rep_customer_id) {
+      toast.error("Selecione um cliente da sua base");
       return;
     }
     if (checkoutMode === "contact" && (!checkoutData.contact_name || !checkoutData.contact_phone)) {
@@ -174,25 +181,52 @@ export default function RepresentativeCatalog() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>Vincular a:</Label>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
+                <Button 
+                  variant={checkoutMode === "rep_customer" ? "default" : "outline"}
+                  onClick={() => setCheckoutMode("rep_customer")}
+                  className="flex-1 min-w-[120px]"
+                >
+                  <UserCheck className="h-4 w-4 mr-2" /> Meus Clientes
+                </Button>
                 <Button 
                   variant={checkoutMode === "company" ? "default" : "outline"}
                   onClick={() => setCheckoutMode("company")}
-                  className="flex-1"
+                  className="flex-1 min-w-[120px]"
                 >
-                  <Building2 className="h-4 w-4 mr-2" /> Empresa
+                  <Building2 className="h-4 w-4 mr-2" /> Empresa Sistema
                 </Button>
                 <Button 
                   variant={checkoutMode === "contact" ? "default" : "outline"}
                   onClick={() => setCheckoutMode("contact")}
-                  className="flex-1"
+                  className="flex-1 min-w-[120px]"
                 >
-                  <User className="h-4 w-4 mr-2" /> Contato Avulso
+                  <User className="h-4 w-4 mr-2" /> Avulso
                 </Button>
               </div>
             </div>
 
-            {checkoutMode === "company" ? (
+            {checkoutMode === "rep_customer" ? (
+              <div className="space-y-2">
+                <Label>Meu Cliente *</Label>
+                <Select 
+                  value={checkoutData.rep_customer_id} 
+                  onValueChange={(val) => setCheckoutData(prev => ({ ...prev, rep_customer_id: val }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um cliente da sua base" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {repCustomers?.map(c => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                    {repCustomers?.length === 0 && (
+                      <div className="p-2 text-center text-xs text-muted-foreground">Nenhum cliente cadastrado.</div>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : checkoutMode === "company" ? (
               <div className="space-y-2">
                 <Label>Empresa *</Label>
                 <CompanySearchSelect 

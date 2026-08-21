@@ -19,7 +19,122 @@ async function getUserContext(userId) {
   return result.rows[0];
 }
 
-// GET /api/representatives/catalog
+
+async function getRepresentativeId(userId, organizationId) {
+  const repResult = await query(
+    `SELECT id FROM crm_representatives WHERE linked_user_id = $1 AND organization_id = $2 LIMIT 1`,
+    [userId, organizationId]
+  );
+  return repResult.rows[0]?.id;
+}
+
+// GET /api/representatives/customers
+router.get('/customers', async (req, res) => {
+  try {
+    const context = await getUserContext(req.userId);
+    if (!context) return res.status(403).json({ error: 'USER_CONTEXT_NOT_FOUND' });
+
+    const repId = await getRepresentativeId(req.userId, context.organization_id);
+    if (!repId) return res.status(403).json({ error: 'REPRESENTATIVE_NOT_FOUND' });
+
+    const { search } = req.query;
+    let queryStr = `SELECT * FROM rep_customers WHERE representative_id = $1`;
+    const params = [repId];
+
+    if (search) {
+      queryStr += ` AND (name ILIKE $2 OR trading_name ILIKE $2 OR cpf_cnpj ILIKE $2 OR email ILIKE $2)`;
+      params.push(`%${search}%`);
+    }
+
+    queryStr += ` ORDER BY name ASC`;
+    const result = await query(queryStr, params);
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/representatives/customers
+router.post('/customers', async (req, res) => {
+  try {
+    const context = await getUserContext(req.userId);
+    if (!context) return res.status(403).json({ error: 'USER_CONTEXT_NOT_FOUND' });
+
+    const repId = await getRepresentativeId(req.userId, context.organization_id);
+    if (!repId) return res.status(403).json({ error: 'REPRESENTATIVE_NOT_FOUND' });
+
+    const { name, trading_name, cpf_cnpj, contact_name, phone, email, address, city, state, zip_code, notes } = req.body;
+    
+    const result = await query(
+      `INSERT INTO rep_customers (
+        representative_id, name, trading_name, cpf_cnpj, contact_name, 
+        phone, email, address, city, state, zip_code, notes
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      RETURNING *`,
+      [repId, name, trading_name, cpf_cnpj, contact_name, phone, email, address, city, state, zip_code, notes]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/representatives/customers/:id
+router.put('/customers/:id', async (req, res) => {
+  try {
+    const context = await getUserContext(req.userId);
+    if (!context) return res.status(403).json({ error: 'USER_CONTEXT_NOT_FOUND' });
+
+    const repId = await getRepresentativeId(req.userId, context.organization_id);
+    if (!repId) return res.status(403).json({ error: 'REPRESENTATIVE_NOT_FOUND' });
+
+    const { name, trading_name, cpf_cnpj, contact_name, phone, email, address, city, state, zip_code, notes } = req.body;
+    
+    const result = await query(
+      `UPDATE rep_customers 
+       SET name = $1, trading_name = $2, cpf_cnpj = $3, contact_name = $4, 
+           phone = $5, email = $6, address = $7, city = $8, state = $9, 
+           zip_code = $10, notes = $11, updated_at = NOW()
+       WHERE id = $12 AND representative_id = $13
+       RETURNING *`,
+      [name, trading_name, cpf_cnpj, contact_name, phone, email, address, city, state, zip_code, notes, req.params.id, repId]
+    );
+
+    if (result.rows.length === 0) return res.status(404).json({ error: 'CUSTOMER_NOT_FOUND' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/representatives/customers/:id/quotes
+router.get('/customers/:id/quotes', async (req, res) => {
+  try {
+    const context = await getUserContext(req.userId);
+    if (!context) return res.status(403).json({ error: 'USER_CONTEXT_NOT_FOUND' });
+
+    const repId = await getRepresentativeId(req.userId, context.organization_id);
+    if (!repId) return res.status(403).json({ error: 'REPRESENTATIVE_NOT_FOUND' });
+
+    // Check if customer belongs to this representative
+    const customerCheck = await query(
+      `SELECT id FROM rep_customers WHERE id = $1 AND representative_id = $2`,
+      [req.params.id, repId]
+    );
+    if (customerCheck.rows.length === 0) return res.status(404).json({ error: 'CUSTOMER_NOT_FOUND' });
+
+    const result = await query(
+      `SELECT * FROM crm_deals 
+       WHERE representative_id = $1 AND rep_customer_id = $2 
+       ORDER BY created_at DESC`,
+      [repId, req.params.id]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get('/catalog', async (req, res) => {
   try {
     const context = await getUserContext(req.userId);
@@ -111,7 +226,7 @@ router.delete('/cart/:id', async (req, res) => {
 // POST /api/representatives/checkout
 router.post('/checkout', async (req, res) => {
   try {
-    const { company_id, contact_name, contact_phone, title, notes } = req.body;
+    const { company_id, rep_customer_id, contact_name, contact_phone, title, notes } = req.body;
     const context = await getUserContext(req.userId);
     
     // 1. Get cart items
@@ -140,14 +255,15 @@ router.post('/checkout', async (req, res) => {
     const dealResult = await query(
       `INSERT INTO crm_deals (
         organization_id, title, value, status, 
-        company_id, representative_id, created_by, description
-      ) VALUES ($1, $2, $3, 'open', $4, $5, $6, $7)
+        company_id, rep_customer_id, representative_id, created_by, description
+      ) VALUES ($1, $2, $3, 'open', $4, $5, $6, $7, $8)
       RETURNING id`,
       [
         context.organization_id, 
         title || `Orçamento Representante - ${new Date().toLocaleDateString()}`,
         totalValue,
-        company_id,
+        company_id || null,
+        rep_customer_id || null,
         representativeId,
         req.userId,
         notes
