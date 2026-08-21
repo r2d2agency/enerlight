@@ -8,7 +8,7 @@ router.use(authenticate);
 
 async function getUserContext(userId) {
   const result = await query(
-    `SELECT om.organization_id, om.role, u.is_superadmin,
+    `SELECT om.organization_id, om.role, u.is_superadmin, u.status as user_status,
             up.can_manage_representative_config, up.can_view_representative_dashboard as is_representative
      FROM organization_members om
      JOIN users u ON u.id = om.user_id
@@ -27,6 +27,19 @@ async function getRepresentativeId(userId, organizationId) {
   );
   return repResult.rows[0]?.id;
 }
+
+async function logAudit(userId, organizationId, action, entityType, entityId, details) {
+  try {
+    await query(
+      `INSERT INTO crm_audit_log (user_id, organization_id, action, entity_type, entity_id, details)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [userId, organizationId, action, entityType, entityId, JSON.stringify(details)]
+    );
+  } catch (err) {
+    console.error('Audit log error:', err);
+  }
+}
+
 
 // GET /api/representatives/my-deals
 router.get('/my-deals', async (req, res) => {
@@ -541,5 +554,8 @@ router.post('/checkout', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+import adminRoutes from './representatives-admin.js';
+router.use('/', adminRoutes);
 
 export default router;
