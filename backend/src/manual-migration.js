@@ -167,4 +167,10 @@ export async function manualMigration() {
         created_at TIMESTAMPTZ DEFAULT NOW(),
         UNIQUE(price_list_id, representative_id)
       );
+      -- 4. Ensure price_list_items has image_url
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'price_list_items' AND column_name = 'image_url') THEN
+          ALTER TABLE price_list_items ADD COLUMN image_url TEXT;
+        END IF;
+      EXCEPTION WHEN others THEN NULL; END $$;
     `);
