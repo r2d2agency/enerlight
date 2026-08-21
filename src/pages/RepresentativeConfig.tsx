@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, List, Settings, Loader2, Trash2, ShieldCheck, FileSpreadsheet, Edit2 } from "lucide-react";
+import { Plus, List, Settings, Loader2, Trash2, ShieldCheck, FileSpreadsheet, Edit2, Copy, Image as ImageIcon, FolderTree } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -41,6 +41,20 @@ export default function RepresentativeConfig() {
     }
   });
 
+  const duplicatePriceList = useMutation({
+    mutationFn: (priceList: any) => {
+      const { id, created_at, updated_at, ...rest } = priceList;
+      return api("/api/online-quotes/price-lists", {
+        method: "POST",
+        body: { ...rest, name: `${rest.name} (Cópia)` }
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["price-lists"] });
+      toast.success("Tabela duplicada!");
+    }
+  });
+
   const deletePriceList = useMutation({
     mutationFn: (id: string) => api(`/api/online-quotes/price-lists/${id}`, { method: "DELETE" }),
     onSuccess: () => {
@@ -70,10 +84,13 @@ export default function RepresentativeConfig() {
       id: editingPriceList?.id || undefined,
       name: formData.get('name'),
       description: formData.get('description'),
+      segment: formData.get('segment'),
+      parent_id: formData.get('parent_id') === 'none' ? null : formData.get('parent_id'),
       is_active: formData.get('is_active') === 'on',
       allowed_templates: selectedTemplates,
       is_master: formData.get('is_master') === 'on',
-      markup_percentage: parseFloat(formData.get('markup_percentage') as string || '0')
+      markup_percentage: parseFloat(formData.get('markup_percentage') as string || '0'),
+      custom_cover_url: formData.get('custom_cover_url')
     };
 
     if (!data.id) delete (data as any).id;
@@ -171,16 +188,19 @@ export default function RepresentativeConfig() {
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
-                              <Button variant="ghost" size="sm" onClick={() => setItemsPriceList(pl)}>
-                                <List className="h-4 w-4 mr-2" /> Itens
+                              <Button variant="ghost" size="sm" onClick={() => setItemsPriceList(pl)} title="Itens da Tabela">
+                                <List className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="sm" onClick={() => duplicatePriceList.mutate(pl)} title="Duplicar Tabela">
+                                <Copy className="h-4 w-4" />
                               </Button>
                               <Button variant="ghost" size="sm" onClick={() => {
                                 setEditingPriceList(pl);
                                 setIsPriceListDialogOpen(true);
-                              }}>
+                              }} title="Editar">
                                 <Edit2 className="h-4 w-4" />
                               </Button>
-                              <Button variant="ghost" size="sm" className="text-red-500" onClick={() => handleDeletePriceList(pl.id, pl.name)}>
+                              <Button variant="ghost" size="sm" className="text-red-500" onClick={() => handleDeletePriceList(pl.id, pl.name)} title="Excluir">
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
@@ -202,10 +222,33 @@ export default function RepresentativeConfig() {
             </DialogHeader>
             <form onSubmit={handleSavePriceList}>
               <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="name">Nome da Tabela</Label>
-                  <Input id="name" name="name" defaultValue={editingPriceList?.name} required />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="name">Nome da Tabela</Label>
+                    <Input id="name" name="name" defaultValue={editingPriceList?.name} required />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="segment">Segmento / Categoria-Mãe</Label>
+                    <Input id="segment" name="segment" defaultValue={editingPriceList?.segment} placeholder="Ex: Petro" />
+                  </div>
                 </div>
+                
+                <div className="grid gap-2">
+                  <Label htmlFor="parent_id">Vincular à Tabela (Hierarquia)</Label>
+                  <Select name="parent_id" defaultValue={editingPriceList?.parent_id || 'none'}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione uma tabela pai (opcional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Nenhuma (Nível Superior)</SelectItem>
+                      {priceLists?.filter(pl => pl.id !== editingPriceList?.id).map(pl => (
+                        <SelectItem key={pl.id} value={pl.id}>{pl.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[10px] text-muted-foreground">Útil para criar sub-categorias (Ex: Postos Shell dentro de Petro).</p>
+                </div>
+
                 <div className="grid gap-2">
                   <Label htmlFor="description">Descrição</Label>
                   <Textarea id="description" name="description" defaultValue={editingPriceList?.description} />
@@ -220,12 +263,18 @@ export default function RepresentativeConfig() {
                     <Label htmlFor="is_master">Tabela Master (Preços Base)</Label>
                   </div>
                 </div>
-                {!editingPriceList?.is_master && (
-                   <div className="grid gap-2">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
                     <Label htmlFor="markup_percentage">Markup / Acréscimo (%)</Label>
                     <Input id="markup_percentage" name="markup_percentage" type="number" step="0.01" defaultValue={editingPriceList?.markup_percentage || 0} />
-                    <p className="text-[10px] text-muted-foreground">Este percentual será somado ao preço da tabela master ao importar/visualizar.</p>
                   </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="custom_cover_url">URL da Capa Personalizada</Label>
+                    <Input id="custom_cover_url" name="custom_cover_url" defaultValue={editingPriceList?.custom_cover_url} placeholder="https://..." />
+                  </div>
+                </div>
+                {!editingPriceList?.is_master && (
+                   <p className="text-[10px] text-muted-foreground -mt-2">O markup será somado ao preço da tabela master ao importar/visualizar.</p>
                 )}
                 <div className="grid gap-2">
                   <Label>Grupos com Acesso (Permission Templates)</Label>

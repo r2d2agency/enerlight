@@ -114,6 +114,7 @@ const EadLogin = lazyRetry(() => import("./pages/ead/EadLogin"));
 const RepLogin = lazyRetry(() => import("./pages/representative/RepLogin"));
 const RepDashboard = lazyRetry(() => import("./pages/representative/RepDashboard"));
 const RepManagerDashboard = lazyRetry(() => import("./pages/representative/RepManagerDashboard"));
+const RepProducts = lazyRetry(() => import("./pages/representative/RepProducts"));
 const RepresentativeLayout = lazyRetry(() => import("./components/layout/RepresentativeLayout"));
 
 
@@ -320,7 +321,7 @@ const App = () => (
                       <Route path="dashboard" element={<RepManagerDashboard />} />
                       <Route path="representatives" element={<div>Gestão de Representantes em breve</div>} />
                       <Route path="price-lists" element={<RepresentativeConfig />} />
-                      <Route path="products" element={<div>Gestão de Produtos em breve</div>} />
+                      <Route path="products" element={<RepProducts />} />
                       <Route path="quotes" element={<div>Gestão de Orçamentos em breve</div>} />
                       <Route path="settings" element={<div>Configurações em breve</div>} />
                       <Route path="*" element={<Navigate to="dashboard" replace />} />

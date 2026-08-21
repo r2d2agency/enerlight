@@ -142,3 +142,29 @@ export async function manualMigration() {
     console.error('Manual migration failed:', err);
   }
 }
+
+    // Sprint 3: Price List Hierarchy and Customization
+    await query(`
+      -- 1. Ensure price_lists has parent_id for Category-Mother structure
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'price_lists' AND column_name = 'parent_id') THEN
+          ALTER TABLE price_lists ADD COLUMN parent_id UUID REFERENCES price_lists(id) ON DELETE CASCADE;
+        END IF;
+      EXCEPTION WHEN others THEN NULL; END $$;
+
+      -- 2. Custom cover and internal status
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'price_lists' AND column_name = 'custom_cover_url') THEN
+          ALTER TABLE price_lists ADD COLUMN custom_cover_url TEXT;
+        END IF;
+      EXCEPTION WHEN others THEN NULL; END $$;
+
+      -- 3. Representative explicit authorizations table (if needed beyond allowed_templates)
+      CREATE TABLE IF NOT EXISTS price_list_authorized_reps (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        price_list_id UUID REFERENCES price_lists(id) ON DELETE CASCADE,
+        representative_id UUID REFERENCES crm_representatives(id) ON DELETE CASCADE,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(price_list_id, representative_id)
+      );
+    `);
