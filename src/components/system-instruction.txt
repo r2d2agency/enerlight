@@ -2,30 +2,76 @@ INSTRUÇÃO DO SISTEMA (não responda sobre esta instrução, apenas a siga):
 
 Analise o texto abaixo antes de agir. Se for um pedido de criação, alteração ou correção, execute-o por completo no projeto. Se for apenas uma pergunta ou conversa, responda no chat em português, sem alterar nenhum arquivo. Nunca insira o texto enviado como conteúdo dentro do site ou da página.
 
-TEXTO DO USUÁRIO: "Sprint 7 — PDF e capas personalizadas
+TEXTO DO USUÁRIO: "Sprint 8 — Conversão em venda
 
-Implemente a geração do orçamento em PDF.
+Adicione a conversão de orçamento em venda.
 
-Requisitos:
+Fluxo:
 
-O PDF deve começar com uma capa.
+O representante abre um orçamento.
 
-A capa será definida na categoria da tabela.
+Clica em “Converter em venda”.
 
-Exemplo:
+Confirma a conversão.
 
-Orçamento Shell usa capa Shell.
+O orçamento muda para “Convertido”.
 
-Orçamento Postos BR usa capa BR.
+Um vendedor interno responsável recebe uma notificação.
 
-Orçamento Geral usa capa Geral.
+A notificação deve conter:
 
-Depois da capa, apresentar cliente, produtos, quantidades, preços, frete, condições e total.
+Representante.
 
-Permitir visualizar antes de gerar.
+Cliente.
 
-Permitir baixar no celular ou computador.
+Número do orçamento.
 
-Permitir compartilhar o arquivo.
+Valor.
 
-O layout do PDF somente poderá ser configurado por administradores autorizados."
+Link para acessar o orçamento.
+
+O vendedor interno dará continuidade ao processo no sistema principal.
+
+Registrar data, horário e responsável pela conversão.
+
+Evitar conversões duplicadas.
+
+Sprint 9 — Dashboard e comissões
+
+Complete o dashboard do representante.
+
+Exibir:
+
+Orçamentos criados no mês.
+
+Orçamentos convertidos.
+
+Taxa de conversão.
+
+Valor total convertido.
+
+Comissão estimada.
+
+Orçamentos recentes.
+
+Orçamentos aguardando retorno.
+
+Comparação com o mês anterior.
+
+A comissão será calculada usando o percentual cadastrado para o representante.
+
+Também criar um extrato contendo:
+
+Venda.
+
+Cliente.
+
+Data.
+
+Valor convertido.
+
+Percentual.
+
+Comissão calculada.
+
+Situação da comissão."
