@@ -208,7 +208,7 @@ export default function RepresentanteDashboard() {
                   onChange={e => setSearch(e.target.value)}
                 />
               </div>
-              <Button onClick={() => setIsQuoteDialogOpen(true)}>
+              <Button onClick={() => navigate("/crm/catalogo")}>
                 <Plus className="h-4 w-4 mr-2" /> Novo Orçamento
               </Button>
             </div>

@@ -108,4 +108,69 @@ router.delete('/cart/:id', async (req, res) => {
   }
 });
 
+// POST /api/representatives/checkout
+router.post('/checkout', async (req, res) => {
+  try {
+    const { company_id, contact_name, contact_phone, title, notes } = req.body;
+    const context = await getUserContext(req.userId);
+    
+    // 1. Get cart items
+    const cartItems = await query(
+      `SELECT ci.*, pli.description, pli.sale_price, pli.code
+       FROM cart_items ci
+       JOIN price_list_items pli ON pli.id = ci.item_id
+       WHERE ci.user_id = $1`,
+      [req.userId]
+    );
+
+    if (cartItems.rows.length === 0) {
+      return res.status(400).json({ error: 'Carrinho vazio' });
+    }
+
+    const totalValue = cartItems.rows.reduce((acc, item) => acc + (item.sale_price * item.quantity), 0);
+
+    // 2. Find representative ID linked to this user
+    const repResult = await query(
+      `SELECT id FROM crm_representatives WHERE linked_user_id = $1 AND organization_id = $2 LIMIT 1`,
+      [req.userId, context.organization_id]
+    );
+    const representativeId = repResult.rows[0]?.id;
+
+    // 3. Create CRM deal
+    const dealResult = await query(
+      `INSERT INTO crm_deals (
+        organization_id, title, value, status, 
+        company_id, representative_id, created_by, description
+      ) VALUES ($1, $2, $3, 'open', $4, $5, $6, $7)
+      RETURNING id`,
+      [
+        context.organization_id, 
+        title || `Orçamento Representante - ${new Date().toLocaleDateString()}`,
+        totalValue,
+        company_id,
+        representativeId,
+        req.userId,
+        notes
+      ]
+    );
+
+    const dealId = dealResult.rows[0].id;
+
+    // 4. Create history/notes for the deal with products
+    const productList = cartItems.rows.map(item => `- ${item.description} (${item.code}): ${item.quantity} x ${item.sale_price}`).join('\n');
+    await query(
+      `INSERT INTO crm_deal_history (deal_id, user_id, content, type)
+       VALUES ($1, $2, $3, 'note')`,
+      [dealId, req.userId, `Orçamento gerado pelo catálogo:\n${productList}`]
+    );
+
+    // 5. Clear cart
+    await query(`DELETE FROM cart_items WHERE user_id = $1`, [req.userId]);
+
+    res.json({ success: true, deal_id: dealId });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;
