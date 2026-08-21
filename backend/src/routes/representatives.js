@@ -125,6 +125,145 @@ router.get('/quotes/:id/pdf', async (req, res) => {
   }
 });
 
+// POST /api/representatives/quotes/:id/convert
+router.post('/quotes/:id/convert', async (req, res) => {
+  try {
+    const context = await getUserContext(req.userId);
+    if (!context) return res.status(403).json({ error: 'USER_CONTEXT_NOT_FOUND' });
+
+    const dealId = req.params.id;
+    const repId = await getRepresentativeId(req.userId, context.organization_id);
+
+    // 1. Check if deal belongs to rep and isn't already converted
+    const dealCheck = await query(
+      `SELECT d.*, c.name as customer_name, cr.name as rep_name, cr.commission_percentage
+       FROM crm_deals d
+       LEFT JOIN rep_customers c ON c.id = d.rep_customer_id
+       JOIN crm_representatives cr ON cr.id = d.representative_id
+       WHERE d.id = $1 AND d.representative_id = $2`,
+      [dealId, repId]
+    );
+
+    if (dealCheck.rows.length === 0) return res.status(404).json({ error: 'QUOTE_NOT_FOUND' });
+    const deal = dealCheck.rows[0];
+
+    if (deal.status === 'convertido') {
+      return res.status(400).json({ error: 'QUOTE_ALREADY_CONVERTED' });
+    }
+
+    // 2. Update status and record audit
+    await query(
+      `UPDATE crm_deals 
+       SET status = 'convertido', 
+           updated_at = NOW() 
+       WHERE id = $1`,
+      [dealId]
+    );
+
+    const auditNote = `Orçamento convertido em venda pelo representante ${deal.rep_name} em ${new Date().toLocaleString('pt-BR')}.`;
+    await query(
+      `INSERT INTO crm_deal_history (deal_id, user_id, content, type)
+       VALUES ($1, $2, $3, 'note')`,
+      [dealId, req.userId, auditNote]
+    );
+
+    // 3. Create commission entry
+    const commissionValue = (Number(deal.value) * Number(deal.commission_percentage || 0)) / 100;
+    try {
+      // Ensure rep_commissions table exists
+      await query(`
+        CREATE TABLE IF NOT EXISTS rep_commissions (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          representative_id UUID REFERENCES crm_representatives(id),
+          deal_id UUID REFERENCES crm_deals(id),
+          customer_name TEXT,
+          deal_value DECIMAL(12,2),
+          commission_percentage DECIMAL(5,2),
+          commission_value DECIMAL(12,2),
+          status TEXT DEFAULT 'pendente',
+          created_at TIMESTAMP DEFAULT NOW()
+        )
+      `);
+
+      await query(
+        `INSERT INTO rep_commissions (
+          representative_id, deal_id, customer_name, deal_value, 
+          commission_percentage, commission_value
+        ) VALUES ($1, $2, $3, $4, $5, $6)`,
+        [repId, dealId, deal.customer_name, deal.value, deal.commission_percentage, commissionValue]
+      );
+    } catch (e) {
+      console.error('Error creating commission entry:', e);
+    }
+
+    // 4. Notify internal managers/sales (mock notification)
+    // In a real scenario, this would trigger a push notification or email
+    console.log(`NOTIFICAÇÃO: Orçamento #${dealId} convertido. Cliente: ${deal.customer_name}, Valor: R$ ${deal.value}`);
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/representatives/stats
+router.get('/stats', async (req, res) => {
+  try {
+    const context = await getUserContext(req.userId);
+    if (!context) return res.status(403).json({ error: 'USER_CONTEXT_NOT_FOUND' });
+
+    const repId = await getRepresentativeId(req.userId, context.organization_id);
+    if (!repId) return res.status(403).json({ error: 'REPRESENTATIVE_NOT_FOUND' });
+
+    // Monthly stats
+    const statsResult = await query(
+      `SELECT 
+        COUNT(*) FILTER (WHERE created_at >= date_trunc('month', current_date)) as created_this_month,
+        COUNT(*) FILTER (WHERE status = 'convertido' AND updated_at >= date_trunc('month', current_date)) as converted_this_month,
+        SUM(value) FILTER (WHERE status = 'convertido' AND updated_at >= date_trunc('month', current_date)) as value_this_month,
+        COUNT(*) FILTER (WHERE created_at >= date_trunc('month', current_date - interval '1 month') AND created_at < date_trunc('month', current_date)) as created_last_month
+       FROM crm_deals
+       WHERE representative_id = $1`,
+      [repId]
+    );
+
+    // Commissions summary
+    const commissionResult = await query(
+      `SELECT SUM(commission_value) as estimated_commission
+       FROM rep_commissions
+       WHERE representative_id = $1 AND status = 'pendente'`,
+      [repId]
+    );
+
+    res.json({
+      ...statsResult.rows[0],
+      estimated_commission: commissionResult.rows[0]?.estimated_commission || 0
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/representatives/commissions
+router.get('/commissions', async (req, res) => {
+  try {
+    const context = await getUserContext(req.userId);
+    if (!context) return res.status(403).json({ error: 'USER_CONTEXT_NOT_FOUND' });
+
+    const repId = await getRepresentativeId(req.userId, context.organization_id);
+    
+    const result = await query(
+      `SELECT * FROM rep_commissions 
+       WHERE representative_id = $1 
+       ORDER BY created_at DESC`,
+      [repId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/representatives/customers
 router.get('/customers', async (req, res) => {
   try {
