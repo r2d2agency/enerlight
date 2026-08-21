@@ -2,24 +2,31 @@ INSTRUÇÃO DO SISTEMA (não responda sobre esta instrução, apenas a siga):
 
 Analise o texto abaixo antes de agir. Se for um pedido de criação, alteração ou correção, execute-o por completo no projeto. Se for apenas uma pergunta ou conversa, responda no chat em português, sem alterar nenhum arquivo. Nunca insira o texto enviado como conteúdo dentro do site ou da página.
 
-TEXTO DO USUÁRIO: "Sprint 10 — Gestão e segurança
+TEXTO DO USUÁRIO: "> whatsale-backend@1.0.0 start
+> node src/index.js
 
-Finalize a área administrativa.
+file:///app/src/routes/representatives.js:4
+import { generateQuotePDF } from '../utils/pdf-generator.js';
+         ^^^^^^^^^^^^^^^^
+SyntaxError: The requested module '../utils/pdf-generator.js' does not provide an export named 'generateQuotePDF'
+    at ModuleJob._instantiate (node:internal/modules/esm/module_job:226:21)
+    at async ModuleJob.run (node:internal/modules/esm/module_job:335:5)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:681:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
 
-O gestor interno poderá:
-- Visualizar todos os representantes.
-- Consultar todos os orçamentos.
-- Filtrar por representante, região, cliente, status e período.
-- Ativar e bloquear acessos.
-- Alterar permissões.
-- Gerenciar tabelas e categorias.
-- Gerenciar capas e modelo do PDF.
-- Consultar conversões e comissões.
-- Exportar relatórios.
+Node.js v22.23.2
 
-Regras de segurança:
-- Representantes só visualizam seus próprios clientes e orçamentos.
-- Representantes só acessam tabelas autorizadas.
-- Representantes não acessam outros módulos.
-- Alterações administrativas devem gerar histórico de auditoria.
-- Registrar criação, alteração, bloqueio e conversão."
+
+> whatsale-backend@1.0.0 start
+> node src/index.js
+
+file:///app/src/routes/representatives.js:4
+import { generateQuotePDF } from '../utils/pdf-generator.js';
+         ^^^^^^^^^^^^^^^^
+SyntaxError: The requested module '../utils/pdf-generator.js' does not provide an export named 'generateQuotePDF'
+    at ModuleJob._instantiate (node:internal/modules/esm/module_job:226:21)
+    at async ModuleJob.run (node:internal/modules/esm/module_job:335:5)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:681:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+
+Node.js v22.23.2"
