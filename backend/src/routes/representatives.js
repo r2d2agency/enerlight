@@ -41,7 +41,32 @@ async function logAudit(userId, organizationId, action, entityType, entityId, de
 }
 
 
-// GET /api/representatives/my-deals
+export async function getUserContext(userId) {
+  const result = await query(
+    `SELECT om.organization_id, om.role, u.is_superadmin, u.status as user_status,
+            up.can_manage_representative_config, up.can_view_representative_dashboard as is_representative
+     FROM organization_members om
+     JOIN users u ON u.id = om.user_id
+     LEFT JOIN user_permissions up ON up.user_id = u.id AND up.organization_id = om.organization_id
+     WHERE om.user_id = $1
+     LIMIT 1`,
+    [userId]
+  );
+  return result.rows[0];
+}
+
+export async function logAudit(userId, organizationId, action, entityType, entityId, details) {
+  try {
+    await query(
+      `INSERT INTO crm_audit_log (user_id, organization_id, action, entity_type, entity_id, details)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [userId, organizationId, action, entityType, entityId, JSON.stringify(details)]
+    );
+  } catch (err) {
+    console.error('Audit log error:', err);
+  }
+}
+
 router.get('/my-deals', async (req, res) => {
   try {
     const context = await getUserContext(req.userId);

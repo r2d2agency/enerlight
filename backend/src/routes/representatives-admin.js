@@ -1,7 +1,9 @@
 import express from 'express';
 import { query } from '../db.js';
+import { getUserContext, logAudit } from './representatives.js';
 
 const router = express.Router();
+
 
 // Administrative Endpoints for Managers/Admins
 
