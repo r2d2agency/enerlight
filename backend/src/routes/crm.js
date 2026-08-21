@@ -1413,6 +1413,24 @@ router.get('/deals', async (req, res) => {
       params.push(req.userId);
     }
 
+    // Additional check for representatives
+    try {
+      const perms = await query(
+        `SELECT can_view_representative_dashboard FROM user_permissions WHERE user_id = $1 AND organization_id = $2`,
+        [req.userId, org.organization_id]
+      );
+      if (perms.rows[0]?.can_view_representative_dashboard) {
+        const repRec = await query(`SELECT id FROM crm_representatives WHERE linked_user_id = $1 OR $1 = ANY(linked_user_ids) LIMIT 1`, [req.userId]);
+        if (repRec.rows.length > 0) {
+          visibilityFilter = ` AND (d.owner_id = $3 OR d.representative_id = $${params.length + 1})`;
+          if (!params.includes(req.userId)) {
+             params.push(req.userId);
+          }
+          params.push(repRec.rows[0].id);
+        }
+      }
+    } catch (_) {}
+
     const result = await query(
       `SELECT d.*, 
         c.name as company_name,
@@ -1473,6 +1491,24 @@ router.get('/deals/by-phone/:phone', async (req, res) => {
       visibilityFilter = ` AND d.owner_id = $3`;
       params.push(req.userId);
     }
+
+    // Additional check for representatives
+    try {
+      const perms = await query(
+        `SELECT can_view_representative_dashboard FROM user_permissions WHERE user_id = $1 AND organization_id = $2`,
+        [req.userId, org.organization_id]
+      );
+      if (perms.rows[0]?.can_view_representative_dashboard) {
+        const repRec = await query(`SELECT id FROM crm_representatives WHERE linked_user_id = $1 OR $1 = ANY(linked_user_ids) LIMIT 1`, [req.userId]);
+        if (repRec.rows.length > 0) {
+          visibilityFilter = ` AND (d.owner_id = $3 OR d.representative_id = $${params.length + 1})`;
+          if (!params.includes(req.userId)) {
+             params.push(req.userId);
+          }
+          params.push(repRec.rows[0].id);
+        }
+      }
+    } catch (_) {}
 
     const result = await query(
       `SELECT DISTINCT ON (d.id) d.*, 
@@ -1562,8 +1598,12 @@ router.get('/funnels/:funnelId/deals', async (req, res) => {
        // We need to find the representative record linked to this user first
        const repRec = await query(`SELECT id FROM crm_representatives WHERE linked_user_id = $1 OR $1 = ANY(linked_user_ids) LIMIT 1`, [req.userId]);
        if (repRec.rows.length > 0) {
-         visibilityFilter = ` AND (d.owner_id = $3 OR d.representative_id = $${params.length + 1})`;
-         params.push(repRec.rows[0].id);
+          visibilityFilter = ` AND (d.owner_id = $3 OR d.representative_id = $${params.length + 1})`;
+          if (!params.includes(req.userId)) {
+             // In some branches $3 might not have been req.userId or not added to params yet
+             // But in funnels/deals branch, req.userId is always params[2] (index 3)
+          }
+          params.push(repRec.rows[0].id);
        }
     }
 
