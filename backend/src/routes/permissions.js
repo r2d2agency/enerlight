@@ -27,7 +27,7 @@ const PERMISSION_COLUMNS = [
   'can_view_payroll', 'can_manage_payroll',
   'can_view_minutas', 'can_view_team_commission', 'can_view_representative_dashboard',
   'can_view_all_representative_quotes', 'can_view_expenses', 'can_view_nfc',
-  'can_manage_representative_config', 'is_representative', 'is_representative_manager',
+  'can_manage_representative_config',
 ];
 
 // Default permissions for each role

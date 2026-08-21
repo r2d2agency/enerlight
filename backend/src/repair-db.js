@@ -44,23 +44,6 @@ async function repair() {
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       )
     `);
-    
-    console.log('Ensuring cart_items table...');
-    await query(`
-      CREATE TABLE IF NOT EXISTS cart_items (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-        item_id UUID REFERENCES price_list_items(id) ON DELETE CASCADE,
-        quantity INTEGER DEFAULT 1,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-        UNIQUE(user_id, item_id)
-      )
-    `);
-
-    console.log('Ensuring representative columns...');
-    await query(`ALTER TABLE contacts ADD COLUMN IF NOT EXISTS representative_id UUID REFERENCES crm_representatives(id) ON DELETE SET NULL`);
-    await query(`ALTER TABLE crm_deals ADD COLUMN IF NOT EXISTS representative_id UUID REFERENCES crm_representatives(id) ON DELETE SET NULL`);
 
     console.log('Ensuring columns in price_list_items...');
     await query("DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'price_list_items' AND column_name = 'category') THEN ALTER TABLE price_list_items ADD COLUMN category VARCHAR(255); END IF; IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'price_list_items' AND column_name = 'subcategory') THEN ALTER TABLE price_list_items ADD COLUMN subcategory VARCHAR(255); END IF; END $$;");

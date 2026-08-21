@@ -54,7 +54,6 @@ import {
   GraduationCap,
   ShieldCheck,
   Factory,
-  ShoppingCart,
 } from "lucide-react";
 
 import { API_URL, getAuthToken } from "@/lib/api";
@@ -125,6 +124,7 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
       { name: "Prospects", href: "/crm/prospects", icon: UserPlus, permissionKey: 'can_view_prospects' },
       { name: "Empresas", href: "/crm/empresas", icon: Building2, permissionKey: 'can_view_companies' },
       { name: "Indicadores", href: "/crm/representantes", icon: Handshake, moduleKey: 'representatives', permissionKey: 'can_view_representatives' },
+      { name: "Hub de Representantes", href: "/crm/representantes-hub", icon: Users, moduleKey: 'representatives', permissionKey: 'can_view_all_representative_quotes' },
 
       { name: "Mapa", href: "/mapa", icon: Map, permissionKey: 'can_view_map' },
       { name: "Agenda", href: "/crm/agenda", icon: CalendarDays, permissionKey: 'can_view_calendar' },
@@ -146,6 +146,15 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
       
       { name: "Fantasma", href: "/modulo-fantasma", icon: Ghost, moduleKey: 'ghost', permissionKey: 'can_view_ghost' },
       { name: "Configurações", href: "/crm/configuracoes", icon: Settings, permissionKey: 'can_view_crm_settings' },
+    ],
+  },
+  {
+    title: "Representantes",
+    icon: Handshake,
+    moduleKey: 'representatives',
+    permissionKey: 'can_view_representative_dashboard',
+    items: [
+      { name: "Painel Representante", href: "/crm/representante-dashboard", icon: LayoutDashboard, permissionKey: 'can_view_representative_dashboard', moduleKey: 'representative_dashboard' },
     ],
   },
   {
@@ -467,7 +476,7 @@ function SidebarContentComponent({ isExpanded, isSuperadmin, onNavigate }: Sideb
 
   const handleLogout = () => {
     logout();
-    navigate(user?.is_representative || user?.is_representative_manager ? "/rep/login" : "/login");
+    navigate("/login");
     onNavigate?.();
   };
 
@@ -758,7 +767,7 @@ export function Sidebar() {
       {/* Desktop Sidebar */}
       <aside
         className={cn(
-          "sticky left-0 top-0 z-40 h-screen bg-card border-r border-border shadow-card transition-all duration-300 ease-in-out hidden lg:block shrink-0",
+          "fixed left-0 top-0 z-40 h-screen bg-card border-r border-border shadow-card transition-all duration-300 ease-in-out hidden lg:block",
           isHovered ? expandedWidth : collapsedWidth
         )}
         onMouseEnter={() => setIsHovered(true)}

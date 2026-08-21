@@ -19,9 +19,7 @@ const ProtectedRoute = ({ children, permissionKey }: ProtectedRouteProps) => {
   }
 
   if (!isAuthenticated) {
-    // Detect if current path is a representative path to redirect to rep login
-    const isRepPath = window.location.pathname.startsWith('/rep');
-    return <Navigate to={isRepPath ? "/rep/login" : "/login"} replace />;
+    return <Navigate to="/login" replace />;
   }
 
   if (permissionKey) {

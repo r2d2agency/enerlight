@@ -67,6 +67,7 @@ const SecretariaGrupos = lazyRetry(() => import("./pages/SecretariaGrupos"));
 const ModuloFantasma = lazyRetry(() => import("./pages/ModuloFantasma"));
 const Projetos = lazyRetry(() => import("./pages/Projetos"));
 const CRMRepresentantes = lazyRetry(() => import("./pages/CRMRepresentantes"));
+const RepresentativesHub = lazyRetry(() => import("./pages/RepresentativesHub"));
 const SupervisorIA = lazyRetry(() => import("./pages/SupervisorIA"));
 const CRMMetas = lazyRetry(() => import("./pages/CRMMetas"));
 const CRMFollowupFabrica = lazyRetry(() => import("./pages/CRMFollowupFabrica"));
@@ -106,10 +107,10 @@ const ComissoesMinhas = lazyRetry(() => import("./pages/ComissoesMinhas"));
 const ComissoesRegras = lazyRetry(() => import("./pages/ComissoesRegras"));
 const FolhaPagamento = lazyRetry(() => import("./pages/FolhaPagamento"));
 const ComissoesEquipe = lazyRetry(() => import("./pages/ComissoesEquipe"));
-
-
-
+const RepresentanteDashboard = lazyRetry(() => import("./pages/RepresentanteDashboard"));
+const RepresentativeConfig = lazyRetry(() => import("./pages/RepresentativeConfig"));
 const EadLogin = lazyRetry(() => import("./pages/ead/EadLogin"));
+
 const EadSignup = lazyRetry(() => import("./pages/ead/EadSignup"));
 const EadHome = lazyRetry(() => import("./pages/ead/EadHome"));
 const EadCatalog = lazyRetry(() => import("./pages/ead/EadCatalog"));
@@ -164,6 +165,9 @@ function FaviconUpdater() {
 function AuthRedirect({ children }: { children: React.ReactNode }) {
   const { user, userPermissions } = useAuth();
   
+  if (userPermissions?.can_view_representative_dashboard && !userPermissions?.can_view_chat) {
+    return <Navigate to="/crm/representante-dashboard" replace />;
+  }
   
   return <>{children}</>;
 }
@@ -222,7 +226,12 @@ const App = () => (
               <Route path="/comissoes/regras" element={<ProtectedRoute><ComissoesRegras /></ProtectedRoute>} />
               <Route path="/comissoes/equipe" element={<ProtectedRoute permissionKey="can_view_team_commission"><ComissoesEquipe /></ProtectedRoute>} />
               <Route path="/folha-pagamento" element={<ProtectedRoute permissionKey="can_view_payroll"><FolhaPagamento /></ProtectedRoute>} />
+              <Route path="/crm/representante-dashboard" element={<ProtectedRoute permissionKey="can_view_representative_dashboard"><RepresentanteDashboard /></ProtectedRoute>} />
+
               <Route path="/crm/representantes" element={<ProtectedRoute><CRMRepresentantes /></ProtectedRoute>} />
+              <Route path="/crm/representantes/config" element={<ProtectedRoute permissionKey="can_manage_representative_config"><RepresentativeConfig /></ProtectedRoute>} />
+
+              <Route path="/crm/representantes-hub" element={<ProtectedRoute><RepresentativesHub /></ProtectedRoute>} />
               <Route path="/supervisor-ia" element={<ProtectedRoute><SupervisorIA /></ProtectedRoute>} />
               <Route path="/crm/metas" element={<ProtectedRoute><CRMMetas /></ProtectedRoute>} />
               <Route path="/crm/followup-fabrica" element={<ProtectedRoute><CRMFollowupFabrica /></ProtectedRoute>} />
@@ -268,8 +277,6 @@ const App = () => (
               <Route path="/devolucoes" element={<ProtectedRoute><Devolucoes /></ProtectedRoute>} />
               <Route path="/ead/login" element={<EadLogin />} />
               <Route path="/ead/cadastro" element={<EadSignup />} />
-
-
               {/* Brand-scoped portal (slug = brand) */}
               <Route path="/marca/:slug" element={<EadBrandSignup />} />
               <Route path="/marca/:slug/login" element={<EadBrandLogin />} />

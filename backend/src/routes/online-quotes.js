@@ -58,12 +58,12 @@ router.post('/price-lists', async (req, res) => {
     const canManage = context.is_superadmin || ['owner', 'admin'].includes(context.role) || context.can_manage_representative_config;
     if (!canManage) return res.status(403).json({ error: 'FORBIDDEN' });
 
-    const { name, description, segment, is_active, is_master, markup_percentage, allowed_templates, parent_id, custom_cover_url } = req.body;
+    const { name, description, segment, is_active, is_master, markup_percentage, allowed_templates } = req.body;
     const result = await query(
-      `INSERT INTO price_lists (organization_id, name, description, segment, is_active, is_master, markup_percentage, allowed_templates, parent_id, custom_cover_url)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      `INSERT INTO price_lists (organization_id, name, description, segment, is_active, is_master, markup_percentage, allowed_templates)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
-      [context.organization_id, name, description, segment, is_active ?? true, is_master ?? false, markup_percentage || 0, allowed_templates || [], parent_id || null, custom_cover_url || null]
+      [context.organization_id, name, description, segment, is_active ?? true, is_master ?? false, markup_percentage || 0, allowed_templates || []]
     );
     res.json(result.rows[0]);
   } catch (err) {
@@ -80,13 +80,13 @@ router.put('/price-lists/:id', async (req, res) => {
       const canManage = context.is_superadmin || ['owner', 'admin'].includes(context.role) || context.can_manage_representative_config;
       if (!canManage) return res.status(403).json({ error: 'FORBIDDEN' });
   
-      const { name, description, segment, is_active, is_master, markup_percentage, allowed_templates, parent_id, custom_cover_url } = req.body;
+      const { name, description, segment, is_active, is_master, markup_percentage, allowed_templates } = req.body;
       const result = await query(
         `UPDATE price_lists 
-         SET name = $1, description = $2, segment = $3, is_active = $4, is_master = $5, markup_percentage = $6, allowed_templates = $7, parent_id = $8, custom_cover_url = $9, updated_at = NOW()
-         WHERE id = $10 AND organization_id = $11
+         SET name = $1, description = $2, segment = $3, is_active = $4, is_master = $5, markup_percentage = $6, allowed_templates = $7, updated_at = NOW()
+         WHERE id = $8 AND organization_id = $9
          RETURNING *`,
-        [name, description, segment, is_active, is_master, markup_percentage, allowed_templates, parent_id || null, custom_cover_url || null, req.params.id, context.organization_id]
+        [name, description, segment, is_active, is_master, markup_percentage, allowed_templates, req.params.id, context.organization_id]
       );
       if (result.rows.length === 0) return res.status(404).json({ error: 'NOT_FOUND' });
       res.json(result.rows[0]);
@@ -112,25 +112,6 @@ router.delete('/price-lists/:id', async (req, res) => {
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ error: err.message });
-    }
-});
-
-// GET /api/online-quotes/items - All items for management
-router.get('/items', async (req, res) => {
-    try {
-        const context = await getUserContext(req.userId);
-        if (!context) return res.status(403).json({ error: 'USER_CONTEXT_NOT_FOUND' });
-        
-        const result = await query(
-            `SELECT pli.* FROM price_list_items pli
-             JOIN price_lists pl ON pl.id = pli.price_list_id
-             WHERE pl.organization_id = $1
-             ORDER BY pli.description ASC`,
-            [context.organization_id]
-        );
-        res.json(result.rows);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
     }
 });
 

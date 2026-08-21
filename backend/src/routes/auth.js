@@ -7,7 +7,7 @@ import { invalidatePasswordChangedCache, isTokenInvalidated } from '../middlewar
 
 const router = Router();
 
-const SESSION_PERMISSION_PREFIXES = ['can_view_', 'can_edit_', 'can_delete_', 'can_validate_', 'can_manage_', 'can_approve_', 'can_accept_', 'can_refuse_', 'can_create_', 'can_manage_representative_config', 'is_representative', 'is_representative_manager'];
+const SESSION_PERMISSION_PREFIXES = ['can_view_', 'can_edit_', 'can_delete_', 'can_validate_', 'can_manage_', 'can_approve_', 'can_accept_', 'can_refuse_', 'can_create_', 'can_manage_representative_config'];
 
 function buildSessionPermissions(row, role) {
   const roleDefaults = role ? (ROLE_DEFAULTS[role] || ROLE_DEFAULTS.agent) : null;
@@ -229,7 +229,7 @@ router.post('/login', async (req, res) => {
 
     // Find user
     const result = await query(
-      'SELECT id, email, name, password_hash, is_superadmin, is_representative, is_representative_manager FROM users WHERE lower(trim(email)) = lower(trim($1)) LIMIT 1',
+      'SELECT id, email, name, password_hash, is_superadmin FROM users WHERE lower(trim(email)) = lower(trim($1)) LIMIT 1',
       [email]
     );
 
@@ -353,8 +353,6 @@ router.post('/login', async (req, res) => {
         email: user.email, 
         name: user.name,
         is_superadmin: isSuperadmin,
-        is_representative: user.is_representative === true,
-        is_representative_manager: user.is_representative_manager === true,
         role,
         organization_id: organizationId,
         modules_enabled: modulesEnabled,
@@ -386,7 +384,7 @@ router.get('/me', async (req, res) => {
     }
     
     const result = await query(
-      'SELECT id, email, name, is_superadmin, is_representative, is_representative_manager, created_at FROM users WHERE id = $1',
+      'SELECT id, email, name, is_superadmin, created_at FROM users WHERE id = $1',
       [decoded.userId]
     );
 
