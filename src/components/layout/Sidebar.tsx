@@ -54,6 +54,7 @@ import {
   GraduationCap,
   ShieldCheck,
   Factory,
+  ShoppingCart,
 } from "lucide-react";
 
 import { API_URL, getAuthToken } from "@/lib/api";
