@@ -2,56 +2,46 @@ INSTRUÇÃO DO SISTEMA (não responda sobre esta instrução, apenas a siga):
 
 Analise o texto abaixo antes de agir. Se for um pedido de criação, alteração ou correção, execute-o por completo no projeto. Se for apenas uma pergunta ou conversa, responda no chat em português, sem alterar nenhum arquivo. Nunca insira o texto enviado como conteúdo dentro do site ou da página.
 
-TEXTO DO USUÁRIO: "Sprint 4 — Produtos e catálogo
+TEXTO DO USUÁRIO: "Sprint 5 — Clientes exclusivos do representante
 
-Crie o catálogo de produtos do representante.
+Crie o cadastro de clientes do módulo Representantes.
 
-O representante deve poder alternar entre:
+Essa base não deve utilizar nem exibir os clientes dos outros módulos do sistema.
 
-Visualização em galeria, semelhante a um e-commerce.
+Cada representante poderá:
 
-Visualização em lista, semelhante a um sistema tradicional de pedidos.
+Cadastrar clientes.
 
-A galeria deve apresentar:
+Editar seus clientes.
 
-Foto.
+Pesquisar clientes.
 
-Nome.
+Visualizar o histórico de orçamentos.
 
-Código.
+Usar um cliente durante a criação do orçamento.
 
-Categoria.
+Dados:
 
-Preço.
+Nome ou razão social.
 
-Quantidade.
+Nome fantasia.
 
-Botão para adicionar.
+CPF ou CNPJ.
 
-A lista deve apresentar:
+Contato.
 
-Produto.
+Telefone.
 
-Código.
+E-mail.
 
-Categoria.
+Endereço.
 
-Preço.
+Cidade.
 
-Campo de quantidade.
+Estado.
 
-Seleção rápida.
+CEP.
 
-Adicionar:
+Observações.
 
-Pesquisa.
-
-Filtros.
-
-Ordenação.
-
-Carrinho lateral no computador.
-
-Carrinho acessível no celular.
-
-Os preços exibidos devem respeitar a tabela e a categoria selecionadas."
+Um representante não pode visualizar clientes de outro representante."
