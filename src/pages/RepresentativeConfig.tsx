@@ -222,10 +222,33 @@ export default function RepresentativeConfig() {
             </DialogHeader>
             <form onSubmit={handleSavePriceList}>
               <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="name">Nome da Tabela</Label>
-                  <Input id="name" name="name" defaultValue={editingPriceList?.name} required />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="name">Nome da Tabela</Label>
+                    <Input id="name" name="name" defaultValue={editingPriceList?.name} required />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="segment">Segmento / Categoria-Mãe</Label>
+                    <Input id="segment" name="segment" defaultValue={editingPriceList?.segment} placeholder="Ex: Petro" />
+                  </div>
                 </div>
+                
+                <div className="grid gap-2">
+                  <Label htmlFor="parent_id">Vincular à Tabela (Hierarquia)</Label>
+                  <Select name="parent_id" defaultValue={editingPriceList?.parent_id || 'none'}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione uma tabela pai (opcional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Nenhuma (Nível Superior)</SelectItem>
+                      {priceLists?.filter(pl => pl.id !== editingPriceList?.id).map(pl => (
+                        <SelectItem key={pl.id} value={pl.id}>{pl.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[10px] text-muted-foreground">Útil para criar sub-categorias (Ex: Postos Shell dentro de Petro).</p>
+                </div>
+
                 <div className="grid gap-2">
                   <Label htmlFor="description">Descrição</Label>
                   <Textarea id="description" name="description" defaultValue={editingPriceList?.description} />
