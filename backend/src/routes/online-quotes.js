@@ -80,13 +80,13 @@ router.put('/price-lists/:id', async (req, res) => {
       const canManage = context.is_superadmin || ['owner', 'admin'].includes(context.role) || context.can_manage_representative_config;
       if (!canManage) return res.status(403).json({ error: 'FORBIDDEN' });
   
-      const { name, description, segment, is_active, is_master, markup_percentage, allowed_templates } = req.body;
+      const { name, description, segment, is_active, is_master, markup_percentage, allowed_templates, parent_id, custom_cover_url } = req.body;
       const result = await query(
         `UPDATE price_lists 
-         SET name = $1, description = $2, segment = $3, is_active = $4, is_master = $5, markup_percentage = $6, allowed_templates = $7, updated_at = NOW()
-         WHERE id = $8 AND organization_id = $9
+         SET name = $1, description = $2, segment = $3, is_active = $4, is_master = $5, markup_percentage = $6, allowed_templates = $7, parent_id = $8, custom_cover_url = $9, updated_at = NOW()
+         WHERE id = $10 AND organization_id = $11
          RETURNING *`,
-        [name, description, segment, is_active, is_master, markup_percentage, allowed_templates, req.params.id, context.organization_id]
+        [name, description, segment, is_active, is_master, markup_percentage, allowed_templates, parent_id || null, custom_cover_url || null, req.params.id, context.organization_id]
       );
       if (result.rows.length === 0) return res.status(404).json({ error: 'NOT_FOUND' });
       res.json(result.rows[0]);
