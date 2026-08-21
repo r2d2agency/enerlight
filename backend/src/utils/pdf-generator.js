@@ -1,7 +1,7 @@
-const PDFDocument = require('pdfkit');
-const axios = require('axios');
+import PDFDocument from 'pdfkit';
+import axios from 'axios';
 
-async function generateQuotePDF(quoteData) {
+export async function generateQuotePDF(quoteData) {
   return new Promise(async (resolve, reject) => {
     try {
       const doc = new PDFDocument({ margin: 0, size: 'A4' });
@@ -71,5 +71,3 @@ async function generateQuotePDF(quoteData) {
     }
   });
 }
-
-module.exports = { generateQuotePDF };
