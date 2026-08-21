@@ -5,14 +5,40 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ClipboardList, Search, Filter, FileDown, Share2, Eye } from "lucide-react";
+import { ClipboardList, Search, Filter, FileDown, Share2, Eye, CheckCircle2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function RepQuotes() {
   const [search, setSearch] = useState("");
+  const [dealToConvert, setDealToConvert] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
+  const convertMutation = useMutation({
+    mutationFn: (dealId: string) => api.post(`/api/representatives/quotes/${dealId}/convert`, {}),
+    onSuccess: () => {
+      toast.success("Orçamento convertido em venda com sucesso!");
+      queryClient.invalidateQueries({ queryKey: ["rep-quotes"] });
+      queryClient.invalidateQueries({ queryKey: ["rep-stats"] });
+      setDealToConvert(null);
+    },
+    onError: (error: any) => {
+      toast.error(`Erro ao converter orçamento: ${error.message}`);
+    }
+  });
 
   const { data: quotes, isLoading } = useQuery({
     queryKey: ["rep-quotes"],
@@ -157,6 +183,17 @@ export default function RepQuotes() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center justify-center gap-1">
+                        {quote.status !== 'convertido' && (
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                            title="Converter em Venda"
+                            onClick={() => setDealToConvert(quote.id)}
+                          >
+                            <CheckCircle2 className="h-4 w-4" />
+                          </Button>
+                        )}
                         <Button 
                           variant="ghost" 
                           size="icon" 
@@ -197,6 +234,26 @@ export default function RepQuotes() {
           </Table>
         </CardContent>
       </Card>
+
+      <AlertDialog open={!!dealToConvert} onOpenChange={(open) => !open && setDealToConvert(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Conversão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Deseja converter este orçamento em uma venda concluída? Esta ação notificará a equipe interna e registrará sua comissão.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => dealToConvert && convertMutation.mutate(dealToConvert)}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              Confirmar Venda
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
