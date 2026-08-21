@@ -111,6 +111,11 @@ const RepresentanteDashboard = lazyRetry(() => import("./pages/RepresentanteDash
 const RepresentativeConfig = lazyRetry(() => import("./pages/RepresentativeConfig"));
 const RepresentativeCatalog = lazyRetry(() => import("./pages/RepresentativeCatalog"));
 const EadLogin = lazyRetry(() => import("./pages/ead/EadLogin"));
+const RepLogin = lazyRetry(() => import("./pages/representative/RepLogin"));
+const RepDashboard = lazyRetry(() => import("./pages/representative/RepDashboard"));
+const RepManagerDashboard = lazyRetry(() => import("./pages/representative/RepManagerDashboard"));
+const RepresentativeLayout = lazyRetry(() => import("./components/layout/RepresentativeLayout"));
+
 
 const EadSignup = lazyRetry(() => import("./pages/ead/EadSignup"));
 const EadHome = lazyRetry(() => import("./pages/ead/EadHome"));
@@ -166,6 +171,14 @@ function FaviconUpdater() {
 function AuthRedirect({ children }: { children: React.ReactNode }) {
   const { user, userPermissions } = useAuth();
   
+  if (user?.is_representative) {
+    return <Navigate to="/rep/dashboard" replace />;
+  }
+
+  if (user?.is_representative_manager) {
+    return <Navigate to="/rep/manager/dashboard" replace />;
+  }
+
   if (userPermissions?.can_view_representative_dashboard && !userPermissions?.can_view_chat) {
     return <Navigate to="/crm/representante-dashboard" replace />;
   }
@@ -280,6 +293,42 @@ const App = () => (
               <Route path="/devolucoes" element={<ProtectedRoute><Devolucoes /></ProtectedRoute>} />
               <Route path="/ead/login" element={<EadLogin />} />
               <Route path="/ead/cadastro" element={<EadSignup />} />
+
+              {/* Independent Representative Module */}
+              <Route path="/rep/login" element={<RepLogin />} />
+              
+              <Route path="/rep/*" element={
+                <ProtectedRoute>
+                  <RepresentativeLayout>
+                    <Routes>
+                      <Route path="dashboard" element={<RepDashboard />} />
+                      <Route path="catalog" element={<RepresentativeCatalog />} />
+                      <Route path="quotes" element={<div>Orçamentos em breve</div>} />
+                      <Route path="clients" element={<div>Clientes em breve</div>} />
+                      <Route path="commissions" element={<div>Comissões em breve</div>} />
+                      <Route path="profile" element={<div>Perfil em breve</div>} />
+                      <Route path="*" element={<Navigate to="dashboard" replace />} />
+                    </Routes>
+                  </RepresentativeLayout>
+                </ProtectedRoute>
+              } />
+
+              <Route path="/rep/manager/*" element={
+                <ProtectedRoute>
+                  <RepresentativeLayout>
+                    <Routes>
+                      <Route path="dashboard" element={<RepManagerDashboard />} />
+                      <Route path="representatives" element={<div>Gestão de Representantes em breve</div>} />
+                      <Route path="price-lists" element={<RepresentativeConfig />} />
+                      <Route path="products" element={<div>Gestão de Produtos em breve</div>} />
+                      <Route path="quotes" element={<div>Gestão de Orçamentos em breve</div>} />
+                      <Route path="settings" element={<div>Configurações em breve</div>} />
+                      <Route path="*" element={<Navigate to="dashboard" replace />} />
+                    </Routes>
+                  </RepresentativeLayout>
+                </ProtectedRoute>
+              } />
+
               {/* Brand-scoped portal (slug = brand) */}
               <Route path="/marca/:slug" element={<EadBrandSignup />} />
               <Route path="/marca/:slug/login" element={<EadBrandLogin />} />
