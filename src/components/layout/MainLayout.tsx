@@ -14,7 +14,7 @@ interface MainLayoutProps {
 
 export function MainLayout({ children }: MainLayoutProps) {
   return (
-    <div className="min-h-screen bg-background overflow-hidden">
+    <div className="flex h-screen bg-background overflow-hidden relative">
       <Sidebar />
       <TopBar />
       
@@ -28,8 +28,12 @@ export function MainLayout({ children }: MainLayoutProps) {
       
       {/* Desktop: margin-left for collapsed sidebar + top bar, Mobile: no margin */}
       {/* Use calc to ensure content fits exactly within available space */}
-      <main className="lg:ml-16 pt-14 lg:pt-12 overflow-x-hidden w-full lg:w-[calc(100vw-4rem)] box-border">
-        <div className="p-2 lg:p-3 xl:p-4 w-full min-w-0 overflow-x-hidden">{children}</div>
+      <main className="flex-1 flex flex-col min-w-0 pt-14 lg:pt-0 overflow-hidden relative">
+        <div className="flex-1 overflow-y-auto p-2 lg:p-4 xl:p-6 custom-scrollbar">
+          <div className="max-w-[1600px] mx-auto w-full">
+            {children}
+          </div>
+        </div>
       </main>
       <GroupSecretaryPopup />
       <DailyFollowupGate />

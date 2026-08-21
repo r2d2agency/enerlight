@@ -95,7 +95,7 @@ export function TopBar() {
   const formattedTime = timeFormatter.format(currentTime);
 
   return (
-    <div className="hidden lg:flex fixed top-0 right-0 left-16 h-14 items-center justify-between gap-4 px-6 bg-background/80 backdrop-blur-sm border-b border-border/50 z-40">
+    <div className="hidden lg:flex sticky top-0 right-0 left-0 h-14 items-center justify-between gap-4 px-6 bg-background/80 backdrop-blur-md border-b border-border/50 z-40 w-full shrink-0">
       {/* Company Name/Logo - Left Side */}
       <div className="flex items-center gap-3">
         {branding.logo_topbar ? (

@@ -2,48 +2,4 @@ INSTRUÇÃO DO SISTEMA (não responda sobre esta instrução, apenas a siga):
 
 Analise o texto abaixo antes de agir. Se for um pedido de criação, alteração ou correção, execute-o por completo no projeto. Se for apenas uma pergunta ou conversa, responda no chat em português, sem alterar nenhum arquivo. Nunca insira o texto enviado como conteúdo dentro do site ou da página.
 
-TEXTO DO USUÁRIO: "Sprint 6 — Montagem do orçamento
-
-Crie o fluxo de finalização do orçamento.
-
-Etapas:
-
-Escolher tabela e categoria.
-
-Selecionar produtos.
-
-Revisar quantidades e valores.
-
-Selecionar ou cadastrar cliente.
-
-Informar frete.
-
-Informar condições comerciais.
-
-Adicionar observações.
-
-Revisar e concluir.
-
-O orçamento deve calcular:
-
-Subtotal.
-
-Frete.
-
-Desconto, se permitido.
-
-Total final.
-
-Status possíveis:
-
-Rascunho.
-
-Enviado.
-
-Em análise.
-
-Convertido.
-
-Cancelado.
-
-Expirado."
+TEXTO DO USUÁRIO: "ntes de continuar vamos ajustar o layoout pois esta pessimo. nao da pr continuar desse jeito cada tela esta quebrando sem conceito. nao da pra usar nem no celula nem no pc. os menus ficam sobrepostso e aparecem 2x"
