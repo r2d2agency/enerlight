@@ -74,6 +74,7 @@ interface PriceListItem {
   subcategory?: string | null;
   brand?: string | null;
   image_url?: string | null;
+  extra_data?: Record<string, unknown> | null;
 }
 
 interface ImportedPriceListItem {
@@ -86,6 +87,12 @@ interface ImportedPriceListItem {
   subcategory: string;
   brand: string;
   image_url: string;
+  extra_data?: Record<string, unknown>;
+}
+
+interface ExtraFieldEntry {
+  key: string;
+  value: string;
 }
 
 const fmtCurrency = (value: number) =>
@@ -163,11 +170,18 @@ function parsePriceListExcel(file: File): Promise<ImportedPriceListItem[]> {
               subcategory: "",
               brand: "",
               image_url: "",
+              extra_data: {},
             };
 
             Object.entries(row).forEach(([header, value]) => {
               const field = detectItemColumn(header);
-              if (!field) return;
+              if (!field) {
+                const rawValue = value == null ? "" : String(value).trim();
+                if (rawValue) {
+                  normalized.extra_data![header] = rawValue;
+                }
+                return;
+              }
 
               if (field === "cost_price" || field === "sale_price") {
                 normalized[field] = normalizeMoney(value);
@@ -179,6 +193,10 @@ function parsePriceListExcel(file: File): Promise<ImportedPriceListItem[]> {
 
             if (!normalized.sale_price && normalized.cost_price) {
               normalized.sale_price = normalized.cost_price;
+            }
+
+            if (normalized.extra_data && Object.keys(normalized.extra_data).length === 0) {
+              delete normalized.extra_data;
             }
 
             return normalized;
@@ -231,6 +249,7 @@ export default function RepresentativeConfig() {
   const [editingItem, setEditingItem] = useState<PriceListItem | null>(null);
   const [itemCategoryValue, setItemCategoryValue] = useState("");
   const [itemSubcategoryValue, setItemSubcategoryValue] = useState("");
+  const [itemExtraFields, setItemExtraFields] = useState<ExtraFieldEntry[]>([]);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [replaceExistingImport, setReplaceExistingImport] = useState(false);
   const [importPreview, setImportPreview] = useState<ImportedPriceListItem[]>([]);
@@ -267,9 +286,16 @@ export default function RepresentativeConfig() {
     if (editingItem) {
       setItemCategoryValue(editingItem.category || "");
       setItemSubcategoryValue(editingItem.subcategory || "");
+      setItemExtraFields(
+        Object.entries(editingItem.extra_data || {}).map(([key, value]) => ({
+          key,
+          value: String(value ?? ""),
+        }))
+      );
     } else {
       setItemCategoryValue("");
       setItemSubcategoryValue("");
+      setItemExtraFields([]);
     }
   }, [editingItem]);
 
@@ -502,6 +528,15 @@ export default function RepresentativeConfig() {
     if (!itemsPriceList) return;
 
     const formData = new FormData(e.currentTarget);
+    const extraData = itemExtraFields.reduce<Record<string, string>>((acc, field) => {
+      const trimmedKey = field.key.trim();
+      const trimmedValue = field.value.trim();
+      if (trimmedKey && trimmedValue) {
+        acc[trimmedKey] = trimmedValue;
+      }
+      return acc;
+    }, {});
+
     const payload = {
       product_code: String(formData.get("product_code") || ""),
       product_name: String(formData.get("product_name") || ""),
@@ -512,6 +547,7 @@ export default function RepresentativeConfig() {
       image_url: String(formData.get("image_url") || ""),
       cost_price: normalizeMoney(formData.get("cost_price")),
       sale_price: normalizeMoney(formData.get("sale_price")),
+      extra_data: extraData,
     };
 
     try {
@@ -629,6 +665,22 @@ export default function RepresentativeConfig() {
     } catch (error: any) {
       toast.error(error?.data?.error || error.message || "Erro ao importar planilha");
     }
+  };
+
+  const handleAddExtraField = () => {
+    setItemExtraFields((current) => [...current, { key: "", value: "" }]);
+  };
+
+  const handleChangeExtraField = (index: number, field: "key" | "value", value: string) => {
+    setItemExtraFields((current) =>
+      current.map((entry, entryIndex) =>
+        entryIndex === index ? { ...entry, [field]: value } : entry
+      )
+    );
+  };
+
+  const handleRemoveExtraField = (index: number) => {
+    setItemExtraFields((current) => current.filter((_, entryIndex) => entryIndex !== index));
   };
 
   const handleApplyMarkup = async () => {
@@ -1098,19 +1150,20 @@ export default function RepresentativeConfig() {
                         <TableHead>Marca</TableHead>
                         <TableHead>Custo</TableHead>
                         <TableHead>Venda</TableHead>
+                        <TableHead>Extras</TableHead>
                         <TableHead className="text-right">Ações</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {loadingItems ? (
                         <TableRow>
-                          <TableCell colSpan={8} className="h-24 text-center">
+                          <TableCell colSpan={9} className="h-24 text-center">
                             <Loader2 className="mx-auto h-6 w-6 animate-spin" />
                           </TableCell>
                         </TableRow>
                       ) : filteredItems.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
+                          <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
                             Nenhum item cadastrado nesta tabela.
                           </TableCell>
                         </TableRow>
@@ -1131,6 +1184,15 @@ export default function RepresentativeConfig() {
                             <TableCell>{item.brand || "-"}</TableCell>
                             <TableCell>{fmtCurrency(item.cost_price)}</TableCell>
                             <TableCell>{fmtCurrency(item.sale_price)}</TableCell>
+                            <TableCell>
+                              {item.extra_data && Object.keys(item.extra_data).length > 0 ? (
+                                <Badge variant="outline">
+                                  {Object.keys(item.extra_data).length} campo(s)
+                                </Badge>
+                              ) : (
+                                "-"
+                              )}
+                            </TableCell>
                             <TableCell className="text-right">
                               <div className="flex justify-end gap-2">
                                 <Button variant="ghost" size="sm" onClick={() => handleOpenEditItem(item)}>
@@ -1246,6 +1308,46 @@ export default function RepresentativeConfig() {
                 <div className="grid gap-2">
                   <Label htmlFor="sale_price">Preço de Venda</Label>
                   <Input id="sale_price" name="sale_price" type="number" step="0.01" defaultValue={editingItem?.sale_price || 0} />
+                </div>
+                <div className="grid gap-3 md:col-span-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label>Campos Extras</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Use estes atributos para enriquecer o item e aproveitar depois no catálogo.
+                      </p>
+                    </div>
+                    <Button type="button" variant="outline" size="sm" onClick={handleAddExtraField}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Adicionar Campo
+                    </Button>
+                  </div>
+
+                  {itemExtraFields.length === 0 ? (
+                    <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+                      Nenhum campo extra neste item.
+                    </div>
+                  ) : (
+                    <div className="grid gap-3">
+                      {itemExtraFields.map((field, index) => (
+                        <div key={`${index}-${field.key}`} className="grid gap-2 md:grid-cols-[1fr,1fr,auto]">
+                          <Input
+                            placeholder="Nome do campo"
+                            value={field.key}
+                            onChange={(event) => handleChangeExtraField(index, "key", event.target.value)}
+                          />
+                          <Input
+                            placeholder="Valor"
+                            value={field.value}
+                            onChange={(event) => handleChangeExtraField(index, "value", event.target.value)}
+                          />
+                          <Button type="button" variant="ghost" size="icon" onClick={() => handleRemoveExtraField(index)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
               <DialogFooter>

@@ -51,6 +51,7 @@ async function ensureOnlineQuotesSchema() {
       category VARCHAR(255),
       subcategory VARCHAR(255),
       brand VARCHAR(255),
+      extra_data JSONB DEFAULT '{}'::jsonb,
       created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
       updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
       UNIQUE(price_list_id, product_code)
@@ -113,20 +114,69 @@ async function ensureOnlineQuotesSchema() {
   await query(`ALTER TABLE price_list_items ADD COLUMN IF NOT EXISTS category VARCHAR(255)`);
   await query(`ALTER TABLE price_list_items ADD COLUMN IF NOT EXISTS subcategory VARCHAR(255)`);
   await query(`ALTER TABLE price_list_items ADD COLUMN IF NOT EXISTS brand VARCHAR(255)`);
+  await query(`ALTER TABLE price_list_items ADD COLUMN IF NOT EXISTS extra_data JSONB DEFAULT '{}'::jsonb`);
   await query(`ALTER TABLE price_list_items ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()`);
   await query(`ALTER TABLE price_list_items ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()`);
 
   await query(`ALTER TABLE price_list_categories ADD COLUMN IF NOT EXISTS description TEXT`);
   await query(`ALTER TABLE price_list_categories ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true`);
+  await query(`ALTER TABLE price_list_categories ADD COLUMN IF NOT EXISTS name VARCHAR(255)`);
   await query(`ALTER TABLE price_list_categories ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0`);
   await query(`ALTER TABLE price_list_categories ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()`);
   await query(`ALTER TABLE price_list_categories ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()`);
 
   await query(`ALTER TABLE price_list_subcategories ADD COLUMN IF NOT EXISTS description TEXT`);
   await query(`ALTER TABLE price_list_subcategories ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true`);
+  await query(`ALTER TABLE price_list_subcategories ADD COLUMN IF NOT EXISTS name VARCHAR(255)`);
   await query(`ALTER TABLE price_list_subcategories ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0`);
   await query(`ALTER TABLE price_list_subcategories ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()`);
   await query(`ALTER TABLE price_list_subcategories ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()`);
+
+  await query(`
+    DO $$
+    BEGIN
+      IF EXISTS (
+        SELECT 1
+          FROM information_schema.columns
+         WHERE table_name = 'price_list_categories'
+           AND column_name = 'category'
+      ) THEN
+        UPDATE price_list_categories
+           SET name = COALESCE(name, category)
+         WHERE name IS NULL;
+      END IF;
+    END $$;
+  `);
+
+  await query(`
+    DO $$
+    BEGIN
+      IF EXISTS (
+        SELECT 1
+          FROM information_schema.columns
+         WHERE table_name = 'price_list_categories'
+           AND column_name = 'subcategory'
+      ) THEN
+        INSERT INTO price_list_subcategories (organization_id, category_id, name, created_at, updated_at)
+        SELECT DISTINCT
+          c.organization_id,
+          c.id,
+          c.subcategory,
+          NOW(),
+          NOW()
+        FROM price_list_categories c
+        WHERE c.subcategory IS NOT NULL
+          AND TRIM(c.subcategory) <> ''
+          AND c.name IS NOT NULL
+          AND NOT EXISTS (
+            SELECT 1
+              FROM price_list_subcategories sc
+             WHERE sc.category_id = c.id
+               AND sc.name = c.subcategory
+          );
+      END IF;
+    END $$;
+  `);
 
   await query(`CREATE INDEX IF NOT EXISTS idx_price_list_org ON price_lists(organization_id)`);
   await query(`CREATE INDEX IF NOT EXISTS idx_price_list_items_list ON price_list_items(price_list_id)`);
@@ -212,6 +262,30 @@ async function ensureSubcategoryByName(organizationId, categoryId, name) {
 }
 
 function sanitizeItem(item = {}) {
+  const extraData = {};
+  const reservedKeys = new Set([
+    'product_code', 'codigo', 'code',
+    'product_name', 'nome', 'name',
+    'description', 'descricao',
+    'cost_price', 'custo', 'cost',
+    'sale_price', 'preco', 'preco_venda', 'price',
+    'image_url', 'imagem',
+    'category', 'categoria',
+    'subcategory', 'subcategoria',
+    'brand', 'marca',
+    'extra_data',
+  ]);
+
+  if (item.extra_data && typeof item.extra_data === 'object' && !Array.isArray(item.extra_data)) {
+    Object.assign(extraData, item.extra_data);
+  }
+
+  Object.entries(item).forEach(([key, value]) => {
+    if (reservedKeys.has(key)) return;
+    if (value === undefined || value === null || value === '') return;
+    extraData[key] = value;
+  });
+
   const productCode =
     item.product_code?.toString().trim() ||
     item.codigo?.toString().trim() ||
@@ -237,6 +311,7 @@ function sanitizeItem(item = {}) {
     category: item.category?.toString().trim() || item.categoria?.toString().trim() || null,
     subcategory: item.subcategory?.toString().trim() || item.subcategoria?.toString().trim() || null,
     brand: item.brand?.toString().trim() || item.marca?.toString().trim() || null,
+    extra_data: extraData,
   };
 }
 
@@ -251,9 +326,9 @@ async function upsertPriceListItem(priceListId, item) {
 
   const result = await query(
     `INSERT INTO price_list_items (
-       price_list_id, product_code, product_name, description, cost_price, sale_price, image_url, category, subcategory, brand
+       price_list_id, product_code, product_name, description, cost_price, sale_price, image_url, category, subcategory, brand, extra_data
      ) VALUES (
-       $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
+       $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
      )
      ON CONFLICT (price_list_id, product_code)
      DO UPDATE SET
@@ -265,6 +340,7 @@ async function upsertPriceListItem(priceListId, item) {
        category = EXCLUDED.category,
        subcategory = EXCLUDED.subcategory,
        brand = EXCLUDED.brand,
+       extra_data = COALESCE(EXCLUDED.extra_data, '{}'::jsonb),
        updated_at = NOW()
      RETURNING *`,
     [
@@ -278,6 +354,7 @@ async function upsertPriceListItem(priceListId, item) {
       normalized.category,
       normalized.subcategory,
       normalized.brand,
+      JSON.stringify(normalized.extra_data || {}),
     ]
   );
 
@@ -754,9 +831,10 @@ router.put('/price-lists/:id/items/:itemId', async (req, res) => {
               category = $7,
               subcategory = $8,
               brand = $9,
+              extra_data = $10::jsonb,
               updated_at = NOW()
-        WHERE id = $10
-          AND price_list_id = $11
+        WHERE id = $11
+          AND price_list_id = $12
       RETURNING *`,
       [
         normalized.product_code || `AUTO-${normalized.product_name.toUpperCase().replace(/\s+/g, '-').slice(0, 60)}`,
@@ -768,6 +846,7 @@ router.put('/price-lists/:id/items/:itemId', async (req, res) => {
         normalized.category,
         normalized.subcategory,
         normalized.brand,
+        JSON.stringify(normalized.extra_data || {}),
         req.params.itemId,
         priceList.id,
       ]
