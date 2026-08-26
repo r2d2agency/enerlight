@@ -97,6 +97,37 @@ async function ensureOnlineQuotesSchema() {
     )
   `);
 
+  await query(`ALTER TABLE price_lists ADD COLUMN IF NOT EXISTS description TEXT`);
+  await query(`ALTER TABLE price_lists ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true`);
+  await query(`ALTER TABLE price_lists ADD COLUMN IF NOT EXISTS segment TEXT`);
+  await query(`ALTER TABLE price_lists ADD COLUMN IF NOT EXISTS is_master BOOLEAN DEFAULT false`);
+  await query(`ALTER TABLE price_lists ADD COLUMN IF NOT EXISTS markup_percentage DECIMAL(10, 2) DEFAULT 0`);
+  await query(`ALTER TABLE price_lists ADD COLUMN IF NOT EXISTS allowed_templates JSONB DEFAULT '[]'::jsonb`);
+  await query(`ALTER TABLE price_lists ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()`);
+  await query(`ALTER TABLE price_lists ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()`);
+
+  await query(`ALTER TABLE price_list_items ADD COLUMN IF NOT EXISTS description TEXT`);
+  await query(`ALTER TABLE price_list_items ADD COLUMN IF NOT EXISTS cost_price DECIMAL(15, 2) DEFAULT 0`);
+  await query(`ALTER TABLE price_list_items ADD COLUMN IF NOT EXISTS sale_price DECIMAL(15, 2) DEFAULT 0`);
+  await query(`ALTER TABLE price_list_items ADD COLUMN IF NOT EXISTS image_url TEXT`);
+  await query(`ALTER TABLE price_list_items ADD COLUMN IF NOT EXISTS category VARCHAR(255)`);
+  await query(`ALTER TABLE price_list_items ADD COLUMN IF NOT EXISTS subcategory VARCHAR(255)`);
+  await query(`ALTER TABLE price_list_items ADD COLUMN IF NOT EXISTS brand VARCHAR(255)`);
+  await query(`ALTER TABLE price_list_items ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()`);
+  await query(`ALTER TABLE price_list_items ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()`);
+
+  await query(`ALTER TABLE price_list_categories ADD COLUMN IF NOT EXISTS description TEXT`);
+  await query(`ALTER TABLE price_list_categories ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true`);
+  await query(`ALTER TABLE price_list_categories ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0`);
+  await query(`ALTER TABLE price_list_categories ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()`);
+  await query(`ALTER TABLE price_list_categories ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()`);
+
+  await query(`ALTER TABLE price_list_subcategories ADD COLUMN IF NOT EXISTS description TEXT`);
+  await query(`ALTER TABLE price_list_subcategories ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true`);
+  await query(`ALTER TABLE price_list_subcategories ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0`);
+  await query(`ALTER TABLE price_list_subcategories ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()`);
+  await query(`ALTER TABLE price_list_subcategories ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()`);
+
   await query(`CREATE INDEX IF NOT EXISTS idx_price_list_org ON price_lists(organization_id)`);
   await query(`CREATE INDEX IF NOT EXISTS idx_price_list_items_list ON price_list_items(price_list_id)`);
   await query(`CREATE INDEX IF NOT EXISTS idx_price_list_access_user ON price_list_access(user_id)`);
