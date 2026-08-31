@@ -142,7 +142,11 @@ export default function AdminRepresentativeConfig() {
 
   // Filter logic
   const filtered = useMemo(() => {
-    return representatives.filter(rep => {
+    return representatives.map(rep => ({
+      ...rep,
+      commission_percent: Number(rep.commission_percent ?? 0),
+      is_active: rep.is_active !== false,
+    })).filter(rep => {
       if (search && !rep.name.toLowerCase().includes(search.toLowerCase())) return false;
       if (filterType !== "all" && rep.indicator_type !== filterType) return false;
       if (filterActive !== "all" && (rep.is_active ? "active" : "inactive") !== filterActive) return false;
@@ -338,7 +342,7 @@ export default function AdminRepresentativeConfig() {
                         <TableCell className="hidden lg:table-cell">
                           <div className="flex items-center gap-1">
                             <DollarSign className="h-4 w-4 text-muted-foreground" />
-                            {rep.commission_percent.toFixed(2)}%
+                            {Number(rep.commission_percent ?? 0).toFixed(2)}%
                           </div>
                         </TableCell>
                         <TableCell className="hidden md:table-cell">

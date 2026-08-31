@@ -5171,7 +5171,16 @@ router.get('/representatives', async (req, res) => {
        ORDER BY r.name`,
       params
     );
-    res.json(result.rows);
+
+    const normalizedRows = (result.rows || []).map((row) => ({
+      ...row,
+      commission_percent: Number(row.commission_percent ?? 0),
+      is_active: row.is_active !== false,
+      linked_user_ids: Array.isArray(row.linked_user_ids) ? row.linked_user_ids : (row.linked_user_ids ? JSON.parse(row.linked_user_ids) : []),
+      linked_user_names: Array.isArray(row.linked_user_names) ? row.linked_user_names : (row.linked_user_names ? JSON.parse(row.linked_user_names) : []),
+    }));
+
+    res.json(normalizedRows);
   } catch (error) {
     if (isMissingSchemaError(error)) return res.json([]);
     console.error('Error fetching representatives:', error);
