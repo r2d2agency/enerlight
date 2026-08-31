@@ -42,7 +42,8 @@ const ROLE_DEFAULTS = {
     can_view_map: true, can_view_calendar: true, can_view_tasks: true,
     can_view_reports: true, can_view_revenue_intel: false, can_view_ghost: false,
     can_view_crm_settings: false,
-    can_view_goals: false, can_view_representatives: false, can_view_projects: true,
+    can_view_goals: false, can_view_representatives: true, can_view_projects: true,
+    can_manage_representative_config: true,
 
     can_view_campaigns: false, can_view_sequences: false,
     can_view_external_flows: false, can_view_webhooks: false, can_view_ctwa: false,
@@ -62,7 +63,8 @@ const ROLE_DEFAULTS = {
     can_view_map: true, can_view_calendar: true, can_view_tasks: true,
     can_view_reports: true, can_view_revenue_intel: false, can_view_ghost: false,
     can_view_crm_settings: false,
-    can_view_goals: false, can_view_representatives: false, can_view_projects: true,
+    can_view_goals: false, can_view_representatives: true, can_view_projects: true,
+    can_manage_representative_config: true,
 
     can_view_campaigns: false, can_view_sequences: false,
     can_view_external_flows: false, can_view_webhooks: false, can_view_ctwa: false,

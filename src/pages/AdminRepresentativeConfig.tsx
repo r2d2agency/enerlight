@@ -73,7 +73,9 @@ const emptyForm: FormState = {
 export default function AdminRepresentativeConfig() {
   const { user, userPermissions } = useAuth();
   const queryClient = useQueryClient();
-  const isAdmin = user?.role === "owner" || user?.role === "admin" || user?.role === "manager";
+  const isAdmin = user?.role === "owner" || user?.role === "admin" || user?.role === "manager"
+    || userPermissions?.can_manage_representative_config === true
+    || userPermissions?.can_view_representatives === true;
 
   // UI States
   const [search, setSearch] = useState("");

@@ -229,9 +229,9 @@ const App = () => (
               <Route path="/folha-pagamento" element={<ProtectedRoute permissionKey="can_view_payroll"><FolhaPagamento /></ProtectedRoute>} />
               <Route path="/crm/representante-dashboard" element={<ProtectedRoute permissionKey="can_view_representative_dashboard"><RepresentanteDashboard /></ProtectedRoute>} />
 
-              <Route path="/crm/representantes" element={<ProtectedRoute><CRMRepresentantes /></ProtectedRoute>} />
+              <Route path="/crm/representantes" element={<ProtectedRoute permissionKey="can_view_representatives"><CRMRepresentantes /></ProtectedRoute>} />
               <Route path="/crm/representantes/config" element={<ProtectedRoute permissionKey="can_manage_representative_config"><RepresentativeConfig /></ProtectedRoute>} />
-              <Route path="/crm/representantes/admin" element={<ProtectedRoute permissionKey="can_view_representatives"><AdminRepresentativeConfig /></ProtectedRoute>} />
+              <Route path="/crm/representantes/admin" element={<ProtectedRoute permissionKey="can_manage_representative_config"><AdminRepresentativeConfig /></ProtectedRoute>} />
 
               <Route path="/crm/representantes-hub" element={<ProtectedRoute><RepresentativesHub /></ProtectedRoute>} />
               <Route path="/supervisor-ia" element={<ProtectedRoute><SupervisorIA /></ProtectedRoute>} />
