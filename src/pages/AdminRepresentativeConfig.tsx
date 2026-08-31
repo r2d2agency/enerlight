@@ -504,14 +504,13 @@ export default function AdminRepresentativeConfig() {
                 <div className="space-y-2">
                   <Label>Usuário Vinculado</Label>
                   <Select
-                    value={form.linked_user_id}
-                    onValueChange={(v) => setForm(f => ({ ...f, linked_user_id: v }))}
+                    value={form.linked_user_id || undefined}
+                    onValueChange={(v) => setForm(f => ({ ...f, linked_user_id: v || "" }))}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione um usuário" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Nenhum</SelectItem>
                       {orgMembers.map((member: any) => (
                         <SelectItem key={member.id} value={member.id}>
                           {member.name}
