@@ -148,10 +148,16 @@ export const api = async <T>(endpoint: string, options: ApiOptions = {}): Promis
 // Auth helpers
 export const authApi = {
   login: (email: string, password: string) =>
-    api<{ user: { id: string; email: string; name: string }; token: string }>(
+    api<{ user: { id: string; email: string; name: string; must_change_password?: boolean }; token: string }>(
       '/api/auth/login',
       { method: 'POST', body: { email, password }, auth: false }
     ),
+
+  forgotPassword: (email: string) =>
+    api<{ message: string }>('/api/auth/forgot-password', { method: 'POST', body: { email }, auth: false }),
+
+  setNewPassword: (newPassword: string) =>
+    api<{ message: string }>('/api/auth/set-new-password', { method: 'POST', body: { newPassword } }),
 
   register: (email: string, password: string, name: string, plan_id?: string) =>
     api<{ user: { id: string; email: string; name: string }; token: string }>(

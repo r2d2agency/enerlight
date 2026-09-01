@@ -44,8 +44,12 @@ const Login = () => {
     setIsLoading(true);
     try {
       // Use validated+trimmed values
-      await login(result.data.email, result.data.password);
-      navigate('/dashboard', { replace: true });
+      const loggedInUser = await login(result.data.email, result.data.password);
+      if (loggedInUser?.must_change_password) {
+        navigate('/nova-senha', { replace: true });
+      } else {
+        navigate('/dashboard', { replace: true });
+      }
     } catch (error) {
       // Parse error message to provide specific feedback
       const errorMessage = error instanceof Error ? error.message : '';
@@ -148,6 +152,11 @@ const Login = () => {
                     </Button>
                   </div>
                   {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
+                  <div className="text-right">
+                    <Link to="/esqueci-senha" className="text-sm text-primary hover:underline">
+                      Esqueci minha senha
+                    </Link>
+                  </div>
                 </div>
               </CardContent>
               <CardFooter className="flex flex-col gap-4">

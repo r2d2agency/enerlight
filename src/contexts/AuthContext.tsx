@@ -108,6 +108,7 @@ interface User {
   modules_enabled?: ModulesEnabled;
   has_connections?: boolean;
   user_permissions?: UserPermissions | null;
+  must_change_password?: boolean;
 }
 
 interface AuthContextType {
@@ -116,7 +117,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   modulesEnabled: ModulesEnabled;
   userPermissions: UserPermissions | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
   register: (email: string, password: string, name: string, planId?: string) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
@@ -219,6 +220,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setAuthToken(token);
     setUser(user);
     toast({ title: 'Login realizado com sucesso!' });
+    return user;
   };
 
   const register = async (email: string, password: string, name: string, planId?: string) => {

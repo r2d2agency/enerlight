@@ -31,6 +31,8 @@ const LandingPage = lazyRetry(() => import("./pages/LandingPage"));
 const Index = lazyRetry(() => import("./pages/Index"));
 const Login = lazyRetry(() => import("./pages/Login"));
 const Cadastro = lazyRetry(() => import("./pages/Cadastro"));
+const EsqueciSenha = lazyRetry(() => import("./pages/EsqueciSenha"));
+const NovaSenha = lazyRetry(() => import("./pages/NovaSenha"));
 const Conexao = lazyRetry(() => import("./pages/Conexao"));
 const MetaTemplates = lazyRetry(() => import("./pages/MetaTemplates"));
 const Contatos = lazyRetry(() => import("./pages/Contatos"));
@@ -186,6 +188,8 @@ const App = () => (
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/cadastro" element={<Cadastro />} />
+              <Route path="/esqueci-senha" element={<EsqueciSenha />} />
+              <Route path="/nova-senha" element={<ProtectedRoute><NovaSenha /></ProtectedRoute>} />
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
               
               <Route path="/dashboard" element={

@@ -1,4 +1,4 @@
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
 
@@ -9,6 +9,7 @@ interface ProtectedRouteProps {
 
 const ProtectedRoute = ({ children, permissionKey }: ProtectedRouteProps) => {
   const { isAuthenticated, isLoading, user, userPermissions } = useAuth();
+  const location = useLocation();
 
   if (isLoading) {
     return (
@@ -20,6 +21,10 @@ const ProtectedRoute = ({ children, permissionKey }: ProtectedRouteProps) => {
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (user?.must_change_password && location.pathname !== '/nova-senha') {
+    return <Navigate to="/nova-senha" replace />;
   }
 
   if (permissionKey) {

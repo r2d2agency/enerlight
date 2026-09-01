@@ -1,11 +1,39 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import { query } from '../db.js';
 import { ROLE_DEFAULTS } from './permissions.js';
 import { invalidatePasswordChangedCache, isTokenInvalidated } from '../middleware/auth.js';
+import { sendSystemEmail } from '../lib/systemEmail.js';
 
 const router = Router();
+
+function generateTempPassword() {
+  const charset = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+  const bytes = crypto.randomBytes(10);
+  let pwd = '';
+  for (let i = 0; i < bytes.length; i++) {
+    pwd += charset[bytes[i] % charset.length];
+  }
+  return pwd;
+}
+
+// Public app URL to link back to from system emails (never an internal/host URL)
+function appBaseUrl(req) {
+  const PUBLIC_DEFAULT = 'https://app.enerlight.com.br';
+  const isInternal = (u) => /easypanel|localhost|127\.0\.0\.1|whastsale-backend|backend\./i.test(String(u || ''));
+  const clean = (u) => {
+    if (!u || isInternal(u)) return '';
+    try { return new URL(u).origin; } catch { return ''; }
+  };
+  const fromHeader = clean(req.get('origin') || req.get('referer') || '');
+  return fromHeader || PUBLIC_DEFAULT;
+}
+
+// Very small in-memory cooldown to avoid trivial email-bombing of /forgot-password
+const forgotPasswordCooldown = new Map();
+const FORGOT_PASSWORD_COOLDOWN_MS = 60 * 1000;
 
 const SESSION_PERMISSION_PREFIXES = ['can_view_', 'can_edit_', 'can_delete_', 'can_validate_', 'can_manage_', 'can_approve_', 'can_accept_', 'can_refuse_', 'can_create_', 'can_manage_representative_config'];
 
@@ -229,7 +257,7 @@ router.post('/login', async (req, res) => {
 
     // Find user
     const result = await query(
-      'SELECT id, email, name, password_hash, is_superadmin FROM users WHERE lower(trim(email)) = lower(trim($1)) LIMIT 1',
+      'SELECT id, email, name, password_hash, is_superadmin, must_change_password, temp_password_expires_at FROM users WHERE lower(trim(email)) = lower(trim($1)) LIMIT 1',
       [email]
     );
 
@@ -244,6 +272,10 @@ router.post('/login', async (req, res) => {
     const validPassword = await bcrypt.compare(password, user.password_hash);
     if (!validPassword) {
       return res.status(401).json({ error: 'Credenciais inválidas' });
+    }
+
+    if (user.must_change_password && user.temp_password_expires_at && new Date(user.temp_password_expires_at) < new Date()) {
+      return res.status(401).json({ error: 'Senha temporária expirada. Solicite a recuperação de senha novamente.' });
     }
 
     // Get role and organization info
@@ -358,12 +390,129 @@ router.post('/login', async (req, res) => {
         modules_enabled: modulesEnabled,
         has_connections: hasConnections,
         user_permissions: isSuperadmin ? null : userPermissions,
+        must_change_password: user.must_change_password === true,
       },
       token
     });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Erro ao fazer login' });
+  }
+});
+
+// Forgot password: emails a temporary password to the registered address (public endpoint)
+router.post('/forgot-password', async (req, res) => {
+  try {
+    let { email } = req.body;
+    email = typeof email === 'string' ? email.trim() : email;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email é obrigatório' });
+    }
+
+    const genericResponse = { message: 'Se o email estiver cadastrado, você receberá uma senha temporária em instantes.' };
+
+    const cooldownKey = email.toLowerCase();
+    const lastRequest = forgotPasswordCooldown.get(cooldownKey);
+    if (lastRequest && Date.now() - lastRequest < FORGOT_PASSWORD_COOLDOWN_MS) {
+      return res.json(genericResponse);
+    }
+    forgotPasswordCooldown.set(cooldownKey, Date.now());
+
+    const result = await query(
+      'SELECT id, name, email FROM users WHERE lower(trim(email)) = lower(trim($1)) LIMIT 1',
+      [email]
+    );
+
+    if (result.rows.length === 0) {
+      return res.json(genericResponse);
+    }
+
+    const user = result.rows[0];
+    const tempPassword = generateTempPassword();
+    const passwordHash = await bcrypt.hash(tempPassword, 10);
+
+    await query(
+      `UPDATE users
+       SET password_hash = $1,
+           must_change_password = true,
+           temp_password_expires_at = NOW() + INTERVAL '1 hour',
+           password_changed_at = NOW(),
+           updated_at = NOW()
+       WHERE id = $2`,
+      [passwordHash, user.id]
+    );
+    invalidatePasswordChangedCache(user.id);
+
+    try {
+      const loginUrl = `${appBaseUrl(req)}/login`;
+      await sendSystemEmail({
+        to: user.email,
+        subject: 'Recuperação de senha',
+        html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:24px;border:1px solid #eee;border-radius:8px">
+          <h2 style="color:#0ea5e9">Recuperação de senha</h2>
+          <p>Olá${user.name ? `, <b>${user.name}</b>` : ''}!</p>
+          <p>Recebemos uma solicitação para redefinir sua senha. Use a senha temporária abaixo para entrar:</p>
+          <p style="font-size:20px;font-weight:bold;letter-spacing:1px;background:#f5f5f5;padding:12px 16px;border-radius:6px;text-align:center">${tempPassword}</p>
+          <p>Essa senha temporária é válida por <b>1 hora</b>. Ao entrar com ela, você será solicitado a cadastrar uma nova senha.</p>
+          <p><a href="${loginUrl}" style="color:#0ea5e9">Acessar agora</a></p>
+          <p style="color:#666;font-size:13px;margin-top:16px">Se você não solicitou esta recuperação, ignore este email — sua senha atual deixará de funcionar após o envio; entre em contato com o suporte caso não reconheça esta ação.</p>
+        </div>`,
+      });
+    } catch (emailError) {
+      console.error('Forgot password email error:', emailError);
+    }
+
+    res.json(genericResponse);
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ error: 'Erro ao processar solicitação' });
+  }
+});
+
+// Set a new password after logging in with a temporary one
+router.post('/set-new-password', async (req, res) => {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader?.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Não autenticado' });
+  }
+
+  try {
+    const token = authHeader.replace('Bearer ', '');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    const { newPassword } = req.body;
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ error: 'Nova senha deve ter pelo menos 6 caracteres' });
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    const result = await query(
+      `UPDATE users
+       SET password_hash = $1,
+           must_change_password = false,
+           temp_password_expires_at = NULL,
+           password_changed_at = NOW(),
+           updated_at = NOW()
+       WHERE id = $2
+       RETURNING id`,
+      [passwordHash, decoded.userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Usuário não encontrado' });
+    }
+
+    invalidatePasswordChangedCache(decoded.userId);
+
+    res.json({ message: 'Senha atualizada com sucesso' });
+  } catch (error) {
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ error: 'Token inválido' });
+    }
+    console.error('Set new password error:', error);
+    res.status(500).json({ error: 'Erro ao atualizar senha' });
   }
 });
 
@@ -384,7 +533,7 @@ router.get('/me', async (req, res) => {
     }
     
     const result = await query(
-      'SELECT id, email, name, is_superadmin, created_at FROM users WHERE id = $1',
+      'SELECT id, email, name, is_superadmin, must_change_password, created_at FROM users WHERE id = $1',
       [decoded.userId]
     );
 
@@ -516,6 +665,7 @@ router.get('/me', async (req, res) => {
         modules_enabled: modulesEnabled,
         has_connections: hasConnections,
         user_permissions: isSuperadmin ? null : userPermissions,
+        must_change_password: user.must_change_password === true,
       },
       ...(newToken ? { token: newToken } : {}),
     });
