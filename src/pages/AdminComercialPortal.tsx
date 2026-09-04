@@ -3,21 +3,29 @@ import { MainLayout } from '@/components/layout/MainLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
   comercialAdminApi, ComercialAdminActor, ComercialTeam, ComercialProfile,
+  ComercialAdminProduct, ComercialActorPriceListEntry, ComercialTransferRequest,
 } from '@/lib/comercial-api';
 import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Plus, Briefcase, Send, Lock, Unlock, UserPlus, Users2 } from 'lucide-react';
+import { Loader2, Plus, Briefcase, Send, Lock, Unlock, UserPlus, Users2, Package, Tag, ArrowRightLeft, Check, X } from 'lucide-react';
 
 interface OrgMember { id: string; name: string; email: string; is_active: boolean }
+
+const emptyProductForm = {
+  sku: '', name: '', description: '', category: '', subcategory: '', unit: 'un',
+  cost_price: '', base_price: '',
+};
 
 const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' }> = {
   pending: { label: 'Pendente', variant: 'secondary' },
@@ -39,12 +47,19 @@ export default function AdminComercialPortal() {
   const [actors, setActors] = useState<ComercialAdminActor[]>([]);
   const [teams, setTeams] = useState<ComercialTeam[]>([]);
   const [orgMembers, setOrgMembers] = useState<OrgMember[]>([]);
+  const [products, setProducts] = useState<ComercialAdminProduct[]>([]);
+  const [transferRequests, setTransferRequests] = useState<ComercialTransferRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [teamDialogOpen, setTeamDialogOpen] = useState(false);
+  const [productDialogOpen, setProductDialogOpen] = useState(false);
+  const [priceListDialogActor, setPriceListDialogActor] = useState<ComercialAdminActor | null>(null);
+  const [actorPriceLists, setActorPriceLists] = useState<ComercialActorPriceListEntry[]>([]);
+  const [selectedPriceListIds, setSelectedPriceListIds] = useState<Set<string>>(new Set());
+  const [defaultPriceListId, setDefaultPriceListId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const [linkForm, setLinkForm] = useState<{ user_id: string; profile: ComercialProfile }>({ user_id: '', profile: 'vendedor' });
@@ -52,6 +67,8 @@ export default function AdminComercialPortal() {
     name: '', email: '', phone: '', profile: 'parceiro',
   });
   const [teamForm, setTeamForm] = useState({ name: '' });
+  const [editingProduct, setEditingProduct] = useState<ComercialAdminProduct | null>(null);
+  const [productForm, setProductForm] = useState(emptyProductForm);
 
   const { toast } = useToast();
 
@@ -61,11 +78,15 @@ export default function AdminComercialPortal() {
       comercialAdminApi.listActors(),
       comercialAdminApi.listTeams(),
       api<OrgMember[]>('/api/crm/org-members'),
+      comercialAdminApi.listProducts(),
+      comercialAdminApi.listTransferRequests(),
     ])
-      .then(([actorsRes, teamsRes, members]) => {
+      .then(([actorsRes, teamsRes, members, productsRes, transfersRes]) => {
         setActors(actorsRes.actors);
         setTeams(teamsRes.teams);
         setOrgMembers(members);
+        setProducts(productsRes.products);
+        setTransferRequests(transfersRes.transfer_requests);
       })
       .catch((error) => toast({ title: 'Erro ao carregar Portal Comercial', description: error?.message, variant: 'destructive' }))
       .finally(() => setLoading(false));
@@ -197,6 +218,124 @@ export default function AdminComercialPortal() {
     }
   };
 
+  const openCreateProduct = () => {
+    setEditingProduct(null);
+    setProductForm(emptyProductForm);
+    setProductDialogOpen(true);
+  };
+
+  const openEditProduct = (p: ComercialAdminProduct) => {
+    setEditingProduct(p);
+    setProductForm({
+      sku: p.sku || '', name: p.name, description: p.description || '', category: p.category || '',
+      subcategory: p.subcategory || '', unit: p.unit, cost_price: String(p.cost_price ?? ''), base_price: String(p.base_price ?? ''),
+    });
+    setProductDialogOpen(true);
+  };
+
+  const handleSaveProduct = async () => {
+    if (!productForm.name.trim()) {
+      toast({ title: 'Nome é obrigatório', variant: 'destructive' });
+      return;
+    }
+    setSaving(true);
+    try {
+      const body = {
+        ...productForm,
+        cost_price: productForm.cost_price ? Number(productForm.cost_price) : 0,
+        base_price: productForm.base_price ? Number(productForm.base_price) : 0,
+      };
+      if (editingProduct) {
+        await comercialAdminApi.updateProduct(editingProduct.id, body);
+        toast({ title: 'Produto atualizado' });
+      } else {
+        await comercialAdminApi.createProduct(body);
+        toast({ title: 'Produto cadastrado' });
+      }
+      setProductDialogOpen(false);
+      load();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Tente novamente.';
+      toast({ title: 'Erro ao salvar produto', description: message, variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleToggleProductStatus = async (p: ComercialAdminProduct) => {
+    setActionLoadingId(p.id);
+    try {
+      await comercialAdminApi.updateProduct(p.id, { status: p.status === 'active' ? 'inactive' : 'active' });
+      load();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Tente novamente.';
+      toast({ title: 'Erro ao atualizar produto', description: message, variant: 'destructive' });
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const openPriceListDialog = async (actor: ComercialAdminActor) => {
+    setPriceListDialogActor(actor);
+    try {
+      const res = await comercialAdminApi.getActorPriceLists(actor.id);
+      setActorPriceLists(res.price_lists);
+      setSelectedPriceListIds(new Set(res.price_lists.filter((pl) => pl.granted).map((pl) => pl.id)));
+      setDefaultPriceListId(res.price_lists.find((pl) => pl.is_default)?.id || null);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Tente novamente.';
+      toast({ title: 'Erro ao carregar tabelas de preço', description: message, variant: 'destructive' });
+      setPriceListDialogActor(null);
+    }
+  };
+
+  const togglePriceListSelection = (id: string, checked: boolean) => {
+    setSelectedPriceListIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id); else next.delete(id);
+      return next;
+    });
+    if (!checked && defaultPriceListId === id) setDefaultPriceListId(null);
+  };
+
+  const handleSavePriceLists = async () => {
+    if (!priceListDialogActor) return;
+    setSaving(true);
+    try {
+      await comercialAdminApi.setActorPriceLists(priceListDialogActor.id, {
+        price_list_ids: Array.from(selectedPriceListIds),
+        default_price_list_id: defaultPriceListId,
+      });
+      toast({ title: 'Tabelas de preço atualizadas' });
+      setPriceListDialogActor(null);
+      load();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Tente novamente.';
+      toast({ title: 'Erro ao salvar', description: message, variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleResolveTransfer = async (tr: ComercialTransferRequest, approve: boolean) => {
+    setActionLoadingId(tr.id);
+    try {
+      if (approve) {
+        await comercialAdminApi.approveTransferRequest(tr.id);
+        toast({ title: 'Transferência aprovada' });
+      } else {
+        await comercialAdminApi.rejectTransferRequest(tr.id);
+        toast({ title: 'Transferência recusada' });
+      }
+      load();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Tente novamente.';
+      toast({ title: 'Erro ao processar solicitação', description: message, variant: 'destructive' });
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
   return (
     <MainLayout>
       <div className="flex items-center gap-3 mb-6">
@@ -213,6 +352,10 @@ export default function AdminComercialPortal() {
         <TabsList>
           <TabsTrigger value="atores">Usuários</TabsTrigger>
           <TabsTrigger value="equipes">Equipes</TabsTrigger>
+          <TabsTrigger value="produtos">Produtos</TabsTrigger>
+          <TabsTrigger value="transferencias">
+            Transferências{transferRequests.length > 0 ? ` (${transferRequests.length})` : ''}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="atores" className="space-y-4 mt-4">
@@ -367,6 +510,10 @@ export default function AdminComercialPortal() {
                             <Badge variant={cfg.variant}>{cfg.label}</Badge>
                           </TableCell>
                           <TableCell className="text-right space-x-1">
+                            <Button variant="ghost" size="sm" onClick={() => openPriceListDialog(actor)}>
+                              <Tag className="h-4 w-4 mr-1" />
+                              Tabelas de preço
+                            </Button>
                             {!actor.user_id && actor.status === 'pending' && (
                               <Button variant="ghost" size="sm" disabled={isBusy} onClick={() => handleResendInvite(actor)}>
                                 <Send className="h-4 w-4 mr-1" />
@@ -452,7 +599,211 @@ export default function AdminComercialPortal() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="produtos" className="space-y-4 mt-4">
+          <div className="flex justify-end">
+            <Dialog open={productDialogOpen} onOpenChange={setProductDialogOpen}>
+              <DialogTrigger asChild>
+                <Button onClick={openCreateProduct}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  Novo produto
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-h-[85vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>{editingProduct ? 'Editar produto' : 'Novo produto'}</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label>SKU</Label>
+                      <Input value={productForm.sku} onChange={(e) => setProductForm({ ...productForm, sku: e.target.value })} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Unidade</Label>
+                      <Input value={productForm.unit} onChange={(e) => setProductForm({ ...productForm, unit: e.target.value })} />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Nome *</Label>
+                    <Input value={productForm.name} onChange={(e) => setProductForm({ ...productForm, name: e.target.value })} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Descrição</Label>
+                    <Textarea value={productForm.description} onChange={(e) => setProductForm({ ...productForm, description: e.target.value })} rows={2} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label>Categoria</Label>
+                      <Input value={productForm.category} onChange={(e) => setProductForm({ ...productForm, category: e.target.value })} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Subcategoria</Label>
+                      <Input value={productForm.subcategory} onChange={(e) => setProductForm({ ...productForm, subcategory: e.target.value })} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label>Custo</Label>
+                      <Input type="number" step="0.01" value={productForm.cost_price} onChange={(e) => setProductForm({ ...productForm, cost_price: e.target.value })} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Preço base</Label>
+                      <Input type="number" step="0.01" value={productForm.base_price} onChange={(e) => setProductForm({ ...productForm, base_price: e.target.value })} />
+                    </div>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button onClick={handleSaveProduct} disabled={saving}>
+                    {saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+                    {editingProduct ? 'Salvar alterações' : 'Cadastrar produto'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          <Card>
+            <CardContent className="p-0">
+              {loading ? (
+                <div className="flex justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : products.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <Package className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                  <p>Nenhum produto cadastrado ainda.</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>SKU</TableHead>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>Categoria</TableHead>
+                      <TableHead className="text-right">Preço base</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {products.map((p) => (
+                      <TableRow key={p.id} className="cursor-pointer hover:bg-muted/50" onClick={() => openEditProduct(p)}>
+                        <TableCell className="text-sm text-muted-foreground">{p.sku || '—'}</TableCell>
+                        <TableCell className="font-medium">{p.name}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{[p.category, p.subcategory].filter(Boolean).join(' / ') || '—'}</TableCell>
+                        <TableCell className="text-right">
+                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(p.base_price) || 0)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={p.status === 'active' ? 'default' : 'secondary'}>{p.status === 'active' ? 'Ativo' : 'Inativo'}</Badge>
+                        </TableCell>
+                        <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                          <Button variant="ghost" size="sm" disabled={actionLoadingId === p.id} onClick={() => handleToggleProductStatus(p)}>
+                            {p.status === 'active' ? 'Inativar' : 'Ativar'}
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="transferencias" className="space-y-4 mt-4">
+          <Card>
+            <CardContent className="p-0">
+              {loading ? (
+                <div className="flex justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : transferRequests.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <ArrowRightLeft className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                  <p>Nenhuma solicitação de transferência pendente.</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Cliente</TableHead>
+                      <TableHead>Solicitado por</TableHead>
+                      <TableHead>Destino</TableHead>
+                      <TableHead>Observação</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {transferRequests.map((tr) => {
+                      const isBusy = actionLoadingId === tr.id;
+                      return (
+                        <TableRow key={tr.id}>
+                          <TableCell className="font-medium">{tr.customer_name}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{tr.requested_by_name}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{tr.target_actor_name || '—'}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{tr.note || '—'}</TableCell>
+                          <TableCell className="text-right space-x-1">
+                            <Button variant="ghost" size="sm" disabled={isBusy || !tr.target_actor_id} onClick={() => handleResolveTransfer(tr, true)}>
+                              <Check className="h-4 w-4 mr-1" />
+                              Aprovar
+                            </Button>
+                            <Button variant="ghost" size="sm" disabled={isBusy} onClick={() => handleResolveTransfer(tr, false)}>
+                              <X className="h-4 w-4 mr-1" />
+                              Recusar
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
+
+      <Dialog open={!!priceListDialogActor} onOpenChange={(open) => !open && setPriceListDialogActor(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Tabelas de preço — {priceListDialogActor?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 max-h-[50vh] overflow-y-auto">
+            {actorPriceLists.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhuma tabela de preço ativa na organização.</p>
+            ) : (
+              actorPriceLists.map((pl) => {
+                const checked = selectedPriceListIds.has(pl.id);
+                return (
+                  <div key={pl.id} className="flex items-center justify-between gap-3 border-b last:border-0 py-2">
+                    <div className="flex items-center gap-2">
+                      <Checkbox checked={checked} onCheckedChange={(c) => togglePriceListSelection(pl.id, !!c)} />
+                      <span className="text-sm">{pl.name}</span>
+                    </div>
+                    {checked && (
+                      <Button
+                        variant={defaultPriceListId === pl.id ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setDefaultPriceListId(pl.id)}
+                      >
+                        {defaultPriceListId === pl.id ? 'Padrão' : 'Definir como padrão'}
+                      </Button>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+          <DialogFooter>
+            <Button onClick={handleSavePriceLists} disabled={saving}>
+              {saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 }

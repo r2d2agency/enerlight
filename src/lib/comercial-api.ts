@@ -28,6 +28,59 @@ export interface ComercialActor {
   team_name?: string | null;
 }
 
+export type ComercialCustomerType = 'pj' | 'pf';
+
+export interface ComercialCustomer {
+  id: string;
+  organization_id: string;
+  owner_actor_id?: string | null;
+  owner_actor_name?: string | null;
+  type: ComercialCustomerType;
+  company_name: string;
+  trade_name?: string | null;
+  cnpj?: string | null;
+  cpf?: string | null;
+  state_registration?: string | null;
+  phone?: string | null;
+  whatsapp?: string | null;
+  email?: string | null;
+  contact_name?: string | null;
+  contact_role?: string | null;
+  zip_code?: string | null;
+  address?: string | null;
+  address_number?: string | null;
+  address_complement?: string | null;
+  neighborhood?: string | null;
+  city?: string | null;
+  state?: string | null;
+  status: string;
+  origin?: string | null;
+  notes?: string | null;
+  price_list_id?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ComercialCatalogProduct {
+  id: string;
+  sku?: string | null;
+  name: string;
+  description?: string | null;
+  category?: string | null;
+  subcategory?: string | null;
+  unit: string;
+  image_url?: string | null;
+  base_price: number;
+  specs?: Record<string, unknown>;
+}
+
+export interface ComercialMyPriceList {
+  id: string;
+  name: string;
+  description?: string | null;
+  is_default: boolean;
+}
+
 async function fetchComercial(endpoint: string, init: RequestInit): Promise<Response> {
   const res = await fetch(`${API_URL}${endpoint}`, init);
 
@@ -83,11 +136,35 @@ export const comercialExternalApi = {
 
   ativarConta: (token: string, password: string) =>
     call<{ message: string }>('/api/comercial/ativar-conta', { method: 'POST', body: { token, password } , auth: false }),
+
+  listCustomers: () => call<{ customers: ComercialCustomer[] }>('/api/comercial/clientes'),
+  getCustomer: (id: string) => call<{ customer: ComercialCustomer }>(`/api/comercial/clientes/${id}`),
+  createCustomer: (body: Partial<ComercialCustomer>) =>
+    call<{ customer: ComercialCustomer }>('/api/comercial/clientes', { method: 'POST', body }),
+  updateCustomer: (id: string, body: Partial<ComercialCustomer>) =>
+    call<{ customer: ComercialCustomer }>(`/api/comercial/clientes/${id}`, { method: 'PUT', body }),
+  requestCustomerTransfer: (id: string, body: { target_actor_id?: string; note?: string }) =>
+    call<{ message: string }>(`/api/comercial/clientes/${id}/solicitar-transferencia`, { method: 'POST', body }),
+
+  listCatalog: () => call<{ products: ComercialCatalogProduct[] }>('/api/comercial/catalogo'),
+  listMyPriceLists: () => call<{ price_lists: ComercialMyPriceList[] }>('/api/comercial/tabelas-preco'),
 };
 
 // Portal interno — mesmo login/token do CRM (usa o helper api() principal)
 export const comercialInternalApi = {
   me: () => api<{ actor: ComercialActor }>('/api/comercial/interno/me'),
+
+  listCustomers: () => api<{ customers: ComercialCustomer[] }>('/api/comercial/interno/clientes'),
+  getCustomer: (id: string) => api<{ customer: ComercialCustomer }>(`/api/comercial/interno/clientes/${id}`),
+  createCustomer: (body: Partial<ComercialCustomer>) =>
+    api<{ customer: ComercialCustomer }>('/api/comercial/interno/clientes', { method: 'POST', body }),
+  updateCustomer: (id: string, body: Partial<ComercialCustomer>) =>
+    api<{ customer: ComercialCustomer }>(`/api/comercial/interno/clientes/${id}`, { method: 'PUT', body }),
+  requestCustomerTransfer: (id: string, body: { target_actor_id?: string; note?: string }) =>
+    api<{ message: string }>(`/api/comercial/interno/clientes/${id}/solicitar-transferencia`, { method: 'POST', body }),
+
+  listCatalog: () => api<{ products: ComercialCatalogProduct[] }>('/api/comercial/interno/catalogo'),
+  listMyPriceLists: () => api<{ price_lists: ComercialMyPriceList[] }>('/api/comercial/interno/tabelas-preco'),
 };
 
 export interface ComercialAdminActor {
@@ -119,6 +196,43 @@ export interface ComercialTeam {
   members_count: number;
 }
 
+export interface ComercialAdminProduct {
+  id: string;
+  sku?: string | null;
+  name: string;
+  description?: string | null;
+  category?: string | null;
+  subcategory?: string | null;
+  unit: string;
+  image_url?: string | null;
+  status: 'active' | 'inactive';
+  cost_price: number;
+  base_price: number;
+  specs?: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ComercialActorPriceListEntry {
+  id: string;
+  name: string;
+  granted: boolean;
+  is_default: boolean;
+}
+
+export interface ComercialTransferRequest {
+  id: string;
+  customer_id: string;
+  customer_name: string;
+  requested_by_actor_id: string;
+  requested_by_name: string;
+  target_actor_id?: string | null;
+  target_actor_name?: string | null;
+  status: 'pending' | 'approved' | 'rejected';
+  note?: string | null;
+  created_at: string;
+}
+
 // Administração — usa a mesma sessão do CRM (auth_token), não o token isolado do portal
 export const comercialAdminApi = {
   listActors: () => api<{ actors: ComercialAdminActor[] }>('/api/comercial/admin/actors'),
@@ -144,4 +258,21 @@ export const comercialAdminApi = {
     api<{ team: ComercialTeam }>(`/api/comercial/admin/teams/${id}`, { method: 'PUT', body }),
   deleteTeam: (id: string) =>
     api<{ message: string }>(`/api/comercial/admin/teams/${id}`, { method: 'DELETE' }),
+
+  listProducts: () => api<{ products: ComercialAdminProduct[] }>('/api/comercial/admin/products'),
+  createProduct: (body: Partial<ComercialAdminProduct>) =>
+    api<{ product: ComercialAdminProduct }>('/api/comercial/admin/products', { method: 'POST', body }),
+  updateProduct: (id: string, body: Partial<ComercialAdminProduct>) =>
+    api<{ product: ComercialAdminProduct }>(`/api/comercial/admin/products/${id}`, { method: 'PUT', body }),
+
+  getActorPriceLists: (actorId: string) =>
+    api<{ price_lists: ComercialActorPriceListEntry[] }>(`/api/comercial/admin/actors/${actorId}/price-lists`),
+  setActorPriceLists: (actorId: string, body: { price_list_ids: string[]; default_price_list_id?: string | null }) =>
+    api<{ message: string }>(`/api/comercial/admin/actors/${actorId}/price-lists`, { method: 'PUT', body }),
+
+  listTransferRequests: () => api<{ transfer_requests: ComercialTransferRequest[] }>('/api/comercial/admin/transfer-requests'),
+  approveTransferRequest: (id: string) =>
+    api<{ message: string }>(`/api/comercial/admin/transfer-requests/${id}/approve`, { method: 'POST' }),
+  rejectTransferRequest: (id: string) =>
+    api<{ message: string }>(`/api/comercial/admin/transfer-requests/${id}/reject`, { method: 'POST' }),
 };

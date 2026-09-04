@@ -5666,6 +5666,89 @@ CREATE TABLE IF NOT EXISTS com_actor_price_lists (
 CREATE INDEX IF NOT EXISTS idx_com_actor_price_lists_actor ON com_actor_price_lists(actor_id);
 `;
 
+// Portal Comercial (Fase 2) — catálogo de produtos, clientes (PF/PJ) e
+// solicitação de transferência de carteira. Reaproveita price_lists/
+// price_list_items já existentes (online-quotes.js) — só ganha um FK
+// opcional para o novo catálogo mestre.
+const step74ComercialCatalogCustomers = `
+CREATE TABLE IF NOT EXISTS products (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  sku VARCHAR(100),
+  name VARCHAR(255) NOT NULL,
+  description TEXT,
+  category VARCHAR(255),
+  subcategory VARCHAR(255),
+  unit VARCHAR(20) DEFAULT 'un',
+  image_url TEXT,
+  status VARCHAR(20) NOT NULL DEFAULT 'active',    -- active | inactive
+  cost_price NUMERIC(15,2) DEFAULT 0,
+  base_price NUMERIC(15,2) DEFAULT 0,
+  specs JSONB DEFAULT '{}',                         -- potência, temperatura de cor, dimensão, modelo, garantia...
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_products_org ON products(organization_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_products_org_sku_unique ON products(organization_id, sku) WHERE sku IS NOT NULL AND sku <> '';
+
+DO $$ BEGIN
+  ALTER TABLE price_list_items ADD COLUMN product_id UUID REFERENCES products(id) ON DELETE SET NULL;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+CREATE TABLE IF NOT EXISTS com_customers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  owner_actor_id UUID REFERENCES com_actors(id) ON DELETE SET NULL,
+  type VARCHAR(2) NOT NULL DEFAULT 'pj',            -- pj | pf
+  company_name VARCHAR(255) NOT NULL,               -- razão social (pj) ou nome (pf)
+  trade_name VARCHAR(255),                          -- nome fantasia (pj)
+  cnpj VARCHAR(20),
+  cpf VARCHAR(20),
+  state_registration VARCHAR(50),
+  phone VARCHAR(40),
+  whatsapp VARCHAR(40),
+  email VARCHAR(200),
+  contact_name VARCHAR(200),
+  contact_role VARCHAR(100),
+  zip_code VARCHAR(20),
+  address VARCHAR(255),
+  address_number VARCHAR(50),
+  address_complement VARCHAR(120),
+  neighborhood VARCHAR(120),
+  city VARCHAR(120),
+  state VARCHAR(40),
+  status VARCHAR(20) NOT NULL DEFAULT 'active',
+  origin VARCHAR(100),
+  tags JSONB DEFAULT '[]',
+  notes TEXT,
+  price_list_id UUID REFERENCES price_lists(id) ON DELETE SET NULL,  -- override de tabela por cliente (item 9)
+  created_by UUID REFERENCES com_actors(id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES com_actors(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_com_customers_org ON com_customers(organization_id);
+CREATE INDEX IF NOT EXISTS idx_com_customers_owner ON com_customers(owner_actor_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_com_customers_cnpj_unique ON com_customers(organization_id, cnpj) WHERE cnpj IS NOT NULL AND cnpj <> '';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_com_customers_cpf_unique ON com_customers(organization_id, cpf) WHERE cpf IS NOT NULL AND cpf <> '';
+
+-- Solicitação de transferência/compartilhamento de cliente entre atores (fim do item 5)
+CREATE TABLE IF NOT EXISTS com_customer_transfer_requests (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  customer_id UUID NOT NULL REFERENCES com_customers(id) ON DELETE CASCADE,
+  requested_by_actor_id UUID NOT NULL REFERENCES com_actors(id) ON DELETE CASCADE,
+  target_actor_id UUID REFERENCES com_actors(id) ON DELETE SET NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'pending',    -- pending | approved | rejected
+  note TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  resolved_at TIMESTAMPTZ,
+  resolved_by_user_id UUID REFERENCES users(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_com_transfer_requests_customer ON com_customer_transfer_requests(customer_id);
+CREATE INDEX IF NOT EXISTS idx_com_transfer_requests_status ON com_customer_transfer_requests(status);
+`;
+
 
 
 
@@ -5880,6 +5963,7 @@ const migrationSteps = [
   { name: 'RH Punches & Employment', sql: step71RhPunches, critical: false },
   { name: 'Representatives Portal (Isolated)', sql: step72RepresentativesPortal, critical: false },
   { name: 'Portal Comercial (Core)', sql: step73ComercialPortalCore, critical: false },
+  { name: 'Portal Comercial (Catálogo & Clientes)', sql: step74ComercialCatalogCustomers, critical: false },
 ];
 
 

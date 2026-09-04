@@ -143,7 +143,11 @@ const ComercialLogin = lazyRetry(() => import("./pages/comercial/ComercialLogin"
 const ComercialEsqueciSenha = lazyRetry(() => import("./pages/comercial/ComercialEsqueciSenha"));
 const ComercialAtivarConta = lazyRetry(() => import("./pages/comercial/ComercialAtivarConta"));
 const ComercialDashboard = lazyRetry(() => import("./pages/comercial/ComercialDashboard"));
+const ComercialClientes = lazyRetry(() => import("./pages/comercial/ComercialClientes"));
+const ComercialCatalogo = lazyRetry(() => import("./pages/comercial/ComercialCatalogo"));
 const PortalComercialDashboard = lazyRetry(() => import("./pages/PortalComercialDashboard"));
+const PortalComercialClientes = lazyRetry(() => import("./pages/PortalComercialClientes"));
+const PortalComercialCatalogo = lazyRetry(() => import("./pages/PortalComercialCatalogo"));
 const AdminComercialPortal = lazyRetry(() => import("./pages/AdminComercialPortal"));
 
 
@@ -268,8 +272,12 @@ const App = () => (
               <Route path="/comercial/ativar-conta" element={<ComercialAtivarConta />} />
               <Route path="/comercial/definir-senha" element={<ComercialAtivarConta />} />
               <Route path="/comercial/dashboard" element={<ComercialDashboard />} />
+              <Route path="/comercial/clientes" element={<ComercialClientes />} />
+              <Route path="/comercial/catalogo" element={<ComercialCatalogo />} />
               {/* Portal Comercial — acesso interno, mesma conta do CRM, área restrita */}
               <Route path="/portal-comercial/dashboard" element={<ProtectedRoute permissionKey="can_access_comercial_portal"><PortalComercialDashboard /></ProtectedRoute>} />
+              <Route path="/portal-comercial/clientes" element={<ProtectedRoute permissionKey="can_access_comercial_portal"><PortalComercialClientes /></ProtectedRoute>} />
+              <Route path="/portal-comercial/catalogo" element={<ProtectedRoute permissionKey="can_access_comercial_portal"><PortalComercialCatalogo /></ProtectedRoute>} />
               <Route path="/admin/portal-comercial" element={<ProtectedRoute permissionKey="can_manage_comercial_portal"><AdminComercialPortal /></ProtectedRoute>} />
 
               <Route path="/crm/representantes-hub" element={<ProtectedRoute><RepresentativesHub /></ProtectedRoute>} />
