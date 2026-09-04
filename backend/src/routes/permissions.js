@@ -28,6 +28,8 @@ const PERMISSION_COLUMNS = [
   'can_view_minutas', 'can_view_team_commission', 'can_view_representative_dashboard',
   'can_view_all_representative_quotes', 'can_view_expenses', 'can_view_nfc',
   'can_manage_representative_config',
+  'can_manage_representatives_portal',
+  'can_access_comercial_portal', 'can_manage_comercial_portal',
 ];
 
 // Default permissions for each role

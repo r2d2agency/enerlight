@@ -72,6 +72,8 @@ import commissionRoutes from './routes/commission.js';
 import payrollRoutes from './routes/payroll.js';
 import onlineQuotesRoutes from './routes/online-quotes.js';
 import representativePortalRoutes from './routes/representative-portal.js';
+import representantesRoutes from './routes/representantes.js';
+import comercialRoutes from './routes/comercial.js';
 
 import { initDatabase } from './init-db.js';
 import { manualMigration } from './manual-migration.js';
@@ -323,6 +325,8 @@ app.use('/api/commission', commissionRoutes);
 app.use('/api/payroll', payrollRoutes);
 app.use('/api/online-quotes', onlineQuotesRoutes);
 app.use('/api/representative-portal', representativePortalRoutes);
+app.use('/api/representantes', representantesRoutes);
+app.use('/api/comercial', comercialRoutes);
 
 
 

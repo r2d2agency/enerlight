@@ -131,6 +131,21 @@ const EadCatalogs = lazyRetry(() => import("./pages/ead/EadCatalogs"));
 const EadCatalogView = lazyRetry(() => import("./pages/ead/EadCatalogView"));
 const EadAdminCatalogs = lazyRetry(() => import("./pages/ead/EadAdminCatalogs"));
 
+const RepPortalLogin = lazyRetry(() => import("./pages/representantes/RepresentanteLogin"));
+const RepPortalEsqueciSenha = lazyRetry(() => import("./pages/representantes/RepresentanteEsqueciSenha"));
+const RepPortalAtivarConta = lazyRetry(() => import("./pages/representantes/RepresentanteAtivarConta"));
+const RepPortalDashboard = lazyRetry(() => import("./pages/representantes/RepresentanteDashboard"));
+const RepPortalEmpresas = lazyRetry(() => import("./pages/representantes/RepresentanteEmpresas"));
+const RepPortalPedidos = lazyRetry(() => import("./pages/representantes/RepresentantePedidos"));
+const AdminRepresentantesPortal = lazyRetry(() => import("./pages/AdminRepresentantesPortal"));
+
+const ComercialLogin = lazyRetry(() => import("./pages/comercial/ComercialLogin"));
+const ComercialEsqueciSenha = lazyRetry(() => import("./pages/comercial/ComercialEsqueciSenha"));
+const ComercialAtivarConta = lazyRetry(() => import("./pages/comercial/ComercialAtivarConta"));
+const ComercialDashboard = lazyRetry(() => import("./pages/comercial/ComercialDashboard"));
+const PortalComercialDashboard = lazyRetry(() => import("./pages/PortalComercialDashboard"));
+const AdminComercialPortal = lazyRetry(() => import("./pages/AdminComercialPortal"));
+
 
 
 const queryClient = new QueryClient();
@@ -236,6 +251,26 @@ const App = () => (
               <Route path="/crm/representantes" element={<ProtectedRoute permissionKey="can_view_representatives"><CRMRepresentantes /></ProtectedRoute>} />
               <Route path="/crm/representantes/config" element={<ProtectedRoute permissionKey="can_manage_representative_config"><RepresentativeConfig /></ProtectedRoute>} />
               <Route path="/crm/representantes/admin" element={<ProtectedRoute permissionKey="can_manage_representative_config"><AdminRepresentativeConfig /></ProtectedRoute>} />
+
+              {/* Portal de Representantes isolado (rp_*) — login, dados e dashboard próprios, fora do app principal */}
+              <Route path="/representantes/login" element={<RepPortalLogin />} />
+              <Route path="/representantes/esqueci-senha" element={<RepPortalEsqueciSenha />} />
+              <Route path="/representantes/ativar-conta" element={<RepPortalAtivarConta />} />
+              <Route path="/representantes/definir-senha" element={<RepPortalAtivarConta />} />
+              <Route path="/representantes/dashboard" element={<RepPortalDashboard />} />
+              <Route path="/representantes/empresas" element={<RepPortalEmpresas />} />
+              <Route path="/representantes/pedidos" element={<RepPortalPedidos />} />
+              <Route path="/admin/representantes-portal" element={<ProtectedRoute permissionKey="can_manage_representatives_portal"><AdminRepresentantesPortal /></ProtectedRoute>} />
+
+              {/* Portal Comercial — login isolado (externo: representantes/parceiros) fora do app principal */}
+              <Route path="/comercial/login" element={<ComercialLogin />} />
+              <Route path="/comercial/esqueci-senha" element={<ComercialEsqueciSenha />} />
+              <Route path="/comercial/ativar-conta" element={<ComercialAtivarConta />} />
+              <Route path="/comercial/definir-senha" element={<ComercialAtivarConta />} />
+              <Route path="/comercial/dashboard" element={<ComercialDashboard />} />
+              {/* Portal Comercial — acesso interno, mesma conta do CRM, área restrita */}
+              <Route path="/portal-comercial/dashboard" element={<ProtectedRoute permissionKey="can_access_comercial_portal"><PortalComercialDashboard /></ProtectedRoute>} />
+              <Route path="/admin/portal-comercial" element={<ProtectedRoute permissionKey="can_manage_comercial_portal"><AdminComercialPortal /></ProtectedRoute>} />
 
               <Route path="/crm/representantes-hub" element={<ProtectedRoute><RepresentativesHub /></ProtectedRoute>} />
               <Route path="/supervisor-ia" element={<ProtectedRoute><SupervisorIA /></ProtectedRoute>} />

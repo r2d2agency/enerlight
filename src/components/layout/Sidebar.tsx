@@ -231,6 +231,30 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
     ],
   },
   {
+    title: "Portal de Representantes",
+    icon: Users,
+    permissionKey: 'can_manage_representatives_portal',
+    items: [
+      { name: "Gestão de Acesso", href: "/admin/representantes-portal", icon: Users, permissionKey: 'can_manage_representatives_portal' },
+    ],
+  },
+  {
+    title: "Portal Comercial",
+    icon: Briefcase,
+    permissionKey: 'can_manage_comercial_portal',
+    items: [
+      { name: "Usuários e Equipes", href: "/admin/portal-comercial", icon: Briefcase, permissionKey: 'can_manage_comercial_portal' },
+    ],
+  },
+  {
+    title: "Meu Portal Comercial",
+    icon: Briefcase,
+    permissionKey: 'can_access_comercial_portal',
+    items: [
+      { name: "Dashboard", href: "/portal-comercial/dashboard", icon: Briefcase, permissionKey: 'can_access_comercial_portal' },
+    ],
+  },
+  {
     title: "Prestação de Contas",
     icon: Wallet,
     permissionKey: 'can_view_expenses',

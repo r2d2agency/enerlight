@@ -94,6 +94,9 @@ export interface UserPermissions {
   can_view_expenses?: boolean;
   can_view_nfc?: boolean;
   can_manage_representative_config?: boolean;
+  can_manage_representatives_portal?: boolean;
+  can_access_comercial_portal?: boolean;
+  can_manage_comercial_portal?: boolean;
 }
 
 

@@ -5539,6 +5539,133 @@ GRANT SELECT, INSERT ON rh_punch_audit TO authenticated;
 GRANT ALL ON rh_punch_audit TO service_role;
 `;
 
+// Portal de Representantes isolado (rp_*) — NÃO reaproveita crm_representatives/rep_portal_*
+const step72RepresentativesPortal = `
+CREATE TABLE IF NOT EXISTS rp_representatives (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  name VARCHAR(200) NOT NULL,
+  email VARCHAR(200) NOT NULL,
+  phone VARCHAR(40),
+  password_hash TEXT,
+  status VARCHAR(20) NOT NULL DEFAULT 'pending',
+  invite_token_hash TEXT,
+  invite_token_expires_at TIMESTAMPTZ,
+  invite_token_purpose VARCHAR(20),
+  invited_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  invited_at TIMESTAMPTZ,
+  activated_at TIMESTAMPTZ,
+  last_login_at TIMESTAMPTZ,
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT rp_representatives_email_org_unique UNIQUE (organization_id, email)
+);
+CREATE INDEX IF NOT EXISTS idx_rp_representatives_org ON rp_representatives(organization_id);
+CREATE INDEX IF NOT EXISTS idx_rp_representatives_email ON rp_representatives(lower(email));
+CREATE INDEX IF NOT EXISTS idx_rp_representatives_invite_token ON rp_representatives(invite_token_hash) WHERE invite_token_hash IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS rp_companies (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  representative_id UUID NOT NULL REFERENCES rp_representatives(id) ON DELETE CASCADE,
+  name VARCHAR(200) NOT NULL,
+  document VARCHAR(20),
+  email VARCHAR(200),
+  phone VARCHAR(40),
+  city VARCHAR(120),
+  state VARCHAR(40),
+  notes TEXT,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_rp_companies_rep ON rp_companies(representative_id);
+
+CREATE TABLE IF NOT EXISTS rp_orders (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  representative_id UUID NOT NULL REFERENCES rp_representatives(id) ON DELETE CASCADE,
+  company_id UUID NOT NULL REFERENCES rp_companies(id) ON DELETE RESTRICT,
+  order_number VARCHAR(60),
+  status VARCHAR(20) NOT NULL DEFAULT 'draft',
+  total_amount NUMERIC(14,2) NOT NULL DEFAULT 0,
+  order_date DATE NOT NULL DEFAULT CURRENT_DATE,
+  notes TEXT,
+  items JSONB NOT NULL DEFAULT '[]',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_rp_orders_rep ON rp_orders(representative_id);
+CREATE INDEX IF NOT EXISTS idx_rp_orders_company ON rp_orders(company_id);
+CREATE INDEX IF NOT EXISTS idx_rp_orders_date ON rp_orders(order_date);
+`;
+
+// Portal Comercial (com_*) — módulo unificado que fundirá rp_* (login isolado)
+// e representative-portal.js/rep_portal_* (dados reais, migração faseada).
+// com_actors: um registro por pessoa que atua no portal — interna (user_id
+// aponta para users, sem senha própria) ou externa (password_hash próprio,
+// mesmo fluxo de convite/ativação já usado em rp_representatives).
+const step73ComercialPortalCore = `
+CREATE TABLE IF NOT EXISTS com_teams (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  name VARCHAR(200) NOT NULL,
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT com_teams_org_name_unique UNIQUE (organization_id, name)
+);
+CREATE INDEX IF NOT EXISTS idx_com_teams_org ON com_teams(organization_id);
+
+CREATE TABLE IF NOT EXISTS com_actors (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,        -- interno: reaproveita login do CRM
+  name VARCHAR(200) NOT NULL,
+  email VARCHAR(200) NOT NULL,
+  phone VARCHAR(40),
+  password_hash TEXT,                                          -- externo: NULL até ativar via link de convite
+  profile VARCHAR(20) NOT NULL DEFAULT 'vendedor',              -- admin | gerente | vendedor | parceiro
+  team_id UUID REFERENCES com_teams(id) ON DELETE SET NULL,
+  default_price_list_id UUID REFERENCES price_lists(id) ON DELETE SET NULL,
+  max_discount_percent NUMERIC(5,2),
+  can_view_costs BOOLEAN NOT NULL DEFAULT false,
+  can_view_margin BOOLEAN NOT NULL DEFAULT false,
+  can_edit_price_manually BOOLEAN NOT NULL DEFAULT false,
+  status VARCHAR(20) NOT NULL DEFAULT 'pending',                -- pending | active | blocked
+  invite_token_hash TEXT,
+  invite_token_expires_at TIMESTAMPTZ,
+  invite_token_purpose VARCHAR(20),                             -- 'invite' | 'reset'
+  invited_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  invited_at TIMESTAMPTZ,
+  activated_at TIMESTAMPTZ,
+  last_login_at TIMESTAMPTZ,
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT com_actors_org_email_unique UNIQUE (organization_id, email)
+);
+CREATE INDEX IF NOT EXISTS idx_com_actors_org ON com_actors(organization_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_com_actors_user_unique ON com_actors(user_id) WHERE user_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_com_actors_email ON com_actors(lower(email));
+CREATE INDEX IF NOT EXISTS idx_com_actors_team ON com_actors(team_id);
+CREATE INDEX IF NOT EXISTS idx_com_actors_invite_token ON com_actors(invite_token_hash) WHERE invite_token_hash IS NOT NULL;
+
+DO $$ BEGIN
+  ALTER TABLE com_teams ADD COLUMN manager_actor_id UUID REFERENCES com_actors(id) ON DELETE SET NULL;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+-- Vínculo vendedor/representante × tabela de preço autorizada (item 8 do módulo comercial)
+CREATE TABLE IF NOT EXISTS com_actor_price_lists (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  actor_id UUID NOT NULL REFERENCES com_actors(id) ON DELETE CASCADE,
+  price_list_id UUID NOT NULL REFERENCES price_lists(id) ON DELETE CASCADE,
+  is_default BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT com_actor_price_lists_unique UNIQUE (actor_id, price_list_id)
+);
+CREATE INDEX IF NOT EXISTS idx_com_actor_price_lists_actor ON com_actor_price_lists(actor_id);
+`;
+
 
 
 
@@ -5751,6 +5878,8 @@ const migrationSteps = [
   { name: 'Devoluções (RMA)', sql: step69Devolucoes, critical: false },
   { name: 'EAD (Cursos & Certificados)', sql: step70EAD, critical: false },
   { name: 'RH Punches & Employment', sql: step71RhPunches, critical: false },
+  { name: 'Representatives Portal (Isolated)', sql: step72RepresentativesPortal, critical: false },
+  { name: 'Portal Comercial (Core)', sql: step73ComercialPortalCore, critical: false },
 ];
 
 
