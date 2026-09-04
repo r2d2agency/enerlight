@@ -40,6 +40,16 @@ const SESSION_PERMISSION_PREFIXES = ['can_view_', 'can_edit_', 'can_delete_', 'c
 function buildSessionPermissions(row, role) {
   const roleDefaults = role ? (ROLE_DEFAULTS[role] || ROLE_DEFAULTS.agent) : null;
 
+  // owner/admin sempre têm todas as permissões (ROLE_DEFAULTS já é tudo `true`
+  // para esses papéis) — nunca mesclar com a linha salva. Uma coluna de
+  // permissão nova nasce `false` no banco (ALTER ... DEFAULT false) para
+  // qualquer usuário que já tinha uma linha customizada, e `row[key] ?? x`
+  // não cai para o default quando o valor salvo já é `false` (não é
+  // null/undefined) — isso escondia recursos novos até de quem é dono/admin.
+  if (role === 'owner' || role === 'admin') {
+    return roleDefaults;
+  }
+
   if (row) {
     const permissions = {};
     const permissionKeys = new Set([

@@ -74,8 +74,8 @@ export default function ComercialCatalogoView({ listCatalog, listMyPriceLists }:
                   <TableHead>SKU</TableHead>
                   <TableHead>Produto</TableHead>
                   <TableHead>Categoria</TableHead>
-                  <TableHead>Unidade</TableHead>
-                  <TableHead className="text-right">Preço base</TableHead>
+                  <TableHead>Tabela</TableHead>
+                  <TableHead className="text-right">Preço</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -89,7 +89,7 @@ export default function ComercialCatalogoView({ listCatalog, listMyPriceLists }:
                     <TableCell className="text-sm text-muted-foreground">
                       {[p.category, p.subcategory].filter(Boolean).join(' / ') || '—'}
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{p.unit}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{p.price_list_name || '—'}</TableCell>
                     <TableCell className="text-right font-medium">{formatCurrency(p.base_price)}</TableCell>
                   </TableRow>
                 ))}

@@ -140,9 +140,27 @@ async function ensurePermissionColumns() {
           throw new Error(`Nome de coluna de permissão inválido: ${column}`);
         }
 
+        const existsCheck = await query(
+          `SELECT 1 FROM information_schema.columns WHERE table_name = 'user_permissions' AND column_name = $1`,
+          [column]
+        );
+        const isNewColumn = existsCheck.rows.length === 0;
+
         await query(
           `ALTER TABLE user_permissions ADD COLUMN IF NOT EXISTS ${column} BOOLEAN DEFAULT false`
         );
+
+        if (isNewColumn) {
+          // Coluna recém-criada nasce `false` para linhas já existentes —
+          // sem isso, owner/admin com permissões customizadas perdem acesso
+          // a um recurso novo até alguém reabrir a tela de permissões deles.
+          await query(
+            `UPDATE user_permissions up SET ${column} = true
+             FROM organization_members om
+             WHERE om.user_id = up.user_id AND om.organization_id = up.organization_id
+               AND om.role IN ('owner', 'admin')`
+          );
+        }
       }
 
       return true;

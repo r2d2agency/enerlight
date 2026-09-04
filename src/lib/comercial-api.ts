@@ -72,6 +72,8 @@ export interface ComercialCatalogProduct {
   image_url?: string | null;
   base_price: number;
   specs?: Record<string, unknown>;
+  price_list_id?: string;
+  price_list_name?: string;
 }
 
 export interface ComercialMyPriceList {
@@ -333,7 +335,8 @@ export const comercialExternalApi = {
   getQuote: (id: string) => call<ComercialQuoteDetail>(`/api/comercial/orcamentos/${id}`),
   updateQuote: (id: string, body: Partial<ComercialQuote>) =>
     call<{ quote: ComercialQuote }>(`/api/comercial/orcamentos/${id}`, { method: 'PUT', body }),
-  addQuoteItem: (id: string, body: { product_id: string; quantity: number; discount_percent?: number }) =>
+  listQuoteProducts: (id: string) => call<{ products: ComercialCatalogProduct[] }>(`/api/comercial/orcamentos/${id}/produtos-disponiveis`),
+  addQuoteItem: (id: string, body: { price_list_item_id: string; quantity: number; discount_percent?: number }) =>
     call<{ item: ComercialQuoteItem; quote: ComercialQuote }>(`/api/comercial/orcamentos/${id}/itens`, { method: 'POST', body }),
   updateQuoteItem: (id: string, itemId: string, body: { quantity?: number; discount_percent?: number }) =>
     call<{ item: ComercialQuoteItem; quote: ComercialQuote }>(`/api/comercial/orcamentos/${id}/itens/${itemId}`, { method: 'PUT', body }),
@@ -384,7 +387,8 @@ export const comercialInternalApi = {
   getQuote: (id: string) => api<ComercialQuoteDetail>(`/api/comercial/interno/orcamentos/${id}`),
   updateQuote: (id: string, body: Partial<ComercialQuote>) =>
     api<{ quote: ComercialQuote }>(`/api/comercial/interno/orcamentos/${id}`, { method: 'PUT', body }),
-  addQuoteItem: (id: string, body: { product_id: string; quantity: number; discount_percent?: number }) =>
+  listQuoteProducts: (id: string) => api<{ products: ComercialCatalogProduct[] }>(`/api/comercial/interno/orcamentos/${id}/produtos-disponiveis`),
+  addQuoteItem: (id: string, body: { price_list_item_id: string; quantity: number; discount_percent?: number }) =>
     api<{ item: ComercialQuoteItem; quote: ComercialQuote }>(`/api/comercial/interno/orcamentos/${id}/itens`, { method: 'POST', body }),
   updateQuoteItem: (id: string, itemId: string, body: { quantity?: number; discount_percent?: number }) =>
     api<{ item: ComercialQuoteItem; quote: ComercialQuote }>(`/api/comercial/interno/orcamentos/${id}/itens/${itemId}`, { method: 'PUT', body }),

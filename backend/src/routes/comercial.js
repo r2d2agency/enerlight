@@ -305,17 +305,69 @@ async function requestCustomerTransferHandler(req, res) {
   }
 }
 
+// Catálogo visível ao ator = itens das tabelas de preço às quais ele tem
+// acesso (não a tabela `products`, que é só um cadastro auxiliar do admin —
+// o que realmente é vendável é o que está numa tabela de preço).
+async function getAccessiblePriceListIds(actor) {
+  if (actor.profile === 'admin') {
+    const all = await query('SELECT id FROM price_lists WHERE organization_id = $1 AND is_active = true', [actor.organization_id]);
+    return all.rows.map((r) => r.id);
+  }
+  const access = await query(
+    `SELECT apl.price_list_id FROM com_actor_price_lists apl
+     JOIN price_lists pl ON pl.id = apl.price_list_id
+     WHERE apl.actor_id = $1 AND pl.is_active = true`,
+    [actor.id]
+  );
+  return access.rows.map((r) => r.price_list_id);
+}
+
 async function listCatalogHandler(req, res) {
   try {
+    const listIds = await getAccessiblePriceListIds(req.actor);
+    if (listIds.length === 0) return res.json({ products: [] });
+
     const result = await query(
-      `SELECT id, sku, name, description, category, subcategory, unit, image_url, base_price, specs
-       FROM products WHERE organization_id = $1 AND status = 'active' ORDER BY name ASC`,
-      [req.actor.organization_id]
+      `SELECT pli.id, pli.product_code as sku, pli.product_name as name, pli.description, pli.category,
+              pli.subcategory, pli.unit, pli.image_url, pli.sale_price as base_price,
+              pli.price_list_id, pl.name as price_list_name
+       FROM price_list_items pli
+       JOIN price_lists pl ON pl.id = pli.price_list_id
+       WHERE pli.price_list_id = ANY($1)
+       ORDER BY pli.product_name ASC`,
+      [listIds]
     );
     res.json({ products: result.rows });
   } catch (error) {
     console.error('[comercial] list catalog error:', error);
     res.status(500).json({ error: 'Erro ao carregar catálogo' });
+  }
+}
+
+// Produtos disponíveis para adicionar a UM orçamento específico — vêm da
+// tabela de preço que o orçamento está usando (preço já é o daquela tabela).
+async function listQuoteAvailableProductsHandler(req, res) {
+  try {
+    const params = [];
+    const scope = quoteScope(req.actor, params);
+    params.push(req.params.id);
+    const quoteResult = await query(
+      `SELECT q.price_list_id FROM online_quotes q WHERE ${scope.where} AND q.id = $${params.length}`,
+      params
+    );
+    if (quoteResult.rows.length === 0) return res.status(404).json({ error: 'Orçamento não encontrado' });
+    const priceListId = quoteResult.rows[0].price_list_id;
+    if (!priceListId) return res.json({ products: [] });
+
+    const result = await query(
+      `SELECT id, product_code as sku, product_name as name, description, category, subcategory, unit, image_url, sale_price as base_price
+       FROM price_list_items WHERE price_list_id = $1 ORDER BY product_name ASC`,
+      [priceListId]
+    );
+    res.json({ products: result.rows });
+  } catch (error) {
+    console.error('[comercial] list quote products error:', error);
+    res.status(500).json({ error: 'Erro ao carregar produtos da tabela de preço' });
   }
 }
 
@@ -564,37 +616,30 @@ async function addQuoteItemHandler(req, res) {
     if (!canEdit) return res.status(403).json({ error: 'Você só pode editar seus próprios orçamentos' });
     if (QUOTE_LOCKED_STATUSES.includes(quote.status)) return res.status(400).json({ error: 'Este orçamento não pode mais ser editado' });
 
-    const { product_id, quantity, discount_percent } = req.body || {};
-    if (!product_id || !quantity || Number(quantity) <= 0) {
+    const { price_list_item_id, quantity, discount_percent } = req.body || {};
+    if (!price_list_item_id || !quantity || Number(quantity) <= 0) {
       return res.status(400).json({ error: 'Produto e quantidade são obrigatórios' });
     }
     const discount = Math.min(Math.max(Number(discount_percent) || 0, 0), 100);
 
-    // Preço vem da tabela de preço do orçamento; se o produto ainda não foi
-    // vinculado a nenhuma tabela, usa o preço base do catálogo como fallback.
-    let name, code, description, unitPrice, costPrice, imageUrl;
+    // O preço é sempre o da própria tabela de preço do orçamento — o item
+    // escolhido precisa pertencer a ela.
     const pli = await query(
-      'SELECT * FROM price_list_items WHERE price_list_id = $1 AND product_id = $2',
-      [quote.price_list_id, product_id]
+      'SELECT * FROM price_list_items WHERE id = $1 AND price_list_id = $2',
+      [price_list_item_id, quote.price_list_id]
     );
-    if (pli.rows.length > 0) {
-      const r = pli.rows[0];
-      name = r.product_name; code = r.product_code; description = r.description;
-      unitPrice = Number(r.sale_price); costPrice = Number(r.cost_price); imageUrl = r.image_url;
-    } else {
-      const pr = await query('SELECT * FROM products WHERE id = $1 AND organization_id = $2', [product_id, req.actor.organization_id]);
-      if (pr.rows.length === 0) return res.status(404).json({ error: 'Produto não encontrado' });
-      const p = pr.rows[0];
-      name = p.name; code = p.sku; description = p.description;
-      unitPrice = Number(p.base_price); costPrice = Number(p.cost_price); imageUrl = p.image_url;
-    }
+    if (pli.rows.length === 0) return res.status(404).json({ error: 'Produto não encontrado nesta tabela de preço' });
+    const r = pli.rows[0];
+    const productId = r.product_id;
+    const name = r.product_name, code = r.product_code, description = r.description;
+    const unitPrice = Number(r.sale_price), costPrice = Number(r.cost_price) || 0, imageUrl = r.image_url;
 
     const totalPrice = Math.round(Number(quantity) * unitPrice * (1 - discount / 100) * 100) / 100;
     const insert = await query(
       `INSERT INTO online_quote_items
          (quote_id, product_id, product_code, product_name, description, quantity, unit_price, cost_price, total_price, discount_percent, image_url)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
-      [quote.id, product_id, code, name, description, quantity, unitPrice, costPrice, totalPrice, discount, imageUrl]
+      [quote.id, productId, code, name, description, quantity, unitPrice, costPrice, totalPrice, discount, imageUrl]
     );
     await recalculateQuoteTotals(quote.id);
     const updatedQuote = await query('SELECT * FROM online_quotes WHERE id = $1', [quote.id]);
@@ -1252,6 +1297,7 @@ router.get('/orcamentos', externalActorAuth, listQuotesHandler);
 router.post('/orcamentos', externalActorAuth, createQuoteHandler);
 router.get('/orcamentos/:id', externalActorAuth, getQuoteHandler);
 router.put('/orcamentos/:id', externalActorAuth, updateQuoteHandler);
+router.get('/orcamentos/:id/produtos-disponiveis', externalActorAuth, listQuoteAvailableProductsHandler);
 router.post('/orcamentos/:id/itens', externalActorAuth, addQuoteItemHandler);
 router.put('/orcamentos/:id/itens/:itemId', externalActorAuth, updateQuoteItemHandler);
 router.delete('/orcamentos/:id/itens/:itemId', externalActorAuth, deleteQuoteItemHandler);
@@ -1338,6 +1384,7 @@ internalRouter.get('/orcamentos', listQuotesHandler);
 internalRouter.post('/orcamentos', createQuoteHandler);
 internalRouter.get('/orcamentos/:id', getQuoteHandler);
 internalRouter.put('/orcamentos/:id', updateQuoteHandler);
+internalRouter.get('/orcamentos/:id/produtos-disponiveis', listQuoteAvailableProductsHandler);
 internalRouter.post('/orcamentos/:id/itens', addQuoteItemHandler);
 internalRouter.put('/orcamentos/:id/itens/:itemId', updateQuoteItemHandler);
 internalRouter.delete('/orcamentos/:id/itens/:itemId', deleteQuoteItemHandler);

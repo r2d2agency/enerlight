@@ -20,12 +20,12 @@ import { Loader2, ArrowLeft, Plus, Trash2, Send, Copy, Download, ShoppingCart } 
 interface QuoteApiBundle {
   getQuote: (id: string) => Promise<ComercialQuoteDetail>;
   updateQuote: (id: string, body: Partial<ComercialQuote>) => Promise<{ quote: ComercialQuote }>;
-  addQuoteItem: (id: string, body: { product_id: string; quantity: number; discount_percent?: number }) => Promise<{ item: ComercialQuoteItem; quote: ComercialQuote }>;
+  addQuoteItem: (id: string, body: { price_list_item_id: string; quantity: number; discount_percent?: number }) => Promise<{ item: ComercialQuoteItem; quote: ComercialQuote }>;
   updateQuoteItem: (id: string, itemId: string, body: { quantity?: number; discount_percent?: number }) => Promise<{ item: ComercialQuoteItem; quote: ComercialQuote }>;
   deleteQuoteItem: (id: string, itemId: string) => Promise<{ message: string }>;
   sendQuote: (id: string) => Promise<{ message: string; status: string; public_token?: string }>;
   convertQuoteToSale: (id: string) => Promise<{ sale: ComercialSale }>;
-  listCatalog: () => Promise<{ products: ComercialCatalogProduct[] }>;
+  listQuoteProducts: (id: string) => Promise<{ products: ComercialCatalogProduct[] }>;
 }
 
 interface Props {
@@ -117,8 +117,8 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
   const openItemDialog = () => {
     setItemForm({ product_id: '', quantity: '1', discount_percent: '0' });
     setItemDialogOpen(true);
-    if (products.length === 0) {
-      api.listCatalog().then((res) => setProducts(res.products)).catch(() => {});
+    if (id && products.length === 0) {
+      api.listQuoteProducts(id).then((res) => setProducts(res.products)).catch(() => {});
     }
   };
 
@@ -130,7 +130,7 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
     setSavingItem(true);
     try {
       await api.addQuoteItem(id, {
-        product_id: itemForm.product_id,
+        price_list_item_id: itemForm.product_id,
         quantity: Number(itemForm.quantity) || 1,
         discount_percent: Number(itemForm.discount_percent) || 0,
       });
@@ -225,46 +225,50 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="sm" onClick={() => navigate(basePath)}>
+    <div className="space-y-4 pb-8">
+      <div className="flex items-center justify-between gap-3">
+        <Button variant="ghost" size="sm" onClick={() => navigate(basePath)} className="-ml-2">
           <ArrowLeft className="h-4 w-4 mr-1" />
           Voltar
         </Button>
+        <Badge variant={cfg.variant} className="sm:hidden">{cfg.label}</Badge>
       </div>
 
       <div className="flex items-start justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-xl font-semibold">{quote.quote_number || 'Orçamento'}</h1>
-          <p className="text-sm text-muted-foreground">{quote.client_name}</p>
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-xl font-semibold truncate">{quote.quote_number || 'Orçamento'}</h1>
+            <Badge variant={cfg.variant} className="hidden sm:inline-flex">{cfg.label}</Badge>
+          </div>
+          <p className="text-sm text-muted-foreground truncate">{quote.client_name}</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Badge variant={cfg.variant}>{cfg.label}</Badge>
-          {items.length > 0 && (
-            <Button variant="outline" size="sm" onClick={handleDownloadPdf}>
-              <Download className="h-4 w-4 mr-1" />
-              Baixar PDF
-            </Button>
-          )}
-          {quote.public_token && (
-            <Button variant="outline" size="sm" onClick={handleCopyLink}>
-              <Copy className="h-4 w-4 mr-1" />
-              Copiar link
-            </Button>
-          )}
-          {editable && (
-            <Button size="sm" onClick={handleSend} disabled={sending}>
-              {sending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Send className="h-4 w-4 mr-1" />}
-              Enviar orçamento
-            </Button>
-          )}
-          {CONVERTIBLE_STATUSES.includes(quote.status) && (
-            <Button size="sm" onClick={handleConvert} disabled={converting}>
-              {converting ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <ShoppingCart className="h-4 w-4 mr-1" />}
-              Converter em venda
-            </Button>
-          )}
-        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2 border-y py-3 -mx-1 px-1 sm:border-none sm:py-0 sm:mx-0 sm:px-0">
+        {items.length > 0 && (
+          <Button variant="outline" size="sm" onClick={handleDownloadPdf} className="flex-1 sm:flex-none min-w-[9rem] sm:min-w-0">
+            <Download className="h-4 w-4 mr-1" />
+            Baixar PDF
+          </Button>
+        )}
+        {quote.public_token && (
+          <Button variant="outline" size="sm" onClick={handleCopyLink} className="flex-1 sm:flex-none min-w-[9rem] sm:min-w-0">
+            <Copy className="h-4 w-4 mr-1" />
+            Copiar link
+          </Button>
+        )}
+        {editable && (
+          <Button size="sm" onClick={handleSend} disabled={sending} className="flex-1 sm:flex-none min-w-[9rem] sm:min-w-0">
+            {sending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Send className="h-4 w-4 mr-1" />}
+            Enviar orçamento
+          </Button>
+        )}
+        {CONVERTIBLE_STATUSES.includes(quote.status) && (
+          <Button size="sm" onClick={handleConvert} disabled={converting} className="flex-1 sm:flex-none min-w-[9rem] sm:min-w-0">
+            {converting ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <ShoppingCart className="h-4 w-4 mr-1" />}
+            Converter em venda
+          </Button>
+        )}
       </div>
 
       <div className="grid md:grid-cols-3 gap-4">
@@ -326,36 +330,38 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
               {items.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-8">Nenhum item adicionado ainda.</p>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Produto</TableHead>
-                      <TableHead className="text-right">Qtd</TableHead>
-                      <TableHead className="text-right">Unitário</TableHead>
-                      <TableHead className="text-right">Desc.</TableHead>
-                      <TableHead className="text-right">Total</TableHead>
-                      {editable && <TableHead />}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {items.map((item) => (
-                      <TableRow key={item.id}>
-                        <TableCell className="font-medium">{item.product_name}</TableCell>
-                        <TableCell className="text-right">{item.quantity}</TableCell>
-                        <TableCell className="text-right">{formatCurrency(item.unit_price)}</TableCell>
-                        <TableCell className="text-right">{item.discount_percent}%</TableCell>
-                        <TableCell className="text-right font-medium">{formatCurrency(item.total_price)}</TableCell>
-                        {editable && (
-                          <TableCell>
-                            <Button variant="ghost" size="sm" onClick={() => handleRemoveItem(item.id)}>
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </TableCell>
-                        )}
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="min-w-[160px]">Produto</TableHead>
+                        <TableHead className="text-right">Qtd</TableHead>
+                        <TableHead className="text-right">Unitário</TableHead>
+                        <TableHead className="text-right">Desc.</TableHead>
+                        <TableHead className="text-right">Total</TableHead>
+                        {editable && <TableHead />}
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {items.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell className="font-medium">{item.product_name}</TableCell>
+                          <TableCell className="text-right">{item.quantity}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(item.unit_price)}</TableCell>
+                          <TableCell className="text-right">{item.discount_percent}%</TableCell>
+                          <TableCell className="text-right font-medium">{formatCurrency(item.total_price)}</TableCell>
+                          {editable && (
+                            <TableCell>
+                              <Button variant="ghost" size="sm" onClick={() => handleRemoveItem(item.id)}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -365,7 +371,7 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
               <CardTitle className="text-base">Informações comerciais</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label>Condição de pagamento</Label>
                   <Input disabled={!editable} value={form.payment_terms} onChange={(e) => setForm({ ...form, payment_terms: e.target.value })} placeholder="Ex: 30/60/90 dias" />
@@ -375,7 +381,7 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, salesBas
                   <Input disabled={!editable} value={form.delivery_time} onChange={(e) => setForm({ ...form, delivery_time: e.target.value })} placeholder="Ex: 15 dias úteis" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label>Validade da proposta</Label>
                   <Input disabled={!editable} type="date" value={form.valid_until} onChange={(e) => setForm({ ...form, valid_until: e.target.value })} />
