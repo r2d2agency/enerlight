@@ -297,6 +297,43 @@ export interface ComercialSale {
   created_at: string;
 }
 
+export interface ComercialDashboardFunnelStage {
+  id: string;
+  name: string;
+  count: number;
+  value: number;
+}
+
+export interface ComercialDashboardActivity {
+  id: string;
+  label: string;
+  type: 'cliente_cadastrado' | 'orcamento_criado' | 'venda_registrada';
+  created_at: string;
+}
+
+export interface ComercialDashboard {
+  sales_this_month: { count: number; total: number };
+  quotes: { sent_count: number; awaiting_count: number; converted_count: number; conversion_rate: number };
+  customers: { active_count: number; new_this_month: number };
+  opportunities_open: number;
+  quotes_near_expiry: Array<{ id: string; quote_number?: string | null; client_name: string; valid_until: string; total_value: number }>;
+  funnel: ComercialDashboardFunnelStage[];
+  recent_activity: ComercialDashboardActivity[];
+}
+
+export interface ComercialMyCommission {
+  id: string;
+  sale_id: string;
+  sale_number?: string | null;
+  sale_date?: string;
+  client_name?: string;
+  base_value: number;
+  percent_applied: number;
+  amount: number;
+  status: 'previsto' | 'liberado' | 'pago';
+  created_at: string;
+}
+
 // Portal externo — login isolado, fora do app principal (sem AuthContext)
 export const comercialExternalApi = {
   login: (email: string, password: string) =>
@@ -357,6 +394,9 @@ export const comercialExternalApi = {
 
   listSales: () => call<{ sales: ComercialSaleListItem[] }>('/api/comercial/vendas'),
   getSale: (id: string) => call<{ sale: ComercialSale; items: ComercialSaleItem[] }>(`/api/comercial/vendas/${id}`),
+
+  getDashboard: () => call<ComercialDashboard>('/api/comercial/dashboard'),
+  listMyCommissions: () => call<{ commissions: ComercialMyCommission[] }>('/api/comercial/comissoes/minhas'),
 };
 
 // Proposta pública — sem autenticação, acessada pelo cliente final via link
@@ -409,6 +449,9 @@ export const comercialInternalApi = {
 
   listSales: () => api<{ sales: ComercialSaleListItem[] }>('/api/comercial/interno/vendas'),
   getSale: (id: string) => api<{ sale: ComercialSale; items: ComercialSaleItem[] }>(`/api/comercial/interno/vendas/${id}`),
+
+  getDashboard: () => api<ComercialDashboard>('/api/comercial/interno/dashboard'),
+  listMyCommissions: () => api<{ commissions: ComercialMyCommission[] }>('/api/comercial/interno/comissoes/minhas'),
 };
 
 export interface ComercialAdminActor {
@@ -514,6 +557,46 @@ export interface ComercialImportResult {
   not_found: Array<{ sku: string; reason: string }>;
 }
 
+export interface ComercialAdminDashboard {
+  period: { date_from: string; date_to: string };
+  revenue: number;
+  sales_count: number;
+  avg_ticket: number;
+  quotes_emitted: number;
+  conversion_rate: number;
+  active_vendors: number;
+  new_customers: number;
+  by_actor: Array<{ id: string; name: string; count: number; total: number }>;
+  by_price_list: Array<{ id: string | null; name: string | null; count: number; total: number }>;
+  by_region: Array<{ state: string; count: number; total: number }>;
+  by_product: Array<{ product_name: string; quantity: number; total: number }>;
+  funnel: ComercialDashboardFunnelStage[];
+}
+
+export interface ComercialCommissionRule {
+  id: string;
+  actor_id?: string | null;
+  actor_name?: string | null;
+  price_list_id?: string | null;
+  price_list_name?: string | null;
+  percent: number;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface ComercialAdminCommission {
+  id: string;
+  sale_id: string;
+  sale_number?: string | null;
+  sale_date?: string;
+  actor_name?: string | null;
+  base_value: number;
+  percent_applied: number;
+  amount: number;
+  status: 'previsto' | 'liberado' | 'pago';
+  created_at: string;
+}
+
 // Administração — usa a mesma sessão do CRM (auth_token), não o token isolado do portal
 export const comercialAdminApi = {
   listActors: () => api<{ actors: ComercialAdminActor[] }>('/api/comercial/admin/actors'),
@@ -576,4 +659,21 @@ export const comercialAdminApi = {
     api<{ message: string }>(`/api/comercial/admin/price-lists/${priceListId}/items/${itemId}`, { method: 'DELETE' }),
   importPriceListItems: (priceListId: string, items: Array<{ sku: string; sale_price: number; cost_price?: number }>) =>
     api<ComercialImportResult>(`/api/comercial/admin/price-lists/${priceListId}/import-items`, { method: 'POST', body: { items } }),
+
+  getDashboard: (params?: { date_from?: string; date_to?: string; actor_id?: string; team_id?: string }) => {
+    const qs = new URLSearchParams(Object.entries(params || {}).filter(([, v]) => v) as [string, string][]).toString();
+    return api<ComercialAdminDashboard>(`/api/comercial/admin/dashboard${qs ? `?${qs}` : ''}`);
+  },
+
+  listCommissionRules: () => api<{ rules: ComercialCommissionRule[] }>('/api/comercial/admin/commission-rules'),
+  createCommissionRule: (body: { actor_id?: string; price_list_id?: string; percent: number }) =>
+    api<{ rule: ComercialCommissionRule }>('/api/comercial/admin/commission-rules', { method: 'POST', body }),
+  updateCommissionRule: (id: string, body: { percent?: number; is_active?: boolean }) =>
+    api<{ rule: ComercialCommissionRule }>(`/api/comercial/admin/commission-rules/${id}`, { method: 'PUT', body }),
+  deleteCommissionRule: (id: string) =>
+    api<{ message: string }>(`/api/comercial/admin/commission-rules/${id}`, { method: 'DELETE' }),
+
+  listCommissions: () => api<{ commissions: ComercialAdminCommission[] }>('/api/comercial/admin/commissions'),
+  updateCommissionStatus: (id: string, status: 'previsto' | 'liberado' | 'pago') =>
+    api<{ commission: ComercialAdminCommission }>(`/api/comercial/admin/commissions/${id}/status`, { method: 'POST', body: { status } }),
 };

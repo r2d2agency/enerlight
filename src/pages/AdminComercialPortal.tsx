@@ -19,6 +19,8 @@ import {
 import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import AdminComercialDashboardTab from './comercial/AdminComercialDashboardTab';
+import AdminComercialCommissionsTab from './comercial/AdminComercialCommissionsTab';
 import * as XLSX from 'xlsx';
 import {
   Loader2, Plus, Briefcase, Send, Lock, Unlock, UserPlus, Users2, Package, Tag, ArrowRightLeft, Check, X,
@@ -524,12 +526,14 @@ export default function AdminComercialPortal() {
         </div>
       </div>
 
-      <Tabs defaultValue="atores">
+      <Tabs defaultValue="dashboard">
         <TabsList>
+          <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           <TabsTrigger value="atores">Usuários</TabsTrigger>
           <TabsTrigger value="equipes">Equipes</TabsTrigger>
           <TabsTrigger value="produtos">Produtos</TabsTrigger>
           <TabsTrigger value="tabelas-preco">Tabelas de Preço</TabsTrigger>
+          <TabsTrigger value="comissoes">Comissões</TabsTrigger>
           <TabsTrigger value="transferencias">
             Transferências{transferRequests.length > 0 ? ` (${transferRequests.length})` : ''}
           </TabsTrigger>
@@ -537,6 +541,10 @@ export default function AdminComercialPortal() {
             Aprovações de Desconto{quoteApprovals.length > 0 ? ` (${quoteApprovals.length})` : ''}
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="dashboard" className="mt-4">
+          <AdminComercialDashboardTab actors={actors} />
+        </TabsContent>
 
         <TabsContent value="atores" className="space-y-4 mt-4">
           <div className="flex justify-end gap-2 flex-wrap">
@@ -970,6 +978,10 @@ export default function AdminComercialPortal() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="comissoes" className="mt-4">
+          <AdminComercialCommissionsTab actors={actors} priceLists={priceLists} />
         </TabsContent>
 
         <TabsContent value="transferencias" className="space-y-4 mt-4">

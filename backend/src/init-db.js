@@ -5937,6 +5937,45 @@ CREATE TABLE IF NOT EXISTS com_sale_items (
 CREATE INDEX IF NOT EXISTS idx_com_sale_items_sale ON com_sale_items(sale_id);
 `;
 
+// Portal Comercial (Fase 5) — comissão simplificada do próprio módulo (não
+// mexe em commission.js/commission_rules, que é o sistema de comissão por
+// faturamento ERP — contextos diferentes, convivem em paralelo).
+const step77ComercialCommission = `
+DO $$ BEGIN
+  ALTER TABLE com_sales ADD COLUMN price_list_id UUID REFERENCES price_lists(id) ON DELETE SET NULL;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+CREATE TABLE IF NOT EXISTS com_commission_rules (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  actor_id UUID REFERENCES com_actors(id) ON DELETE CASCADE,       -- NULL = regra padrão da organização
+  price_list_id UUID REFERENCES price_lists(id) ON DELETE CASCADE, -- NULL = qualquer tabela
+  percent NUMERIC(5,2) NOT NULL,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_com_commission_rules_org ON com_commission_rules(organization_id);
+CREATE INDEX IF NOT EXISTS idx_com_commission_rules_actor ON com_commission_rules(actor_id);
+
+CREATE TABLE IF NOT EXISTS com_commissions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  sale_id UUID NOT NULL REFERENCES com_sales(id) ON DELETE CASCADE,
+  actor_id UUID REFERENCES com_actors(id) ON DELETE SET NULL,
+  rule_id UUID REFERENCES com_commission_rules(id) ON DELETE SET NULL,
+  base_value NUMERIC(15,2) NOT NULL DEFAULT 0,
+  percent_applied NUMERIC(5,2) NOT NULL DEFAULT 0,
+  amount NUMERIC(15,2) NOT NULL DEFAULT 0,
+  status VARCHAR(20) NOT NULL DEFAULT 'previsto',   -- previsto | liberado | pago
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT com_commissions_sale_unique UNIQUE (sale_id)
+);
+CREATE INDEX IF NOT EXISTS idx_com_commissions_org ON com_commissions(organization_id);
+CREATE INDEX IF NOT EXISTS idx_com_commissions_actor ON com_commissions(actor_id);
+`;
+
 
 
 
@@ -6154,6 +6193,7 @@ const migrationSteps = [
   { name: 'Portal Comercial (Catálogo & Clientes)', sql: step74ComercialCatalogCustomers, critical: false },
   { name: 'Portal Comercial (Orçamentos)', sql: step75ComercialQuotes, critical: false },
   { name: 'Portal Comercial (Oportunidades & Vendas)', sql: step76ComercialOpportunitiesSales, critical: false },
+  { name: 'Portal Comercial (Comissão)', sql: step77ComercialCommission, critical: false },
 ];
 
 

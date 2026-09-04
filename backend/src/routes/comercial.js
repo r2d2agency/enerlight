@@ -753,6 +753,33 @@ async function sendQuoteHandler(req, res) {
   }
 }
 
+// Calcula a comissão prevista da venda com a primeira regra que casar, por
+// prioridade: regra específica do vendedor+tabela > regra do vendedor
+// (qualquer tabela) > regra da tabela (qualquer vendedor) > regra padrão da
+// organização (sem vendedor nem tabela).
+async function calculateSaleCommission(sale, priceListId) {
+  if (!sale.actor_id) return;
+  const rules = await query(
+    `SELECT * FROM com_commission_rules
+     WHERE organization_id = $1 AND is_active = true
+       AND (actor_id = $2 OR actor_id IS NULL)
+       AND (price_list_id = $3 OR price_list_id IS NULL)
+     ORDER BY (actor_id IS NOT NULL) DESC, (price_list_id IS NOT NULL) DESC
+     LIMIT 1`,
+    [sale.organization_id, sale.actor_id, priceListId || null]
+  );
+  const rule = rules.rows[0];
+  if (!rule) return;
+
+  const amount = Math.round(Number(sale.total_value) * (Number(rule.percent) / 100) * 100) / 100;
+  await query(
+    `INSERT INTO com_commissions (organization_id, sale_id, actor_id, rule_id, base_value, percent_applied, amount)
+     VALUES ($1,$2,$3,$4,$5,$6,$7)
+     ON CONFLICT (sale_id) DO NOTHING`,
+    [sale.organization_id, sale.id, sale.actor_id, rule.id, sale.total_value, rule.percent, amount]
+  );
+}
+
 async function convertQuoteToSaleHandler(req, res) {
   try {
     const quoteResult = await query(
@@ -774,10 +801,10 @@ async function convertQuoteToSaleHandler(req, res) {
 
     const insertSale = await query(
       `INSERT INTO com_sales
-         (organization_id, quote_id, opportunity_id, customer_id, actor_id, status, client_name, client_document,
+         (organization_id, quote_id, opportunity_id, customer_id, actor_id, price_list_id, status, client_name, client_document,
           subtotal_value, discount_value, freight_value, total_value, payment_terms, notes, created_by)
-       VALUES ($1,$2,$3,$4,$5,'confirmed',$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
-      [req.actor.organization_id, quote.id, quote.opportunity_id, quote.customer_id, quote.actor_id,
+       VALUES ($1,$2,$3,$4,$5,$6,'confirmed',$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`,
+      [req.actor.organization_id, quote.id, quote.opportunity_id, quote.customer_id, quote.actor_id, quote.price_list_id,
         quote.client_name, quote.client_document, quote.subtotal_value, quote.discount_value, quote.freight_value,
         quote.total_value, quote.payment_terms, quote.notes, req.actor.id]
     );
@@ -818,6 +845,8 @@ async function convertQuoteToSaleHandler(req, res) {
         [quote.opportunity_id, req.actor.id]
       );
     }
+
+    await calculateSaleCommission(sale, sale.price_list_id);
 
     res.status(201).json({ sale });
   } catch (error) {
@@ -1091,6 +1120,135 @@ async function updateOpportunityHandler(req, res) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Dashboard do ator (item 4) — sempre escopado pelo mesmo critério
+// próprio/equipe/todos usado em clientes/orçamentos/oportunidades/vendas.
+// ---------------------------------------------------------------------------
+
+async function dashboardHandler(req, res) {
+  try {
+    const actor = req.actor;
+    const monthStart = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1)).toISOString().slice(0, 10);
+
+    const salesParams = [];
+    const salesScopeRes = salesScope(actor, salesParams);
+    salesParams.push(monthStart);
+    const salesThisMonth = await query(
+      `SELECT COUNT(*) as count, COALESCE(SUM(total_value), 0) as total
+       FROM com_sales s WHERE ${salesScopeRes.where} AND s.status = 'confirmed' AND s.sale_date >= $${salesParams.length}`,
+      salesParams
+    );
+
+    const qParams = [];
+    const qScope = quoteScope(actor, qParams);
+    const quotesStats = await query(
+      `SELECT
+         COUNT(*) FILTER (WHERE status != 'draft') as sent_count,
+         COUNT(*) FILTER (WHERE status IN ('enviado', 'visualizado', 'em_negociacao')) as awaiting_count,
+         COUNT(*) FILTER (WHERE status = 'convertido') as converted_count
+       FROM online_quotes q WHERE ${qScope.where}`,
+      qParams
+    );
+
+    const cParams = [];
+    const cScope = customerScope(actor, cParams);
+    cParams.push(monthStart);
+    const customersStats = await query(
+      `SELECT COUNT(*) as active_count, COUNT(*) FILTER (WHERE created_at >= $${cParams.length}) as new_this_month
+       FROM com_customers c WHERE ${cScope.where} AND c.status = 'active'`,
+      cParams
+    );
+
+    const oParams = [];
+    const oScope = opportunityScope(actor, oParams);
+    const oppsOpen = await query(`SELECT COUNT(*) as count FROM com_opportunities o WHERE ${oScope.where} AND o.status = 'open'`, oParams);
+
+    const eParams = [];
+    const eScope = quoteScope(actor, eParams);
+    const nearExpiry = await query(
+      `SELECT q.id, q.quote_number, q.client_name, q.valid_until, q.total_value FROM online_quotes q
+       WHERE ${eScope.where} AND q.status IN ('enviado', 'visualizado', 'em_negociacao')
+         AND q.valid_until IS NOT NULL AND q.valid_until BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days'
+       ORDER BY q.valid_until ASC LIMIT 5`,
+      eParams
+    );
+
+    await ensureDefaultStages(actor.organization_id);
+    const stages = await query('SELECT id, name, position FROM com_opportunity_stages WHERE organization_id = $1 ORDER BY position ASC', [actor.organization_id]);
+    const fParams = [];
+    const fScope = opportunityScope(actor, fParams);
+    const oppByStage = await query(
+      `SELECT stage_id, COUNT(*) as count, COALESCE(SUM(estimated_value), 0) as value FROM com_opportunities o WHERE ${fScope.where} GROUP BY stage_id`,
+      fParams
+    );
+    const funnel = stages.rows.map((s) => {
+      const match = oppByStage.rows.find((r) => r.stage_id === s.id);
+      return { id: s.id, name: s.name, count: Number(match?.count || 0), value: Number(match?.value || 0) };
+    });
+
+    const acParams = [];
+    const acScope = customerScope(actor, acParams);
+    const recentCustomers = await query(
+      `SELECT id, company_name as label, 'cliente_cadastrado' as type, created_at FROM com_customers c WHERE ${acScope.where} ORDER BY created_at DESC LIMIT 5`,
+      acParams
+    );
+    const aqParams = [];
+    const aqScope = quoteScope(actor, aqParams);
+    const recentQuotes = await query(
+      `SELECT id, quote_number as label, 'orcamento_criado' as type, created_at FROM online_quotes q WHERE ${aqScope.where} ORDER BY created_at DESC LIMIT 5`,
+      aqParams
+    );
+    const asParams = [];
+    const asScope = salesScope(actor, asParams);
+    const recentSales = await query(
+      `SELECT id, sale_number as label, 'venda_registrada' as type, created_at FROM com_sales s WHERE ${asScope.where} ORDER BY created_at DESC LIMIT 5`,
+      asParams
+    );
+    const recentActivity = [...recentCustomers.rows, ...recentQuotes.rows, ...recentSales.rows]
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, 8);
+
+    const sentCount = Number(quotesStats.rows[0].sent_count) || 0;
+    const convertedCount = Number(quotesStats.rows[0].converted_count) || 0;
+
+    res.json({
+      sales_this_month: { count: Number(salesThisMonth.rows[0].count), total: Number(salesThisMonth.rows[0].total) },
+      quotes: {
+        sent_count: sentCount,
+        awaiting_count: Number(quotesStats.rows[0].awaiting_count) || 0,
+        converted_count: convertedCount,
+        conversion_rate: sentCount > 0 ? Math.round((convertedCount / sentCount) * 1000) / 10 : 0,
+      },
+      customers: {
+        active_count: Number(customersStats.rows[0].active_count) || 0,
+        new_this_month: Number(customersStats.rows[0].new_this_month) || 0,
+      },
+      opportunities_open: Number(oppsOpen.rows[0].count) || 0,
+      quotes_near_expiry: nearExpiry.rows,
+      funnel,
+      recent_activity: recentActivity,
+    });
+  } catch (error) {
+    console.error('[comercial] dashboard error:', error);
+    res.status(500).json({ error: 'Erro ao carregar dashboard' });
+  }
+}
+
+async function myCommissionsHandler(req, res) {
+  try {
+    const result = await query(
+      `SELECT c.*, s.sale_number, s.sale_date, s.client_name
+       FROM com_commissions c JOIN com_sales s ON s.id = c.sale_id
+       WHERE c.actor_id = $1 ORDER BY c.created_at DESC`,
+      [req.actor.id]
+    );
+    res.json({ commissions: result.rows });
+  } catch (error) {
+    console.error('[comercial] my commissions error:', error);
+    res.status(500).json({ error: 'Erro ao carregar comissões' });
+  }
+}
+
 const INVITE_TOKEN_TTL_HOURS = 48;
 const RESET_TOKEN_TTL_HOURS = 1;
 const forgotPasswordCooldown = new Map();
@@ -1315,6 +1473,10 @@ router.put('/oportunidades/:id', externalActorAuth, updateOpportunityHandler);
 router.get('/vendas', externalActorAuth, listSalesHandler);
 router.get('/vendas/:id', externalActorAuth, getSaleHandler);
 
+// Dashboard e comissão
+router.get('/dashboard', externalActorAuth, dashboardHandler);
+router.get('/comissoes/minhas', externalActorAuth, myCommissionsHandler);
+
 // Proposta pública (link enviado ao cliente, sem autenticação — item 13)
 router.get('/proposta/:token', async (req, res) => {
   try {
@@ -1399,6 +1561,9 @@ internalRouter.put('/oportunidades/:id', updateOpportunityHandler);
 
 internalRouter.get('/vendas', listSalesHandler);
 internalRouter.get('/vendas/:id', getSaleHandler);
+
+internalRouter.get('/dashboard', dashboardHandler);
+internalRouter.get('/comissoes/minhas', myCommissionsHandler);
 
 router.use('/interno', internalRouter);
 
@@ -2142,6 +2307,192 @@ adminRouter.post('/quote-approvals/:id/reject', gate('can_manage_comercial_porta
     console.error('[comercial] reject quote error:', error);
     res.status(500).json({ error: 'Erro ao recusar orçamento' });
   }
+});
+
+// --- Dashboard administrativo (item 25) — filtros de período/vendedor/equipe ---
+
+adminRouter.get('/dashboard', gate('can_manage_comercial_portal'), async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+
+    const { date_from, date_to, actor_id, team_id } = req.query;
+    const dateFrom = date_from || new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1)).toISOString().slice(0, 10);
+    const dateTo = date_to || new Date().toISOString().slice(0, 10);
+
+    let actorIds = null;
+    if (actor_id) {
+      actorIds = [actor_id];
+    } else if (team_id) {
+      const teamActors = await query('SELECT id FROM com_actors WHERE team_id = $1', [team_id]);
+      actorIds = teamActors.rows.map((r) => r.id);
+    }
+
+    const salesWhereParts = ["s.organization_id = $1", "s.status = 'confirmed'", 's.sale_date >= $2', 's.sale_date <= $3'];
+    const salesParams = [org.organization_id, dateFrom, dateTo];
+    if (actorIds) { salesParams.push(actorIds); salesWhereParts.push(`s.actor_id = ANY($${salesParams.length})`); }
+    const salesWhere = salesWhereParts.join(' AND ');
+
+    const totals = await query(`SELECT COUNT(*) as count, COALESCE(SUM(total_value), 0) as total FROM com_sales s WHERE ${salesWhere}`, salesParams);
+    const salesCount = Number(totals.rows[0].count);
+    const revenue = Number(totals.rows[0].total);
+    const avgTicket = salesCount > 0 ? Math.round((revenue / salesCount) * 100) / 100 : 0;
+
+    const quotesWhereParts = ['q.organization_id = $1', 'q.created_at >= $2', 'q.created_at <= $3'];
+    const quotesParams = [org.organization_id, dateFrom, dateTo];
+    if (actorIds) { quotesParams.push(actorIds); quotesWhereParts.push(`q.actor_id = ANY($${quotesParams.length})`); }
+    const quotesEmitted = await query(
+      `SELECT COUNT(*) as count, COUNT(*) FILTER (WHERE status != 'draft') as sent_count FROM online_quotes q WHERE ${quotesWhereParts.join(' AND ')}`,
+      quotesParams
+    );
+    const sentCount = Number(quotesEmitted.rows[0].sent_count);
+    const conversionRate = sentCount > 0 ? Math.round((salesCount / sentCount) * 1000) / 10 : 0;
+
+    const activeVendors = await query(`SELECT COUNT(DISTINCT actor_id) as count FROM com_sales s WHERE ${salesWhere} AND actor_id IS NOT NULL`, salesParams);
+
+    const custWhereParts = ['c.organization_id = $1', 'c.created_at >= $2', 'c.created_at <= $3'];
+    const custParams = [org.organization_id, dateFrom, dateTo];
+    if (actorIds) { custParams.push(actorIds); custWhereParts.push(`c.owner_actor_id = ANY($${custParams.length})`); }
+    const newCustomers = await query(`SELECT COUNT(*) as count FROM com_customers c WHERE ${custWhereParts.join(' AND ')}`, custParams);
+
+    const byActor = await query(
+      `SELECT a.id, a.name, COUNT(s.id) as count, COALESCE(SUM(s.total_value), 0) as total
+       FROM com_sales s JOIN com_actors a ON a.id = s.actor_id
+       WHERE ${salesWhere} GROUP BY a.id, a.name ORDER BY total DESC`,
+      salesParams
+    );
+
+    const byPriceList = await query(
+      `SELECT pl.id, pl.name, COUNT(s.id) as count, COALESCE(SUM(s.total_value), 0) as total
+       FROM com_sales s LEFT JOIN price_lists pl ON pl.id = s.price_list_id
+       WHERE ${salesWhere} GROUP BY pl.id, pl.name ORDER BY total DESC`,
+      salesParams
+    );
+
+    const byRegion = await query(
+      `SELECT COALESCE(c.state, 'Não informado') as state, COUNT(s.id) as count, COALESCE(SUM(s.total_value), 0) as total
+       FROM com_sales s LEFT JOIN com_customers c ON c.id = s.customer_id
+       WHERE ${salesWhere} GROUP BY c.state ORDER BY total DESC`,
+      salesParams
+    );
+
+    const byProduct = await query(
+      `SELECT si.product_name, SUM(si.quantity) as quantity, COALESCE(SUM(si.total_price), 0) as total
+       FROM com_sale_items si JOIN com_sales s ON s.id = si.sale_id
+       WHERE ${salesWhere} GROUP BY si.product_name ORDER BY total DESC LIMIT 10`,
+      salesParams
+    );
+
+    await ensureDefaultStages(org.organization_id);
+    const stages = await query('SELECT id, name, position FROM com_opportunity_stages WHERE organization_id = $1 ORDER BY position ASC', [org.organization_id]);
+    const oppWhereParts = ['o.organization_id = $1'];
+    const oppParams = [org.organization_id];
+    if (actorIds) { oppParams.push(actorIds); oppWhereParts.push(`o.actor_id = ANY($${oppParams.length})`); }
+    const oppByStage = await query(
+      `SELECT stage_id, COUNT(*) as count, COALESCE(SUM(estimated_value), 0) as value FROM com_opportunities o WHERE ${oppWhereParts.join(' AND ')} GROUP BY stage_id`,
+      oppParams
+    );
+    const funnel = stages.rows.map((s) => {
+      const m = oppByStage.rows.find((r) => r.stage_id === s.id);
+      return { id: s.id, name: s.name, count: Number(m?.count || 0), value: Number(m?.value || 0) };
+    });
+
+    res.json({
+      period: { date_from: dateFrom, date_to: dateTo },
+      revenue, sales_count: salesCount, avg_ticket: avgTicket,
+      quotes_emitted: Number(quotesEmitted.rows[0].count), conversion_rate: conversionRate,
+      active_vendors: Number(activeVendors.rows[0].count),
+      new_customers: Number(newCustomers.rows[0].count),
+      by_actor: byActor.rows, by_price_list: byPriceList.rows, by_region: byRegion.rows, by_product: byProduct.rows,
+      funnel,
+    });
+  } catch (error) {
+    console.error('[comercial] admin dashboard error:', error);
+    res.status(500).json({ error: 'Erro ao carregar dashboard' });
+  }
+});
+
+// --- Comissão simplificada (item 16) — não mexe em commission.js/commission_rules (ERP) ---
+
+adminRouter.get('/commission-rules', gate('can_manage_comercial_portal'), async (req, res) => {
+  const org = await getUserOrg(req.userId);
+  if (!org) return res.status(403).json({ error: 'Sem organização' });
+
+  const result = await query(
+    `SELECT cr.*, a.name as actor_name, pl.name as price_list_name FROM com_commission_rules cr
+     LEFT JOIN com_actors a ON a.id = cr.actor_id LEFT JOIN price_lists pl ON pl.id = cr.price_list_id
+     WHERE cr.organization_id = $1 ORDER BY cr.created_at DESC`,
+    [org.organization_id]
+  );
+  res.json({ rules: result.rows });
+});
+
+adminRouter.post('/commission-rules', gate('can_manage_comercial_portal'), async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+
+    const { actor_id, price_list_id, percent } = req.body || {};
+    if (percent === undefined || percent === null || percent === '') return res.status(400).json({ error: 'Percentual é obrigatório' });
+
+    const result = await query(
+      `INSERT INTO com_commission_rules (organization_id, actor_id, price_list_id, percent) VALUES ($1,$2,$3,$4) RETURNING *`,
+      [org.organization_id, actor_id || null, price_list_id || null, percent]
+    );
+    res.status(201).json({ rule: result.rows[0] });
+  } catch (error) {
+    console.error('[comercial] create commission rule error:', error);
+    res.status(500).json({ error: 'Erro ao criar regra de comissão' });
+  }
+});
+
+adminRouter.put('/commission-rules/:id', gate('can_manage_comercial_portal'), async (req, res) => {
+  try {
+    const { percent, is_active } = req.body || {};
+    const sets = [];
+    const params = [];
+    let idx = 1;
+    if (percent !== undefined) { sets.push(`percent = $${idx++}`); params.push(percent); }
+    if (typeof is_active === 'boolean') { sets.push(`is_active = $${idx++}`); params.push(is_active); }
+    if (sets.length === 0) return res.status(400).json({ error: 'Nada para atualizar' });
+    sets.push('updated_at = NOW()');
+    params.push(req.params.id);
+
+    const result = await query(`UPDATE com_commission_rules SET ${sets.join(', ')} WHERE id = $${idx} RETURNING *`, params);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Regra não encontrada' });
+    res.json({ rule: result.rows[0] });
+  } catch (error) {
+    console.error('[comercial] update commission rule error:', error);
+    res.status(500).json({ error: 'Erro ao atualizar regra' });
+  }
+});
+
+adminRouter.delete('/commission-rules/:id', gate('can_manage_comercial_portal'), async (req, res) => {
+  const result = await query('DELETE FROM com_commission_rules WHERE id = $1 RETURNING id', [req.params.id]);
+  if (result.rows.length === 0) return res.status(404).json({ error: 'Regra não encontrada' });
+  res.json({ message: 'Regra removida' });
+});
+
+adminRouter.get('/commissions', gate('can_manage_comercial_portal'), async (req, res) => {
+  const org = await getUserOrg(req.userId);
+  if (!org) return res.status(403).json({ error: 'Sem organização' });
+
+  const result = await query(
+    `SELECT c.*, a.name as actor_name, s.sale_number, s.sale_date FROM com_commissions c
+     LEFT JOIN com_actors a ON a.id = c.actor_id LEFT JOIN com_sales s ON s.id = c.sale_id
+     WHERE c.organization_id = $1 ORDER BY c.created_at DESC`,
+    [org.organization_id]
+  );
+  res.json({ commissions: result.rows });
+});
+
+adminRouter.post('/commissions/:id/status', gate('can_manage_comercial_portal'), async (req, res) => {
+  const { status } = req.body || {};
+  if (!['previsto', 'liberado', 'pago'].includes(status)) return res.status(400).json({ error: 'Status inválido' });
+
+  const result = await query('UPDATE com_commissions SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *', [status, req.params.id]);
+  if (result.rows.length === 0) return res.status(404).json({ error: 'Comissão não encontrada' });
+  res.json({ commission: result.rows[0] });
 });
 
 router.use('/admin', adminRouter);
