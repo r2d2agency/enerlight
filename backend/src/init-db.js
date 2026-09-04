@@ -5749,6 +5749,91 @@ CREATE INDEX IF NOT EXISTS idx_com_transfer_requests_customer ON com_customer_tr
 CREATE INDEX IF NOT EXISTS idx_com_transfer_requests_status ON com_customer_transfer_requests(status);
 `;
 
+// Portal Comercial (Fase 3) — orçamentos. Reaproveita e estende online_quotes/
+// online_quote_items (schema já existia mas estava órfão, sem nenhuma rota
+// usando-o — seguro de estender) em vez de criar uma tabela de orçamento nova.
+const step75ComercialQuotes = `
+DO $$ BEGIN
+  ALTER TABLE online_quotes ADD COLUMN actor_id UUID REFERENCES com_actors(id) ON DELETE SET NULL;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE online_quotes ADD COLUMN customer_id UUID REFERENCES com_customers(id) ON DELETE SET NULL;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE online_quotes ADD COLUMN sequence_number SERIAL;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE online_quotes ADD COLUMN quote_number VARCHAR(50);
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE online_quotes ADD COLUMN subtotal_value NUMERIC(15,2) DEFAULT 0;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE online_quotes ADD COLUMN discount_value NUMERIC(15,2) DEFAULT 0;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE online_quotes ADD COLUMN payment_terms TEXT;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE online_quotes ADD COLUMN delivery_time TEXT;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE online_quotes ADD COLUMN freight_value NUMERIC(15,2) DEFAULT 0;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE online_quotes ADD COLUMN internal_notes TEXT;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE online_quotes ADD COLUMN public_token TEXT;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE online_quotes ADD COLUMN viewed_at TIMESTAMPTZ;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE online_quotes ADD COLUMN approved_at TIMESTAMPTZ;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE online_quotes ADD COLUMN rejected_at TIMESTAMPTZ;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE online_quotes ADD COLUMN approved_by_actor_id UUID REFERENCES com_actors(id) ON DELETE SET NULL;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_online_quotes_public_token ON online_quotes(public_token) WHERE public_token IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_online_quotes_actor ON online_quotes(actor_id);
+CREATE INDEX IF NOT EXISTS idx_online_quotes_customer ON online_quotes(customer_id);
+
+DO $$ BEGIN
+  ALTER TABLE online_quote_items ADD COLUMN product_id UUID REFERENCES products(id) ON DELETE SET NULL;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+CREATE TABLE IF NOT EXISTS com_quote_history (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  quote_id UUID NOT NULL REFERENCES online_quotes(id) ON DELETE CASCADE,
+  actor_id UUID REFERENCES com_actors(id) ON DELETE SET NULL,
+  action VARCHAR(50) NOT NULL,
+  from_status VARCHAR(50),
+  to_status VARCHAR(50),
+  note TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_com_quote_history_quote ON com_quote_history(quote_id);
+
+CREATE TABLE IF NOT EXISTS com_quote_approvals (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  quote_id UUID NOT NULL REFERENCES online_quotes(id) ON DELETE CASCADE,
+  requested_discount_percent NUMERIC(5,2),
+  max_allowed_percent NUMERIC(5,2),
+  status VARCHAR(20) NOT NULL DEFAULT 'pending',    -- pending | approved | rejected
+  note TEXT,
+  decided_by_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  decided_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_com_quote_approvals_quote ON com_quote_approvals(quote_id);
+CREATE INDEX IF NOT EXISTS idx_com_quote_approvals_status ON com_quote_approvals(status);
+`;
+
 
 
 
@@ -5964,6 +6049,7 @@ const migrationSteps = [
   { name: 'Representatives Portal (Isolated)', sql: step72RepresentativesPortal, critical: false },
   { name: 'Portal Comercial (Core)', sql: step73ComercialPortalCore, critical: false },
   { name: 'Portal Comercial (Catálogo & Clientes)', sql: step74ComercialCatalogCustomers, critical: false },
+  { name: 'Portal Comercial (Orçamentos)', sql: step75ComercialQuotes, critical: false },
 ];
 
 

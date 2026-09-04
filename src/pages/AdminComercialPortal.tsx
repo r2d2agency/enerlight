@@ -13,12 +13,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
   comercialAdminApi, ComercialAdminActor, ComercialTeam, ComercialProfile,
-  ComercialAdminProduct, ComercialActorPriceListEntry, ComercialTransferRequest,
+  ComercialAdminProduct, ComercialActorPriceListEntry, ComercialTransferRequest, ComercialQuoteApproval,
 } from '@/lib/comercial-api';
 import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Plus, Briefcase, Send, Lock, Unlock, UserPlus, Users2, Package, Tag, ArrowRightLeft, Check, X } from 'lucide-react';
+import { Loader2, Plus, Briefcase, Send, Lock, Unlock, UserPlus, Users2, Package, Tag, ArrowRightLeft, Check, X, ShieldAlert } from 'lucide-react';
 
 interface OrgMember { id: string; name: string; email: string; is_active: boolean }
 
@@ -49,6 +49,7 @@ export default function AdminComercialPortal() {
   const [orgMembers, setOrgMembers] = useState<OrgMember[]>([]);
   const [products, setProducts] = useState<ComercialAdminProduct[]>([]);
   const [transferRequests, setTransferRequests] = useState<ComercialTransferRequest[]>([]);
+  const [quoteApprovals, setQuoteApprovals] = useState<ComercialQuoteApproval[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
@@ -80,13 +81,15 @@ export default function AdminComercialPortal() {
       api<OrgMember[]>('/api/crm/org-members'),
       comercialAdminApi.listProducts(),
       comercialAdminApi.listTransferRequests(),
+      comercialAdminApi.listQuoteApprovals(),
     ])
-      .then(([actorsRes, teamsRes, members, productsRes, transfersRes]) => {
+      .then(([actorsRes, teamsRes, members, productsRes, transfersRes, approvalsRes]) => {
         setActors(actorsRes.actors);
         setTeams(teamsRes.teams);
         setOrgMembers(members);
         setProducts(productsRes.products);
         setTransferRequests(transfersRes.transfer_requests);
+        setQuoteApprovals(approvalsRes.approvals);
       })
       .catch((error) => toast({ title: 'Erro ao carregar Portal Comercial', description: error?.message, variant: 'destructive' }))
       .finally(() => setLoading(false));
@@ -336,6 +339,25 @@ export default function AdminComercialPortal() {
     }
   };
 
+  const handleResolveQuoteApproval = async (approval: ComercialQuoteApproval, approve: boolean) => {
+    setActionLoadingId(approval.id);
+    try {
+      if (approve) {
+        await comercialAdminApi.approveQuote(approval.id);
+        toast({ title: 'Orçamento aprovado e enviado ao cliente' });
+      } else {
+        await comercialAdminApi.rejectQuote(approval.id);
+        toast({ title: 'Orçamento recusado, voltou para elaboração' });
+      }
+      load();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Tente novamente.';
+      toast({ title: 'Erro ao processar aprovação', description: message, variant: 'destructive' });
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
   return (
     <MainLayout>
       <div className="flex items-center gap-3 mb-6">
@@ -355,6 +377,9 @@ export default function AdminComercialPortal() {
           <TabsTrigger value="produtos">Produtos</TabsTrigger>
           <TabsTrigger value="transferencias">
             Transferências{transferRequests.length > 0 ? ` (${transferRequests.length})` : ''}
+          </TabsTrigger>
+          <TabsTrigger value="aprovacoes">
+            Aprovações de Desconto{quoteApprovals.length > 0 ? ` (${quoteApprovals.length})` : ''}
           </TabsTrigger>
         </TabsList>
 
@@ -750,6 +775,65 @@ export default function AdminComercialPortal() {
                               Aprovar
                             </Button>
                             <Button variant="ghost" size="sm" disabled={isBusy} onClick={() => handleResolveTransfer(tr, false)}>
+                              <X className="h-4 w-4 mr-1" />
+                              Recusar
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="aprovacoes" className="space-y-4 mt-4">
+          <Card>
+            <CardContent className="p-0">
+              {loading ? (
+                <div className="flex justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : quoteApprovals.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <ShieldAlert className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                  <p>Nenhum orçamento aguardando aprovação de desconto.</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Orçamento</TableHead>
+                      <TableHead>Cliente</TableHead>
+                      <TableHead>Vendedor</TableHead>
+                      <TableHead className="text-right">Valor</TableHead>
+                      <TableHead>Desconto solicitado</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {quoteApprovals.map((qa) => {
+                      const isBusy = actionLoadingId === qa.id;
+                      return (
+                        <TableRow key={qa.id}>
+                          <TableCell className="font-medium">{qa.quote_number || '—'}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{qa.customer_name || '—'}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{qa.actor_name || '—'}</TableCell>
+                          <TableCell className="text-right">
+                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(qa.total_value) || 0)}
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            <span className="text-destructive font-medium">{qa.requested_discount_percent}%</span>
+                            <span className="text-muted-foreground"> (limite: {qa.max_allowed_percent}%)</span>
+                          </TableCell>
+                          <TableCell className="text-right space-x-1">
+                            <Button variant="ghost" size="sm" disabled={isBusy} onClick={() => handleResolveQuoteApproval(qa, true)}>
+                              <Check className="h-4 w-4 mr-1" />
+                              Aprovar
+                            </Button>
+                            <Button variant="ghost" size="sm" disabled={isBusy} onClick={() => handleResolveQuoteApproval(qa, false)}>
                               <X className="h-4 w-4 mr-1" />
                               Recusar
                             </Button>

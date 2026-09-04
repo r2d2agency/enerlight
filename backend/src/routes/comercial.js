@@ -336,6 +336,368 @@ async function listMyPriceListsHandler(req, res) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Orçamentos — reaproveita/estende online_quotes/online_quote_items (schema
+// já existia órfão, sem nenhuma rota usando-o). Preço e desconto são
+// congelados no item no momento em que ele é adicionado (snapshot) — alterar
+// a tabela de preço depois não muda orçamentos já criados (item 32).
+// ---------------------------------------------------------------------------
+
+const QUOTE_LOCKED_STATUSES = ['convertido', 'cancelado'];
+
+function quoteScope(actor, paramsArr) {
+  paramsArr.push(actor.organization_id);
+  const orgIdx = paramsArr.length;
+  if (actor.profile === 'admin') {
+    return { where: `q.organization_id = $${orgIdx}`, params: paramsArr };
+  }
+  if (actor.profile === 'gerente' && actor.team_id) {
+    paramsArr.push(actor.id);
+    const selfIdx = paramsArr.length;
+    paramsArr.push(actor.team_id);
+    const teamIdx = paramsArr.length;
+    return {
+      where: `q.organization_id = $${orgIdx} AND q.actor_id IN (SELECT id FROM com_actors WHERE id = $${selfIdx} OR team_id = $${teamIdx})`,
+      params: paramsArr,
+    };
+  }
+  paramsArr.push(actor.id);
+  return { where: `q.organization_id = $${orgIdx} AND q.actor_id = $${orgIdx + 1}`, params: paramsArr };
+}
+
+async function recalculateQuoteTotals(quoteId) {
+  const items = await query(
+    'SELECT quantity, unit_price, total_price, cost_price FROM online_quote_items WHERE quote_id = $1',
+    [quoteId]
+  );
+  const subtotal = items.rows.reduce((s, i) => s + Number(i.quantity) * Number(i.unit_price), 0);
+  const itemsTotal = items.rows.reduce((s, i) => s + Number(i.total_price), 0);
+  const totalCost = items.rows.reduce((s, i) => s + Number(i.quantity) * Number(i.cost_price || 0), 0);
+  const quote = await query('SELECT freight_value FROM online_quotes WHERE id = $1', [quoteId]);
+  const freight = Number(quote.rows[0]?.freight_value || 0);
+  const total = itemsTotal + freight;
+  const marginPercent = total > 0 ? ((total - totalCost) / total) * 100 : 0;
+  await query(
+    `UPDATE online_quotes
+     SET subtotal_value = $1, discount_value = $2, total_value = $3, total_cost = $4, margin_percent = $5, updated_at = NOW()
+     WHERE id = $6`,
+    [subtotal, subtotal - itemsTotal, total, totalCost, marginPercent, quoteId]
+  );
+}
+
+async function listQuotesHandler(req, res) {
+  try {
+    const params = [];
+    const scope = quoteScope(req.actor, params);
+    const result = await query(
+      `SELECT q.id, q.quote_number, q.status, q.total_value, q.valid_until, q.created_at, q.customer_id,
+              c.company_name as customer_name, a.name as actor_name
+       FROM online_quotes q
+       LEFT JOIN com_customers c ON c.id = q.customer_id
+       LEFT JOIN com_actors a ON a.id = q.actor_id
+       WHERE ${scope.where}
+       ORDER BY q.created_at DESC`,
+      scope.params
+    );
+    res.json({ quotes: result.rows });
+  } catch (error) {
+    console.error('[comercial] list quotes error:', error);
+    res.status(500).json({ error: 'Erro ao carregar orçamentos' });
+  }
+}
+
+async function createQuoteHandler(req, res) {
+  try {
+    const { customer_id, price_list_id: bodyPriceListId } = req.body || {};
+    if (!customer_id) return res.status(400).json({ error: 'Cliente é obrigatório' });
+
+    const custResult = await query(
+      'SELECT * FROM com_customers WHERE id = $1 AND organization_id = $2',
+      [customer_id, req.actor.organization_id]
+    );
+    const customer = custResult.rows[0];
+    if (!customer) return res.status(404).json({ error: 'Cliente não encontrado' });
+
+    if (req.actor.profile !== 'admin') {
+      if (req.actor.profile === 'gerente' && req.actor.team_id) {
+        const ok = customer.owner_actor_id && await query(
+          'SELECT 1 FROM com_actors WHERE id = $1 AND (id = $2 OR team_id = $3)',
+          [customer.owner_actor_id, req.actor.id, req.actor.team_id]
+        );
+        if (!ok || ok.rows.length === 0) return res.status(403).json({ error: 'Cliente fora do seu escopo' });
+      } else if (customer.owner_actor_id !== req.actor.id) {
+        return res.status(403).json({ error: 'Cliente fora do seu escopo' });
+      }
+    }
+
+    // Prioridade da tabela de preço (item 9): cliente > escolhida no orçamento (se autorizada) > padrão do vendedor
+    let priceListId = customer.price_list_id;
+    if (!priceListId && bodyPriceListId) {
+      if (req.actor.profile !== 'admin') {
+        const access = await query(
+          'SELECT 1 FROM com_actor_price_lists WHERE actor_id = $1 AND price_list_id = $2',
+          [req.actor.id, bodyPriceListId]
+        );
+        if (access.rows.length === 0) return res.status(403).json({ error: 'Tabela de preço não autorizada' });
+      }
+      priceListId = bodyPriceListId;
+    }
+    if (!priceListId) priceListId = req.actor.default_price_list_id;
+    if (!priceListId) {
+      return res.status(400).json({ error: 'Nenhuma tabela de preço disponível. Peça ao administrador para vincular uma tabela ao seu usuário.' });
+    }
+
+    const insert = await query(
+      `INSERT INTO online_quotes
+         (organization_id, actor_id, customer_id, price_list_id, status, client_name, client_document, client_email, client_phone)
+       VALUES ($1,$2,$3,$4,'draft',$5,$6,$7,$8) RETURNING *`,
+      [req.actor.organization_id, req.actor.id, customer.id, priceListId, customer.company_name,
+        customer.cnpj || customer.cpf, customer.email, customer.phone || customer.whatsapp]
+    );
+    const numbered = await query(
+      `UPDATE online_quotes
+       SET quote_number = 'ORC-' || to_char(created_at, 'YYYY') || '-' || LPAD(sequence_number::text, 5, '0')
+       WHERE id = $1 RETURNING *`,
+      [insert.rows[0].id]
+    );
+    await query(
+      `INSERT INTO com_quote_history (quote_id, actor_id, action, to_status) VALUES ($1, $2, 'created', 'draft')`,
+      [insert.rows[0].id, req.actor.id]
+    );
+
+    res.status(201).json({ quote: numbered.rows[0] });
+  } catch (error) {
+    console.error('[comercial] create quote error:', error);
+    res.status(500).json({ error: 'Erro ao criar orçamento' });
+  }
+}
+
+async function getQuoteHandler(req, res) {
+  try {
+    const params = [];
+    const scope = quoteScope(req.actor, params);
+    params.push(req.params.id);
+    const result = await query(
+      `SELECT q.*, c.company_name as customer_name, c.email as customer_email, a.name as actor_name,
+              o.name as organization_name, o.logo_url as organization_logo_url
+       FROM online_quotes q
+       LEFT JOIN com_customers c ON c.id = q.customer_id
+       LEFT JOIN com_actors a ON a.id = q.actor_id
+       LEFT JOIN organizations o ON o.id = q.organization_id
+       WHERE ${scope.where} AND q.id = $${params.length}`,
+      params
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Orçamento não encontrado' });
+    const quote = result.rows[0];
+
+    const [items, history] = await Promise.all([
+      query('SELECT * FROM online_quote_items WHERE quote_id = $1 ORDER BY created_at ASC', [quote.id]),
+      query(
+        `SELECT h.*, a.name as actor_name FROM com_quote_history h
+         LEFT JOIN com_actors a ON a.id = h.actor_id
+         WHERE h.quote_id = $1 ORDER BY h.created_at ASC`,
+        [quote.id]
+      ),
+    ]);
+
+    res.json({ quote, items: items.rows, history: history.rows });
+  } catch (error) {
+    console.error('[comercial] get quote error:', error);
+    res.status(500).json({ error: 'Erro ao carregar orçamento' });
+  }
+}
+
+async function updateQuoteHandler(req, res) {
+  try {
+    const quoteResult = await query(
+      'SELECT * FROM online_quotes WHERE id = $1 AND organization_id = $2',
+      [req.params.id, req.actor.organization_id]
+    );
+    const quote = quoteResult.rows[0];
+    if (!quote) return res.status(404).json({ error: 'Orçamento não encontrado' });
+    const canEdit = req.actor.profile === 'admin' || quote.actor_id === req.actor.id;
+    if (!canEdit) return res.status(403).json({ error: 'Você só pode editar seus próprios orçamentos' });
+    if (QUOTE_LOCKED_STATUSES.includes(quote.status)) return res.status(400).json({ error: 'Este orçamento não pode mais ser editado' });
+
+    const b = req.body || {};
+    const fields = ['payment_terms', 'delivery_time', 'valid_until', 'freight_value', 'notes', 'internal_notes'];
+    const sets = [];
+    const params = [];
+    let idx = 1;
+    for (const f of fields) {
+      if (b[f] !== undefined) { sets.push(`${f} = $${idx++}`); params.push(b[f] === '' ? null : b[f]); }
+    }
+    if (sets.length === 0) return res.status(400).json({ error: 'Nada para atualizar' });
+    sets.push('updated_at = NOW()');
+    params.push(quote.id);
+
+    await query(`UPDATE online_quotes SET ${sets.join(', ')} WHERE id = $${idx}`, params);
+    if (b.freight_value !== undefined) await recalculateQuoteTotals(quote.id);
+
+    const updated = await query('SELECT * FROM online_quotes WHERE id = $1', [quote.id]);
+    res.json({ quote: updated.rows[0] });
+  } catch (error) {
+    console.error('[comercial] update quote error:', error);
+    res.status(500).json({ error: 'Erro ao atualizar orçamento' });
+  }
+}
+
+async function addQuoteItemHandler(req, res) {
+  try {
+    const quoteResult = await query(
+      'SELECT * FROM online_quotes WHERE id = $1 AND organization_id = $2',
+      [req.params.id, req.actor.organization_id]
+    );
+    const quote = quoteResult.rows[0];
+    if (!quote) return res.status(404).json({ error: 'Orçamento não encontrado' });
+    const canEdit = req.actor.profile === 'admin' || quote.actor_id === req.actor.id;
+    if (!canEdit) return res.status(403).json({ error: 'Você só pode editar seus próprios orçamentos' });
+    if (QUOTE_LOCKED_STATUSES.includes(quote.status)) return res.status(400).json({ error: 'Este orçamento não pode mais ser editado' });
+
+    const { product_id, quantity, discount_percent } = req.body || {};
+    if (!product_id || !quantity || Number(quantity) <= 0) {
+      return res.status(400).json({ error: 'Produto e quantidade são obrigatórios' });
+    }
+    const discount = Math.min(Math.max(Number(discount_percent) || 0, 0), 100);
+
+    // Preço vem da tabela de preço do orçamento; se o produto ainda não foi
+    // vinculado a nenhuma tabela, usa o preço base do catálogo como fallback.
+    let name, code, description, unitPrice, costPrice, imageUrl;
+    const pli = await query(
+      'SELECT * FROM price_list_items WHERE price_list_id = $1 AND product_id = $2',
+      [quote.price_list_id, product_id]
+    );
+    if (pli.rows.length > 0) {
+      const r = pli.rows[0];
+      name = r.product_name; code = r.product_code; description = r.description;
+      unitPrice = Number(r.sale_price); costPrice = Number(r.cost_price); imageUrl = r.image_url;
+    } else {
+      const pr = await query('SELECT * FROM products WHERE id = $1 AND organization_id = $2', [product_id, req.actor.organization_id]);
+      if (pr.rows.length === 0) return res.status(404).json({ error: 'Produto não encontrado' });
+      const p = pr.rows[0];
+      name = p.name; code = p.sku; description = p.description;
+      unitPrice = Number(p.base_price); costPrice = Number(p.cost_price); imageUrl = p.image_url;
+    }
+
+    const totalPrice = Math.round(Number(quantity) * unitPrice * (1 - discount / 100) * 100) / 100;
+    const insert = await query(
+      `INSERT INTO online_quote_items
+         (quote_id, product_id, product_code, product_name, description, quantity, unit_price, cost_price, total_price, discount_percent, image_url)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+      [quote.id, product_id, code, name, description, quantity, unitPrice, costPrice, totalPrice, discount, imageUrl]
+    );
+    await recalculateQuoteTotals(quote.id);
+    const updatedQuote = await query('SELECT * FROM online_quotes WHERE id = $1', [quote.id]);
+
+    res.status(201).json({ item: insert.rows[0], quote: updatedQuote.rows[0] });
+  } catch (error) {
+    console.error('[comercial] add quote item error:', error);
+    res.status(500).json({ error: 'Erro ao adicionar item' });
+  }
+}
+
+async function updateQuoteItemHandler(req, res) {
+  try {
+    const itemResult = await query(
+      `SELECT qi.*, q.actor_id, q.status, q.organization_id FROM online_quote_items qi
+       JOIN online_quotes q ON q.id = qi.quote_id WHERE qi.id = $1 AND qi.quote_id = $2`,
+      [req.params.itemId, req.params.id]
+    );
+    const item = itemResult.rows[0];
+    if (!item || item.organization_id !== req.actor.organization_id) return res.status(404).json({ error: 'Item não encontrado' });
+    const canEdit = req.actor.profile === 'admin' || item.actor_id === req.actor.id;
+    if (!canEdit) return res.status(403).json({ error: 'Sem permissão' });
+    if (QUOTE_LOCKED_STATUSES.includes(item.status)) return res.status(400).json({ error: 'Este orçamento não pode mais ser editado' });
+
+    const quantity = req.body?.quantity !== undefined ? Number(req.body.quantity) : Number(item.quantity);
+    const discount = req.body?.discount_percent !== undefined
+      ? Math.min(Math.max(Number(req.body.discount_percent), 0), 100)
+      : Number(item.discount_percent);
+    const totalPrice = Math.round(quantity * Number(item.unit_price) * (1 - discount / 100) * 100) / 100;
+
+    const updated = await query(
+      `UPDATE online_quote_items SET quantity = $1, discount_percent = $2, total_price = $3 WHERE id = $4 RETURNING *`,
+      [quantity, discount, totalPrice, item.id]
+    );
+    await recalculateQuoteTotals(item.quote_id);
+    const updatedQuote = await query('SELECT * FROM online_quotes WHERE id = $1', [item.quote_id]);
+
+    res.json({ item: updated.rows[0], quote: updatedQuote.rows[0] });
+  } catch (error) {
+    console.error('[comercial] update quote item error:', error);
+    res.status(500).json({ error: 'Erro ao atualizar item' });
+  }
+}
+
+async function deleteQuoteItemHandler(req, res) {
+  try {
+    const itemResult = await query(
+      `SELECT qi.id, qi.quote_id, q.actor_id, q.status, q.organization_id FROM online_quote_items qi
+       JOIN online_quotes q ON q.id = qi.quote_id WHERE qi.id = $1 AND qi.quote_id = $2`,
+      [req.params.itemId, req.params.id]
+    );
+    const item = itemResult.rows[0];
+    if (!item || item.organization_id !== req.actor.organization_id) return res.status(404).json({ error: 'Item não encontrado' });
+    const canEdit = req.actor.profile === 'admin' || item.actor_id === req.actor.id;
+    if (!canEdit) return res.status(403).json({ error: 'Sem permissão' });
+    if (QUOTE_LOCKED_STATUSES.includes(item.status)) return res.status(400).json({ error: 'Este orçamento não pode mais ser editado' });
+
+    await query('DELETE FROM online_quote_items WHERE id = $1', [item.id]);
+    await recalculateQuoteTotals(item.quote_id);
+    res.json({ message: 'Item removido' });
+  } catch (error) {
+    console.error('[comercial] delete quote item error:', error);
+    res.status(500).json({ error: 'Erro ao remover item' });
+  }
+}
+
+async function sendQuoteHandler(req, res) {
+  try {
+    const quoteResult = await query(
+      'SELECT * FROM online_quotes WHERE id = $1 AND organization_id = $2',
+      [req.params.id, req.actor.organization_id]
+    );
+    const quote = quoteResult.rows[0];
+    if (!quote) return res.status(404).json({ error: 'Orçamento não encontrado' });
+    const canEdit = req.actor.profile === 'admin' || quote.actor_id === req.actor.id;
+    if (!canEdit) return res.status(403).json({ error: 'Você só pode enviar seus próprios orçamentos' });
+
+    const items = await query('SELECT discount_percent FROM online_quote_items WHERE quote_id = $1', [quote.id]);
+    if (items.rows.length === 0) return res.status(400).json({ error: 'Adicione ao menos um item antes de enviar' });
+    const maxDiscount = Math.max(...items.rows.map((i) => Number(i.discount_percent) || 0));
+
+    const needsApproval = req.actor.profile !== 'admin'
+      && req.actor.max_discount_percent != null
+      && maxDiscount > Number(req.actor.max_discount_percent);
+
+    if (needsApproval) {
+      await query(`UPDATE online_quotes SET status = 'aguardando_aprovacao', updated_at = NOW() WHERE id = $1`, [quote.id]);
+      await query(
+        `INSERT INTO com_quote_approvals (quote_id, requested_discount_percent, max_allowed_percent) VALUES ($1, $2, $3)`,
+        [quote.id, maxDiscount, req.actor.max_discount_percent]
+      );
+      await query(
+        `INSERT INTO com_quote_history (quote_id, actor_id, action, from_status, to_status, note)
+         VALUES ($1, $2, 'send_requested', $3, 'aguardando_aprovacao', $4)`,
+        [quote.id, req.actor.id, quote.status, `Desconto de ${maxDiscount}% acima do limite de ${req.actor.max_discount_percent}%`]
+      );
+      return res.json({ message: 'Orçamento enviado para aprovação por desconto acima do permitido.', status: 'aguardando_aprovacao' });
+    }
+
+    const publicToken = quote.public_token || genToken();
+    await query(`UPDATE online_quotes SET status = 'enviado', public_token = $1, updated_at = NOW() WHERE id = $2`, [publicToken, quote.id]);
+    await query(
+      `INSERT INTO com_quote_history (quote_id, actor_id, action, from_status, to_status) VALUES ($1, $2, 'sent', $3, 'enviado')`,
+      [quote.id, req.actor.id, quote.status]
+    );
+
+    res.json({ message: 'Orçamento enviado', status: 'enviado', public_token: publicToken });
+  } catch (error) {
+    console.error('[comercial] send quote error:', error);
+    res.status(500).json({ error: 'Erro ao enviar orçamento' });
+  }
+}
+
 const INVITE_TOKEN_TTL_HOURS = 48;
 const RESET_TOKEN_TTL_HOURS = 1;
 const forgotPasswordCooldown = new Map();
@@ -537,6 +899,55 @@ router.post('/clientes/:id/solicitar-transferencia', externalActorAuth, requestC
 router.get('/catalogo', externalActorAuth, listCatalogHandler);
 router.get('/tabelas-preco', externalActorAuth, listMyPriceListsHandler);
 
+// Orçamentos
+router.get('/orcamentos', externalActorAuth, listQuotesHandler);
+router.post('/orcamentos', externalActorAuth, createQuoteHandler);
+router.get('/orcamentos/:id', externalActorAuth, getQuoteHandler);
+router.put('/orcamentos/:id', externalActorAuth, updateQuoteHandler);
+router.post('/orcamentos/:id/itens', externalActorAuth, addQuoteItemHandler);
+router.put('/orcamentos/:id/itens/:itemId', externalActorAuth, updateQuoteItemHandler);
+router.delete('/orcamentos/:id/itens/:itemId', externalActorAuth, deleteQuoteItemHandler);
+router.post('/orcamentos/:id/enviar', externalActorAuth, sendQuoteHandler);
+
+// Proposta pública (link enviado ao cliente, sem autenticação — item 13)
+router.get('/proposta/:token', async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT q.*, o.name as organization_name, o.logo_url as organization_logo_url
+       FROM online_quotes q LEFT JOIN organizations o ON o.id = q.organization_id
+       WHERE q.public_token = $1`,
+      [req.params.token]
+    );
+    const quote = result.rows[0];
+    if (!quote) return res.status(404).json({ error: 'Proposta não encontrada' });
+
+    if (!quote.viewed_at) {
+      await query('UPDATE online_quotes SET viewed_at = NOW() WHERE id = $1', [quote.id]);
+      quote.viewed_at = new Date().toISOString();
+    }
+    if (quote.status === 'enviado') {
+      await query(`UPDATE online_quotes SET status = 'visualizado', updated_at = NOW() WHERE id = $1`, [quote.id]);
+      quote.status = 'visualizado';
+    }
+
+    const items = await query(
+      `SELECT id, product_name, description, quantity, unit_price, total_price, discount_percent, image_url
+       FROM online_quote_items WHERE quote_id = $1 ORDER BY created_at ASC`,
+      [quote.id]
+    );
+
+    delete quote.internal_notes;
+    delete quote.total_cost;
+    delete quote.margin_percent;
+    delete quote.organization_id;
+
+    res.json({ quote, items: items.rows });
+  } catch (error) {
+    console.error('[comercial] public proposal error:', error);
+    res.status(500).json({ error: 'Erro ao carregar proposta' });
+  }
+});
+
 // ---------------------------------------------------------------------------
 // Ator interno autenticado (mesmo login do CRM, escopo restrito ao Portal Comercial)
 // ---------------------------------------------------------------------------
@@ -562,6 +973,15 @@ internalRouter.put('/clientes/:id', updateCustomerHandler);
 internalRouter.post('/clientes/:id/solicitar-transferencia', requestCustomerTransferHandler);
 internalRouter.get('/catalogo', listCatalogHandler);
 internalRouter.get('/tabelas-preco', listMyPriceListsHandler);
+
+internalRouter.get('/orcamentos', listQuotesHandler);
+internalRouter.post('/orcamentos', createQuoteHandler);
+internalRouter.get('/orcamentos/:id', getQuoteHandler);
+internalRouter.put('/orcamentos/:id', updateQuoteHandler);
+internalRouter.post('/orcamentos/:id/itens', addQuoteItemHandler);
+internalRouter.put('/orcamentos/:id/itens/:itemId', updateQuoteItemHandler);
+internalRouter.delete('/orcamentos/:id/itens/:itemId', deleteQuoteItemHandler);
+internalRouter.post('/orcamentos/:id/enviar', sendQuoteHandler);
 
 router.use('/interno', internalRouter);
 
@@ -1060,6 +1480,83 @@ adminRouter.post('/transfer-requests/:id/reject', gate('can_manage_comercial_por
   );
   if (result.rows.length === 0) return res.status(404).json({ error: 'Solicitação não encontrada' });
   res.json({ message: 'Transferência recusada' });
+});
+
+// --- Aprovação de desconto acima do limite (item 31) ---
+
+adminRouter.get('/quote-approvals', gate('can_manage_comercial_portal'), async (req, res) => {
+  const org = await getUserOrg(req.userId);
+  if (!org) return res.status(403).json({ error: 'Sem organização' });
+
+  const result = await query(
+    `SELECT qa.*, q.quote_number, q.total_value, c.company_name as customer_name, a.name as actor_name
+     FROM com_quote_approvals qa
+     JOIN online_quotes q ON q.id = qa.quote_id
+     LEFT JOIN com_customers c ON c.id = q.customer_id
+     LEFT JOIN com_actors a ON a.id = q.actor_id
+     WHERE q.organization_id = $1 AND qa.status = 'pending'
+     ORDER BY qa.created_at DESC`,
+    [org.organization_id]
+  );
+  res.json({ approvals: result.rows });
+});
+
+adminRouter.post('/quote-approvals/:id/approve', gate('can_manage_comercial_portal'), async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+
+    const qaResult = await query(
+      `SELECT qa.* FROM com_quote_approvals qa
+       JOIN online_quotes q ON q.id = qa.quote_id
+       WHERE qa.id = $1 AND q.organization_id = $2 AND qa.status = 'pending'`,
+      [req.params.id, org.organization_id]
+    );
+    const qa = qaResult.rows[0];
+    if (!qa) return res.status(404).json({ error: 'Solicitação não encontrada' });
+
+    const publicToken = genToken();
+    await query(
+      `UPDATE online_quotes SET status = 'enviado', public_token = COALESCE(public_token, $1), approved_at = NOW(), updated_at = NOW() WHERE id = $2`,
+      [publicToken, qa.quote_id]
+    );
+    await query(`UPDATE com_quote_approvals SET status = 'approved', decided_by_user_id = $1, decided_at = NOW() WHERE id = $2`, [req.userId, qa.id]);
+    await query(
+      `INSERT INTO com_quote_history (quote_id, action, from_status, to_status, note)
+       VALUES ($1, 'approval_approved', 'aguardando_aprovacao', 'enviado', $2)`,
+      [qa.quote_id, `Aprovado por desconto de ${qa.requested_discount_percent}%`]
+    );
+    res.json({ message: 'Orçamento aprovado e enviado' });
+  } catch (error) {
+    console.error('[comercial] approve quote error:', error);
+    res.status(500).json({ error: 'Erro ao aprovar orçamento' });
+  }
+});
+
+adminRouter.post('/quote-approvals/:id/reject', gate('can_manage_comercial_portal'), async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+
+    const qaResult = await query(
+      `UPDATE com_quote_approvals qa SET status = 'rejected', decided_by_user_id = $1, decided_at = NOW(), note = $2
+       FROM online_quotes q
+       WHERE qa.quote_id = q.id AND qa.id = $3 AND q.organization_id = $4 AND qa.status = 'pending'
+       RETURNING qa.quote_id`,
+      [req.userId, req.body?.note || null, req.params.id, org.organization_id]
+    );
+    if (qaResult.rows.length === 0) return res.status(404).json({ error: 'Solicitação não encontrada' });
+
+    await query(`UPDATE online_quotes SET status = 'em_elaboracao', rejected_at = NOW(), updated_at = NOW() WHERE id = $1`, [qaResult.rows[0].quote_id]);
+    await query(
+      `INSERT INTO com_quote_history (quote_id, action, from_status, to_status) VALUES ($1, 'approval_rejected', 'aguardando_aprovacao', 'em_elaboracao')`,
+      [qaResult.rows[0].quote_id]
+    );
+    res.json({ message: 'Orçamento recusado, voltou para elaboração' });
+  } catch (error) {
+    console.error('[comercial] reject quote error:', error);
+    res.status(500).json({ error: 'Erro ao recusar orçamento' });
+  }
 });
 
 router.use('/admin', adminRouter);

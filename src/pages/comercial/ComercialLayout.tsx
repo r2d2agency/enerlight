@@ -13,7 +13,7 @@ const NAV_ITEMS = [
   { name: 'Dashboard', href: '/comercial/dashboard', icon: LayoutDashboard, enabled: true },
   { name: 'Clientes', href: '/comercial/clientes', icon: Users, enabled: true },
   { name: 'Oportunidades', href: '/comercial/oportunidades', icon: Handshake, enabled: false },
-  { name: 'Orçamentos', href: '/comercial/orcamentos', icon: FileText, enabled: false },
+  { name: 'Orçamentos', href: '/comercial/orcamentos', icon: FileText, enabled: true },
   { name: 'Vendas', href: '/comercial/vendas', icon: ShoppingCart, enabled: false },
   { name: 'Catálogo', href: '/comercial/catalogo', icon: Package, enabled: true },
   { name: 'Minha Conta', href: '/comercial/conta', icon: UserCog, enabled: false },
@@ -74,7 +74,7 @@ const ComercialLayout = ({ children }: { children: (actor: ComercialActor) => Re
         </div>
         <nav className="max-w-6xl mx-auto px-4 flex gap-1 overflow-x-auto">
           {NAV_ITEMS.map((item) => {
-            const active = location.pathname === item.href;
+            const active = location.pathname === item.href || location.pathname.startsWith(`${item.href}/`);
             if (!item.enabled) {
               return (
                 <span

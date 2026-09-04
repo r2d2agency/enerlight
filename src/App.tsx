@@ -145,10 +145,15 @@ const ComercialAtivarConta = lazyRetry(() => import("./pages/comercial/Comercial
 const ComercialDashboard = lazyRetry(() => import("./pages/comercial/ComercialDashboard"));
 const ComercialClientes = lazyRetry(() => import("./pages/comercial/ComercialClientes"));
 const ComercialCatalogo = lazyRetry(() => import("./pages/comercial/ComercialCatalogo"));
+const ComercialOrcamentos = lazyRetry(() => import("./pages/comercial/ComercialOrcamentos"));
+const ComercialOrcamentoDetail = lazyRetry(() => import("./pages/comercial/ComercialOrcamentoDetail"));
 const PortalComercialDashboard = lazyRetry(() => import("./pages/PortalComercialDashboard"));
 const PortalComercialClientes = lazyRetry(() => import("./pages/PortalComercialClientes"));
 const PortalComercialCatalogo = lazyRetry(() => import("./pages/PortalComercialCatalogo"));
+const PortalComercialOrcamentos = lazyRetry(() => import("./pages/PortalComercialOrcamentos"));
+const PortalComercialOrcamentoDetail = lazyRetry(() => import("./pages/PortalComercialOrcamentoDetail"));
 const AdminComercialPortal = lazyRetry(() => import("./pages/AdminComercialPortal"));
+const PropostaPublica = lazyRetry(() => import("./pages/PropostaPublica"));
 
 
 
@@ -274,11 +279,17 @@ const App = () => (
               <Route path="/comercial/dashboard" element={<ComercialDashboard />} />
               <Route path="/comercial/clientes" element={<ComercialClientes />} />
               <Route path="/comercial/catalogo" element={<ComercialCatalogo />} />
+              <Route path="/comercial/orcamentos" element={<ComercialOrcamentos />} />
+              <Route path="/comercial/orcamentos/:id" element={<ComercialOrcamentoDetail />} />
               {/* Portal Comercial — acesso interno, mesma conta do CRM, área restrita */}
               <Route path="/portal-comercial/dashboard" element={<ProtectedRoute permissionKey="can_access_comercial_portal"><PortalComercialDashboard /></ProtectedRoute>} />
               <Route path="/portal-comercial/clientes" element={<ProtectedRoute permissionKey="can_access_comercial_portal"><PortalComercialClientes /></ProtectedRoute>} />
               <Route path="/portal-comercial/catalogo" element={<ProtectedRoute permissionKey="can_access_comercial_portal"><PortalComercialCatalogo /></ProtectedRoute>} />
+              <Route path="/portal-comercial/orcamentos" element={<ProtectedRoute permissionKey="can_access_comercial_portal"><PortalComercialOrcamentos /></ProtectedRoute>} />
+              <Route path="/portal-comercial/orcamentos/:id" element={<ProtectedRoute permissionKey="can_access_comercial_portal"><PortalComercialOrcamentoDetail /></ProtectedRoute>} />
               <Route path="/admin/portal-comercial" element={<ProtectedRoute permissionKey="can_manage_comercial_portal"><AdminComercialPortal /></ProtectedRoute>} />
+              {/* Proposta pública — link enviado ao cliente final, sem autenticação (item 13) */}
+              <Route path="/proposta/:token" element={<PropostaPublica />} />
 
               <Route path="/crm/representantes-hub" element={<ProtectedRoute><RepresentativesHub /></ProtectedRoute>} />
               <Route path="/supervisor-ia" element={<ProtectedRoute><SupervisorIA /></ProtectedRoute>} />

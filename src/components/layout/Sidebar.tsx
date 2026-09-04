@@ -254,6 +254,7 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
       { name: "Dashboard", href: "/portal-comercial/dashboard", icon: Briefcase, permissionKey: 'can_access_comercial_portal' },
       { name: "Clientes", href: "/portal-comercial/clientes", icon: Users, permissionKey: 'can_access_comercial_portal' },
       { name: "Catálogo", href: "/portal-comercial/catalogo", icon: Briefcase, permissionKey: 'can_access_comercial_portal' },
+      { name: "Orçamentos", href: "/portal-comercial/orcamentos", icon: Briefcase, permissionKey: 'can_access_comercial_portal' },
     ],
   },
   {

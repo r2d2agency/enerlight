@@ -81,6 +81,90 @@ export interface ComercialMyPriceList {
   is_default: boolean;
 }
 
+export type ComercialQuoteStatus =
+  | 'draft' | 'em_elaboracao' | 'enviado' | 'visualizado' | 'em_negociacao'
+  | 'aguardando_aprovacao' | 'aprovado' | 'recusado'
+  | 'expirado' | 'convertido' | 'cancelado';
+
+export interface ComercialQuoteListItem {
+  id: string;
+  quote_number?: string | null;
+  status: ComercialQuoteStatus;
+  total_value: number;
+  valid_until?: string | null;
+  created_at: string;
+  customer_id?: string | null;
+  customer_name?: string | null;
+  actor_name?: string | null;
+}
+
+export interface ComercialQuote {
+  id: string;
+  organization_id: string;
+  actor_id?: string | null;
+  actor_name?: string | null;
+  customer_id?: string | null;
+  customer_name?: string | null;
+  customer_email?: string | null;
+  price_list_id?: string | null;
+  quote_number?: string | null;
+  status: ComercialQuoteStatus;
+  client_name: string;
+  client_document?: string | null;
+  client_email?: string | null;
+  client_phone?: string | null;
+  subtotal_value: number;
+  discount_value: number;
+  total_value: number;
+  total_cost?: number;
+  margin_percent?: number;
+  freight_value: number;
+  payment_terms?: string | null;
+  delivery_time?: string | null;
+  valid_until?: string | null;
+  notes?: string | null;
+  internal_notes?: string | null;
+  public_token?: string | null;
+  viewed_at?: string | null;
+  approved_at?: string | null;
+  rejected_at?: string | null;
+  organization_name?: string;
+  organization_logo_url?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ComercialQuoteItem {
+  id: string;
+  quote_id: string;
+  product_id?: string | null;
+  product_code?: string | null;
+  product_name: string;
+  description?: string | null;
+  quantity: number;
+  unit_price: number;
+  cost_price?: number;
+  total_price: number;
+  discount_percent: number;
+  image_url?: string | null;
+}
+
+export interface ComercialQuoteHistoryEntry {
+  id: string;
+  action: string;
+  from_status?: string | null;
+  to_status?: string | null;
+  note?: string | null;
+  actor_name?: string | null;
+  created_at: string;
+}
+
+export interface ComercialQuoteDetail {
+  quote: ComercialQuote;
+  items: ComercialQuoteItem[];
+  history: ComercialQuoteHistoryEntry[];
+}
+
 async function fetchComercial(endpoint: string, init: RequestInit): Promise<Response> {
   const res = await fetch(`${API_URL}${endpoint}`, init);
 
@@ -148,6 +232,27 @@ export const comercialExternalApi = {
 
   listCatalog: () => call<{ products: ComercialCatalogProduct[] }>('/api/comercial/catalogo'),
   listMyPriceLists: () => call<{ price_lists: ComercialMyPriceList[] }>('/api/comercial/tabelas-preco'),
+
+  listQuotes: () => call<{ quotes: ComercialQuoteListItem[] }>('/api/comercial/orcamentos'),
+  createQuote: (body: { customer_id: string; price_list_id?: string }) =>
+    call<{ quote: ComercialQuote }>('/api/comercial/orcamentos', { method: 'POST', body }),
+  getQuote: (id: string) => call<ComercialQuoteDetail>(`/api/comercial/orcamentos/${id}`),
+  updateQuote: (id: string, body: Partial<ComercialQuote>) =>
+    call<{ quote: ComercialQuote }>(`/api/comercial/orcamentos/${id}`, { method: 'PUT', body }),
+  addQuoteItem: (id: string, body: { product_id: string; quantity: number; discount_percent?: number }) =>
+    call<{ item: ComercialQuoteItem; quote: ComercialQuote }>(`/api/comercial/orcamentos/${id}/itens`, { method: 'POST', body }),
+  updateQuoteItem: (id: string, itemId: string, body: { quantity?: number; discount_percent?: number }) =>
+    call<{ item: ComercialQuoteItem; quote: ComercialQuote }>(`/api/comercial/orcamentos/${id}/itens/${itemId}`, { method: 'PUT', body }),
+  deleteQuoteItem: (id: string, itemId: string) =>
+    call<{ message: string }>(`/api/comercial/orcamentos/${id}/itens/${itemId}`, { method: 'DELETE' }),
+  sendQuote: (id: string) =>
+    call<{ message: string; status: string; public_token?: string }>(`/api/comercial/orcamentos/${id}/enviar`, { method: 'POST' }),
+};
+
+// Proposta pública — sem autenticação, acessada pelo cliente final via link
+export const comercialPublicApi = {
+  getProposal: (token: string) =>
+    call<{ quote: ComercialQuote; items: ComercialQuoteItem[] }>(`/api/comercial/proposta/${token}`, { auth: false }),
 };
 
 // Portal interno — mesmo login/token do CRM (usa o helper api() principal)
@@ -165,6 +270,21 @@ export const comercialInternalApi = {
 
   listCatalog: () => api<{ products: ComercialCatalogProduct[] }>('/api/comercial/interno/catalogo'),
   listMyPriceLists: () => api<{ price_lists: ComercialMyPriceList[] }>('/api/comercial/interno/tabelas-preco'),
+
+  listQuotes: () => api<{ quotes: ComercialQuoteListItem[] }>('/api/comercial/interno/orcamentos'),
+  createQuote: (body: { customer_id: string; price_list_id?: string }) =>
+    api<{ quote: ComercialQuote }>('/api/comercial/interno/orcamentos', { method: 'POST', body }),
+  getQuote: (id: string) => api<ComercialQuoteDetail>(`/api/comercial/interno/orcamentos/${id}`),
+  updateQuote: (id: string, body: Partial<ComercialQuote>) =>
+    api<{ quote: ComercialQuote }>(`/api/comercial/interno/orcamentos/${id}`, { method: 'PUT', body }),
+  addQuoteItem: (id: string, body: { product_id: string; quantity: number; discount_percent?: number }) =>
+    api<{ item: ComercialQuoteItem; quote: ComercialQuote }>(`/api/comercial/interno/orcamentos/${id}/itens`, { method: 'POST', body }),
+  updateQuoteItem: (id: string, itemId: string, body: { quantity?: number; discount_percent?: number }) =>
+    api<{ item: ComercialQuoteItem; quote: ComercialQuote }>(`/api/comercial/interno/orcamentos/${id}/itens/${itemId}`, { method: 'PUT', body }),
+  deleteQuoteItem: (id: string, itemId: string) =>
+    api<{ message: string }>(`/api/comercial/interno/orcamentos/${id}/itens/${itemId}`, { method: 'DELETE' }),
+  sendQuote: (id: string) =>
+    api<{ message: string; status: string; public_token?: string }>(`/api/comercial/interno/orcamentos/${id}/enviar`, { method: 'POST' }),
 };
 
 export interface ComercialAdminActor {
@@ -233,6 +353,19 @@ export interface ComercialTransferRequest {
   created_at: string;
 }
 
+export interface ComercialQuoteApproval {
+  id: string;
+  quote_id: string;
+  quote_number?: string | null;
+  total_value: number;
+  customer_name?: string | null;
+  actor_name?: string | null;
+  requested_discount_percent: number;
+  max_allowed_percent: number;
+  status: 'pending' | 'approved' | 'rejected';
+  created_at: string;
+}
+
 // Administração — usa a mesma sessão do CRM (auth_token), não o token isolado do portal
 export const comercialAdminApi = {
   listActors: () => api<{ actors: ComercialAdminActor[] }>('/api/comercial/admin/actors'),
@@ -275,4 +408,10 @@ export const comercialAdminApi = {
     api<{ message: string }>(`/api/comercial/admin/transfer-requests/${id}/approve`, { method: 'POST' }),
   rejectTransferRequest: (id: string) =>
     api<{ message: string }>(`/api/comercial/admin/transfer-requests/${id}/reject`, { method: 'POST' }),
+
+  listQuoteApprovals: () => api<{ approvals: ComercialQuoteApproval[] }>('/api/comercial/admin/quote-approvals'),
+  approveQuote: (id: string) =>
+    api<{ message: string }>(`/api/comercial/admin/quote-approvals/${id}/approve`, { method: 'POST' }),
+  rejectQuote: (id: string, note?: string) =>
+    api<{ message: string }>(`/api/comercial/admin/quote-approvals/${id}/reject`, { method: 'POST', body: { note } }),
 };
