@@ -408,8 +408,18 @@ async function listQuotesHandler(req, res) {
 
 async function createQuoteHandler(req, res) {
   try {
-    const { customer_id, price_list_id: bodyPriceListId } = req.body || {};
+    const { customer_id, price_list_id: bodyPriceListId, opportunity_id: bodyOpportunityId } = req.body || {};
     if (!customer_id) return res.status(400).json({ error: 'Cliente é obrigatório' });
+
+    let opportunityId = null;
+    if (bodyOpportunityId) {
+      const oppResult = await query(
+        'SELECT id FROM com_opportunities WHERE id = $1 AND organization_id = $2',
+        [bodyOpportunityId, req.actor.organization_id]
+      );
+      if (oppResult.rows.length === 0) return res.status(404).json({ error: 'Oportunidade não encontrada' });
+      opportunityId = bodyOpportunityId;
+    }
 
     const custResult = await query(
       'SELECT * FROM com_customers WHERE id = $1 AND organization_id = $2',
@@ -449,9 +459,9 @@ async function createQuoteHandler(req, res) {
 
     const insert = await query(
       `INSERT INTO online_quotes
-         (organization_id, actor_id, customer_id, price_list_id, status, client_name, client_document, client_email, client_phone)
-       VALUES ($1,$2,$3,$4,'draft',$5,$6,$7,$8) RETURNING *`,
-      [req.actor.organization_id, req.actor.id, customer.id, priceListId, customer.company_name,
+         (organization_id, actor_id, customer_id, opportunity_id, price_list_id, status, client_name, client_document, client_email, client_phone)
+       VALUES ($1,$2,$3,$4,$5,'draft',$6,$7,$8,$9) RETURNING *`,
+      [req.actor.organization_id, req.actor.id, customer.id, opportunityId, priceListId, customer.company_name,
         customer.cnpj || customer.cpf, customer.email, customer.phone || customer.whatsapp]
     );
     const numbered = await query(
@@ -698,6 +708,344 @@ async function sendQuoteHandler(req, res) {
   }
 }
 
+async function convertQuoteToSaleHandler(req, res) {
+  try {
+    const quoteResult = await query(
+      'SELECT * FROM online_quotes WHERE id = $1 AND organization_id = $2',
+      [req.params.id, req.actor.organization_id]
+    );
+    const quote = quoteResult.rows[0];
+    if (!quote) return res.status(404).json({ error: 'Orçamento não encontrado' });
+    const canEdit = req.actor.profile === 'admin' || quote.actor_id === req.actor.id;
+    if (!canEdit) return res.status(403).json({ error: 'Você só pode converter seus próprios orçamentos' });
+    if (!['enviado', 'visualizado', 'em_negociacao'].includes(quote.status)) {
+      return res.status(400).json({ error: 'Este orçamento não pode ser convertido em venda no status atual' });
+    }
+    const existingSale = await query('SELECT id FROM com_sales WHERE quote_id = $1', [quote.id]);
+    if (existingSale.rows.length > 0) return res.status(400).json({ error: 'Este orçamento já foi convertido em venda' });
+
+    const items = await query('SELECT * FROM online_quote_items WHERE quote_id = $1', [quote.id]);
+    if (items.rows.length === 0) return res.status(400).json({ error: 'Orçamento sem itens' });
+
+    const insertSale = await query(
+      `INSERT INTO com_sales
+         (organization_id, quote_id, opportunity_id, customer_id, actor_id, status, client_name, client_document,
+          subtotal_value, discount_value, freight_value, total_value, payment_terms, notes, created_by)
+       VALUES ($1,$2,$3,$4,$5,'confirmed',$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
+      [req.actor.organization_id, quote.id, quote.opportunity_id, quote.customer_id, quote.actor_id,
+        quote.client_name, quote.client_document, quote.subtotal_value, quote.discount_value, quote.freight_value,
+        quote.total_value, quote.payment_terms, quote.notes, req.actor.id]
+    );
+    const numbered = await query(
+      `UPDATE com_sales SET sale_number = 'VND-' || to_char(created_at, 'YYYY') || '-' || LPAD(sequence_number::text, 5, '0')
+       WHERE id = $1 RETURNING *`,
+      [insertSale.rows[0].id]
+    );
+    const sale = numbered.rows[0];
+
+    // Snapshot dos itens — cópia própria, nunca um JOIN vivo com o orçamento (item 15)
+    for (const item of items.rows) {
+      await query(
+        `INSERT INTO com_sale_items (sale_id, product_id, product_code, product_name, description, quantity, unit_price, total_price, discount_percent)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+        [sale.id, item.product_id, item.product_code, item.product_name, item.description,
+          item.quantity, item.unit_price, item.total_price, item.discount_percent]
+      );
+    }
+
+    await query(`UPDATE online_quotes SET status = 'convertido', updated_at = NOW() WHERE id = $1`, [quote.id]);
+    await query(
+      `INSERT INTO com_quote_history (quote_id, actor_id, action, from_status, to_status) VALUES ($1, $2, 'converted_to_sale', $3, 'convertido')`,
+      [quote.id, req.actor.id, quote.status]
+    );
+
+    if (quote.opportunity_id) {
+      const wonStage = await query(
+        `SELECT id FROM com_opportunity_stages WHERE organization_id = $1 AND is_won = true ORDER BY position ASC LIMIT 1`,
+        [req.actor.organization_id]
+      );
+      await query(
+        `UPDATE com_opportunities SET status = 'won', stage_id = COALESCE($1, stage_id), updated_at = NOW() WHERE id = $2`,
+        [wonStage.rows[0]?.id || null, quote.opportunity_id]
+      );
+      await query(
+        `INSERT INTO com_opportunity_history (opportunity_id, actor_id, field, new_value, note) VALUES ($1, $2, 'status', 'won', 'Convertido em venda')`,
+        [quote.opportunity_id, req.actor.id]
+      );
+    }
+
+    res.status(201).json({ sale });
+  } catch (error) {
+    console.error('[comercial] convert quote to sale error:', error);
+    res.status(500).json({ error: 'Erro ao converter em venda' });
+  }
+}
+
+function salesScope(actor, paramsArr) {
+  paramsArr.push(actor.organization_id);
+  const orgIdx = paramsArr.length;
+  if (actor.profile === 'admin') {
+    return { where: `s.organization_id = $${orgIdx}`, params: paramsArr };
+  }
+  if (actor.profile === 'gerente' && actor.team_id) {
+    paramsArr.push(actor.id);
+    const selfIdx = paramsArr.length;
+    paramsArr.push(actor.team_id);
+    const teamIdx = paramsArr.length;
+    return {
+      where: `s.organization_id = $${orgIdx} AND s.actor_id IN (SELECT id FROM com_actors WHERE id = $${selfIdx} OR team_id = $${teamIdx})`,
+      params: paramsArr,
+    };
+  }
+  paramsArr.push(actor.id);
+  return { where: `s.organization_id = $${orgIdx} AND s.actor_id = $${orgIdx + 1}`, params: paramsArr };
+}
+
+async function listSalesHandler(req, res) {
+  try {
+    const params = [];
+    const scope = salesScope(req.actor, params);
+    const result = await query(
+      `SELECT s.id, s.sale_number, s.status, s.total_value, s.sale_date, s.created_at,
+              c.company_name as customer_name, a.name as actor_name
+       FROM com_sales s
+       LEFT JOIN com_customers c ON c.id = s.customer_id
+       LEFT JOIN com_actors a ON a.id = s.actor_id
+       WHERE ${scope.where}
+       ORDER BY s.created_at DESC`,
+      scope.params
+    );
+    res.json({ sales: result.rows });
+  } catch (error) {
+    console.error('[comercial] list sales error:', error);
+    res.status(500).json({ error: 'Erro ao carregar vendas' });
+  }
+}
+
+async function getSaleHandler(req, res) {
+  try {
+    const params = [];
+    const scope = salesScope(req.actor, params);
+    params.push(req.params.id);
+    const result = await query(
+      `SELECT s.*, c.company_name as customer_name, a.name as actor_name
+       FROM com_sales s
+       LEFT JOIN com_customers c ON c.id = s.customer_id
+       LEFT JOIN com_actors a ON a.id = s.actor_id
+       WHERE ${scope.where} AND s.id = $${params.length}`,
+      params
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Venda não encontrada' });
+    const items = await query('SELECT * FROM com_sale_items WHERE sale_id = $1 ORDER BY created_at ASC', [result.rows[0].id]);
+    res.json({ sale: result.rows[0], items: items.rows });
+  } catch (error) {
+    console.error('[comercial] get sale error:', error);
+    res.status(500).json({ error: 'Erro ao carregar venda' });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Oportunidades / Kanban comercial (item 14)
+// ---------------------------------------------------------------------------
+
+const DEFAULT_OPPORTUNITY_STAGES = [
+  ['Lead', 0, false, false], ['Contato', 1, false, false], ['Levantamento', 2, false, false],
+  ['Orçamento', 3, false, false], ['Negociação', 4, false, false], ['Fechamento', 5, false, false],
+  ['Ganho', 6, true, false], ['Perdido', 7, false, true],
+];
+
+async function ensureDefaultStages(organizationId) {
+  const existing = await query('SELECT id FROM com_opportunity_stages WHERE organization_id = $1 LIMIT 1', [organizationId]);
+  if (existing.rows.length > 0) return;
+  for (const [name, position, isWon, isLost] of DEFAULT_OPPORTUNITY_STAGES) {
+    await query(
+      `INSERT INTO com_opportunity_stages (organization_id, name, position, is_won, is_lost)
+       VALUES ($1, $2, $3, $4, $5) ON CONFLICT (organization_id, name) DO NOTHING`,
+      [organizationId, name, position, isWon, isLost]
+    );
+  }
+}
+
+async function listStagesHandler(req, res) {
+  try {
+    await ensureDefaultStages(req.actor.organization_id);
+    const result = await query(
+      'SELECT * FROM com_opportunity_stages WHERE organization_id = $1 ORDER BY position ASC',
+      [req.actor.organization_id]
+    );
+    res.json({ stages: result.rows });
+  } catch (error) {
+    console.error('[comercial] list stages error:', error);
+    res.status(500).json({ error: 'Erro ao carregar etapas' });
+  }
+}
+
+function opportunityScope(actor, paramsArr) {
+  paramsArr.push(actor.organization_id);
+  const orgIdx = paramsArr.length;
+  if (actor.profile === 'admin') {
+    return { where: `o.organization_id = $${orgIdx}`, params: paramsArr };
+  }
+  if (actor.profile === 'gerente' && actor.team_id) {
+    paramsArr.push(actor.id);
+    const selfIdx = paramsArr.length;
+    paramsArr.push(actor.team_id);
+    const teamIdx = paramsArr.length;
+    return {
+      where: `o.organization_id = $${orgIdx} AND o.actor_id IN (SELECT id FROM com_actors WHERE id = $${selfIdx} OR team_id = $${teamIdx})`,
+      params: paramsArr,
+    };
+  }
+  paramsArr.push(actor.id);
+  return { where: `o.organization_id = $${orgIdx} AND o.actor_id = $${orgIdx + 1}`, params: paramsArr };
+}
+
+async function listOpportunitiesHandler(req, res) {
+  try {
+    await ensureDefaultStages(req.actor.organization_id);
+    const params = [];
+    const scope = opportunityScope(req.actor, params);
+    const result = await query(
+      `SELECT o.*, c.company_name as customer_name, a.name as actor_name, st.name as stage_name, st.is_won, st.is_lost
+       FROM com_opportunities o
+       LEFT JOIN com_customers c ON c.id = o.customer_id
+       LEFT JOIN com_actors a ON a.id = o.actor_id
+       LEFT JOIN com_opportunity_stages st ON st.id = o.stage_id
+       WHERE ${scope.where}
+       ORDER BY o.created_at DESC`,
+      scope.params
+    );
+    res.json({ opportunities: result.rows });
+  } catch (error) {
+    console.error('[comercial] list opportunities error:', error);
+    res.status(500).json({ error: 'Erro ao carregar oportunidades' });
+  }
+}
+
+async function createOpportunityHandler(req, res) {
+  try {
+    const b = req.body || {};
+    if (!b.title?.trim()) return res.status(400).json({ error: 'Título é obrigatório' });
+    if (!b.customer_id) return res.status(400).json({ error: 'Cliente é obrigatório' });
+
+    const custResult = await query(
+      'SELECT id FROM com_customers WHERE id = $1 AND organization_id = $2',
+      [b.customer_id, req.actor.organization_id]
+    );
+    if (custResult.rows.length === 0) return res.status(404).json({ error: 'Cliente não encontrado' });
+
+    await ensureDefaultStages(req.actor.organization_id);
+    let stageId = b.stage_id;
+    if (!stageId) {
+      const firstStage = await query(
+        'SELECT id FROM com_opportunity_stages WHERE organization_id = $1 ORDER BY position ASC LIMIT 1',
+        [req.actor.organization_id]
+      );
+      stageId = firstStage.rows[0]?.id || null;
+    }
+
+    const result = await query(
+      `INSERT INTO com_opportunities
+         (organization_id, actor_id, customer_id, stage_id, title, estimated_value, probability_percent,
+          expected_close_date, origin, notes, next_action, next_action_date, created_by, updated_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$13) RETURNING *`,
+      [req.actor.organization_id, req.actor.id, b.customer_id, stageId, b.title.trim(),
+        b.estimated_value || 0, b.probability_percent || null, b.expected_close_date || null,
+        b.origin || null, b.notes || null, b.next_action || null, b.next_action_date || null, req.actor.id]
+    );
+    res.status(201).json({ opportunity: result.rows[0] });
+  } catch (error) {
+    console.error('[comercial] create opportunity error:', error);
+    res.status(500).json({ error: 'Erro ao criar oportunidade' });
+  }
+}
+
+async function getOpportunityHandler(req, res) {
+  try {
+    const params = [];
+    const scope = opportunityScope(req.actor, params);
+    params.push(req.params.id);
+    const result = await query(
+      `SELECT o.*, c.company_name as customer_name, a.name as actor_name, st.name as stage_name
+       FROM com_opportunities o
+       LEFT JOIN com_customers c ON c.id = o.customer_id
+       LEFT JOIN com_actors a ON a.id = o.actor_id
+       LEFT JOIN com_opportunity_stages st ON st.id = o.stage_id
+       WHERE ${scope.where} AND o.id = $${params.length}`,
+      params
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Oportunidade não encontrada' });
+
+    const [history, quotes] = await Promise.all([
+      query(
+        `SELECT h.*, a.name as actor_name FROM com_opportunity_history h
+         LEFT JOIN com_actors a ON a.id = h.actor_id
+         WHERE h.opportunity_id = $1 ORDER BY h.created_at ASC`,
+        [req.params.id]
+      ),
+      query(
+        `SELECT id, quote_number, status, total_value FROM online_quotes WHERE opportunity_id = $1 ORDER BY created_at DESC`,
+        [req.params.id]
+      ),
+    ]);
+
+    res.json({ opportunity: result.rows[0], history: history.rows, quotes: quotes.rows });
+  } catch (error) {
+    console.error('[comercial] get opportunity error:', error);
+    res.status(500).json({ error: 'Erro ao carregar oportunidade' });
+  }
+}
+
+async function updateOpportunityHandler(req, res) {
+  try {
+    const oppResult = await query(
+      'SELECT o.*, st.name as stage_name FROM com_opportunities o LEFT JOIN com_opportunity_stages st ON st.id = o.stage_id WHERE o.id = $1 AND o.organization_id = $2',
+      [req.params.id, req.actor.organization_id]
+    );
+    const opp = oppResult.rows[0];
+    if (!opp) return res.status(404).json({ error: 'Oportunidade não encontrada' });
+    const canEdit = req.actor.profile === 'admin' || opp.actor_id === req.actor.id;
+    if (!canEdit) return res.status(403).json({ error: 'Você só pode editar suas próprias oportunidades' });
+
+    const b = req.body || {};
+
+    if (b.stage_id && b.stage_id !== opp.stage_id) {
+      const newStage = await query('SELECT * FROM com_opportunity_stages WHERE id = $1 AND organization_id = $2', [b.stage_id, req.actor.organization_id]);
+      if (newStage.rows.length === 0) return res.status(400).json({ error: 'Etapa inválida' });
+      const stage = newStage.rows[0];
+      const newStatus = stage.is_won ? 'won' : stage.is_lost ? 'lost' : 'open';
+      await query(
+        `UPDATE com_opportunities SET stage_id = $1, status = $2, updated_by = $3, updated_at = NOW() WHERE id = $4`,
+        [stage.id, newStatus, req.actor.id, opp.id]
+      );
+      await query(
+        `INSERT INTO com_opportunity_history (opportunity_id, actor_id, field, old_value, new_value) VALUES ($1, $2, 'stage', $3, $4)`,
+        [opp.id, req.actor.id, opp.stage_name || null, stage.name]
+      );
+    }
+
+    const fields = ['title', 'estimated_value', 'probability_percent', 'expected_close_date', 'origin', 'notes', 'next_action', 'next_action_date', 'lost_reason'];
+    const sets = [];
+    const params = [];
+    let idx = 1;
+    for (const f of fields) {
+      if (b[f] !== undefined) { sets.push(`${f} = $${idx++}`); params.push(b[f] === '' ? null : b[f]); }
+    }
+    if (sets.length > 0) {
+      sets.push(`updated_by = $${idx++}`); params.push(req.actor.id);
+      sets.push('updated_at = NOW()');
+      params.push(opp.id);
+      await query(`UPDATE com_opportunities SET ${sets.join(', ')} WHERE id = $${idx}`, params);
+    }
+
+    const updated = await query('SELECT * FROM com_opportunities WHERE id = $1', [opp.id]);
+    res.json({ opportunity: updated.rows[0] });
+  } catch (error) {
+    console.error('[comercial] update opportunity error:', error);
+    res.status(500).json({ error: 'Erro ao atualizar oportunidade' });
+  }
+}
+
 const INVITE_TOKEN_TTL_HOURS = 48;
 const RESET_TOKEN_TTL_HOURS = 1;
 const forgotPasswordCooldown = new Map();
@@ -908,6 +1256,18 @@ router.post('/orcamentos/:id/itens', externalActorAuth, addQuoteItemHandler);
 router.put('/orcamentos/:id/itens/:itemId', externalActorAuth, updateQuoteItemHandler);
 router.delete('/orcamentos/:id/itens/:itemId', externalActorAuth, deleteQuoteItemHandler);
 router.post('/orcamentos/:id/enviar', externalActorAuth, sendQuoteHandler);
+router.post('/orcamentos/:id/converter-venda', externalActorAuth, convertQuoteToSaleHandler);
+
+// Oportunidades (kanban)
+router.get('/oportunidades/etapas', externalActorAuth, listStagesHandler);
+router.get('/oportunidades', externalActorAuth, listOpportunitiesHandler);
+router.post('/oportunidades', externalActorAuth, createOpportunityHandler);
+router.get('/oportunidades/:id', externalActorAuth, getOpportunityHandler);
+router.put('/oportunidades/:id', externalActorAuth, updateOpportunityHandler);
+
+// Vendas
+router.get('/vendas', externalActorAuth, listSalesHandler);
+router.get('/vendas/:id', externalActorAuth, getSaleHandler);
 
 // Proposta pública (link enviado ao cliente, sem autenticação — item 13)
 router.get('/proposta/:token', async (req, res) => {
@@ -982,6 +1342,16 @@ internalRouter.post('/orcamentos/:id/itens', addQuoteItemHandler);
 internalRouter.put('/orcamentos/:id/itens/:itemId', updateQuoteItemHandler);
 internalRouter.delete('/orcamentos/:id/itens/:itemId', deleteQuoteItemHandler);
 internalRouter.post('/orcamentos/:id/enviar', sendQuoteHandler);
+internalRouter.post('/orcamentos/:id/converter-venda', convertQuoteToSaleHandler);
+
+internalRouter.get('/oportunidades/etapas', listStagesHandler);
+internalRouter.get('/oportunidades', listOpportunitiesHandler);
+internalRouter.post('/oportunidades', createOpportunityHandler);
+internalRouter.get('/oportunidades/:id', getOpportunityHandler);
+internalRouter.put('/oportunidades/:id', updateOpportunityHandler);
+
+internalRouter.get('/vendas', listSalesHandler);
+internalRouter.get('/vendas/:id', getSaleHandler);
 
 router.use('/interno', internalRouter);
 
@@ -1368,6 +1738,174 @@ adminRouter.put('/products/:id', gate('can_manage_comercial_portal'), async (req
     if (error.code === '23505') return res.status(409).json({ error: 'Já existe um produto com este SKU' });
     console.error('[comercial] update product error:', error);
     res.status(500).json({ error: 'Erro ao atualizar produto' });
+  }
+});
+
+// --- Tabelas de preço: cada tabela pode ter o mesmo produto com preço
+// diferente (item 7) — gerido aqui, reaproveitando price_lists/price_list_items
+// já existentes (online-quotes.js), agora ligados ao catálogo (products).
+
+adminRouter.get('/price-lists', gate('can_manage_comercial_portal'), async (req, res) => {
+  const org = await getUserOrg(req.userId);
+  if (!org) return res.status(403).json({ error: 'Sem organização' });
+
+  const result = await query(
+    `SELECT pl.id, pl.name, pl.description, pl.is_active,
+            (SELECT COUNT(*) FROM price_list_items pli WHERE pli.price_list_id = pl.id) as items_count
+     FROM price_lists pl WHERE pl.organization_id = $1 ORDER BY pl.name ASC`,
+    [org.organization_id]
+  );
+  res.json({ price_lists: result.rows });
+});
+
+adminRouter.post('/price-lists', gate('can_manage_comercial_portal'), async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+
+    const { name, description } = req.body || {};
+    if (!name?.trim()) return res.status(400).json({ error: 'Nome é obrigatório' });
+
+    const result = await query(
+      `INSERT INTO price_lists (organization_id, name, description) VALUES ($1, $2, $3) RETURNING id, name, description, is_active`,
+      [org.organization_id, name.trim(), description || null]
+    );
+    res.status(201).json({ price_list: result.rows[0] });
+  } catch (error) {
+    if (error.code === '23505') return res.status(409).json({ error: 'Já existe uma tabela com este nome' });
+    console.error('[comercial] create price list error:', error);
+    res.status(500).json({ error: 'Erro ao criar tabela de preço' });
+  }
+});
+
+adminRouter.get('/price-lists/:id/items', gate('can_manage_comercial_portal'), async (req, res) => {
+  const org = await getUserOrg(req.userId);
+  if (!org) return res.status(403).json({ error: 'Sem organização' });
+
+  const pl = await query('SELECT id FROM price_lists WHERE id = $1 AND organization_id = $2', [req.params.id, org.organization_id]);
+  if (pl.rows.length === 0) return res.status(404).json({ error: 'Tabela de preço não encontrada' });
+
+  const result = await query(
+    `SELECT pli.id, pli.product_id, pli.product_code, pli.product_name, pli.sale_price, pli.cost_price, pli.min_price, pli.unit
+     FROM price_list_items pli WHERE pli.price_list_id = $1 ORDER BY pli.product_name ASC`,
+    [req.params.id]
+  );
+  res.json({ items: result.rows });
+});
+
+// Vincula um produto do catálogo a esta tabela com um preço próprio — o
+// mesmo produto pode estar em várias tabelas com preços diferentes.
+adminRouter.post('/price-lists/:id/items', gate('can_manage_comercial_portal'), async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+
+    const pl = await query('SELECT id FROM price_lists WHERE id = $1 AND organization_id = $2', [req.params.id, org.organization_id]);
+    if (pl.rows.length === 0) return res.status(404).json({ error: 'Tabela de preço não encontrada' });
+
+    const { product_id, sale_price, cost_price, min_price } = req.body || {};
+    if (!product_id || sale_price === undefined || sale_price === null) {
+      return res.status(400).json({ error: 'Produto e preço são obrigatórios' });
+    }
+    const product = await query('SELECT * FROM products WHERE id = $1 AND organization_id = $2', [product_id, org.organization_id]);
+    if (product.rows.length === 0) return res.status(404).json({ error: 'Produto não encontrado' });
+    if (!product.rows[0].sku) return res.status(400).json({ error: 'Este produto precisa de um SKU para ser adicionado a uma tabela de preço' });
+
+    const p = product.rows[0];
+    const result = await query(
+      `INSERT INTO price_list_items (price_list_id, product_id, product_code, product_name, description, unit, category, subcategory, image_url, sale_price, cost_price, min_price)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+       ON CONFLICT (price_list_id, product_code) DO UPDATE SET
+         product_id = EXCLUDED.product_id, product_name = EXCLUDED.product_name, sale_price = EXCLUDED.sale_price,
+         cost_price = EXCLUDED.cost_price, min_price = EXCLUDED.min_price, updated_at = NOW()
+       RETURNING *`,
+      [req.params.id, p.id, p.sku, p.name, p.description, p.unit, p.category, p.subcategory, p.image_url,
+        sale_price, cost_price ?? p.cost_price ?? 0, min_price || null]
+    );
+    res.status(201).json({ item: result.rows[0] });
+  } catch (error) {
+    console.error('[comercial] add price list item error:', error);
+    res.status(500).json({ error: 'Erro ao adicionar produto à tabela' });
+  }
+});
+
+adminRouter.put('/price-lists/:id/items/:itemId', gate('can_manage_comercial_portal'), async (req, res) => {
+  try {
+    const { sale_price, cost_price, min_price } = req.body || {};
+    const sets = [];
+    const params = [];
+    let idx = 1;
+    if (sale_price !== undefined) { sets.push(`sale_price = $${idx++}`); params.push(sale_price); }
+    if (cost_price !== undefined) { sets.push(`cost_price = $${idx++}`); params.push(cost_price); }
+    if (min_price !== undefined) { sets.push(`min_price = $${idx++}`); params.push(min_price || null); }
+    if (sets.length === 0) return res.status(400).json({ error: 'Nada para atualizar' });
+    sets.push('updated_at = NOW()');
+    params.push(req.params.itemId, req.params.id);
+
+    const result = await query(
+      `UPDATE price_list_items SET ${sets.join(', ')} WHERE id = $${idx} AND price_list_id = $${idx + 1} RETURNING *`,
+      params
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Item não encontrado' });
+    res.json({ item: result.rows[0] });
+  } catch (error) {
+    console.error('[comercial] update price list item error:', error);
+    res.status(500).json({ error: 'Erro ao atualizar item' });
+  }
+});
+
+adminRouter.delete('/price-lists/:id/items/:itemId', gate('can_manage_comercial_portal'), async (req, res) => {
+  const result = await query(
+    'DELETE FROM price_list_items WHERE id = $1 AND price_list_id = $2 RETURNING id',
+    [req.params.itemId, req.params.id]
+  );
+  if (result.rows.length === 0) return res.status(404).json({ error: 'Item não encontrado' });
+  res.json({ message: 'Item removido da tabela' });
+});
+
+// Importação em massa (item 19): recebe linhas já parseadas pelo front
+// (SKU + preço), resolve cada SKU contra o catálogo e faz upsert. Nunca
+// sobrescreve nada de um SKU que não existe no catálogo — devolve a lista
+// de SKUs não encontrados para o admin decidir (cadastrar o produto antes,
+// corrigir a planilha, etc).
+adminRouter.post('/price-lists/:id/import-items', gate('can_manage_comercial_portal'), async (req, res) => {
+  try {
+    const org = await getUserOrg(req.userId);
+    if (!org) return res.status(403).json({ error: 'Sem organização' });
+
+    const pl = await query('SELECT id FROM price_lists WHERE id = $1 AND organization_id = $2', [req.params.id, org.organization_id]);
+    if (pl.rows.length === 0) return res.status(404).json({ error: 'Tabela de preço não encontrada' });
+
+    const rows = Array.isArray(req.body?.items) ? req.body.items : [];
+    if (rows.length === 0) return res.status(400).json({ error: 'Nenhuma linha para importar' });
+
+    const imported = [];
+    const notFound = [];
+    for (const row of rows) {
+      const sku = String(row.sku || '').trim();
+      const salePrice = Number(row.sale_price);
+      if (!sku || Number.isNaN(salePrice)) { notFound.push({ sku, reason: 'SKU ou preço inválido' }); continue; }
+
+      const product = await query('SELECT * FROM products WHERE organization_id = $1 AND sku = $2', [org.organization_id, sku]);
+      if (product.rows.length === 0) { notFound.push({ sku, reason: 'Produto não cadastrado no catálogo' }); continue; }
+
+      const p = product.rows[0];
+      const costPrice = row.cost_price !== undefined && !Number.isNaN(Number(row.cost_price)) ? Number(row.cost_price) : (p.cost_price || 0);
+      await query(
+        `INSERT INTO price_list_items (price_list_id, product_id, product_code, product_name, description, unit, category, subcategory, image_url, sale_price, cost_price)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+         ON CONFLICT (price_list_id, product_code) DO UPDATE SET
+           product_id = EXCLUDED.product_id, product_name = EXCLUDED.product_name, sale_price = EXCLUDED.sale_price,
+           cost_price = EXCLUDED.cost_price, updated_at = NOW()`,
+        [req.params.id, p.id, p.sku, p.name, p.description, p.unit, p.category, p.subcategory, p.image_url, salePrice, costPrice]
+      );
+      imported.push(sku);
+    }
+
+    res.json({ imported_count: imported.length, not_found: notFound });
+  } catch (error) {
+    console.error('[comercial] import price list items error:', error);
+    res.status(500).json({ error: 'Erro ao importar planilha' });
   }
 });
 

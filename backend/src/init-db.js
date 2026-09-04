@@ -5834,6 +5834,109 @@ CREATE INDEX IF NOT EXISTS idx_com_quote_approvals_quote ON com_quote_approvals(
 CREATE INDEX IF NOT EXISTS idx_com_quote_approvals_status ON com_quote_approvals(status);
 `;
 
+// Portal Comercial (Fase 4) — oportunidades (kanban configurável por
+// organização) e vendas. Venda é criada por conversão de orçamento, mas com
+// itens copiados (nunca um JOIN vivo) — alterar o orçamento depois não
+// altera a venda já registrada (item 15).
+const step76ComercialOpportunitiesSales = `
+CREATE TABLE IF NOT EXISTS com_opportunity_stages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  name VARCHAR(100) NOT NULL,
+  position INT NOT NULL DEFAULT 0,
+  is_won BOOLEAN NOT NULL DEFAULT false,
+  is_lost BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT com_opportunity_stages_org_name_unique UNIQUE (organization_id, name)
+);
+CREATE INDEX IF NOT EXISTS idx_com_opportunity_stages_org ON com_opportunity_stages(organization_id, position);
+
+CREATE TABLE IF NOT EXISTS com_opportunities (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  actor_id UUID REFERENCES com_actors(id) ON DELETE SET NULL,
+  customer_id UUID REFERENCES com_customers(id) ON DELETE SET NULL,
+  stage_id UUID REFERENCES com_opportunity_stages(id) ON DELETE SET NULL,
+  quote_id UUID REFERENCES online_quotes(id) ON DELETE SET NULL,
+  title VARCHAR(255) NOT NULL,
+  estimated_value NUMERIC(15,2) DEFAULT 0,
+  probability_percent NUMERIC(5,2),
+  expected_close_date DATE,
+  origin VARCHAR(100),
+  notes TEXT,
+  next_action TEXT,
+  next_action_date DATE,
+  status VARCHAR(20) NOT NULL DEFAULT 'open',       -- open | won | lost
+  lost_reason TEXT,
+  created_by UUID REFERENCES com_actors(id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES com_actors(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_com_opportunities_org ON com_opportunities(organization_id);
+CREATE INDEX IF NOT EXISTS idx_com_opportunities_actor ON com_opportunities(actor_id);
+CREATE INDEX IF NOT EXISTS idx_com_opportunities_stage ON com_opportunities(stage_id);
+
+CREATE TABLE IF NOT EXISTS com_opportunity_history (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  opportunity_id UUID NOT NULL REFERENCES com_opportunities(id) ON DELETE CASCADE,
+  actor_id UUID REFERENCES com_actors(id) ON DELETE SET NULL,
+  field VARCHAR(50) NOT NULL,
+  old_value TEXT,
+  new_value TEXT,
+  note TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_com_opportunity_history_opp ON com_opportunity_history(opportunity_id);
+
+DO $$ BEGIN
+  ALTER TABLE online_quotes ADD COLUMN opportunity_id UUID REFERENCES com_opportunities(id) ON DELETE SET NULL;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+CREATE INDEX IF NOT EXISTS idx_online_quotes_opportunity ON online_quotes(opportunity_id);
+
+CREATE TABLE IF NOT EXISTS com_sales (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  quote_id UUID REFERENCES online_quotes(id) ON DELETE SET NULL,
+  opportunity_id UUID REFERENCES com_opportunities(id) ON DELETE SET NULL,
+  customer_id UUID REFERENCES com_customers(id) ON DELETE SET NULL,
+  actor_id UUID REFERENCES com_actors(id) ON DELETE SET NULL,
+  sale_number VARCHAR(50),
+  sequence_number SERIAL,
+  status VARCHAR(20) NOT NULL DEFAULT 'confirmed',  -- confirmed | canceled
+  client_name VARCHAR(255) NOT NULL,
+  client_document VARCHAR(20),
+  subtotal_value NUMERIC(15,2) DEFAULT 0,
+  discount_value NUMERIC(15,2) DEFAULT 0,
+  freight_value NUMERIC(15,2) DEFAULT 0,
+  total_value NUMERIC(15,2) NOT NULL DEFAULT 0,
+  payment_terms TEXT,
+  sale_date DATE NOT NULL DEFAULT CURRENT_DATE,
+  notes TEXT,
+  created_by UUID REFERENCES com_actors(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_com_sales_org ON com_sales(organization_id);
+CREATE INDEX IF NOT EXISTS idx_com_sales_actor ON com_sales(actor_id);
+CREATE INDEX IF NOT EXISTS idx_com_sales_quote ON com_sales(quote_id);
+
+CREATE TABLE IF NOT EXISTS com_sale_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  sale_id UUID NOT NULL REFERENCES com_sales(id) ON DELETE CASCADE,
+  product_id UUID REFERENCES products(id) ON DELETE SET NULL,
+  product_code VARCHAR(100),
+  product_name VARCHAR(255) NOT NULL,
+  description TEXT,
+  quantity NUMERIC(15,3) NOT NULL DEFAULT 1,
+  unit_price NUMERIC(15,2) NOT NULL DEFAULT 0,
+  total_price NUMERIC(15,2) NOT NULL DEFAULT 0,
+  discount_percent NUMERIC(5,2) DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_com_sale_items_sale ON com_sale_items(sale_id);
+`;
+
 
 
 
@@ -6050,6 +6153,7 @@ const migrationSteps = [
   { name: 'Portal Comercial (Core)', sql: step73ComercialPortalCore, critical: false },
   { name: 'Portal Comercial (Catálogo & Clientes)', sql: step74ComercialCatalogCustomers, critical: false },
   { name: 'Portal Comercial (Orçamentos)', sql: step75ComercialQuotes, critical: false },
+  { name: 'Portal Comercial (Oportunidades & Vendas)', sql: step76ComercialOpportunitiesSales, critical: false },
 ];
 
 

@@ -11,11 +11,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import {
-  ComercialActor, ComercialCatalogProduct, ComercialQuoteDetail, ComercialQuoteItem, ComercialQuote,
+  ComercialActor, ComercialCatalogProduct, ComercialQuoteDetail, ComercialQuoteItem, ComercialQuote, ComercialSale,
 } from '@/lib/comercial-api';
 import { quoteStatusConfig, formatCurrency } from './ComercialOrcamentosView';
 import { generateQuotePDF } from '@/lib/pdf-generator';
-import { Loader2, ArrowLeft, Plus, Trash2, Send, Copy, Download } from 'lucide-react';
+import { Loader2, ArrowLeft, Plus, Trash2, Send, Copy, Download, ShoppingCart } from 'lucide-react';
 
 interface QuoteApiBundle {
   getQuote: (id: string) => Promise<ComercialQuoteDetail>;
@@ -24,19 +24,22 @@ interface QuoteApiBundle {
   updateQuoteItem: (id: string, itemId: string, body: { quantity?: number; discount_percent?: number }) => Promise<{ item: ComercialQuoteItem; quote: ComercialQuote }>;
   deleteQuoteItem: (id: string, itemId: string) => Promise<{ message: string }>;
   sendQuote: (id: string) => Promise<{ message: string; status: string; public_token?: string }>;
+  convertQuoteToSale: (id: string) => Promise<{ sale: ComercialSale }>;
   listCatalog: () => Promise<{ products: ComercialCatalogProduct[] }>;
 }
 
 interface Props {
   actor: ComercialActor;
   basePath: string;
+  salesBasePath: string;
   proposalBaseUrl: string; // ex: `${window.location.origin}/proposta`
   api: QuoteApiBundle;
 }
 
 const EDITABLE_STATUSES = ['draft', 'em_elaboracao'];
+const CONVERTIBLE_STATUSES = ['enviado', 'visualizado', 'em_negociacao'];
 
-export default function ComercialOrcamentoDetailView({ actor, basePath, proposalBaseUrl, api }: Props) {
+export default function ComercialOrcamentoDetailView({ actor, basePath, salesBasePath, proposalBaseUrl, api }: Props) {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -45,6 +48,7 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, proposal
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
+  const [converting, setConverting] = useState(false);
 
   const [form, setForm] = useState({
     payment_terms: '', delivery_time: '', valid_until: '', freight_value: '0', notes: '', internal_notes: '',
@@ -170,6 +174,21 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, proposal
     }
   };
 
+  const handleConvert = async () => {
+    if (!id) return;
+    setConverting(true);
+    try {
+      const res = await api.convertQuoteToSale(id);
+      toast({ title: 'Convertido em venda', description: res.sale.sale_number || undefined });
+      navigate(`${salesBasePath}/${res.sale.id}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Tente novamente.';
+      toast({ title: 'Erro ao converter em venda', description: message, variant: 'destructive' });
+    } finally {
+      setConverting(false);
+    }
+  };
+
   const handleCopyLink = () => {
     if (!quote.public_token) return;
     navigator.clipboard.writeText(`${proposalBaseUrl}/${quote.public_token}`);
@@ -237,6 +256,12 @@ export default function ComercialOrcamentoDetailView({ actor, basePath, proposal
             <Button size="sm" onClick={handleSend} disabled={sending}>
               {sending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Send className="h-4 w-4 mr-1" />}
               Enviar orçamento
+            </Button>
+          )}
+          {CONVERTIBLE_STATUSES.includes(quote.status) && (
+            <Button size="sm" onClick={handleConvert} disabled={converting}>
+              {converting ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <ShoppingCart className="h-4 w-4 mr-1" />}
+              Converter em venda
             </Button>
           )}
         </div>

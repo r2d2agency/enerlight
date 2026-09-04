@@ -201,6 +201,100 @@ async function call<T>(endpoint: string, opts: { method?: string; body?: any; au
   return data as T;
 }
 
+export interface ComercialOpportunityStage {
+  id: string;
+  name: string;
+  position: number;
+  is_won: boolean;
+  is_lost: boolean;
+}
+
+export interface ComercialOpportunity {
+  id: string;
+  organization_id: string;
+  actor_id?: string | null;
+  actor_name?: string | null;
+  customer_id: string;
+  customer_name?: string | null;
+  stage_id?: string | null;
+  stage_name?: string | null;
+  is_won?: boolean;
+  is_lost?: boolean;
+  quote_id?: string | null;
+  title: string;
+  estimated_value: number;
+  probability_percent?: number | null;
+  expected_close_date?: string | null;
+  origin?: string | null;
+  notes?: string | null;
+  next_action?: string | null;
+  next_action_date?: string | null;
+  status: 'open' | 'won' | 'lost';
+  lost_reason?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ComercialOpportunityHistoryEntry {
+  id: string;
+  field: string;
+  old_value?: string | null;
+  new_value?: string | null;
+  note?: string | null;
+  actor_name?: string | null;
+  created_at: string;
+}
+
+export interface ComercialOpportunityDetail {
+  opportunity: ComercialOpportunity;
+  history: ComercialOpportunityHistoryEntry[];
+  quotes: Array<{ id: string; quote_number?: string | null; status: string; total_value: number }>;
+}
+
+export interface ComercialSaleListItem {
+  id: string;
+  sale_number?: string | null;
+  status: 'confirmed' | 'canceled';
+  total_value: number;
+  sale_date: string;
+  created_at: string;
+  customer_name?: string | null;
+  actor_name?: string | null;
+}
+
+export interface ComercialSaleItem {
+  id: string;
+  product_name: string;
+  description?: string | null;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+  discount_percent: number;
+}
+
+export interface ComercialSale {
+  id: string;
+  organization_id: string;
+  quote_id?: string | null;
+  opportunity_id?: string | null;
+  customer_id?: string | null;
+  customer_name?: string | null;
+  actor_id?: string | null;
+  actor_name?: string | null;
+  sale_number?: string | null;
+  status: 'confirmed' | 'canceled';
+  client_name: string;
+  client_document?: string | null;
+  subtotal_value: number;
+  discount_value: number;
+  freight_value: number;
+  total_value: number;
+  payment_terms?: string | null;
+  sale_date: string;
+  notes?: string | null;
+  created_at: string;
+}
+
 // Portal externo — login isolado, fora do app principal (sem AuthContext)
 export const comercialExternalApi = {
   login: (email: string, password: string) =>
@@ -247,6 +341,19 @@ export const comercialExternalApi = {
     call<{ message: string }>(`/api/comercial/orcamentos/${id}/itens/${itemId}`, { method: 'DELETE' }),
   sendQuote: (id: string) =>
     call<{ message: string; status: string; public_token?: string }>(`/api/comercial/orcamentos/${id}/enviar`, { method: 'POST' }),
+  convertQuoteToSale: (id: string) =>
+    call<{ sale: ComercialSale }>(`/api/comercial/orcamentos/${id}/converter-venda`, { method: 'POST' }),
+
+  listStages: () => call<{ stages: ComercialOpportunityStage[] }>('/api/comercial/oportunidades/etapas'),
+  listOpportunities: () => call<{ opportunities: ComercialOpportunity[] }>('/api/comercial/oportunidades'),
+  createOpportunity: (body: Partial<ComercialOpportunity>) =>
+    call<{ opportunity: ComercialOpportunity }>('/api/comercial/oportunidades', { method: 'POST', body }),
+  getOpportunity: (id: string) => call<ComercialOpportunityDetail>(`/api/comercial/oportunidades/${id}`),
+  updateOpportunity: (id: string, body: Partial<ComercialOpportunity>) =>
+    call<{ opportunity: ComercialOpportunity }>(`/api/comercial/oportunidades/${id}`, { method: 'PUT', body }),
+
+  listSales: () => call<{ sales: ComercialSaleListItem[] }>('/api/comercial/vendas'),
+  getSale: (id: string) => call<{ sale: ComercialSale; items: ComercialSaleItem[] }>(`/api/comercial/vendas/${id}`),
 };
 
 // Proposta pública — sem autenticação, acessada pelo cliente final via link
@@ -285,6 +392,19 @@ export const comercialInternalApi = {
     api<{ message: string }>(`/api/comercial/interno/orcamentos/${id}/itens/${itemId}`, { method: 'DELETE' }),
   sendQuote: (id: string) =>
     api<{ message: string; status: string; public_token?: string }>(`/api/comercial/interno/orcamentos/${id}/enviar`, { method: 'POST' }),
+  convertQuoteToSale: (id: string) =>
+    api<{ sale: ComercialSale }>(`/api/comercial/interno/orcamentos/${id}/converter-venda`, { method: 'POST' }),
+
+  listStages: () => api<{ stages: ComercialOpportunityStage[] }>('/api/comercial/interno/oportunidades/etapas'),
+  listOpportunities: () => api<{ opportunities: ComercialOpportunity[] }>('/api/comercial/interno/oportunidades'),
+  createOpportunity: (body: Partial<ComercialOpportunity>) =>
+    api<{ opportunity: ComercialOpportunity }>('/api/comercial/interno/oportunidades', { method: 'POST', body }),
+  getOpportunity: (id: string) => api<ComercialOpportunityDetail>(`/api/comercial/interno/oportunidades/${id}`),
+  updateOpportunity: (id: string, body: Partial<ComercialOpportunity>) =>
+    api<{ opportunity: ComercialOpportunity }>(`/api/comercial/interno/oportunidades/${id}`, { method: 'PUT', body }),
+
+  listSales: () => api<{ sales: ComercialSaleListItem[] }>('/api/comercial/interno/vendas'),
+  getSale: (id: string) => api<{ sale: ComercialSale; items: ComercialSaleItem[] }>(`/api/comercial/interno/vendas/${id}`),
 };
 
 export interface ComercialAdminActor {
@@ -366,6 +486,30 @@ export interface ComercialQuoteApproval {
   created_at: string;
 }
 
+export interface ComercialAdminPriceList {
+  id: string;
+  name: string;
+  description?: string | null;
+  is_active: boolean;
+  items_count: number;
+}
+
+export interface ComercialPriceListItem {
+  id: string;
+  product_id?: string | null;
+  product_code?: string | null;
+  product_name: string;
+  sale_price: number;
+  cost_price?: number;
+  min_price?: number | null;
+  unit: string;
+}
+
+export interface ComercialImportResult {
+  imported_count: number;
+  not_found: Array<{ sku: string; reason: string }>;
+}
+
 // Administração — usa a mesma sessão do CRM (auth_token), não o token isolado do portal
 export const comercialAdminApi = {
   listActors: () => api<{ actors: ComercialAdminActor[] }>('/api/comercial/admin/actors'),
@@ -414,4 +558,18 @@ export const comercialAdminApi = {
     api<{ message: string }>(`/api/comercial/admin/quote-approvals/${id}/approve`, { method: 'POST' }),
   rejectQuote: (id: string, note?: string) =>
     api<{ message: string }>(`/api/comercial/admin/quote-approvals/${id}/reject`, { method: 'POST', body: { note } }),
+
+  listPriceLists: () => api<{ price_lists: ComercialAdminPriceList[] }>('/api/comercial/admin/price-lists'),
+  createPriceList: (body: { name: string; description?: string }) =>
+    api<{ price_list: ComercialAdminPriceList }>('/api/comercial/admin/price-lists', { method: 'POST', body }),
+  listPriceListItems: (priceListId: string) =>
+    api<{ items: ComercialPriceListItem[] }>(`/api/comercial/admin/price-lists/${priceListId}/items`),
+  addPriceListItem: (priceListId: string, body: { product_id: string; sale_price: number; cost_price?: number; min_price?: number }) =>
+    api<{ item: ComercialPriceListItem }>(`/api/comercial/admin/price-lists/${priceListId}/items`, { method: 'POST', body }),
+  updatePriceListItem: (priceListId: string, itemId: string, body: { sale_price?: number; cost_price?: number; min_price?: number }) =>
+    api<{ item: ComercialPriceListItem }>(`/api/comercial/admin/price-lists/${priceListId}/items/${itemId}`, { method: 'PUT', body }),
+  deletePriceListItem: (priceListId: string, itemId: string) =>
+    api<{ message: string }>(`/api/comercial/admin/price-lists/${priceListId}/items/${itemId}`, { method: 'DELETE' }),
+  importPriceListItems: (priceListId: string, items: Array<{ sku: string; sale_price: number; cost_price?: number }>) =>
+    api<ComercialImportResult>(`/api/comercial/admin/price-lists/${priceListId}/import-items`, { method: 'POST', body: { items } }),
 };

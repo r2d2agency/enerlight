@@ -12,9 +12,9 @@ import { cn } from '@/lib/utils';
 const NAV_ITEMS = [
   { name: 'Dashboard', href: '/comercial/dashboard', icon: LayoutDashboard, enabled: true },
   { name: 'Clientes', href: '/comercial/clientes', icon: Users, enabled: true },
-  { name: 'Oportunidades', href: '/comercial/oportunidades', icon: Handshake, enabled: false },
+  { name: 'Oportunidades', href: '/comercial/oportunidades', icon: Handshake, enabled: true },
   { name: 'Orçamentos', href: '/comercial/orcamentos', icon: FileText, enabled: true },
-  { name: 'Vendas', href: '/comercial/vendas', icon: ShoppingCart, enabled: false },
+  { name: 'Vendas', href: '/comercial/vendas', icon: ShoppingCart, enabled: true },
   { name: 'Catálogo', href: '/comercial/catalogo', icon: Package, enabled: true },
   { name: 'Minha Conta', href: '/comercial/conta', icon: UserCog, enabled: false },
 ];

@@ -8,6 +8,7 @@ const ComercialOrcamentoDetail = () => (
       <ComercialOrcamentoDetailView
         actor={actor}
         basePath="/comercial/orcamentos"
+        salesBasePath="/comercial/vendas"
         proposalBaseUrl={`${window.location.origin}/proposta`}
         api={comercialExternalApi}
       />

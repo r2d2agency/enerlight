@@ -9,6 +9,7 @@ export default function PortalComercialOrcamentoDetail() {
         <ComercialOrcamentoDetailView
           actor={actor}
           basePath="/portal-comercial/orcamentos"
+          salesBasePath="/portal-comercial/vendas"
           proposalBaseUrl={`${window.location.origin}/proposta`}
           api={comercialInternalApi}
         />

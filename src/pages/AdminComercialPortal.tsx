@@ -14,11 +14,16 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import {
   comercialAdminApi, ComercialAdminActor, ComercialTeam, ComercialProfile,
   ComercialAdminProduct, ComercialActorPriceListEntry, ComercialTransferRequest, ComercialQuoteApproval,
+  ComercialAdminPriceList, ComercialPriceListItem,
 } from '@/lib/comercial-api';
 import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Plus, Briefcase, Send, Lock, Unlock, UserPlus, Users2, Package, Tag, ArrowRightLeft, Check, X, ShieldAlert } from 'lucide-react';
+import * as XLSX from 'xlsx';
+import {
+  Loader2, Plus, Briefcase, Send, Lock, Unlock, UserPlus, Users2, Package, Tag, ArrowRightLeft, Check, X,
+  ShieldAlert, Upload, Trash2, List,
+} from 'lucide-react';
 
 interface OrgMember { id: string; name: string; email: string; is_active: boolean }
 
@@ -26,6 +31,8 @@ const emptyProductForm = {
   sku: '', name: '', description: '', category: '', subcategory: '', unit: 'un',
   cost_price: '', base_price: '',
 };
+
+interface ImportRow { sku: string; sale_price: number; cost_price?: number }
 
 const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' }> = {
   pending: { label: 'Pendente', variant: 'secondary' },
@@ -71,6 +78,16 @@ export default function AdminComercialPortal() {
   const [editingProduct, setEditingProduct] = useState<ComercialAdminProduct | null>(null);
   const [productForm, setProductForm] = useState(emptyProductForm);
 
+  const [priceLists, setPriceLists] = useState<ComercialAdminPriceList[]>([]);
+  const [newPriceListDialogOpen, setNewPriceListDialogOpen] = useState(false);
+  const [newPriceListForm, setNewPriceListForm] = useState({ name: '', description: '' });
+  const [managingPriceList, setManagingPriceList] = useState<ComercialAdminPriceList | null>(null);
+  const [priceListItems, setPriceListItems] = useState<ComercialPriceListItem[]>([]);
+  const [loadingPriceListItems, setLoadingPriceListItems] = useState(false);
+  const [addItemForm, setAddItemForm] = useState({ product_id: '', sale_price: '', cost_price: '' });
+  const [importPreview, setImportPreview] = useState<Array<ImportRow & { found: boolean; product_name?: string }>>([]);
+  const [importing, setImporting] = useState(false);
+
   const { toast } = useToast();
 
   const load = () => {
@@ -82,14 +99,16 @@ export default function AdminComercialPortal() {
       comercialAdminApi.listProducts(),
       comercialAdminApi.listTransferRequests(),
       comercialAdminApi.listQuoteApprovals(),
+      comercialAdminApi.listPriceLists(),
     ])
-      .then(([actorsRes, teamsRes, members, productsRes, transfersRes, approvalsRes]) => {
+      .then(([actorsRes, teamsRes, members, productsRes, transfersRes, approvalsRes, priceListsRes]) => {
         setActors(actorsRes.actors);
         setTeams(teamsRes.teams);
         setOrgMembers(members);
         setProducts(productsRes.products);
         setTransferRequests(transfersRes.transfer_requests);
         setQuoteApprovals(approvalsRes.approvals);
+        setPriceLists(priceListsRes.price_lists);
       })
       .catch((error) => toast({ title: 'Erro ao carregar Portal Comercial', description: error?.message, variant: 'destructive' }))
       .finally(() => setLoading(false));
@@ -358,6 +377,141 @@ export default function AdminComercialPortal() {
     }
   };
 
+  const handleCreatePriceList = async () => {
+    if (!newPriceListForm.name.trim()) {
+      toast({ title: 'Nome é obrigatório', variant: 'destructive' });
+      return;
+    }
+    setSaving(true);
+    try {
+      await comercialAdminApi.createPriceList(newPriceListForm);
+      toast({ title: 'Tabela de preço criada' });
+      setNewPriceListForm({ name: '', description: '' });
+      setNewPriceListDialogOpen(false);
+      load();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Tente novamente.';
+      toast({ title: 'Erro ao criar tabela', description: message, variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const openManagePriceList = async (pl: ComercialAdminPriceList) => {
+    setManagingPriceList(pl);
+    setAddItemForm({ product_id: '', sale_price: '', cost_price: '' });
+    setImportPreview([]);
+    setLoadingPriceListItems(true);
+    try {
+      const res = await comercialAdminApi.listPriceListItems(pl.id);
+      setPriceListItems(res.items);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Tente novamente.';
+      toast({ title: 'Erro ao carregar itens', description: message, variant: 'destructive' });
+    } finally {
+      setLoadingPriceListItems(false);
+    }
+  };
+
+  const handleAddPriceListItem = async () => {
+    if (!managingPriceList) return;
+    if (!addItemForm.product_id || !addItemForm.sale_price) {
+      toast({ title: 'Produto e preço são obrigatórios', variant: 'destructive' });
+      return;
+    }
+    setSaving(true);
+    try {
+      await comercialAdminApi.addPriceListItem(managingPriceList.id, {
+        product_id: addItemForm.product_id,
+        sale_price: Number(addItemForm.sale_price),
+        cost_price: addItemForm.cost_price ? Number(addItemForm.cost_price) : undefined,
+      });
+      setAddItemForm({ product_id: '', sale_price: '', cost_price: '' });
+      openManagePriceList(managingPriceList);
+      load();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Tente novamente.';
+      toast({ title: 'Erro ao adicionar produto', description: message, variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeletePriceListItem = async (itemId: string) => {
+    if (!managingPriceList) return;
+    try {
+      await comercialAdminApi.deletePriceListItem(managingPriceList.id, itemId);
+      openManagePriceList(managingPriceList);
+      load();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Tente novamente.';
+      toast({ title: 'Erro ao remover item', description: message, variant: 'destructive' });
+    }
+  };
+
+  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = new Uint8Array(event.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { raw: false });
+
+        const knownSkus = new Set(products.map((p) => p.sku).filter(Boolean));
+        const productBySku = new Map(products.map((p) => [p.sku, p]));
+
+        const parsed = rows.map((row) => {
+          const entries = Object.entries(row);
+          const findCol = (aliases: string[]) => {
+            const hit = entries.find(([h]) => aliases.some((a) => h.toLowerCase().trim().includes(a)));
+            return hit ? String(hit[1]) : '';
+          };
+          const sku = findCol(['sku', 'codigo', 'código']).trim();
+          const salePriceRaw = findCol(['preço', 'preco', 'valor', 'price']);
+          const costPriceRaw = findCol(['custo', 'cost']);
+          const salePrice = Number(String(salePriceRaw).replace(/[^\d,.-]/g, '').replace(',', '.')) || 0;
+          const costPrice = costPriceRaw ? Number(String(costPriceRaw).replace(/[^\d,.-]/g, '').replace(',', '.')) || undefined : undefined;
+          return {
+            sku, sale_price: salePrice, cost_price: costPrice,
+            found: knownSkus.has(sku), product_name: productBySku.get(sku)?.name,
+          };
+        }).filter((r) => r.sku);
+
+        setImportPreview(parsed);
+      } catch (error) {
+        toast({ title: 'Erro ao ler planilha', description: 'Verifique se o arquivo é um XLSX/CSV válido.', variant: 'destructive' });
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    e.target.value = '';
+  };
+
+  const handleConfirmImport = async () => {
+    if (!managingPriceList || importPreview.length === 0) return;
+    setImporting(true);
+    try {
+      const res = await comercialAdminApi.importPriceListItems(
+        managingPriceList.id,
+        importPreview.filter((r) => r.found).map((r) => ({ sku: r.sku, sale_price: r.sale_price, cost_price: r.cost_price }))
+      );
+      toast({
+        title: `${res.imported_count} produto(s) importado(s)`,
+        description: res.not_found.length > 0 ? `${res.not_found.length} SKU(s) não encontrado(s) no catálogo.` : undefined,
+      });
+      setImportPreview([]);
+      openManagePriceList(managingPriceList);
+      load();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Tente novamente.';
+      toast({ title: 'Erro ao importar', description: message, variant: 'destructive' });
+    } finally {
+      setImporting(false);
+    }
+  };
+
   return (
     <MainLayout>
       <div className="flex items-center gap-3 mb-6">
@@ -375,6 +529,7 @@ export default function AdminComercialPortal() {
           <TabsTrigger value="atores">Usuários</TabsTrigger>
           <TabsTrigger value="equipes">Equipes</TabsTrigger>
           <TabsTrigger value="produtos">Produtos</TabsTrigger>
+          <TabsTrigger value="tabelas-preco">Tabelas de Preço</TabsTrigger>
           <TabsTrigger value="transferencias">
             Transferências{transferRequests.length > 0 ? ` (${transferRequests.length})` : ''}
           </TabsTrigger>
@@ -737,6 +892,86 @@ export default function AdminComercialPortal() {
           </Card>
         </TabsContent>
 
+        <TabsContent value="tabelas-preco" className="space-y-4 mt-4">
+          <div className="flex justify-between items-start gap-2 flex-wrap">
+            <p className="text-sm text-muted-foreground max-w-lg">
+              Cada tabela pode ter os mesmos produtos do catálogo com preços diferentes.
+              Crie uma tabela, adicione os produtos com o preço daquela tabela (ou importe
+              uma planilha com SKU e preço) e depois vincule a tabela aos vendedores/representantes na aba Usuários.
+            </p>
+            <Dialog open={newPriceListDialogOpen} onOpenChange={setNewPriceListDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-1" />
+                  Nova tabela
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Nova tabela de preço</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <Label>Nome *</Label>
+                    <Input value={newPriceListForm.name} onChange={(e) => setNewPriceListForm({ ...newPriceListForm, name: e.target.value })} placeholder="Ex: Tabela Revenda SP" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Descrição</Label>
+                    <Input value={newPriceListForm.description} onChange={(e) => setNewPriceListForm({ ...newPriceListForm, description: e.target.value })} />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button onClick={handleCreatePriceList} disabled={saving}>
+                    {saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+                    Criar tabela
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          <Card>
+            <CardContent className="p-0">
+              {loading ? (
+                <div className="flex justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : priceLists.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <Tag className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                  <p>Nenhuma tabela de preço cadastrada ainda.</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>Descrição</TableHead>
+                      <TableHead>Produtos</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {priceLists.map((pl) => (
+                      <TableRow key={pl.id}>
+                        <TableCell className="font-medium">{pl.name}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{pl.description || '—'}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{pl.items_count}</TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="sm" onClick={() => openManagePriceList(pl)}>
+                            <List className="h-4 w-4 mr-1" />
+                            Gerenciar produtos
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="transferencias" className="space-y-4 mt-4">
           <Card>
             <CardContent className="p-0">
@@ -848,6 +1083,132 @@ export default function AdminComercialPortal() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={!!managingPriceList} onOpenChange={(open) => !open && setManagingPriceList(null)}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Produtos — {managingPriceList?.name}</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="flex items-end gap-2 flex-wrap border rounded-md p-3">
+              <div className="space-y-1 flex-1 min-w-[180px]">
+                <Label className="text-xs">Produto</Label>
+                <Select value={addItemForm.product_id} onValueChange={(v) => setAddItemForm({ ...addItemForm, product_id: v })}>
+                  <SelectTrigger className="h-9"><SelectValue placeholder="Selecione um produto" /></SelectTrigger>
+                  <SelectContent>
+                    {products.filter((p) => p.sku).map((p) => (
+                      <SelectItem key={p.id} value={p.id}>{p.name} ({p.sku})</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1 w-28">
+                <Label className="text-xs">Preço nesta tabela</Label>
+                <Input className="h-9" type="number" step="0.01" value={addItemForm.sale_price} onChange={(e) => setAddItemForm({ ...addItemForm, sale_price: e.target.value })} />
+              </div>
+              <div className="space-y-1 w-24">
+                <Label className="text-xs">Custo</Label>
+                <Input className="h-9" type="number" step="0.01" value={addItemForm.cost_price} onChange={(e) => setAddItemForm({ ...addItemForm, cost_price: e.target.value })} />
+              </div>
+              <Button size="sm" onClick={handleAddPriceListItem} disabled={saving}>
+                {saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+                Adicionar
+              </Button>
+            </div>
+
+            {loadingPriceListItems ? (
+              <div className="flex justify-center py-6"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+            ) : priceListItems.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">Nenhum produto nesta tabela ainda.</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Produto</TableHead>
+                    <TableHead className="text-right">Preço</TableHead>
+                    <TableHead />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {priceListItems.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell className="font-medium">
+                        {item.product_name}
+                        {item.product_code && <span className="text-xs text-muted-foreground ml-1">({item.product_code})</span>}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(item.sale_price) || 0)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="sm" onClick={() => handleDeletePriceListItem(item.id)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+
+            <div className="border-t pt-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium">Importar planilha (SKU + Preço)</Label>
+                <label>
+                  <Button variant="outline" size="sm" asChild>
+                    <span><Upload className="h-4 w-4 mr-1" />Selecionar arquivo</span>
+                  </Button>
+                  <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImportFile} />
+                </label>
+              </div>
+              {importPreview.length > 0 && (
+                <div className="space-y-2">
+                  <div className="max-h-48 overflow-y-auto border rounded-md">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>SKU</TableHead>
+                          <TableHead>Produto</TableHead>
+                          <TableHead className="text-right">Preço</TableHead>
+                          <TableHead>Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {importPreview.map((row, idx) => (
+                          <TableRow key={idx}>
+                            <TableCell className="text-sm">{row.sku}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{row.product_name || '—'}</TableCell>
+                            <TableCell className="text-right text-sm">
+                              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(row.sale_price)}
+                            </TableCell>
+                            <TableCell>
+                              {row.found ? (
+                                <Badge variant="default">encontrado</Badge>
+                              ) : (
+                                <Badge variant="destructive">SKU não cadastrado</Badge>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-muted-foreground">
+                      {importPreview.filter((r) => r.found).length} de {importPreview.length} serão importados
+                      (produtos não cadastrados no catálogo são ignorados).
+                    </p>
+                    <Button size="sm" onClick={handleConfirmImport} disabled={importing || importPreview.every((r) => !r.found)}>
+                      {importing && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+                      Confirmar importação
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!priceListDialogActor} onOpenChange={(open) => !open && setPriceListDialogActor(null)}>
         <DialogContent>
