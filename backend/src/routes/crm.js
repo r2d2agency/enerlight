@@ -4043,31 +4043,33 @@ router.get('/map-data', async (req, res) => {
 
     // In-memory geocode cache (persists across requests for server lifetime)
     if (!global._geocodeCache) global._geocodeCache = {};
+    if (!global._geocodeInFlight) global._geocodeInFlight = new Set();
 
-    const geocodeCity = async (cityName, stateName) => {
-      const key = `${cityName.toLowerCase().trim()}|${(stateName || '').toUpperCase().trim()}`;
-      if (global._geocodeCache[key] !== undefined) return global._geocodeCache[key];
-      try {
-        const q = encodeURIComponent(`${cityName}, ${stateName || 'Brasil'}, Brazil`);
-        const resp = await fetch(`https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1&countrycodes=br`, {
-          headers: { 'User-Agent': 'CRM-Map/1.0' },
-          signal: AbortSignal.timeout(5000),
-        });
-        const data = await resp.json();
-        if (data && data.length > 0) {
-          const result = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
-          global._geocodeCache[key] = result;
-          return result;
-        }
-        global._geocodeCache[key] = null;
-        return null;
-      } catch (e) {
-        global._geocodeCache[key] = null;
-        return null;
-      }
+    // Geocodifica em segundo plano (não bloqueia a resposta do mapa) e só
+    // preenche o cache para as próximas requisições. Nunca é aguardado aqui:
+    // fazer isso de forma síncrona é o que tornava o mapa extremamente lento
+    // (uma chamada HTTP sequencial ao Nominatim para cada cidade não mapeada).
+    const geocodeCityInBackground = (cityName, stateName, key) => {
+      if (global._geocodeInFlight.has(key)) return;
+      global._geocodeInFlight.add(key);
+      const q = encodeURIComponent(`${cityName}, ${stateName || 'Brasil'}, Brazil`);
+      fetch(`https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1&countrycodes=br`, {
+        headers: { 'User-Agent': 'CRM-Map/1.0' },
+        signal: AbortSignal.timeout(5000),
+      })
+        .then((resp) => resp.json())
+        .then((data) => {
+          if (data && data.length > 0) {
+            global._geocodeCache[key] = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+          } else {
+            global._geocodeCache[key] = null;
+          }
+        })
+        .catch(() => { global._geocodeCache[key] = null; })
+        .finally(() => { global._geocodeInFlight.delete(key); });
     };
 
-    const getCoords = async (city, state) => {
+    const getCoords = (city, state) => {
       // Try hardcoded city first
       if (city) {
         const cityLower = city.toLowerCase().trim();
@@ -4076,13 +4078,18 @@ router.get('/map-data', async (req, res) => {
           const offset = () => (Math.random() - 0.5) * 0.05;
           return { lat: cap.lat + offset(), lng: cap.lng + offset() };
         }
-        // Try Nominatim geocoding for unknown cities
-        const geocoded = await geocodeCity(city, state);
-        if (geocoded) {
-          // Also cache in CITY_COORDS for this request
-          CITY_COORDS[cityLower] = geocoded;
+        // Já geocodificado (por uma requisição anterior)? Usa o cache.
+        const key = `${cityLower}|${(state || '').toUpperCase().trim()}`;
+        if (global._geocodeCache[key]) {
+          const cap = global._geocodeCache[key];
+          CITY_COORDS[cityLower] = cap;
           const offset = () => (Math.random() - 0.5) * 0.05;
-          return { lat: geocoded.lat + offset(), lng: geocoded.lng + offset() };
+          return { lat: cap.lat + offset(), lng: cap.lng + offset() };
+        }
+        if (global._geocodeCache[key] === undefined) {
+          // Ainda não geocodificado: dispara em segundo plano (não aguarda)
+          // e usa a capital do estado como aproximação por enquanto.
+          geocodeCityInBackground(city, state, key);
         }
       }
       // Fallback to state capital
@@ -4126,9 +4133,6 @@ router.get('/map-data', async (req, res) => {
       if (date_to) {
         dealParams.push(date_to);
         dealWhere += ` AND d.created_at <= $${dealParams.length}`;
-      } else if (!owner_id && !date_from) {
-        // Se não houver filtros, mostrar apenas o ano corrente por padrão (performance e solicitação)
-        dealWhere += ` AND d.created_at >= date_trunc('year', now())`;
       }
       const dealsResult = await query(
         `SELECT d.id, d.title, d.value, d.owner_id,
@@ -4146,7 +4150,7 @@ router.get('/map-data', async (req, res) => {
       for (const deal of dealsResult.rows) {
         const city = deal.company_city;
         const state = deal.company_state;
-        const coords = await getCoords(city, state);
+        const coords = getCoords(city, state);
         if (coords) {
           locations.push({
             id: deal.id,
@@ -4174,12 +4178,21 @@ router.get('/map-data', async (req, res) => {
 
     // Get prospects with city/state
     try {
+      let prospWhere = `p.organization_id = $1 AND p.converted_at IS NULL`;
+      const prospParams = [org.organization_id];
+      if (owner_id) {
+        prospParams.push(owner_id);
+        prospWhere += ` AND p.assigned_to = $${prospParams.length}`;
+      }
       const prospectsResult = await query(
-        `SELECT id, name, phone, city, state FROM crm_prospects WHERE organization_id = $1 AND converted_at IS NULL`,
-        [org.organization_id]
+        `SELECT p.id, p.name, p.phone, p.city, p.state, p.assigned_to as owner_id, u.name as owner_name
+         FROM crm_prospects p
+         LEFT JOIN users u ON u.id = p.assigned_to
+         WHERE ${prospWhere}`,
+        prospParams
       );
       for (const p of prospectsResult.rows) {
-        const coords = await getCoords(p.city, p.state);
+        const coords = getCoords(p.city, p.state);
         if (coords) {
           locations.push({
             id: p.id,
@@ -4190,6 +4203,8 @@ router.get('/map-data', async (req, res) => {
             state: p.state,
             lat: coords.lat,
             lng: coords.lng,
+            owner_id: p.owner_id,
+            owner_name: p.owner_name,
           });
         }
       }
@@ -4219,7 +4234,7 @@ router.get('/map-data', async (req, res) => {
         compParams
       );
       for (const company of companiesResult.rows) {
-        const coords = await getCoords(company.city, company.state);
+        const coords = getCoords(company.city, company.state);
         if (coords) {
           locations.push({
             id: company.id,
@@ -4293,7 +4308,7 @@ router.get('/map-data', async (req, res) => {
           for (const area of areas) {
             let coords = null;
             if (area.lat && area.lng) coords = { lat: Number(area.lat), lng: Number(area.lng) };
-            else coords = await getCoords(area.city, area.state);
+            else coords = getCoords(area.city, area.state);
             if (coords) {
               locations.push({
                 id: `${rep.id}-${area.city || 'area'}`,
@@ -4313,7 +4328,7 @@ router.get('/map-data', async (req, res) => {
           }
         } else {
           // Fallback: plota pela cidade do indicador
-          const coords = await getCoords(rep.city, rep.state);
+          const coords = getCoords(rep.city, rep.state);
           if (coords) {
             locations.push({
               id: rep.id,
